@@ -1,0 +1,42 @@
+{
+  "query": "\nSELECT 'students' as tabela, COUNT(*) as total FROM students\nUNION ALL\nSELECT 'lessons', COUNT(*) FROM lessons\nUNION ALL\nSELECT 'instruments', COUNT(*) FROM instruments\nUNION ALL\nSELECT 'reminders', COUNT(*) FROM reminders\nUNION ALL\nSELECT 'reminder_templates', COUNT(*) FROM reminder_templates\nUNION ALL\nSELECT 'payment_dues', COUNT(*) FROM payment_dues\nUNION ALL\nSELECT 'monthly_stats', COUNT(*) FROM monthly_stats\nUNION ALL\nSELECT 'settings', COUNT(*) FROM settings;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute \nSELECT 'students' as tabela, COUNT(*) as total FROM students\nUNION ALL\nSELECT 'lessons', COUNT(*) FROM lessons\nUNION ALL\nSELECT 'instruments', COUNT(*) FROM instruments\nUNION ALL\nSELECT 'reminders', COUNT(*) FROM reminders\nUNION ALL\nSELECT 'reminder_templates', COUNT(*) FROM reminder_templates\nUNION ALL\nSELECT 'payment_dues', COUNT(*) FROM payment_dues\nUNION ALL\nSELECT 'monthly_stats', COUNT(*) FROM monthly_stats\nUNION ALL\nSELECT 'settings', COUNT(*) FROM settings;\n",
+  "rows": [
+    {
+      "tabela": "instruments",
+      "total": "0"
+    },
+    {
+      "tabela": "students",
+      "total": "0"
+    },
+    {
+      "tabela": "reminder_templates",
+      "total": "0"
+    },
+    {
+      "tabela": "lessons",
+      "total": "0"
+    },
+    {
+      "tabela": "reminders",
+      "total": "0"
+    },
+    {
+      "tabela": "monthly_stats",
+      "total": "0"
+    },
+    {
+      "tabela": "payment_dues",
+      "total": "0"
+    },
+    {
+      "tabela": "settings",
+      "total": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "tabela\ttotal\ninstruments\t0\nstudents\t0\nreminder_templates\t0\nlessons\t0\nreminders\t0\nmonthly_stats\t0\npayment_dues\t0\nsettings\t0\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}

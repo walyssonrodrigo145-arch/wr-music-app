@@ -1,0 +1,82 @@
+{
+  "query": "\n-- Mensalidades vencidas (inadimplência)\nSELECT 'inadimplencia' as tipo, s.name as aluno, pd.amount, pd.dueDate, pd.month, pd.year\nFROM payment_dues pd\nLEFT JOIN students s ON pd.studentId = s.id\nWHERE pd.status = 'pendente' AND pd.dueDate < CURDATE()\n\nUNION ALL\n\n-- Mensalidades que vencem em até 3 dias (cobrança)\nSELECT 'cobranca' as tipo, s.name as aluno, pd.amount, pd.dueDate, pd.month, pd.year\nFROM payment_dues pd\nLEFT JOIN students s ON pd.studentId = s.id\nWHERE pd.status = 'pendente' \n  AND pd.dueDate >= CURDATE() \n  AND pd.dueDate <= DATE_ADD(CURDATE(), INTERVAL 3 DAY)\n\nORDER BY dueDate;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute \n-- Mensalidades vencidas (inadimplência)\nSELECT 'inadimplencia' as tipo, s.name as aluno, pd.amount, pd.dueDate, pd.month, pd.year\nFROM payment_dues pd\nLEFT JOIN students s ON pd.studentId = s.id\nWHERE pd.status = 'pendente' AND pd.dueDate < CURDATE()\n\nUNION ALL\n\n-- Mensalidades que vencem em até 3 dias (cobrança)\nSELECT 'cobranca' as tipo, s.name as aluno, pd.amount, pd.dueDate, pd.month, pd.year\nFROM payment_dues pd\nLEFT JOIN students s ON pd.studentId = s.id\nWHERE pd.status = 'pendente' \n  AND pd.dueDate >= CURDATE() \n  AND pd.dueDate <= DATE_ADD(CURDATE(), INTERVAL 3 DAY)\n\nORDER BY dueDate;\n",
+  "rows": [
+    {
+      "tipo": "inadimplencia",
+      "aluno": "Natália Pereira",
+      "amount": "150.00",
+      "dueDate": "2026-03-01",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "tipo": "inadimplencia",
+      "aluno": "Gabriel Martins",
+      "amount": "200.00",
+      "dueDate": "2026-03-05",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "tipo": "inadimplencia",
+      "aluno": "Ana Beatriz Souza",
+      "amount": "180.00",
+      "dueDate": "2026-03-10",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "tipo": "inadimplencia",
+      "aluno": "Rafael Santos",
+      "amount": "200.00",
+      "dueDate": "2026-03-10",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "tipo": "inadimplencia",
+      "aluno": "Carlos Eduardo Lima",
+      "amount": "220.00",
+      "dueDate": "2026-03-15",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "tipo": "inadimplencia",
+      "aluno": "Larissa Ferreira",
+      "amount": "190.00",
+      "dueDate": "2026-03-25",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "tipo": "inadimplencia",
+      "aluno": "teste",
+      "amount": "250.00",
+      "dueDate": "2026-03-27",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "tipo": "inadimplencia",
+      "aluno": "Isabela Costa",
+      "amount": "170.00",
+      "dueDate": "2026-03-28",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "tipo": "cobranca",
+      "aluno": "Ana Beatriz Souza",
+      "amount": "180.00",
+      "dueDate": "2026-04-01",
+      "month": "4",
+      "year": "2026"
+    }
+  ],
+  "messages": [],
+  "stdout": "tipo\taluno\tamount\tdueDate\tmonth\tyear\ninadimplencia\tNatália Pereira\t150.00\t2026-03-01\t3\t2026\ninadimplencia\tGabriel Martins\t200.00\t2026-03-05\t3\t2026\ninadimplencia\tAna Beatriz Souza\t180.00\t2026-03-10\t3\t2026\ninadimplencia\tRafael Santos\t200.00\t2026-03-10\t3\t2026\ninadimplencia\tCarlos Eduardo Lima\t220.00\t2026-03-15\t3\t2026\ninadimplencia\tLarissa Ferreira\t190.00\t2026-03-25\t3\t2026\ninadimplencia\tteste\t250.00\t2026-03-27\t3\t2026\ninadimplencia\tIsabela Costa\t170.00\t2026-03-28\t3\t2026\ncobranca\tAna Beatriz Souza\t180.00\t2026-04-01\t4\t2026\n",
+  "stderr": "",
+  "execution_time_ms": 55
+}

@@ -1,0 +1,19 @@
+{
+  "query": "\nSELECT r.id, r.type, r.status, r.refId, r.paymentDueId, r.scheduledAt, s.name as studentName\nFROM reminders r\nLEFT JOIN students s ON s.id = r.studentId\nORDER BY r.createdAt DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute \nSELECT r.id, r.type, r.status, r.refId, r.paymentDueId, r.scheduledAt, s.name as studentName\nFROM reminders r\nLEFT JOIN students s ON s.id = r.studentId\nORDER BY r.createdAt DESC;\n",
+  "rows": [
+    {
+      "id": "1",
+      "type": "aula",
+      "status": "cancelado",
+      "refId": "lesson-60001-2026-03-29",
+      "paymentDueId": "NULL",
+      "scheduledAt": "2026-03-28 15:00:00",
+      "studentName": "teste"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttype\tstatus\trefId\tpaymentDueId\tscheduledAt\tstudentName\n1\taula\tcancelado\tlesson-60001-2026-03-29\tNULL\t2026-03-28 15:00:00\tteste\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}
