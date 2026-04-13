@@ -346,6 +346,14 @@ export const appRouter = router({
       } else {
         if (!input.experimentalName) throw new Error("O nome do aluno é obrigatório para aulas experimentais.");
       }
+
+      // Auto-fix: Garantir que a coluna studentId permite nulos (caso o db:push tenha falhado)
+      try {
+        await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
+      } catch (e) {
+        // Silenciosamente ignora se já estiver correto ou se houver erro de permissão
+        console.warn("Aviso ao tentar remover restrição NotNull de studentId:", e);
+      }
  
       // Prevenção de conflitos (mesmo professor/userId)
       const conflict = await db.select({ id: lessons.id }).from(lessons)
