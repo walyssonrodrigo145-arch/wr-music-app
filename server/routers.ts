@@ -28,7 +28,23 @@ import { sendVerificationEmail } from "./_core/email";
 import { ENV } from "./_core/env";
 
 export const appRouter = router({
-  system: systemRouter,
+  system: router({
+    status: publicProcedure.query(() => ({ status: "ok" })),
+    checkSchema: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return { error: "Database not available" };
+      try {
+        const result = await db.execute(sql`
+          SELECT column_name, is_nullable, data_type 
+          FROM information_schema.columns 
+          WHERE table_name = 'lessons' AND column_name = 'studentId'
+        `);
+        return { success: true, columns: result };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+    }),
+  }),
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -346,13 +362,6 @@ export const appRouter = router({
           }
         } else {
           if (!input.experimentalName) throw new Error("O nome do aluno é obrigatório para aulas experimentais.");
-        }
-
-        // Auto-fix: Garantir que a coluna studentId permite nulos (caso o db:push tenha falhado)
-        try {
-          await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
-        } catch (e) {
-          // Silenciosamente ignora se já estiver correto ou se houver erro de permissão
         }
   
         // Prevenção de conflitos (mesmo professor/userId)

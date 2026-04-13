@@ -7,12 +7,32 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let queryClient: postgres.Sql | null = null;
+let _schemaInitialized = false;
+
+async function ensureSchemaConsistency(db: any) {
+  if (_schemaInitialized) return;
+  
+  try {
+    console.log("[Database] Checking schema consistency...");
+    // Tenta remover a restrição NOT NULL de studentId se ela ainda existir
+    await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
+    console.log("[Database] Schema consistency check passed.");
+  } catch (error: any) {
+    // Se falhar (ex: por falta de permissão), apenas registramos o aviso
+    console.warn("[Database] Schema consistency warning:", error.message);
+  } finally {
+    _schemaInitialized = true;
+  }
+}
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
       queryClient = postgres(process.env.DATABASE_URL);
       _db = drizzle(queryClient);
+      
+      // Executa a auto-correção na primeira conexão
+      await ensureSchemaConsistency(_db);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;

@@ -147,7 +147,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       if (e.message.includes("conflito") || e.message.includes("sobrepõe")) {
         setConflictError(e.message);
       } else {
-        toast.error("Erro ao agendar: " + e.message);
+        // Mostra o erro detalhado vindo do banco (handleDbError já formata isso)
+        toast.error(e.message);
       }
     }
   });
