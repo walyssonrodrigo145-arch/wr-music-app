@@ -10,11 +10,13 @@ export function handleDbError(error: any, context: string = "operação"): never
 
   const message = error.message || "";
   const detail = error.detail || "";
-  const code = error.code || "";
+  const code = error.code || "UNKNOWN";
   const hint = error.hint || "";
+  const column = error.column || "";
   
-  // Log completo no servidor para debug
-  console.error(`[DB Error Details] Code: ${code}, Detail: ${detail}, Hint: ${hint}`);
+  // Log completo no servidor para debug profundo
+  console.error(`[DB Error Details] Code: ${code}, Detail: ${detail}, Hint: ${hint}, Column: ${column}`);
+  console.error(`[Full Error Object] ${JSON.stringify(error)}`);
 
   // Mapeamento de erros comuns do PostgreSQL/Drizzle
   if (code === '23505' || message.includes("unique constraint") || message.includes("duplicate key")) {
@@ -32,10 +34,10 @@ export function handleDbError(error: any, context: string = "operação"): never
   }
 
   // Erro de NOT NULL (específico para studentId)
-  if (code === '23502') {
+  if (code === '23502' || (message.includes("null value") && message.includes("not-null constraint"))) {
      throw new TRPCError({
       code: "BAD_REQUEST",
-      message: `Erro de integridade: O campo '${error.column || "desconhecido"}' não pode ser nulo. Isso indica que a migração para aulas experimentais não foi aplicada corretamente no banco.`,
+      message: `Erro de integridade: O campo '${column || "desconhecido"}' não pode ser nulo. A migração automática está tentando corrigir isso, por favor reinicie o servidor.`,
     });
   }
 
