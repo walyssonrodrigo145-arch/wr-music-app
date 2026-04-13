@@ -327,60 +327,65 @@ export const appRouter = router({
       notes: z.string().optional(),
       instrumentId: z.number().nullable().optional(),
     })).mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      const scheduledAt = new Date(input.scheduledAt);
-      const endsAt = new Date(scheduledAt.getTime() + input.duration * 60000);
- 
-      // Segurança: Verificar se o aluno pertence ao usuário logado (se não for experimental)
-      if (!input.isExperimental) {
-        if (!input.studentId) throw new Error("O campo aluno é obrigatório para aulas comuns.");
-        const [ownedStudent] = await db.select({ id: students.id }).from(students)
-          .where(and(eq(students.id, input.studentId), eq(students.userId, ctx.user.id)))
-          .limit(1);
-          
-        if (!ownedStudent) {
-          throw new Error("O aluno selecionado não existe ou não pertence ao seu perfil.");
-        }
-      } else {
-        if (!input.experimentalName) throw new Error("O nome do aluno é obrigatório para aulas experimentais.");
-      }
-
-      // Auto-fix: Garantir que a coluna studentId permite nulos (caso o db:push tenha falhado)
       try {
-        await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
-      } catch (e) {
-        // Silenciosamente ignora se já estiver correto ou se houver erro de permissão
-        console.warn("Aviso ao tentar remover restrição NotNull de studentId:", e);
-      }
- 
-      // Prevenção de conflitos (mesmo professor/userId)
-      const conflict = await db.select({ id: lessons.id }).from(lessons)
-        .where(and(
-          eq(lessons.userId, ctx.user.id),
-          eq(lessons.status, 'agendada'),
-          sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
-        )).limit(1);
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
 
-      if (conflict.length > 0) {
-        throw new Error("Já existe uma aula agendada para este horário.");
-      }
+        const scheduledAt = new Date(input.scheduledAt);
+        const endsAt = new Date(scheduledAt.getTime() + input.duration * 60000);
+  
+        // Segurança: Verificar se o aluno pertence ao usuário logado (se não for experimental)
+        if (!input.isExperimental) {
+          if (!input.studentId) throw new Error("O campo aluno é obrigatório para aulas comuns.");
+          const [ownedStudent] = await db.select({ id: students.id }).from(students)
+            .where(and(eq(students.id, input.studentId), eq(students.userId, ctx.user.id)))
+            .limit(1);
+            
+          if (!ownedStudent) {
+            throw new Error("O aluno selecionado não existe ou não pertence ao seu perfil.");
+          }
+        } else {
+          if (!input.experimentalName) throw new Error("O nome do aluno é obrigatório para aulas experimentais.");
+        }
 
-      await db.insert(lessons).values({
-        userId: ctx.user.id,
-        studentId: input.studentId || null,
-        isExperimental: input.isExperimental,
-        experimentalName: input.experimentalName || null,
-        title: input.title,
-        scheduledAt: scheduledAt,
-        duration: input.duration,
-        description: input.description || null,
-        notes: input.notes || null,
-        instrumentId: input.instrumentId || null,
-        status: 'agendada',
-      });
-      return { success: true };
+        // Auto-fix: Garantir que a coluna studentId permite nulos (caso o db:push tenha falhado)
+        try {
+          await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
+        } catch (e) {
+          // Silenciosamente ignora se já estiver correto ou se houver erro de permissão
+        }
+  
+        // Prevenção de conflitos (mesmo professor/userId)
+        const conflict = await db.select({ id: lessons.id }).from(lessons)
+          .where(and(
+            eq(lessons.userId, ctx.user.id),
+            eq(lessons.status, 'agendada'),
+            sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
+          )).limit(1);
+
+        if (conflict.length > 0) {
+          throw new Error("Já existe uma aula agendada para este horário.");
+        }
+
+        await db.insert(lessons).values({
+          userId: ctx.user.id,
+          studentId: input.studentId ?? null,
+          isExperimental: !!input.isExperimental,
+          experimentalName: input.experimentalName ?? null,
+          title: input.title,
+          scheduledAt: scheduledAt,
+          duration: input.duration ?? 60,
+          description: input.description ?? null,
+          notes: input.notes ?? null,
+          instrumentId: input.instrumentId ?? null,
+          status: 'agendada',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        return { success: true };
+      } catch (error) {
+        return handleDbError(error, "agendar a aula");
+      }
     }),
     update: protectedProcedure.input(z.object({
       id: z.number(),
@@ -394,76 +399,80 @@ export const appRouter = router({
       experimentalName: z.string().optional(),
       studentId: z.number().optional().nullable(),
     })).mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      try {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
 
-      const { id, ...data } = input;
-      const updateData: any = { ...data };
-      const updateSeries = (input as any).updateSeries === true;
+        const { id, ...data } = input;
+        const updateData: any = { ...data };
+        const updateSeries = (input as any).updateSeries === true;
 
-      // Buscar aula atual para pegar o recurringGroupId e data original
-      const [currentLesson] = await db.select().from(lessons).where(and(eq(lessons.id, id), eq(lessons.userId, ctx.user.id))).limit(1);
-      if (!currentLesson) throw new Error("Aula não encontrada.");
+        // Buscar aula atual para pegar o recurringGroupId e data original
+        const [currentLesson] = await db.select().from(lessons).where(and(eq(lessons.id, id), eq(lessons.userId, ctx.user.id))).limit(1);
+        if (!currentLesson) throw new Error("Aula não encontrada.");
 
-      if (data.scheduledAt) {
-        const scheduledAt = new Date(data.scheduledAt);
-        const duration = data.duration ?? currentLesson.duration;
-        const endsAt = new Date(scheduledAt.getTime() + duration * 60000);
+        if (data.scheduledAt) {
+          const scheduledAt = new Date(data.scheduledAt);
+          const duration = data.duration ?? currentLesson.duration;
+          const endsAt = new Date(scheduledAt.getTime() + duration * 60000);
 
-        // Prevenção de conflitos para a aula atual
-        const conflict = await db.select({ id: lessons.id }).from(lessons)
-          .where(and(
-            eq(lessons.userId, ctx.user.id),
-            eq(lessons.status, 'agendada'),
-            sql`id != ${id}`,
-            sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
-          )).limit(1);
+          // Prevenção de conflitos para a aula atual
+          const conflict = await db.select({ id: lessons.id }).from(lessons)
+            .where(and(
+              eq(lessons.userId, ctx.user.id),
+              eq(lessons.status, 'agendada'),
+              sql`id != ${id}`,
+              sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
+            )).limit(1);
 
-        if (conflict.length > 0) {
-          throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
-        }
-        updateData.scheduledAt = scheduledAt;
+          if (conflict.length > 0) {
+            throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+          }
+          updateData.scheduledAt = scheduledAt;
 
-        // Se for para atualizar a série toda
-        if (updateSeries && currentLesson.recurringGroupId) {
-          const timeOffset = scheduledAt.getTime() - new Date(currentLesson.scheduledAt).getTime();
-          
-          // Buscar aulas futuras da série
-          const futureLessons = await db.select().from(lessons).where(and(
+          // Se for para atualizar a série toda
+          if (updateSeries && currentLesson.recurringGroupId) {
+            const timeOffset = scheduledAt.getTime() - new Date(currentLesson.scheduledAt).getTime();
+            
+            // Buscar aulas futuras da série
+            const futureLessons = await db.select().from(lessons).where(and(
+              eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
+              eq(lessons.userId, ctx.user.id),
+              gte(lessons.scheduledAt, currentLesson.scheduledAt),
+              sql`id != ${id}`
+            ));
+
+            // Atualizar cada aula futura
+            for (const future of futureLessons) {
+              const nextDate = new Date(new Date(future.scheduledAt).getTime() + timeOffset);
+              await db.update(lessons).set({
+                title: data.title ?? future.title,
+                duration: data.duration ?? future.duration,
+                notes: data.notes ?? future.notes,
+                scheduledAt: nextDate,
+                updatedAt: new Date()
+              }).where(eq(lessons.id, future.id));
+            }
+          }
+        } else if (updateSeries && currentLesson.recurringGroupId) {
+          // Se mudou apenas texto (título/notas) e quer atualizar a série
+          await db.update(lessons).set({
+            title: data.title,
+            notes: data.notes,
+            duration: data.duration,
+            updatedAt: new Date()
+          }).where(and(
             eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
             eq(lessons.userId, ctx.user.id),
-            gte(lessons.scheduledAt, currentLesson.scheduledAt),
-            sql`id != ${id}`
+            gte(lessons.scheduledAt, currentLesson.scheduledAt)
           ));
-
-          // Atualizar cada aula futura
-          for (const future of futureLessons) {
-            const nextDate = new Date(new Date(future.scheduledAt).getTime() + timeOffset);
-            await db.update(lessons).set({
-              title: data.title ?? future.title,
-              duration: data.duration ?? future.duration,
-              notes: data.notes ?? future.notes,
-              scheduledAt: nextDate,
-              updatedAt: new Date()
-            }).where(eq(lessons.id, future.id));
-          }
         }
-      } else if (updateSeries && currentLesson.recurringGroupId) {
-        // Se mudou apenas texto (título/notas) e quer atualizar a série
-        await db.update(lessons).set({
-          title: data.title,
-          notes: data.notes,
-          duration: data.duration,
-          updatedAt: new Date()
-        }).where(and(
-          eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
-          eq(lessons.userId, ctx.user.id),
-          gte(lessons.scheduledAt, currentLesson.scheduledAt)
-        ));
-      }
 
-      await db.update(lessons).set(updateData).where(and(eq(lessons.id, id), eq(lessons.userId, ctx.user.id)));
-      return { success: true };
+        await db.update(lessons).set(updateData).where(and(eq(lessons.id, id), eq(lessons.userId, ctx.user.id)));
+        return { success: true };
+      } catch (error) {
+        return handleDbError(error, "atualizar a aula");
+      }
     }),
     updateStatus: protectedProcedure.input(z.object({
       id: z.number(),

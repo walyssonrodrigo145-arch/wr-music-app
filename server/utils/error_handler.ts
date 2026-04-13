@@ -32,10 +32,14 @@ export function handleDbError(error: any, context: string = "operação"): never
     });
   }
 
+  // Extrair detalhes específicos do PostgreSQL se existirem
+  const detail = error.detail ? ` (${error.detail})` : "";
+  const hint = error.hint ? ` [Dica: ${error.hint}]` : "";
+
   // Erro genérico amigável (com detalhe para debug em desenvolvimento)
   throw new TRPCError({
     code: "INTERNAL_SERVER_ERROR",
-    message: `Erro ao realizar ${context}: ${message}. Por favor, tente novamente mais tarde.`,
+    message: `Erro ao realizar ${context}: ${message}${detail}${hint}.`,
     cause: error,
   });
 }
