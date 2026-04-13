@@ -35,13 +35,22 @@ export const appRouter = router({
       if (!db) return { error: "Database not available" };
       try {
         const result = await db.execute(sql`
-          SELECT column_name, is_nullable, data_type 
+          SELECT column_name, is_nullable, data_type, column_default 
           FROM information_schema.columns 
           WHERE table_name = 'lessons' AND column_name = 'studentId'
         `);
-        return { success: true, columns: result };
+        return { 
+          success: true, 
+          columns: result,
+          timestamp: new Date().toISOString()
+        };
       } catch (e: any) {
-        return { success: false, error: e.message };
+        return { 
+          success: false, 
+          error: e.message, 
+          code: e.code,
+          detail: e.detail
+        };
       }
     }),
   }),

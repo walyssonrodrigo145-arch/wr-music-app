@@ -13,13 +13,14 @@ async function ensureSchemaConsistency(db: any) {
   if (_schemaInitialized) return;
   
   try {
-    console.log("[Database] Checking schema consistency...");
+    console.log("[Database] Checking schema consistency for 'lessons.studentId'...");
     // Tenta remover a restrição NOT NULL de studentId se ela ainda existir
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
-    console.log("[Database] Schema consistency check passed.");
+    console.log("[Database] Schema consistency check passed: 'studentId' is now nullable.");
   } catch (error: any) {
-    // Se falhar (ex: por falta de permissão), apenas registramos o aviso
-    console.warn("[Database] Schema consistency warning:", error.message);
+    // Se falhar (ex: por falta de permissão), registramos o erro detalhado
+    console.warn(`[Database] Schema consistency check failed. Code: ${error.code}. Message: ${error.message}`);
+    if (error.detail) console.warn(`[Database] Error detail: ${error.detail}`);
   } finally {
     _schemaInitialized = true;
   }
