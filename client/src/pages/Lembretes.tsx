@@ -326,13 +326,28 @@ export default function Lembretes() {
               title: "Teste", 
               desc: "Testar notificação agora.",
               onClick: () => {
+                // Tenta disparar uma notificação local imediata para testar o navegador
+                const localOk = showNotification("🔔 Teste de Navegador", {
+                  body: "Este é um teste de notificação local. Se você viu isso, os alertas no notebook/celular (com app aberto) estão funcionando!",
+                  tag: "test-local"
+                });
+
+                if (!localOk && permission === "granted") {
+                  toast.error("O navegador bloqueou a notificação. Verifique as configurações de 'Não Perturbe'.");
+                }
+
+                // Tenta o teste de servidor (notificação nativa/fundo)
                 toast.promise(testNotification.mutateAsync({ 
-                  title: "🔔 Teste de Notificação", 
-                  content: "Se você recebeu isso, as notificações no celular e computador estão funcionando!" 
+                  title: "🔔 Teste de Sistema (Fundo)", 
+                  content: "Se você recebeu isso, as notificações nativas (mesmo com app fechado) estão funcionando!" 
                 }), {
-                  loading: "Enviando teste...",
-                  success: (res) => res ? "Teste enviado! Verifique seu celular/computador." : "O serviço aceitou o pedido, mas pode haver atraso.",
-                  error: (err) => `Erro: ${err.message}`
+                  loading: "Testando integração de sistema...",
+                  success: "Teste de sistema enviado! (Nota: requer suporte do ambiente de hospedagem)",
+                  error: (err) => {
+                    // Se a notificação local funcionou, não tratamos o erro de sistema como fatal na mensagem
+                    if (localOk) return "Teste local OK! (Nota: Notificações de fundo/nativas não suportadas neste servidor)";
+                    return `Erro: ${err.message}`;
+                  }
                 });
               }
             },
