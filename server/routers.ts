@@ -14,6 +14,7 @@ import {
   getSettingsByUserId,
   upsertSettings,
   updateUserProfile,
+  getExperimentalStats,
 } from "./db";
 import { users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc } from "drizzle-orm";
@@ -149,6 +150,14 @@ export const appRouter = router({
       const stats = await getMonthlyStats(ctx.user.id, 12);
       return stats.reverse();
     }),
+    experimentalStats: protectedProcedure
+      .input(z.object({
+        month: z.number().optional(),
+        year: z.number().optional()
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        return getExperimentalStats(ctx.user.id, input?.month, input?.year);
+      }),
     lessonsByDay: protectedProcedure.query(async ({ ctx }) => {
       const data = await getLessonsByDayOfWeek(ctx.user.id);
       const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];

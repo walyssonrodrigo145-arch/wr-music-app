@@ -298,3 +298,53 @@ export async function getLessonsByDayOfWeek(userId: number) {
     eq(lessons.status, 'concluida')
   )).groupBy(sql`EXTRACT(DOW FROM "scheduledAt")`);
 }
+
+// Stats for experimental lessons and conversion
+export async function getExperimentalStats(userId: number, month?: number, year?: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, converted: 0, notConverted: 0, conversionRate: 0 };
+
+  let whereClause = and(
+    eq(lessons.userId, userId), 
+    eq(lessons.isExperimental, true),
+    eq(lessons.status, 'concluida')
+  );
+  
+  if (month && year) {
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+    whereClause = and(whereClause, gte(lessons.scheduledAt, startOfMonth), lte(lessons.scheduledAt, endOfMonth));
+  }
+
+  const expLessons = await db.select().from(lessons).where(whereClause);
+  
+  const total = expLessons.length;
+  let converted = 0;
+
+  // Heurística de conversão: studentId preenchido OU nome coincide com um aluno existente
+  for (const lesson of expLessons) {
+    if (lesson.studentId) {
+       converted++;
+       continue;
+    }
+    if (lesson.experimentalName) {
+      const [student] = await db.select({ id: students.id })
+        .from(students)
+        .where(and(
+          eq(students.userId, userId), 
+          sql`LOWER(${students.name}) = LOWER(${lesson.experimentalName})`
+        ))
+        .limit(1);
+      if (student) {
+        converted++;
+      }
+    }
+  }
+
+  return {
+    total,
+    converted,
+    notConverted: total - converted,
+    conversionRate: total > 0 ? Math.round((converted / total) * 100) : 0
+  };
+}
