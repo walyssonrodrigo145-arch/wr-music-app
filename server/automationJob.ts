@@ -170,7 +170,7 @@ async function runAutomation() {
           type = "cobranca";
           const reminderDate = new Date(dueDate);
           reminderDate.setDate(dueDate.getDate() - 3);
-          reminderDate.setHours(9, 0, 0, 0);
+          // Removida a restrição das 9h para permitir disparo em qualquer horário
 
           if (reminderDate > now) continue;
 
@@ -251,11 +251,11 @@ export function startAutomationJob() {
   // Primeira execução após 1 minuto do boot (evitar conflito na inicialização)
   setTimeout(() => {
     runAutomation().catch(err => console.error("[Automation] Initial run error:", err));
-    // Repetir a cada hora
+    // Repetir a cada 10 minutos
     setInterval(() => {
       runAutomation().catch(err => console.error("[Automation] Scheduled run error:", err));
-    }, 60 * 60 * 1000); // 1 hora
+    }, 10 * 60 * 1000); // 10 minutos
   }, 60 * 1000); // 1 minuto após boot
 
-  console.log("[Automation] Job scheduler started — runs every hour");
+  console.log("[Automation] Job scheduler started — runs every 10 minutes");
 }
