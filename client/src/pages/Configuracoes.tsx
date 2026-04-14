@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   User, Building2, Bell, Palette, Shield, Save,
   Sun, Moon, Phone, Mail, Globe, MapPin, FileText,
-  CheckCircle2, Music, Loader2, AlertTriangle,
+  CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone,
 } from "lucide-react";
 
 // ─── Export CSV helper ──────────────────────────────────────────────────────
@@ -71,6 +71,83 @@ function ExportDataSection() {
           Exportar Tudo
         </Button>
       </div>
+    </div>
+  );
+}
+
+function PwaInstallSection() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    // Verificar se já está rodando como PWA
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
+  if (isInstalled) return null;
+  if (!deferredPrompt) {
+    // Se não há prompt, mas também não está instalado, mostramos um aviso de como fazer manual
+    return (
+      <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+            <Smartphone size={16} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground">Instalar no Celular</p>
+            <p className="text-[10px] text-muted-foreground">O sistema funciona melhor se for instalado como aplicativo.</p>
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground leading-relaxed italic">
+          * Dica: Se o botão não aparecer, use a opção "Instalar Aplicativo" ou "Adicionar à tela inicial" no menu do seu navegador Chrome.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 space-y-4 animate-in fade-in zoom-in duration-500">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+          <Download size={20} />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-foreground">Instalar WR Music App</p>
+          <p className="text-xs text-muted-foreground">Acesse como um aplicativo real na sua tela inicial.</p>
+        </div>
+      </div>
+      <Button 
+        onClick={handleInstall}
+        className="w-full h-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-95"
+      >
+        INSTALAR AGORA
+      </Button>
     </div>
   );
 }
@@ -689,7 +766,8 @@ export default function Configuracoes() {
                     </div>
                   </div>
                 </div>
-
+                
+                <PwaInstallSection />
                 <ExportDataSection />
                 <CleanupTestDataSection />
               </div>
