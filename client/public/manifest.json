@@ -1,0 +1,26 @@
+{
+  "name": "WR Music - Dashboard",
+  "short_name": "WR Music",
+  "description": "Sistema de Gestão para Professor de Música",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#6366f1",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3844/3844724.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Lembretes",
+      "url": "/lembretes",
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/3844/3844724.png", "sizes": "96x96" }]
+    }
+  ]
+}
