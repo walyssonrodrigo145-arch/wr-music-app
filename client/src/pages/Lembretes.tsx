@@ -331,8 +331,8 @@ export default function Lembretes() {
                   content: "Se você recebeu isso, as notificações no celular e computador estão funcionando!" 
                 }), {
                   loading: "Enviando teste...",
-                  success: "Teste enviado! Verifique seu celular/computador.",
-                  error: "Falha ao enviar teste."
+                  success: (res) => res ? "Teste enviado! Verifique seu celular/computador." : "O serviço aceitou o pedido, mas pode haver atraso.",
+                  error: (err) => `Erro: ${err.message}`
                 });
               }
             },

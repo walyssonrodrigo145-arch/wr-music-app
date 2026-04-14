@@ -1313,7 +1313,14 @@ export const appRouter = router({
     testNotification: protectedProcedure
       .input(z.object({ title: z.string(), content: z.string() }))
       .mutation(async ({ input }) => {
-        return await notifyOwner(input);
+        const ok = await notifyOwner(input);
+        if (!ok) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Falha na comunicação com o serviço de notificações do Manus. Verifique se você está logado no ambiente corretamente."
+          });
+        }
+        return ok;
       }),
   }),
 
