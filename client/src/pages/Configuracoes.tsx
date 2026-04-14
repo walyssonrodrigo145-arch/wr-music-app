@@ -83,30 +83,44 @@ function PwaInstallSection() {
     // Verificar se já está rodando como PWA
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
+      return;
     }
 
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    // Checagem imediata: o evento pode já ter disparado antes do componente carregar
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+    }
+
+    // Listener para o evento global capturado no index.html
+    const handlePromptReady = () => {
+      setDeferredPrompt((window as any).deferredPrompt);
     };
 
-    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('pwa-prompt-ready', handlePromptReady);
     window.addEventListener('appinstalled', () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
     });
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady);
     };
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    const promptEvent = deferredPrompt || (window as any).deferredPrompt;
+    if (!promptEvent) {
+      toast.info("O navegador ainda não liberou a instalação. Aguarde alguns segundos ou use o menu do Chrome.");
+      return;
+    }
+
+    promptEvent.prompt();
+    const { outcome } = await promptEvent.userChoice;
+    console.log(`[PWA] Usuário escolheu: ${outcome}`);
+    
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
+      (window as any).deferredPrompt = null;
     }
   };
 
