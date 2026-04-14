@@ -1103,6 +1103,10 @@ export const appRouter = router({
         created++;
       }
 
+      if (created > 0) {
+        await notifyOwner(ctx.user.id, "🔔 Novos Lembretes (Aula)", `Foram gerados ${created} novos lembretes de aula manualmente.`);
+      }
+
       return { created, skipped };
     }),
 
@@ -1152,14 +1156,14 @@ export const appRouter = router({
           reminderTime = new Date(now);
           defaultBody = "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e ainda não foi paga. Por favor, entre em contato para regularizar.";
         } else {
-          // Mensalidade futura → lembrete 1 dia antes às 9h
+          // Mensalidade futura → lembrete 3 dias antes às 9h
           type = "cobranca";
-          const oneDayBefore = new Date(dueDate);
-          oneDayBefore.setDate(dueDate.getDate() - 1);
-          oneDayBefore.setHours(9, 0, 0, 0);
-          // Só gera se a janela de 1 dia já chegou
-          if (oneDayBefore > now) { skipped++; continue; }
-          reminderTime = oneDayBefore;
+          const reminderDate = new Date(dueDate);
+          reminderDate.setDate(dueDate.getDate() - 3);
+          reminderDate.setHours(9, 0, 0, 0);
+          // Só gera se a janela de 3 dias já chegou
+          if (reminderDate > now) { skipped++; continue; }
+          reminderTime = reminderDate;
           refId = `payment-${due.id}-${due.year}-${due.month}`;
           defaultBody = "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, efetue o pagamento.";
         }
@@ -1195,6 +1199,10 @@ export const appRouter = router({
           refId,
         });
         created++;
+      }
+
+      if (created > 0) {
+        await notifyOwner(ctx.user.id, "🔔 Novos Lembretes (Cobrança)", `Foram gerados ${created} novos lembretes de cobrança manualmente.`);
       }
 
       return { created, skipped };
