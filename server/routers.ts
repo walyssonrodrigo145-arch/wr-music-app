@@ -1317,7 +1317,7 @@ export const appRouter = router({
         if (!ok) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "Falha na comunicação com o serviço de notificações do Manus. Verifique se você está logado no ambiente corretamente."
+            message: "Falha na comunicação com o serviço de notificações do sistema. Verifique se as permissões de notificação estão ativas."
           });
         }
         return ok;
