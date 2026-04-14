@@ -146,7 +146,7 @@ function PwaInstallSection() {
   }
 
   return (
-    <div className="p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 space-y-4 animate-in fade-in zoom-in duration-500">
+    <div className="p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 space-y-4">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
           <Download size={20} />

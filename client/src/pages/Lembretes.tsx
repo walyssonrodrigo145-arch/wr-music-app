@@ -188,7 +188,7 @@ export default function Lembretes() {
     if (items.length === 0) return null;
     const Icon = icon;
     return (
-      <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="mb-10 will-change-transform">
         <div className="flex items-center gap-2 mb-4 px-1">
           <div className={cn("p-1.5 rounded-lg text-white", colorClass)}>
             <Icon size={16} />
@@ -294,7 +294,7 @@ export default function Lembretes() {
 
       {/* NOTIFICATION PERMISSION ALERT */}
       {permission === "default" && (
-        <div className="flex items-center justify-between p-4 mb-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-2xl animate-in fade-in slide-in-from-top-2">
+        <div className="flex items-center justify-between p-4 mb-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-2xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
               <BellRing size={20} />
