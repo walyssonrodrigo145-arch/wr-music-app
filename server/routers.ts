@@ -1104,7 +1104,10 @@ export const appRouter = router({
       }
 
       if (created > 0) {
-        await notifyOwner(ctx.user.id, "🔔 Novos Lembretes (Aula)", `Foram gerados ${created} novos lembretes de aula manualmente.`);
+        await notifyOwner({
+          title: "🔔 Novos Lembretes (Aula)",
+          content: `Foram gerados ${created} novos lembretes de aula manualmente.`
+        });
       }
 
       return { created, skipped };
@@ -1202,7 +1205,10 @@ export const appRouter = router({
       }
 
       if (created > 0) {
-        await notifyOwner(ctx.user.id, "🔔 Novos Lembretes (Cobrança)", `Foram gerados ${created} novos lembretes de cobrança manualmente.`);
+        await notifyOwner({
+          title: "🔔 Novos Lembretes (Cobrança)",
+          content: `Foram gerados ${created} novos lembretes de cobrança manualmente.`
+        });
       }
 
       return { created, skipped };

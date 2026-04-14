@@ -232,7 +232,10 @@ async function runAutomation() {
 
       // Disparar notificação externa se houver novos lembretes
       if (remindersCreated > 0) {
-        await notifyOwner(userId, "🔔 Novos Lembretes Disponíveis", `O robô gerou ${remindersCreated} novos lembretes para você revisar e enviar aos alunos.`);
+        await notifyOwner({
+          title: "🔔 Novos Lembretes Disponíveis",
+          content: `O robô gerou ${remindersCreated} novos lembretes para você revisar e enviar aos alunos.`
+        });
       }
 
     } catch (err) {
