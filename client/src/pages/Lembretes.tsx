@@ -82,6 +82,12 @@ export default function Lembretes() {
       toast.success(`${r.created} lembrete(s) de aula gerado(s)! ${r.skipped} ignorado(s).`);
       utils.reminders.list.invalidate();
       utils.reminders.pendingCount.invalidate();
+      if (r.created > 0) {
+        showNotification("🔔 Novos Lembretes de Aula", {
+          body: `O sistema gerou ${r.created} novos lembretes de aula. Clique para visualizar.`,
+          tag: "reminders-aula"
+        });
+      }
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
@@ -91,6 +97,12 @@ export default function Lembretes() {
       toast.success(`${r.created} lembrete(s) de cobrança gerado(s)! ${r.skipped} ignorado(s).`);
       utils.reminders.list.invalidate();
       utils.reminders.pendingCount.invalidate();
+      if (r.created > 0) {
+        showNotification("🔔 Novos Lembretes de Cobrança", {
+          body: `O sistema gerou ${r.created} novos lembretes de cobrança. Clique para visualizar.`,
+          tag: "reminders-cobranca"
+        });
+      }
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
@@ -108,6 +120,8 @@ export default function Lembretes() {
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
+
+  const testNotification = trpc.reminders.testNotification.useMutation();
 
   useEffect(() => {
     if (automationData !== undefined) {
@@ -278,14 +292,61 @@ export default function Lembretes() {
         </button>
       </div>
 
+      {/* NOTIFICATION PERMISSION ALERT */}
+      {permission === "default" && (
+        <div className="flex items-center justify-between p-4 mb-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-2xl animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <BellRing size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-200">Ativar Notificações no Navegador</p>
+              <p className="text-xs text-amber-700/70 dark:text-amber-300/60">Para receber alertas no computador e celular enquanto estiver com o app aberto.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => requestPermission()}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+          >
+            PERMITIR
+          </button>
+        </div>
+      )}
+
       {autoEnabled && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 w-full">
           {[
             { icon: BookOpen, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20", title: "Aulas", desc: "Avisa no dia anterior." },
             { icon: CreditCard, color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20", title: "Cobranças", desc: "Avisa 3 dias antes de vencer." },
-            { icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20", title: "Blindagem", desc: "Não envia avisos para inativos." },
+            { 
+              icon: BellRing, 
+              color: "text-amber-500", 
+              bg: "bg-amber-500/10", 
+              border: "border-amber-500/20", 
+              title: "Teste", 
+              desc: "Testar notificação agora.",
+              onClick: () => {
+                toast.promise(testNotification.mutateAsync({ 
+                  title: "🔔 Teste de Notificação", 
+                  content: "Se você recebeu isso, as notificações no celular e computador estão funcionando!" 
+                }), {
+                  loading: "Enviando teste...",
+                  success: "Teste enviado! Verifique seu celular/computador.",
+                  error: "Falha ao enviar teste."
+                });
+              }
+            },
           ].map((item, i) => (
-            <div key={i} className={cn("flex items-center gap-3 p-3 rounded-2xl border bg-card overflow-hidden", item.bg, item.border)}>
+            <div 
+              key={i} 
+              onClick={item.onClick}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-2xl border bg-card overflow-hidden transition-all duration-200", 
+                item.bg, 
+                item.border,
+                item.onClick ? "cursor-pointer hover:scale-[1.02] active:scale-95 shadow-sm" : ""
+              )}
+            >
               <div className={cn("p-2 rounded-xl bg-background shadow-sm flex-shrink-0", item.color)}><item.icon size={16} /></div>
               <div className="min-w-0">
                 <p className={cn("text-xs font-bold uppercase tracking-wider", item.color)}>{item.title}</p>

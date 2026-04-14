@@ -1309,6 +1309,12 @@ export const appRouter = router({
           );
         return { success: true };
       }),
+
+    testNotification: protectedProcedure
+      .input(z.object({ title: z.string(), content: z.string() }))
+      .mutation(async ({ input }) => {
+        return await notifyOwner(input);
+      }),
   }),
 
   // ─── TEMPLATES DE LEMBRETE ──────────────────────────────────────────────────────────
