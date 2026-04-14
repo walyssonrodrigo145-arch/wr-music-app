@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Calendar, Filter, UserPlus, TrendingUp, ChevronDown, CheckCircle2, XCircle } from "lucide-react";
+import { BarChart3, Calendar, Filter, UserPlus, TrendingUp, ChevronDown, CheckCircle2, XCircle, BookOpen } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell
