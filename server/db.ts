@@ -30,7 +30,11 @@ export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
       // Configuração para Supabase no Render (exige SSL)
-      const options: any = {};
+      const options: any = {
+        connection: {
+          options: "-c search_path=public"
+        }
+      };
       if (process.env.DATABASE_URL.includes("supabase.co") || process.env.NODE_ENV === "production") {
         options.ssl = { rejectUnauthorized: false };
       }
@@ -76,15 +80,16 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       });
     }
   } catch (error: any) {
+    const dbErr = error.driverError || error;
     console.error("[Database] Failed to upsert user. Error detail:", {
       message: error.message,
-      code: error.code,
-      detail: error.detail,
-      schema: error.schema,
-      table: error.table,
-      column: error.column,
-      dataType: error.dataType,
-      constraint: error.constraint
+      code: dbErr.code,
+      detail: dbErr.detail,
+      schema: dbErr.schema,
+      table: dbErr.table,
+      column: dbErr.column,
+      dataType: dbErr.dataType,
+      constraint: dbErr.constraint
     });
     throw error;
   }

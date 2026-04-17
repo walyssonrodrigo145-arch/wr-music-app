@@ -91,20 +91,32 @@ export function registerGoogleAuthRoutes(app: Express) {
       // Redirecionar para home
       res.redirect("/");
     } catch (error: any) {
-      const errorDetail = error.response?.data || error.message;
-      console.error("[Google Auth] Error:", errorDetail);
+      // Extraímos o erro real do banco de dados se disponível (Drizzle envolve o erro original)
+      const dbErr = error.driverError || error;
+      const errorMessage = error.message || "Erro desconhecido";
       
-      // Se for um erro de banco de dados vindo do queryClient, ele pode ter propriedades extras
-      const dbError = error.code ? {
-        code: error.code,
-        detail: error.detail,
-        table: error.table,
-        constraint: error.constraint
+      console.error("[Google Auth] Error:", errorMessage);
+      if (error.driverError) {
+        console.error("[Google Auth] Driver Error Detail:", {
+          code: dbErr.code,
+          detail: dbErr.detail,
+          table: dbErr.table,
+          schema: dbErr.schema,
+          column: dbErr.column,
+          constraint: dbErr.constraint
+        });
+      }
+
+      const dbError = dbErr.code ? {
+        code: dbErr.code,
+        detail: dbErr.detail,
+        table: dbErr.table,
+        constraint: dbErr.constraint
       } : null;
 
       res.status(500).json({ 
         error: "Falha na autenticação com Google.",
-        details: errorDetail,
+        details: errorMessage,
         dbError
       });
     }
