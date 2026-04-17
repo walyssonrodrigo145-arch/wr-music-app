@@ -76,8 +76,15 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     else if (user.openId === ENV.ownerOpenId) { values.role = 'admin'; updateSet.role = 'admin'; }
     
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
-    if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
-    await db.insert(users).values(values).onConflictDoUpdate({ target: [users.openId], set: updateSet });
+    
+    // Garantir que updatedAt sempre exista no update e que ambos sejam objetos Date novos
+    updateSet.updatedAt = new Date();
+    if (!updateSet.lastSignedIn) updateSet.lastSignedIn = new Date();
+
+    await db.insert(users).values(values).onConflictDoUpdate({ 
+      target: [users.openId], 
+      set: updateSet 
+    });
 
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
