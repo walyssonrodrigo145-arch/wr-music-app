@@ -91,10 +91,21 @@ export function registerGoogleAuthRoutes(app: Express) {
       // Redirecionar para home
       res.redirect("/");
     } catch (error: any) {
-      console.error("[Google Auth] Error:", error.response?.data || error.message);
+      const errorDetail = error.response?.data || error.message;
+      console.error("[Google Auth] Error:", errorDetail);
+      
+      // Se for um erro de banco de dados vindo do queryClient, ele pode ter propriedades extras
+      const dbError = error.code ? {
+        code: error.code,
+        detail: error.detail,
+        table: error.table,
+        constraint: error.constraint
+      } : null;
+
       res.status(500).json({ 
         error: "Falha na autenticação com Google.",
-        details: error.response?.data || error.message 
+        details: errorDetail,
+        dbError
       });
     }
 

@@ -29,13 +29,19 @@ async function ensureSchemaConsistency(db: any) {
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      queryClient = postgres(process.env.DATABASE_URL);
+      // Configuração para Supabase no Render (exige SSL)
+      const options: any = {};
+      if (process.env.DATABASE_URL.includes("supabase.co") || process.env.NODE_ENV === "production") {
+        options.ssl = { rejectUnauthorized: false };
+      }
+
+      queryClient = postgres(process.env.DATABASE_URL, options);
       _db = drizzle(queryClient);
       
       // Executa a auto-correção na primeira conexão
       await ensureSchemaConsistency(_db);
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.error("[Database] Failed to connect:", error);
       _db = null;
     }
   }
@@ -69,8 +75,17 @@ export async function upsertUser(user: InsertUser): Promise<void> {
         createdAt: new Date(),
       });
     }
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
+  } catch (error: any) {
+    console.error("[Database] Failed to upsert user. Error detail:", {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      schema: error.schema,
+      table: error.table,
+      column: error.column,
+      dataType: error.dataType,
+      constraint: error.constraint
+    });
     throw error;
   }
 }
