@@ -53,45 +53,59 @@ export async function getDb() {
   return _db;
 }
 
-export async function upsertUser(user: InsertUser): Promise<void> {
+export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
-  const db = await getDb();
-  if (!db) { console.warn("[Database] Cannot upsert user: database not available"); return; }
+  let attempt = 0;
 
-  try {
-    const [existing] = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
+  while (attempt < maxRetries) {
+    try {
+      const db = await getDb();
+      if (!db) { console.warn("[Database] Cannot upsert user: database not available"); return; }
 
-    const data = {
-      name: user.name,
-      email: user.email,
-      loginMethod: user.loginMethod,
-      isEmailVerified: user.isEmailVerified ?? true,
-      role: user.role || (user.openId === ENV.ownerOpenId ? 'admin' : undefined),
-      updatedAt: new Date(),
-      lastSignedIn: new Date(),
-    };
+      const [existing] = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
 
-    if (existing) {
-      await db.update(users).set(data).where(eq(users.openId, user.openId));
-    } else {
-      await db.insert(users).values({
-        ...data,
-        openId: user.openId,
-        createdAt: new Date(),
+      const data = {
+        name: user.name,
+        email: user.email,
+        loginMethod: user.loginMethod,
+        isEmailVerified: user.isEmailVerified ?? true,
+        role: user.role || (user.openId === ENV.ownerOpenId ? 'admin' : undefined),
+        updatedAt: new Date(),
+        lastSignedIn: new Date(),
+      };
+
+      if (existing) {
+        await db.update(users).set(data).where(eq(users.openId, user.openId));
+      } else {
+        await db.insert(users).values({
+          ...data,
+          openId: user.openId,
+          createdAt: new Date(),
+        });
+      }
+      return; // Sucesso, sai do loop
+    } catch (error: any) {
+      attempt++;
+      const dbErr = error.cause || error.driverError || error;
+      const isTransient = dbErr?.code === 'ENETUNREACH' || dbErr?.code === 'ECONNRESET' || dbErr?.code === 'ETIMEDOUT';
+      
+      if (isTransient && attempt < maxRetries) {
+        console.warn(`[Database] Transient error (${dbErr.code}) during upsertUser. Retrying... (${attempt}/${maxRetries})`);
+        await new Promise(res => setTimeout(res, 1000 * attempt)); // Exponential backoff leve
+        continue;
+      }
+      
+      console.error("[Database] Failed to upsert user. Error detail:", {
+        message: error.message,
+        code: dbErr?.code,
+        detail: dbErr?.detail,
+        schema: dbErr?.schema,
+        table: dbErr?.table,
+        column: dbErr?.column,
+        constraint: dbErr?.constraint
       });
+      throw error;
     }
-  } catch (error: any) {
-    const dbErr = error.cause || error.driverError || error;
-    console.error("[Database] Failed to upsert user. Error detail:", {
-      message: error.message,
-      code: dbErr?.code,
-      detail: dbErr?.detail,
-      schema: dbErr?.schema,
-      table: dbErr?.table,
-      column: dbErr?.column,
-      constraint: dbErr?.constraint
-    });
-    throw error;
   }
 }
 

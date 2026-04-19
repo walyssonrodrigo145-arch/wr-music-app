@@ -290,8 +290,8 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
         
-        // Deletar aulas relacionadas primeiro para evitar erro de FK
-        await db.delete(lessons).where(eq(lessons.studentId, input.id));
+        // Deletar aulas relacionadas primeiro para evitar erro de FK (garantindo que sejam aulas do próprio professor)
+        await db.delete(lessons).where(and(eq(lessons.studentId, input.id), eq(lessons.userId, ctx.user.id)));
         await db.delete(students).where(and(eq(students.id, input.id), eq(students.userId, ctx.user.id)));
         
         return { success: true };
@@ -381,6 +381,16 @@ export const appRouter = router({
         } else {
           if (!input.experimentalName) throw new Error("O nome do aluno é obrigatório para aulas experimentais.");
         }
+
+        // Segurança: Verificar se o instrumento pertence ao usuário logado
+        if (input.instrumentId) {
+          const [ownedInstrument] = await db.select({ id: instruments.id }).from(instruments)
+            .where(and(eq(instruments.id, input.instrumentId), eq(instruments.userId, ctx.user.id)))
+            .limit(1);
+          if (!ownedInstrument) {
+            throw new Error("O instrumento selecionado não pertence ao seu perfil.");
+          }
+        }
   
         // Prevenção de conflitos (mesmo professor/userId)
         const conflict = await db.select({ id: lessons.id }).from(lessons)
@@ -436,7 +446,23 @@ export const appRouter = router({
 
         // Buscar aula atual para pegar o recurringGroupId e data original
         const [currentLesson] = await db.select().from(lessons).where(and(eq(lessons.id, id), eq(lessons.userId, ctx.user.id))).limit(1);
-        if (!currentLesson) throw new Error("Aula não encontrada.");
+        if (!currentLesson) throw new Error("Aula não encontrada ou você não tem permissão.");
+
+        // Segurança: Verificar propriedade do aluno se estiver sendo alterado
+        if (data.studentId) {
+          const [ownedStudent] = await db.select({ id: students.id }).from(students)
+            .where(and(eq(students.id, data.studentId), eq(students.userId, ctx.user.id)))
+            .limit(1);
+          if (!ownedStudent) throw new Error("O aluno selecionado não pertence ao seu perfil.");
+        }
+
+        // Segurança: Verificar propriedade do instrumento se estiver sendo alterado
+        if (data.instrumentId) {
+          const [ownedInstrument] = await db.select({ id: instruments.id }).from(instruments)
+            .where(and(eq(instruments.id, data.instrumentId), eq(instruments.userId, ctx.user.id)))
+            .limit(1);
+          if (!ownedInstrument) throw new Error("O instrumento selecionado não pertence ao seu perfil.");
+        }
 
         if (data.scheduledAt) {
           const scheduledAt = new Date(data.scheduledAt);
@@ -478,7 +504,7 @@ export const appRouter = router({
                 notes: data.notes ?? future.notes,
                 scheduledAt: nextDate,
                 updatedAt: new Date()
-              }).where(eq(lessons.id, future.id));
+              }).where(and(eq(lessons.id, future.id), eq(lessons.userId, ctx.user.id)));
             }
           }
         } else if (updateSeries && currentLesson.recurringGroupId) {
@@ -568,6 +594,35 @@ export const appRouter = router({
         return { success: true };
       } catch (error) {
         return handleDbError(error, "remover a aula");
+      }
+    }),
+    
+    // ─ Excluir Aulas em Massa (Filtro por aluno ou Todas) ──────────────────
+    deleteBulk: protectedProcedure.input(z.object({
+      type: z.enum(['all', 'student']),
+      studentId: z.number().optional().nullable()
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+
+        if (input.type === 'student') {
+          if (!input.studentId) throw new Error("ID do aluno não fornecido");
+          await db.delete(lessons).where(and(
+             eq(lessons.userId, ctx.user.id),
+             eq(lessons.studentId, input.studentId),
+             eq(lessons.status, 'agendada')
+          ));
+        } else {
+          // Apagar todas as aulas não concluídas do usuário
+          await db.delete(lessons).where(and(
+             eq(lessons.userId, ctx.user.id),
+             eq(lessons.status, 'agendada') // Somente as q ainda vão acontecer (agendada)
+          ));
+        }
+        return { success: true };
+      } catch (error) {
+        return handleDbError(error, "excluir agendamentos em massa");
       }
     }),
 

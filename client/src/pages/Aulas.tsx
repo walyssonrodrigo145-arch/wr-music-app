@@ -11,7 +11,8 @@ import {
   CalendarCheck,
   Music,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -42,6 +43,7 @@ import LessonDetailModal from "@/components/modals/LessonDetailModal";
 import LessonCard from "@/components/LessonCard";
 import LessonsFilter from "@/components/LessonsFilter";
 import DayLessonsModal from "@/components/modals/DayLessonsModal";
+import BulkDeleteLessonsModal from "@/components/modals/BulkDeleteLessonsModal";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import {
   Select,
@@ -185,6 +187,7 @@ export default function Aulas() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [isDayLessonsOpen, setIsDayLessonsOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   
   // Search & Filter state
@@ -352,6 +355,14 @@ export default function Aulas() {
               </div>
               
               <div className="flex items-center gap-3">
+                 <button 
+                   onClick={() => setBulkDeleteOpen(true)}
+                   className="p-2 md:px-4 md:py-2 rounded-full border border-destructive/20 text-destructive text-[10px] font-black uppercase tracking-widest hover:bg-destructive/10 transition-all active:scale-95 flex items-center justify-center gap-2"
+                   title="Limpar agendamentos"
+                 >
+                   <Trash2 size={16} />
+                   <span className="hidden md:inline">Limpar</span>
+                 </button>
                  <MonthYearPicker 
                    date={view === "dia" ? selectedDay : currentDate} 
                    onChange={(d) => {
@@ -764,6 +775,11 @@ export default function Aulas() {
         open={isEditOpen} 
         onOpenChange={setIsEditOpen} 
         editingLesson={selectedLesson} 
+      />
+
+      <BulkDeleteLessonsModal
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
       />
     </div>
   );
