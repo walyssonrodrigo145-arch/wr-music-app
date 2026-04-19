@@ -37,6 +37,10 @@ async function migrate() {
   ];
 
   try {
+    // Configura o fuso horário de Brasília para as conexões
+    await sqlOld`SET TIME ZONE 'America/Sao_Paulo'`;
+    await sqlNew`SET TIME ZONE 'America/Sao_Paulo'`;
+
     console.log("\n🧹 Limpando o banco de dados novo para evitar dados duplicados...");
     // Limpa todas as tabelas no Aiven antes de injetar os reais
     for (const table of [...tables].reverse()) {
