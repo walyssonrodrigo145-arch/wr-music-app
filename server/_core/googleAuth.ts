@@ -91,12 +91,12 @@ export function registerGoogleAuthRoutes(app: Express) {
       // Redirecionar para home
       res.redirect("/");
     } catch (error: any) {
-      // Extraímos o erro real do banco de dados se disponível (Drizzle envolve o erro original)
-      const dbErr = error.driverError || error;
+      // Extraímos o erro real do banco de dados se disponível (Drizzle envolve o erro original no .cause ou .driverError)
+      const dbErr = error.cause || error.driverError || error;
       const errorMessage = error.message || "Erro desconhecido";
       
       console.error("[Google Auth] Error:", errorMessage);
-      if (error.driverError) {
+      if (dbErr) {
         console.error("[Google Auth] Driver Error Detail:", {
           code: dbErr.code,
           detail: dbErr.detail,
@@ -107,7 +107,7 @@ export function registerGoogleAuthRoutes(app: Express) {
         });
       }
 
-      const dbError = dbErr.code ? {
+      const dbError = dbErr?.code ? {
         code: dbErr.code,
         detail: dbErr.detail,
         table: dbErr.table,
