@@ -35,6 +35,16 @@ async function runAutomation() {
     let remindersCreated = 0;
 
     try {
+      // ─── LIMPEZA SEMANAL (Domingo) ──────────────────────────────────────────
+      // Se for domingo e a última execução não foi hoje, limpamos os lembretes
+      const lastRunDate = userSettings.automationLastRun ? new Date(userSettings.automationLastRun) : null;
+      const isSunday = now.getDay() === 0;
+      const isNewDay = !lastRunDate || lastRunDate.toDateString() !== now.toDateString();
+
+      if (isSunday && isNewDay) {
+        console.log(`[Automation] Sunday cleanup for userId=${userId}: Clearing reminders for the new week.`);
+        await db.delete(reminders).where(eq(reminders.userId, userId));
+      }
       // ─── LEMBRETES DE AULA (24h antes, semana atual) ───────────────────────
       const dayOfWeek = now.getDay();
       const monday = new Date(now);

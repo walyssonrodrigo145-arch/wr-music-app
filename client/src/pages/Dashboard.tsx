@@ -662,7 +662,7 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-3">
-                {pendingReminders.slice(0, 3).map((r: any) => (
+                {pendingReminders.slice(0, 1).map((r: any) => (
                   <div key={r.id} className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-4 group/reminder hover:bg-amber-500/10 transition-all">
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-black text-amber-900 dark:text-amber-200 line-clamp-2">{r.message}</p>
@@ -682,9 +682,9 @@ export default function Dashboard() {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => navigate("/lembretes")}
-                className="w-full mt-4 rounded-xl text-[11px] font-black uppercase tracking-widest text-amber-600 hover:bg-amber-50"
+                className="w-full mt-4 rounded-xl text-[11px] font-black uppercase tracking-widest text-amber-600 hover:bg-amber-50 group-hover:bg-amber-100 transition-colors"
               >
-                Ver todos lembretes
+                Ver mais <ChevronRight size={14} className="ml-1 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>
           )}
