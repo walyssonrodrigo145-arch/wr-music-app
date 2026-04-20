@@ -71,31 +71,33 @@ export default function BulkDeleteLessonsModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] rounded-[1.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
-        <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-destructive/10 via-background to-background relative border-b border-border/10">
-          <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
-            <Trash2 size={120} />
+        <div className="px-6 pt-10 pb-8 bg-gradient-to-br from-destructive/10 via-background to-background relative border-b border-border/10">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.05] pointer-events-none">
+            <Trash2 size={140} />
           </div>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2 text-destructive">
-              <AlertCircle size={20} />
-              Excluir Agendamentos
+          <DialogHeader className="relative z-10">
+            <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive mb-4 shadow-inner">
+              <AlertCircle size={28} />
+            </div>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight text-foreground">
+              Limpar Agenda
             </DialogTitle>
-            <DialogDescription className="text-xs font-bold text-muted-foreground/60">
-              Escolha quais aulas agendadas (que ainda não aconteceram) você deseja remover do sistema.
+            <DialogDescription className="text-sm font-medium text-muted-foreground/60 leading-relaxed max-w-[90%]">
+              Esta ação removerá permanentemente as aulas agendadas que ainda não ocorreram.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="space-y-3">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">O que você deseja excluir?</Label>
+          <div className="space-y-4">
+            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40 ml-1">ESCOPO DA EXCLUSÃO</Label>
             <Select value={type} onValueChange={(val) => setType(val as "all" | "student")}>
-              <SelectTrigger className="w-full bg-muted/5 font-bold h-12 rounded-xl">
+              <SelectTrigger className="w-full bg-muted/20 border-none font-bold h-14 rounded-2xl focus:ring-2 focus:ring-destructive/20 transition-all">
                 <SelectValue placeholder="Selecione o filtro" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="font-bold">Todos os agendamentos futuros</SelectItem>
-                <SelectItem value="student" className="font-bold">Agendamentos de um Aluno Específico</SelectItem>
+              <SelectContent className="rounded-2xl border-border/40 shadow-2xl">
+                <SelectItem value="all" className="font-bold py-3">Todos os agendamentos futuros</SelectItem>
+                <SelectItem value="student" className="font-bold py-3">Apenas de um Aluno Específico</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -121,11 +123,11 @@ export default function BulkDeleteLessonsModal({
             </div>
           )}
 
-          <div className="pt-4 flex justify-end gap-3">
+          <div className="pt-6 flex flex-col sm:flex-row gap-3">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="h-11 rounded-xl text-xs font-bold uppercase tracking-wider"
+              className="h-14 flex-1 rounded-2xl text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-muted/50 transition-all"
               disabled={deleteBulkMutation.isPending}
             >
               Cancelar
@@ -134,9 +136,9 @@ export default function BulkDeleteLessonsModal({
               variant="destructive"
               onClick={handleDelete}
               disabled={deleteBulkMutation.isPending || (type === "student" && !studentId)}
-              className="h-11 rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-destructive/20"
+              className="h-14 flex-[2] rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-destructive/20 hover:scale-[1.02] active:scale-95 transition-all"
             >
-              {deleteBulkMutation.isPending ? "Excluindo..." : "Excluir Definitivamente"}
+              {deleteBulkMutation.isPending ? "Processando..." : "Confirmar Exclusão"}
             </Button>
           </div>
         </div>

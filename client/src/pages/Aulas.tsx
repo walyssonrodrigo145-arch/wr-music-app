@@ -91,7 +91,7 @@ function PixelTabSelector({ view, onChange }: { view: CalendarView; onChange: (v
   ] as const;
 
   return (
-    <div className="grid grid-cols-4 gap-0 w-full mb-4 border-b border-border/10 pb-1">
+    <div className="grid grid-cols-4 gap-1 w-full mt-4 mb-4 pb-2">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = view === tab.id;
@@ -99,16 +99,16 @@ function PixelTabSelector({ view, onChange }: { view: CalendarView; onChange: (v
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className="flex flex-col items-center gap-1.5 py-2 transition-all relative"
+            className="flex flex-col items-center gap-2 py-3 transition-all relative"
           >
             <div className={cn(
-              "w-8 h-8 flex items-center justify-center transition-all rounded-xl",
-              isActive ? "bg-primary/10 text-primary" : "text-muted-foreground/30 hover:text-muted-foreground/60"
+              "w-12 h-12 flex items-center justify-center transition-all rounded-2xl",
+              isActive ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105" : "bg-card border border-border/40 text-muted-foreground/30 hover:text-muted-foreground/50"
             )}>
-              <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon size={20} strokeWidth={isActive ? 3 : 2} />
             </div>
             <span className={cn(
-              "text-[9px] font-bold tracking-[0.1em] uppercase transition-colors",
+              "text-[9px] font-black tracking-[0.2em] uppercase transition-colors",
               isActive ? "text-primary" : "text-muted-foreground/30"
             )}>
               {tab.label}
@@ -354,14 +354,14 @@ export default function Aulas() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                  <button 
                    onClick={() => setBulkDeleteOpen(true)}
-                   className="p-2 md:px-4 md:py-2 rounded-full border border-destructive/20 text-destructive text-[10px] font-black uppercase tracking-widest hover:bg-destructive/10 transition-all active:scale-95 flex items-center justify-center gap-2"
+                   className="hidden md:flex p-2 md:px-4 md:py-2 rounded-full border border-destructive/20 text-destructive text-[10px] font-black uppercase tracking-widest hover:bg-destructive/10 transition-all active:scale-95 items-center justify-center gap-2"
                    title="Limpar agendamentos"
                  >
                    <Trash2 size={16} />
-                   <span className="hidden md:inline">Limpar</span>
+                   <span>Limpar</span>
                  </button>
                  <MonthYearPicker 
                    date={view === "dia" ? selectedDay : currentDate} 
@@ -372,7 +372,7 @@ export default function Aulas() {
                  />
                  <button 
                    onClick={() => { setCurrentDate(new Date()); setSelectedDay(new Date()); }}
-                   className="px-4 py-2 rounded-full border border-border/40 text-[10px] font-black uppercase tracking-widest hover:bg-muted/50 transition-all active:scale-95 ml-2"
+                   className="px-3 py-2 md:px-4 md:py-2 rounded-full border border-border/40 text-[10px] font-black uppercase tracking-widest hover:bg-muted/50 transition-all active:scale-95 ml-1"
                  >
                    Hoje
                  </button>
@@ -403,7 +403,11 @@ export default function Aulas() {
               </div>
             </div>
 
-            <LessonsFilter onSearch={setSearchQuery} onFilterChange={setFilters} />
+            <LessonsFilter 
+              onSearch={setSearchQuery} 
+              onFilterChange={setFilters} 
+              onBulkDelete={() => setBulkDeleteOpen(true)}
+            />
             <PixelTabSelector view={view} onChange={setView} />
           </div>
 

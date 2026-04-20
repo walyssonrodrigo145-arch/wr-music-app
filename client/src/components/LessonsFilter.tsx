@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 interface LessonsFilterProps {
   onSearch: (q: string) => void;
   onFilterChange: (filters: { instrumentId?: number; status?: string }) => void;
+  onBulkDelete?: () => void;
 }
 
-export default function LessonsFilter({ onSearch, onFilterChange }: LessonsFilterProps) {
+export default function LessonsFilter({ onSearch, onFilterChange, onBulkDelete }: LessonsFilterProps) {
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
   const [search, setSearch] = useState("");
   const [selectedInstrument, setSelectedInstrument] = useState<number | undefined>();
@@ -100,66 +101,78 @@ export default function LessonsFilter({ onSearch, onFilterChange }: LessonsFilte
   );
 
   return (
-    <div className="space-y-6 mb-10">
-      <div className="flex flex-col md:flex-row gap-4 items-center">
+    <div className="space-y-6 mb-10 w-full">
+      <div className="flex flex-row gap-2 items-center w-full px-1">
         {/* ── Search Bar ── */}
-        <div className="relative flex-1 w-full group">
-          <div className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-colors">
-            <Search size={22} strokeWidth={2.5} />
+        <div className="relative flex-1 group">
+          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-colors">
+            <Search size={20} strokeWidth={2.5} />
           </div>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="BUSCAR ALUNO..."
-            className="w-full h-16 pl-16 pr-6 bg-card border border-border/40 rounded-3xl text-sm font-bold tracking-tight placeholder:text-muted-foreground/20 placeholder:font-black focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all shadow-xl shadow-primary/[0.02]"
+            placeholder="BUSCAR..."
+            className="w-full h-14 pl-14 pr-4 bg-card border border-border/40 rounded-2xl text-xs font-bold tracking-tight placeholder:text-muted-foreground/20 placeholder:font-black focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all shadow-lg shadow-primary/[0.01]"
           />
           {search && (
             <button 
               onClick={() => setSearch("")}
-              className="absolute right-6 top-1/2 -translate-y-1/2 p-2 hover:bg-muted rounded-full text-muted-foreground transition-all"
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-muted rounded-full text-muted-foreground transition-all"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           )}
         </div>
 
         {/* ── Mobile Filter Trigger ── */}
         {!isDesktop && (
-          <Drawer>
-            <DrawerTrigger asChild>
+          <div className="flex items-center gap-2">
+            <Drawer>
+              <DrawerTrigger asChild>
+                <button 
+                  className={cn(
+                    "h-14 w-14 rounded-2xl border border-border/40 flex items-center justify-center transition-all relative shrink-0 shadow-lg shadow-primary/[0.01]",
+                    activeFiltersCount > 0 ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground/40"
+                  )}
+                  title="Filtros"
+                >
+                  <Filter size={20} />
+                  {activeFiltersCount > 0 && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-rose-500 text-[10px] font-black text-white rounded-full border-2 border-background">
+                      {activeFiltersCount}
+                    </div>
+                  )}
+                </button>
+              </DrawerTrigger>
+              <DrawerContent className="p-8 pb-12 rounded-t-[2.5rem]">
+                <DrawerHeader className="px-0">
+                  <DrawerTitle className="text-3xl font-black uppercase tracking-tighter text-foreground">Ajustar Filtros</DrawerTitle>
+                </DrawerHeader>
+                <div className="mt-8">
+                  <FilterLayout />
+                </div>
+                <div className="mt-12">
+                   <button 
+                     onClick={() => { setSelectedInstrument(undefined); setSelectedStatus(undefined); }}
+                     className="w-full h-14 rounded-[1.5rem] bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20"
+                   >
+                     Limpar Filtros
+                   </button>
+                </div>
+              </DrawerContent>
+            </Drawer>
+
+            {onBulkDelete && (
               <button 
-                className={cn(
-                  "h-16 px-8 rounded-3xl border border-border/40 font-black text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 transition-all relative shrink-0",
-                  activeFiltersCount > 0 ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground/60"
-                )}
+                onClick={onBulkDelete}
+                className="h-14 w-14 rounded-2xl border border-destructive/20 text-destructive flex items-center justify-center transition-all bg-card hover:bg-destructive/5 active:scale-95 shadow-lg shadow-destructive/[0.01]"
+                title="Limpar agendamentos"
               >
-                <Filter size={18} />
-                <span>Filtros</span>
-                {activeFiltersCount > 0 && (
-                  <Badge variant="secondary" className="absolute -top-2 -right-2 px-2 py-0.5 rounded-lg border-2 border-background">
-                    {activeFiltersCount}
-                  </Badge>
-                )}
+                <Trash2 size={20} />
               </button>
-            </DrawerTrigger>
-            <DrawerContent className="p-8">
-              <DrawerHeader>
-                <DrawerTitle className="text-2xl font-black uppercase tracking-tighter">Filtrar Aulas</DrawerTitle>
-              </DrawerHeader>
-              <div className="mt-6">
-                <FilterLayout />
-              </div>
-              <div className="mt-10 mb-4">
-                 <button 
-                   onClick={() => { setSelectedInstrument(undefined); setSelectedStatus(undefined); }}
-                   className="w-full h-14 rounded-2xl border border-dashed border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 hover:text-rose-500 hover:border-rose-500/40 transition-all"
-                 >
-                   Limpar Todos os Filtros
-                 </button>
-              </div>
-            </DrawerContent>
-          </Drawer>
+            )}
+          </div>
         )}
       </div>
 
