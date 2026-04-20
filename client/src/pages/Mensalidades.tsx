@@ -21,15 +21,15 @@ type PaymentRow = {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string; icon: React.ElementType }> = {
-    pago:     { label: "Pago",     cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle2 },
-    pendente: { label: "Pendente", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",   icon: Clock },
-    atrasado: { label: "Atrasado", cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",           icon: AlertCircle },
+    pago:     { label: "Pago",     cls: "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400", icon: CheckCircle2 },
+    pendente: { label: "Pendente", cls: "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",   icon: Clock },
+    atrasado: { label: "Atrasado", cls: "bg-red-500/10 border-red-500/20 text-red-600 dark:bg-red-500/10 dark:text-red-400",           icon: AlertCircle },
   };
   const c = map[status] ?? map.pendente;
   const Icon = c.icon;
   return (
-    <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full", c.cls)}>
-      <Icon size={10} /> {c.label}
+    <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border", c.cls)}>
+      <Icon size={12} strokeWidth={3} /> {c.label}
     </span>
   );
 }
@@ -282,158 +282,201 @@ export default function Mensalidades() {
   }));
 
   return (
-    <div className="space-y-5 max-w-[1400px]">
+    <div className="space-y-8 max-w-[1400px] mb-24 lg:mb-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-            <DollarSign size={20} className="text-emerald-500" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-emerald-500/10 via-blue-500/5 to-transparent p-6 md:p-8 rounded-[2rem] border border-border/40 shadow-sm relative overflow-hidden">
+        {/* Abstract Background Element */}
+        <div className="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex items-center gap-5 relative z-10">
+          <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-500 text-white flex items-center justify-center shadow-xl shadow-emerald-500/20 flex-shrink-0">
+            <DollarSign size={32} strokeWidth={2.5} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-foreground">Mensalidades</h2>
-            <p className="text-xs text-muted-foreground">Controle financeiro dos alunos</p>
+            <h2 className="text-3xl lg:text-4xl font-black tracking-tighter text-foreground uppercase leading-none">Mensalidades</h2>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.2em]">Controle financeiro</p>
+            </div>
           </div>
         </div>
-        <Button className="gap-2 rounded-xl text-sm bg-emerald-600 hover:bg-emerald-700 text-white"
+        <Button className="h-14 w-full md:w-auto px-8 gap-3 rounded-2xl text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/20 transition-all hover:-translate-y-1 relative z-10"
           onClick={() => setNovaOpen(true)}>
-          <Plus size={15} /> Nova Mensalidade
+          <Plus size={18} strokeWidth={3} /> Nova Mensalidade
         </Button>
       </div>
 
       {/* Navegação de mês */}
-      <div className="flex items-center justify-between bg-card rounded-2xl border border-border p-4">
-        <button onClick={prevMonth} className="w-9 h-9 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft size={16} />
+      <div className="flex items-center justify-between bg-card rounded-[2rem] border border-border/40 p-5 shadow-lg shadow-black/5">
+        <button onClick={prevMonth} className="w-12 h-12 rounded-2xl hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all active:scale-95 border border-transparent hover:border-border/40">
+          <ChevronLeft size={20} strokeWidth={3} />
         </button>
-        <div className="text-center">
-          <p className="text-base font-bold text-foreground">{MONTHS_FULL[viewMonth - 1]} {viewYear}</p>
-          <p className="text-xs text-muted-foreground">{totals.total} mensalidades</p>
+        <div className="text-center flex-1">
+          <p className="text-2xl lg:text-3xl font-black text-foreground uppercase tracking-tighter">
+            {MONTHS_FULL[viewMonth - 1]} <span className="text-muted-foreground/30 ml-2">{viewYear}</span>
+          </p>
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+            <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-[0.3em]">{totals.total} registros encontrados</p>
+          </div>
         </div>
-        <button onClick={nextMonth} className="w-9 h-9 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronRight size={16} />
+        <button onClick={nextMonth} className="w-12 h-12 rounded-2xl hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all active:scale-95 border border-transparent hover:border-border/40">
+          <ChevronRight size={20} strokeWidth={3} />
         </button>
       </div>
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
         {[
-          { label: "Recebido", value: `R$ ${totals.recebido.toFixed(2).replace(".", ",")}`, icon: CheckCircle2, color: "emerald", sub: `${totals.pago} pagas` },
-          { label: "Previsto", value: `R$ ${totals.previsto.toFixed(2).replace(".", ",")}`, icon: DollarSign, color: "blue", sub: `${totals.total} total` },
-          { label: "Pendentes", value: String(totals.pendente), icon: Clock, color: "amber", sub: "aguardando" },
-          { label: "Atrasadas", value: String(totals.atrasado), icon: AlertCircle, color: "red", sub: "em atraso" },
+          { label: "Recebido", value: `R$ ${totals.recebido.toFixed(2).replace(".", ",")}`, icon: CheckCircle2, color: "emerald", sub: `${totals.pago} pagas`, gradient: "from-emerald-500/20 via-emerald-500/5 to-transparent", border: "border-emerald-500/20" },
+          { label: "Previsto", value: `R$ ${totals.previsto.toFixed(2).replace(".", ",")}`, icon: DollarSign, color: "blue", sub: `${totals.total} total`, gradient: "from-blue-500/20 via-blue-500/5 to-transparent", border: "border-blue-500/20" },
+          { label: "Pendentes", value: String(totals.pendente), icon: Clock, color: "amber", sub: "aguardando", gradient: "from-amber-500/20 via-amber-500/5 to-transparent", border: "border-amber-500/20" },
+          { label: "Atrasadas", value: String(totals.atrasado), icon: AlertCircle, color: "red", sub: "em atraso", gradient: "from-red-500/20 via-red-500/5 to-transparent", border: "border-red-500/20" },
         ].map(card => {
           const Icon = card.icon;
           const colorMap: Record<string, string> = {
-            emerald: "bg-emerald-500/10 text-emerald-500",
-            blue: "bg-blue-500/10 text-blue-500",
-            amber: "bg-amber-500/10 text-amber-500",
-            red: "bg-red-500/10 text-red-500",
+            emerald: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/10",
+            blue: "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/10",
+            amber: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/10",
+            red: "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/10",
+          };
+          const textColorMap: Record<string, string> = {
+            emerald: "text-emerald-700 dark:text-emerald-400",
+            blue: "text-blue-700 dark:text-blue-400",
+            amber: "text-amber-700 dark:text-amber-400",
+            red: "text-red-700 dark:text-red-400",
           };
           return (
-            <div key={card.label} className="bg-card rounded-2xl border border-border p-4">
-              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center mb-3", colorMap[card.color])}>
-                <Icon size={16} />
+            <div key={card.label} className={cn("relative group overflow-hidden bg-card rounded-[2rem] border p-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 hover:border-opacity-50 shadow-sm", card.border)}>
+              <div className={cn("absolute inset-0 bg-gradient-to-br opacity-50 z-0 transition-opacity group-hover:opacity-100", card.gradient)} />
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="flex justify-between items-start mb-6">
+                  <div className={cn("w-12 h-12 rounded-[1rem] flex items-center justify-center border shadow-inner backdrop-blur-md transition-transform group-hover:scale-110 group-hover:rotate-3", colorMap[card.color])}>
+                    <Icon size={24} strokeWidth={2.5} />
+                  </div>
+                  <span className={cn("text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl bg-background/60 backdrop-blur-md border border-border/20 shadow-sm", textColorMap[card.color])}>
+                    {card.label}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-2xl lg:text-3xl font-black tracking-tighter text-foreground leading-none">{card.value}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.2em] mt-3 bg-muted/40 inline-block px-2 py-1 rounded-md">{card.sub}</p>
+                </div>
               </div>
-              <p className="text-xl font-bold text-foreground">{card.value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{card.label}</p>
-              <p className="text-[10px] text-muted-foreground">{card.sub}</p>
             </div>
           );
         })}
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-2 flex-wrap">
-        {(["todas", "pendente", "pago", "atrasado"] as const).map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)}
-            className={cn("px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-              filterStatus === s ? "bg-primary text-primary-foreground shadow-sm" : "bg-card border border-border text-muted-foreground hover:bg-muted"
-            )}>
-            {s === "todas" ? "Todas" : s.charAt(0).toUpperCase() + s.slice(1)}
-            {" "}({s === "todas" ? totals.total : totals[s as keyof typeof totals] as number})
-          </button>
-        ))}
+      <div className="flex gap-2 flex-wrap bg-muted/20 p-2 rounded-3xl border border-border/20">
+        {(["todas", "pendente", "pago", "atrasado"] as const).map(s => {
+           let colors = "";
+           if (filterStatus === s) {
+             if (s === "todas") colors = "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-100 border-primary";
+             if (s === "pendente") colors = "bg-amber-500 text-white shadow-lg shadow-amber-500/20 scale-100 border-amber-500";
+             if (s === "pago") colors = "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-100 border-emerald-500";
+             if (s === "atrasado") colors = "bg-red-500 text-white shadow-lg shadow-red-500/20 scale-100 border-red-500";
+           } else {
+             colors = "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5";
+           }
+           
+           return (
+            <button key={s} onClick={() => setFilterStatus(s)}
+              className={cn("px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border flex-1 md:flex-none text-center", colors)}>
+              {s === "todas" ? "Todas" : s}
+              <span className="ml-2 opacity-60">({s === "todas" ? totals.total : totals[s as keyof typeof totals] as number})</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Tabela */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 size={24} className="animate-spin text-primary" />
+        <div className="flex items-center justify-center py-24 bg-card rounded-[2rem] border border-border/40 shadow-sm">
+          <Loader2 size={32} className="animate-spin text-primary" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-card rounded-2xl border border-border p-16 flex flex-col items-center text-muted-foreground">
-          <DollarSign size={40} className="mb-3 opacity-30" />
-          <p className="text-sm font-medium">Nenhuma mensalidade encontrada</p>
-          <p className="text-xs mt-1">
+        <div className="bg-card rounded-[2rem] border border-border/40 p-24 flex flex-col items-center text-muted-foreground shadow-sm">
+          <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-6">
+            <DollarSign size={40} strokeWidth={2} className="opacity-30" />
+          </div>
+          <p className="text-xl font-black uppercase tracking-tight text-foreground">Aba vazia</p>
+          <p className="text-xs font-bold uppercase tracking-widest mt-2 opacity-50">
             {filterStatus === "todas"
-              ? 'Clique em "Nova Mensalidade" para começar'
-              : "Tente outro filtro"}
+              ? 'Nenhuma mensalidade neste mês'
+              : "Não há mensalidades com este status"}
           </p>
         </div>
       ) : (
-        <div className="bg-card rounded-2xl border border-border overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-card rounded-[2rem] border border-border/40 overflow-hidden shadow-2xl shadow-primary/5">
+          <div className="overflow-x-auto scrollbar-none">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-4 py-3">Aluno</th>
-                  <th className="text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-4 py-3">Valor</th>
-                  <th className="text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-4 py-3">Vencimento</th>
-                  <th className="text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-4 py-3">Status</th>
-                  <th className="text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-4 py-3">Pago em</th>
-                  <th className="text-right text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-4 py-3">Ações</th>
+                <tr className="border-b border-border/40 bg-muted/20">
+                  <th className="text-left text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] px-6 py-5">Aluno</th>
+                  <th className="text-left text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] px-6 py-5">Valor</th>
+                  <th className="text-left text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] px-6 py-5">Datas</th>
+                  <th className="text-left text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] px-6 py-5">Status</th>
+                  <th className="text-right text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] px-6 py-5">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border/40">
                 {filtered.map((p: PaymentRow) => (
-                  <tr key={p.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary flex-shrink-0">
+                  <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-[1.2rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-base font-black text-primary border border-primary/10 flex-shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-transform">
                           {(p.studentName ?? "?")[0]?.toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-foreground">{p.studentName ?? "—"}</p>
-                          {p.notes && <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{p.notes}</p>}
+                          <p className="text-sm font-black text-foreground uppercase tracking-tight">{p.studentName ?? "—"}</p>
+                          {p.notes && <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-1 max-w-[150px] truncate">{p.notes}</p>}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm font-bold text-foreground">
+                    <td className="px-6 py-4">
+                      <span className="text-base font-black text-foreground tracking-tighter">
                         R$ {Number(p.amount).toFixed(2).replace(".", ",")}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Calendar size={11} />
-                        {new Date(p.dueDate + "T12:00:00").toLocaleDateString("pt-BR")}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                          <span className="w-14 text-muted-foreground/40">Vence:</span>
+                          <Calendar size={12} className="text-primary/40" />
+                          <span className="text-foreground">{new Date(p.dueDate + "T12:00:00").toLocaleDateString("pt-BR").slice(0,5)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                          <span className="w-14 text-muted-foreground/40">Pgto:</span>
+                          <CheckCircle2 size={12} className={p.paidAt ? "text-emerald-500/60" : "text-border"} />
+                          <span className={p.paidAt ? "text-emerald-600 dark:text-emerald-400" : ""}>
+                            {p.paidAt ? new Date(p.paidAt).toLocaleDateString("pt-BR").slice(0,5) : "—"}
+                          </span>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <StatusBadge status={p.status} />
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-muted-foreground">
-                        {p.paidAt ? new Date(p.paidAt).toLocaleDateString("pt-BR") : "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
                         {p.status !== "pago" && (
                           <button
                             onClick={() => markPaidMutation.mutate({ id: p.id })}
                             disabled={markPaidMutation.isPending}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white transition-all active:scale-95 border border-emerald-500/20"
                           >
-                            <CheckCircle2 size={11} /> Pago
+                            <CheckCircle2 size={14} /> Pago
                           </button>
                         )}
                         <button
                           onClick={() => deleteMutation.mutate({ id: p.id })}
                           disabled={deleteMutation.isPending}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-muted-foreground hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          className="flex items-center gap-1.5 w-10 h-10 justify-center rounded-xl text-[10px] font-black text-red-500 bg-red-500/10 hover:bg-red-500 hover:text-white transition-all active:scale-95 border border-red-500/20"
+                          title="Excluir"
                         >
-                          <Trash2 size={11} /> Excluir
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
