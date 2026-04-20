@@ -300,7 +300,7 @@ export default function Dashboard() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {overduePayments.slice(0, 6).map((p: any) => (
+                {overduePayments.slice(0, 1).map((p: any) => (
                   <div key={p.id} className="flex items-center justify-between bg-white/60 dark:bg-black/20 backdrop-blur-sm rounded-2xl p-3 border border-rose-100 dark:border-rose-900/30 hover:border-rose-400 transition-colors group/item">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center font-black text-rose-700 dark:text-rose-300 text-xs">

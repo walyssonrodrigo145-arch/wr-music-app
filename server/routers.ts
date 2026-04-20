@@ -1090,7 +1090,7 @@ export const appRouter = router({
           .from(reminders)
           .leftJoin(students, eq(reminders.studentId, students.id))
           .where(eq(reminders.userId, ctx.user.id))
-          .orderBy(asc(reminders.scheduledAt));
+          .orderBy(desc(reminders.scheduledAt));
 
         return rows.filter(r => {
           if (input?.studentId && r.studentId !== input.studentId) return false;
