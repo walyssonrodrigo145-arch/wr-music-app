@@ -17,7 +17,7 @@ import {
   getExperimentalStats,
 } from "./db";
 import { users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings } from "../drizzle/schema";
-import { eq, desc, sql, and, gte, lt, lte, asc } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
 import { TRPCError } from "@trpc/server";
