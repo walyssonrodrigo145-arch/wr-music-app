@@ -77,16 +77,23 @@ export default function Relatorios() {
     })).filter(d => d.value > 0);
   }, [instruments]);
 
-  const topTwoComparison = useMemo(() => {
-    if (instruments.length < 2) return null;
-    const sorted = [...instruments].sort((a, b) => Number(b.studentCount) - Number(a.studentCount));
-    const first = sorted[0];
-    const second = sorted[1];
+  const instrumentStats = useMemo(() => {
+    if (instruments.length === 0) return null;
+    const items = instruments
+      .map(inst => ({
+        ...inst,
+        count: Number(inst.studentCount)
+      }))
+      .filter(d => d.count > 0)
+      .sort((a, b) => b.count - a.count);
+
+    const total = items.reduce((sum, item) => sum + item.count, 0);
     
-    const total = Number(first.studentCount) + Number(second.studentCount);
     return {
-      first: { ...first, pct: total > 0 ? (Number(first.studentCount) / total) * 100 : 0 },
-      second: { ...second, pct: total > 0 ? (Number(second.studentCount) / total) * 100 : 0 },
+      items: items.map(item => ({
+        ...item,
+        pct: total > 0 ? (item.count / total) * 100 : 0
+      })),
       totalStudents: total
     };
   }, [instruments]);
@@ -301,53 +308,50 @@ export default function Relatorios() {
                 <p className="text-xs text-muted-foreground">Comparativo de alunos matriculados</p>
               </div>
 
-              {topTwoComparison ? (
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between text-xs font-bold px-1">
-                      <div className="flex items-center gap-2 text-indigo-600">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                        {topTwoComparison.first.name}
-                      </div>
-                      <div className="flex items-center gap-2 text-rose-500">
-                        {topTwoComparison.second.name}
-                        <span className="w-2 h-2 rounded-full bg-rose-500" />
-                      </div>
-                    </div>
-                    
-                    <div className="h-5 w-full bg-muted/30 rounded-full overflow-hidden flex shadow-inner border border-border/50">
-                      <div 
-                        className="h-full bg-indigo-500 transition-all duration-1000 ease-out flex items-center justify-center text-[8px] font-black text-white px-2"
-                        style={{ width: `${topTwoComparison.first.pct}%` }}
-                      >
-                         {Math.round(topTwoComparison.first.pct)}%
-                      </div>
-                      <div 
-                        className="h-full bg-rose-500 transition-all duration-1000 ease-out flex items-center justify-center text-[8px] font-black text-white px-2"
-                        style={{ width: `${topTwoComparison.second.pct}%` }}
-                      >
-                         {Math.round(topTwoComparison.second.pct)}%
-                      </div>
+              {instrumentStats && instrumentStats.items.length > 0 ? (
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 px-1">
+                      <span>Distribuição Geral</span>
+                      <span>Total: {instrumentStats.totalStudents} alunos</span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-3 bg-indigo-500/5 rounded-xl border border-indigo-500/10 text-center">
-                        <p className="text-[9px] font-black text-indigo-600 uppercase mb-0.5">{topTwoComparison.first.name}</p>
-                        <p className="text-xl font-black text-indigo-700">{topTwoComparison.first.studentCount}</p>
-                        <p className="text-[8px] text-indigo-500/70 font-bold">alunos</p>
-                      </div>
-                      <div className="p-3 bg-rose-500/5 rounded-xl border border-rose-500/10 text-center">
-                        <p className="text-[9px] font-black text-rose-600 uppercase mb-0.5">{topTwoComparison.second.name}</p>
-                        <p className="text-xl font-black text-rose-700">{topTwoComparison.second.studentCount}</p>
-                        <p className="text-[8px] text-rose-500/70 font-bold">alunos</p>
-                      </div>
+                    <div className="h-6 w-full bg-muted/30 rounded-full overflow-hidden flex shadow-inner border border-border/50">
+                      {instrumentStats.items.map((item, idx) => (
+                        <motion.div 
+                          key={item.id}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${item.pct}%` }}
+                          transition={{ duration: 1, delay: idx * 0.1 }}
+                          className="h-full flex items-center justify-center text-[8px] font-black text-white px-1 truncate group relative"
+                          style={{ backgroundColor: item.color || "#6366f1" }}
+                        >
+                           {item.pct >= 10 && `${Math.round(item.pct)}%`}
+                           <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block bg-popover text-popover-foreground text-[8px] p-1.5 rounded-lg border border-border shadow-2xl whitespace-nowrap z-50">
+                             {item.name}: {item.count} alunos
+                           </div>
+                        </motion.div>
+                      ))}
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[180px] scrollbar-thin pr-2">
+                    {instrumentStats.items.map((item) => (
+                      <div key={item.id} className="p-2.5 bg-muted/20 rounded-xl border border-border/50 flex flex-col items-center text-center transition-all hover:bg-muted/40">
+                        <div className="w-1.5 h-1.5 rounded-full mb-1.5" style={{ backgroundColor: item.color }} />
+                        <p className="text-[10px] font-black text-foreground uppercase truncate w-full">{item.name}</p>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="text-lg font-black text-primary">{item.count}</span>
+                          <span className="text-[8px] text-muted-foreground font-bold">ALUNOS</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ) : (
                 <div className="h-40 flex flex-col items-center justify-center text-center p-4 bg-muted/10 rounded-2xl border border-dashed border-border">
                   <Users size={24} className="text-muted-foreground/30 mb-2" />
-                  <p className="text-[10px] font-bold text-muted-foreground">Cadastre pelo menos 2 instrumentos para ver o comparativo</p>
+                  <p className="text-[10px] font-bold text-muted-foreground">Cadastre instrumentos e alunos para ver a análise</p>
                 </div>
               )}
            </div>
@@ -377,9 +381,9 @@ export default function Relatorios() {
                   <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-              {topTwoComparison && (
+              {instrumentStats && (
                 <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                   <span className="text-xs font-black text-foreground">{topTwoComparison.totalStudents}</span>
+                   <span className="text-xs font-black text-foreground">{instrumentStats.totalStudents}</span>
                    <span className="text-[8px] font-bold text-muted-foreground uppercase">Tudo</span>
                 </div>
               )}
