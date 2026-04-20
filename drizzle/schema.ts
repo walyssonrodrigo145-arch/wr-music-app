@@ -52,7 +52,7 @@ export const students = pgTable("students", {
   userId: integer("userId").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 320 }).unique(),
-  phone: varchar("phone", { length: 30 }).notNull(),
+  phone: varchar("phone", { length: 30 }).default("").notNull(),
   avatar: text("avatar"),
   instrumentId: integer("instrumentId"),
   level: levelEnum("level").default("iniciante").notNull(),
