@@ -2,7 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Users, Search, Guitar, Phone, Mail, Plus, Pencil, Trash2,
-  CheckCircle2, X, Loader2, ChevronDown,
+  CheckCircle2, X, Loader2, ChevronDown, Clock,
 } from "lucide-react";
 import { StudentDetailsModal } from "@/components/modals/StudentDetailsModal";
 import { Input } from "@/components/ui/input";
