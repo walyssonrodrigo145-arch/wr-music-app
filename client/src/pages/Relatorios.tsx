@@ -186,7 +186,7 @@ export default function Relatorios() {
               </div>
            </div>
 
-           <div className="w-full md:w-48 h-64 md:h-auto bg-muted/10 flex items-center justify-center p-4 border-t md:border-t-0 md:border-l border-border/50">
+           <div className="relative w-full md:w-48 h-64 md:h-auto bg-muted/10 flex items-center justify-center p-4 border-t md:border-t-0 md:border-l border-border/50">
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie
