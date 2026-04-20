@@ -33,7 +33,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-[1.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
+      <DialogContent className="sm:max-w-[380px] rounded-[1.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
         {isLoading || !student ? (
           <div className="flex flex-col items-center justify-center p-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -42,13 +42,13 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
         ) : (
           <>
             {/* Profile Header */}
-            <div className="px-6 pt-10 pb-8 bg-gradient-to-b from-primary/5 to-transparent flex flex-col items-center text-center relative">
+            <div className="px-6 pt-8 pb-6 bg-gradient-to-b from-primary/5 to-transparent flex flex-col items-center text-center relative">
               {/* Profile Avatar */}
-              <div className="w-24 h-24 rounded-[2.2rem] bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-xl shadow-primary/20 mb-5 text-white font-black text-3xl border-4 border-background transition-transform hover:scale-105 duration-300">
+              <div className="w-20 h-20 rounded-[1.8rem] bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-xl shadow-primary/20 mb-4 text-white font-black text-2xl border-4 border-background transition-transform hover:scale-105 duration-300">
                  {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
               </div>
               
-              <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-tight px-4 flex flex-col items-center gap-1">
+              <DialogTitle className="text-xl font-black uppercase tracking-tighter text-foreground leading-tight px-4 flex flex-col items-center gap-1">
                 {student.name}
                 <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em]">
                   {student.instrumentName || "Música"}
@@ -81,11 +81,11 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
             </div>
 
             {/* Details Content */}
-            <div className="p-6 space-y-6">
+            <div className="p-5 space-y-4">
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                  {/* Cadastro */}
-                 <div className="bg-card p-4 rounded-[1.5rem] border border-border/40 flex flex-col justify-center relative overflow-hidden group">
+                 <div className="bg-card p-3 rounded-2xl border border-border/40 flex flex-col justify-center relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="flex items-center gap-2 text-muted-foreground/40 mb-2 relative z-10">
                        <CalendarIcon size={12} strokeWidth={2.5} />
@@ -97,7 +97,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                  </div>
                  
                  {/* Mensalidade Base */}
-                 <div className="bg-card p-4 rounded-[1.5rem] border border-border/40 flex flex-col justify-center relative overflow-hidden group">
+                 <div className="bg-card p-3 rounded-2xl border border-border/40 flex flex-col justify-center relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="flex items-center gap-2 text-muted-foreground/40 mb-2 relative z-10">
                        <DollarSign size={12} strokeWidth={2.5} />
@@ -110,7 +110,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
               </div>
 
               {/* Pagamentos */}
-              <div className="bg-card/50 p-6 rounded-[2rem] border border-border/40 space-y-5 shadow-inner relative overflow-hidden">
+              <div className="bg-card/50 p-5 rounded-[1.5rem] border border-border/40 space-y-4 shadow-inner relative overflow-hidden">
                  <div className="absolute -left-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
                  
                  <div className="relative z-10">
@@ -166,10 +166,10 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
               </div>
             </div>
 
-            <div className="p-6 pt-0">
+            <div className="p-5 pt-0">
                <Button
                  variant="outline"
-                 className="w-full h-14 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] border-border/40 hover:bg-muted/50 transition-all active:scale-95 shadow-sm"
+                 className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border-border/40 hover:bg-muted/50 transition-all active:scale-95 shadow-sm"
                  onClick={() => onOpenChange(false)}
                >
                  Fechar Detalhes
