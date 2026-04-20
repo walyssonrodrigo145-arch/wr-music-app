@@ -3,28 +3,56 @@ import { trpc } from "@/lib/trpc";
 import { BarChart3, Calendar, Filter, UserPlus, TrendingUp, ChevronDown, CheckCircle2, XCircle, BookOpen, Guitar, Music2, Users } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell
+  Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, Sector
 } from "recharts";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card border border-border rounded-xl shadow-lg p-3 text-xs">
-        <p className="font-semibold text-foreground mb-1">{label}</p>
-        {payload.map((p: any) => (
-          <p key={p.name} style={{ color: p.color }}>
-            {p.name}: <span className="font-bold">{
-              p.name === "Receita"
-                ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.value)
-                : p.value
-            }</span>
-          </p>
-        ))}
-      </div>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 5 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-card/95 backdrop-blur-md border border-border/50 rounded-xl shadow-2xl p-3 text-xs min-w-[120px]"
+      >
+        {label && <p className="font-black text-foreground mb-2 text-[10px] uppercase tracking-wider opacity-60 border-b border-border/30 pb-1">{label}</p>}
+        <div className="space-y-1.5">
+          {payload.map((p: any) => (
+            <div key={p.name} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+                <span className="font-medium text-muted-foreground">{p.name}</span>
+              </div>
+              <span className="font-black text-foreground">
+                {p.name === "Receita"
+                  ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.value)
+                  : p.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
     );
   }
   return null;
+};
+
+const renderActiveShape = (props: any) => {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
+  return (
+    <g>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 6}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+      />
+    </g>
+  );
 };
 
 export default function Relatorios() {
@@ -80,8 +108,29 @@ export default function Relatorios() {
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
 
+  const [activeExpIndex, setActiveExpIndex] = useState<number | null>(null);
+  const [activeInstIndex, setActiveInstIndex] = useState<number | null>(null);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } }
+  };
+
   return (
-    <div className="space-y-5 max-w-[1400px]">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-6 max-w-[1400px]"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center">
@@ -164,7 +213,7 @@ export default function Relatorios() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Aulas Experimentais (DESTAQUE) */}
-        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col md:flex-row">
+        <motion.div variants={itemVariants} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col md:flex-row">
            <div className="p-6 flex-1 space-y-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -220,23 +269,29 @@ export default function Relatorios() {
                     outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
+                    activeIndex={activeExpIndex ?? undefined}
+                    activeShape={renderActiveShape}
+                    onMouseEnter={(_, index) => setActiveExpIndex(index)}
+                    onMouseLeave={() => setActiveExpIndex(null)}
+                    animationBegin={0}
+                    animationDuration={1500}
                   >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute flex flex-col items-center justify-center">
+              <div className="absolute flex flex-col items-center justify-center pointer-events-none">
                  <span className="text-xs font-black text-foreground">{expStats?.conversionRate ?? 0}%</span>
                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Meta</span>
               </div>
            </div>
-        </div>
+        </motion.div>
 
         {/* Análise por Instrumento */}
-        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col md:flex-row">
+        <motion.div variants={itemVariants} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col md:flex-row">
            <div className="p-6 flex-1 space-y-5">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -308,25 +363,31 @@ export default function Relatorios() {
                     outerRadius={65}
                     paddingAngle={3}
                     dataKey="value"
+                    activeIndex={activeInstIndex ?? undefined}
+                    activeShape={renderActiveShape}
+                    onMouseEnter={(_, index) => setActiveInstIndex(index)}
+                    onMouseLeave={() => setActiveInstIndex(null)}
+                    animationBegin={200}
+                    animationDuration={1500}
                   >
                     {instrumentDistribution.map((entry, index) => (
                       <Cell key={`cell-inst-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip wrapperStyle={{ outline: 'none' }} />
+                  <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
               {topTwoComparison && (
-                <div className="absolute flex flex-col items-center justify-center">
+                <div className="absolute flex flex-col items-center justify-center pointer-events-none">
                    <span className="text-xs font-black text-foreground">{topTwoComparison.totalStudents}</span>
                    <span className="text-[8px] font-bold text-muted-foreground uppercase">Tudo</span>
                 </div>
               )}
            </div>
-        </div>
+        </motion.div>
 
         {/* Evolução de alunos */}
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
+        <motion.div variants={itemVariants} className="bg-card rounded-2xl p-5 border border-border shadow-sm">
           <h3 className="text-sm font-bold text-foreground mb-1">Evolução de Alunos</h3>
           <p className="text-xs text-muted-foreground mb-4">Alunos ativos por mês</p>
           <ResponsiveContainer width="100%" height={220}>
@@ -344,10 +405,10 @@ export default function Relatorios() {
               <Area type="monotone" dataKey="alunos" name="Alunos" stroke="oklch(0.52 0.22 264)" strokeWidth={2.5} fill="url(#gradAlunos)" dot={false} activeDot={{ r: 4 }} />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
 
         {/* Receita mensal */}
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
+        <motion.div variants={itemVariants} className="bg-card rounded-2xl p-5 border border-border shadow-sm">
           <h3 className="text-sm font-bold text-foreground mb-1">Receita Mensal</h3>
           <p className="text-xs text-muted-foreground mb-4">Faturamento por mês</p>
           <ResponsiveContainer width="100%" height={220}>
@@ -365,10 +426,10 @@ export default function Relatorios() {
               <Area type="monotone" dataKey="Receita" stroke="oklch(0.58 0.24 295)" strokeWidth={2.5} fill="url(#gradReceita)" dot={false} activeDot={{ r: 4 }} />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
 
         {/* Aulas por dia */}
-        <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
+        <motion.div variants={itemVariants} className="bg-card rounded-2xl p-5 border border-border shadow-sm">
           <h3 className="text-sm font-bold text-foreground mb-1">Aulas por Dia da Semana</h3>
           <p className="text-xs text-muted-foreground mb-4">Últimas 4 semanas</p>
           <ResponsiveContainer width="100%" height={220}>
@@ -380,8 +441,8 @@ export default function Relatorios() {
               <Bar dataKey="aulas" name="Aulas" fill="oklch(0.52 0.22 264)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
