@@ -317,7 +317,28 @@ export default function Alunos() {
 
   const filtered = (students ?? []).filter((s: StudentRow) => {
     const matchSearch =
-      s.name.toLowerCase().includes(search.toLowerCase())    <div className="space-y-8 max-w-[1400px] mb-24 lg:mb-0">
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.email.toLowerCase().includes(search.toLowerCase()) ||
+      (s.instrumentName ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "todos" || s.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const statusCounts = {
+    todos: students?.length ?? 0,
+    ativo: students?.filter((s: StudentRow) => s.status === "ativo").length ?? 0,
+    pausado: students?.filter((s: StudentRow) => s.status === "pausado").length ?? 0,
+    inativo: students?.filter((s: StudentRow) => s.status === "inativo").length ?? 0,
+  };
+
+  const instrumentList = (instruments ?? []).map(i => ({
+    id: i.id,
+    name: i.name,
+    color: i.color,
+  }));
+
+  return (
+    <div className="space-y-8 max-w-[1400px] mb-24 lg:mb-0">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-primary/10 via-violet-500/5 to-transparent p-6 md:p-8 rounded-[2rem] border border-border/40 shadow-sm relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -508,23 +529,6 @@ export default function Alunos() {
                           className="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 transition-all active:scale-95 flex items-center justify-center border border-red-500/10"
                         >
                           <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>         <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteStudent(student); }}
-                          className="w-7 h-7 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 size={13} />
                         </button>
                       </div>
                     </td>
