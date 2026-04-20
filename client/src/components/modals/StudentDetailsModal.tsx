@@ -41,44 +41,51 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
           </div>
         ) : (
           <>
-            {/* Header / Banner */}
-            <div className="px-6 pt-12 pb-8 bg-gradient-to-br from-primary/10 via-violet-500/5 to-transparent relative overflow-hidden">
-              {/* Abstract decoration */}
-              <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
-              
-              <div className="absolute top-4 right-12 flex gap-2 z-20">
+            {/* Top Navigation / Actions */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/5">
+              <div className="flex items-center gap-2">
+                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Perfil do Aluno</span>
+              </div>
+              <div className="flex gap-2">
                 <button
                   onClick={onEdit}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-background/60 hover:bg-primary hover:text-white text-muted-foreground transition-all border border-border/40 backdrop-blur-md shadow-sm active:scale-95"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary/5 hover:bg-primary hover:text-white text-primary transition-all border border-primary/10 active:scale-95 shadow-sm"
                   title="Editar Aluno"
                 >
-                  <Edit3 size={16} />
+                  <Edit3 size={15} />
                 </button>
                 <button
                   onClick={onDelete}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-background/60 hover:bg-destructive hover:text-white text-muted-foreground transition-all border border-border/40 backdrop-blur-md shadow-sm active:scale-95"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-500/5 hover:bg-red-500 hover:text-white text-red-500 transition-all border border-red-500/10 active:scale-95 shadow-sm"
                   title="Excluir Aluno"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={15} />
                 </button>
               </div>
+            </div>
 
+            {/* Profile Section */}
+            <div className="px-6 pt-10 pb-8 bg-gradient-to-b from-muted/20 to-transparent relative overflow-hidden">
+              {/* Abstract background blur */}
+              <div className="absolute -left-10 -top-10 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+              
               <div className="flex flex-col items-center text-center relative z-10">
-                <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-2xl shadow-primary/30 mb-5 text-white font-black text-3xl border-4 border-background">
+                <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-2xl shadow-primary/20 mb-6 text-white font-black text-3xl border-4 border-background rotate-3 hover:rotate-0 transition-transform duration-300">
                    {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                 </div>
-                <DialogTitle className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-foreground leading-tight px-4">
+                
+                <DialogTitle className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-foreground leading-tight px-4 mb-2">
                   {student.name}
                 </DialogTitle>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                  <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">
-                    {student.instrumentName || "Estudante"}
-                  </p>
-                </div>
                 
-                <div className={cn("mt-6 px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-[0.2em] shadow-sm backdrop-blur-sm", statusConfig.color)}>
-                  {statusConfig.label}
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="px-3 py-1 rounded-full bg-muted text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 border border-border/20">
+                    {student.instrumentName || "Música"}
+                  </span>
+                  <div className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm", statusConfig.color)}>
+                    {statusConfig.label}
+                  </div>
                 </div>
               </div>
             </div>
