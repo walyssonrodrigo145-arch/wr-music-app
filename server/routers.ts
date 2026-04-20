@@ -207,6 +207,54 @@ export const appRouter = router({
     recent: protectedProcedure.query(async ({ ctx }) => {
       return getStudentsWithInstrument(ctx.user.id, 8);
     }),
+    getDetails: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return null;
+      
+      const [student] = await db.select({
+        id: students.id,
+        name: students.name,
+        email: students.email,
+        phone: students.phone,
+        level: students.level,
+        status: students.status,
+        monthlyFee: students.monthlyFee,
+        startDate: students.startDate,
+        createdAt: students.createdAt,
+        instrumentName: instruments.name,
+        instrumentColor: instruments.color,
+        instrumentIcon: instruments.icon,
+      }).from(students)
+        .leftJoin(instruments, eq(students.instrumentId, instruments.id))
+        .where(and(eq(students.id, input.id), eq(students.userId, ctx.user.id)))
+        .limit(1);
+
+      if (!student) return null;
+
+      // Buscar último pagamento
+      const [lastPayment] = await db.select().from(paymentDues)
+        .where(and(
+           eq(paymentDues.studentId, input.id),
+           eq(paymentDues.status, 'pago')
+        ))
+        .orderBy(desc(paymentDues.paidAt))
+        .limit(1);
+
+      // Buscar próximo vencimento pendente (ou o mais recente)
+      const [nextPayment] = await db.select().from(paymentDues)
+        .where(and(
+           eq(paymentDues.studentId, input.id),
+           eq(paymentDues.status, 'pendente')
+        ))
+        .orderBy(asc(paymentDues.dueDate))
+        .limit(1);
+
+      return {
+        ...student,
+        lastPaymentDate: lastPayment?.paidAt || null,
+        nextDueDate: nextPayment?.dueDate || null, 
+      };
+    }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
       email: z.string().email("E-mail inválido"),

@@ -4,6 +4,7 @@ import {
   Users, Search, Guitar, Phone, Mail, Plus, Pencil, Trash2,
   CheckCircle2, X, Loader2, ChevronDown,
 } from "lucide-react";
+import { StudentDetailsModal } from "@/components/modals/StudentDetailsModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,7 @@ function StatusBadge({ status, id, onUpdate }: { status: string; id: number; onU
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity", cfg[status])}
       >
         {status.charAt(0).toUpperCase() + status.slice(1)} <ChevronDown size={9} />
@@ -59,7 +60,7 @@ function StatusBadge({ status, id, onUpdate }: { status: string; id: number; onU
           {(["ativo", "pausado", "inativo"] as const).map(s => (
             <button
               key={s}
-              onClick={() => { onUpdate(id, s); setOpen(false); }}
+              onClick={(e) => { e.stopPropagation(); onUpdate(id, s); setOpen(false); }}
               className={cn("w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-muted transition-colors", s === status && "bg-muted")}
             >
               {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -281,6 +282,7 @@ export default function Alunos() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [modalOpen, setModalOpen] = useState(false);
+  const [detailsStudentId, setDetailsStudentId] = useState<number | null>(null);
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<StudentRow | null>(null);
 
@@ -409,7 +411,11 @@ export default function Alunos() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((student: StudentRow) => (
-                  <tr key={student.id} className="hover:bg-muted/30 transition-colors">
+                  <tr 
+                    key={student.id} 
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => setDetailsStudentId(student.id)}
+                  >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -460,17 +466,17 @@ export default function Alunos() {
                         onUpdate={(id, s) => updateStatusMutation.mutate({ id, status: s as "ativo" | "inativo" | "pausado" })}
                       />
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => { setEditStudent(student); setModalOpen(true); }}
+                          onClick={(e) => { e.stopPropagation(); setEditStudent(student); setModalOpen(true); }}
                           className="w-7 h-7 rounded-lg hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
                           title="Editar"
                         >
                           <Pencil size={13} />
                         </button>
                         <button
-                          onClick={() => setDeleteStudent(student)}
+                          onClick={(e) => { e.stopPropagation(); setDeleteStudent(student); }}
                           className="w-7 h-7 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
                           title="Excluir"
                         >
@@ -486,7 +492,6 @@ export default function Alunos() {
         )}
       </div>
 
-      {/* Modals */}
       {modalOpen && (
         <StudentModal
           open={modalOpen}
@@ -495,6 +500,28 @@ export default function Alunos() {
           instruments={instrumentList}
         />
       )}
+      <StudentDetailsModal
+        open={detailsStudentId !== null}
+        onOpenChange={(open) => { 
+          if (!open) setDetailsStudentId(null); 
+        }}
+        studentId={detailsStudentId}
+        onEdit={() => {
+          const s = students?.find(st => st.id === detailsStudentId);
+          if (s) {
+            setEditStudent(s);
+            setModalOpen(true);
+            setDetailsStudentId(null);
+          }
+        }}
+        onDelete={() => {
+          const s = students?.find(st => st.id === detailsStudentId);
+          if (s) {
+            setDeleteStudent(s);
+            setDetailsStudentId(null);
+          }
+        }}
+      />
       {deleteStudent && (
         <DeleteConfirm
           name={deleteStudent.name}
