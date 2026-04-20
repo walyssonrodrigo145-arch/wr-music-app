@@ -43,6 +43,8 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
     baseFee: "",
   });
 
+  const [updateFutureDues, setUpdateFutureDues] = useState(false);
+
   useEffect(() => {
     if (student) {
       setForm(f => ({ ...f, baseFee: String(Number(student.monthlyFee)) }));
@@ -88,6 +90,7 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
       status: form.status,
       paidAt: form.status === "pago" ? (form.paidAt || format(new Date(), "yyyy-MM-dd")) : null,
       notes: form.notes.trim() || null,
+      updateFutureDues: updateFutureDues,
     };
 
     updatePaymentMutation.mutate(paymentPayload);
@@ -218,6 +221,20 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
                <p className="text-[8px] font-bold text-muted-foreground/40 leading-relaxed uppercase tracking-tighter mt-1">
                  * Alterar este valor afetará o cadastro principal do aluno.
                </p>
+            </div>
+
+            {/* Sincronização de Data */}
+            <div className="pt-2 border-t border-indigo-500/10 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[9px] font-black text-indigo-500/70 uppercase tracking-wider italic">Próximos Vencimentos</p>
+                <p className="text-[8px] text-muted-foreground/60 leading-tight">Aplicar este novo dia para os meses futuros?</p>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={updateFutureDues} 
+                onChange={e => setUpdateFutureDues(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 outline-none transition-all"
+              />
             </div>
           </div>
 

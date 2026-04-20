@@ -2,9 +2,10 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   DollarSign, CheckCircle2, Clock, AlertCircle, Plus, X,
-  Loader2, Trash2, Lock, Info, Calendar, ChevronLeft, ChevronRight, Pencil
+  Loader2, Trash2, Lock, Info, Calendar, ChevronLeft, ChevronRight, Pencil, BarChart3
 } from "lucide-react";
 import { EditMensalidadeModal } from "@/components/modals/EditMensalidadeModal";
+import { VencimentosReportModal } from "@/components/modals/VencimentosReportModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -233,6 +234,7 @@ export default function Mensalidades() {
   const [filterStatus, setFilterStatus] = useState<string>("todas");
   const [novaOpen, setNovaOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { data: payments, isLoading } = trpc.paymentDues.list.useQuery({ month: viewMonth, year: viewYear });
   const { data: students } = trpc.students.list.useQuery();
@@ -302,10 +304,19 @@ export default function Mensalidades() {
             </div>
           </div>
         </div>
-        <Button className="h-14 w-full md:w-auto px-8 gap-3 rounded-2xl text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/20 transition-all hover:-translate-y-1 relative z-10"
-          onClick={() => setNovaOpen(true)}>
-          <Plus size={18} strokeWidth={3} /> Nova Mensalidade
-        </Button>
+        <div className="flex flex-col md:flex-row gap-3 relative z-10">
+          <Button 
+            variant="outline" 
+            className="h-14 w-full md:w-auto px-6 gap-3 rounded-2xl text-[11px] font-black uppercase tracking-widest border-border/40 hover:bg-muted/50 transition-all hover:-translate-y-1 shadow-sm"
+            onClick={() => setReportOpen(true)}
+          >
+            <BarChart3 size={18} strokeWidth={2.5} className="text-primary" /> Relatório
+          </Button>
+          <Button className="h-14 w-full md:w-auto px-8 gap-3 rounded-2xl text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/20 transition-all hover:-translate-y-1"
+            onClick={() => setNovaOpen(true)}>
+            <Plus size={18} strokeWidth={3} /> Nova Mensalidade
+          </Button>
+        </div>
       </div>
 
       {/* Navegação de mês */}
@@ -506,6 +517,15 @@ export default function Mensalidades() {
           open={!!editPayment} 
           onClose={() => setEditPayment(null)} 
           payment={editPayment} 
+        />
+      )}
+
+      {reportOpen && (
+        <VencimentosReportModal
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          month={viewMonth}
+          year={viewYear}
         />
       )}
     </div>

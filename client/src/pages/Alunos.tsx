@@ -13,20 +13,33 @@ import { toast } from "sonner";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StudentRow = {
   id: number; name: string; email: string; phone?: string | null;
-  level: string; status: string; monthlyFee: string;
+  level: string; status: string; monthlyFee: string; dueDay?: number | null;
   startDate?: string | null; instrumentName?: string | null;
   instrumentColor?: string | null; instrumentIcon?: string | null;
 };
 
-type FormData = {
-  name: string; email: string; phone: string;
-  instrumentId: string; level: "iniciante" | "intermediario" | "avancado";
-  monthlyFee: string; notes: string;
+interface FormData {
+  name: string;
+  email: string;
+  phone: string;
+  instrumentId: string;
+  level: "iniciante" | "intermediario" | "avancado";
+  monthlyFee: string;
+  dueDay: string;
+  notes: string;
   status: "ativo" | "inativo" | "pausado";
-};
+}
 
 const EMPTY_FORM: FormData = {
-  name: "", email: "", phone: "", instrumentId: "", level: "iniciante", monthlyFee: "", notes: "", status: "ativo",
+  name: "",
+  email: "",
+  phone: "",
+  instrumentId: "",
+  level: "iniciante",
+  monthlyFee: "0",
+  dueDay: "10",
+  notes: "",
+  status: "ativo",
 };
 
 // ─── Badges ───────────────────────────────────────────────────────────────────
@@ -99,11 +112,14 @@ function StudentModal({
           instrumentId: "", 
           level: editData.level as FormData["level"],
           monthlyFee: String(Number(editData.monthlyFee)),
+          dueDay: String(editData.dueDay || 10),
           notes: "",
           status: editData.status as FormData["status"],
         }
       : EMPTY_FORM
   );
+
+  const [updateFutureDues, setUpdateFutureDues] = useState(false);
 
   const set = (k: keyof FormData, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -140,11 +156,16 @@ function StudentModal({
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
       level: form.level,
       monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
+      dueDay: Number(form.dueDay),
       notes: form.notes.trim() || undefined,
       status: form.status,
     };
     if (editData) {
-      updateMutation.mutate({ id: editData.id, ...payload });
+      updateMutation.mutate({ 
+        id: editData.id, 
+        ...payload,
+        updateFutureDues 
+      });
     } else {
       createMutation.mutate(payload);
     }
@@ -220,19 +241,51 @@ function StudentModal({
               <option value="inativo">Inativado</option>
             </select>
           </div>
-          {/* Mensalidade */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-foreground">Mensalidade (R$)</label>
-            <Input
-              value={form.monthlyFee}
-              onChange={e => set("monthlyFee", e.target.value)}
-              placeholder="Ex: 150"
-              type="number"
-              min="0"
-              step="0.01"
-              className="h-9 text-sm rounded-xl"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            {/* Mensalidade */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-foreground">Mensalidade (R$)</label>
+              <Input
+                value={form.monthlyFee}
+                onChange={e => set("monthlyFee", e.target.value)}
+                placeholder="Ex: 150"
+                type="number"
+                min="0"
+                step="0.01"
+                className="h-9 text-sm rounded-xl"
+              />
+            </div>
+            {/* Dia de Vencimento */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-foreground">Dia de Vencimento</label>
+              <select
+                value={form.dueDay}
+                onChange={e => set("dueDay", e.target.value)}
+                className="w-full h-9 text-sm rounded-xl border border-border bg-background px-3 focus:outline-none focus:ring-1 focus:ring-primary/50 text-foreground font-bold"
+              >
+                <option value="5">Dia 05</option>
+                <option value="10">Dia 10</option>
+                <option value="15">Dia 15</option>
+                <option value="20">Dia 20</option>
+              </select>
+            </div>
           </div>
+
+          {/* Sincronização de Vencimentos Futuros */}
+          {editData && (
+            <div className="p-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-bold text-primary italic uppercase tracking-wider">Sincronizar Vencimentos</p>
+                <p className="text-[9px] text-muted-foreground leading-tight">Aplicar novo dia para meses futuros?</p>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={updateFutureDues} 
+                onChange={e => setUpdateFutureDues(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-primary focus:ring-primary outline-none"
+              />
+            </div>
+          )}
           {/* Observações */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-foreground">Observações</label>

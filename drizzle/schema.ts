@@ -58,6 +58,7 @@ export const students = pgTable("students", {
   level: levelEnum("level").default("iniciante").notNull(),
   status: statusEnum("status").default("ativo").notNull(),
   monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  dueDay: integer("dueDay").default(10).notNull(),
   startDate: date("startDate"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

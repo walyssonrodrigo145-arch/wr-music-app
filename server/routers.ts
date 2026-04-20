@@ -262,6 +262,7 @@ export const appRouter = router({
       instrumentId: z.number().optional(),
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
       monthlyFee: z.number().default(0),
+      dueDay: z.number().default(10),
       notes: z.string().optional(),
       status: z.enum(['ativo','inativo','pausado']).default('ativo'),
     })).mutation(async ({ ctx, input }) => {
@@ -277,6 +278,7 @@ export const appRouter = router({
           instrumentId: input.instrumentId,
           level: input.level,
           monthlyFee: String(input.monthlyFee),
+          dueDay: input.dueDay,
           notes: input.notes,
           status: input.status,
           createdAt: new Date(),
@@ -297,18 +299,47 @@ export const appRouter = router({
       instrumentId: z.number().optional().nullable(),
       level: z.enum(['iniciante', 'intermediario', 'avancado']).optional(),
       monthlyFee: z.number().optional(),
+      dueDay: z.number().optional(),
       status: z.enum(['ativo', 'inativo', 'pausado']).optional(),
       notes: z.string().optional(),
+      updateFutureDues: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
         
-        const { id, ...data } = input;
+        const { id, updateFutureDues, ...data } = input;
+        
         await db.update(students).set({
           ...data,
           updatedAt: new Date(),
         }).where(and(eq(students.id, id), eq(students.userId, ctx.user.id)));
+
+        // Sincronizar vencimentos futuros se solicitado
+        if (updateFutureDues && data.dueDay) {
+          const unpaidPayments = await db.select()
+            .from(paymentDues)
+            .where(and(
+              eq(paymentDues.studentId, id),
+              eq(paymentDues.userId, ctx.user.id),
+              ne(paymentDues.status, "pago")
+            ));
+
+          for (const pay of unpaidPayments) {
+            const currentDueDate = new Date(pay.dueDate);
+            const newDueDate = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth(), data.dueDay);
+            
+            // Format to YYYY-MM-DD
+            const formattedDate = newDueDate.toISOString().slice(0, 10);
+
+            await db.update(paymentDues)
+              .set({ 
+                dueDate: formattedDate,
+                updatedAt: new Date()
+              })
+              .where(eq(paymentDues.id, pay.id));
+          }
+        }
         
         return { success: true };
       } catch (error) {
@@ -1618,13 +1649,23 @@ export const appRouter = router({
         paidAt: z.string().nullable().optional(),
         status: z.enum(["pendente", "pago", "atrasado"]).optional(),
         notes: z.string().nullable().optional(),
+        updateFutureDues: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         try {
           const db = await getDb();
           if (!db) throw new Error("Banco de dados não disponível");
-          const { id, ...data } = input;
+          const { id, updateFutureDues, ...data } = input;
           
+          // Buscar registro atual para obter o studentId se necessário
+          const currentPayment = await db.select()
+            .from(paymentDues)
+            .where(and(eq(paymentDues.id, id), eq(paymentDues.userId, ctx.user.id)))
+            .limit(1)
+            .then(res => res[0]);
+
+          if (!currentPayment) throw new Error("Mensalidade não encontrada");
+
           const updateData: any = {
             ...data,
             updatedAt: new Date(),
@@ -1639,10 +1680,86 @@ export const appRouter = router({
           await db.update(paymentDues)
             .set(updateData)
             .where(and(eq(paymentDues.id, id), eq(paymentDues.userId, ctx.user.id)));
+
+          // Sincronizar vencimentos futuros se solicitado
+          if (updateFutureDues && data.dueDate) {
+            const newDay = new Date(data.dueDate).getUTCDate();
+            
+            // Atualizar cadastro do aluno
+            await db.update(students)
+              .set({ dueDay: newDay, updatedAt: new Date() })
+              .where(and(eq(students.id, currentPayment.studentId), eq(students.userId, ctx.user.id)));
+
+            // Atualizar futuras cobranças pendentes
+            const unpaidPayments = await db.select()
+              .from(paymentDues)
+              .where(and(
+                eq(paymentDues.studentId, currentPayment.studentId),
+                eq(paymentDues.userId, ctx.user.id),
+                ne(paymentDues.status, "pago"),
+                ne(paymentDues.id, id) // não mexer na que acabamos de atualizar
+              ));
+
+            for (const pay of unpaidPayments) {
+              const currentDueDate = new Date(pay.dueDate);
+              const newDueDate = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth(), newDay);
+              const formattedDate = newDueDate.toISOString().slice(0, 10);
+
+              await db.update(paymentDues)
+                .set({ dueDate: formattedDate, updatedAt: new Date() })
+                .where(eq(paymentDues.id, pay.id));
+            }
+          }
             
           return { success: true };
         } catch (error) {
           return handleDbError(error, "atualizar a mensalidade");
+        }
+      }),
+
+    getRevenueByDueDay: protectedProcedure
+      .input(z.object({
+        month: z.number(),
+        year: z.number(),
+      }))
+      .query(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Banco de dados não disponível");
+          
+          const payments = await db.select()
+            .from(paymentDues)
+            .where(and(
+              eq(paymentDues.userId, ctx.user.id),
+              eq(paymentDues.month, input.month),
+              eq(paymentDues.year, input.year)
+            ));
+
+          const stats = {
+            5: 0,
+            10: 0,
+            15: 0,
+            20: 0,
+            others: 0,
+            total: 0
+          };
+
+          for (const p of payments) {
+            const dueDate = new Date(p.dueDate);
+            const day = dueDate.getUTCDate();
+            const amount = Number(p.amount);
+            
+            if ([5, 10, 15, 20].includes(day)) {
+              stats[day as 5|10|15|20] += amount;
+            } else {
+              stats.others += amount;
+            }
+            stats.total += amount;
+          }
+
+          return stats;
+        } catch (error) {
+          return handleDbError(error, "obter relatório de vencimentos");
         }
       }),
 
