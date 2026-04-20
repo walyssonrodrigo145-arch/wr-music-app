@@ -135,7 +135,7 @@ function MonthYearPicker({ date, onChange }: { date: Date; onChange: (d: Date) =
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-grow sm:flex-grow-0 w-full sm:w-auto">
       <Select 
         value={(date.getMonth() + 1).toString()} 
         onValueChange={(val) => {
@@ -143,12 +143,12 @@ function MonthYearPicker({ date, onChange }: { date: Date; onChange: (d: Date) =
           onChange(newDate);
         }}
       >
-        <SelectTrigger className="w-[120px] h-9 rounded-full bg-muted/5 border-border/20 text-[10px] font-black uppercase tracking-wider focus:ring-1 focus:ring-primary/20">
+        <SelectTrigger className="flex-1 sm:w-[130px] h-10 md:h-9 rounded-full bg-muted/5 border-border/20 text-[11px] md:text-[10px] font-black uppercase tracking-wider focus:ring-1 focus:ring-primary/20">
           <SelectValue placeholder="Mês" />
         </SelectTrigger>
         <SelectContent>
           {months.map((m, i) => (
-            <SelectItem key={m} value={(i + 1).toString()} className="text-[10px] font-bold uppercase pointer-events-auto">
+            <SelectItem key={m} value={(i + 1).toString()} className="text-[11px] md:text-[10px] font-bold uppercase pointer-events-auto">
               {m}
             </SelectItem>
           ))}
@@ -162,12 +162,12 @@ function MonthYearPicker({ date, onChange }: { date: Date; onChange: (d: Date) =
           onChange(newDate);
         }}
       >
-        <SelectTrigger className="w-[90px] h-9 rounded-full bg-muted/5 border-border/20 text-[10px] font-black uppercase tracking-wider focus:ring-1 focus:ring-primary/20">
+        <SelectTrigger className="w-[100px] sm:w-[90px] h-10 md:h-9 rounded-full bg-muted/5 border-border/20 text-[11px] md:text-[10px] font-black uppercase tracking-wider focus:ring-1 focus:ring-primary/20">
           <SelectValue placeholder="Ano" />
         </SelectTrigger>
         <SelectContent>
           {years.map((y) => (
-            <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase pointer-events-auto">
+            <SelectItem key={y} value={y.toString()} className="text-[11px] md:text-[10px] font-bold uppercase pointer-events-auto">
               {y}
             </SelectItem>
           ))}
@@ -340,7 +340,7 @@ export default function Aulas() {
         )}>
           {/* ── Header Area ── */}
           <div className="px-3 md:px-6 pt-10 pb-6 bg-gradient-to-b from-primary/5 to-transparent">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8 gap-5 lg:gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex flex-col">
                    <h1 className="text-2xl font-black tracking-tighter text-foreground uppercase leading-none">
@@ -354,51 +354,56 @@ export default function Aulas() {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                 <button 
-                   onClick={() => setBulkDeleteOpen(true)}
-                   className="hidden md:flex p-2 md:px-4 md:py-2 rounded-full border border-destructive/20 text-destructive text-[10px] font-black uppercase tracking-widest hover:bg-destructive/10 transition-all active:scale-95 items-center justify-center gap-2"
-                   title="Limpar agendamentos"
-                 >
-                   <Trash2 size={16} />
-                   <span>Limpar</span>
-                 </button>
-                 <MonthYearPicker 
-                   date={view === "dia" ? selectedDay : currentDate} 
-                   onChange={(d) => {
-                     setCurrentDate(d);
-                     setSelectedDay(d);
-                   }} 
-                 />
-                 <button 
-                   onClick={() => { setCurrentDate(new Date()); setSelectedDay(new Date()); }}
-                   className="px-3 py-2 md:px-4 md:py-2 rounded-full border border-border/40 text-[10px] font-black uppercase tracking-widest hover:bg-muted/50 transition-all active:scale-95 ml-1"
-                 >
-                   Hoje
-                 </button>
-                 <div className="flex items-center gap-1 ml-2">
-                    <button 
-                      onClick={() => {
-                        const move = view === "mes" ? subMonths : (view === "semana" ? (d: Date, n: number) => addDays(d, -7 * n) : (d: Date, n: number) => addDays(d, -n));
-                        const next = move(view === "dia" ? selectedDay : currentDate, 1);
-                        if (view === "dia") setSelectedDay(next);
-                        setCurrentDate(next);
-                      }} 
-                      className="p-2 hover:bg-muted rounded-full text-muted-foreground/50 transition-colors"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const move = view === "mes" ? addMonths : (view === "semana" ? (d: Date, n: number) => addDays(d, 7 * n) : (d: Date, n: number) => addDays(d, n));
-                        const next = move(view === "dia" ? selectedDay : currentDate, 1);
-                        if (view === "dia") setSelectedDay(next);
-                        setCurrentDate(next);
-                      }} 
-                      className="p-2 hover:bg-muted rounded-full text-muted-foreground/50 transition-colors"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                 <div className="flex items-center gap-2 flex-grow sm:flex-grow-0">
+                   <MonthYearPicker 
+                     date={view === "dia" ? selectedDay : currentDate} 
+                     onChange={(d) => {
+                       setCurrentDate(d);
+                       setSelectedDay(d);
+                     }} 
+                   />
+                 </div>
+                 
+                 <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => setBulkDeleteOpen(true)}
+                     className="hidden md:flex p-2 md:px-4 md:py-2 rounded-full border border-destructive/20 text-destructive text-[10px] font-black uppercase tracking-widest hover:bg-destructive/10 transition-all active:scale-95 items-center justify-center gap-2 h-10 md:h-9"
+                     title="Limpar agendamentos"
+                   >
+                     <Trash2 size={16} />
+                     <span>Limpar</span>
+                   </button>
+                   <button 
+                     onClick={() => { setCurrentDate(new Date()); setSelectedDay(new Date()); }}
+                     className="flex-1 sm:flex-none px-4 py-2 rounded-full border border-border/40 text-[11px] md:text-[10px] font-black uppercase tracking-widest hover:bg-muted/50 transition-all active:scale-95 h-10 md:h-9"
+                   >
+                     Hoje
+                   </button>
+                   <div className="flex items-center justify-end gap-1 flex-shrink-0">
+                      <button 
+                        onClick={() => {
+                          const move = view === "mes" ? subMonths : (view === "semana" ? (d: Date, n: number) => addDays(d, -7 * n) : (d: Date, n: number) => addDays(d, -n));
+                          const next = move(view === "dia" ? selectedDay : currentDate, 1);
+                          if (view === "dia") setSelectedDay(next);
+                          setCurrentDate(next);
+                        }} 
+                        className="p-2 md:p-1.5 hover:bg-muted/50 rounded-full text-muted-foreground/50 transition-colors border border-border/20 md:border-transparent h-10 w-10 md:h-9 md:w-9 flex items-center justify-center"
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const move = view === "mes" ? addMonths : (view === "semana" ? (d: Date, n: number) => addDays(d, 7 * n) : (d: Date, n: number) => addDays(d, n));
+                          const next = move(view === "dia" ? selectedDay : currentDate, 1);
+                          if (view === "dia") setSelectedDay(next);
+                          setCurrentDate(next);
+                        }} 
+                        className="p-2 md:p-1.5 hover:bg-muted/50 rounded-full text-muted-foreground/50 transition-colors border border-border/20 md:border-transparent h-10 w-10 md:h-9 md:w-9 flex items-center justify-center"
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                   </div>
                  </div>
               </div>
             </div>
