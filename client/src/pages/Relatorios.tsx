@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Calendar, Filter, UserPlus, TrendingUp, ChevronDown, CheckCircle2, XCircle, BookOpen } from "lucide-react";
+import { BarChart3, Calendar, Filter, UserPlus, TrendingUp, ChevronDown, CheckCircle2, XCircle, BookOpen, Guitar, Music2, Users } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell
@@ -39,6 +39,29 @@ export default function Relatorios() {
   const { data: expStats, isLoading: isExpLoading } = trpc.dashboard.experimentalStats.useQuery(
     filterMode === "monthly" ? { month: selectedMonth, year: selectedYear } : undefined
   );
+  const { data: instruments = [], isLoading: isInstrumentsLoading } = trpc.instruments.list.useQuery();
+
+  const instrumentDistribution = useMemo(() => {
+    return instruments.map(inst => ({
+      name: inst.name,
+      value: Number(inst.studentCount),
+      color: inst.color || "#6366f1"
+    })).filter(d => d.value > 0);
+  }, [instruments]);
+
+  const topTwoComparison = useMemo(() => {
+    if (instruments.length < 2) return null;
+    const sorted = [...instruments].sort((a, b) => Number(b.studentCount) - Number(a.studentCount));
+    const first = sorted[0];
+    const second = sorted[1];
+    
+    const total = Number(first.studentCount) + Number(second.studentCount);
+    return {
+      first: { ...first, pct: total > 0 ? (Number(first.studentCount) / total) * 100 : 0 },
+      second: { ...second, pct: total > 0 ? (Number(second.studentCount) / total) * 100 : 0 },
+      totalStudents: total
+    };
+  }, [instruments]);
 
   const revenueData = (monthlyData ?? []).map(d => ({
     month: d.month,
@@ -209,6 +232,96 @@ export default function Relatorios() {
                  <span className="text-xs font-black text-foreground">{expStats?.conversionRate ?? 0}%</span>
                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Meta</span>
               </div>
+           </div>
+        </div>
+
+        {/* Análise por Instrumento */}
+        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col md:flex-row">
+           <div className="p-6 flex-1 space-y-5">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Music2 size={16} className="text-indigo-500" />
+                  <h3 className="text-sm font-bold text-foreground">Análise por Instrumento</h3>
+                </div>
+                <p className="text-xs text-muted-foreground">Comparativo de alunos matriculados</p>
+              </div>
+
+              {topTwoComparison ? (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between text-xs font-bold px-1">
+                      <div className="flex items-center gap-2 text-indigo-600">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                        {topTwoComparison.first.name}
+                      </div>
+                      <div className="flex items-center gap-2 text-rose-500">
+                        {topTwoComparison.second.name}
+                        <span className="w-2 h-2 rounded-full bg-rose-500" />
+                      </div>
+                    </div>
+                    
+                    <div className="h-5 w-full bg-muted/30 rounded-full overflow-hidden flex shadow-inner border border-border/50">
+                      <div 
+                        className="h-full bg-indigo-500 transition-all duration-1000 ease-out flex items-center justify-center text-[8px] font-black text-white px-2"
+                        style={{ width: `${topTwoComparison.first.pct}%` }}
+                      >
+                         {Math.round(topTwoComparison.first.pct)}%
+                      </div>
+                      <div 
+                        className="h-full bg-rose-500 transition-all duration-1000 ease-out flex items-center justify-center text-[8px] font-black text-white px-2"
+                        style={{ width: `${topTwoComparison.second.pct}%` }}
+                      >
+                         {Math.round(topTwoComparison.second.pct)}%
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-indigo-500/5 rounded-xl border border-indigo-500/10 text-center">
+                        <p className="text-[9px] font-black text-indigo-600 uppercase mb-0.5">{topTwoComparison.first.name}</p>
+                        <p className="text-xl font-black text-indigo-700">{topTwoComparison.first.studentCount}</p>
+                        <p className="text-[8px] text-indigo-500/70 font-bold">alunos</p>
+                      </div>
+                      <div className="p-3 bg-rose-500/5 rounded-xl border border-rose-500/10 text-center">
+                        <p className="text-[9px] font-black text-rose-600 uppercase mb-0.5">{topTwoComparison.second.name}</p>
+                        <p className="text-xl font-black text-rose-700">{topTwoComparison.second.studentCount}</p>
+                        <p className="text-[8px] text-rose-500/70 font-bold">alunos</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-40 flex flex-col items-center justify-center text-center p-4 bg-muted/10 rounded-2xl border border-dashed border-border">
+                  <Users size={24} className="text-muted-foreground/30 mb-2" />
+                  <p className="text-[10px] font-bold text-muted-foreground">Cadastre pelo menos 2 instrumentos para ver o comparativo</p>
+                </div>
+              )}
+           </div>
+
+           <div className="relative w-full md:w-48 h-64 md:h-auto bg-muted/5 flex items-center justify-center p-4 border-t md:border-t-0 md:border-l border-border/50">
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={instrumentDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={65}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {instrumentDistribution.map((entry, index) => (
+                      <Cell key={`cell-inst-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip wrapperStyle={{ outline: 'none' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              {topTwoComparison && (
+                <div className="absolute flex flex-col items-center justify-center">
+                   <span className="text-xs font-black text-foreground">{topTwoComparison.totalStudents}</span>
+                   <span className="text-[8px] font-bold text-muted-foreground uppercase">Tudo</span>
+                </div>
+              )}
            </div>
         </div>
 
