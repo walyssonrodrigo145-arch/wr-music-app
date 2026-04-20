@@ -48,10 +48,10 @@ function StatCard({
           )}
         </div>
         
-        <div>
+        <div className="font-outfit">
           <p className="text-3xl font-extrabold tracking-tight mb-1">{value}</p>
           <p className="text-sm font-semibold text-white/90">{title}</p>
-          <p className="text-[11px] text-white/70 mt-1 flex items-center gap-1">
+          <p className="text-[11px] text-white/70 mt-1 flex items-center gap-1 font-sans">
             <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
             {subtitle}
           </p>
@@ -198,7 +198,7 @@ export default function Dashboard() {
           <h1 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
             {greeting}, {user?.name?.split(' ')[0] || 'Professor'}! <span className="animate-bounce">👋</span>
           </h1>
-          <p className="text-sm text-muted-foreground font-medium mt-1">
+          <p className="text-sm text-muted-foreground font-semibold mt-1 font-outfit">
             Aqui está o que está acontecendo na sua escola hoje.
           </p>
         </div>
