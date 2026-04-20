@@ -126,17 +126,34 @@ export async function getDashboardStats(userId: number) {
 
   const now = new Date();
   const startOfWeek = new Date(now);
+  // Reseta no Domingo (Sunday = 0). A semana de aulas é Segunda-Sábado.
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 6);
   endOfWeek.setHours(23, 59, 59, 999);
 
+  // Aulas totais agendadas para esta semana
   const [weekLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
     .where(and(eq(lessons.userId, userId), gte(lessons.scheduledAt, startOfWeek), lte(lessons.scheduledAt, endOfWeek)));
 
-  const [completedLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.userId, userId), eq(lessons.status, 'concluida')));
-  const [totalLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.userId, userId), sql`status != 'agendada'`));
+  // Taxa de Conclusão focada na SEMANA ATUAL (Sun-Sat)
+  const [completedLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
+    .where(and(
+      eq(lessons.userId, userId), 
+      eq(lessons.status, 'concluida'),
+      gte(lessons.scheduledAt, startOfWeek),
+      lte(lessons.scheduledAt, endOfWeek)
+    ));
+
+  // Aulas que já deveriam ter ocorrido nesta semana (status não é 'agendada')
+  const [totalLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
+    .where(and(
+      eq(lessons.userId, userId), 
+      sql`status != 'agendada'`,
+      gte(lessons.scheduledAt, startOfWeek),
+      lte(lessons.scheduledAt, endOfWeek)
+    ));
 
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
