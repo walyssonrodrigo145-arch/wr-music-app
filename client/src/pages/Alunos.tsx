@@ -133,6 +133,7 @@ function StudentModal({
       toast.error("Nome e telefone são obrigatórios");
       return;
     }
+    const payload = {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
       phone: form.phone.trim(),
