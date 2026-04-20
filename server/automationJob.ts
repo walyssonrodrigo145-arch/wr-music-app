@@ -13,6 +13,8 @@
 
 import { eq, and, gte, lte, lt, sql } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
+import { getDb } from "./db";
+import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues } from "../drizzle/schema";
 
 async function runAutomation() {
   const db = await getDb();
