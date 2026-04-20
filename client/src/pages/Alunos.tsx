@@ -129,14 +129,13 @@ function StudentModal({
   });
 
   const handleSubmit = () => {
-    if (!form.name.trim() || !form.email.trim()) {
-      toast.error("Nome e e-mail são obrigatórios");
+    if (!form.name.trim() || !form.phone.trim()) {
+      toast.error("Nome e telefone são obrigatórios");
       return;
     }
-    const payload = {
       name: form.name.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim() || undefined,
+      email: form.email.trim() || undefined,
+      phone: form.phone.trim(),
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
       level: form.level,
       monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
@@ -172,12 +171,12 @@ function StudentModal({
           </div>
           {/* Email */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-foreground">E-mail *</label>
-            <Input value={form.email} onChange={e => set("email", e.target.value)} placeholder="joao@email.com" type="email" className="h-9 text-sm rounded-xl" />
+            <label className="text-xs font-semibold text-foreground">E-mail</label>
+            <Input value={form.email} onChange={e => set("email", e.target.value)} placeholder="joao@email.com (opcional)" type="email" className="h-9 text-sm rounded-xl" />
           </div>
           {/* Telefone */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-foreground">Telefone / WhatsApp</label>
+            <label className="text-xs font-semibold text-foreground">Telefone / WhatsApp *</label>
             <Input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(11) 99999-9999" className="h-9 text-sm rounded-xl" />
           </div>
           {/* Instrumento */}

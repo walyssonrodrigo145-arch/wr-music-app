@@ -2,8 +2,9 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   DollarSign, CheckCircle2, Clock, AlertCircle, Plus, X,
-  Loader2, Trash2, Lock, Info, Calendar, ChevronLeft, ChevronRight,
+  Loader2, Trash2, Lock, Info, Calendar, ChevronLeft, ChevronRight, Pencil
 } from "lucide-react";
+import { EditMensalidadeModal } from "@/components/modals/EditMensalidadeModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -231,6 +232,7 @@ export default function Mensalidades() {
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [filterStatus, setFilterStatus] = useState<string>("todas");
   const [novaOpen, setNovaOpen] = useState(false);
+  const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
 
   const { data: payments, isLoading } = trpc.paymentDues.list.useQuery({ month: viewMonth, year: viewYear });
   const { data: students } = trpc.students.list.useQuery();
@@ -471,6 +473,13 @@ export default function Mensalidades() {
                           </button>
                         )}
                         <button
+                          onClick={() => setEditPayment(p)}
+                          className="flex items-center gap-1.5 w-10 h-10 justify-center rounded-xl text-[10px] font-black text-blue-500 bg-blue-500/10 hover:bg-blue-500 hover:text-white transition-all active:scale-95 border border-blue-500/20"
+                          title="Editar"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
                           onClick={() => deleteMutation.mutate({ id: p.id })}
                           disabled={deleteMutation.isPending}
                           className="flex items-center gap-1.5 w-10 h-10 justify-center rounded-xl text-[10px] font-black text-red-500 bg-red-500/10 hover:bg-red-500 hover:text-white transition-all active:scale-95 border border-red-500/20"
@@ -490,6 +499,14 @@ export default function Mensalidades() {
 
       {novaOpen && (
         <NovaModal open={novaOpen} onClose={() => setNovaOpen(false)} students={studentList} />
+      )}
+
+      {editPayment && (
+        <EditMensalidadeModal 
+          open={!!editPayment} 
+          onClose={() => setEditPayment(null)} 
+          payment={editPayment} 
+        />
       )}
     </div>
   );

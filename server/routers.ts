@@ -257,8 +257,8 @@ export const appRouter = router({
     }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
-      email: z.string().email("E-mail inválido"),
-      phone: z.string().optional(),
+      email: z.string().email("E-mail inválido").optional().nullable(),
+      phone: z.string().min(8, "Telefone é obrigatório"),
       instrumentId: z.number().optional(),
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
       monthlyFee: z.number().default(0),
@@ -272,7 +272,7 @@ export const appRouter = router({
         await db.insert(students).values({
           userId: ctx.user.id,
           name: input.name,
-          email: input.email,
+          email: input.email || null,
           phone: input.phone,
           instrumentId: input.instrumentId,
           level: input.level,
@@ -292,8 +292,8 @@ export const appRouter = router({
     update: protectedProcedure.input(z.object({
       id: z.number(),
       name: z.string().optional(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
+      email: z.string().email().optional().nullable(),
+      phone: z.string().min(8, "Telefone é obrigatório").optional(),
       instrumentId: z.number().optional().nullable(),
       level: z.enum(['iniciante', 'intermediario', 'avancado']).optional(),
       monthlyFee: z.number().optional(),
@@ -1607,6 +1607,42 @@ export const appRouter = router({
           return { success: true };
         } catch (error) {
           return handleDbError(error, "marcar mensalidade como paga");
+        }
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        amount: z.number().optional(),
+        dueDate: z.string().optional(),
+        paidAt: z.string().nullable().optional(),
+        status: z.enum(["pendente", "pago", "atrasado"]).optional(),
+        notes: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Banco de dados não disponível");
+          const { id, ...data } = input;
+          
+          const updateData: any = {
+            ...data,
+            updatedAt: new Date(),
+          };
+
+          if (data.dueDate) updateData.dueDate = data.dueDate.slice(0, 10);
+          if (data.paidAt !== undefined) {
+             updateData.paidAt = data.paidAt ? new Date(data.paidAt) : null;
+          }
+          if (data.amount !== undefined) updateData.amount = data.amount.toFixed(2);
+
+          await db.update(paymentDues)
+            .set(updateData)
+            .where(and(eq(paymentDues.id, id), eq(paymentDues.userId, ctx.user.id)));
+            
+          return { success: true };
+        } catch (error) {
+          return handleDbError(error, "atualizar a mensalidade");
         }
       }),
 
