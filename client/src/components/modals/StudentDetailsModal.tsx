@@ -41,51 +41,41 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
           </div>
         ) : (
           <>
-            {/* Top Navigation / Actions */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border/5">
-              <div className="flex items-center gap-2">
-                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">Perfil do Aluno</span>
+            {/* Profile Header */}
+            <div className="px-6 pt-10 pb-8 bg-gradient-to-b from-primary/5 to-transparent flex flex-col items-center text-center relative">
+              {/* Profile Avatar */}
+              <div className="w-24 h-24 rounded-[2.2rem] bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-xl shadow-primary/20 mb-5 text-white font-black text-3xl border-4 border-background transition-transform hover:scale-105 duration-300">
+                 {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={onEdit}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary/5 hover:bg-primary hover:text-white text-primary transition-all border border-primary/10 active:scale-95 shadow-sm"
-                  title="Editar Aluno"
-                >
-                  <Edit3 size={15} />
-                </button>
-                <button
-                  onClick={onDelete}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-500/5 hover:bg-red-500 hover:text-white text-red-500 transition-all border border-red-500/10 active:scale-95 shadow-sm"
-                  title="Excluir Aluno"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-
-            {/* Profile Section */}
-            <div className="px-6 pt-10 pb-8 bg-gradient-to-b from-muted/20 to-transparent relative overflow-hidden">
-              {/* Abstract background blur */}
-              <div className="absolute -left-10 -top-10 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
               
-              <div className="flex flex-col items-center text-center relative z-10">
-                <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-2xl shadow-primary/20 mb-6 text-white font-black text-3xl border-4 border-background rotate-3 hover:rotate-0 transition-transform duration-300">
-                   {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+              <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-tight px-4 flex flex-col items-center gap-1">
+                {student.name}
+                <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em]">
+                  {student.instrumentName || "Música"}
+                </span>
+              </DialogTitle>
+              
+              {/* Action row - COMPACT & VISIBLE */}
+              <div className="flex items-center gap-2 mt-6">
+                <div className={cn("px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-[0.2em] shadow-sm backdrop-blur-sm", statusConfig.color)}>
+                  {statusConfig.label}
                 </div>
                 
-                <DialogTitle className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-foreground leading-tight px-4 mb-2">
-                  {student.name}
-                </DialogTitle>
-                
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="px-3 py-1 rounded-full bg-muted text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 border border-border/20">
-                    {student.instrumentName || "Música"}
-                  </span>
-                  <div className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm", statusConfig.color)}>
-                    {statusConfig.label}
-                  </div>
+                <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-xl border border-border/20 shadow-inner">
+                  <button
+                    onClick={onEdit}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-background hover:bg-primary hover:text-white text-muted-foreground transition-all shadow-sm active:scale-95 border border-border/40"
+                    title="Editar Aluno"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                  <button
+                    onClick={onDelete}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-background hover:bg-destructive hover:text-white text-muted-foreground transition-all shadow-sm active:scale-95 border border-border/40"
+                    title="Excluir Aluno"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             </div>
