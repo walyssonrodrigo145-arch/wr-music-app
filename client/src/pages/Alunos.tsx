@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { format, isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
   CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical
@@ -347,8 +348,8 @@ export default function Alunos() {
   }, [students]);
 
   const lessonsToday = useMemo(() => {
-    const today = new Date().toLocaleDateString('en-CA');
-    return upcomingLessons.filter(l => l.scheduledAt.startsWith(today)).length;
+    const today = startOfDay(new Date());
+    return upcomingLessons.filter(l => isSameDay(new Date(l.scheduledAt), today)).length;
   }, [upcomingLessons]);
 
   const activeRate = stats.total > 0 ? Math.round((stats.ativos / stats.total) * 100) : 0;
