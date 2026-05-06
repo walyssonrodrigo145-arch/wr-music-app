@@ -75,10 +75,31 @@ export default function Aulas() {
   
   const [agendarOpen, setAgendarOpen] = useState(false);
   const [detailLessonId, setDetailLessonId] = useState<number | null>(null);
+  const [editingLesson, setEditingLesson] = useState<any>(null);
+
+  const utils = trpc.useUtils();
 
   const { data: lessons = [], isLoading } = trpc.lessons.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
   const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
+
+  const updateStatusMutation = trpc.lessons.updateStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Status atualizado!");
+      utils.lessons.list.invalidate();
+      utils.dashboard.stats.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao atualizar status: " + e.message)
+  });
+
+  const deleteMutation = trpc.lessons.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Aula removida!");
+      utils.lessons.list.invalidate();
+      utils.dashboard.stats.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao remover aula: " + e.message)
+  });
 
   const filteredLessons = useMemo(() => {
     return lessons.filter(l => {
@@ -175,6 +196,24 @@ export default function Aulas() {
 
     return list;
   }, [lessons, pendingReminders, dailyStats.faltas]);
+
+  const handleStatusChange = (id: number, status: string, newDate?: string) => {
+    updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm("Tem certeza que deseja excluir esta aula?")) {
+      deleteMutation.mutate({ id });
+    }
+  };
+
+  const handleEdit = (id: number) => {
+    const lesson = lessons.find(l => l.id === id);
+    if (lesson) {
+      setEditingLesson(lesson);
+      setAgendarOpen(true);
+    }
+  };
 
   // Componente de Card de Aula Premium
   const LessonCard = ({ lesson }: { lesson: any }) => {
@@ -650,10 +689,21 @@ export default function Aulas() {
       </div>
 
       {/* MODALS */}
-      <AgendarModal open={agendarOpen} onClose={() => setAgendarOpen(false)} />
+      <AgendarModal 
+        open={agendarOpen} 
+        onOpenChange={(open) => {
+          setAgendarOpen(open);
+          if (!open) setEditingLesson(null);
+        }} 
+        editingLesson={editingLesson}
+      />
       <LessonDetailModal
-        lessonId={detailLessonId}
+        open={!!detailLessonId}
+        lesson={lessons.find(l => l.id === detailLessonId)}
         onOpenChange={(open) => { if (!open) setDetailLessonId(null); }}
+        onStatusChange={handleStatusChange}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
       />
     </div>
   );
