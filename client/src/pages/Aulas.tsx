@@ -305,18 +305,10 @@ export default function Aulas() {
     });
 
     if (hoursSet.size === 0) {
-      return Array.from({ length: 11 }, (_, i) => i + 8); // 08:00 - 18:00
+      return Array.from({ length: 10 }, (_, i) => i + 9);
     }
 
-    const sortedHours = Array.from(hoursSet).sort((a, b) => a - b);
-    const minH = Math.min(sortedHours[0], 8); // Pelo menos começa às 08:00
-    const maxH = Math.max(sortedHours[sortedHours.length - 1], 18); // Pelo menos vai até às 18:00
-
-    const continuousHours = [];
-    for (let h = minH; h <= maxH; h++) {
-      continuousHours.push(h);
-    }
-    return continuousHours;
+    return Array.from(hoursSet).sort((a, b) => a - b);
   }, [filteredLessons, dayLessons, view, weekGrid]);
 
   // Helper for positioning blocks in timeline
