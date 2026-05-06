@@ -266,17 +266,28 @@ export default function Mensalidades() {
     const upcoming = payments.filter(p => p.status === "pendente");
     const scheduled = payments.filter(p => p.status === "agendada");
     
+    const sumAmount = (arr: PaymentRow[]) => arr.reduce((acc, p) => acc + Number(p.amount), 0);
+    const totalToReceive = sumAmount(upcoming) + sumAmount(overdue);
+    const received = sumAmount(paid);
+    const upcomingAmt = sumAmount(upcoming);
+    const overdueAmt = sumAmount(overdue);
+    const scheduledAmt = sumAmount(scheduled);
+    
+    const totalAmount = sumAmount(payments);
+    const getPercent = (val: number) => totalAmount > 0 ? Math.round((val / totalAmount) * 100) : 0;
+    
     return {
-      totalToReceive: upcoming.reduce((acc, p) => acc + Number(p.amount), 0) + overdue.reduce((acc, p) => acc + Number(p.amount), 0),
-      received: paid.reduce((acc, p) => acc + Number(p.amount), 0),
-      upcoming: upcoming.reduce((acc, p) => acc + Number(p.amount), 0),
-      overdue: overdue.reduce((acc, p) => acc + Number(p.amount), 0),
+      totalToReceive,
+      received,
+      upcoming: upcomingAmt,
+      overdue: overdueAmt,
+      totalAmount,
       distribution: [
-        { name: 'Recebidas', value: paid.length, color: '#10B981', percent: 55 },
-        { name: 'A vencer', value: upcoming.length, color: '#F59E0B', percent: 20 },
-        { name: 'Em atraso', value: overdue.length, color: '#EF4444', percent: 10 },
-        { name: 'Agendadas', value: scheduled.length, color: '#2563EB', percent: 15 },
-      ]
+        { name: 'Recebidas', value: received, color: '#10B981', percent: getPercent(received) },
+        { name: 'A vencer', value: upcomingAmt, color: '#F59E0B', percent: getPercent(upcomingAmt) },
+        { name: 'Em atraso', value: overdueAmt, color: '#EF4444', percent: getPercent(overdueAmt) },
+        { name: 'Agendadas', value: scheduledAmt, color: '#2563EB', percent: getPercent(scheduledAmt) },
+      ].filter(d => d.value > 0)
     };
   }, [payments]);
 
@@ -318,24 +329,10 @@ export default function Mensalidades() {
                   <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors" />
                   <Input 
                     placeholder="Procurar aluno..." 
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
                     className="w-[240px] h-10 pl-11 rounded-full bg-slate-100/50 border-none focus:ring-0 text-xs font-medium placeholder:text-slate-400" 
                   />
-               </div>
-               <div className="flex items-center gap-4">
-                  <button className="text-slate-500 hover:text-slate-800 transition-colors"><Moon size={20} /></button>
-                  <button className="text-slate-500 hover:text-slate-800 transition-colors relative">
-                    <Bell size={20} />
-                    <div className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#F8FAFC]" />
-                  </button>
-                  <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
-                     <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-blue-600 text-white text-[10px] font-bold">WM</AvatarFallback>
-                     </Avatar>
-                     <div className="text-left">
-                        <p className="text-[11px] font-bold text-slate-800 leading-none">WR</p>
-                        <p className="text-[10px] text-slate-400 font-medium mt-1">Admin</p>
-                     </div>
-                  </div>
                </div>
             </div>
           </div>
@@ -526,7 +523,7 @@ export default function Mensalidades() {
                           <p className="text-[11px] font-bold text-slate-800">{item.name}</p>
                        </div>
                        <div className="flex items-center gap-4">
-                          <p className="text-[11px] font-bold text-slate-400">{currencyFormat(12450 * (item.percent / 100))}</p>
+                          <p className="text-[11px] font-bold text-slate-400">{currencyFormat(item.value)}</p>
                           <p className="text-[11px] font-bold text-slate-400 w-8 text-right">{item.percent}%</p>
                        </div>
                     </div>
@@ -535,7 +532,7 @@ export default function Mensalidades() {
 
                <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
                   <p className="text-xs font-bold text-slate-900">Total</p>
-                  <p className="text-sm font-bold text-slate-900">R$ 18.750,00</p>
+                  <p className="text-sm font-bold text-slate-900">{currencyFormat(stats.totalAmount)}</p>
                </div>
             </div>
 
