@@ -65,42 +65,41 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "P";
 
-  return (
-    <aside
+  return    <aside
       className={cn(
-        "flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out relative",
-        collapsed ? "w-[72px]" : "w-[240px]"
+        "flex flex-col h-full bg-[#0B1220] text-slate-400 transition-all duration-300 ease-in-out relative border-r border-slate-800/50 shadow-2xl z-20",
+        collapsed ? "w-[80px]" : "w-[260px]"
       )}
     >
       {/* Toggle button - desktop only */}
       <button
         onClick={onToggle}
-        className="hidden lg:flex absolute -right-4 top-20 z-10 w-8 h-8 rounded-full bg-primary text-primary-foreground items-center justify-center shadow-lg hover:bg-primary/90 hover:scale-110 transition-all border-2 border-background"
+        className="hidden lg:flex absolute -right-3.5 top-10 z-30 w-7 h-7 rounded-full bg-[#0B1220] text-slate-400 items-center justify-center shadow-xl hover:text-white hover:scale-110 transition-all border border-slate-800"
         aria-label="Recolher menu"
       >
-        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
 
       {/* Logo */}
       <div className={cn(
-        "flex items-center gap-3 px-4 py-5 border-b border-sidebar-border",
+        "flex items-center gap-3 px-6 py-8",
         collapsed && "justify-center px-2"
       )}>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-          <Music size={18} className="text-white" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#7C3AED] flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+          <Music size={20} className="text-white" />
         </div>
         {!collapsed && (
           <div>
-            <p className="text-sm font-bold text-white leading-tight">MusicPro</p>
-            <p className="text-[10px] text-sidebar-foreground/50 leading-tight">Gestão Musical</p>
+            <p className="text-base font-black text-white tracking-tight leading-none">MusicPro</p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Gestão Musical</p>
           </div>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-thin">
+      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto scrollbar-none">
         {!collapsed && (
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 px-3 mb-2">Menu</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-4">Menu</p>
         )}
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -110,28 +109,33 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               <div
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer group",
+                  "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center px-2"
+                    ? "bg-[#2563EB] text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]"
+                    : "text-slate-400 hover:bg-slate-800/40 hover:text-white",
+                  collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
               >
                 <Icon
                   size={18}
                   className={cn(
-                    "flex-shrink-0 transition-colors",
-                    isActive ? "text-primary" : "text-sidebar-foreground/50 group-hover:text-primary"
+                    "flex-shrink-0 transition-transform duration-300",
+                    isActive ? "scale-110" : "group-hover:scale-110"
                   )}
                 />
                 {!collapsed && (
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate tracking-tight">{item.label}</span>
                 )}
                 {!collapsed && item.badge && (
-                  <span className="ml-auto bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  <span className="ml-auto bg-[#EF4444] text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg shadow-red-500/20">
                     {item.badge}
                   </span>
+                )}
+                
+                {/* Active Indicator Glow */}
+                {isActive && !collapsed && (
+                   <div className="absolute left-[-4px] top-1/4 bottom-1/4 w-1 bg-white rounded-full shadow-[0_0_10px_#fff]" />
                 )}
               </div>
             </Link>
@@ -139,7 +143,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         })}
 
         {!collapsed && (
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 px-3 mt-4 mb-2">Geral</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mt-8 mb-4">Geral</p>
         )}
         {bottomItems.map((item) => {
           const Icon = item.icon;
@@ -149,16 +153,16 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               <div
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer group",
+                  "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center px-2"
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400 hover:bg-slate-800/40 hover:text-white",
+                  collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
               >
-                <Icon size={18} className={cn("flex-shrink-0", isActive ? "text-primary" : "text-sidebar-foreground/50 group-hover:text-primary")} />
-                {!collapsed && <span className="truncate">{item.label}</span>}
+                <Icon size={18} className="flex-shrink-0 group-hover:scale-110 transition-transform" />
+                {!collapsed && <span className="truncate tracking-tight">{item.label}</span>}
               </div>
             </Link>
           );
@@ -167,38 +171,37 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
 
       {/* User profile at bottom */}
       <div className={cn(
-        "border-t border-sidebar-border p-3",
+        "p-4 bg-slate-900/30",
         collapsed ? "flex justify-center" : ""
       )}>
         {collapsed ? (
-          <Avatar className="w-9 h-9 cursor-pointer" title={user?.name ?? "Perfil"}>
-            <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+          <Avatar className="w-10 h-10 cursor-pointer border-2 border-slate-800 shadow-xl" title={user?.name ?? "Perfil"}>
+            <AvatarFallback className="bg-[#2563EB] text-white text-xs font-black">
               {initials}
             </AvatarFallback>
           </Avatar>
         ) : (
-          <div className="flex items-center gap-3">
-            <Avatar className="w-9 h-9 flex-shrink-0">
-              <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+          <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30">
+            <Avatar className="w-9 h-9 flex-shrink-0 border border-slate-600 shadow-lg">
+              <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-[#7C3AED] text-white text-xs font-black">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-sidebar-foreground truncate">{user?.name ?? "Professor"}</p>
-              <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email ?? ""}</p>
+              <p className="text-xs font-black text-white truncate tracking-tight">{user?.name ?? "WR Music"}</p>
+              <p className="text-[9px] text-slate-500 font-bold truncate uppercase tracking-tighter">Admin</p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-7 h-7 text-sidebar-foreground/50 hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
+            <button
+              className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-400/10 flex items-center justify-center flex-shrink-0 transition-all"
               onClick={() => logoutMutation.mutate()}
               title="Sair"
             >
               <LogOut size={14} />
-            </Button>
+            </button>
           </div>
         )}
       </div>
     </aside>
+ide>
   );
 }
