@@ -111,9 +111,9 @@ export default function Progresso() {
   };
 
   const filteredStudents = useMemo(() => {
-    return students.filter((s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return students
+      .filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [students, searchQuery]);
 
   const selectedStudent = useMemo(() => {
