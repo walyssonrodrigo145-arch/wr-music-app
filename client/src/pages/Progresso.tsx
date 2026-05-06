@@ -293,26 +293,23 @@ export default function Progresso() {
                 </div>
               </div>
 
-              {/* NÍVEL 2: CARDS DE MÉTRICAS VIBRANTES (Ajustado para Mobile) */}
+              {/* NÍVEL 2: CARDS DE MÉTRICAS CLEAN (Ajustado para Mobile) */}
               <div className="px-4 py-4 lg:px-6 lg:py-6 overflow-x-auto scrollbar-none shrink-0 bg-muted/5">
                 <div className="flex items-center gap-3 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
                   {[
-                    { label: "Média", value: summary?.averageGrade || "0.0", icon: Star, bg: "bg-gradient-to-br from-blue-600 to-blue-500" },
-                    { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, bg: "bg-gradient-to-br from-purple-600 to-purple-500" },
-                    { label: "Freq.", value: `${summary?.frequency || 0}%`, icon: Calendar, bg: "bg-gradient-to-br from-pink-600 to-pink-500" },
-                    { label: "Status", value: "Ativo", icon: TrendingUp, bg: "bg-gradient-to-br from-emerald-600 to-emerald-500" },
+                    { label: "Média", value: summary?.averageGrade || "0.0", icon: Star, color: "text-amber-500", bg: "bg-amber-50" },
+                    { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-blue-500", bg: "bg-blue-50" },
+                    { label: "Freq.", value: `${summary?.frequency || 0}%`, icon: Calendar, color: "text-emerald-500", bg: "bg-emerald-50" },
+                    { label: "Status", value: "Ativo", icon: TrendingUp, color: "text-indigo-500", bg: "bg-indigo-50" },
                   ].map((stat, i) => (
-                    <div key={i} className={cn("relative p-3 lg:p-5 rounded-xl lg:rounded-2xl border-none shadow-md w-32 lg:w-full overflow-hidden group", stat.bg)}>
+                    <div key={i} className="relative p-3 lg:p-4 bg-background rounded-xl lg:rounded-2xl border border-border/40 shadow-[0_1px_3px_rgba(0,0,0,0.02)] w-32 lg:w-full overflow-hidden group">
                       <div className="flex items-center justify-between mb-2 lg:mb-3 relative z-10">
-                        <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center bg-white/20 text-white">
+                        <div className={cn("w-6 h-6 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center", stat.bg, stat.color)}>
                           <stat.icon size={12} lg:size={16} />
                         </div>
                       </div>
-                      <p className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider text-white/70 mb-0.5 relative z-10">{stat.label}</p>
-                      <p className="text-sm lg:text-xl font-black text-white relative z-10">{stat.value}</p>
-                      
-                      <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10" />
-                      <div className="absolute bottom-0 left-0 w-1/3 h-1 bg-white transition-all group-hover:w-full duration-500" />
+                      <p className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-0.5 relative z-10">{stat.label}</p>
+                      <p className="text-sm lg:text-lg font-bold text-foreground relative z-10">{stat.value}</p>
                     </div>
                   ))}
                 </div>
