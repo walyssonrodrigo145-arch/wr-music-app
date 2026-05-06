@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Bell,
   DollarSign,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -35,6 +36,7 @@ const staticNavItems = [
   { label: "Instrumentos", href: "/instrumentos", icon: Guitar },
   { label: "Relatórios", href: "/relatorios", icon: BarChart3 },
   { label: "Lembretes", href: "/lembretes", icon: Bell },
+  { label: "Progresso", href: "/progresso", icon: Activity },
   { label: "Mensalidades", href: "/mensalidades", icon: DollarSign },
 ];
 

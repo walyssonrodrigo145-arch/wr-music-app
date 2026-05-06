@@ -192,6 +192,7 @@ export const studentTimeline = pgTable("student_timeline", {
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   category: timelineCategoryEnum("category").default("geral").notNull(),
+  grade: decimal("grade", { precision: 3, scale: 1 }),
   achievedAt: timestamp("achievedAt").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

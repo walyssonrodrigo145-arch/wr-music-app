@@ -197,6 +197,7 @@ export const appRouter = router({
       title: z.string(),
       description: z.string().optional(),
       category: z.enum(['tecnica', 'teoria', 'repertorio', 'geral']).default('geral'),
+      grade: z.string().optional(),
       achievedAt: z.string(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
@@ -207,8 +208,25 @@ export const appRouter = router({
         title: input.title,
         description: input.description,
         category: input.category,
+        grade: input.grade,
         achievedAt: new Date(input.achievedAt),
       });
+      return { success: true };
+    }),
+    updateTimelineEvent: protectedProcedure.input(z.object({
+      id: z.number(),
+      title: z.string().optional(),
+      description: z.string().optional(),
+      category: z.enum(['tecnica', 'teoria', 'repertorio', 'geral']).optional(),
+      grade: z.string().optional(),
+      achievedAt: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const { id, ...data } = input;
+      const updateData: any = { ...data };
+      if (data.achievedAt) updateData.achievedAt = new Date(data.achievedAt);
+      await db.update(studentTimeline).set(updateData).where(and(eq(studentTimeline.id, id), eq(studentTimeline.userId, ctx.user.id)));
       return { success: true };
     }),
     deleteTimelineEvent: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
@@ -216,6 +234,30 @@ export const appRouter = router({
       if (!db) throw new Error("Database not available");
       await db.delete(studentTimeline).where(and(eq(studentTimeline.id, input.id), eq(studentTimeline.userId, ctx.user.id)));
       return { success: true };
+    }),
+    getSummary: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const timelineEvents = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.userId, ctx.user.id)));
+      const studentLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId), eq(lessons.userId, ctx.user.id)));
+      
+      const grades = timelineEvents.map(e => e.grade).filter(g => g !== null).map(Number);
+      const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+      
+      const completedLessons = studentLessons.filter(l => l.status === 'concluida');
+      const missedLessons = studentLessons.filter(l => l.status === 'falta');
+      
+      const frequency = (completedLessons.length + missedLessons.length) > 0 
+        ? (completedLessons.length / (completedLessons.length + missedLessons.length)) * 100 
+        : 100;
+        
+      return {
+        averageGrade: Number(averageGrade.toFixed(1)),
+        completedCount: completedLessons.length,
+        frequency: Math.round(frequency),
+        lastLesson: completedLessons.length > 0 ? completedLessons.sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())[0].scheduledAt : null
+      };
     }),
     generateAIInsight: protectedProcedure.input(z.object({ studentId: z.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();

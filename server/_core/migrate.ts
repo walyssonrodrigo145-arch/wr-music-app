@@ -25,6 +25,7 @@ export async function runAutoMigrations() {
       { table: 'lessons', sql: 'ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "experimentalName" varchar(255)' },
       { table: 'lessons', sql: 'ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL' },
       { table: 'students', sql: 'ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "instrumentId" integer' },
+      { table: 'student_timeline', sql: 'ALTER TABLE "student_timeline" ADD COLUMN IF NOT EXISTS "grade" decimal(3, 1)' },
       { table: 'enum', sql: "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'goal_status') THEN CREATE TYPE goal_status AS ENUM ('pendente', 'concluida'); END IF; END $$;" },
       { table: 'enum', sql: "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'timeline_category') THEN CREATE TYPE timeline_category AS ENUM ('tecnica', 'teoria', 'repertorio', 'geral'); END IF; END $$;" },
       { table: 'student_goals', sql: `
@@ -49,6 +50,7 @@ export async function runAutoMigrations() {
           "title" varchar(255) NOT NULL,
           "description" text,
           "category" timeline_category DEFAULT 'geral' NOT NULL,
+          "grade" decimal(3, 1),
           "achievedAt" timestamp NOT NULL,
           "createdAt" timestamp DEFAULT now() NOT NULL
         );`
