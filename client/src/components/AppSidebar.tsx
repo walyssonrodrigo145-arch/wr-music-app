@@ -202,6 +202,5 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         )}
       </div>
     </aside>
-ide>
   );
 }
