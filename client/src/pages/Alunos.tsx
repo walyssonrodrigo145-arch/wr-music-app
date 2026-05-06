@@ -366,28 +366,38 @@ export default function Alunos() {
         </div>
       </div>
 
-      {/* Metrics Row (Subtle Cards) */}
-      <div className="px-6 py-4 flex items-center gap-4 overflow-x-auto scrollbar-none shrink-0 bg-muted/5">
+      {/* Cards de Métricas Compactos */}
+      <div className="px-6 py-6 grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 bg-muted/5">
         {[
-          { label: "Todos", count: stats.total, color: "text-primary", key: "todos" },
-          { label: "Ativos", count: stats.ativos, color: "text-emerald-600", key: "ativo" },
-          { label: "Pausados", count: stats.pausados, color: "text-amber-600", key: "pausado" },
-          { label: "Inativos", count: students.length - stats.ativos - stats.pausados, color: "text-red-600", key: "inativo" },
-        ].map((item) => (
-          <button
-            key={item.key}
-            onClick={() => setStatusFilter(item.key)}
-            className={cn(
-              "px-4 py-2 rounded-xl border transition-all flex items-center gap-3 shrink-0",
-              statusFilter === item.key 
-                ? "bg-background border-primary/20 shadow-sm ring-2 ring-primary/5" 
-                : "bg-transparent border-border/40 text-muted-foreground hover:bg-background"
-            )}
-          >
-            <span className={cn("text-xs font-bold", statusFilter === item.key ? item.color : "text-muted-foreground")}>{item.label}</span>
-            <span className="px-1.5 py-0.5 rounded-md bg-muted text-[10px] font-bold">{item.count}</span>
-          </button>
-        ))}
+          { label: "Total Geral", count: stats.total, icon: Users, color: "text-primary", bg: "bg-primary/5", border: "border-primary/10", key: "todos" },
+          { label: "Ativos", count: stats.ativos, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", key: "ativo" },
+          { label: "Pausados", count: stats.pausados, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", key: "pausado" },
+          { label: "Inativos", count: stats.total - stats.ativos - stats.pausados, icon: X, color: "text-red-600", bg: "bg-red-50", border: "border-red-100", key: "inativo" },
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = statusFilter === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => setStatusFilter(item.key)}
+              className={cn(
+                "group relative p-4 rounded-2xl border transition-all duration-300 text-left",
+                isActive 
+                  ? "bg-background border-primary shadow-lg shadow-primary/5 ring-1 ring-primary/20" 
+                  : "bg-background/50 border-border/40 hover:bg-background hover:border-border/80 hover:shadow-sm"
+              )}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110", item.bg, item.color)}>
+                  <Icon size={16} />
+                </div>
+                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-0.5">{item.label}</p>
+              <p className="text-xl font-black text-foreground">{item.count}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* Table Section */}

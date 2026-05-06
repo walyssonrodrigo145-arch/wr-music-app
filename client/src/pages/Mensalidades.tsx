@@ -266,41 +266,50 @@ export default function Mensalidades() {
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="px-6 py-4 flex items-center gap-4 overflow-x-auto scrollbar-none shrink-0 bg-muted/5">
-        {[
-          { label: "Recebido", value: totals.recebido, color: "text-emerald-600", key: "pago" },
-          { label: "Previsto", value: totals.previsto, color: "text-primary", key: "todas" },
-          { label: "Atrasado", value: payments.filter(p => p.status === "atrasado").length, color: "text-red-600", key: "atrasado", isCount: true },
-        ].map((item) => (
-          <div
-            key={item.key}
-            className="px-4 py-3 bg-background rounded-xl border border-border/40 flex items-center gap-4 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-          >
-            <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none mb-1.5">{item.label}</p>
-              <p className={cn("text-base font-bold truncate", item.color)}>
-                {item.isCount ? item.value : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.value as number)}
-              </p>
-            </div>
+      {/* Cards de Métricas e Filtros */}
+      <div className="px-6 py-6 flex flex-col lg:flex-row gap-6 shrink-0 bg-muted/5">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:flex lg:flex-1 gap-4">
+          {[
+            { label: "Recebido", value: totals.recebido, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
+            { label: "Previsto", value: totals.previsto, icon: DollarSign, color: "text-primary", bg: "bg-primary/5" },
+            { label: "Atrasado", value: payments.filter(p => p.status === "atrasado").length, icon: AlertCircle, color: "text-red-600", bg: "bg-red-50", isCount: true },
+            { label: "Pendente", value: payments.filter(p => p.status === "pendente").length, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", isCount: true },
+          ].map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={i}
+                className="flex-1 min-w-[140px] p-4 bg-background rounded-2xl border border-border/40 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+              >
+                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-3", item.bg, item.color)}>
+                  <Icon size={16} />
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-0.5">{item.label}</p>
+                <p className={cn("text-lg font-black truncate", item.color)}>
+                  {item.isCount ? item.value : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.value as number)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="lg:w-48 flex flex-col gap-2 justify-center border-l border-border/40 pl-0 lg:pl-6">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-1">Filtrar status</p>
+          <div className="flex flex-wrap lg:flex-col gap-1.5">
+            {(["todas", "pendente", "pago", "atrasado"] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-left flex items-center justify-between group",
+                  filterStatus === s ? "bg-primary/5 text-primary ring-1 ring-primary/20" : "text-muted-foreground hover:bg-muted/50"
+                )}
+              >
+                {s === "todas" ? "Tudo" : s}
+                <div className={cn("w-1.5 h-1.5 rounded-full transition-all", filterStatus === s ? "bg-primary scale-100" : "bg-transparent scale-0 group-hover:scale-100 group-hover:bg-muted-foreground/20")} />
+              </button>
+            ))}
           </div>
-        ))}
-        
-        <div className="flex-1" />
-        
-        <div className="flex items-center gap-1.5 bg-muted/10 p-1 rounded-lg border border-border/40">
-          {(["todas", "pendente", "pago", "atrasado"] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
-                filterStatus === s ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {s === "todas" ? "Tudo" : s}
-            </button>
-          ))}
         </div>
       </div>
 
