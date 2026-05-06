@@ -4,20 +4,16 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Search,
-  User,
   Star,
   BookOpen,
   Calendar,
   Clock,
   Plus,
-  MoreVertical,
   Activity,
   Edit2,
   Trash2,
   ChevronRight,
   Filter,
-  CheckCircle2,
-  AlertCircle,
   TrendingUp,
   Loader2,
   Smile,
@@ -149,286 +145,255 @@ export default function Progresso() {
   };
 
   const getStatusColor = (grade: number) => {
-    if (grade >= 8) return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
-    if (grade >= 6) return "text-blue-500 bg-blue-500/10 border-blue-500/20";
-    return "text-amber-500 bg-amber-500/10 border-amber-500/20";
+    if (grade >= 8) return "text-emerald-600 bg-emerald-50 border-emerald-100";
+    if (grade >= 6) return "text-blue-600 bg-blue-50 border-blue-100";
+    return "text-amber-600 bg-amber-50 border-amber-100";
   };
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case "tecnica": return "bg-violet-500/10 text-violet-600 border-violet-500/20";
-      case "teoria": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-      case "repertorio": return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
-      default: return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+      case "tecnica": return "bg-indigo-50 text-indigo-600 border-indigo-100";
+      case "teoria": return "bg-amber-50 text-amber-600 border-amber-100";
+      case "repertorio": return "bg-emerald-50 text-emerald-600 border-emerald-100";
+      default: return "bg-slate-50 text-slate-600 border-slate-100";
     }
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-8rem)] lg:h-full gap-6 overflow-hidden">
-      {/* Lado Esquerdo: Lista de Alunos */}
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] gap-0 lg:gap-8 overflow-hidden -m-4 sm:-m-6">
+      {/* Sidebar de Alunos (Linear Style) */}
       <div className={cn(
-        "w-full lg:w-80 flex flex-col bg-card rounded-[2rem] border border-border/40 shadow-sm overflow-hidden transition-all",
+        "w-full lg:w-72 flex flex-col bg-background border-r border-border/50 transition-all",
         selectedStudentId && "hidden lg:flex"
       )}>
-        <div className="p-6 pb-4">
-          <h3 className="text-xl font-black uppercase tracking-tight mb-4">Alunos</h3>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Alunos</h3>
+          </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/40" size={14} />
             <Input
-              placeholder="Buscar aluno..."
-              className="pl-10 h-10 rounded-xl border-border/40 focus:ring-primary/20"
+              placeholder="Buscar..."
+              className="pl-9 h-9 text-sm rounded-lg border-border/40 bg-muted/20 focus:bg-background transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 pb-6 space-y-1 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto px-2 pb-6 space-y-0.5 scrollbar-thin">
           {studentsLoading ? (
-            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-muted-foreground/20" /></div>
           ) : filteredStudents.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center p-8 italic">Nenhum aluno encontrado.</p>
+            <p className="text-xs text-muted-foreground/60 text-center p-8 italic">Nenhum aluno</p>
           ) : (
             filteredStudents.map((student) => (
               <button
                 key={student.id}
                 onClick={() => setSelectedStudentId(student.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 group",
+                  "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
                   selectedStudentId === student.id
-                    ? "bg-primary text-white shadow-lg shadow-primary/20"
-                    : "hover:bg-muted/50 text-foreground"
+                    ? "bg-primary/5 text-primary"
+                    : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Avatar className="w-10 h-10 border-2 border-background shadow-sm">
-                  <AvatarFallback className={cn(
-                    "text-xs font-bold",
-                    selectedStudentId === student.id ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
-                  )}>
-                    {student.name.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <div className={cn(
+                  "w-1.5 h-1.5 rounded-full transition-all",
+                  selectedStudentId === student.id ? "bg-primary scale-100" : "bg-transparent scale-0 group-hover:scale-100 group-hover:bg-muted-foreground/30"
+                )} />
                 <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-bold truncate leading-tight">{student.name}</p>
-                  <p className={cn(
-                    "text-[10px] uppercase tracking-widest font-medium opacity-60",
-                    selectedStudentId === student.id ? "text-white" : "text-muted-foreground"
-                  )}>
-                    {student.instrumentName || "Música"}
-                  </p>
+                  <p className="text-sm font-medium truncate">{student.name}</p>
                 </div>
-                {selectedStudentId !== student.id && (
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                )}
+                <ChevronRight size={12} className={cn(
+                  "transition-all",
+                  selectedStudentId === student.id ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0"
+                )} />
               </button>
             ))
           )}
         </div>
       </div>
 
-      {/* Lado Direito: Detalhes do Progresso */}
+      {/* Conteúdo Principal (Modern Dashboard) */}
       <div className={cn(
-        "flex-1 flex flex-col min-w-0 transition-all",
+        "flex-1 flex flex-col min-w-0 bg-muted/5 overflow-hidden",
         !selectedStudentId && "hidden lg:flex"
       )}>
         {!selectedStudentId ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 lg:p-12 bg-card/50 rounded-[2rem] border-2 border-dashed border-border/60">
-            <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-[2rem] bg-primary/10 text-primary flex items-center justify-center mb-6">
-              <Activity size={32} />
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
+            <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mb-4">
+              <Activity size={24} className="text-muted-foreground/40" />
             </div>
-            <h2 className="text-xl lg:text-2xl font-black uppercase tracking-tight text-foreground">Acompanhe a Evolução</h2>
-            <p className="text-sm text-muted-foreground max-w-sm mt-2 px-4">
-              Selecione um aluno na lista ao lado para visualizar e gerenciar sua linha do tempo pedagógica.
+            <h2 className="text-lg font-semibold text-foreground/80">Selecione um aluno</h2>
+            <p className="text-sm text-muted-foreground/60 max-w-[240px] mt-1">
+              Escolha um aluno na lista ao lado para visualizar o progresso detalhado.
             </p>
           </div>
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedStudentId}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              {/* Botão Voltar (Mobile) */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="lg:hidden mb-4 w-fit text-muted-foreground font-bold"
-                onClick={() => setSelectedStudentId(null)}
-              >
-                <ChevronRight size={16} className="rotate-180 mr-1" />
-                Voltar para lista
-              </Button>
+              {/* NÍVEL 1: HEADER COMPACTO */}
+              <div className="bg-background border-b border-border/40 px-6 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden shrink-0"
+                  onClick={() => setSelectedStudentId(null)}
+                >
+                  <ChevronRight size={18} className="rotate-180" />
+                </Button>
 
-              {/* Topo: Resumo */}
-              <div className="bg-card rounded-[2rem] border border-border/40 p-5 lg:p-6 shadow-sm mb-6 flex flex-col md:flex-row items-center gap-5 lg:gap-6">
-                <Avatar className="w-16 h-16 lg:w-20 lg:h-20 rounded-[1.2rem] lg:rounded-[1.5rem] shadow-xl shadow-primary/10 border-2 border-background">
-                  <AvatarFallback className="bg-primary text-white text-xl lg:text-2xl font-black">
-                    {selectedStudent?.name.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1 text-center md:text-left w-full">
-                  <div className="flex flex-col md:flex-row items-center gap-2 lg:gap-3 mb-1">
-                    <h2 className="text-2xl lg:text-3xl font-black uppercase tracking-tight truncate max-w-[200px] lg:max-w-none">{selectedStudent?.name}</h2>
-                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[9px] lg:text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                      Nível: {selectedStudent?.level}
-                    </span>
-                  </div>
-                  <div className="flex flex-col md:flex-row items-center gap-3 lg:gap-6 mt-3">
-                    <div className="flex-1 w-full max-w-xs">
-                      <div className="flex justify-between text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
-                        <span>Progresso Geral</span>
-                        <span>{summary?.frequency || 0}%</span>
-                      </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <Avatar className="w-10 h-10 border border-border/40">
+                    <AvatarFallback className="bg-primary/5 text-primary text-sm font-bold">
+                      {selectedStudent?.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg font-bold text-foreground truncate leading-none">{selectedStudent?.name}</h2>
+                      <span className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        {selectedStudent?.level}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
                         <div 
-                          className="h-full bg-primary shadow-[0_0_12px_rgba(var(--primary),0.3)] transition-all duration-1000" 
+                          className="h-full bg-primary transition-all duration-700" 
                           style={{ width: `${summary?.frequency || 0}%` }}
                         />
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground whitespace-nowrap">
-                      <Clock size={12} className="lg:size-[14px]" />
-                      <span className="text-[10px] lg:text-xs font-medium">Última aula: {summary?.lastLesson ? format(new Date(summary.lastLesson), "dd/MM/yyyy") : "Sem registro"}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium truncate">
+                        Última aula: {summary?.lastLesson ? format(new Date(summary.lastLesson), "dd/MM", { locale: ptBR }) : "N/A"}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="w-full md:w-64 bg-amber-500/5 border border-amber-500/20 p-4 rounded-2xl relative overflow-hidden group">
-                  <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-                    <Star size={80} className="text-amber-500" />
+                <div className="hidden xl:flex items-center gap-3 max-w-[300px] bg-amber-50/50 border border-amber-100 px-3 py-2 rounded-lg">
+                  <div className="shrink-0 w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
+                    {summary && summary.averageGrade >= 7 ? <Smile size={14} className="text-amber-600" /> : <Frown size={14} className="text-amber-600" />}
                   </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    {summary && summary.averageGrade >= 7 ? (
-                      <Smile className="text-amber-600" size={16} />
-                    ) : (
-                      <Frown className="text-amber-600" size={16} />
-                    )}
-                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">Insight Pedagógico</p>
-                  </div>
-                  <p className="text-[11px] lg:text-xs text-amber-800/80 leading-relaxed font-medium">
+                  <p className="text-[11px] text-amber-900/70 font-medium leading-tight">
                     {summaryLoading ? "Analisando..." : (
-                      summary && summary.averageGrade >= 8 ? "O aluno está apresentando um ótimo desenvolvimento. Continue incentivando a prática!" :
-                      summary && summary.averageGrade >= 6 ? "Evolução constante. Foco na revisão técnica das últimas metas." :
-                      "O aluno precisa de uma revisão nos fundamentos. Considere diminuir a velocidade dos novos conteúdos."
+                      summary && summary.averageGrade >= 8 ? "Evolução excelente! Mantenha o ritmo." :
+                      summary && summary.averageGrade >= 6 ? "Progresso constante. Foco na técnica." :
+                      "Atenção aos fundamentos básicos."
                     )}
                   </p>
                 </div>
               </div>
 
-              {/* Indicadores */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-                {[
-                  { label: "Média", value: summary?.averageGrade || "0.0", icon: Star, color: "text-amber-500 bg-amber-500/10" },
-                  { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-blue-500 bg-blue-500/10" },
-                  { label: "Frequência", value: `${summary?.frequency || 0}%`, icon: Calendar, color: "text-emerald-500 bg-emerald-500/10" },
-                  { label: "Evolução", value: "Boa", icon: TrendingUp, color: "text-violet-500 bg-violet-500/10" },
-                ].map((stat, i) => (
-                  <div key={i} className="bg-card rounded-2xl border border-border/40 p-3 lg:p-4 shadow-sm flex items-center gap-3 lg:gap-4">
-                    <div className={cn("w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center shrink-0", stat.color)}>
-                      <stat.icon size={16} className="lg:size-5" />
+              {/* NÍVEL 2: CARDS DE MÉTRICAS */}
+              <div className="px-6 py-6 overflow-x-auto scrollbar-none shrink-0">
+                <div className="flex items-center gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
+                  {[
+                    { label: "Média de notas", value: summary?.averageGrade || "0.0", icon: Star, color: "text-amber-500" },
+                    { label: "Aulas registradas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-blue-500" },
+                    { label: "Frequência", value: `${summary?.frequency || 0}%`, icon: Calendar, color: "text-emerald-500" },
+                    { label: "Evolução", value: "Ativo", icon: TrendingUp, color: "text-indigo-500" },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-background rounded-xl border border-border/40 p-4 flex items-center gap-4 w-56 lg:w-full shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center bg-muted/30", stat.color)}>
+                        <stat.icon size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none mb-1.5">{stat.label}</p>
+                        <p className="text-lg font-bold text-foreground leading-none">{stat.value}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1 lg:mb-1.5 truncate">{stat.label}</p>
-                      <p className="text-base lg:text-xl font-black text-foreground truncate">{stat.value}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
-              {/* Timeline Section */}
-              <div className="flex-1 bg-card rounded-[2rem] border border-border/40 p-6 shadow-sm overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
-                      <Activity size={20} />
-                    </div>
-                    <h3 className="text-xl font-black uppercase tracking-tight">Linha do Tempo</h3>
+              {/* NÍVEL 3: TIMELINE (FOCO PRINCIPAL) */}
+              <div className="flex-1 px-6 pb-6 overflow-hidden flex flex-col">
+                <div className="flex items-center justify-between mb-6 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground">Atividade Recente</h3>
+                    <div className="h-4 w-px bg-border/60 mx-2" />
+                    <button className="text-[11px] font-medium text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors">
+                      <Filter size={12} />
+                      Filtrar
+                    </button>
                   </div>
                   
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border/40 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase cursor-pointer hover:bg-muted/50 transition-colors">
-                      <Filter size={14} />
-                      Filtrar por categoria
-                    </div>
-                    <Button 
-                      onClick={() => { resetForm(); setIsModalOpen(true); }}
-                      className="rounded-xl h-10 px-4 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95"
-                    >
-                      <Plus size={16} />
-                      Novo Registro
-                    </Button>
-                  </div>
+                  <Button 
+                    onClick={() => { resetForm(); setIsModalOpen(true); }}
+                    className="h-8 rounded-lg px-3 bg-primary hover:bg-primary/90 text-white text-[11px] font-bold gap-1.5 shadow-sm transition-all active:scale-95"
+                  >
+                    <Plus size={14} />
+                    Novo registro
+                  </Button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pl-5 lg:pl-8 border-l-2 border-border/40 space-y-4 lg:space-y-6 pb-6 scrollbar-thin">
+                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin space-y-4">
                   {timelineLoading ? (
-                    <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>
+                    <div className="flex justify-center p-12"><Loader2 className="animate-spin text-muted-foreground/20" /></div>
                   ) : timeline.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                      <Activity className="opacity-20 mb-4" size={48} />
-                      <p className="text-sm font-medium italic">Nenhum marco registrado para este aluno.</p>
+                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 border-2 border-dashed border-border/40 rounded-2xl">
+                      <p className="text-xs font-medium italic">Nenhuma atividade registrada.</p>
                     </div>
                   ) : (
-                    timeline.map((event) => (
-                      <div key={event.id} className="relative group">
-                        {/* Dot */}
-                        <div className={cn(
-                          "absolute -left-[30px] lg:-left-[41px] top-4 w-3 h-3 lg:w-4 lg:h-4 rounded-full border-2 lg:border-4 border-card ring-2",
-                          event.category === 'tecnica' ? 'bg-violet-500 ring-violet-500/20' :
-                          event.category === 'teoria' ? 'bg-amber-500 ring-amber-500/20' :
-                          event.category === 'repertorio' ? 'bg-emerald-500 ring-emerald-500/20' :
-                          'bg-blue-500 ring-blue-500/20'
-                        )} />
-                        
-                        <div className="bg-background/40 hover:bg-muted/30 p-3 lg:p-5 rounded-2xl border border-border/40 transition-all duration-200 hover:shadow-md">
-                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 lg:gap-4">
-                            <div className="flex items-start gap-3 lg:gap-4 w-full sm:w-auto">
-                              <div className="flex flex-col items-center bg-card border border-border/40 px-2 lg:px-3 py-1 lg:py-2 rounded-xl min-w-[50px] lg:min-w-[60px] shadow-sm">
-                                <span className="text-[8px] lg:text-[10px] font-black text-muted-foreground uppercase">{format(new Date(event.achievedAt), "MMM", { locale: ptBR })}</span>
-                                <span className="text-base lg:text-xl font-black text-foreground">{format(new Date(event.achievedAt), "dd")}</span>
-                                <span className="text-[8px] lg:text-[9px] font-bold text-muted-foreground/60">{format(new Date(event.achievedAt), "yyyy")}</span>
-                              </div>
+                    <div className="relative pl-4 border-l border-border/60 ml-2 space-y-8 pb-8">
+                      {timeline.map((event) => (
+                        <div key={event.id} className="relative">
+                          {/* Dot */}
+                          <div className={cn(
+                            "absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-background ring-4 ring-background shadow-sm",
+                            event.category === 'tecnica' ? 'bg-indigo-500' :
+                            event.category === 'teoria' ? 'bg-amber-500' :
+                            event.category === 'repertorio' ? 'bg-emerald-500' :
+                            'bg-slate-400'
+                          )} />
+                          
+                          <div className="group bg-background hover:border-primary/20 p-4 rounded-xl border border-border/40 transition-all duration-200 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-md">
+                            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                               <div className="flex-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-2 mb-1">
-                                  <h4 className="text-sm lg:text-base font-black text-foreground leading-tight truncate">{event.title}</h4>
-                                  <span className={cn("px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", getCategoryColor(event.category))}>
+                                <div className="flex flex-wrap items-center gap-3 mb-2">
+                                  <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">
+                                    {format(new Date(event.achievedAt), "dd MMM yyyy", { locale: ptBR })}
+                                  </span>
+                                  <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border", getCategoryColor(event.category))}>
                                     {event.category}
                                   </span>
                                 </div>
-                                <p className="text-xs lg:text-sm text-muted-foreground leading-relaxed line-clamp-3">{event.description}</p>
+                                <h4 className="text-sm font-bold text-foreground mb-1">{event.title}</h4>
+                                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{event.description}</p>
                               </div>
-                            </div>
-                            
-                            <div className="flex items-center justify-between sm:justify-end gap-3 lg:gap-4 w-full sm:w-auto mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/20">
-                              {event.grade && (
-                                <div className={cn("flex items-center gap-1 px-2 py-0.5 lg:py-1 rounded-lg border font-black text-xs lg:text-sm", getStatusColor(Number(event.grade)))}>
-                                  <Star size={12} className="lg:size-[14px] fill-current" />
-                                  {Number(event.grade).toFixed(1)}
-                                </div>
-                              )}
                               
-                              <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => handleEdit(event)}>
-                                  <Edit2 size={12} className="lg:size-[14px]" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 rounded-lg text-muted-foreground hover:text-destructive" onClick={() => deleteEventMutation.mutate({ id: event.id })}>
-                                  <Trash2 size={12} className="lg:size-[14px]" />
-                                </Button>
+                              <div className="flex items-center gap-6 shrink-0 self-end sm:self-center">
+                                {event.grade && (
+                                  <div className={cn("flex items-center gap-1 px-2 py-1 rounded-lg border font-bold text-xs", getStatusColor(Number(event.grade)))}>
+                                    <Star size={12} className="fill-current" />
+                                    {Number(event.grade).toFixed(1)}
+                                  </div>
+                                )}
+                                
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleEdit(event)}>
+                                    <Edit2 size={12} />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteEventMutation.mutate({ id: event.id })}>
+                                    <Trash2 size={12} />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
-                  <div className="flex justify-center pt-4">
-                    <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">
-                      Carregar mais registros
-                    </Button>
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -436,44 +401,44 @@ export default function Progresso() {
         )}
       </div>
 
-      {/* Modal: Novo/Editar Registro */}
+      {/* Modal: Novo/Editar Registro (Clean Style) */}
       <Dialog open={isModalOpen} onOpenChange={(open) => {
         setIsModalOpen(open);
         if (!open) resetForm();
       }}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
-          <div className="bg-primary p-6 text-white">
+        <DialogContent className="sm:max-w-[440px] p-0 gap-0 border-none shadow-2xl rounded-2xl overflow-hidden">
+          <div className="px-6 py-6 border-b border-border/40">
             <DialogHeader>
-              <DialogTitle className="text-xl font-black uppercase tracking-tight text-white">
-                {editingEvent ? "Editar Registro" : "Novo Registro de Evolução"}
+              <DialogTitle className="text-base font-bold text-foreground">
+                {editingEvent ? "Editar registro" : "Novo registro"}
               </DialogTitle>
-              <p className="text-white/70 text-xs mt-1 uppercase tracking-widest font-bold">
-                Acompanhe os detalhes da aula do dia
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Adicione detalhes sobre a evolução musical hoje.
               </p>
             </DialogHeader>
           </div>
           
-          <div className="p-8 space-y-5 bg-card">
+          <div className="px-6 py-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Data</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Data</label>
                 <Input
                   type="datetime-local"
-                  className="rounded-xl border-border/40 focus:ring-primary/20 h-11"
+                  className="rounded-lg h-9 text-xs border-border/40 bg-muted/10"
                   value={formData.achievedAt}
                   onChange={(e) => setFormData({ ...formData, achievedAt: e.target.value })}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Categoria</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Categoria</label>
                 <Select
                   value={formData.category}
                   onValueChange={(val) => setFormData({ ...formData, category: val as any })}
                 >
-                  <SelectTrigger className="rounded-xl border-border/40 focus:ring-primary/20 h-11">
+                  <SelectTrigger className="rounded-lg h-9 text-xs border-border/40 bg-muted/10">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl border-border/40">
+                  <SelectContent className="rounded-xl">
                     <SelectItem value="tecnica">Técnica</SelectItem>
                     <SelectItem value="teoria">Teoria</SelectItem>
                     <SelectItem value="repertorio">Repertório</SelectItem>
@@ -484,47 +449,49 @@ export default function Progresso() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Título</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Título</label>
               <Input
-                placeholder="Ex: Escala Maior de Dó, Música X..."
-                className="rounded-xl border-border/40 focus:ring-primary/20 h-11"
+                placeholder="Ex: Escala de Sol Maior"
+                className="rounded-lg h-9 text-xs border-border/40 bg-muted/10"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Descrição</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Descrição (opcional)</label>
               <Textarea
-                placeholder="Detalhes sobre a evolução do aluno..."
-                className="rounded-xl border-border/40 focus:ring-primary/20 min-h-[100px] resize-none"
+                placeholder="Como foi o desempenho?"
+                className="rounded-lg text-xs border-border/40 bg-muted/10 min-h-[80px] resize-none"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nota (0 a 10)</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Nota</label>
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
                   step="0.5"
                   min="0"
                   max="10"
-                  placeholder="8.5"
-                  className="rounded-xl border-border/40 focus:ring-primary/20 h-11 w-24"
+                  className="rounded-lg h-9 text-xs border-border/40 bg-muted/10 w-20"
                   value={formData.grade}
                   onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
                 />
-                <div className="flex-1 flex gap-2">
-                  {[4, 6, 8, 10].map(n => (
+                <div className="flex gap-1.5">
+                  {[6, 7, 8, 9, 10].map(n => (
                     <button
                       key={n}
                       type="button"
                       onClick={() => setFormData({ ...formData, grade: n.toString() })}
-                      className="px-3 py-1 rounded-lg bg-muted/50 hover:bg-primary/10 hover:text-primary text-[10px] font-black border border-border/20 transition-colors"
+                      className={cn(
+                        "w-7 h-7 rounded-md text-[10px] font-bold border border-border/40 transition-all",
+                        formData.grade === n.toString() ? "bg-primary text-white border-primary" : "bg-muted/10 hover:bg-muted/30"
+                      )}
                     >
-                      {n.toFixed(1)}
+                      {n}
                     </button>
                   ))}
                 </div>
@@ -532,23 +499,23 @@ export default function Progresso() {
             </div>
           </div>
 
-          <DialogFooter className="p-6 bg-muted/30 flex gap-3 sm:justify-end">
+          <DialogFooter className="px-6 py-4 bg-muted/20 flex gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => setIsModalOpen(false)}
-              className="rounded-xl h-11 px-6 font-black uppercase tracking-widest text-[10px]"
+              className="h-9 px-4 text-xs font-bold"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={createEventMutation.isPending || updateEventMutation.isPending}
-              className="rounded-xl h-11 px-8 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20"
+              className="h-9 px-6 bg-primary text-white text-xs font-bold shadow-sm"
             >
               {createEventMutation.isPending || updateEventMutation.isPending ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={14} className="animate-spin" />
               ) : (
-                editingEvent ? "Salvar Alterações" : "Salvar Registro"
+                editingEvent ? "Salvar alterações" : "Salvar registro"
               )}
             </Button>
           </DialogFooter>
