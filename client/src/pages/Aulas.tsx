@@ -39,6 +39,7 @@ import {
   addMonths,
   subMonths,
   isToday,
+  isTomorrow,
   startOfDay
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -568,7 +569,9 @@ export default function Aulas() {
             {nextLesson ? (
               <div className="p-6 bg-gradient-to-br from-white to-[#F8FAFC] rounded-[2.5rem] border border-slate-100 shadow-xl relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -translate-y-16 translate-x-16 blur-3xl group-hover:scale-150 transition-transform duration-700" />
-                 <p className="relative z-10 text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 bg-blue-50 w-fit px-3 py-1 rounded-full">Hoje, {format(new Date(nextLesson.scheduledAt), "HH:mm")}</p>
+                 <p className="relative z-10 text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 bg-blue-50 w-fit px-3 py-1 rounded-full">
+                   {isToday(new Date(nextLesson.scheduledAt)) ? "Hoje" : isTomorrow(new Date(nextLesson.scheduledAt)) ? "Amanhã" : format(new Date(nextLesson.scheduledAt), "dd/MM")}, {format(new Date(nextLesson.scheduledAt), "HH:mm")}
+                 </p>
                  <div className="relative z-10 flex items-center gap-5 mb-8">
                     <Avatar className="w-16 h-16 border-4 border-white shadow-xl group-hover:rotate-6 transition-transform">
                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-xl">
