@@ -366,13 +366,13 @@ export default function Alunos() {
         </div>
       </div>
 
-      {/* Cards de Métricas Compactos */}
+      {/* Cards de Métricas Vibrantes */}
       <div className="px-6 py-6 grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 bg-muted/5">
         {[
-          { label: "Total Geral", count: stats.total, icon: Users, color: "text-primary", bg: "bg-primary/5", border: "border-primary/10", key: "todos" },
-          { label: "Ativos", count: stats.ativos, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", key: "ativo" },
-          { label: "Pausados", count: stats.pausados, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", key: "pausado" },
-          { label: "Inativos", count: stats.total - stats.ativos - stats.pausados, icon: X, color: "text-red-600", bg: "bg-red-50", border: "border-red-100", key: "inativo" },
+          { label: "Total Geral", count: stats.total, icon: Users, color: "text-white", bg: "bg-gradient-to-br from-blue-600 to-blue-500", key: "todos" },
+          { label: "Ativos", count: stats.ativos, icon: CheckCircle2, color: "text-white", bg: "bg-gradient-to-br from-purple-600 to-purple-500", key: "ativo" },
+          { label: "Pausados", count: stats.pausados, icon: Clock, color: "text-white", bg: "bg-gradient-to-br from-pink-600 to-pink-500", key: "pausado" },
+          { label: "Inativos", count: stats.total - stats.ativos - stats.pausados, icon: X, color: "text-white", bg: "bg-gradient-to-br from-emerald-600 to-emerald-500", key: "inativo" },
         ].map((item) => {
           const Icon = item.icon;
           const isActive = statusFilter === item.key;
@@ -381,20 +381,25 @@ export default function Alunos() {
               key={item.key}
               onClick={() => setStatusFilter(item.key)}
               className={cn(
-                "group relative p-4 rounded-2xl border transition-all duration-300 text-left",
+                "group relative p-5 rounded-2xl border transition-all duration-300 text-left overflow-hidden",
+                item.bg,
                 isActive 
-                  ? "bg-background border-primary shadow-lg shadow-primary/5 ring-1 ring-primary/20" 
-                  : "bg-background/50 border-border/40 hover:bg-background hover:border-border/80 hover:shadow-sm"
+                  ? "shadow-lg shadow-blue-500/20 ring-2 ring-white/20" 
+                  : "opacity-80 hover:opacity-100 border-transparent hover:shadow-md"
               )}
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110", item.bg, item.color)}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/20 text-white">
                   <Icon size={16} />
                 </div>
-                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />}
               </div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-0.5">{item.label}</p>
-              <p className="text-xl font-black text-foreground">{item.count}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-white/70 mb-1">{item.label}</p>
+              <p className="text-2xl font-black text-white">{item.count}</p>
+              
+              {/* Subtle line at bottom */}
+              <div className="absolute bottom-0 left-0 h-1 bg-white/10 w-full" />
+              {isActive && <div className="absolute bottom-0 left-0 h-1 bg-white w-1/3 transition-all" />}
             </button>
           );
         })}

@@ -293,23 +293,28 @@ export default function Progresso() {
                 </div>
               </div>
 
-              {/* NÍVEL 2: CARDS DE MÉTRICAS */}
-              <div className="px-6 py-6 overflow-x-auto scrollbar-none shrink-0">
+              {/* NÍVEL 2: CARDS DE MÉTRICAS VIBRANTES */}
+              <div className="px-6 py-6 overflow-x-auto scrollbar-none shrink-0 bg-muted/5">
                 <div className="flex items-center gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
                   {[
-                    { label: "Média de notas", value: summary?.averageGrade || "0.0", icon: Star, color: "text-amber-500" },
-                    { label: "Aulas registradas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-blue-500" },
-                    { label: "Frequência", value: `${summary?.frequency || 0}%`, icon: Calendar, color: "text-emerald-500" },
-                    { label: "Evolução", value: "Ativo", icon: TrendingUp, color: "text-indigo-500" },
+                    { label: "Média de notas", value: summary?.averageGrade || "0.0", icon: Star, bg: "bg-gradient-to-br from-blue-600 to-blue-500" },
+                    { label: "Aulas registradas", value: summary?.completedCount || 0, icon: BookOpen, bg: "bg-gradient-to-br from-purple-600 to-purple-500" },
+                    { label: "Frequência", value: `${summary?.frequency || 0}%`, icon: Calendar, bg: "bg-gradient-to-br from-pink-600 to-pink-500" },
+                    { label: "Evolução", value: "Ativo", icon: TrendingUp, bg: "bg-gradient-to-br from-emerald-600 to-emerald-500" },
                   ].map((stat, i) => (
-                    <div key={i} className="bg-background rounded-xl border border-border/40 p-4 flex items-center gap-4 w-56 lg:w-full shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-                      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center bg-muted/30", stat.color)}>
-                        <stat.icon size={16} />
+                    <div key={i} className={cn("relative p-5 rounded-2xl border-none shadow-lg w-56 lg:w-full overflow-hidden group", stat.bg)}>
+                      <div className="flex items-center justify-between mb-3 relative z-10">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/20 text-white">
+                          <stat.icon size={16} />
+                        </div>
+                        <div className="text-[10px] font-bold text-white/50 bg-white/10 px-2 py-0.5 rounded-full">+12%</div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none mb-1.5">{stat.label}</p>
-                        <p className="text-lg font-bold text-foreground leading-none">{stat.value}</p>
-                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/70 mb-1 relative z-10">{stat.label}</p>
+                      <p className="text-xl font-black text-white relative z-10">{stat.value}</p>
+                      
+                      {/* Visual accent line like in the image */}
+                      <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10" />
+                      <div className="absolute bottom-0 left-0 w-1/3 h-1 bg-white transition-all group-hover:w-full duration-500" />
                     </div>
                   ))}
                 </div>

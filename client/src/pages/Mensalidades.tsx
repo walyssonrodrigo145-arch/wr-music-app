@@ -270,24 +270,31 @@ export default function Mensalidades() {
       <div className="px-6 py-6 flex flex-col lg:flex-row gap-6 shrink-0 bg-muted/5">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:flex lg:flex-1 gap-4">
           {[
-            { label: "Recebido", value: totals.recebido, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-            { label: "Previsto", value: totals.previsto, icon: DollarSign, color: "text-primary", bg: "bg-primary/5" },
-            { label: "Atrasado", value: payments.filter(p => p.status === "atrasado").length, icon: AlertCircle, color: "text-red-600", bg: "bg-red-50", isCount: true },
-            { label: "Pendente", value: payments.filter(p => p.status === "pendente").length, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", isCount: true },
+            { label: "Recebido", value: totals.recebido, icon: CheckCircle2, bg: "bg-gradient-to-br from-emerald-600 to-emerald-500" },
+            { label: "Previsto", value: totals.previsto, icon: DollarSign, bg: "bg-gradient-to-br from-blue-600 to-blue-500" },
+            { label: "Atrasado", value: payments.filter(p => p.status === "atrasado").length, icon: AlertCircle, bg: "bg-gradient-to-br from-pink-600 to-pink-500", isCount: true },
+            { label: "Pendente", value: payments.filter(p => p.status === "pendente").length, icon: Clock, bg: "bg-gradient-to-br from-purple-600 to-purple-500", isCount: true },
           ].map((item, i) => {
             const Icon = item.icon;
             return (
               <div
                 key={i}
-                className="flex-1 min-w-[140px] p-4 bg-background rounded-2xl border border-border/40 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                className={cn("flex-1 min-w-[140px] p-5 rounded-2xl border-none shadow-lg relative overflow-hidden group", item.bg)}
               >
-                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-3", item.bg, item.color)}>
-                  <Icon size={16} />
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/20 text-white">
+                    <Icon size={16} />
+                  </div>
+                  {item.label === "Recebido" && <div className="text-[10px] font-bold text-white/50 bg-white/10 px-2 py-0.5 rounded-full">+12%</div>}
                 </div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-0.5">{item.label}</p>
-                <p className={cn("text-lg font-black truncate", item.color)}>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-white/70 mb-1 relative z-10">{item.label}</p>
+                <p className="text-xl font-black text-white relative z-10">
                   {item.isCount ? item.value : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.value as number)}
                 </p>
+                
+                {/* Visual accent line like in the image */}
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10" />
+                <div className="absolute bottom-0 left-0 w-1/3 h-1 bg-white transition-all group-hover:w-full duration-500" />
               </div>
             );
           })}
