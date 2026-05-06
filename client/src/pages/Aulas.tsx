@@ -279,7 +279,9 @@ export default function Aulas() {
   const activeHours = useMemo(() => {
     const currentLessons = view === "semana" ? filteredLessons.filter(l => {
       const d = new Date(l.scheduledAt);
-      return d >= weekGrid[0] && d <= weekGrid[6];
+      const weekStart = weekGrid[0];
+      const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+      return d >= weekStart && d <= weekEnd;
     }) : (view === "dia" ? dayLessons : []);
 
     const hoursSet = new Set<number>();
@@ -303,10 +305,18 @@ export default function Aulas() {
     });
 
     if (hoursSet.size === 0) {
-      return Array.from({ length: 10 }, (_, i) => i + 9);
+      return Array.from({ length: 11 }, (_, i) => i + 8); // 08:00 - 18:00
     }
 
-    return Array.from(hoursSet).sort((a, b) => a - b);
+    const sortedHours = Array.from(hoursSet).sort((a, b) => a - b);
+    const minH = Math.min(sortedHours[0], 8); // Pelo menos começa às 08:00
+    const maxH = Math.max(sortedHours[sortedHours.length - 1], 18); // Pelo menos vai até às 18:00
+
+    const continuousHours = [];
+    for (let h = minH; h <= maxH; h++) {
+      continuousHours.push(h);
+    }
+    return continuousHours;
   }, [filteredLessons, dayLessons, view, weekGrid]);
 
   // Helper for positioning blocks in timeline
