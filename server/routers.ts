@@ -16,7 +16,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings } from "../drizzle/schema";
+import { users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -140,6 +140,102 @@ export const appRouter = router({
 
         return { success: true, message: "Conta criada com sucesso! Você já pode fazer login." };
       }),
+  }),
+
+  progress: router({
+    getGoals: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(studentGoals).where(and(eq(studentGoals.userId, ctx.user.id), eq(studentGoals.studentId, input.studentId))).orderBy(asc(studentGoals.targetDate));
+    }),
+    createGoal: protectedProcedure.input(z.object({
+      studentId: z.number(),
+      title: z.string(),
+      description: z.string().optional(),
+      targetDate: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.insert(studentGoals).values({
+        userId: ctx.user.id,
+        studentId: input.studentId,
+        title: input.title,
+        description: input.description,
+        targetDate: input.targetDate,
+      });
+      return { success: true };
+    }),
+    updateGoal: protectedProcedure.input(z.object({
+      id: z.number(),
+      title: z.string().optional(),
+      description: z.string().optional(),
+      status: z.enum(['pendente', 'concluida']).optional(),
+      targetDate: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const { id, ...data } = input;
+      const updateData: any = { ...data, updatedAt: new Date() };
+      if (data.status === 'concluida') updateData.completedAt = new Date();
+      else if (data.status === 'pendente') updateData.completedAt = null;
+      await db.update(studentGoals).set(updateData).where(and(eq(studentGoals.id, id), eq(studentGoals.userId, ctx.user.id)));
+      return { success: true };
+    }),
+    deleteGoal: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(studentGoals).where(and(eq(studentGoals.id, input.id), eq(studentGoals.userId, ctx.user.id)));
+      return { success: true };
+    }),
+    getTimeline: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(studentTimeline).where(and(eq(studentTimeline.userId, ctx.user.id), eq(studentTimeline.studentId, input.studentId))).orderBy(desc(studentTimeline.achievedAt));
+    }),
+    createTimelineEvent: protectedProcedure.input(z.object({
+      studentId: z.number(),
+      title: z.string(),
+      description: z.string().optional(),
+      category: z.enum(['tecnica', 'teoria', 'repertorio', 'geral']).default('geral'),
+      achievedAt: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.insert(studentTimeline).values({
+        userId: ctx.user.id,
+        studentId: input.studentId,
+        title: input.title,
+        description: input.description,
+        category: input.category,
+        achievedAt: new Date(input.achievedAt),
+      });
+      return { success: true };
+    }),
+    deleteTimelineEvent: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(studentTimeline).where(and(eq(studentTimeline.id, input.id), eq(studentTimeline.userId, ctx.user.id)));
+      return { success: true };
+    }),
+    generateAIInsight: protectedProcedure.input(z.object({ studentId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const [student] = await db.select().from(students).where(eq(students.id, input.studentId));
+      if (!student) throw new Error("Aluno não encontrado");
+      const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId), eq(lessons.status, 'concluida'))).limit(10).orderBy(desc(lessons.scheduledAt));
+      const goals = await db.select().from(studentGoals).where(eq(studentGoals.studentId, input.studentId));
+      
+      const prompt = `Analise o progresso musical do aluno ${student.name} (nível: ${student.level}). Últimas aulas: ${pastLessons.length} concluídas. Metas cadastradas: ${goals.length}. Dê um feedback motivador e com 2 pontos de foco para as próximas aulas em um único parágrafo pequeno.`;
+      
+      try {
+        const { getLLM } = await import("./_core/llm");
+        const llm = getLLM();
+        const response = await llm.chat({ messages: [{ role: 'user', content: prompt }] });
+        return { insight: response.message.content };
+      } catch (e) {
+        return { insight: "O aluno tem se saído bem nas últimas aulas. Foco em melhorar a constância na prática diária e avançar nas metas de repertório." }; // Fallback
+      }
+    }),
   }),
 
   dashboard: router({

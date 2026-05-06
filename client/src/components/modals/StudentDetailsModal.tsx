@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Link } from "wouter";
 
 interface StudentDetailsModalProps {
   open: boolean;
@@ -166,7 +167,15 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
               </div>
             </div>
 
-            <div className="p-5 pt-0">
+            <div className="p-5 pt-0 flex flex-col gap-2">
+               <Link href={`/alunos/${student.id}/progresso`} onClick={() => onOpenChange(false)}>
+                 <Button
+                   className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-600/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                 >
+                   <Activity size={16} />
+                   Acompanhar Progresso
+                 </Button>
+               </Link>
                <Button
                  variant="outline"
                  className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border-border/40 hover:bg-muted/50 transition-all active:scale-95 shadow-sm"

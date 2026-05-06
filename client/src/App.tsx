@@ -14,6 +14,7 @@ import Configuracoes from "./pages/Configuracoes";
 import Lembretes from "./pages/Lembretes";
 import Mensalidades from "./pages/Mensalidades";
 import Login from "./pages/Login";
+import StudentProgress from "./pages/StudentProgress";
 
 function Router() {
   return (
@@ -31,6 +32,7 @@ function Router() {
             <Route path="/lembretes" component={Lembretes} />
             <Route path="/mensalidades" component={Mensalidades} />
             <Route path="/configuracoes" component={Configuracoes} />
+            <Route path="/alunos/:id/progresso" component={StudentProgress} />
             <Route path="/404" component={NotFound} />
             <Route component={NotFound} />
           </Switch>

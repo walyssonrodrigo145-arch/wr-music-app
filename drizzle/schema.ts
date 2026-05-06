@@ -18,6 +18,8 @@ export const lessonStatusEnum = pgEnum('lesson_status', ["agendada", "concluida"
 export const reminderTypeEnum = pgEnum('reminder_type', ["aula", "cobranca", "inadimplencia", "manual"]);
 export const reminderStatusEnum = pgEnum('reminder_status', ["pendente", "enviado", "cancelado"]);
 export const paymentDueStatusEnum = pgEnum('payment_due_status', ["pendente", "pago", "atrasado"]);
+export const goalStatusEnum = pgEnum('goal_status', ["pendente", "concluida"]);
+export const timelineCategoryEnum = pgEnum('timeline_category', ["tecnica", "teoria", "repertorio", "geral"]);
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -170,6 +172,30 @@ export const paymentDues = pgTable("payment_dues", {
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
 
+export const studentGoals = pgTable("student_goals", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  studentId: integer("studentId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  status: goalStatusEnum("status").default("pendente").notNull(),
+  targetDate: date("targetDate"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export const studentTimeline = pgTable("student_timeline", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  studentId: integer("studentId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  category: timelineCategoryEnum("category").default("geral").notNull(),
+  achievedAt: timestamp("achievedAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = typeof reminders.$inferInsert;
 export type ReminderTemplate = typeof reminderTemplates.$inferSelect;
@@ -186,3 +212,8 @@ export type Instrument = typeof instruments.$inferSelect;
 export type Student = typeof students.$inferSelect;
 export type Lesson = typeof lessons.$inferSelect;
 export type MonthlyStat = typeof monthlyStats.$inferSelect;
+
+export type StudentGoal = typeof studentGoals.$inferSelect;
+export type InsertStudentGoal = typeof studentGoals.$inferInsert;
+export type StudentTimeline = typeof studentTimeline.$inferSelect;
+export type InsertStudentTimeline = typeof studentTimeline.$inferInsert;

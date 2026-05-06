@@ -25,6 +25,34 @@ export async function runAutoMigrations() {
       { table: 'lessons', sql: 'ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "experimentalName" varchar(255)' },
       { table: 'lessons', sql: 'ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL' },
       { table: 'students', sql: 'ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "instrumentId" integer' },
+      { table: 'enum', sql: "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'goal_status') THEN CREATE TYPE goal_status AS ENUM ('pendente', 'concluida'); END IF; END $$;" },
+      { table: 'enum', sql: "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'timeline_category') THEN CREATE TYPE timeline_category AS ENUM ('tecnica', 'teoria', 'repertorio', 'geral'); END IF; END $$;" },
+      { table: 'student_goals', sql: `
+        CREATE TABLE IF NOT EXISTS "student_goals" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "userId" integer NOT NULL,
+          "studentId" integer NOT NULL,
+          "title" varchar(255) NOT NULL,
+          "description" text,
+          "status" goal_status DEFAULT 'pendente' NOT NULL,
+          "targetDate" date,
+          "completedAt" timestamp,
+          "createdAt" timestamp DEFAULT now() NOT NULL,
+          "updatedAt" timestamp DEFAULT now() NOT NULL
+        );` 
+      },
+      { table: 'student_timeline', sql: `
+        CREATE TABLE IF NOT EXISTS "student_timeline" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "userId" integer NOT NULL,
+          "studentId" integer NOT NULL,
+          "title" varchar(255) NOT NULL,
+          "description" text,
+          "category" timeline_category DEFAULT 'geral' NOT NULL,
+          "achievedAt" timestamp NOT NULL,
+          "createdAt" timestamp DEFAULT now() NOT NULL
+        );`
+      },
       { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'concluida'" },
       { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'cancelada'" },
       { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'remarcada'" },
