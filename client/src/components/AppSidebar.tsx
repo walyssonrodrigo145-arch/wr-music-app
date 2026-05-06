@@ -65,7 +65,8 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "P";
 
-  return    <aside
+  return (
+    <aside
       className={cn(
         "flex flex-col h-full bg-[#0B1220] text-slate-400 transition-all duration-300 ease-in-out relative border-r border-slate-800/50 shadow-2xl z-20",
         collapsed ? "w-[80px]" : "w-[260px]"

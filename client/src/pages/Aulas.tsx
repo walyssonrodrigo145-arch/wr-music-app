@@ -37,8 +37,7 @@ import {
   addMonths,
   subMonths,
   isToday,
-  startOfDay,
-  parseISO
+  startOfDay
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { trpc } from "@/lib/trpc";
