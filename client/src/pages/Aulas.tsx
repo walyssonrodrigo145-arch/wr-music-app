@@ -223,14 +223,14 @@ export default function Aulas() {
         layoutId={`lesson-${lesson.id}`}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        whileHover={{ scale: 1.03, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" }}
+        whileHover={{ scale: 1.02, boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
         whileTap={{ scale: 0.98 }}
         onClick={() => setDetailLessonId(lesson.id)}
         className={cn(
-          "group relative p-3 rounded-2xl border-l-[6px] backdrop-blur-sm transition-all cursor-pointer shadow-sm mb-2 last:mb-0",
-          config.bg, config.border
+          "group relative p-3.5 rounded-xl border-l-4 bg-white border-slate-200 transition-all cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.05)] mb-[6px] last:mb-0",
+          config.border
         )}
-        style={{ borderLeftColor: config.color === "bg-blue-500" ? "#3b82f6" : config.color === "bg-emerald-500" ? "#10b981" : config.color === "bg-rose-500" ? "#ef4444" : config.color === "bg-purple-500" ? "#a855f7" : "#f59e0b" }}
+        style={{ borderLeftColor: config.color === "bg-blue-500" ? "#2563EB" : config.color === "bg-emerald-500" ? "#10b981" : config.color === "bg-rose-500" ? "#ef4444" : config.color === "bg-purple-500" ? "#a855f7" : "#f59e0b" }}
       >
         <div className="flex items-center justify-between mb-1.5">
           <span className={cn("text-[10px] font-black uppercase tracking-widest", config.text)}>
@@ -250,7 +250,7 @@ export default function Aulas() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] -m-4 sm:-m-6 bg-[#F8FAFC] overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] -m-4 sm:-m-6 bg-[#F5F7FB] overflow-hidden">
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto lg:overflow-hidden scrollbar-thin">
         
@@ -274,8 +274,8 @@ export default function Aulas() {
                          className={cn(
                            "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[11px] font-black transition-all duration-300 border hover:scale-105 active:scale-95 shadow-sm",
                            isActive 
-                             ? "bg-white border-slate-200 ring-2 ring-offset-2 ring-slate-200" 
-                             : "bg-white border-transparent text-slate-400 opacity-60 hover:opacity-100"
+                             ? "bg-blue-50 border-blue-200 text-blue-700 shadow-blue-500/10" 
+                             : "bg-white border-[#E2E8F0] text-slate-400 opacity-80 hover:opacity-100"
                          )}
                        >
                          <span className={cn("w-2 h-2 rounded-full", color)} />
@@ -364,10 +364,10 @@ export default function Aulas() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
-                  className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden"
+                  className="bg-white rounded-[2rem] border border-[#E2E8F0] shadow-xl overflow-hidden"
                 >
                    {/* Header Dias */}
-                   <div className="grid grid-cols-7 border-b border-slate-50 bg-slate-50/30">
+                   <div className="grid grid-cols-7 border-b border-[#E2E8F0] bg-[#F8FAFC]">
                       {DAYS_SHORT.map(day => (
                         <div key={day} className="py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{day}</div>
                       ))}
@@ -384,9 +384,11 @@ export default function Aulas() {
                           <div 
                             key={idx} 
                             className={cn(
-                              "p-3 border-r border-b border-slate-50 min-h-[140px] transition-all relative group/day",
+                              "p-3 border-r border-b border-[#E2E8F0] min-h-[140px] transition-all relative group/day",
                               !isCurrentMonth && "bg-slate-50/10 opacity-30",
-                              isCurrentMonth && isAlternativeRow && "bg-slate-50/20",
+                              isCurrentMonth && isAlternativeRow && "bg-[#F8FAFC]",
+                              isCurrentMonth && !isAlternativeRow && "bg-white",
+                              isToday(day) && "bg-[#EFF6FF]",
                               idx % 7 === 6 && "border-r-0"
                             )}
                           >
@@ -394,7 +396,7 @@ export default function Aulas() {
                               <span className={cn(
                                 "w-8 h-8 flex items-center justify-center rounded-full text-xs font-black transition-all",
                                 isToday(day) 
-                                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/40 scale-110" 
+                                  ? "bg-[#2563EB] text-white shadow-lg shadow-blue-500/40 scale-110" 
                                   : "text-slate-400 group-hover/day:text-slate-600"
                               )}>
                                 {format(day, "d")}
@@ -562,8 +564,8 @@ export default function Aulas() {
                </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-               <div className="p-6 bg-[#F8FAFC] rounded-[2.5rem] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 cursor-default">
+            <div className="grid grid-cols-1 gap-3">
+               <div className="p-6 bg-white rounded-[2.5rem] border border-[#E2E8F0] flex items-center justify-between group hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 cursor-default">
                   <div className="flex items-center gap-5">
                      <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner"><Calendar size={20} /></div>
                      <div>
@@ -573,7 +575,7 @@ export default function Aulas() {
                   </div>
                   <ChevronRight size={20} className="text-slate-200 group-hover:text-blue-500 transition-colors" />
                </div>
-               <div className="p-6 bg-[#F8FAFC] rounded-[2.5rem] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 cursor-default">
+               <div className="p-6 bg-white rounded-[2.5rem] border border-[#E2E8F0] flex items-center justify-between group hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 cursor-default">
                   <div className="flex items-center gap-5">
                      <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-inner"><CheckCircle2 size={20} /></div>
                      <div>
@@ -583,7 +585,7 @@ export default function Aulas() {
                   </div>
                   <ChevronRight size={20} className="text-slate-200 group-hover:text-emerald-500 transition-colors" />
                </div>
-               <div className="p-6 bg-[#F8FAFC] rounded-[2.5rem] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 cursor-default">
+               <div className="p-6 bg-white rounded-[2.5rem] border border-[#E2E8F0] flex items-center justify-between group hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 cursor-default">
                   <div className="flex items-center gap-5">
                      <div className="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-inner"><AlertCircle size={20} /></div>
                      <div>
@@ -606,8 +608,8 @@ export default function Aulas() {
             </div>
             
             {nextLesson ? (
-              <div className="p-6 bg-gradient-to-br from-white to-[#F8FAFC] rounded-[2.5rem] border border-slate-100 shadow-xl relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -translate-y-16 translate-x-16 blur-3xl group-hover:scale-150 transition-transform duration-700" />
+              <div className="p-6 bg-white rounded-[2.5rem] border border-[#E2E8F0] shadow-xl relative overflow-hidden group hover:shadow-2xl hover:scale-[1.02] transition-all duration-500">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -translate-y-16 translate-x-16 blur-3xl group-hover:scale-150 transition-transform duration-700" />
                  <p className="relative z-10 text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 bg-blue-50 w-fit px-3 py-1 rounded-full">
                    {isToday(new Date(nextLesson.scheduledAt)) ? "Hoje" : isTomorrow(new Date(nextLesson.scheduledAt)) ? "Amanhã" : format(new Date(nextLesson.scheduledAt), "dd/MM")}, {format(new Date(nextLesson.scheduledAt), "HH:mm")}
                  </p>
@@ -643,10 +645,10 @@ export default function Aulas() {
                <h3 className="text-base font-black text-slate-800 tracking-tight">Alertas Rápidos</h3>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
                {dynamicAlerts.map((rem, i) => (
-                 <div key={i} className={cn("p-5 rounded-3xl border flex gap-5 hover:bg-white hover:shadow-xl hover:scale-[1.02] transition-all duration-500 cursor-pointer", rem.bg, rem.border)}>
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm shrink-0"><rem.icon size={20} className={rem.color} /></div>
+                 <div key={i} className={cn("p-5 rounded-3xl border bg-white flex gap-5 hover:shadow-xl hover:scale-[1.02] transition-all duration-500 cursor-pointer border-[#E2E8F0]", rem.bg.replace('/50', '/10'))}>
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shadow-sm shrink-0 border border-slate-100"><rem.icon size={20} className={rem.color} /></div>
                     <div>
                       <p className="text-xs font-black text-slate-800 leading-tight mb-1">{rem.label}</p>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{rem.sub}</p>
