@@ -1,0 +1,36 @@
+{
+  "query": "SELECT * FROM payment_dues LIMIT 2;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute SELECT * FROM payment_dues LIMIT 2;",
+  "rows": [
+    {
+      "id": "1",
+      "studentId": "30001",
+      "amount": "200.00",
+      "dueDate": "2026-03-05",
+      "paidAt": "2026-03-28 14:40:26",
+      "status": "pago",
+      "month": "3",
+      "year": "2026",
+      "notes": "NULL",
+      "createdAt": "2026-03-28 14:40:17",
+      "updatedAt": "2026-03-28 14:40:26"
+    },
+    {
+      "id": "2",
+      "studentId": "30001",
+      "amount": "200.00",
+      "dueDate": "2026-04-05",
+      "paidAt": "2026-03-28 14:40:52",
+      "status": "pago",
+      "month": "4",
+      "year": "2026",
+      "notes": "NULL",
+      "createdAt": "2026-03-28 14:40:17",
+      "updatedAt": "2026-03-28 14:40:51"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tstudentId\tamount\tdueDate\tpaidAt\tstatus\tmonth\tyear\tnotes\tcreatedAt\tupdatedAt\n1\t30001\t200.00\t2026-03-05\t2026-03-28 14:40:26\tpago\t3\t2026\tNULL\t2026-03-28 14:40:17\t2026-03-28 14:40:26\n2\t30001\t200.00\t2026-04-05\t2026-03-28 14:40:52\tpago\t4\t2026\tNULL\t2026-03-28 14:40:17\t2026-03-28 14:40:51\n",
+  "stderr": "",
+  "execution_time_ms": 55
+}

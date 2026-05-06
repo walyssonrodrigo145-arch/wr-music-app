@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `reminders` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `userId` int NOT NULL,\n  `title` varchar(255) NOT NULL,\n  `description` text,\n  `type` enum('aula','pagamento','tarefa','outro') NOT NULL DEFAULT 'outro',\n  `priority` enum('baixa','media','alta') NOT NULL DEFAULT 'media',\n  `dueAt` timestamp NOT NULL,\n  `done` int NOT NULL DEFAULT 0,\n  `studentId` int,\n  `lessonId` int,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  `updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n  CONSTRAINT `reminders_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute CREATE TABLE IF NOT EXISTS `reminders` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `userId` int NOT NULL,\n  `title` varchar(255) NOT NULL,\n  `description` text,\n  `type` enum('aula','pagamento','tarefa','outro') NOT NULL DEFAULT 'outro',\n  `priority` enum('baixa','media','alta') NOT NULL DEFAULT 'media',\n  `dueAt` timestamp NOT NULL,\n  `done` int NOT NULL DEFAULT 0,\n  `studentId` int,\n  `lessonId` int,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  `updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n  CONSTRAINT `reminders_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 104
+}

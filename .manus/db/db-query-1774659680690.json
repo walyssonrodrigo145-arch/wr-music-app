@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Remover na ordem correta para respeitar foreign keys\nDELETE FROM reminders;\nDELETE FROM reminder_templates;\nDELETE FROM payment_dues;\nDELETE FROM lessons;\nDELETE FROM students;\nDELETE FROM instruments;\nDELETE FROM monthly_stats;\nDELETE FROM settings;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute \n-- Remover na ordem correta para respeitar foreign keys\nDELETE FROM reminders;\nDELETE FROM reminder_templates;\nDELETE FROM payment_dues;\nDELETE FROM lessons;\nDELETE FROM students;\nDELETE FROM instruments;\nDELETE FROM monthly_stats;\nDELETE FROM settings;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 152
+}

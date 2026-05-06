@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR" translate="no">
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Dashboard Educacional</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="WR Music" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <script>
+      // Captura global do evento de instalação para o PWA
+      window.deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPrompt = e;
+        console.log('[PWA] Evento de instalação capturado com sucesso.');
+        // Dispara um evento customizado para avisar as páginas que já estão abertas
+        window.dispatchEvent(new Event('pwa-prompt-ready'));
+      });
+      window.addEventListener('appinstalled', () => {
+        window.deferredPrompt = null;
+        console.log('[PWA] Aplicativo instalado com sucesso.');
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script
+      defer
+      src="%VITE_ANALYTICS_ENDPOINT%/umami"
+      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+  </body>
+
+</html>

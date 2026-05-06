@@ -1,0 +1,9 @@
+{
+  "query": "\nINSERT INTO instruments (name, category, color) VALUES\n  ('Guitarra', 'Cordas', '#ef4444'),\n  ('Piano', 'Teclas', '#8b5cf6'),\n  ('Bateria', 'Percussão', '#f59e0b'),\n  ('Saxofone', 'Sopro', '#10b981'),\n  ('Violino', 'Cordas', '#3b82f6'),\n  ('Flauta', 'Sopro', '#06b6d4'),\n  ('Ukulele', 'Cordas', '#f97316');\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute \nINSERT INTO instruments (name, category, color) VALUES\n  ('Guitarra', 'Cordas', '#ef4444'),\n  ('Piano', 'Teclas', '#8b5cf6'),\n  ('Bateria', 'Percussão', '#f59e0b'),\n  ('Saxofone', 'Sopro', '#10b981'),\n  ('Violino', 'Cordas', '#3b82f6'),\n  ('Flauta', 'Sopro', '#06b6d4'),\n  ('Ukulele', 'Cordas', '#f97316');\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 193
+}

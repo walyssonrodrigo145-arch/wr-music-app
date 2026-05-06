@@ -1,0 +1,9 @@
+{
+  "query": "\nCREATE TABLE IF NOT EXISTS `settings` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `userId` int NOT NULL UNIQUE,\n  `phone` varchar(30),\n  `bio` text,\n  `schoolName` varchar(255),\n  `schoolAddress` text,\n  `schoolCity` varchar(100),\n  `schoolPhone` varchar(30),\n  `schoolWebsite` varchar(255),\n  `schoolDescription` text,\n  `notifyLessonReminder` int NOT NULL DEFAULT 1,\n  `notifyPaymentDue` int NOT NULL DEFAULT 1,\n  `notifyStudentAbsence` int NOT NULL DEFAULT 1,\n  `notifyNewStudent` int NOT NULL DEFAULT 1,\n  `notifyWeeklyReport` int NOT NULL DEFAULT 0,\n  `theme` varchar(20) DEFAULT 'light',\n  `createdAt` timestamp NOT NULL DEFAULT NOW(),\n  `updatedAt` timestamp NOT NULL DEFAULT NOW() ON UPDATE NOW()\n);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute \nCREATE TABLE IF NOT EXISTS `settings` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `userId` int NOT NULL UNIQUE,\n  `phone` varchar(30),\n  `bio` text,\n  `schoolName` varchar(255),\n  `schoolAddress` text,\n  `schoolCity` varchar(100),\n  `schoolPhone` varchar(30),\n  `schoolWebsite` varchar(255),\n  `schoolDescription` text,\n  `notifyLessonReminder` int NOT NULL DEFAULT 1,\n  `notifyPaymentDue` int NOT NULL DEFAULT 1,\n  `notifyStudentAbsence` int NOT NULL DEFAULT 1,\n  `notifyNewStudent` int NOT NULL DEFAULT 1,\n  `notifyWeeklyReport` int NOT NULL DEFAULT 0,\n  `theme` varchar(20) DEFAULT 'light',\n  `createdAt` timestamp NOT NULL DEFAULT NOW(),\n  `updatedAt` timestamp NOT NULL DEFAULT NOW() ON UPDATE NOW()\n);\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 129
+}

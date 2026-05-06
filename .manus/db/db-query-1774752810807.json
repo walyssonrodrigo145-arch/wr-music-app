@@ -1,0 +1,40 @@
+{
+  "query": "SELECT * FROM students LIMIT 2;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute SELECT * FROM students LIMIT 2;",
+  "rows": [
+    {
+      "id": "30001",
+      "name": "Missias Lemes",
+      "email": "Missiaslemes@wrmusic.com",
+      "phone": "33988817774",
+      "avatar": "NULL",
+      "instrumentId": "30002",
+      "level": "iniciante",
+      "status": "ativo",
+      "monthlyFee": "200.00",
+      "startDate": "NULL",
+      "notes": "NULL",
+      "createdAt": "2026-03-28 01:03:59",
+      "updatedAt": "2026-03-28 01:27:09"
+    },
+    {
+      "id": "60001",
+      "name": "teste",
+      "email": "walysson@teste.com",
+      "phone": "33999958830",
+      "avatar": "NULL",
+      "instrumentId": "30001",
+      "level": "iniciante",
+      "status": "ativo",
+      "monthlyFee": "250.00",
+      "startDate": "NULL",
+      "notes": "NULL",
+      "createdAt": "2026-03-28 14:42:05",
+      "updatedAt": "2026-03-28 14:42:05"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\tphone\tavatar\tinstrumentId\tlevel\tstatus\tmonthlyFee\tstartDate\tnotes\tcreatedAt\tupdatedAt\n30001\tMissias Lemes\tMissiaslemes@wrmusic.com\t33988817774\tNULL\t30002\tiniciante\tativo\t200.00\tNULL\tNULL\t2026-03-28 01:03:59\t2026-03-28 01:27:09\n60001\tteste\twalysson@teste.com\t33999958830\tNULL\t30001\tiniciante\tativo\t250.00\tNULL\tNULL\t2026-03-28 14:42:05\t2026-03-28 14:42:05\n",
+  "stderr": "",
+  "execution_time_ms": 50
+}

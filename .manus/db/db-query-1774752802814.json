@@ -1,0 +1,46 @@
+{
+  "query": "SELECT id, name FROM instruments ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute SELECT id, name FROM instruments ORDER BY id;",
+  "rows": [
+    {
+      "id": "30001",
+      "name": "Violão"
+    },
+    {
+      "id": "30002",
+      "name": "Teclado"
+    },
+    {
+      "id": "60001",
+      "name": "Guitarra"
+    },
+    {
+      "id": "60002",
+      "name": "Piano"
+    },
+    {
+      "id": "60003",
+      "name": "Bateria"
+    },
+    {
+      "id": "60004",
+      "name": "Saxofone"
+    },
+    {
+      "id": "60005",
+      "name": "Violino"
+    },
+    {
+      "id": "60006",
+      "name": "Flauta"
+    },
+    {
+      "id": "60007",
+      "name": "Ukulele"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n30001\tViolão\n30002\tTeclado\n60001\tGuitarra\n60002\tPiano\n60003\tBateria\n60004\tSaxofone\n60005\tViolino\n60006\tFlauta\n60007\tUkulele\n",
+  "stderr": "",
+  "execution_time_ms": 169
+}

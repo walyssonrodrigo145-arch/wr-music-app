@@ -1,0 +1,15 @@
+{
+  "query": "SELECT type, status, COUNT(*) as total FROM reminders GROUP BY type, status ORDER BY type;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute SELECT type, status, COUNT(*) as total FROM reminders GROUP BY type, status ORDER BY type;",
+  "rows": [
+    {
+      "type": "aula",
+      "status": "cancelado",
+      "total": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "type\tstatus\ttotal\naula\tcancelado\t1\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

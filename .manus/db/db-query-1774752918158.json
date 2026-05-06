@@ -1,0 +1,50 @@
+{
+  "query": "\nSELECT 'students' as tabela, COUNT(*) as total FROM students\nUNION ALL\nSELECT 'instruments', COUNT(*) FROM instruments\nUNION ALL\nSELECT 'lessons (total)', COUNT(*) FROM lessons\nUNION ALL\nSELECT 'lessons (agendada)', COUNT(*) FROM lessons WHERE status = 'agendada'\nUNION ALL\nSELECT 'lessons (realizada)', COUNT(*) FROM lessons WHERE status = 'realizada'\nUNION ALL\nSELECT 'lessons (falta/cancelada)', COUNT(*) FROM lessons WHERE status IN ('falta','cancelada')\nUNION ALL\nSELECT 'payment_dues (total)', COUNT(*) FROM payment_dues\nUNION ALL\nSELECT 'payment_dues (pendente)', COUNT(*) FROM payment_dues WHERE status = 'pendente'\nUNION ALL\nSELECT 'payment_dues (vencidas)', COUNT(*) FROM payment_dues WHERE status = 'pendente' AND dueDate < CURDATE()\nUNION ALL\nSELECT 'payment_dues (vencem em 3 dias)', COUNT(*) FROM payment_dues WHERE status = 'pendente' AND dueDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute \nSELECT 'students' as tabela, COUNT(*) as total FROM students\nUNION ALL\nSELECT 'instruments', COUNT(*) FROM instruments\nUNION ALL\nSELECT 'lessons (total)', COUNT(*) FROM lessons\nUNION ALL\nSELECT 'lessons (agendada)', COUNT(*) FROM lessons WHERE status = 'agendada'\nUNION ALL\nSELECT 'lessons (realizada)', COUNT(*) FROM lessons WHERE status = 'realizada'\nUNION ALL\nSELECT 'lessons (falta/cancelada)', COUNT(*) FROM lessons WHERE status IN ('falta','cancelada')\nUNION ALL\nSELECT 'payment_dues (total)', COUNT(*) FROM payment_dues\nUNION ALL\nSELECT 'payment_dues (pendente)', COUNT(*) FROM payment_dues WHERE status = 'pendente'\nUNION ALL\nSELECT 'payment_dues (vencidas)', COUNT(*) FROM payment_dues WHERE status = 'pendente' AND dueDate < CURDATE()\nUNION ALL\nSELECT 'payment_dues (vencem em 3 dias)', COUNT(*) FROM payment_dues WHERE status = 'pendente' AND dueDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY);\n",
+  "rows": [
+    {
+      "tabela": "students",
+      "total": "12"
+    },
+    {
+      "tabela": "lessons (realizada)",
+      "total": "8"
+    },
+    {
+      "tabela": "lessons (agendada)",
+      "total": "45"
+    },
+    {
+      "tabela": "instruments",
+      "total": "9"
+    },
+    {
+      "tabela": "lessons (total)",
+      "total": "55"
+    },
+    {
+      "tabela": "lessons (falta/cancelada)",
+      "total": "2"
+    },
+    {
+      "tabela": "payment_dues (total)",
+      "total": "27"
+    },
+    {
+      "tabela": "payment_dues (pendente)",
+      "total": "22"
+    },
+    {
+      "tabela": "payment_dues (vencem em 3 dias)",
+      "total": "1"
+    },
+    {
+      "tabela": "payment_dues (vencidas)",
+      "total": "8"
+    }
+  ],
+  "messages": [],
+  "stdout": "tabela\ttotal\nstudents\t12\nlessons (realizada)\t8\nlessons (agendada)\t45\ninstruments\t9\nlessons (total)\t55\nlessons (falta/cancelada)\t2\npayment_dues (total)\t27\npayment_dues (pendente)\t22\npayment_dues (vencem em 3 dias)\t1\npayment_dues (vencidas)\t8\n",
+  "stderr": "",
+  "execution_time_ms": 54
+}

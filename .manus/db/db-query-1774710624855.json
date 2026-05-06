@@ -1,0 +1,70 @@
+{
+  "query": "\nSELECT pd.id, pd.studentId, s.name as studentName, pd.amount, pd.dueDate, pd.status, pd.month, pd.year\nFROM payment_dues pd\nLEFT JOIN students s ON s.id = pd.studentId\nORDER BY pd.dueDate ASC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute \nSELECT pd.id, pd.studentId, s.name as studentName, pd.amount, pd.dueDate, pd.status, pd.month, pd.year\nFROM payment_dues pd\nLEFT JOIN students s ON s.id = pd.studentId\nORDER BY pd.dueDate ASC;\n",
+  "rows": [
+    {
+      "id": "1",
+      "studentId": "30001",
+      "studentName": "Missias Lemes",
+      "amount": "200.00",
+      "dueDate": "2026-03-05",
+      "status": "pago",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "id": "4",
+      "studentId": "60001",
+      "studentName": "teste",
+      "amount": "250.00",
+      "dueDate": "2026-03-27",
+      "status": "pendente",
+      "month": "3",
+      "year": "2026"
+    },
+    {
+      "id": "2",
+      "studentId": "30001",
+      "studentName": "Missias Lemes",
+      "amount": "200.00",
+      "dueDate": "2026-04-05",
+      "status": "pago",
+      "month": "4",
+      "year": "2026"
+    },
+    {
+      "id": "5",
+      "studentId": "60001",
+      "studentName": "teste",
+      "amount": "250.00",
+      "dueDate": "2026-04-27",
+      "status": "pendente",
+      "month": "4",
+      "year": "2026"
+    },
+    {
+      "id": "3",
+      "studentId": "30001",
+      "studentName": "Missias Lemes",
+      "amount": "200.00",
+      "dueDate": "2026-05-05",
+      "status": "pendente",
+      "month": "5",
+      "year": "2026"
+    },
+    {
+      "id": "6",
+      "studentId": "60001",
+      "studentName": "teste",
+      "amount": "250.00",
+      "dueDate": "2026-05-27",
+      "status": "pendente",
+      "month": "5",
+      "year": "2026"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tstudentId\tstudentName\tamount\tdueDate\tstatus\tmonth\tyear\n1\t30001\tMissias Lemes\t200.00\t2026-03-05\tpago\t3\t2026\n4\t60001\tteste\t250.00\t2026-03-27\tpendente\t3\t2026\n2\t30001\tMissias Lemes\t200.00\t2026-04-05\tpago\t4\t2026\n5\t60001\tteste\t250.00\t2026-04-27\tpendente\t4\t2026\n3\t30001\tMissias Lemes\t200.00\t2026-05-05\tpendente\t5\t2026\n6\t60001\tteste\t250.00\t2026-05-27\tpendente\t5\t2026\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

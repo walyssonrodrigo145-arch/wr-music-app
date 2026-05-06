@@ -1,0 +1,26 @@
+{
+  "query": "SELECT * FROM instruments ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute SELECT * FROM instruments ORDER BY id;",
+  "rows": [
+    {
+      "id": "30001",
+      "name": "Violão",
+      "category": "Teclas",
+      "icon": "NULL",
+      "color": "#6366f1",
+      "createdAt": "2026-03-28 01:04:19"
+    },
+    {
+      "id": "30002",
+      "name": "Teclado",
+      "category": "Teclas",
+      "icon": "NULL",
+      "color": "#64748b",
+      "createdAt": "2026-03-28 01:04:56"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tcategory\ticon\tcolor\tcreatedAt\n30001\tViolão\tTeclas\tNULL\t#6366f1\t2026-03-28 01:04:19\n30002\tTeclado\tTeclas\tNULL\t#64748b\t2026-03-28 01:04:56\n",
+  "stderr": "",
+  "execution_time_ms": 169
+}

@@ -1,0 +1,70 @@
+{
+  "query": "SELECT id, name, instrumentId FROM students ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3Dc4xXpDMUG8Xgr.root --database BmGzFY2mKvXZcrMsHaP5Au --execute SELECT id, name, instrumentId FROM students ORDER BY id;",
+  "rows": [
+    {
+      "id": "30001",
+      "name": "Missias Lemes",
+      "instrumentId": "30002"
+    },
+    {
+      "id": "60001",
+      "name": "teste",
+      "instrumentId": "30001"
+    },
+    {
+      "id": "90001",
+      "name": "Ana Beatriz Souza",
+      "instrumentId": "60002"
+    },
+    {
+      "id": "90002",
+      "name": "Carlos Eduardo Lima",
+      "instrumentId": "60001"
+    },
+    {
+      "id": "90003",
+      "name": "Fernanda Oliveira",
+      "instrumentId": "30001"
+    },
+    {
+      "id": "90004",
+      "name": "Gabriel Martins",
+      "instrumentId": "60003"
+    },
+    {
+      "id": "90005",
+      "name": "Isabela Costa",
+      "instrumentId": "60005"
+    },
+    {
+      "id": "90006",
+      "name": "João Pedro Alves",
+      "instrumentId": "60004"
+    },
+    {
+      "id": "90007",
+      "name": "Larissa Ferreira",
+      "instrumentId": "60006"
+    },
+    {
+      "id": "90008",
+      "name": "Mateus Rodrigues",
+      "instrumentId": "30002"
+    },
+    {
+      "id": "90009",
+      "name": "Natália Pereira",
+      "instrumentId": "60007"
+    },
+    {
+      "id": "90010",
+      "name": "Rafael Santos",
+      "instrumentId": "60001"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tinstrumentId\n30001\tMissias Lemes\t30002\n60001\tteste\t30001\n90001\tAna Beatriz Souza\t60002\n90002\tCarlos Eduardo Lima\t60001\n90003\tFernanda Oliveira\t30001\n90004\tGabriel Martins\t60003\n90005\tIsabela Costa\t60005\n90006\tJoão Pedro Alves\t60004\n90007\tLarissa Ferreira\t60006\n90008\tMateus Rodrigues\t30002\n90009\tNatália Pereira\t60007\n90010\tRafael Santos\t60001\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}
