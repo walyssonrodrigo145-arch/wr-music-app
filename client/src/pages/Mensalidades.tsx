@@ -317,25 +317,7 @@ export default function Mensalidades() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* HEADER AREA */}
-        <div className="px-10 py-8 space-y-8 shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 leading-tight">Olá, WR! Bem-vindo de volta.</h1>
-              <p className="text-xs text-slate-400 font-medium mt-1">Controle e histórico de mensalidades</p>
-            </div>
-            
-            <div className="flex items-center gap-6">
-               <div className="relative group">
-                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors" />
-                  <Input 
-                    placeholder="Procurar aluno..." 
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-[240px] h-10 pl-11 rounded-full bg-slate-100/50 border-none focus:ring-0 text-xs font-medium placeholder:text-slate-400" 
-                  />
-               </div>
-            </div>
-          </div>
+
 
           {/* TOP METRICS CARDS */}
           <div className="grid grid-cols-4 gap-6">
@@ -374,8 +356,10 @@ export default function Mensalidades() {
                 <div className="flex items-center gap-3">
                    <div className="relative group">
                       <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <Input 
+                       <Input 
                         placeholder="Buscar mensalidade..." 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
                         className="w-[200px] h-9 pl-10 rounded-full bg-slate-100/50 border-none text-[11px] font-medium placeholder:text-slate-400" 
                       />
                    </div>
