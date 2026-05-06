@@ -2,8 +2,14 @@ import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Users, Search, Plus, Pencil, Trash2,
-  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter,
+  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { StudentDetailsModal } from "@/components/modals/StudentDetailsModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -296,6 +302,9 @@ export default function Alunos() {
 
   const { data: students = [], isLoading } = trpc.students.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
+  const { data: dashboardStats } = trpc.dashboard.stats.useQuery();
+  const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery();
+  const { data: upcomingLessons = [] } = trpc.lessons.upcoming.useQuery();
 
   const updateStatusMutation = trpc.students.updateStatus.useMutation({
     onSuccess: () => {
@@ -331,41 +340,21 @@ export default function Alunos() {
     inativos: students.length - students.filter(s => s.status === "ativo").length - students.filter(s => s.status === "pausado").length,
   };
 
+  const newStudentsLast30Days = useMemo(() => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return students.filter(s => s.startDate && new Date(s.startDate) >= thirtyDaysAgo).length;
+  }, [students]);
+
+  const lessonsToday = useMemo(() => {
+    const today = new Date().toLocaleDateString('en-CA');
+    return upcomingLessons.filter(l => l.scheduledAt.startsWith(today)).length;
+  }, [upcomingLessons]);
+
+  const activeRate = stats.total > 0 ? Math.round((stats.ativos / stats.total) * 100) : 0;
+
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-[#f8faff]">
-      {/* TOP HEADER: Greeting & Search */}
-      <div className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Olá, <span className="text-primary">WR!</span> Bem-vindo de volta.</h1>
-          <p className="text-xs text-slate-400 font-medium">Gerencie seus alunos</p>
-        </div>
-        
-        <div className="flex items-center gap-6">
-          <div className="relative w-64 hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-            <Input 
-              placeholder="Buscar aluno..." 
-              className="pl-10 h-10 border-slate-100 bg-slate-50/50 rounded-xl focus:bg-white transition-all text-xs"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-4 text-slate-400">
-             <button className="hover:text-primary transition-colors"><Clock size={20} /></button>
-             <button className="hover:text-primary transition-colors"><X size={20} /></button>
-             <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-primary text-white text-[10px] font-bold">WR</AvatarFallback>
-                </Avatar>
-                <div className="hidden sm:block">
-                  <p className="text-[10px] font-bold text-slate-800 leading-none">WR</p>
-                  <p className="text-[9px] text-slate-400 font-medium mt-1 uppercase">Admin</p>
-                </div>
-             </div>
-          </div>
-        </div>
-      </div>
-
       <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
         {/* SECTION HEADER: Alunos & Action */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -491,9 +480,23 @@ export default function Alunos() {
                           />
                         </td>
                         <td className="px-8 py-4 text-right" onClick={e => e.stopPropagation()}>
-                           <Button variant="ghost" size="icon" className="text-slate-300 hover:text-slate-600">
-                              <Filter size={18} />
-                           </Button>
+                           <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                 <Button variant="ghost" size="icon" className="text-slate-300 hover:text-slate-600">
+                                    <MoreVertical size={18} />
+                                 </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-32">
+                                 <DropdownMenuItem onClick={() => { setEditStudent(student); setModalOpen(true); }}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    <span>Editar</span>
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem variant="destructive" onClick={() => setDeleteStudent(student)}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Excluir</span>
+                                 </DropdownMenuItem>
+                              </DropdownMenuContent>
+                           </DropdownMenu>
                         </td>
                       </tr>
                     ))
@@ -530,26 +533,27 @@ export default function Alunos() {
                       <div>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Novos alunos (30 dias)</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xl font-black text-slate-800">2</span>
-                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full">+ 100%</span>
+                          <span className="text-xl font-black text-slate-800">{newStudentsLast30Days}</span>
+                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full">Matrículas</span>
                         </div>
                       </div>
                       
                       <div>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Recebimentos (mês)</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xl font-black text-slate-800">R$ 1.000,00</span>
-                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full">+ 25%</span>
+                          <span className="text-xl font-black text-slate-800">
+                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(dashboardStats?.monthlyRevenue ?? 0)}
+                          </span>
                         </div>
                       </div>
 
                       <div>
                         <div className="flex justify-between items-end mb-2">
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Taxa de ativos</p>
-                          <span className="text-[11px] font-black text-primary">{stats.total > 0 ? Math.round((stats.ativos/stats.total)*100) : 0}%</span>
+                          <span className="text-[11px] font-black text-primary">{activeRate}%</span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                           <div className="h-full bg-primary" style={{ width: `${stats.total > 0 ? (stats.ativos/stats.total)*100 : 0}%` }} />
+                           <div className="h-full bg-primary" style={{ width: `${activeRate}%` }} />
                         </div>
                       </div>
                    </div>
@@ -569,8 +573,10 @@ export default function Alunos() {
                             <Plus size={16} />
                          </div>
                          <div>
-                            <p className="text-[11px] font-bold text-slate-800">Mensalidades a receber</p>
-                            <p className="text-[10px] text-red-500 font-bold mt-0.5">2 vencem hoje</p>
+                            <p className="text-[11px] font-bold text-slate-800">Mensalidades em atraso</p>
+                            <p className="text-[10px] text-red-500 font-bold mt-0.5">
+                              {overduePayments.length} {overduePayments.length === 1 ? 'pendência' : 'pendências'}
+                            </p>
                          </div>
                       </div>
                    </div>
@@ -582,7 +588,9 @@ export default function Alunos() {
                          </div>
                          <div>
                             <p className="text-[11px] font-bold text-slate-800">Aulas hoje</p>
-                            <p className="text-[10px] text-blue-500 font-bold mt-0.5">3 aulas agendadas</p>
+                            <p className="text-[10px] text-blue-500 font-bold mt-0.5">
+                              {lessonsToday} {lessonsToday === 1 ? 'aula agendada' : 'aulas agendadas'}
+                            </p>
                          </div>
                       </div>
                    </div>
