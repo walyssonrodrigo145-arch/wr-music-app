@@ -164,9 +164,12 @@ export default function Progresso() {
   };
 
   return (
-    <div className="flex h-full gap-6 overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-8rem)] lg:h-full gap-6 overflow-hidden">
       {/* Lado Esquerdo: Lista de Alunos */}
-      <div className="w-80 flex flex-col bg-card rounded-[2rem] border border-border/40 shadow-sm overflow-hidden">
+      <div className={cn(
+        "w-full lg:w-80 flex flex-col bg-card rounded-[2rem] border border-border/40 shadow-sm overflow-hidden transition-all",
+        selectedStudentId && "hidden lg:flex"
+      )}>
         <div className="p-6 pb-4">
           <h3 className="text-xl font-black uppercase tracking-tight mb-4">Alunos</h3>
           <div className="relative">
@@ -224,14 +227,17 @@ export default function Progresso() {
       </div>
 
       {/* Lado Direito: Detalhes do Progresso */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={cn(
+        "flex-1 flex flex-col min-w-0 transition-all",
+        !selectedStudentId && "hidden lg:flex"
+      )}>
         {!selectedStudentId ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-card/50 rounded-[2rem] border-2 border-dashed border-border/60">
-            <div className="w-20 h-20 rounded-[2rem] bg-primary/10 text-primary flex items-center justify-center mb-6">
-              <Activity size={40} />
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 lg:p-12 bg-card/50 rounded-[2rem] border-2 border-dashed border-border/60">
+            <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-[2rem] bg-primary/10 text-primary flex items-center justify-center mb-6">
+              <Activity size={32} />
             </div>
-            <h2 className="text-2xl font-black uppercase tracking-tight text-foreground">Acompanhe a Evolução</h2>
-            <p className="text-muted-foreground max-w-sm mt-2">
+            <h2 className="text-xl lg:text-2xl font-black uppercase tracking-tight text-foreground">Acompanhe a Evolução</h2>
+            <p className="text-sm text-muted-foreground max-w-sm mt-2 px-4">
               Selecione um aluno na lista ao lado para visualizar e gerenciar sua linha do tempo pedagógica.
             </p>
           </div>
@@ -244,24 +250,35 @@ export default function Progresso() {
               exit={{ opacity: 0, y: -10 }}
               className="flex-1 flex flex-col overflow-hidden"
             >
+              {/* Botão Voltar (Mobile) */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden mb-4 w-fit text-muted-foreground font-bold"
+                onClick={() => setSelectedStudentId(null)}
+              >
+                <ChevronRight size={16} className="rotate-180 mr-1" />
+                Voltar para lista
+              </Button>
+
               {/* Topo: Resumo */}
-              <div className="bg-card rounded-[2rem] border border-border/40 p-6 shadow-sm mb-6 flex items-center gap-6">
-                <Avatar className="w-20 h-20 rounded-[1.5rem] shadow-xl shadow-primary/10 border-2 border-background">
-                  <AvatarFallback className="bg-primary text-white text-2xl font-black">
+              <div className="bg-card rounded-[2rem] border border-border/40 p-5 lg:p-6 shadow-sm mb-6 flex flex-col md:flex-row items-center gap-5 lg:gap-6">
+                <Avatar className="w-16 h-16 lg:w-20 lg:h-20 rounded-[1.2rem] lg:rounded-[1.5rem] shadow-xl shadow-primary/10 border-2 border-background">
+                  <AvatarFallback className="bg-primary text-white text-xl lg:text-2xl font-black">
                     {selectedStudent?.name.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h2 className="text-3xl font-black uppercase tracking-tight">{selectedStudent?.name}</h2>
-                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest">
+                <div className="flex-1 text-center md:text-left w-full">
+                  <div className="flex flex-col md:flex-row items-center gap-2 lg:gap-3 mb-1">
+                    <h2 className="text-2xl lg:text-3xl font-black uppercase tracking-tight truncate max-w-[200px] lg:max-w-none">{selectedStudent?.name}</h2>
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[9px] lg:text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
                       Nível: {selectedStudent?.level}
                     </span>
                   </div>
-                  <div className="flex items-center gap-6 mt-3">
-                    <div className="flex-1 max-w-xs">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                  <div className="flex flex-col md:flex-row items-center gap-3 lg:gap-6 mt-3">
+                    <div className="flex-1 w-full max-w-xs">
+                      <div className="flex justify-between text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
                         <span>Progresso Geral</span>
                         <span>{summary?.frequency || 0}%</span>
                       </div>
@@ -272,26 +289,26 @@ export default function Progresso() {
                         />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock size={14} />
-                      <span className="text-xs font-medium">Última aula: {summary?.lastLesson ? format(new Date(summary.lastLesson), "dd/MM/yyyy") : "Sem registro"}</span>
+                    <div className="flex items-center gap-2 text-muted-foreground whitespace-nowrap">
+                      <Clock size={12} className="lg:size-[14px]" />
+                      <span className="text-[10px] lg:text-xs font-medium">Última aula: {summary?.lastLesson ? format(new Date(summary.lastLesson), "dd/MM/yyyy") : "Sem registro"}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex-shrink-0 w-64 bg-amber-500/5 border border-amber-500/20 p-4 rounded-2xl relative overflow-hidden group">
-                  <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                <div className="w-full md:w-64 bg-amber-500/5 border border-amber-500/20 p-4 rounded-2xl relative overflow-hidden group">
+                  <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
                     <Star size={80} className="text-amber-500" />
                   </div>
                   <div className="flex items-center gap-2 mb-2">
                     {summary && summary.averageGrade >= 7 ? (
-                      <Smile className="text-amber-600" size={18} />
+                      <Smile className="text-amber-600" size={16} />
                     ) : (
-                      <Frown className="text-amber-600" size={18} />
+                      <Frown className="text-amber-600" size={16} />
                     )}
-                    <p className="text-xs font-black uppercase tracking-widest text-amber-700">Insight Pedagógico</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">Insight Pedagógico</p>
                   </div>
-                  <p className="text-xs text-amber-800/80 leading-relaxed font-medium">
+                  <p className="text-[11px] lg:text-xs text-amber-800/80 leading-relaxed font-medium">
                     {summaryLoading ? "Analisando..." : (
                       summary && summary.averageGrade >= 8 ? "O aluno está apresentando um ótimo desenvolvimento. Continue incentivando a prática!" :
                       summary && summary.averageGrade >= 6 ? "Evolução constante. Foco na revisão técnica das últimas metas." :
@@ -302,20 +319,20 @@ export default function Progresso() {
               </div>
 
               {/* Indicadores */}
-              <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
                 {[
-                  { label: "Média de notas", value: summary?.averageGrade || "0.0", icon: Star, color: "text-amber-500 bg-amber-500/10" },
-                  { label: "Aulas registradas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-blue-500 bg-blue-500/10" },
+                  { label: "Média", value: summary?.averageGrade || "0.0", icon: Star, color: "text-amber-500 bg-amber-500/10" },
+                  { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-blue-500 bg-blue-500/10" },
                   { label: "Frequência", value: `${summary?.frequency || 0}%`, icon: Calendar, color: "text-emerald-500 bg-emerald-500/10" },
-                  { label: "Evolução", value: "Excelente", icon: TrendingUp, color: "text-violet-500 bg-violet-500/10" },
+                  { label: "Evolução", value: "Boa", icon: TrendingUp, color: "text-violet-500 bg-violet-500/10" },
                 ].map((stat, i) => (
-                  <div key={i} className="bg-card rounded-2xl border border-border/40 p-4 shadow-sm flex items-center gap-4">
-                    <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", stat.color)}>
-                      <stat.icon size={20} />
+                  <div key={i} className="bg-card rounded-2xl border border-border/40 p-3 lg:p-4 shadow-sm flex items-center gap-3 lg:gap-4">
+                    <div className={cn("w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center shrink-0", stat.color)}>
+                      <stat.icon size={16} className="lg:size-5" />
                     </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1.5">{stat.label}</p>
-                      <p className="text-xl font-black text-foreground">{stat.value}</p>
+                    <div className="min-w-0">
+                      <p className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1 lg:mb-1.5 truncate">{stat.label}</p>
+                      <p className="text-base lg:text-xl font-black text-foreground truncate">{stat.value}</p>
                     </div>
                   </div>
                 ))}
@@ -346,7 +363,7 @@ export default function Progresso() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pl-8 border-l-2 border-border/40 space-y-6 pb-6 scrollbar-thin">
+                <div className="flex-1 overflow-y-auto pl-5 lg:pl-8 border-l-2 border-border/40 space-y-4 lg:space-y-6 pb-6 scrollbar-thin">
                   {timelineLoading ? (
                     <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>
                   ) : timeline.length === 0 ? (
@@ -359,46 +376,46 @@ export default function Progresso() {
                       <div key={event.id} className="relative group">
                         {/* Dot */}
                         <div className={cn(
-                          "absolute -left-[41px] top-4 w-4 h-4 rounded-full border-4 border-card ring-2",
+                          "absolute -left-[30px] lg:-left-[41px] top-4 w-3 h-3 lg:w-4 lg:h-4 rounded-full border-2 lg:border-4 border-card ring-2",
                           event.category === 'tecnica' ? 'bg-violet-500 ring-violet-500/20' :
                           event.category === 'teoria' ? 'bg-amber-500 ring-amber-500/20' :
                           event.category === 'repertorio' ? 'bg-emerald-500 ring-emerald-500/20' :
                           'bg-blue-500 ring-blue-500/20'
                         )} />
                         
-                        <div className="bg-background/40 hover:bg-muted/30 p-5 rounded-2xl border border-border/40 transition-all duration-200 hover:shadow-md">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-4">
-                              <div className="flex flex-col items-center bg-card border border-border/40 px-3 py-2 rounded-xl min-w-[60px] shadow-sm">
-                                <span className="text-[10px] font-black text-muted-foreground uppercase">{format(new Date(event.achievedAt), "MMM", { locale: ptBR })}</span>
-                                <span className="text-xl font-black text-foreground">{format(new Date(event.achievedAt), "dd")}</span>
-                                <span className="text-[9px] font-bold text-muted-foreground/60">{format(new Date(event.achievedAt), "yyyy")}</span>
+                        <div className="bg-background/40 hover:bg-muted/30 p-3 lg:p-5 rounded-2xl border border-border/40 transition-all duration-200 hover:shadow-md">
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 lg:gap-4">
+                            <div className="flex items-start gap-3 lg:gap-4 w-full sm:w-auto">
+                              <div className="flex flex-col items-center bg-card border border-border/40 px-2 lg:px-3 py-1 lg:py-2 rounded-xl min-w-[50px] lg:min-w-[60px] shadow-sm">
+                                <span className="text-[8px] lg:text-[10px] font-black text-muted-foreground uppercase">{format(new Date(event.achievedAt), "MMM", { locale: ptBR })}</span>
+                                <span className="text-base lg:text-xl font-black text-foreground">{format(new Date(event.achievedAt), "dd")}</span>
+                                <span className="text-[8px] lg:text-[9px] font-bold text-muted-foreground/60">{format(new Date(event.achievedAt), "yyyy")}</span>
                               </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="text-base font-black text-foreground leading-tight">{event.title}</h4>
-                                  <span className={cn("px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border", getCategoryColor(event.category))}>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                  <h4 className="text-sm lg:text-base font-black text-foreground leading-tight truncate">{event.title}</h4>
+                                  <span className={cn("px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", getCategoryColor(event.category))}>
                                     {event.category}
                                   </span>
                                 </div>
-                                <p className="text-sm text-muted-foreground leading-relaxed">{event.description}</p>
+                                <p className="text-xs lg:text-sm text-muted-foreground leading-relaxed line-clamp-3">{event.description}</p>
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center justify-between sm:justify-end gap-3 lg:gap-4 w-full sm:w-auto mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/20">
                               {event.grade && (
-                                <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-lg border font-black text-sm", getStatusColor(Number(event.grade)))}>
-                                  <Star size={14} className="fill-current" />
+                                <div className={cn("flex items-center gap-1 px-2 py-0.5 lg:py-1 rounded-lg border font-black text-xs lg:text-sm", getStatusColor(Number(event.grade)))}>
+                                  <Star size={12} className="lg:size-[14px] fill-current" />
                                   {Number(event.grade).toFixed(1)}
                                 </div>
                               )}
                               
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => handleEdit(event)}>
-                                  <Edit2 size={14} />
+                              <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => handleEdit(event)}>
+                                  <Edit2 size={12} className="lg:size-[14px]" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive" onClick={() => deleteEventMutation.mutate({ id: event.id })}>
-                                  <Trash2 size={14} />
+                                <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 rounded-lg text-muted-foreground hover:text-destructive" onClick={() => deleteEventMutation.mutate({ id: event.id })}>
+                                  <Trash2 size={12} className="lg:size-[14px]" />
                                 </Button>
                               </div>
                             </div>
