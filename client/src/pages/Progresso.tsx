@@ -240,40 +240,40 @@ export default function Progresso() {
               transition={{ duration: 0.2 }}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              {/* NÍVEL 1: HEADER COMPACTO */}
-              <div className="bg-background border-b border-border/40 px-6 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0">
+              {/* NÍVEL 1: HEADER COMPACTO (Ajustado para Mobile) */}
+              <div className="bg-background border-b border-border/40 px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3 lg:gap-8 shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="lg:hidden shrink-0"
+                  className="lg:hidden shrink-0 h-8 w-8"
                   onClick={() => setSelectedStudentId(null)}
                 >
-                  <ChevronRight size={18} className="rotate-180" />
+                  <ChevronRight size={16} className="rotate-180" />
                 </Button>
 
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <Avatar className="w-10 h-10 border border-border/40">
-                    <AvatarFallback className="bg-primary/5 text-primary text-sm font-bold">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Avatar className="w-8 h-8 lg:w-10 lg:h-10 border border-border/40 shrink-0">
+                    <AvatarFallback className="bg-primary/5 text-primary text-[10px] lg:text-sm font-bold">
                       {selectedStudent?.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-lg font-bold text-foreground truncate leading-none">{selectedStudent?.name}</h2>
-                      <span className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm lg:text-lg font-bold text-foreground truncate leading-none">{selectedStudent?.name}</h2>
+                      <span className="px-1.5 py-0.5 rounded-md bg-muted text-[8px] lg:text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         {selectedStudent?.level}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <div className="w-20 lg:w-32 h-1 bg-muted rounded-full overflow-hidden shrink-0">
                         <div 
                           className="h-full bg-primary transition-all duration-700" 
                           style={{ width: `${summary?.frequency || 0}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-muted-foreground font-medium truncate">
-                        Última aula: {summary?.lastLesson ? format(new Date(summary.lastLesson), "dd/MM", { locale: ptBR }) : "N/A"}
+                      <span className="text-[9px] lg:text-[10px] text-muted-foreground font-medium truncate">
+                        {summary?.lastLesson ? format(new Date(summary.lastLesson), "dd/MM", { locale: ptBR }) : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -293,26 +293,24 @@ export default function Progresso() {
                 </div>
               </div>
 
-              {/* NÍVEL 2: CARDS DE MÉTRICAS VIBRANTES */}
-              <div className="px-6 py-6 overflow-x-auto scrollbar-none shrink-0 bg-muted/5">
-                <div className="flex items-center gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
+              {/* NÍVEL 2: CARDS DE MÉTRICAS VIBRANTES (Ajustado para Mobile) */}
+              <div className="px-4 py-4 lg:px-6 lg:py-6 overflow-x-auto scrollbar-none shrink-0 bg-muted/5">
+                <div className="flex items-center gap-3 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
                   {[
-                    { label: "Média de notas", value: summary?.averageGrade || "0.0", icon: Star, bg: "bg-gradient-to-br from-blue-600 to-blue-500" },
-                    { label: "Aulas registradas", value: summary?.completedCount || 0, icon: BookOpen, bg: "bg-gradient-to-br from-purple-600 to-purple-500" },
-                    { label: "Frequência", value: `${summary?.frequency || 0}%`, icon: Calendar, bg: "bg-gradient-to-br from-pink-600 to-pink-500" },
-                    { label: "Evolução", value: "Ativo", icon: TrendingUp, bg: "bg-gradient-to-br from-emerald-600 to-emerald-500" },
+                    { label: "Média", value: summary?.averageGrade || "0.0", icon: Star, bg: "bg-gradient-to-br from-blue-600 to-blue-500" },
+                    { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, bg: "bg-gradient-to-br from-purple-600 to-purple-500" },
+                    { label: "Freq.", value: `${summary?.frequency || 0}%`, icon: Calendar, bg: "bg-gradient-to-br from-pink-600 to-pink-500" },
+                    { label: "Status", value: "Ativo", icon: TrendingUp, bg: "bg-gradient-to-br from-emerald-600 to-emerald-500" },
                   ].map((stat, i) => (
-                    <div key={i} className={cn("relative p-5 rounded-2xl border-none shadow-lg w-56 lg:w-full overflow-hidden group", stat.bg)}>
-                      <div className="flex items-center justify-between mb-3 relative z-10">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/20 text-white">
-                          <stat.icon size={16} />
+                    <div key={i} className={cn("relative p-3 lg:p-5 rounded-xl lg:rounded-2xl border-none shadow-md w-32 lg:w-full overflow-hidden group", stat.bg)}>
+                      <div className="flex items-center justify-between mb-2 lg:mb-3 relative z-10">
+                        <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center bg-white/20 text-white">
+                          <stat.icon size={12} lg:size={16} />
                         </div>
-                        <div className="text-[10px] font-bold text-white/50 bg-white/10 px-2 py-0.5 rounded-full">+12%</div>
                       </div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/70 mb-1 relative z-10">{stat.label}</p>
-                      <p className="text-xl font-black text-white relative z-10">{stat.value}</p>
+                      <p className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider text-white/70 mb-0.5 relative z-10">{stat.label}</p>
+                      <p className="text-sm lg:text-xl font-black text-white relative z-10">{stat.value}</p>
                       
-                      {/* Visual accent line like in the image */}
                       <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10" />
                       <div className="absolute bottom-0 left-0 w-1/3 h-1 bg-white transition-all group-hover:w-full duration-500" />
                     </div>
@@ -320,13 +318,13 @@ export default function Progresso() {
                 </div>
               </div>
 
-              {/* NÍVEL 3: TIMELINE (FOCO PRINCIPAL) */}
-              <div className="flex-1 px-6 pb-6 overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between mb-6 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-foreground">Atividade Recente</h3>
-                    <div className="h-4 w-px bg-border/60 mx-2" />
-                    <button className="text-[11px] font-medium text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors">
+              {/* NÍVEL 3: TIMELINE (Ajustado para Mobile) */}
+              <div className="flex-1 px-4 lg:px-6 pb-6 overflow-hidden flex flex-col">
+                <div className="flex flex-row items-center justify-between mb-4 lg:mb-6 shrink-0 gap-2">
+                  <div className="flex items-center gap-1.5 lg:gap-2 min-w-0">
+                    <h3 className="text-xs lg:text-sm font-bold text-foreground truncate">Atividade Recente</h3>
+                    <div className="hidden sm:block h-4 w-px bg-border/60 mx-2" />
+                    <button className="hidden sm:flex text-[11px] font-medium text-muted-foreground hover:text-primary items-center gap-1 transition-colors">
                       <Filter size={12} />
                       Filtrar
                     </button>
@@ -334,10 +332,11 @@ export default function Progresso() {
                   
                   <Button 
                     onClick={() => { resetForm(); setIsModalOpen(true); }}
-                    className="h-8 rounded-lg px-3 bg-primary hover:bg-primary/90 text-white text-[11px] font-bold gap-1.5 shadow-sm transition-all active:scale-95"
+                    className="h-7 lg:h-8 rounded-lg px-2 lg:px-3 bg-primary hover:bg-primary/90 text-white text-[9px] lg:text-[11px] font-bold gap-1 lg:gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
                   >
-                    <Plus size={14} />
-                    Novo registro
+                    <Plus size={12} lg:size={14} />
+                    <span className="hidden xs:inline">Novo registro</span>
+                    <span className="xs:hidden">Novo</span>
                   </Button>
                 </div>
 
