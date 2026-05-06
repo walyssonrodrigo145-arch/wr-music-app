@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { Link, useLocation } from "wouter";
+
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -75,6 +77,7 @@ export default function Aulas() {
 
   const { data: lessons = [], isLoading } = trpc.lessons.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
+  const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
 
   const filteredLessons = useMemo(() => {
     return lessons.filter(l => {
@@ -108,6 +111,69 @@ export default function Aulas() {
       faltas: todays.filter(l => l.status === "falta").length,
     };
   }, [lessons]);
+
+  const dynamicAlerts = useMemo(() => {
+    const now = new Date();
+    const in30Mins = new Date(now.getTime() + 30 * 60000);
+    
+    const lessonsSoon = lessons.filter(l => 
+      l.status === "agendada" && 
+      new Date(l.scheduledAt) >= now && 
+      new Date(l.scheduledAt) <= in30Mins
+    );
+
+    const list = [];
+    
+    // Alerta 1: Aulas em breve
+    if (lessonsSoon.length > 0) {
+      list.push({
+        label: `${lessonsSoon.length} aula${lessonsSoon.length > 1 ? 's' : ''} em 30 min`,
+        sub: lessonsSoon[0].studentName || lessonsSoon[0].experimentalName || "Aula experimental",
+        icon: Bell,
+        color: "text-orange-500",
+        bg: "bg-orange-50/50",
+        border: "border-orange-100/50"
+      });
+    }
+
+    // Alerta 2: Lembretes pendentes do sistema
+    if (pendingReminders.length > 0) {
+      list.push({
+        label: pendingReminders[0].type === "cobranca" ? "Cobrança pendente" : "Lembrete pendente",
+        sub: pendingReminders[0].studentName || "Geral",
+        icon: LayoutList,
+        color: "text-purple-500",
+        bg: "bg-purple-50/50",
+        border: "border-purple-100/50"
+      });
+    }
+
+    // Alerta 3: Faltas de hoje
+    if (dailyStats.faltas > 0) {
+      list.push({
+        label: `${dailyStats.faltas} falta${dailyStats.faltas > 1 ? 's' : ''} hoje`,
+        sub: "Verifique o diário de classe",
+        icon: AlertCircle,
+        color: "text-rose-500",
+        bg: "bg-rose-50/50",
+        border: "border-rose-100/50"
+      });
+    }
+
+    // Fallback se não houver nada real, mostra um placeholder informativo
+    if (list.length === 0) {
+      list.push({
+        label: "Sem alertas críticos",
+        sub: "Tudo em ordem por aqui",
+        icon: CheckCircle,
+        color: "text-emerald-500",
+        bg: "bg-emerald-50/50",
+        border: "border-emerald-100/50"
+      });
+    }
+
+    return list;
+  }, [lessons, pendingReminders, dailyStats.faltas]);
 
   // Componente de Card de Aula Premium
   const LessonCard = ({ lesson }: { lesson: any }) => {
@@ -536,11 +602,7 @@ export default function Aulas() {
             </div>
             
             <div className="space-y-4">
-               {[
-                 { label: "2 aulas em 30 min", sub: "Kezia Teixeira - 19:00", icon: Bell, color: "text-orange-500", bg: "bg-orange-50/50", border: "border-orange-100/50" },
-                 { label: "Remarcação pendente", sub: "Sirlene Ramalho - Amanhã", icon: LayoutList, color: "text-purple-500", bg: "bg-purple-50/50", border: "border-purple-100/50" },
-                 { label: "1 falta hoje", sub: "Pedro Henrique - 18:00", icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50/50", border: "border-rose-100/50" }
-               ].map((rem, i) => (
+               {dynamicAlerts.map((rem, i) => (
                  <div key={i} className={cn("p-5 rounded-3xl border flex gap-5 hover:bg-white hover:shadow-xl hover:scale-[1.02] transition-all duration-500 cursor-pointer", rem.bg, rem.border)}>
                     <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm shrink-0"><rem.icon size={20} className={rem.color} /></div>
                     <div>
@@ -551,9 +613,11 @@ export default function Aulas() {
                ))}
             </div>
             
-            <button className="w-full flex items-center justify-between text-[11px] font-black text-blue-600 uppercase tracking-widest px-4 hover:underline transition-all">
-               Ver painel completo <ChevronRight size={14} />
-            </button>
+            <Link href="/">
+               <button className="w-full flex items-center justify-between text-[11px] font-black text-blue-600 uppercase tracking-widest px-4 hover:underline transition-all">
+                  Ver painel completo <ChevronRight size={14} />
+               </button>
+            </Link>
          </div>
       </div>
 
