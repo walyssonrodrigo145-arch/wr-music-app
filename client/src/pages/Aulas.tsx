@@ -1,12 +1,24 @@
 import { useState, useMemo } from "react";
+import { Link } from "wouter";
 import { 
+  ChevronLeft, 
+  ChevronRight, 
   Plus, 
   Clock, 
-  Filter,
-  MoreVertical,
-  ChevronRight,
+  Calendar as CalendarIcon,
+  LayoutList,
+  CalendarRange,
+  CalendarCheck,
   Music,
+  CheckCircle,
+  AlertCircle,
+  Search,
+  Bell,
+  Filter,
   Users,
+  MoreVertical,
+  CheckCircle2,
+  XCircle,
   Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,14 +26,31 @@ import {
   format, 
   addDays, 
   isSameDay, 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
   startOfWeek, 
+  endOfWeek,
+  isSameMonth,
+  addMonths,
+  subMonths,
   isToday,
+  isTomorrow,
+  startOfDay
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import AgendarModal from "@/components/modals/AgendarModal";
 import LessonDetailModal from "@/components/modals/LessonDetailModal";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+type CalendarView = "mes" | "semana" | "dia" | "eventos";
+const DAYS_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 const statusConfig = {
   agendada: { label: "Agendada", color: "bg-blue-600", text: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" },
@@ -32,33 +61,279 @@ const statusConfig = {
 };
 
 export default function Aulas() {
+  const { isDesktop } = useBreakpoint();
+  
+  // Desktop specific states
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<CalendarView>("mes");
+  const [instrumentFilter, setInstrumentFilter] = useState("todos");
+  const [statusFilterDesktop, setStatusFilterDesktop] = useState("geral");
+
+  // Mobile specific states
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [statusFilter, setStatusFilter] = useState("Todas");
+  const [statusFilterMobile, setStatusFilterMobile] = useState("Todas");
+  const [search, setSearch] = useState("");
+
   const [agendarOpen, setAgendarOpen] = useState(false);
   const [detailLessonId, setDetailLessonId] = useState<number | null>(null);
 
+  const utils = trpc.useUtils();
   const { data: lessons = [], isLoading } = trpc.lessons.list.useQuery();
+  const { data: instruments = [] } = trpc.instruments.list.useQuery();
+  const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
 
-  // Week selector logic
-  const weekDays = useMemo(() => {
+  const updateStatusMutation = trpc.lessons.updateStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Status atualizado!");
+      utils.lessons.list.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao atualizar status: " + e.message)
+  });
+
+  const filteredLessons = useMemo(() => {
+    return lessons.filter(l => {
+      if (isDesktop) {
+        const matchesSearch = (l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
+        const matchesInstrument = instrumentFilter === "todos" || String(l.instrumentId) === instrumentFilter;
+        const matchesStatus = statusFilterDesktop === "geral" || l.status === statusFilterDesktop;
+        return matchesSearch && matchesInstrument && matchesStatus;
+      } else {
+        const isDayMatch = isSameDay(new Date(l.scheduledAt), selectedDate);
+        const matchesSearch = (l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
+        const matchesStatus = statusFilterMobile === "Todas" || 
+                             (statusFilterMobile === "Hoje" && isToday(new Date(l.scheduledAt))) ||
+                             l.status.toLowerCase() === statusFilterMobile.toLowerCase().replace("í", "i");
+        return isDayMatch && matchesSearch && matchesStatus;
+      }
+    });
+  }, [lessons, isDesktop, search, instrumentFilter, statusFilterDesktop, selectedDate, statusFilterMobile]);
+
+  const monthDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentDate));
+    const end = endOfWeek(endOfMonth(currentDate));
+    return eachDayOfInterval({ start, end });
+  }, [currentDate]);
+
+  const weekDaysMobile = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, [selectedDate]);
 
-  const filteredLessons = useMemo(() => {
-    return lessons.filter(l => {
-      const isDayMatch = isSameDay(new Date(l.scheduledAt), selectedDate);
-      const matchesStatus = statusFilter === "Todas" || 
-                           (statusFilter === "Hoje" && isToday(new Date(l.scheduledAt))) ||
-                           l.status.toLowerCase() === statusFilter.toLowerCase().replace("í", "i");
-      return isDayMatch && matchesStatus;
-    });
-  }, [lessons, selectedDate, statusFilter]);
+  const dailyStats = useMemo(() => {
+    const date = isDesktop ? currentDate : selectedDate;
+    const todays = lessons.filter(l => isSameDay(new Date(l.scheduledAt), date));
+    return {
+      agendadas: todays.filter(l => l.status === "agendada").length,
+      concluidas: todays.filter(l => l.status === "concluida").length,
+      faltas: todays.filter(l => l.status === "falta").length,
+      canceladas: todays.filter(l => l.status === "cancelada").length,
+      remarcadas: todays.filter(l => l.status === "remarcada").length,
+    };
+  }, [lessons, currentDate, selectedDate, isDesktop]);
 
+  const nextLesson = useMemo(() => {
+    const now = new Date();
+    return lessons
+      .filter(l => l.status === "agendada" && new Date(l.scheduledAt) >= now)
+      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
+  }, [lessons]);
+
+  const dynamicAlerts = useMemo(() => {
+    const now = new Date();
+    const list = [];
+    if (pendingReminders.length > 0) {
+      list.push({ label: "Lembrete pendente", sub: pendingReminders[0].studentName || "Geral", icon: Bell, color: "text-orange-500", bg: "bg-orange-50/50" });
+    }
+    if (list.length === 0) {
+      list.push({ label: "Sem alertas críticos", sub: "Tudo em ordem", icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-50/50" });
+    }
+    return list;
+  }, [pendingReminders]);
+
+  const handleStatusChange = (id: number, status: string, newDate?: string) => {
+    updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // DESKTOP LAYOUT (NOTEBOOK)
+  // ──────────────────────────────────────────────────────────────────────────
+  if (isDesktop) {
+    const LessonCardDesktop = ({ lesson }: { lesson: any }) => {
+        const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
+        return (
+          <motion.div
+            layoutId={`lesson-${lesson.id}`}
+            onClick={() => setDetailLessonId(lesson.id)}
+            className={cn(
+              "p-3.5 rounded-xl border-l-4 bg-white border-slate-200 transition-all cursor-pointer shadow-sm mb-2",
+              config.border
+            )}
+            style={{ borderLeftColor: config.color.replace('bg-', '') }}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className={cn("text-[10px] font-black uppercase tracking-widest", config.text)}>
+                {format(new Date(lesson.scheduledAt), "HH:mm")}
+              </span>
+              <div className={cn("w-2 h-2 rounded-full", config.color)} />
+            </div>
+            <p className="text-xs font-black text-slate-800 truncate leading-tight">
+              {lesson.studentName || lesson.experimentalName}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1.5 opacity-60">
+               <Music size={10} className="text-slate-500" />
+               <p className="text-[9px] text-slate-500 font-bold truncate uppercase">{lesson.instrumentName}</p>
+            </div>
+          </motion.div>
+        );
+    };
+
+    return (
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] -m-4 sm:-m-6 bg-[#F5F7FB] overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto lg:overflow-hidden no-scrollbar">
+          <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+            {/* Desktop Filters */}
+            <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
+               <div className="space-y-4">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Instrumentos</p>
+                  <div className="flex flex-wrap gap-2">
+                     {["todos", ...instruments.map(i => String(i.id))].map((id) => {
+                       const inst = instruments.find(i => String(i.id) === id);
+                       const label = id === "todos" ? "Todos" : inst?.name;
+                       const isActive = instrumentFilter === id;
+                       return (
+                         <button key={id} onClick={() => setInstrumentFilter(id)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm", isActive ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-400 border-slate-100")}>{label}</button>
+                       );
+                     })}
+                  </div>
+               </div>
+               <div className="space-y-4">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Status</p>
+                  <div className="flex flex-wrap gap-2">
+                     {["geral", "agendada", "concluida", "cancelada", "remarcada", "falta"].map((st) => (
+                       <button key={st} onClick={() => setStatusFilterDesktop(st)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm capitalize", statusFilterDesktop === st ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-400 border-slate-100")}>{st}</button>
+                     ))}
+                  </div>
+               </div>
+            </div>
+
+            {/* Desktop Calendar Header */}
+            <div className="flex items-center justify-between">
+               <div className="flex p-1 bg-white rounded-xl shadow-sm border border-slate-100">
+                  {(["mes", "semana", "dia", "eventos"] as const).map(v => (
+                    <button key={v} onClick={() => setView(v)} className={cn("px-5 py-2 rounded-lg text-[11px] font-black transition-all capitalize", view === v ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:bg-slate-50")}>{v}</button>
+                  ))}
+               </div>
+               <div className="flex items-center gap-4">
+                  <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400"><ChevronLeft size={18} /></button>
+                  <h3 className="text-lg font-black text-slate-800 w-40 text-center">{format(currentDate, "MMMM yyyy", { locale: ptBR })}</h3>
+                  <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400"><ChevronRight size={18} /></button>
+                  <Button variant="outline" className="h-10 rounded-xl px-4 text-xs font-bold" onClick={() => setCurrentDate(new Date())}>Hoje</Button>
+               </div>
+            </div>
+
+            {/* Desktop View Content */}
+            <div className="relative min-h-[600px]">
+               <AnimatePresence mode="wait">
+                  {view === "mes" && (
+                    <motion.div key="month" className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
+                       <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
+                          {DAYS_SHORT.map(day => <div key={day} className="py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{day}</div>)}
+                       </div>
+                       <div className="grid grid-cols-7 min-h-[600px]">
+                          {monthDays.map((day, idx) => {
+                            const lessonsInDay = filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day));
+                            const isCurrMonth = isSameMonth(day, currentDate);
+                            return (
+                              <div key={idx} className={cn("p-2 border-r border-b border-slate-50 min-h-[140px] relative", !isCurrMonth && "opacity-20 bg-slate-50/50", isToday(day) && "bg-blue-50/30")}>
+                                <span className={cn("w-8 h-8 flex items-center justify-center rounded-full text-xs font-black mb-2", isToday(day) ? "bg-blue-600 text-white shadow-lg" : "text-slate-400")}>{format(day, "d")}</span>
+                                <div className="space-y-1">
+                                  {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} />)}
+                                  {lessonsInDay.length > 3 && <p className="text-[9px] font-black text-blue-600 text-center">+ {lessonsInDay.length - 3} aulas</p>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                       </div>
+                    </motion.div>
+                  )}
+                  {view === "semana" && (
+                    <motion.div key="week" className="grid grid-cols-7 gap-4">
+                      {eachDayOfInterval({ start: startOfWeek(currentDate), end: endOfWeek(currentDate) }).map((day, i) => (
+                        <div key={i} className="flex flex-col gap-4">
+                           <div className={cn("p-4 rounded-3xl border text-center", isToday(day) ? "bg-blue-600 border-blue-600 text-white shadow-xl" : "bg-white border-slate-100")}>
+                              <p className="text-[10px] font-black uppercase opacity-60 mb-1">{DAYS_SHORT[i]}</p>
+                              <p className="text-2xl font-black">{format(day, "d")}</p>
+                           </div>
+                           <div className="space-y-3">
+                              {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => <LessonCardDesktop key={l.id} lesson={l} />)}
+                           </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+               </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Sidebar */}
+        <div className="w-[360px] bg-white border-l border-slate-100 p-8 space-y-12 overflow-y-auto no-scrollbar">
+           <div className="space-y-8">
+              <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm"><Calendar size={24} /></div>
+                 <div><h3 className="text-base font-black text-slate-800 tracking-tight">Estatísticas</h3><p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}</p></div>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                 {[
+                   { label: "Agendadas", count: dailyStats.agendadas, color: "bg-blue-100 text-blue-600", icon: Calendar },
+                   { label: "Concluídas", count: dailyStats.concluidas, color: "bg-emerald-100 text-emerald-600", icon: CheckCircle2 },
+                   { label: "Faltas", count: dailyStats.faltas, color: "bg-orange-100 text-orange-600", icon: AlertCircle }
+                 ].map((stat, i) => (
+                   <div key={i} className="p-6 bg-white rounded-[2.5rem] border border-slate-100 flex items-center justify-between group hover:shadow-xl transition-all cursor-default">
+                      <div className="flex items-center gap-5">
+                         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", stat.color)}><stat.icon size={20} /></div>
+                         <div><p className="text-3xl font-black text-slate-800 leading-none mb-1">{stat.count}</p><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p></div>
+                      </div>
+                      <ChevronRight size={20} className="text-slate-200 group-hover:text-blue-500 transition-colors" />
+                   </div>
+                 ))}
+              </div>
+           </div>
+
+           <div className="space-y-6">
+              <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center"><Clock size={24} /></div><h3 className="text-base font-black text-slate-800 tracking-tight">Próxima Aula</h3></div>
+              {nextLesson ? (
+                <div className="p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all">
+                   <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 bg-blue-50 px-3 py-1 rounded-full w-fit">{format(new Date(nextLesson.scheduledAt), "HH:mm")}</p>
+                   <div className="flex items-center gap-5 mb-8">
+                      <Avatar className="w-16 h-16 border-4 border-white shadow-xl"><AvatarFallback className="bg-blue-600 text-white font-black">{(nextLesson.studentName || "A")[0]}</AvatarFallback></Avatar>
+                      <div><p className="text-lg font-black text-slate-800 truncate">{nextLesson.studentName || nextLesson.experimentalName}</p><p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{nextLesson.instrumentName}</p></div>
+                   </div>
+                   <Button className="w-full h-12 rounded-2xl bg-white border border-slate-100 text-blue-600 font-black hover:bg-blue-600 hover:text-white transition-all" onClick={() => setDetailLessonId(nextLesson.id)}>Ver Detalhes</Button>
+                </div>
+              ) : <div className="py-10 text-center opacity-30 text-xs font-black uppercase">Nenhuma aula próxima</div>}
+           </div>
+
+           <div className="fixed bottom-12 right-12 z-50">
+             <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setAgendarOpen(true)} className="w-20 h-20 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl relative overflow-hidden group">
+               <Plus size={36} strokeWidth={3} />
+               <div className="absolute inset-0 rounded-full border-4 border-blue-400/30 animate-ping opacity-75" />
+             </motion.button>
+           </div>
+        </div>
+
+        <AgendarModal open={agendarOpen} onOpenChange={setAgendarOpen} />
+        <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => {}} onEdit={() => {}} />
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // MOBILE / TABLET LAYOUT (PREMIUM DESIGN)
+  // ──────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      
-      {/* DATE SELECTOR STRIP */}
+      {/* Date Selector Strip */}
       <section className="space-y-4">
         <div className="flex items-center justify-between px-2">
            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">{format(selectedDate, "MMMM yyyy", { locale: ptBR })}</h2>
@@ -68,20 +343,11 @@ export default function Aulas() {
            </div>
         </div>
         <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar bg-white p-2 rounded-[2rem] shadow-sm border border-slate-50">
-          {weekDays.map((day, i) => {
+          {weekDaysMobile.map((day, i) => {
             const isActive = isSameDay(day, selectedDate);
             return (
-              <button
-                key={i}
-                onClick={() => setSelectedDate(day)}
-                className={cn(
-                  "flex flex-col items-center gap-2 min-w-[55px] flex-1 py-4 rounded-2xl transition-all relative group",
-                  isActive ? "bg-blue-600 text-white shadow-xl shadow-blue-200" : "text-slate-400 hover:bg-slate-50"
-                )}
-              >
-                <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-white/80" : "text-slate-400")}>
-                  {format(day, "eee", { locale: ptBR }).slice(0, 3)}
-                </span>
+              <button key={i} onClick={() => setSelectedDate(day)} className={cn("flex flex-col items-center gap-2 min-w-[55px] flex-1 py-4 rounded-2xl transition-all relative", isActive ? "bg-blue-600 text-white shadow-xl" : "text-slate-400 hover:bg-slate-50")}>
+                <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-white/80" : "text-slate-400")}>{format(day, "eee", { locale: ptBR }).slice(0, 3)}</span>
                 <span className="text-lg font-black tracking-tight">{format(day, "d")}</span>
                 {isActive && <div className="absolute -bottom-1.5 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_#fff]" />}
               </button>
@@ -90,136 +356,61 @@ export default function Aulas() {
         </div>
       </section>
 
-      {/* FILTER CHIPS */}
+      {/* Filter Chips */}
       <section className="flex flex-wrap items-center gap-2">
         {["Todas", "Hoje", "Agendadas", "Concluídas", "Canceladas"].map(chip => (
-          <button
-            key={chip}
-            onClick={() => setStatusFilter(chip)}
-            className={cn(
-              "px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border",
-              statusFilter === chip 
-                ? "bg-blue-600 text-white border-blue-600 shadow-blue-200" 
-                : "bg-white text-slate-400 border-slate-100 hover:border-blue-200 hover:text-blue-600"
-            )}
-          >
-            {chip}
-          </button>
+          <button key={chip} onClick={() => setStatusFilterMobile(chip)} className={cn("px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border", statusFilterMobile === chip ? "bg-blue-600 text-white border-blue-600 shadow-blue-200" : "bg-white text-slate-400 border-slate-100 hover:border-blue-200 hover:text-blue-600")}>{chip}</button>
         ))}
-        <button className="ml-auto w-10 h-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors shadow-sm">
-          <Filter size={18} />
-        </button>
+        <button className="ml-auto w-10 h-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors shadow-sm"><Filter size={18} /></button>
       </section>
 
-      {/* LESSONS LIST / GRID */}
+      {/* Lesson Grid (1 col mobile, 2 cols tablet) */}
       <section className="space-y-6">
         <div className="flex items-center justify-between px-2">
-           <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
-             Aulas de {isToday(selectedDate) ? "hoje" : format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-           </h3>
-           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white border border-slate-100 px-3 py-1 rounded-full shadow-sm">
-             {filteredLessons.length} aulas
-           </span>
+           <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Aulas de {isToday(selectedDate) ? "hoje" : format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</h3>
+           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white border border-slate-100 px-3 py-1 rounded-full shadow-sm">{filteredLessons.length} aulas</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8">
           <AnimatePresence mode="popLayout">
-            {isLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-56 rounded-[2.5rem] bg-white border border-slate-100 animate-pulse" />
-              ))
-            ) : filteredLessons.length === 0 ? (
-              <div className="col-span-full py-24 text-center bg-white rounded-[2.5rem] border border-dashed border-slate-200">
-                 <Calendar size={48} className="mx-auto text-slate-100 mb-4" />
-                 <p className="text-xs font-black text-slate-300 uppercase tracking-widest">Nenhuma aula encontrada</p>
-              </div>
+            {isLoading ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-56 rounded-[2.5rem] bg-white border border-slate-100 animate-pulse" />) : filteredLessons.length === 0 ? (
+              <div className="col-span-full py-24 text-center bg-white rounded-[2.5rem] border border-dashed border-slate-200"><Calendar size={48} className="mx-auto text-slate-100 mb-4" /><p className="text-xs font-black text-slate-300 uppercase tracking-widest">Nenhuma aula encontrada</p></div>
             ) : (
-              filteredLessons
-                .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-                .map(lesson => {
-                  const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
-                  return (
-                    <motion.div
-                      key={lesson.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      whileHover={{ scale: 1.01, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.08)" }}
-                      className="group bg-white rounded-[2.5rem] p-6 lg:p-8 border border-slate-100 shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[200px]"
-                      onClick={() => setDetailLessonId(lesson.id)}
-                    >
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className={cn("w-1.5 h-8 rounded-full", config.color)} />
-                          <span className="text-3xl font-black text-slate-800 tracking-tighter">
-                            {format(new Date(lesson.scheduledAt), "HH:mm")}
-                          </span>
-                        </div>
-                        <span className={cn("px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm", config.bg, config.text, config.border)}>
-                          {config.label}
-                        </span>
+              filteredLessons.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()).map(lesson => {
+                const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
+                return (
+                  <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-white rounded-[2.5rem] p-6 lg:p-8 border border-slate-100 shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[200px]" onClick={() => setDetailLessonId(lesson.id)}>
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3"><div className={cn("w-1.5 h-8 rounded-full", config.color)} /><span className="text-3xl font-black text-slate-800 tracking-tighter">{format(new Date(lesson.scheduledAt), "HH:mm")}</span></div>
+                      <span className={cn("px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm", config.bg, config.text, config.border)}>{config.label}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-xl font-black text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">{lesson.studentName || lesson.experimentalName}</h4>
+                      <div className="flex items-center gap-4 flex-wrap">
+                         <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest"><Music size={14} className="text-blue-500" /> {lesson.instrumentName}</div>
+                         <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest"><Users size={14} className="text-purple-500" /> {(lesson as any).teacherName || "Professor"}</div>
                       </div>
-
-                      <div className="space-y-2">
-                        <h4 className="text-xl font-black text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">
-                          {lesson.studentName || lesson.experimentalName}
-                        </h4>
-                        <div className="flex items-center gap-4 flex-wrap">
-                           <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                              <Music size={14} className="text-blue-500" /> {lesson.instrumentName}
-                           </div>
-                           <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                              <Users size={14} className="text-purple-500" /> {(lesson as any).teacherName || "Professor"}
-                           </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-50">
-                         <button className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1.5">
-                            Detalhes da aula <ChevronRight size={14} />
-                         </button>
-                         <button className="w-10 h-10 rounded-full hover:bg-slate-50 flex items-center justify-center text-slate-300 transition-colors">
-                            <MoreVertical size={20} />
-                         </button>
-                      </div>
-                    </motion.div>
-                  );
-                })
+                    </div>
+                    <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-50">
+                       <button className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1.5">Detalhes <ChevronRight size={14} /></button>
+                       <button className="w-10 h-10 rounded-full hover:bg-slate-50 flex items-center justify-center text-slate-300 transition-colors"><MoreVertical size={20} /></button>
+                    </div>
+                  </motion.div>
+                );
+              })
             )}
           </AnimatePresence>
         </div>
       </section>
 
-      {/* FLOATING ACTION BUTTON */}
       <div className="fixed bottom-8 right-8 z-50">
-        <motion.button 
-          whileHover={{ scale: 1.05, boxShadow: "0 25px 50px rgba(37,99,235,0.4)" }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setAgendarOpen(true)}
-          className="bg-[#2563EB] text-white px-8 py-5 rounded-full flex items-center gap-4 shadow-[0_20px_40px_rgba(37,99,235,0.3)] group relative overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-          <Plus size={24} strokeWidth={3} className="relative z-10" />
-          <span className="text-sm font-black uppercase tracking-widest relative z-10">Nova Aula</span>
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setAgendarOpen(true)} className="bg-[#2563EB] text-white px-8 py-5 rounded-full flex items-center gap-4 shadow-2xl group relative overflow-hidden">
+          <Plus size={24} strokeWidth={3} className="relative z-10" /><span className="text-sm font-black uppercase tracking-widest relative z-10">Nova Aula</span>
         </motion.button>
       </div>
 
-      {/* MODALS */}
-      <AgendarModal 
-        open={agendarOpen} 
-        onOpenChange={(open) => {
-          setAgendarOpen(open);
-        }} 
-      />
-      <LessonDetailModal
-        open={!!detailLessonId}
-        lesson={lessons.find(l => l.id === detailLessonId)}
-        onOpenChange={(open) => { if (!open) setDetailLessonId(null); }}
-        onStatusChange={() => {}}
-        onDelete={() => {}}
-        onEdit={() => {}}
-      />
+      <AgendarModal open={agendarOpen} onOpenChange={setAgendarOpen} />
+      <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => {}} onEdit={() => {}} />
     </div>
   );
 }
