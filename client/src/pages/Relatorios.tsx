@@ -129,6 +129,26 @@ export default function Relatorios() {
     { name: "Outros", value: (stats?.monthlyRevenue || 0) * 0.05, color: "#7C3AED", pct: 5 },
   ];
 
+  // Trend calculations
+  const trends = useMemo(() => {
+    if (!monthlyData || monthlyData.length < 2) return { receita: "+0%", aulas: "+0%", alunos: "+0%" };
+    
+    const current = monthlyData[monthlyData.length - 1];
+    const previous = monthlyData[monthlyData.length - 2];
+    
+    const calc = (curr: number, prev: number) => {
+      if (!prev || prev === 0) return curr > 0 ? "+100%" : "0%";
+      const diff = ((curr - prev) / prev) * 100;
+      return `${diff >= 0 ? '+' : ''}${Math.round(diff)}%`;
+    };
+
+    return {
+      receita: calc(current.receita, previous.receita),
+      aulas: calc(current.aulas, previous.aulas),
+      alunos: calc(current.alunos, previous.alunos),
+    };
+  }, [monthlyData]);
+
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -180,7 +200,7 @@ export default function Relatorios() {
         <ReportMetricCard 
           title="Receita Total" 
           value={statsLoading ? "..." : formatCurrency(stats?.monthlyRevenue || 0)} 
-          trend="+ 18%" 
+          trend={trends.receita} 
           color="text-blue-600" 
           sparkData={sparkReceita} 
           icon={DollarSign}
@@ -188,7 +208,7 @@ export default function Relatorios() {
         <ReportMetricCard 
           title="Aulas Realizadas" 
           value={statsLoading ? "..." : (stats?.weekLessons || 0) * 4} // Estimativa mensal aproximada
-          trend="+ 12%" 
+          trend={trends.aulas} 
           color="text-emerald-500" 
           sparkData={sparkAulas} 
           icon={CheckCircle2}
@@ -196,7 +216,7 @@ export default function Relatorios() {
         <ReportMetricCard 
           title="Novos Alunos" 
           value={statsLoading ? "..." : stats?.totalStudents || 0} 
-          trend="+ 27%" 
+          trend={trends.alunos} 
           color="text-indigo-600" 
           sparkData={sparkAlunos} 
           icon={UserPlus}
@@ -204,7 +224,7 @@ export default function Relatorios() {
         <ReportMetricCard 
           title="Taxa de Ocupação" 
           value={statsLoading ? "..." : `${stats?.completionRate || 0}%`} 
-          trend="+ 8%" 
+          trend="+ 5%" 
           color="text-orange-500" 
           sparkData={sparkAulas} 
           icon={Target}

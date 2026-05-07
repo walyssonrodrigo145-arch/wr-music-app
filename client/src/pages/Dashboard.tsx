@@ -104,6 +104,26 @@ export default function Dashboard() {
     ];
   }, [allLessons]);
 
+  // Trend calculations
+  const trends = useMemo(() => {
+    if (!monthlyData || monthlyData.length < 2) return { receita: "+0%", aulas: "+0%", alunos: "+0%" };
+    
+    const current = monthlyData[monthlyData.length - 1];
+    const previous = monthlyData[monthlyData.length - 2];
+    
+    const calc = (curr: number, prev: number) => {
+      if (!prev || prev === 0) return curr > 0 ? "+100%" : "0%";
+      const diff = ((curr - prev) / prev) * 100;
+      return `${diff >= 0 ? '+' : ''}${Math.round(diff)}%`;
+    };
+
+    return {
+      receita: calc(current.receita, previous.receita),
+      aulas: calc(current.aulas, previous.aulas),
+      alunos: calc(current.alunos, previous.alunos),
+    };
+  }, [monthlyData]);
+
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -117,7 +137,7 @@ export default function Dashboard() {
           value={statsLoading ? "..." : stats?.totalStudents ?? 0} 
           icon={Users} 
           color="text-blue-600" 
-          trend="12%" 
+          trend={trends.alunos} 
           sparkData={sparkAlunos}
         />
         <MetricCard 
@@ -125,7 +145,7 @@ export default function Dashboard() {
           value={statsLoading ? "..." : stats?.weekLessons ?? 0} 
           icon={CheckCircle2} 
           color="text-emerald-500" 
-          trend="8%" 
+          trend={trends.aulas} 
           sparkData={sparkAulas}
         />
         <MetricCard 
@@ -133,7 +153,7 @@ export default function Dashboard() {
           value={statsLoading ? "..." : stats?.weekLessons ?? 0} 
           icon={Clock} 
           color="text-orange-500" 
-          trend="15%" 
+          trend="+5%" 
           sparkData={sparkAulas}
         />
         <MetricCard 
@@ -141,7 +161,7 @@ export default function Dashboard() {
           value={statsLoading ? "..." : formatCurrency(stats?.monthlyRevenue ?? 0)} 
           icon={DollarSign} 
           color="text-purple-600" 
-          trend="18%" 
+          trend={trends.receita} 
           sparkData={sparkReceita}
         />
       </div>
