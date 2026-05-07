@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Dashboard", subtitle: "Visão geral da sua escola de música" },
+  "/dashboard": { title: "Dashboard", subtitle: "Visão geral da sua escola de música" },
   "/alunos": { title: "Alunos", subtitle: "Gerencie seus alunos" },
   "/aulas": { title: "Aulas", subtitle: "Agenda e histórico de aulas" },
   "/instrumentos": { title: "Instrumentos", subtitle: "Instrumentos ensinados" },
@@ -74,7 +74,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
         <h1 className="text-base lg:text-xl font-black text-slate-800 tracking-tight leading-none truncate">
           {pageInfo.title}
         </h1>
-        {location !== "/" && <p className="hidden lg:block text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-2">{pageInfo.subtitle}</p>}
+        {location !== "/dashboard" && <p className="hidden lg:block text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-2">{pageInfo.subtitle}</p>}
       </div>
 
       {/* Search global - hidden on mobile, shown as icon or compact on tablet */}

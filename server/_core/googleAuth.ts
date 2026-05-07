@@ -88,8 +88,8 @@ export function registerGoogleAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-      // Redirecionar para home
-      res.redirect("/");
+      // Redirecionar para dashboard
+      res.redirect(302, "/dashboard");
     } catch (error: any) {
       // Extraímos o erro real do banco de dados se disponível (Drizzle envolve o erro original no .cause ou .driverError)
       const dbErr = error.cause || error.driverError || error;
