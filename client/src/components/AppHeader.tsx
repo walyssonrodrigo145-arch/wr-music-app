@@ -71,10 +71,10 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
 
       {/* Page title */}
       <div className="flex-1 min-w-0 text-left">
-        <h1 className="text-sm lg:text-xl font-black text-slate-800 tracking-tight leading-none truncate">
-          Olá, <span className="text-[#2563EB]">{user?.name?.split(" ")[0] ?? "WR"}</span>!
+        <h1 className="text-base lg:text-xl font-black text-slate-800 tracking-tight leading-none truncate">
+          {pageInfo.title}
         </h1>
-        <p className="hidden lg:block text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-2">{pageInfo.subtitle}</p>
+        {location !== "/" && <p className="hidden lg:block text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-2">{pageInfo.subtitle}</p>}
       </div>
 
       {/* Search global - hidden on mobile, shown as icon or compact on tablet */}

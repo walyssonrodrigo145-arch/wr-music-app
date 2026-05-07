@@ -222,7 +222,7 @@ export default function Dashboard() {
               ].map((item, i) => (
                 <div key={i} className="flex items-center justify-between group cursor-default">
                   <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110", item.color)}>
+                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border border-white", item.color)}>
                       <item.icon size={18} />
                     </div>
                     <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
