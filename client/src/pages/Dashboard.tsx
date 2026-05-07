@@ -230,13 +230,18 @@ export default function Dashboard() {
                 <div key={lesson.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/50 border border-transparent hover:border-slate-100 transition-all group">
                    <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 flex flex-col items-center justify-center shadow-sm">
-                         <span className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">{format(new Date(lesson.scheduledAt), "MMM", { locale: ptBR }).replace('.', '')}</span>
-                         <span className="text-sm font-black text-slate-800 leading-none">{format(new Date(lesson.scheduledAt), "d")}</span>
+                         <span className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">
+                           {lesson.scheduledAt ? format(new Date(lesson.scheduledAt), "MMM", { locale: ptBR }).replace('.', '') : '---'}
+                         </span>
+                         <span className="text-sm font-black text-slate-800 leading-none">
+                           {lesson.scheduledAt ? format(new Date(lesson.scheduledAt), "d") : '--'}
+                         </span>
                       </div>
                       <div>
-                         <p className="text-xs font-black text-slate-800">{lesson.studentName || lesson.experimentalName}</p>
+                         <p className="text-xs font-black text-slate-800">{lesson.studentName || lesson.experimentalName || "Aluno"}</p>
                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
-                           <Clock size={12} className="text-blue-500" /> {format(new Date(lesson.scheduledAt), "HH:mm")} • {lesson.title}
+                           <Clock size={12} className="text-blue-500" /> 
+                           {lesson.scheduledAt ? format(new Date(lesson.scheduledAt), "HH:mm") : '--:--'} • {lesson.title}
                          </p>
                       </div>
                    </div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wr-music-cache-v1';
+const CACHE_NAME = 'wr-music-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -33,11 +33,23 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Interceptar requisições (offline parcial)
+// Intercepter requisições
 self.addEventListener('fetch', (event) => {
-  // Ignorar requisições de API (queremos dados frescos)
-  if (event.request.url.includes('/api/')) return;
+  // Ignorar requisições de API e extensões
+  if (event.request.url.includes('/api/') || event.request.url.startsWith('chrome-extension')) return;
 
+  // Estratégia Network-First para o index.html e navegação
+  // Isso garante que sempre pegamos a versão mais nova do app se houver rede
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('/index.html');
+      })
+    );
+    return;
+  }
+
+  // Para outros assets (imagens, etc), usa Cache-First com fallback para rede
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
