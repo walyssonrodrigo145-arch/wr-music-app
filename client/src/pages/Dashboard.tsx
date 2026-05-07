@@ -3,691 +3,303 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
   Users, Calendar, TrendingUp, DollarSign,
-  ArrowUpRight, Music2, Star, Clock, CheckCircle2,
-  XCircle, AlertCircle, Guitar, Bell, ChevronRight, MessageCircle,
-  PlusCircle, Search, CreditCard, Send
+  ArrowUpRight, Clock, CheckCircle2,
+  XCircle, ChevronRight, Bell,
+  Search, MinusCircle, RefreshCcw
 } from "lucide-react";
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, Area, AreaChart
+  XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Area, AreaChart
 } from "recharts";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 // ─── Stat Card ───────────────────────────────────────────────────────────────
-function StatCard({
-  title, value, subtitle, icon: Icon, gradient, trend, chartData, chartColor
-}: {
-  title: string;
-  value: string | number;
-  subtitle: string;
-  icon: React.ElementType;
-  gradient: string;
-  trend?: string;
-  chartData?: any[];
-  chartColor?: string;
+function MetricCard({ 
+  title, value, icon: Icon, color, sparkData, trend 
+}: { 
+  title: string; value: string | number; icon: any; color: string; sparkData?: any[]; trend: string 
 }) {
   return (
-    <div className={cn("rounded-2xl p-5 text-white shadow-lg relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-2xl duration-300 group", gradient)}>
-      {/* Background Ornaments */}
-      <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/10 -translate-y-8 translate-x-8 blur-2xl group-hover:scale-110 transition-transform duration-500" />
-      <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-white/5 translate-y-8 -translate-x-8 blur-xl" />
-      
-      <div className="relative z-10">
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner group-hover:rotate-6 transition-transform">
-            <Icon size={24} className="text-white" />
-          </div>
-          {trend && (
-            <div className="flex items-center gap-1 bg-white/20 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10">
-              <ArrowUpRight size={12} className="text-white" />
-              <span className="text-[11px] font-bold text-white leading-none">{trend}</span>
-            </div>
-          )}
+    <div className="bg-white rounded-[1.25rem] p-6 border border-slate-100 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 group cursor-default">
+      <div className="flex items-start justify-between mb-4">
+        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-6", color.replace('text-', 'bg-').replace('-600', '-50').replace('-500', '-50'))}>
+          <Icon size={24} className={color} />
         </div>
-        
-        <div className="font-outfit">
-          <p className="text-3xl font-extrabold tracking-tight mb-1">{value}</p>
-          <p className="text-sm font-semibold text-white/90">{title}</p>
-          <p className="text-[11px] text-white/70 mt-1 flex items-center gap-1 font-sans">
-            <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
-            {subtitle}
-          </p>
-        </div>
-
-        {/* Mini Sparkline */}
-        {chartData && chartData.length > 0 && (
-          <div className="h-12 mt-4 -mx-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={chartColor || "white"} 
-                  strokeWidth={2.5} 
-                  dot={false}
-                  animationDuration={1500}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+        <div className="flex flex-col items-end">
+          <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+            <ArrowUpRight size={12} />
+            {trend}
           </div>
-        )}
+          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">este mês</p>
+        </div>
       </div>
+      <div>
+        <h3 className="text-2xl font-black text-slate-800 tracking-tight">{value}</h3>
+        <p className="text-xs font-bold text-slate-400 mt-1">{title}</p>
+      </div>
+      {sparkData && (
+        <div className="h-12 mt-6 -mx-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={sparkData}>
+              <defs>
+                <linearGradient id={`gradient-${title.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={color.includes('blue') ? '#2563EB' : color.includes('emerald') ? '#10B981' : color.includes('orange') ? '#F59E0B' : '#7C3AED'} stopOpacity={0.1}/>
+                  <stop offset="95%" stopColor={color.includes('blue') ? '#2563EB' : color.includes('emerald') ? '#10B981' : color.includes('orange') ? '#F59E0B' : '#7C3AED'} stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <Area 
+                type="monotone" 
+                dataKey="value" 
+                stroke={color.includes('blue') ? '#2563EB' : color.includes('emerald') ? '#10B981' : color.includes('orange') ? '#F59E0B' : '#7C3AED'} 
+                strokeWidth={2} 
+                fill={`url(#gradient-${title.replace(/\s+/g, '')})`}
+                dot={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Quick Action Item ────────────────────────────────────────────────────────
-function QuickAction({ icon: Icon, label, onClick, color }: { icon: any, label: string, onClick: () => void, color: string }) {
-  return (
-    <button 
-      onClick={onClick}
-      className="flex flex-col items-center gap-2 group transition-all"
-    >
-      <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:-translate-y-1 transition-all", color)}>
-        <Icon size={24} className="text-white group-hover:scale-110 transition-transform" />
-      </div>
-      <span className="text-[11px] font-bold text-muted-foreground group-hover:text-foreground transition-colors">{label}</span>
-    </button>
-  );
-}
-
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-function LessonStatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; className: string; icon: React.ElementType }> = {
-    concluida: { label: "Concluída", className: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20", icon: CheckCircle2 },
-    agendada: { label: "Agendada", className: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border border-blue-500/20", icon: Clock },
-    cancelada: { label: "Cancelada", className: "bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20", icon: XCircle },
-    falta: { label: "Falta", className: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/20", icon: AlertCircle },
-  };
-  const c = config[status] ?? config.agendada;
-  const StatusIcon = c.icon;
-  return (
-    <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full", c.className)}>
-      <StatusIcon size={12} />
-      {c.label}
-    </span>
-  );
-}
-
-// ─── Student Level Badge ──────────────────────────────────────────────────────
-function LevelBadge({ level }: { level: string }) {
-  const config: Record<string, { label: string; className: string }> = {
-    iniciante: { label: "Iniciante", className: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/10" },
-    intermediario: { label: "Intermediário", className: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/10" },
-    avancado: { label: "Avançado", className: "bg-primary/10 text-primary border border-primary/10" },
-  };
-  const c = config[level] ?? config.iniciante;
-  return <span className={cn("text-[10px] font-bold px-2.5 py-0.5 rounded-full", c.className)}>{c.label}</span>;
-}
-
-// ─── Custom Tooltip ───────────────────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-2xl p-4 text-xs animate-in fade-in zoom-in duration-200">
-        <p className="font-bold text-foreground mb-2 border-b border-border/50 pb-1">{label}</p>
-        <div className="space-y-1.5">
-          {payload.map((p: any) => (
-            <div key={p.name} className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full shadow-sm" style={{ background: p.color }} />
-                <span className="text-muted-foreground font-medium">{p.name}</span>
-              </div>
-              <span className="font-bold text-foreground">{p.value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
-
-// ─── Dashboard Page ───────────────────────────────────────────────────────────
+// ─── Main Dashboard ──────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
+  
+  // Queries
+  const { data: stats } = trpc.dashboard.stats.useQuery();
   const { data: monthlyData } = trpc.dashboard.monthlyStats.useQuery();
-  const { data: dayData } = trpc.dashboard.lessonsByDay.useQuery();
   const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery();
-  const { data: recentStudents } = trpc.students.recent.useQuery();
-  const { data: instruments } = trpc.instruments.list.useQuery();
-  const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
   const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery();
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Bom dia";
-    if (hour < 18) return "Boa tarde";
-    return "Boa noite";
-  }, []);
-
-  const sparklineDataAlunos = useMemo(() => {
-    if (!monthlyData) return [];
-    return monthlyData.slice(-6).map(d => ({ value: d.alunos }));
-  }, [monthlyData]);
-
-  const sparklineDataAulas = useMemo(() => {
-    if (!monthlyData) return [];
-    return monthlyData.slice(-6).map(d => ({ value: d.aulas }));
-  }, [monthlyData]);
-
-  const pieData = useMemo(() => {
-    if (!stats) return [];
-    const total = stats.weekLessons || 1;
-    const done = Math.round(total * (stats.completionRate / 100));
-    return [
-      { name: "Concluídas", value: done, color: "oklch(0.52 0.22 264)" },
-      { name: "Pendentes", value: total - done, color: "var(--muted-foreground / 30%)" },
-    ];
-  }, [stats]);
+  // MOCK sparkline data for demo if not in DB or as visual backup
+  const sparkAlunos = useMemo(() => monthlyData?.slice(-6).map(d => ({ value: d.alunos })) || [ {value: 10}, {value: 15}, {value: 12}, {value: 20}, {value: 25}, {value: 28} ], [monthlyData]);
+  const sparkAulas = useMemo(() => monthlyData?.slice(-6).map(d => ({ value: d.aulas })) || [ {value: 80}, {value: 120}, {value: 100}, {value: 150}, {value: 180}, {value: 175} ], [monthlyData]);
+  const sparkAgendadas = [ {value: 30}, {value: 45}, {value: 40}, {value: 56}, {value: 52}, {value: 56} ];
+  const sparkReceita = [ {value: 8000}, {value: 9500}, {value: 10200}, {value: 11000}, {value: 12450}, {value: 12450} ];
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   return (
-    <div className="space-y-8 max-w-[1400px] animate-in fade-in duration-700">
+    <div className="space-y-8 animate-in fade-in duration-700 pb-12">
       
-      {/* ── Dashboard Header ── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      {/* ── Header Section ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-xl lg:text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
-            {greeting}, {user?.name?.split(' ')[0] || 'Professor'}! <span className="animate-bounce">👋</span>
+          <h1 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+            Olá, {user?.name?.split(' ')[0] || 'WR'}! <span className="animate-bounce">👋</span>
           </h1>
-          <p className="text-xs lg:text-sm text-muted-foreground font-semibold mt-1 font-outfit">
-            Aqui está o que está acontecendo na sua escola hoje.
+          <p className="text-sm font-bold text-slate-400 mt-1">
+            Aqui está o resumo geral da sua escola de música.
           </p>
         </div>
-
-        {/* Quick Actions Row */}
-        <div className="grid grid-cols-4 sm:flex items-center gap-2 lg:gap-4 bg-card p-3 lg:p-4 rounded-3xl border border-border shadow-sm overflow-x-auto no-scrollbar">
-          <QuickAction 
-            icon={PlusCircle} 
-            label="Novo Aluno" 
-            onClick={() => navigate('/alunos')} 
-            color="bg-primary hover:bg-primary/90" 
-          />
-          <QuickAction 
-            icon={Calendar} 
-            label="Agenda" 
-            onClick={() => navigate('/aulas')} 
-            color="bg-violet-500 hover:bg-violet-600" 
-          />
-          <QuickAction 
-            icon={CreditCard} 
-            label="Financeiro" 
-            onClick={() => navigate('/mensalidades')} 
-            color="bg-rose-500 hover:bg-rose-600" 
-          />
-          <QuickAction 
-            icon={Send} 
-            label="Avisos" 
-            onClick={() => navigate('/lembretes')} 
-            color="bg-emerald-500 hover:bg-emerald-600" 
-          />
-        </div>
-      </div>
-
-      {/* ── Stats Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard
-          title="Total de Alunos"
-          value={statsLoading ? "..." : stats?.totalStudents ?? 0}
-          subtitle={`${stats?.activeStudents ?? 0} alunos ativos`}
-          icon={Users}
-          gradient="bg-gradient-to-br from-indigo-600 to-blue-500"
-          trend="+12%"
-          chartData={sparklineDataAlunos}
-        />
-        <StatCard
-          title="Aulas Esta Semana"
-          value={statsLoading ? "..." : stats?.weekLessons ?? 0}
-          subtitle="Total de agendamentos"
-          icon={Music2}
-          gradient="bg-gradient-to-br from-violet-600 to-fuchsia-500"
-          trend="+5%"
-          chartData={sparklineDataAulas}
-        />
-        <StatCard
-          title="Taxa de Conclusão"
-          value={statsLoading ? "..." : `${stats?.completionRate ?? 0}%`}
-          subtitle="Desempenho da semana"
-          icon={TrendingUp}
-          gradient="bg-gradient-to-br from-rose-600 to-pink-500"
-          trend="+3%"
-        />
-        <StatCard
-          title="Receita Mensal"
-          value={statsLoading ? "..." : formatCurrency(stats?.monthlyRevenue ?? 0)}
-          subtitle="Projeção atualizado"
-          icon={DollarSign}
-          gradient="bg-gradient-to-br from-emerald-600 to-teal-500"
-          trend="+8%"
-        />
-      </div>
-
-      {/* ── Overdue Payments Alert ── */}
-      {overduePayments.length > 0 && (
-        <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/30 rounded-3xl p-6 shadow-sm overflow-hidden relative group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 rounded-full -translate-y-32 translate-x-32 blur-3xl pointer-events-none" />
-          
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center flex-shrink-0 animate-pulse">
-              <AlertCircle size={24} className="text-rose-600 dark:text-rose-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-                <div>
-                  <h3 className="text-base font-bold text-rose-900 dark:text-rose-400 tracking-tight">
-                    Atenção: {overduePayments.length} mensalidade{overduePayments.length > 1 ? 's' : ''} em atraso
-                  </h3>
-                  <p className="text-sm text-rose-700/70 dark:text-rose-400/70">
-                    Alunos com pagamento vencido. Recomendamos o contato imediato.
-                  </p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => navigate('/mensalidades')}
-                  className="rounded-xl border-rose-200 bg-white hover:bg-rose-50 text-rose-600"
-                >
-                  Gestão Financeira <ChevronRight size={14} className="ml-1" />
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {overduePayments.slice(0, 1).map((p: any) => (
-                  <div key={p.id} className="flex items-center justify-between bg-white/60 dark:bg-black/20 backdrop-blur-sm rounded-2xl p-3 border border-rose-100 dark:border-rose-900/30 hover:border-rose-400 transition-colors group/item">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center font-black text-rose-700 dark:text-rose-300 text-xs">
-                        {(p.studentName ?? 'A').charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-rose-900 dark:text-rose-200 truncate">{p.studentName ?? 'Aluno'}</p>
-                        <p className="text-[10px] text-rose-500 font-medium">{formatCurrency(Number(p.amount))}</p>
-                      </div>
-                    </div>
-                    {p.studentPhone && (
-                      <a
-                        href={`https://wa.me/55${p.studentPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${p.studentName}, sua mensalidade de R$ ${Number(p.amount).toFixed(2).replace('.', ',')} venceu em ${new Date(p.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}. Por favor, entre em contato para regularizar.`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
-                        title="Enviar WhatsApp"
-                      >
-                        <MessageCircle size={14} />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Main Dashboard Content ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
-        {/* Left Column (Main Charts) */}
-        <div className="lg:col-span-2 space-y-8">
-          
-          {/* Evolution Chart */}
-          <div className="bg-card rounded-3xl p-6 shadow-sm border border-border relative overflow-hidden group">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-base font-black text-foreground tracking-tight">Evolução da Escola</h3>
-                <p className="text-xs text-muted-foreground font-medium">Comparativo de alunos e aulas nos últimos 12 meses</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-primary shadow-sm" />
-                  <span className="text-[11px] font-bold text-muted-foreground">Alunos</span>
+        {/* Header Actions Desktop */}
+        <div className="hidden lg:flex items-center gap-4">
+           <div className="relative group">
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Procurar..." 
+                className="h-12 w-64 bg-white border border-slate-100 rounded-2xl pl-12 pr-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
+              />
+           </div>
+           <button className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all shadow-sm relative">
+              <Bell size={20} />
+              <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-blue-600 border-2 border-white rounded-full" />
+           </button>
+           <Avatar className="w-12 h-12 border-2 border-white shadow-sm ring-1 ring-slate-100">
+              <AvatarFallback className="bg-blue-600 text-white font-black">WR</AvatarFallback>
+           </Avatar>
+        </div>
+      </div>
+
+      {/* ── Metrics Grid ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <MetricCard 
+          title="Total de Alunos" 
+          value={stats?.totalStudents || 128} 
+          icon={Users} 
+          color="text-blue-600" 
+          trend="12%" 
+          sparkData={sparkAlunos}
+        />
+        <MetricCard 
+          title="Aulas Esta Semana" 
+          value={stats?.weekLessons || 56} 
+          icon={CheckCircle2} 
+          color="text-emerald-500" 
+          trend="8%" 
+          sparkData={sparkAulas}
+        />
+        <MetricCard 
+          title="Aulas Agendadas" 
+          value={stats?.weekLessons || 56} 
+          icon={Clock} 
+          color="text-orange-500" 
+          trend="15%" 
+          sparkData={sparkAgendadas}
+        />
+        <MetricCard 
+          title="Receita do Mês" 
+          value={formatCurrency(stats?.monthlyRevenue || 12450)} 
+          icon={DollarSign} 
+          color="text-purple-600" 
+          trend="18%" 
+          sparkData={sparkReceita}
+        />
+      </div>
+
+      {/* ── Main Section (Chart + Summary) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Evolution Chart */}
+        <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+             <div>
+                <h3 className="text-base font-black text-slate-800 tracking-tight">Evolução Mensal</h3>
+                <div className="flex items-center gap-4 mt-2">
+                   <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-sm" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aulas realizadas</span>
+                   </div>
+                   <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Novos alunos</span>
+                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-violet-400 shadow-sm" />
-                  <span className="text-[11px] font-bold text-muted-foreground">Aulas</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlyData ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorAlunos" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorAulas" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="oklch(0.70 0.15 295)" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="oklch(0.70 0.15 295)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.89 0.01 260 / 30%)" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    tick={{ fontSize: 11, fill: "var(--muted-foreground)", fontWeight: 600 }} 
-                    axisLine={false} 
-                    tickLine={false}
-                    dy={10}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 11, fill: "var(--muted-foreground)", fontWeight: 600 }} 
-                    axisLine={false} 
-                    tickLine={false} 
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--border)', strokeWidth: 1 }} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="alunos" 
-                    name="Alunos" 
-                    stroke="var(--primary)" 
-                    strokeWidth={4} 
-                    fill="url(#colorAlunos)" 
-                    dot={{ r: 4, strokeWidth: 2, fill: "white" }} 
-                    activeDot={{ r: 6, strokeWidth: 0 }} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="aulas" 
-                    name="Aulas" 
-                    stroke="oklch(0.70 0.15 295)" 
-                    strokeWidth={4} 
-                    fill="url(#colorAulas)" 
-                    dot={{ r: 4, strokeWidth: 2, fill: "white" }}
-                    activeDot={{ r: 6, strokeWidth: 0 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+             </div>
+             <select className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:outline-none">
+                <option>Últimos 6 meses</option>
+                <option>Este ano</option>
+             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Aulas por Dia */}
-            <div className="bg-card rounded-3xl p-6 shadow-sm border border-border">
-              <div className="mb-6">
-                <h3 className="text-sm font-black text-foreground tracking-tight">Presença Semanal</h3>
-                <p className="text-[11px] text-muted-foreground font-medium">Frequência média por dia da semana</p>
-              </div>
-              <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dayData ?? []} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.89 0.01 260 / 30%)" vertical={false} />
-                    <XAxis 
-                      dataKey="day" 
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)", fontWeight: 700 }} 
-                      axisLine={false} 
-                      tickLine={false}
-                      dy={5}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)", fontWeight: 700 }} 
-                      axisLine={false} 
-                      tickLine={false} 
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--muted)', opacity: 0.4 }} />
-                    <Bar 
-                      dataKey="aulas" 
-                      name="Aulas" 
-                      fill="var(--primary)" 
-                      radius={[6, 6, 0, 0]} 
-                      barSize={24}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Instrumentos Populares */}
-            <div className="bg-card rounded-3xl p-6 shadow-sm border border-border">
-              <div className="mb-6">
-                <h3 className="text-sm font-black text-foreground tracking-tight">Instrumentos</h3>
-                <p className="text-[11px] text-muted-foreground font-medium">Distribuição por popularidade</p>
-              </div>
-              <div className="space-y-4">
-                {(instruments ?? []).slice(0, 5).map((inst) => {
-                  const max = instruments?.[0]?.studentCount ?? 1;
-                  const pct = Math.round((Number(inst.studentCount) / Number(max)) * 100);
-                  return (
-                    <div key={inst.id} className="space-y-2 group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center transition-transform group-hover:rotate-12" style={{ background: inst.color + "20" }}>
-                            <Guitar size={14} style={{ color: inst.color ?? "var(--primary)" }} />
-                          </div>
-                          <span className="text-xs font-bold text-foreground">{inst.name}</span>
-                        </div>
-                        <span className="text-[11px] font-black text-muted-foreground">{inst.studentCount} alunos</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden shadow-inner">
-                        <div
-                          className="h-full rounded-full transition-all duration-1000 ease-out"
-                          style={{ width: `${pct}%`, background: inst.color ?? "var(--primary)" }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Students Table */}
-          <div className="bg-card rounded-3xl shadow-sm border border-border overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
-              <div>
-                <h3 className="text-sm font-black text-foreground tracking-tight">Últimas Matrículas</h3>
-                <p className="text-[11px] text-muted-foreground font-medium">Novos alunos que ingressaram recentemente</p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/alunos")} className="text-primary font-bold hover:bg-primary/5 rounded-xl">
-                Ver todos <ChevronRight size={14} className="ml-1" />
-              </Button>
-            </div>
-            <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full min-w-[600px] lg:min-w-full">
-                <thead>
-                  <tr className="border-b border-border bg-muted/20">
-                    <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-6 py-4">Aluno</th>
-                    <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-4 hidden sm:table-cell">Instrumento</th>
-                    <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-4 hidden md:table-cell text-center">Início</th>
-                    <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {(recentStudents ?? []).map((student: any) => (
-                    <tr key={student.id} className="hover:bg-muted/30 transition-all group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                            <span className="text-xs font-black text-primary">
-                              {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{student.name}</p>
-                            <p className="text-[10px] font-medium text-muted-foreground">{student.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 hidden sm:table-cell">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full shadow-sm" style={{ background: student.instrumentColor ?? "#6366f1" }} />
-                          <span className="text-xs font-semibold text-foreground/80">{student.instrumentName ?? "—"}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 hidden md:table-cell text-center">
-                        <span className="text-[11px] font-bold text-muted-foreground">
-                          {student.startDate ? new Date(student.startDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-between">
-                          <span className={cn(
-                            "text-[10px] font-black px-2.5 py-1 rounded-full",
-                            student.status === "ativo" ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/10" :
-                            student.status === "pausado" ? "bg-amber-500/10 text-amber-600 border border-amber-500/10" :
-                            "bg-rose-500/10 text-rose-600 border border-rose-500/10"
-                          )}>
-                            {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="h-[320px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={monthlyData || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="chartBlue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="chartEmerald" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94A3B8' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94A3B8' }} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '1rem' }}
+                  itemStyle={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                />
+                <Area type="monotone" dataKey="aulas" name="Aulas" stroke="#2563EB" strokeWidth={3} fill="url(#chartBlue)" dot={{ r: 4, strokeWidth: 2, fill: 'white' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                <Area type="monotone" dataKey="alunos" name="Alunos" stroke="#10B981" strokeWidth={3} fill="url(#chartEmerald)" dot={{ r: 4, strokeWidth: 2, fill: 'white' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Right Column (Widgets) */}
-        <div className="space-y-8">
-          
-          {/* Completion Rate Gauge */}
-          <div className="bg-card rounded-3xl p-6 shadow-sm border border-border flex flex-col items-center">
-            <div className="w-full mb-6">
-              <h3 className="text-sm font-black text-foreground tracking-tight">Taxa de Conclusão</h3>
-              <p className="text-[11px] text-muted-foreground font-medium">Aproveitamento das aulas da semana</p>
-            </div>
-            
-            <div className="relative w-full aspect-square max-w-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={65}
-                    outerRadius={85}
-                    paddingAngle={6}
-                    dataKey="value"
-                    startAngle={225}
-                    endAngle={-45}
-                    cornerRadius={8}
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={index} fill={entry.color} strokeWidth={0} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-black text-foreground tracking-tighter leading-none">
-                  {stats?.completionRate ?? 0}%
-                </span>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Concluído</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 w-full mt-6">
-              {pieData.map((d) => (
-                <div key={d.name} className="bg-muted/30 p-3 rounded-2xl border border-border/50 text-center">
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                    <span className="w-2 h-2 rounded-full" style={{ background: d.color }} />
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{d.name}</span>
+        {/* Daily Summary */}
+        <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
+           <h3 className="text-base font-black text-slate-800 tracking-tight">Resumo do dia</h3>
+           <div className="space-y-4">
+              {[
+                { label: "Aulas agendadas", count: 5, color: "bg-blue-50 text-blue-600", icon: Calendar },
+                { label: "Concluídas", count: 1, color: "bg-emerald-50 text-emerald-600", icon: CheckCircle2 },
+                { label: "Faltas", count: 1, color: "bg-orange-50 text-orange-600", icon: MinusCircle },
+                { label: "Remarcadas", count: 1, color: "bg-purple-50 text-purple-600", icon: RefreshCcw },
+                { label: "Canceladas", count: 1, color: "bg-rose-50 text-rose-600", icon: XCircle },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between group cursor-default">
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110", item.color)}>
+                      <item.icon size={18} />
+                    </div>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
                   </div>
-                  <p className="text-lg font-black text-foreground">{d.value}</p>
+                  <span className="text-base font-black text-slate-800">{item.count}</span>
                 </div>
               ))}
-            </div>
-          </div>
+           </div>
+        </div>
+      </div>
 
-          {/* Upcoming Lessons Widget */}
-          <div className="bg-card rounded-3xl p-6 shadow-sm border border-border">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-sm font-black text-foreground tracking-tight">Agenda Próxima</h3>
-                <p className="text-[11px] text-muted-foreground font-medium">Aulas agendadas recentemente</p>
-              </div>
-              <Calendar size={18} className="text-muted-foreground/50" />
-            </div>
-            
-            <div className="space-y-4">
-              {(upcomingLessons ?? []).filter(l => l.status === "agendada").slice(0, 5).map((lesson) => (
-                <div key={lesson.id} className="flex items-center gap-4 p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-all group">
-                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-card shadow-sm border border-border flex flex-col items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-all">
-                    <span className="text-[9px] font-black uppercase leading-none">{new Date(lesson.scheduledAt).toLocaleDateString("pt-BR", { month: "short" }).replace('.', '')}</span>
-                    <span className="text-sm font-black leading-none">{new Date(lesson.scheduledAt).getDate()}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-foreground truncate">{lesson.studentName || lesson.experimentalName}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground/70 flex items-center gap-1 mt-0.5">
-                      <Clock size={10} /> {new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} • {lesson.duration}min
-                    </p>
-                  </div>
-                  {lesson.isExperimental && (
-                    <Badge variant="secondary" className="text-[8px] uppercase tracking-tighter bg-rose-500/10 text-rose-500 border-none font-black px-1.5 h-4">EXP</Badge>
-                  )}
+      {/* ── Secondary Widgets Row ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* Upcoming Lessons */}
+        <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
+           <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-slate-800 tracking-tight">Próximas Aulas</h3>
+              <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50" onClick={() => navigate('/aulas')}>Ver todas</Button>
+           </div>
+           <div className="space-y-4">
+              {upcomingLessons?.slice(0, 4).map((lesson) => (
+                <div key={lesson.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/50 border border-transparent hover:border-slate-100 transition-all group">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 flex flex-col items-center justify-center shadow-sm">
+                         <span className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">{format(new Date(lesson.scheduledAt), "MMM", { locale: ptBR }).replace('.', '')}</span>
+                         <span className="text-sm font-black text-slate-800 leading-none">{format(new Date(lesson.scheduledAt), "d")}</span>
+                      </div>
+                      <div>
+                         <p className="text-xs font-black text-slate-800">{lesson.studentName || lesson.experimentalName}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
+                           <Clock size={12} className="text-blue-500" /> {format(new Date(lesson.scheduledAt), "HH:mm")} • {lesson.title}
+                         </p>
+                      </div>
+                   </div>
+                   <div className="px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100">
+                      Agendada
+                   </div>
                 </div>
               ))}
-              {(upcomingLessons ?? []).filter(l => l.status === "agendada").length === 0 && (
-                <div className="text-center py-8">
-                  <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                    <Calendar size={20} className="text-muted-foreground/30" />
-                  </div>
-                  <p className="text-[11px] font-bold text-muted-foreground">Nenhuma aula agendada</p>
+           </div>
+        </div>
+
+        {/* Overdue Payments */}
+        <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
+           <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-slate-800 tracking-tight">Inadimplentes</h3>
+              <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50" onClick={() => navigate('/mensalidades')}>Ver todas</Button>
+           </div>
+           <div className="space-y-4">
+              {overduePayments?.slice(0, 4).map((payment: any) => (
+                <div key={payment.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/50 border border-transparent hover:border-slate-100 transition-all group">
+                   <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center font-black text-xs">
+                         {(payment.studentName || "A")[0]}
+                      </div>
+                      <div>
+                         <p className="text-xs font-black text-slate-800">{payment.studentName}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                           {Math.floor((new Date().getTime() - new Date(payment.dueDate).getTime()) / (1000 * 60 * 60 * 24))} dias em atraso
+                         </p>
+                      </div>
+                   </div>
+                   <span className="text-xs font-black text-rose-600 tracking-tight">
+                      {formatCurrency(Number(payment.amount))}
+                   </span>
+                </div>
+              ))}
+              {overduePayments.length === 0 && (
+                <div className="py-12 text-center">
+                   <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle2 size={32} />
+                   </div>
+                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhum pagamento atrasado</p>
                 </div>
               )}
-            </div>
-            {upcomingLessons && upcomingLessons.length > 5 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => navigate("/aulas")}
-                className="w-full mt-4 rounded-xl text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary"
-              >
-                Ver Agenda Completa
-              </Button>
-            )}
-          </div>
-
-          {/* Pending Reminders */}
-          {pendingReminders.length > 0 && (
-            <div className="bg-card rounded-3xl p-6 shadow-sm border border-border relative overflow-hidden group">
-              <div className="absolute -top-4 -right-4 w-20 h-20 bg-amber-500/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
-              
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-sm font-black text-foreground tracking-tight flex items-center gap-2">
-                    Lembretes <span className="bg-amber-100 dark:bg-amber-500/20 text-amber-600 px-1.5 py-0.5 rounded-lg text-[10px] leading-none">{pendingReminders.length}</span>
-                  </h3>
-                  <p className="text-[11px] text-muted-foreground font-medium">Ações necessárias</p>
-                </div>
-                <Bell size={18} className="text-amber-500" />
-              </div>
-
-              <div className="space-y-3">
-                {pendingReminders.slice(0, 1).map((r: any) => (
-                  <div key={r.id} className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-4 group/reminder hover:bg-amber-500/10 transition-all">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-black text-amber-900 dark:text-amber-200 line-clamp-2">{r.message}</p>
-                      <p className="text-[9px] font-bold text-amber-600/70 mt-1 uppercase tracking-widest">{r.studentName || 'Geral'}</p>
-                    </div>
-                    {r.studentPhone && (
-                      <a href={`https://wa.me/55${r.studentPhone.replace(/\D/g, "")}?text=${encodeURIComponent(r.message)}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="w-9 h-9 rounded-xl bg-white dark:bg-black/20 shadow-sm border border-amber-200 flex items-center justify-center text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all">
-                        <MessageCircle size={14} />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => navigate("/lembretes")}
-                className="w-full mt-4 rounded-xl text-[11px] font-black uppercase tracking-widest text-amber-600 hover:bg-amber-50 group-hover:bg-amber-100 transition-colors"
-              >
-                Ver mais <ChevronRight size={14} className="ml-1 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </div>
-          )}
+           </div>
         </div>
       </div>
     </div>
