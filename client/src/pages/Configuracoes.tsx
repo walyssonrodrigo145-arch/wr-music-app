@@ -651,7 +651,7 @@ export default function Configuracoes() {
                     <div className="w-full h-24 rounded-[1.25rem] bg-card border border-border mb-6 overflow-hidden shadow-sm flex flex-col">
                        <div className="h-4 bg-muted border-b border-border flex items-center px-2 gap-1">
                          <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-                         <div className="w-6 h-1 rounded bg-slate-100" />
+                         <div className="w-6 h-1 rounded bg-muted" />
                        </div>
                        <div className="flex-1 p-3 space-y-2">
                          <div className="h-3 bg-indigo-100 rounded-full w-3/4" />
@@ -764,5 +764,6 @@ export default function Configuracoes() {
     </div>
   );
 }
+
 
 

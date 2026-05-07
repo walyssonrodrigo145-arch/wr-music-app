@@ -317,7 +317,7 @@ export default function Instrumentos() {
                   <div className="flex lg:hidden gap-2">
                     <Button 
                       variant="ghost" 
-                      className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground active:bg-slate-100 border border-border"
+                      className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground active:bg-muted border border-border"
                       onClick={() => { setEditInstrument(inst); setModalOpen(true); }}
                     >
                       <Pencil size={12} />
@@ -352,4 +352,5 @@ export default function Instrumentos() {
     </div>
   );
 }
+
 

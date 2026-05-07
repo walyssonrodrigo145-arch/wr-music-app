@@ -259,7 +259,7 @@ export default function Lembretes() {
                 <h3 className={cn("text-base font-black uppercase tracking-widest", autoEnabled ? "text-white" : "text-foreground")}>Automação do Robô</h3>
                 <span className={cn(
                   "text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
-                  autoEnabled ? "bg-card/20 text-white" : "bg-slate-100 text-muted-foreground"
+                  autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground"
                 )}>
                   {autoEnabled ? "Ativo" : "Inativo"}
                 </span>
@@ -353,5 +353,6 @@ export default function Lembretes() {
     </div>
   );
 }
+
 
 

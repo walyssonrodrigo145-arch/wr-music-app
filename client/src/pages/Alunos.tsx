@@ -609,7 +609,7 @@ export default function Alunos() {
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xl font-black text-foreground">{activeRate}%</span>
                         </div>
-                        <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                        <div className="w-full h-1 bg-muted rounded-full mt-2 overflow-hidden">
                            <div className="h-full bg-primary" style={{ width: `${activeRate}%` }} />
                         </div>
                       </div>
@@ -689,5 +689,6 @@ export default function Alunos() {
     </div>
   );
 }
+
 
 

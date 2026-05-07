@@ -288,7 +288,7 @@ export default function Progresso() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-24 lg:w-48 h-2 bg-slate-100 rounded-full overflow-hidden shrink-0 border border-border/50">
+                      <div className="w-24 lg:w-48 h-2 bg-muted rounded-full overflow-hidden shrink-0 border border-border/50">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${summary?.frequency || 0}%` }}
@@ -541,5 +541,6 @@ export default function Progresso() {
     </div>
   );
 }
+
 
 

@@ -178,7 +178,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
                           <button 
                             key={s.id} 
                             onClick={() => { navigate("/alunos"); setSearchOpen(false); setSearchQuery(""); }}
-                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted active:bg-slate-100 transition-colors"
+                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted active:bg-muted transition-colors"
                           >
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-[10px] font-black">
                               {s.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
@@ -211,7 +211,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
           <span className="absolute top-3 right-3 w-2 h-2 bg-[#2563EB] rounded-full border border-white" />
         </button>
 
-        <div className="h-8 w-px bg-slate-100 mx-1 hidden lg:block" />
+        <div className="h-8 w-px bg-muted mx-1 hidden lg:block" />
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -235,7 +235,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
             <DropdownMenuItem className="gap-3 rounded-xl p-3 cursor-pointer text-xs font-bold text-muted-foreground hover:text-[#2563EB]" onClick={() => navigate("/configuracoes")}>
               <Settings size={16} /> Configurações
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-slate-100 my-2" />
+            <DropdownMenuSeparator className="bg-muted my-2" />
             <DropdownMenuItem className="gap-3 rounded-xl p-3 cursor-pointer text-xs font-bold text-rose-500 hover:bg-rose-50 hover:text-rose-600 focus:text-rose-600 focus:bg-rose-50" onClick={() => logoutMutation.mutate()}>
               <LogOut size={16} /> Sair do Sistema
             </DropdownMenuItem>
@@ -245,5 +245,6 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
     </header>
   );
 }
+
 
 

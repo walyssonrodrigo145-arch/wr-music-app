@@ -85,7 +85,7 @@ function CategoryChip({
     >
       <div className={cn(
         "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
-        active ? "bg-card/20" : "bg-slate-100 group-hover:bg-card"
+        active ? "bg-card/20" : "bg-muted group-hover:bg-card"
       )}>
         <Icon size={16} className={active ? "text-white" : "text-muted-foreground"} />
       </div>
@@ -368,7 +368,7 @@ export default function Relatorios() {
                         <tr key={i} className="group hover:bg-muted/50 transition-colors">
                            <td className="py-5 px-4"><div className="flex items-center gap-3"><div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", report.color)}><report.icon size={16} /></div><span className="text-xs font-black text-foreground">{report.name}</span></div></td>
                            <td className="py-5 px-4 text-xs font-black text-muted-foreground">{report.period}</td>
-                           <td className="py-5 px-4"><span className="px-3 py-1 rounded-full bg-slate-100 text-[9px] font-black uppercase tracking-widest text-muted-foreground">{report.status}</span></td>
+                           <td className="py-5 px-4"><span className="px-3 py-1 rounded-full bg-muted text-[9px] font-black uppercase tracking-widest text-muted-foreground">{report.status}</span></td>
                            <td className="py-5 px-4 text-right"><div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-blue-600"><Download size={14} /></button></div></td>
                         </tr>
                       ))}
@@ -383,5 +383,6 @@ export default function Relatorios() {
     </div>
   );
 }
+
 
 
