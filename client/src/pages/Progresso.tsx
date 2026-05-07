@@ -108,12 +108,12 @@ export default function Progresso() {
 
   const filteredStudents = useMemo(() => {
     return students
-      .filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter((s: any) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a: any, b: any) => a.name.localeCompare(b.name));
   }, [students, searchQuery]);
 
   const selectedStudent = useMemo(() => {
-    return students.find((s) => s.id === selectedStudentId);
+    return students.find((s: any) => s.id === selectedStudentId);
   }, [students, selectedStudentId]);
 
   const handleEdit = (event: any) => {
@@ -187,7 +187,7 @@ export default function Progresso() {
           ) : filteredStudents.length === 0 ? (
             <p className="text-xs text-muted-foreground/60 text-center p-8 italic">Nenhum aluno</p>
           ) : (
-            filteredStudents.map((student) => (
+            filteredStudents.map((student: any) => (
               <button
                 key={student.id}
                 onClick={() => setSelectedStudentId(student.id)}
@@ -305,7 +305,7 @@ export default function Progresso() {
                     <div key={i} className="relative p-3 lg:p-4 bg-background rounded-xl lg:rounded-2xl border border-border/40 shadow-[0_1px_3px_rgba(0,0,0,0.02)] w-32 lg:w-full overflow-hidden group">
                       <div className="flex items-center justify-between mb-2 lg:mb-3 relative z-10">
                         <div className={cn("w-6 h-6 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center", stat.bg, stat.color)}>
-                          <stat.icon size={12} lg:size={16} />
+                          <stat.icon className="w-3 h-3 lg:w-4 lg:h-4" />
                         </div>
                       </div>
                       <p className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-0.5 relative z-10">{stat.label}</p>
@@ -331,7 +331,7 @@ export default function Progresso() {
                     onClick={() => { resetForm(); setIsModalOpen(true); }}
                     className="h-7 lg:h-8 rounded-lg px-2 lg:px-3 bg-primary hover:bg-primary/90 text-white text-[9px] lg:text-[11px] font-bold gap-1 lg:gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
                   >
-                    <Plus size={12} lg:size={14} />
+                    <Plus className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
                     <span className="hidden xs:inline">Novo registro</span>
                     <span className="xs:hidden">Novo</span>
                   </Button>

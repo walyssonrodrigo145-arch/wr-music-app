@@ -330,3 +330,26 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 
   return (await response.json()) as InvokeResult;
 }
+
+export function getLLM() {
+  return {
+    chat: async (params: InvokeParams) => {
+      const result = await invokeLLM(params);
+      const choice = result.choices[0];
+      let content = "";
+      if (typeof choice.message.content === "string") {
+        content = choice.message.content;
+      } else if (Array.isArray(choice.message.content)) {
+        content = choice.message.content
+          .map((c: any) => (c.type === "text" ? c.text : ""))
+          .join("");
+      }
+      return {
+        message: {
+          ...choice.message,
+          content
+        }
+      };
+    }
+  };
+}

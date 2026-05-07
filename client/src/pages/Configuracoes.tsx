@@ -197,11 +197,11 @@ function CleanupTestDataSection() {
   const [cleaning, setCleaning] = useState(false);
   const utils = trpc.useUtils();
   const cleanupMutation = trpc.system.cleanupTestData.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: { studentsRemoved: number; lessonsRemoved: number }) => {
       toast.success(`Limpeza concluída! ${data.studentsRemoved} alunos e ${data.lessonsRemoved} aulas de teste removidos.`);
       utils.invalidate(); // Refresh all data
     },
-    onError: (e) => toast.error("Erro ao limpar dados: " + e.message),
+    onError: (e: any) => toast.error("Erro ao limpar dados: " + e.message),
     onSettled: () => setCleaning(false),
   });
 

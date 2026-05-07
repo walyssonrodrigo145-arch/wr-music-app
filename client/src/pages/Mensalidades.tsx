@@ -264,14 +264,12 @@ export default function Mensalidades() {
     const paid = payments.filter(p => p.status === "pago");
     const overdue = payments.filter(p => p.status === "atrasado");
     const upcoming = payments.filter(p => p.status === "pendente");
-    const scheduled = payments.filter(p => p.status === "agendada");
     
     const sumAmount = (arr: PaymentRow[]) => arr.reduce((acc, p) => acc + Number(p.amount), 0);
     const totalToReceive = sumAmount(upcoming) + sumAmount(overdue);
     const received = sumAmount(paid);
     const upcomingAmt = sumAmount(upcoming);
     const overdueAmt = sumAmount(overdue);
-    const scheduledAmt = sumAmount(scheduled);
     
     const totalAmount = sumAmount(payments);
     const getPercent = (val: number) => totalAmount > 0 ? Math.round((val / totalAmount) * 100) : 0;
@@ -286,7 +284,6 @@ export default function Mensalidades() {
         { name: 'Recebidas', value: received, color: '#10B981', percent: getPercent(received) },
         { name: 'A vencer', value: upcomingAmt, color: '#F59E0B', percent: getPercent(upcomingAmt) },
         { name: 'Em atraso', value: overdueAmt, color: '#EF4444', percent: getPercent(overdueAmt) },
-        { name: 'Agendadas', value: scheduledAmt, color: '#2563EB', percent: getPercent(scheduledAmt) },
       ].filter(d => d.value > 0)
     };
   }, [payments]);
@@ -317,7 +314,7 @@ export default function Mensalidades() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* HEADER AREA */}
-
+        <div className="px-10 py-8 space-y-8 shrink-0">
 
           {/* TOP METRICS CARDS */}
           <div className="grid grid-cols-4 gap-6">

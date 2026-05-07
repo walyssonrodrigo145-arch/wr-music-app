@@ -54,6 +54,21 @@ export const appRouter = router({
         };
       }
     }),
+    cleanupTestData: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const term = "%teste%";
+      const studentList = await db.select({ id: students.id }).from(students)
+        .where(and(eq(students.userId, ctx.user.id), sql`LOWER(name) LIKE ${term} OR LOWER(email) LIKE ${term}`));
+      const studentIds = studentList.map(s => s.id);
+      if (studentIds.length > 0) {
+        await db.delete(lessons).where(sql`studentId IN ${studentIds}`);
+        await db.delete(paymentDues).where(sql`studentId IN ${studentIds}`);
+        await db.delete(students).where(sql`id IN ${studentIds}`);
+      }
+      await db.delete(lessons).where(and(eq(lessons.userId, ctx.user.id), sql`LOWER(title) LIKE ${term}`));
+      return { success: true, studentsRemoved: studentIds.length, lessonsRemoved: 0 };
+    }),
   }),
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -139,6 +154,23 @@ export const appRouter = router({
         });
 
         return { success: true, message: "Conta criada com sucesso! Você já pode fazer login." };
+      }),
+    verifyEmail: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        const [user] = await db.select().from(users).where(eq(users.verificationToken, input.token)).limit(1);
+        if (!user) throw new Error("Código de verificação inválido.");
+        if (user.verificationTokenExpiresAt && user.verificationTokenExpiresAt < new Date()) {
+          throw new Error("Código de verificação expirado.");
+        }
+        await db.update(users).set({ 
+          isEmailVerified: true, 
+          verificationToken: null, 
+          verificationTokenExpiresAt: null 
+        }).where(eq(users.id, user.id));
+        return { success: true };
       }),
   }),
 
@@ -447,11 +479,12 @@ export const appRouter = router({
         if (!db) throw new Error("Banco de dados não disponível");
         
         const { id, updateFutureDues, ...data } = input;
+        const updateData: any = { ...data, updatedAt: new Date() };
+        if (updateData.monthlyFee !== undefined) {
+          updateData.monthlyFee = String(updateData.monthlyFee);
+        }
         
-        await db.update(students).set({
-          ...data,
-          updatedAt: new Date(),
-        }).where(and(eq(students.id, id), eq(students.userId, ctx.user.id)));
+        await db.update(students).set(updateData).where(and(eq(students.id, id), eq(students.userId, ctx.user.id)));
 
         // Sincronizar vencimentos futuros se solicitado
         if (updateFutureDues && data.dueDay) {
@@ -652,6 +685,8 @@ export const appRouter = router({
       isExperimental: z.boolean().optional(),
       experimentalName: z.string().optional(),
       studentId: z.number().optional().nullable(),
+      instrumentId: z.number().optional().nullable(),
+      updateSeries: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -1710,6 +1745,7 @@ export const appRouter = router({
           notes: paymentDues.notes,
           studentName: students.name,
           studentPhone: students.phone,
+          email: students.email,
         })
           .from(paymentDues)
           .leftJoin(students, eq(paymentDues.studentId, students.id))

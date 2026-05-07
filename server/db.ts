@@ -273,9 +273,15 @@ export async function getRecentLessons(userId: number, limit = 10) {
     duration: lessons.duration,
     status: lessons.status,
     rating: lessons.rating,
+    isExperimental: lessons.isExperimental,
+    experimentalName: lessons.experimentalName,
+    instrumentId: lessons.instrumentId,
+    instrumentName: instruments.name,
     studentName: students.name,
     studentId: students.id,
-  }).from(lessons).leftJoin(students, eq(lessons.studentId, students.id))
+  }).from(lessons)
+    .leftJoin(students, eq(lessons.studentId, students.id))
+    .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
     .where(eq(lessons.userId, userId))
     .orderBy(desc(lessons.scheduledAt)).limit(limit);
 }

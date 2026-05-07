@@ -128,7 +128,7 @@ export default function Relatorios() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } }
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 100 } }
   };
 
   return (
@@ -338,7 +338,7 @@ export default function Relatorios() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[180px] scrollbar-thin pr-2">
                     {instrumentStats.items.map((item) => (
                       <div key={item.id} className="p-2.5 bg-muted/20 rounded-xl border border-border/50 flex flex-col items-center text-center transition-all hover:bg-muted/40">
-                        <div className="w-1.5 h-1.5 rounded-full mb-1.5" style={{ backgroundColor: item.color }} />
+                        <div className="w-1.5 h-1.5 rounded-full mb-1.5" style={{ backgroundColor: item.color || undefined }} />
                         <p className="text-[10px] font-black text-foreground uppercase truncate w-full">{item.name}</p>
                         <div className="flex items-baseline gap-1 mt-0.5">
                           <span className="text-lg font-black text-primary">{item.count}</span>

@@ -185,7 +185,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     }
 
     // Título padrão se estiver vazio
-    const student = students?.find(s => s.id.toString() === formData.studentId);
+    const student = students?.find((s: any) => s.id.toString() === formData.studentId);
     const studentLabel = formData.isExperimental ? formData.experimentalName : student?.name;
     const instrument = instruments?.find(i => i.id.toString() === formData.instrumentId);
     const submissionTitle = formData.title || (instrument ? `Aula de ${instrument.name}` : `Aula de Música (${studentLabel})`);
@@ -322,7 +322,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                    className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
                  >
                    <option value="">Selecione o aluno...</option>
-                   {students?.map(s => (
+                   {students?.map((s: any) => (
                      <option key={s.id} value={s.id.toString()}>{s.name}</option>
                    ))}
                  </select>

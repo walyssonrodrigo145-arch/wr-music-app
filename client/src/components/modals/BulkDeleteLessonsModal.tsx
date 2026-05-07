@@ -110,7 +110,7 @@ export default function BulkDeleteLessonsModal({
                   <SelectValue placeholder="Escolha um aluno" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[200px]">
-                  {students.map((s) => (
+                  {students.map((s: any) => (
                     <SelectItem key={s.id} value={s.id.toString()} className="font-bold">
                       {s.name}
                     </SelectItem>

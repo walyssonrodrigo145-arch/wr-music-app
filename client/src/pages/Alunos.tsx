@@ -326,25 +326,25 @@ export default function Alunos() {
 
   const filtered = useMemo(() => {
     return students
-      .filter((s) => {
+      .filter((s: StudentRow) => {
         const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || (s.instrumentName ?? "").toLowerCase().includes(search.toLowerCase());
         const matchStatus = statusFilter === "todos" || s.status === statusFilter;
         return matchSearch && matchStatus;
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a: StudentRow, b: StudentRow) => a.name.localeCompare(b.name));
   }, [students, search, statusFilter]);
 
   const stats = {
     total: students.length,
-    ativos: students.filter(s => s.status === "ativo").length,
-    pausados: students.filter(s => s.status === "pausado").length,
-    inativos: students.length - students.filter(s => s.status === "ativo").length - students.filter(s => s.status === "pausado").length,
+    ativos: students.filter((s: any) => s.status === "ativo").length,
+    pausados: students.filter((s: any) => s.status === "pausado").length,
+    inativos: students.length - students.filter((s: any) => s.status === "ativo").length - students.filter((s: any) => s.status === "pausado").length,
   };
 
   const newStudentsLast30Days = useMemo(() => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return students.filter(s => s.startDate && new Date(s.startDate) >= thirtyDaysAgo).length;
+    return students.filter((s: any) => s.startDate && new Date(s.startDate) >= thirtyDaysAgo).length;
   }, [students]);
 
   const lessonsToday = useMemo(() => {
@@ -443,7 +443,7 @@ export default function Alunos() {
                   ) : filtered.length === 0 ? (
                     <tr><td colSpan={5} className="py-20 text-center text-xs text-slate-400 font-medium italic">Nenhum aluno encontrado.</td></tr>
                   ) : (
-                    filtered.map((student) => (
+                    filtered.map((student: StudentRow) => (
                       <tr key={student.id} className="group hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setDetailsStudentId(student.id)}>
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-4">
@@ -618,11 +618,11 @@ export default function Alunos() {
         onOpenChange={(open) => { if (!open) setDetailsStudentId(null); }}
         studentId={detailsStudentId}
         onEdit={() => {
-          const s = students.find(st => st.id === detailsStudentId);
+          const s = (students as StudentRow[]).find(st => st.id === detailsStudentId);
           if (s) { setEditStudent(s); setModalOpen(true); setDetailsStudentId(null); }
         }}
         onDelete={() => {
-          const s = students.find(st => st.id === detailsStudentId);
+          const s = (students as StudentRow[]).find(st => st.id === detailsStudentId);
           if (s) { setDeleteStudent(s); setDetailsStudentId(null); }
         }}
       />
