@@ -307,6 +307,38 @@ export default function Mensalidades() {
            ))}
         </div>
 
+        {/* FLOW BY DUE DATE (Day 5, 10, 15, 20) */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 p-6 lg:p-8 shadow-sm space-y-6">
+           <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                 <TrendingUp size={20} />
+              </div>
+              <div>
+                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Previsão por Vencimento</h3>
+                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Quanto você irá receber em cada dia do mês</p>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {useMemo(() => {
+                const days = [5, 10, 15, 20, 25];
+                const dayMap: Record<number, number> = { 5: 0, 10: 0, 15: 0, 20: 0, 25: 0 };
+                payments.forEach(p => {
+                  const day = Number(p.dueDate.toString().split('-')[2]);
+                  if (dayMap[day] !== undefined) dayMap[day] += Number(p.amount);
+                });
+                return days.map(d => ({ day: d, amount: dayMap[d] }));
+              }, [payments]).map((item, i) => (
+                <div key={i} className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 group hover:border-blue-200 transition-all">
+                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-blue-500 transition-colors">Dia {String(item.day).padStart(2, '0')}</p>
+                   <p className="text-base font-black text-slate-700 tracking-tighter">
+                      {currencyFormat(item.amount)}
+                   </p>
+                </div>
+              ))}
+           </div>
+        </div>
+
         {/* MAIN CONTENT SECTION */}
         <div className="bg-white lg:rounded-[2rem] border-0 lg:border border-slate-100 lg:shadow-sm overflow-hidden flex flex-col -mx-4 lg:mx-0">
            {/* Desktop Table View */}
