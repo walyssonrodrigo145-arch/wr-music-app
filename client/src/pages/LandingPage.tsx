@@ -81,9 +81,11 @@ const LandingPage = () => {
                 Entrar
               </button>
             </Link>
-            <button className="px-6 py-2.5 bg-blue-600 text-white rounded-full text-sm font-semibold shadow-lg shadow-blue-500/25 hover:bg-blue-700 hover:-translate-y-0.5 transition-all active:scale-95">
-              Testar grátis
-            </button>
+            <Link href="/login">
+              <button className="px-6 py-2.5 bg-blue-600 text-white rounded-full text-sm font-semibold shadow-lg shadow-blue-500/25 hover:bg-blue-700 hover:-translate-y-0.5 transition-all active:scale-95">
+                Testar grátis
+              </button>
+            </Link>
           </div>
 
           {/* Mobile Toggle */}
@@ -120,7 +122,9 @@ const LandingPage = () => {
                   <Link href="/login">
                     <button className="w-full py-3 text-center font-medium text-slate-600">Entrar</button>
                   </Link>
-                  <button className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold">Testar grátis</button>
+                  <Link href="/login">
+                    <button className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold">Testar grátis</button>
+                  </Link>
                 </div>
               </div>
             </motion.div>
@@ -157,14 +161,18 @@ const LandingPage = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center gap-4 mb-10">
-                <button className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-xl shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group">
-                  Testar grátis por 7 dias
-                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button className="w-full sm:w-auto px-8 py-4 bg-white/5 text-white border border-white/10 rounded-2xl font-bold backdrop-blur-md hover:bg-white/10 transition-all flex items-center justify-center gap-2">
-                  <Play size={18} className="fill-current" />
-                  Ver demonstração
-                </button>
+                <Link href="/login">
+                  <button className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-xl shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group">
+                    Testar grátis por 7 dias
+                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </Link>
+                <Link href="/dashboard">
+                  <button className="w-full sm:w-auto px-8 py-4 bg-white/5 text-white border border-white/10 rounded-2xl font-bold backdrop-blur-md hover:bg-white/10 transition-all flex items-center justify-center gap-2">
+                    <Play size={18} className="fill-current" />
+                    Ver demonstração
+                  </button>
+                </Link>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
@@ -415,9 +423,11 @@ const LandingPage = () => {
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-4 rounded-2xl border border-slate-200 text-slate-900 font-bold hover:bg-slate-50 transition-colors">
-                Testar grátis
-              </button>
+              <Link href="/login">
+                <button className="w-full py-4 rounded-2xl border border-slate-200 text-slate-900 font-bold hover:bg-slate-50 transition-colors">
+                  Testar grátis
+                </button>
+              </Link>
             </motion.div>
 
             {/* Plano Profissional */}
@@ -444,9 +454,11 @@ const LandingPage = () => {
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all">
-                Testar grátis
-              </button>
+              <Link href="/login">
+                <button className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all">
+                  Testar grátis
+                </button>
+              </Link>
             </motion.div>
 
             {/* Plano Premium */}
@@ -470,9 +482,11 @@ const LandingPage = () => {
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-4 rounded-2xl border border-slate-200 text-slate-900 font-bold hover:bg-slate-50 transition-colors">
-                Testar grátis
-              </button>
+              <Link href="/login">
+                <button className="w-full py-4 rounded-2xl border border-slate-200 text-slate-900 font-bold hover:bg-slate-50 transition-colors">
+                  Testar grátis
+                </button>
+              </Link>
             </motion.div>
           </div>
         </div>
@@ -491,9 +505,11 @@ const LandingPage = () => {
               <p className="text-xl text-slate-400 mb-12">
                 Comece agora mesmo seu teste grátis de 7 dias. Sem cartão de crédito, sem burocracia.
               </p>
-              <button className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-2xl shadow-blue-500/40 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-3 mx-auto">
-                Testar grátis por 7 dias <ArrowRight size={24} />
-              </button>
+              <Link href="/login">
+                <button className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-2xl shadow-blue-500/40 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-3 mx-auto">
+                  Testar grátis por 7 dias <ArrowRight size={24} />
+                </button>
+              </Link>
             </div>
           </div>
         </div>
