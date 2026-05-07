@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
@@ -240,7 +240,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Upcoming Lessons */}
-        <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
+        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Próximas Aulas</h3>
               <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50" onClick={() => navigate('/aulas')}>Ver todas</Button>
@@ -250,7 +250,7 @@ export default function Dashboard() {
                 <div key={lesson.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-transparent hover:border-border transition-all group">
                    <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-card border border-border flex flex-col items-center justify-center shadow-sm">
-                         <span className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">
+                         <span className="text-[8px] font-black text-muted-foreground uppercase leading-none mb-1">
                            {lesson.scheduledAt ? format(new Date(lesson.scheduledAt), "MMM", { locale: ptBR }).replace('.', '') : '---'}
                          </span>
                          <span className="text-sm font-black text-foreground leading-none">
@@ -277,7 +277,7 @@ export default function Dashboard() {
         </div>
 
         {/* Overdue Payments */}
-        <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
+        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Inadimplentes</h3>
               <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50" onClick={() => navigate('/mensalidades')}>Ver todas</Button>
@@ -315,3 +315,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

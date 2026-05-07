@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -283,11 +283,11 @@ export function TemplatesModal({ open, onClose }: { open: boolean; onClose: () =
                           </span>
                         </div>
                         <div className="flex gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
-                          <button onClick={() => startEdit(t)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/50 dark:bg-black/20 hover:bg-white dark:hover:bg-black/50 transition-colors"><Pencil size={14} /></button>
+                          <button onClick={() => startEdit(t)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-card/50 dark:bg-black/20 hover:bg-card dark:hover:bg-black/50 transition-colors"><Pencil size={14} /></button>
                           <button onClick={() => deleteMut.mutate({ id: t.id })} className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-100/50 dark:bg-red-900/30 text-red-600 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"><Trash2 size={14} /></button>
                         </div>
                       </div>
-                      <p className="text-xs text-foreground/80 bg-white/40 dark:bg-black/20 p-2.5 rounded-lg border border-black/5 leading-relaxed">{t.body}</p>
+                      <p className="text-xs text-foreground/80 bg-card/40 dark:bg-black/20 p-2.5 rounded-lg border border-black/5 leading-relaxed">{t.body}</p>
                     </div>
                   );
                 })}
@@ -322,3 +322,4 @@ export function DeleteConfirmModal({ onConfirm, onCancel, isPending }: { onConfi
     </div>
   );
 }
+

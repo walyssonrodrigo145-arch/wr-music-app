@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   DollarSign, CheckCircle2, Clock, AlertCircle, Plus, X,
@@ -104,25 +104,25 @@ function NovaModal({ open, onClose, students }: {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative bg-white rounded-[2rem] border border-slate-200 shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-card rounded-[2rem] border border-border shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col"
       >
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+        <div className="flex items-center justify-between p-6 border-b border-border">
            <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                  <DollarSign size={20} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 tracking-tight">Nova Mensalidade</h3>
+              <h3 className="text-lg font-bold text-foreground tracking-tight">Nova Mensalidade</h3>
            </div>
-           <button onClick={onClose} className="w-10 h-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+           <button onClick={onClose} className="w-10 h-10 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors">
              <X size={20} />
            </button>
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto scrollbar-none">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Selecione o Aluno</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Selecione o Aluno</label>
             <select value={form.studentId} onChange={e => handleStudentChange(e.target.value)}
-              className="w-full h-12 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-slate-700 transition-all cursor-pointer">
+              className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-foreground transition-all cursor-pointer">
               <option value="">Selecionar aluno...</option>
               {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
@@ -130,14 +130,14 @@ function NovaModal({ open, onClose, students }: {
 
           <div className="grid grid-cols-2 gap-4">
              <div className="space-y-2">
-               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Valor (R$)</label>
+               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Valor (R$)</label>
                <Input value={form.amount} onChange={e => set("amount", e.target.value)}
-                 type="number" className="h-12 text-sm font-bold rounded-xl border-slate-200 bg-slate-50/50" />
+                 type="number" className="h-12 text-sm font-bold rounded-xl border-border bg-muted/50" />
              </div>
              <div className="space-y-2">
-               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Dia Vencimento</label>
+               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Dia Vencimento</label>
                <select value={form.dueDay} onChange={e => set("dueDay", e.target.value)}
-                 className="w-full h-12 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-slate-700 cursor-pointer">
+                 className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-foreground cursor-pointer">
                  {[5,10,15,20,25].map(d => <option key={d} value={String(d)}>{d}</option>)}
                </select>
              </div>
@@ -145,16 +145,16 @@ function NovaModal({ open, onClose, students }: {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Mês inicial</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Mês inicial</label>
               <select value={form.startMonth} onChange={e => set("startMonth", e.target.value)}
-                className="w-full h-12 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10">
+                className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10">
                 {MONTHS_FULL.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Ano</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Ano</label>
               <select value={form.startYear} onChange={e => set("startYear", e.target.value)}
-                className="w-full h-12 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50/50 px-4">
+                className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4">
                 {[now.getFullYear(), now.getFullYear() + 1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
@@ -169,7 +169,7 @@ function NovaModal({ open, onClose, students }: {
                     "h-10 rounded-xl text-[10px] font-bold uppercase transition-all shadow-sm",
                     monthsCount === n
                       ? "bg-blue-600 text-white shadow-blue-500/20 scale-105"
-                      : "bg-white text-blue-400 border border-blue-100 hover:bg-blue-50"
+                      : "bg-card text-blue-400 border border-blue-100 hover:bg-blue-50"
                   )}>
                   {n} {n === 1 ? "mês" : "meses"}
                 </button>
@@ -178,7 +178,7 @@ function NovaModal({ open, onClose, students }: {
           </div>
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex gap-4">
+        <div className="p-6 border-t border-border bg-muted/30 flex gap-4">
           <Button variant="ghost" className="flex-1 h-12 rounded-xl text-[10px] font-bold uppercase tracking-widest" onClick={onClose}>Cancelar</Button>
           <Button className="flex-1 h-12 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-blue-500/20 gap-3 bg-blue-600 hover:bg-blue-700"
             onClick={handleSubmit} disabled={generateMutation.isPending}>
@@ -254,17 +254,17 @@ export default function Mensalidades() {
               <CreditCard size={24} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight leading-none">Mensalidades</h2>
-              <p className="text-[10px] lg:text-xs text-slate-400 font-medium mt-1 lg:mt-2">Controle financeiro da escola</p>
+              <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight leading-none">Mensalidades</h2>
+              <p className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 lg:mt-2">Controle financeiro da escola</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                 <Input 
                   placeholder="Buscar..." 
-                  className="pl-9 h-10 border-slate-100 bg-white rounded-xl shadow-sm text-xs"
+                  className="pl-9 h-10 border-border bg-card rounded-xl shadow-sm text-xs"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -280,9 +280,9 @@ export default function Mensalidades() {
         </div>
 
         {/* Date Selector */}
-        <div className="flex items-center justify-center gap-4 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm w-fit mx-auto lg:mx-0">
+        <div className="flex items-center justify-center gap-4 bg-card p-2 rounded-2xl border border-border shadow-sm w-fit mx-auto lg:mx-0">
            <Button variant="ghost" size="icon" onClick={prevMonth} className="h-8 w-8 rounded-lg"><ChevronLeft size={16} /></Button>
-           <h3 className="text-xs font-black text-slate-700 min-w-[120px] text-center uppercase tracking-widest">
+           <h3 className="text-xs font-black text-foreground min-w-[120px] text-center uppercase tracking-widest">
              {MONTHS_FULL[viewMonth-1]} {viewYear}
            </h3>
            <Button variant="ghost" size="icon" onClick={nextMonth} className="h-8 w-8 rounded-lg"><ChevronRight size={16} /></Button>
@@ -299,7 +299,7 @@ export default function Mensalidades() {
              <div key={i} className={cn("relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden shrink-0", item.bg, item.border)}>
                <div className="relative z-10">
                  <p className={cn("text-[8px] lg:text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1 lg:mb-2", item.color)}>{item.label}</p>
-                 <p className="text-sm lg:text-2xl font-black text-slate-800 leading-none">
+                 <p className="text-sm lg:text-2xl font-black text-foreground leading-none">
                     {currencyFormat(item.amount)}
                  </p>
                </div>
@@ -308,14 +308,14 @@ export default function Mensalidades() {
         </div>
 
         {/* FLOW BY DUE DATE (Day 5, 10, 15, 20) */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 p-6 lg:p-8 shadow-sm space-y-6">
+        <div className="bg-card rounded-[2rem] border border-border p-6 lg:p-8 shadow-sm space-y-6">
            <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                  <TrendingUp size={20} />
               </div>
               <div>
-                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Previsão por Vencimento</h3>
-                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Quanto você irá receber em cada dia do mês</p>
+                 <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Previsão por Vencimento</h3>
+                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Quanto você irá receber em cada dia do mês</p>
               </div>
            </div>
 
@@ -329,9 +329,9 @@ export default function Mensalidades() {
                 });
                 return days.map(d => ({ day: d, amount: dayMap[d] }));
               }, [payments]).map((item, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 group hover:border-blue-200 transition-all">
-                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-blue-500 transition-colors">Dia {String(item.day).padStart(2, '0')}</p>
-                   <p className="text-base font-black text-slate-700 tracking-tighter">
+                <div key={i} className="p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2 group-hover:text-blue-500 transition-colors">Dia {String(item.day).padStart(2, '0')}</p>
+                   <p className="text-base font-black text-foreground tracking-tighter">
                       {currencyFormat(item.amount)}
                    </p>
                 </div>
@@ -340,27 +340,27 @@ export default function Mensalidades() {
         </div>
 
         {/* MAIN CONTENT SECTION */}
-        <div className="bg-white lg:rounded-[2rem] border-0 lg:border border-slate-100 lg:shadow-sm overflow-hidden flex flex-col -mx-4 lg:mx-0">
+        <div className="bg-card lg:rounded-[2rem] border-0 lg:border border-border lg:shadow-sm overflow-hidden flex flex-col -mx-4 lg:mx-0">
            {/* Desktop Table View */}
            <div className="hidden lg:block overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="border-b border-slate-50">
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aluno</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Vencimento</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Status</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                  <tr className="border-b border-border">
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Aluno</th>
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valor</th>
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Vencimento</th>
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Status</th>
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {isLoading ? (
                     <tr><td colSpan={5} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr><td colSpan={5} className="py-20 text-center text-xs text-slate-400 font-medium italic">Nenhuma mensalidade encontrada.</td></tr>
+                    <tr><td colSpan={5} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhuma mensalidade encontrada.</td></tr>
                   ) : (
                     filtered.map((payment) => (
-                      <tr key={payment.id} className="group hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setDetailsPaymentId(payment.id)}>
+                      <tr key={payment.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailsPaymentId(payment.id)}>
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-9 h-9 border-2 border-white shadow-sm shrink-0">
@@ -369,20 +369,20 @@ export default function Mensalidades() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
-                              <p className="text-sm font-bold text-slate-700 truncate">{payment.studentName}</p>
-                              <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{payment.email}</p>
+                              <p className="text-sm font-bold text-foreground truncate">{payment.studentName}</p>
+                              <p className="text-[10px] text-muted-foreground font-medium truncate mt-0.5">{payment.email}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-8 py-4">
-                          <p className="text-sm font-black text-slate-700">
+                          <p className="text-sm font-black text-foreground">
                              {currencyFormat(Number(payment.amount))}
                           </p>
                         </td>
                         <td className="px-8 py-4 text-center">
                           <div className="flex flex-col items-center">
-                             <p className="text-xs font-bold text-slate-600">{format(new Date(payment.dueDate + "T12:00:00"), "dd/MM")}</p>
-                             <p className="text-[9px] text-slate-400 font-medium uppercase mt-1">Dia {payment.dueDate.toString().split('-')[2]}</p>
+                             <p className="text-xs font-bold text-muted-foreground">{format(new Date(payment.dueDate + "T12:00:00"), "dd/MM")}</p>
+                             <p className="text-[9px] text-muted-foreground font-medium uppercase mt-1">Dia {payment.dueDate.toString().split('-')[2]}</p>
                           </div>
                         </td>
                         <td className="px-8 py-4">
@@ -393,22 +393,22 @@ export default function Mensalidades() {
                         <td className="px-8 py-4 text-right" onClick={e => e.stopPropagation()}>
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-slate-600">
+                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-muted-foreground">
                                     <MoreVertical size={16} />
                                  </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 rounded-xl p-2 border-slate-100">
+                              <DropdownMenuContent align="end" className="w-48 rounded-xl p-2 border-border">
                                  {payment.status !== "pago" && (
                                    <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}>
                                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                      <span className="text-xs font-bold text-slate-600">Marcar como Pago</span>
+                                      <span className="text-xs font-bold text-muted-foreground">Marcar como Pago</span>
                                    </DropdownMenuItem>
                                  )}
                                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setEditPayment(payment)}>
                                     <Pencil className="w-4 h-4 text-blue-500" />
-                                    <span className="text-xs font-bold text-slate-600">Editar Registro</span>
+                                    <span className="text-xs font-bold text-muted-foreground">Editar Registro</span>
                                  </DropdownMenuItem>
-                                 <DropdownMenuSeparator className="bg-slate-50" />
+                                 <DropdownMenuSeparator className="bg-muted" />
                                  <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
                                    if(confirm("Deseja excluir esta mensalidade?")) {
                                      // delete logic
@@ -432,12 +432,12 @@ export default function Mensalidades() {
               {isLoading ? (
                 <div className="py-10 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></div>
               ) : filtered.length === 0 ? (
-                <div className="py-10 text-center text-xs text-slate-400 font-medium italic">Nenhuma mensalidade encontrada.</div>
+                <div className="py-10 text-center text-xs text-muted-foreground font-medium italic">Nenhuma mensalidade encontrada.</div>
               ) : (
                 filtered.map((payment) => (
                   <div 
                     key={payment.id} 
-                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm active:scale-[0.98] transition-all"
+                    className="bg-card rounded-2xl p-4 border border-border shadow-sm active:scale-[0.98] transition-all"
                     onClick={() => setDetailsPaymentId(payment.id)}
                   >
                     <div className="flex items-center justify-between mb-4">
@@ -448,32 +448,32 @@ export default function Mensalidades() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-700 truncate">{payment.studentName}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{MONTHS_PT[payment.month-1]} {payment.year}</p>
+                          <p className="text-sm font-bold text-foreground truncate">{payment.studentName}</p>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{MONTHS_PT[payment.month-1]} {payment.year}</p>
                         </div>
                       </div>
                       <StatusBadge status={payment.status} />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-50">
+                    <div className="grid grid-cols-2 gap-4 py-3 border-y border-border">
                       <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor</p>
-                        <p className="text-xs font-black text-slate-700">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Valor</p>
+                        <p className="text-xs font-black text-foreground">
                           {currencyFormat(Number(payment.amount))}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vencimento</p>
-                        <p className="text-xs font-black text-slate-700">{format(new Date(payment.dueDate + "T12:00:00"), "dd/MM/yyyy")}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Vencimento</p>
+                        <p className="text-xs font-black text-foreground">{format(new Date(payment.dueDate + "T12:00:00"), "dd/MM/yyyy")}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between mt-4">
-                      <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg border-slate-100 text-[10px] font-black uppercase gap-2 text-blue-600">
+                      <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg border-border text-[10px] font-black uppercase gap-2 text-blue-600">
                          Detalhes
                       </Button>
                       <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-slate-300">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground">
                           <MoreVertical size={14} />
                         </Button>
                       </div>
@@ -484,12 +484,12 @@ export default function Mensalidades() {
            </div>
 
            {/* Pagination UI - Adjusted for mobile */}
-           <div className="p-4 lg:p-6 border-t border-slate-50 flex items-center justify-between bg-slate-50/20">
-               <p className="hidden sm:block text-[11px] text-slate-400 font-medium">Mostrando {filtered.length} registros</p>
+           <div className="p-4 lg:p-6 border-t border-border flex items-center justify-between bg-muted/20">
+               <p className="hidden sm:block text-[11px] text-muted-foreground font-medium">Mostrando {filtered.length} registros</p>
                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><ChevronDown className="rotate-90" size={14} /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ChevronDown className="rotate-90" size={14} /></Button>
                   <Button variant="ghost" className="h-8 w-8 text-xs font-bold bg-primary text-white hover:bg-primary">1</Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><ChevronDown className="-rotate-90" size={14} /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ChevronDown className="-rotate-90" size={14} /></Button>
                </div>
            </div>
         </div>
@@ -505,3 +505,5 @@ export default function Mensalidades() {
     </div>
   );
 }
+
+

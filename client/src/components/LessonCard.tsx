@@ -1,4 +1,4 @@
-import { 
+﻿import { 
   Clock, 
   CheckCircle2, 
   XCircle, 
@@ -157,3 +157,4 @@ export default function LessonCard({ lesson, onStatusChange, onDelete, onEdit, o
     </motion.div>
   );
 }
+

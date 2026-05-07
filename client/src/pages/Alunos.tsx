@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { format, isSameDay, startOfDay } from "date-fns";
 import {
@@ -54,7 +54,7 @@ const EMPTY_FORM: FormData = {
 // ─── Badges ───────────────────────────────────────────────────────────────────
 function LevelBadge({ level }: { level: string }) {
   const config: Record<string, { label: string; className: string }> = {
-    iniciante: { label: "Iniciante", className: "bg-slate-50 text-slate-600 border-slate-100" },
+    iniciante: { label: "Iniciante", className: "bg-muted text-muted-foreground border-border" },
     intermediario: { label: "Intermediário", className: "bg-indigo-50 text-indigo-600 border-indigo-100" },
     avancado: { label: "Avançado", className: "bg-primary/5 text-primary border-primary/10" },
   };
@@ -365,8 +365,8 @@ export default function Alunos() {
               <Users size={24} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight leading-none">Alunos</h2>
-              <p className="text-[10px] lg:text-xs text-slate-400 font-medium mt-1 lg:mt-2">
+              <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight leading-none">Alunos</h2>
+              <p className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 lg:mt-2">
                 {stats.total} matrículas • {stats.ativos} ativos
               </p>
             </div>
@@ -374,10 +374,10 @@ export default function Alunos() {
 
           <div className="flex items-center gap-3 w-full md:w-auto">
              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                 <Input 
                   placeholder="Buscar..." 
-                  className="pl-9 h-10 border-slate-100 bg-white rounded-xl shadow-sm text-xs"
+                  className="pl-9 h-10 border-border bg-card rounded-xl shadow-sm text-xs"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -403,15 +403,15 @@ export default function Alunos() {
             <div key={i} className={cn("relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden group shrink-0", item.bg, item.border)}>
               <div className="relative z-10">
                 <div className="flex items-center gap-2 lg:gap-3 mb-2 lg:mb-4">
-                  <div className={cn("w-8 h-8 lg:w-9 lg:h-9 rounded-xl flex items-center justify-center bg-white shadow-sm shrink-0", item.color)}>
+                  <div className={cn("w-8 h-8 lg:w-9 lg:h-9 rounded-xl flex items-center justify-center bg-card shadow-sm shrink-0", item.color)}>
                     <item.icon size={16} />
                   </div>
                   <div>
                     <p className={cn("text-[8px] lg:text-[10px] font-bold uppercase tracking-wider opacity-60", item.color)}>{item.label}</p>
-                    <p className="text-lg lg:text-2xl font-black text-slate-800 leading-none">{item.count}</p>
+                    <p className="text-lg lg:text-2xl font-black text-foreground leading-none">{item.count}</p>
                   </div>
                 </div>
-                <p className="text-[8px] lg:text-[10px] text-slate-400 font-medium">{item.sub}</p>
+                <p className="text-[8px] lg:text-[10px] text-muted-foreground font-medium">{item.sub}</p>
               </div>
             </div>
           ))}
@@ -420,27 +420,27 @@ export default function Alunos() {
         {/* MAIN CONTENT GRID */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* TABLE / CARD SECTION */}
-          <div className="xl:col-span-9 bg-white lg:rounded-[2rem] border-0 lg:border border-slate-100 lg:shadow-sm overflow-hidden flex flex-col -mx-4 lg:mx-0">
+          <div className="xl:col-span-9 bg-card lg:rounded-[2rem] border-0 lg:border border-border lg:shadow-sm overflow-hidden flex flex-col -mx-4 lg:mx-0">
             {/* Desktop Table View */}
             <div className="hidden lg:block overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="border-b border-slate-50">
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aluno</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Instrumento / Nível</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mensalidade</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Status</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                  <tr className="border-b border-border">
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Aluno</th>
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Instrumento / Nível</th>
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mensalidade</th>
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Status</th>
+                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {isLoading ? (
                     <tr><td colSpan={5} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr><td colSpan={5} className="py-20 text-center text-xs text-slate-400 font-medium italic">Nenhum aluno encontrado.</td></tr>
+                    <tr><td colSpan={5} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhum aluno encontrado.</td></tr>
                   ) : (
                     filtered.map((student: StudentRow) => (
-                      <tr key={student.id} className="group hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setDetailsStudentId(student.id)}>
+                      <tr key={student.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailsStudentId(student.id)}>
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-10 h-10 border-2 border-white shadow-sm shrink-0">
@@ -449,8 +449,8 @@ export default function Alunos() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
-                              <p className="text-sm font-bold text-slate-700 truncate">{student.name}</p>
-                              <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">{student.email}</p>
+                              <p className="text-sm font-bold text-foreground truncate">{student.name}</p>
+                              <p className="text-[11px] text-muted-foreground font-medium truncate mt-0.5">{student.email}</p>
                             </div>
                           </div>
                         </td>
@@ -458,16 +458,16 @@ export default function Alunos() {
                           <div className="flex flex-col gap-1.5">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full" style={{ background: student.instrumentColor || "#6366f1" }} />
-                              <span className="text-xs font-semibold text-slate-600">{student.instrumentName}</span>
+                              <span className="text-xs font-semibold text-muted-foreground">{student.instrumentName}</span>
                             </div>
                             <LevelBadge level={student.level} />
                           </div>
                         </td>
                         <td className="px-8 py-4">
-                          <p className="text-sm font-bold text-slate-700 leading-none">
+                          <p className="text-sm font-bold text-foreground leading-none">
                             {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
                           </p>
-                          <p className="text-[10px] text-slate-400 font-medium mt-1.5 uppercase">Dia {student.dueDay || 10}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium mt-1.5 uppercase">Dia {student.dueDay || 10}</p>
                         </td>
                         <td className="px-8 py-4 text-center">
                           <StatusBadge
@@ -479,7 +479,7 @@ export default function Alunos() {
                         <td className="px-8 py-4 text-right" onClick={e => e.stopPropagation()}>
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                 <Button variant="ghost" size="icon" className="text-slate-300 hover:text-slate-600">
+                                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-muted-foreground">
                                     <MoreVertical size={18} />
                                  </Button>
                               </DropdownMenuTrigger>
@@ -507,12 +507,12 @@ export default function Alunos() {
               {isLoading ? (
                 <div className="py-10 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></div>
               ) : filtered.length === 0 ? (
-                <div className="py-10 text-center text-xs text-slate-400 font-medium italic">Nenhum aluno encontrado.</div>
+                <div className="py-10 text-center text-xs text-muted-foreground font-medium italic">Nenhum aluno encontrado.</div>
               ) : (
                 filtered.map((student: StudentRow) => (
                   <div 
                     key={student.id} 
-                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm active:scale-[0.98] transition-all"
+                    className="bg-card rounded-2xl p-4 border border-border shadow-sm active:scale-[0.98] transition-all"
                     onClick={() => setDetailsStudentId(student.id)}
                   >
                     <div className="flex items-center justify-between mb-4">
@@ -523,10 +523,10 @@ export default function Alunos() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-700 truncate">{student.name}</p>
+                          <p className="text-sm font-bold text-foreground truncate">{student.name}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <div className="w-2 h-2 rounded-full" style={{ background: student.instrumentColor || "#6366f1" }} />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">{student.instrumentName}</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">{student.instrumentName}</span>
                           </div>
                         </div>
                       </div>
@@ -537,23 +537,23 @@ export default function Alunos() {
                       />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-50">
+                    <div className="grid grid-cols-2 gap-4 py-3 border-y border-border">
                       <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mensalidade</p>
-                        <p className="text-xs font-black text-slate-700">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Mensalidade</p>
+                        <p className="text-xs font-black text-foreground">
                           {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Nível</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Nível</p>
                         <LevelBadge level={student.level} />
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between mt-4">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">Vencimento: Dia {student.dueDay || 10}</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase">Vencimento: Dia {student.dueDay || 10}</p>
                       <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-slate-400" onClick={() => { setEditStudent(student); setModalOpen(true); }}>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground" onClick={() => { setEditStudent(student); setModalOpen(true); }}>
                           <Pencil size={14} />
                         </Button>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-50" onClick={() => setDeleteStudent(student)}>
@@ -567,13 +567,13 @@ export default function Alunos() {
             </div>
             
             {/* Pagination UI - Adjusted for mobile */}
-            <div className="p-4 lg:p-6 border-t border-slate-50 flex items-center justify-between bg-slate-50/20">
-               <p className="hidden sm:block text-[11px] text-slate-400 font-medium">Mostrando 1 a {filtered.length} de {stats.total} alunos</p>
-               <p className="sm:hidden text-[11px] text-slate-400 font-medium">{filtered.length} registros</p>
+            <div className="p-4 lg:p-6 border-t border-border flex items-center justify-between bg-muted/20">
+               <p className="hidden sm:block text-[11px] text-muted-foreground font-medium">Mostrando 1 a {filtered.length} de {stats.total} alunos</p>
+               <p className="sm:hidden text-[11px] text-muted-foreground font-medium">{filtered.length} registros</p>
                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><ChevronDown className="rotate-90" size={14} /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ChevronDown className="rotate-90" size={14} /></Button>
                   <Button variant="ghost" className="h-8 w-8 text-xs font-bold bg-primary text-white hover:bg-primary">1</Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><ChevronDown className="-rotate-90" size={14} /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ChevronDown className="-rotate-90" size={14} /></Button>
                </div>
             </div>
           </div>
@@ -581,9 +581,9 @@ export default function Alunos() {
           {/* RIGHT SIDEBAR Area - Adjusted for mobile (stacks at bottom) */}
           <div className="xl:col-span-3 space-y-6 lg:sticky lg:top-8">
              {/* Resumo Rápido Card */}
-             <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm overflow-hidden relative">
+             <div className="bg-card rounded-[2rem] border border-border p-6 shadow-sm overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-8 translate-x-8 blur-2xl" />
-                <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
                   <TrendingUp size={16} className="text-primary" />
                   Resumo rápido
                 </h3>
@@ -597,17 +597,17 @@ export default function Alunos() {
                    
                    <div className="grid grid-cols-2 xl:grid-cols-1 gap-4 pt-2">
                       <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Novos (30 dias)</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Novos (30 dias)</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xl font-black text-slate-800">{newStudentsLast30Days}</span>
+                          <span className="text-xl font-black text-foreground">{newStudentsLast30Days}</span>
                           <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-none text-[9px] font-bold px-1.5 h-4">+12%</Badge>
                         </div>
                       </div>
                       
                       <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Ativos (%)</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Ativos (%)</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xl font-black text-slate-800">{activeRate}%</span>
+                          <span className="text-xl font-black text-foreground">{activeRate}%</span>
                         </div>
                         <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
                            <div className="h-full bg-primary" style={{ width: `${activeRate}%` }} />
@@ -618,19 +618,19 @@ export default function Alunos() {
              </div>
 
              {/* Lembretes Card */}
-             <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+             <div className="bg-card rounded-[2rem] border border-border p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                   <Bell size={16} className="text-primary" />
-                  <h3 className="text-sm font-bold text-slate-800">Alertas</h3>
+                  <h3 className="text-sm font-bold text-foreground">Alertas</h3>
                 </div>
                 <div className="space-y-3">
                    <div className="p-3 bg-rose-50/50 border border-rose-100/50 rounded-2xl group cursor-pointer hover:bg-rose-50 transition-colors">
                       <div className="flex gap-3">
-                         <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-rose-500 shrink-0">
+                         <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center text-rose-500 shrink-0">
                             <Plus size={16} />
                          </div>
                          <div className="min-w-0">
-                            <p className="text-[11px] font-bold text-slate-800 truncate">Mensalidades em atraso</p>
+                            <p className="text-[11px] font-bold text-foreground truncate">Mensalidades em atraso</p>
                             <p className="text-[10px] text-rose-500 font-bold mt-0.5">
                               {overduePayments.length} {overduePayments.length === 1 ? 'pendência' : 'pendências'}
                             </p>
@@ -640,11 +640,11 @@ export default function Alunos() {
                    
                    <div className="p-3 bg-blue-50/50 border border-blue-100/50 rounded-2xl group cursor-pointer hover:bg-blue-50 transition-colors">
                       <div className="flex gap-3">
-                         <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-blue-500 shrink-0">
+                         <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center text-blue-500 shrink-0">
                             <Users size={16} />
                          </div>
                          <div className="min-w-0">
-                            <p className="text-[11px] font-bold text-slate-800 truncate">Aulas hoje</p>
+                            <p className="text-[11px] font-bold text-foreground truncate">Aulas hoje</p>
                             <p className="text-[10px] text-blue-500 font-bold mt-0.5">
                               {lessonsToday} {lessonsToday === 1 ? 'aula agendada' : 'aulas agendadas'}
                             </p>
@@ -689,3 +689,5 @@ export default function Alunos() {
     </div>
   );
 }
+
+

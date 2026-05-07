@@ -1,4 +1,4 @@
-import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2 } from "lucide-react";
+﻿import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -182,3 +182,4 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
     </Dialog>
   );
 }
+

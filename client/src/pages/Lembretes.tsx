@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+﻿import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   BellRing, Plus, Loader2,
@@ -206,16 +206,16 @@ export default function Lembretes() {
               <Bell size={24} className="text-violet-600" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight leading-none">Lembretes</h2>
-              <p className="text-[10px] lg:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1 lg:mt-2">Gestão de avisos e notificações</p>
+              <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight leading-none">Lembretes</h2>
+              <p className="text-[10px] lg:text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1 lg:mt-2">Gestão de avisos e notificações</p>
             </div>
           </div>
           
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 sm:pb-0">
-            <Button variant="outline" className="h-11 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest gap-2 bg-white border-slate-100 shrink-0" onClick={() => setTemplatesOpen(true)}>
+            <Button variant="outline" className="h-11 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest gap-2 bg-card border-border shrink-0" onClick={() => setTemplatesOpen(true)}>
               <FileText size={16} /> <span className="hidden xs:inline">Modelos</span>
             </Button>
-            <Button variant="outline" className="h-11 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest gap-2 bg-white border-slate-100 shrink-0" onClick={() => setModalOpen(true)}>
+            <Button variant="outline" className="h-11 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest gap-2 bg-card border-border shrink-0" onClick={() => setModalOpen(true)}>
               <Plus size={16} /> <span className="hidden xs:inline">Manual</span>
             </Button>
             <Button className="h-11 rounded-xl px-5 text-[10px] font-black uppercase tracking-widest gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 shrink-0" onClick={handleGenerateAll} disabled={isGenerating || !autoEnabled}>
@@ -237,11 +237,11 @@ export default function Lembretes() {
           "relative overflow-hidden p-6 rounded-[2rem] border transition-all duration-300",
           autoEnabled 
             ? "bg-gradient-to-br from-indigo-600 to-indigo-800 border-indigo-700 shadow-xl shadow-indigo-200 text-white" 
-            : "bg-white border-slate-100 shadow-sm text-slate-400"
+            : "bg-card border-border shadow-sm text-muted-foreground"
         )}>
           {autoEnabled && (
             <>
-              <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+              <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-card/10 blur-2xl" />
               <div className="absolute -left-10 -bottom-10 w-24 h-24 rounded-full bg-indigo-400/20 blur-xl" />
             </>
           )}
@@ -249,22 +249,22 @@ export default function Lembretes() {
           <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
             <div className={cn(
               "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg",
-              autoEnabled ? "bg-white/20 text-white" : "bg-slate-50 text-slate-300"
+              autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground"
             )}>
               <Zap size={28} />
             </div>
             
             <div className="flex-1 text-center sm:text-left min-w-0">
               <div className="flex items-center justify-center sm:justify-start gap-3 mb-2">
-                <h3 className={cn("text-base font-black uppercase tracking-widest", autoEnabled ? "text-white" : "text-slate-700")}>Automação do Robô</h3>
+                <h3 className={cn("text-base font-black uppercase tracking-widest", autoEnabled ? "text-white" : "text-foreground")}>Automação do Robô</h3>
                 <span className={cn(
                   "text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
-                  autoEnabled ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+                  autoEnabled ? "bg-card/20 text-white" : "bg-slate-100 text-muted-foreground"
                 )}>
                   {autoEnabled ? "Ativo" : "Inativo"}
                 </span>
               </div>
-              <p className={cn("text-xs font-medium leading-relaxed", autoEnabled ? "text-white/80" : "text-slate-400")}>
+              <p className={cn("text-xs font-medium leading-relaxed", autoEnabled ? "text-white/80" : "text-muted-foreground")}>
                 {autoEnabled
                   ? "Varredura automática de aulas e cobranças em execução."
                   : "A automação está desligada. Apenas lembretes manuais serão processados."}
@@ -311,15 +311,15 @@ export default function Lembretes() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 size={32} className="animate-spin text-indigo-200" />
-              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sincronizando...</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Sincronizando...</p>
             </div>
           ) : allReminders.length === 0 ? (
-            <div className="bg-white rounded-[2rem] border border-dashed border-slate-200 p-20 flex flex-col items-center text-center shadow-sm">
-              <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner">
+            <div className="bg-card rounded-[2rem] border border-dashed border-border p-20 flex flex-col items-center text-center shadow-sm">
+              <div className="w-20 h-20 bg-muted rounded-[2rem] flex items-center justify-center mb-6 shadow-inner">
                 <Bell size={36} className="text-slate-200" />
               </div>
-              <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest">Sem lembretes</h3>
-              <p className="text-sm text-slate-400 font-medium mt-2 mb-8 max-w-xs">
+              <h3 className="text-lg font-black text-foreground uppercase tracking-widest">Sem lembretes</h3>
+              <p className="text-sm text-muted-foreground font-medium mt-2 mb-8 max-w-xs">
                 Sua caixa está limpa.
               </p>
             </div>
@@ -353,3 +353,5 @@ export default function Lembretes() {
     </div>
   );
 }
+
+

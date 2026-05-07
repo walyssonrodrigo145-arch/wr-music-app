@@ -1,4 +1,4 @@
-import { trpc } from "@/lib/trpc";
+﻿import { trpc } from "@/lib/trpc";
 import {
   DollarSign, X, Loader2, Calendar, TrendingUp, BarChart3, PieChart
 } from "lucide-react";
@@ -88,7 +88,7 @@ export function VencimentosReportModal({ open, onClose, month, year }: Venciment
                     transition={{ delay: 0.3 }}
                     className="p-5 rounded-3xl bg-primary shadow-xl shadow-primary/20 text-primary-foreground relative overflow-hidden group"
                   >
-                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-card/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">Total para o Mês</p>
                     <p className="text-3xl font-black italic tracking-tighter">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.total)}
@@ -193,3 +193,5 @@ function Info({ size, className }: { size: number, className?: string }) {
     </svg>
   );
 }
+
+

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Clock, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -228,3 +228,4 @@ export function DateTimePicker({ value, onChange, label = "Data e Hora", minDate
     </div>
   );
 }
+

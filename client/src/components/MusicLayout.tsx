@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -98,3 +98,4 @@ export function MusicLayout({ children }: MusicLayoutProps) {
     </div>
   );
 }
+

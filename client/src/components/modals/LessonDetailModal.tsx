@@ -1,4 +1,4 @@
-import { 
+﻿import { 
   X, 
   Calendar, 
   Clock, 
@@ -246,3 +246,4 @@ export default function LessonDetailModal({
     </ResponsiveDialog>
   );
 }
+

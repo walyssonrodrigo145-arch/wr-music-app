@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { 
   User, 
   Clock, 
@@ -434,7 +434,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                         formData.updateSeries ? "bg-amber-500" : "bg-muted-foreground/20"
                       )}>
                         <div className={cn(
-                          "w-3 h-3 bg-white rounded-full shadow-sm transition-all transform",
+                          "w-3 h-3 bg-card rounded-full shadow-sm transition-all transform",
                           formData.updateSeries ? "translate-x-4" : "translate-x-0"
                         )} />
                       </div>
@@ -592,3 +592,4 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     </ResponsiveDialog>
   );
 }
+

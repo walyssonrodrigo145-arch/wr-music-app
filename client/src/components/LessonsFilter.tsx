@@ -1,4 +1,4 @@
-import { Search, Music, Filter, X, ChevronDown, Trash2 } from "lucide-react";
+﻿import { Search, Music, Filter, X, ChevronDown, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -185,3 +185,4 @@ export default function LessonsFilter({ onSearch, onFilterChange, onBulkDelete }
     </div>
   );
 }
+

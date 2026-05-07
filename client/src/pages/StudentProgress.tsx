@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
@@ -206,3 +206,4 @@ export default function StudentProgress() {
     </div>
   );
 }
+

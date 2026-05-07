@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -260,7 +260,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     >
       <span
         className={cn(
-          "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+          "inline-block h-4 w-4 transform rounded-full bg-card shadow transition-transform",
           checked ? "translate-x-6" : "translate-x-1"
         )}
       />
@@ -382,18 +382,18 @@ export default function Configuracoes() {
         {/* Header */}
         <div className="flex items-center gap-3 lg:gap-4">
           <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-slate-500/10 flex items-center justify-center shadow-sm">
-            <Shield size={22} className="text-slate-500" />
+            <Shield size={22} className="text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight leading-none">Configurações</h2>
-            <p className="text-[10px] lg:text-xs text-slate-400 font-medium mt-1 lg:mt-2">Gerencie seu perfil e preferências do sistema</p>
+            <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight leading-none">Configurações</h2>
+            <p className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 lg:mt-2">Gerencie seu perfil e preferências do sistema</p>
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
           {/* Sidebar de abas - Horizontal scroll on mobile */}
           <div className="w-full lg:w-64 shrink-0 overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
-            <div className="flex lg:flex-col gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm min-w-max lg:min-w-0">
+            <div className="flex lg:flex-col gap-2 bg-card p-2 rounded-2xl border border-border shadow-sm min-w-max lg:min-w-0">
               {TABS.map(tab => {
                 const Icon = tab.icon;
                 return (
@@ -404,7 +404,7 @@ export default function Configuracoes() {
                       "flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black transition-all lg:w-full text-left uppercase tracking-widest",
                       activeTab === tab.id
                         ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
-                        : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                        : "text-muted-foreground hover:bg-muted hover:text-muted-foreground"
                     )}
                   >
                     <Icon size={16} className="shrink-0" />
@@ -416,15 +416,15 @@ export default function Configuracoes() {
           </div>
 
           {/* Conteúdo da aba */}
-          <div className="flex-1 w-full bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 lg:p-10">
+          <div className="flex-1 w-full bg-card rounded-[2rem] border border-border shadow-sm p-6 lg:p-10">
 
             {/* ── ABA: PERFIL ── */}
             {activeTab === "perfil" && (
               <div className="space-y-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Meu Perfil</h3>
-                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Suas informações pessoais</p>
+                    <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Meu Perfil</h3>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Suas informações pessoais</p>
                   </div>
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
@@ -436,13 +436,13 @@ export default function Configuracoes() {
                   </Button>
                 </div>
 
-                <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100">
+                <div className="flex items-center gap-6 p-6 bg-muted rounded-[1.5rem] border border-border">
                   <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-[1.5rem] bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-xl shadow-indigo-200 shrink-0">
                     <span className="text-2xl font-black text-white">{initials}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-base lg:text-xl font-black text-slate-800 truncate">{user?.name || "Professor"}</p>
-                    <p className="text-xs lg:text-sm font-bold text-slate-400 truncate mt-1">{user?.email}</p>
+                    <p className="text-base lg:text-xl font-black text-foreground truncate">{user?.name || "Professor"}</p>
+                    <p className="text-xs lg:text-sm font-bold text-muted-foreground truncate mt-1">{user?.email}</p>
                     <div className="mt-3">
                       <span className="px-3 py-1 rounded-lg bg-indigo-100 text-[10px] font-black text-indigo-700 uppercase tracking-widest">Administrador</span>
                     </div>
@@ -452,37 +452,37 @@ export default function Configuracoes() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                   <Field label="Nome completo">
                     <div className="relative">
-                      <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         value={profileName}
                         onChange={e => setProfileName(e.target.value)}
                         placeholder="Seu nome"
-                        className="pl-11 h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                        className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                       />
                     </div>
                   </Field>
 
                   <Field label="E-mail profissional">
                     <div className="relative">
-                      <Mail size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <Mail size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         value={profileEmail}
                         onChange={e => setProfileEmail(e.target.value)}
                         placeholder="seu@email.com"
                         type="email"
-                        className="pl-11 h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                        className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                       />
                     </div>
                   </Field>
 
                   <Field label="Telefone / WhatsApp">
                     <div className="relative">
-                      <Phone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <Phone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         value={profilePhone}
                         onChange={e => setProfilePhone(e.target.value)}
                         placeholder="(11) 99999-9999"
-                        className="pl-11 h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                        className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                       />
                     </div>
                   </Field>
@@ -490,13 +490,13 @@ export default function Configuracoes() {
 
                 <Field label="Bio / Apresentação" hint="Aparece no seu perfil público">
                   <div className="relative">
-                    <FileText size={14} className="absolute left-4 top-4 text-slate-300" />
+                    <FileText size={14} className="absolute left-4 top-4 text-muted-foreground" />
                     <textarea
                       value={profileBio}
                       onChange={e => setProfileBio(e.target.value)}
                       placeholder="Conte um pouco sobre você..."
                       rows={4}
-                      className="w-full pl-11 pr-4 py-4 text-sm font-bold rounded-xl border border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm resize-none text-slate-700 outline-none placeholder:text-slate-300"
+                      className="w-full pl-11 pr-4 py-4 text-sm font-bold rounded-xl border border-border bg-muted focus:bg-card transition-all shadow-sm resize-none text-foreground outline-none placeholder:text-muted-foreground"
                     />
                   </div>
                 </Field>
@@ -508,8 +508,8 @@ export default function Configuracoes() {
               <div className="space-y-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Dados da Escola</h3>
-                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Identidade da sua escola</p>
+                    <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Dados da Escola</h3>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Identidade da sua escola</p>
                   </div>
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
@@ -527,7 +527,7 @@ export default function Configuracoes() {
                       value={schoolName}
                       onChange={e => setSchoolName(e.target.value)}
                       placeholder="Ex: Escola Harmonia"
-                      className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                     />
                   </Field>
 
@@ -536,7 +536,7 @@ export default function Configuracoes() {
                       value={schoolPhone}
                       onChange={e => setSchoolPhone(e.target.value)}
                       placeholder="(11) 3333-4444"
-                      className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                     />
                   </Field>
 
@@ -545,7 +545,7 @@ export default function Configuracoes() {
                       value={schoolCity}
                       onChange={e => setSchoolCity(e.target.value)}
                       placeholder="Ex: São Paulo, SP"
-                      className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                     />
                   </Field>
 
@@ -554,7 +554,7 @@ export default function Configuracoes() {
                       value={schoolAddress}
                       onChange={e => setSchoolAddress(e.target.value)}
                       placeholder="Rua, número, bairro"
-                      className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                     />
                   </Field>
                 </div>
@@ -564,7 +564,7 @@ export default function Configuracoes() {
                     value={schoolWebsite}
                     onChange={e => setSchoolWebsite(e.target.value)}
                     placeholder="https://suaescola.com.br"
-                    className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                    className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                   />
                 </Field>
 
@@ -574,7 +574,7 @@ export default function Configuracoes() {
                     onChange={e => setSchoolDescription(e.target.value)}
                     placeholder="Breve descrição da metodologia..."
                     rows={4}
-                    className="w-full px-4 py-4 text-sm font-bold rounded-xl border border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm resize-none text-slate-700 outline-none"
+                    className="w-full px-4 py-4 text-sm font-bold rounded-xl border border-border bg-muted focus:bg-card transition-all shadow-sm resize-none text-foreground outline-none"
                   />
                 </Field>
               </div>
@@ -585,8 +585,8 @@ export default function Configuracoes() {
               <div className="space-y-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Notificações</h3>
-                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Controle de alertas</p>
+                    <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Notificações</h3>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Controle de alertas</p>
                   </div>
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
@@ -611,10 +611,10 @@ export default function Configuracoes() {
                     { label: "Falta de aluno", desc: "Notificação quando um aluno não comparecer", value: notifyAbsence, onChange: setNotifyAbsence },
                     { label: "Relatório semanal", desc: "Resumo de desempenho toda segunda-feira", value: notifyWeekly, onChange: setNotifyWeekly },
                   ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-100 transition-colors">
+                    <div key={item.label} className="flex items-center justify-between p-5 bg-muted rounded-2xl border border-border group hover:border-indigo-100 transition-colors">
                       <div className="pr-4">
-                        <p className="text-xs font-black text-slate-700 uppercase tracking-widest mb-1">{item.label}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.desc}</p>
+                        <p className="text-xs font-black text-foreground uppercase tracking-widest mb-1">{item.label}</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{item.desc}</p>
                       </div>
                       <Toggle checked={item.value} onChange={item.onChange} />
                     </div>
@@ -627,8 +627,8 @@ export default function Configuracoes() {
             {activeTab === "aparencia" && (
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Personalização</h3>
-                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Aparência do sistema</p>
+                  <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Personalização</h3>
+                  <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Aparência do sistema</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -645,17 +645,17 @@ export default function Configuracoes() {
                       "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "light"
                         ? "border-indigo-600 bg-indigo-50/50 shadow-xl shadow-indigo-100"
-                        : "border-slate-100 bg-white hover:border-indigo-200"
+                        : "border-border bg-card hover:border-indigo-200"
                     )}
                   >
-                    <div className="w-full h-24 rounded-[1.25rem] bg-white border border-slate-100 mb-6 overflow-hidden shadow-sm flex flex-col">
-                       <div className="h-4 bg-slate-50 border-b border-slate-100 flex items-center px-2 gap-1">
+                    <div className="w-full h-24 rounded-[1.25rem] bg-card border border-border mb-6 overflow-hidden shadow-sm flex flex-col">
+                       <div className="h-4 bg-muted border-b border-border flex items-center px-2 gap-1">
                          <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
                          <div className="w-6 h-1 rounded bg-slate-100" />
                        </div>
                        <div className="flex-1 p-3 space-y-2">
                          <div className="h-3 bg-indigo-100 rounded-full w-3/4" />
-                         <div className="h-2 bg-slate-50 rounded-full w-1/2" />
+                         <div className="h-2 bg-muted rounded-full w-1/2" />
                        </div>
                     </div>
                     <div className="flex items-center justify-between">
@@ -663,7 +663,7 @@ export default function Configuracoes() {
                          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
                             <Sun size={18} />
                          </div>
-                         <span className="text-xs font-black uppercase tracking-widest text-slate-800">Modo Claro</span>
+                         <span className="text-xs font-black uppercase tracking-widest text-foreground">Modo Claro</span>
                        </div>
                        {theme === "light" && <CheckCircle2 size={18} className="text-indigo-600" />}
                     </div>
@@ -682,7 +682,7 @@ export default function Configuracoes() {
                       "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "dark"
                         ? "border-indigo-600 bg-indigo-50/50 shadow-xl shadow-indigo-100"
-                        : "border-slate-100 bg-white hover:border-indigo-200"
+                        : "border-border bg-card hover:border-indigo-200"
                     )}
                   >
                     <div className="w-full h-24 rounded-[1.25rem] bg-slate-900 border border-slate-800 mb-6 overflow-hidden shadow-sm flex flex-col">
@@ -700,7 +700,7 @@ export default function Configuracoes() {
                          <div className="w-8 h-8 rounded-xl bg-indigo-900 text-indigo-400 flex items-center justify-center">
                             <Moon size={18} />
                          </div>
-                         <span className="text-xs font-black uppercase tracking-widest text-slate-800">Modo Escuro</span>
+                         <span className="text-xs font-black uppercase tracking-widest text-foreground">Modo Escuro</span>
                        </div>
                        {theme === "dark" && <CheckCircle2 size={18} className="text-indigo-600" />}
                     </div>
@@ -713,8 +713,8 @@ export default function Configuracoes() {
             {activeTab === "seguranca" && (
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Segurança e Acesso</h3>
-                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Dados da conta</p>
+                  <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Segurança e Acesso</h3>
+                  <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Dados da conta</p>
                 </div>
 
                 <div className="p-6 bg-indigo-50 rounded-[1.5rem] border border-indigo-100 flex items-start gap-4">
@@ -730,10 +730,10 @@ export default function Configuracoes() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center justify-between p-5 bg-muted rounded-2xl border border-border">
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Último Acesso</p>
-                      <p className="text-xs font-bold text-slate-700">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Último Acesso</p>
+                      <p className="text-xs font-bold text-foreground">
                         {user?.lastSignedIn
                           ? new Date(user.lastSignedIn).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
                           : "—"}
@@ -764,3 +764,5 @@ export default function Configuracoes() {
     </div>
   );
 }
+
+

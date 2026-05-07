@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   DollarSign, CheckCircle2, Clock, AlertCircle, X,
@@ -271,3 +271,4 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
     </div>
   );
 }
+

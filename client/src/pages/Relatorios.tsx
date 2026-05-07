@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { 
   BarChart3, Calendar, Filter, UserPlus, TrendingUp, 
@@ -28,22 +28,22 @@ function ReportMetricCard({
   const isPositive = trend.startsWith('+');
   
   return (
-    <div className="bg-white rounded-[1.5rem] lg:rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group cursor-default">
+    <div className="bg-card rounded-[1.5rem] lg:rounded-[2rem] p-6 border border-border shadow-sm hover:shadow-md transition-all group cursor-default">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</p>
+        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{title}</p>
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-6", color.replace('text-', 'bg-').replace('-600', '-50').replace('-500', '-50'))}>
           <Icon size={18} className={color} />
         </div>
       </div>
       
       <div className="space-y-1">
-        <h3 className="text-2xl font-black text-slate-800 tracking-tight">{value}</h3>
+        <h3 className="text-2xl font-black text-foreground tracking-tight">{value}</h3>
         <div className="flex items-center gap-1.5">
           <div className={cn("flex items-center gap-0.5 text-[10px] font-black", isPositive ? "text-emerald-500" : "text-rose-500")}>
             {isPositive ? <ArrowUpRight size={10} /> : <TrendingUp size={10} className="rotate-180" />}
             {trend}
           </div>
-          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">vs mês anterior</span>
+          <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tight">vs mês anterior</span>
         </div>
       </div>
 
@@ -80,14 +80,14 @@ function CategoryChip({
         "flex items-center gap-2.5 px-6 py-3.5 rounded-2xl transition-all whitespace-nowrap group shrink-0",
         active 
           ? "bg-[#2563EB] text-white shadow-xl shadow-blue-500/20" 
-          : "bg-white text-slate-400 hover:bg-slate-50 border border-slate-100"
+          : "bg-card text-muted-foreground hover:bg-muted border border-border"
       )}
     >
       <div className={cn(
         "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
-        active ? "bg-white/20" : "bg-slate-100 group-hover:bg-white"
+        active ? "bg-card/20" : "bg-slate-100 group-hover:bg-card"
       )}>
-        <Icon size={16} className={active ? "text-white" : "text-slate-400"} />
+        <Icon size={16} className={active ? "text-white" : "text-muted-foreground"} />
       </div>
       <span className="text-[10px] font-black uppercase tracking-[0.15em]">{label}</span>
     </button>
@@ -158,18 +158,18 @@ export default function Relatorios() {
       {/* ── Page Header ── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight">Relatórios</h1>
-          <p className="text-sm font-bold text-slate-400">
+          <h1 className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">Relatórios</h1>
+          <p className="text-sm font-bold text-muted-foreground">
             {activeCategory === "Visão Geral" ? "Analise e acompanhe todos os dados da sua escola" : `Detalhamento de ${activeCategory}`}
           </p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-2 bg-card px-4 py-3 rounded-2xl border border-border shadow-sm">
             <Calendar size={16} className="text-blue-600" />
-            <span className="text-[11px] font-black text-slate-600 uppercase tracking-tight">01/05/2025 - 31/05/2025</span>
+            <span className="text-[11px] font-black text-muted-foreground uppercase tracking-tight">01/05/2025 - 31/05/2025</span>
           </div>
-          <Button className="h-12 px-6 rounded-2xl bg-white border-slate-100 text-[10px] font-black uppercase tracking-[0.15em] text-slate-600 gap-2 shadow-sm hover:bg-slate-50">
+          <Button className="h-12 px-6 rounded-2xl bg-card border-border text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground gap-2 shadow-sm hover:bg-muted">
              <Filter size={16} className="text-blue-600" /> Filtros
           </Button>
           <Button className="hidden md:flex h-12 px-6 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.15em] gap-2 shadow-xl shadow-blue-500/20 hover:bg-blue-700">
@@ -209,8 +209,8 @@ export default function Relatorios() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
-                   <h3 className="text-base font-black text-slate-800 tracking-tight">Evolução da Receita</h3>
+                <div className="lg:col-span-2 bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+                   <h3 className="text-base font-black text-foreground tracking-tight">Evolução da Receita</h3>
                    <div className="h-[340px] w-full">
                      <ResponsiveContainer width="100%" height="100%">
                        <AreaChart data={monthlyData || []}>
@@ -224,23 +224,23 @@ export default function Relatorios() {
                      </ResponsiveContainer>
                    </div>
                 </div>
-                <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8 flex flex-col justify-between">
-                   <h3 className="text-base font-black text-slate-800 tracking-tight">Resumo Financeiro</h3>
+                <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8 flex flex-col justify-between">
+                   <h3 className="text-base font-black text-foreground tracking-tight">Resumo Financeiro</h3>
                    <div className="space-y-6 flex-1 flex flex-col justify-center">
                       {[
                         { label: "Receitas", value: stats?.monthlyRevenue || 0, color: "text-emerald-500", trend: trends.receita },
                         { label: "Despesas", value: (stats?.monthlyRevenue || 0) * 0.25, color: "text-rose-500", trend: "+ 4%" },
                         { label: "Lucro Líquido", value: (stats?.monthlyRevenue || 0) * 0.75, color: "text-blue-600", trend: "+ 22%" },
                       ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-between pb-5 border-b border-slate-50 last:border-0 last:pb-0">
-                          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">{item.label}</span>
+                        <div key={i} className="flex items-center justify-between pb-5 border-b border-border last:border-0 last:pb-0">
+                          <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest block">{item.label}</span>
                           <span className={cn("text-base font-black tracking-tight", item.color)}>{formatCurrency(item.value)}</span>
                         </div>
                       ))}
                    </div>
-                   <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">Margem de Lucro</span>
-                      <span className="text-lg font-black text-slate-800">81%</span>
+                   <div className="pt-6 border-t border-border flex items-center justify-between">
+                      <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest block">Margem de Lucro</span>
+                      <span className="text-lg font-black text-foreground">81%</span>
                    </div>
                 </div>
               </div>
@@ -257,8 +257,8 @@ export default function Relatorios() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                 <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
-                    <h3 className="text-base font-black text-slate-800 tracking-tight">Receita por Categoria</h3>
+                 <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+                    <h3 className="text-base font-black text-foreground tracking-tight">Receita por Categoria</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                        <div className="h-56 relative">
                           <ResponsiveContainer width="100%" height="100%">
@@ -267,16 +267,16 @@ export default function Relatorios() {
                        </div>
                        <div className="space-y-4">
                           {revenueCategoryData.map((item, i) => (
-                             <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.name}</span>
-                                <span className="text-[11px] font-black text-slate-800">{formatCurrency(item.value)}</span>
+                             <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-muted/50">
+                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{item.name}</span>
+                                <span className="text-[11px] font-black text-foreground">{formatCurrency(item.value)}</span>
                              </div>
                           ))}
                        </div>
                     </div>
                  </div>
-                 <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
-                    <h3 className="text-base font-black text-slate-800 tracking-tight">Projeção Próximos Meses</h3>
+                 <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+                    <h3 className="text-base font-black text-foreground tracking-tight">Projeção Próximos Meses</h3>
                     <div className="h-64 w-full">
                        <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={monthlyData?.slice(-6) || []}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="month" /><Tooltip /><Bar dataKey="receita" fill="#2563EB" radius={[8, 8, 0, 0]} /></BarChart>
@@ -296,8 +296,8 @@ export default function Relatorios() {
                 <ReportMetricCard title="Taxa de Churn" value="1.2%" trend="-0.5%" color="text-rose-500" icon={MinusCircle} />
               </div>
 
-              <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
-                 <h3 className="text-base font-black text-slate-800 tracking-tight">Crescimento da Base de Alunos</h3>
+              <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+                 <h3 className="text-base font-black text-foreground tracking-tight">Crescimento da Base de Alunos</h3>
                  <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                        <AreaChart data={monthlyData || []}>
@@ -323,16 +323,16 @@ export default function Relatorios() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                 <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
-                    <h3 className="text-base font-black text-slate-800 tracking-tight">Aulas por Status</h3>
+                 <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+                    <h3 className="text-base font-black text-foreground tracking-tight">Aulas por Status</h3>
                     <div className="h-64 w-full">
                        <ResponsiveContainer width="100%" height="100%">
                           <PieChart><Pie data={lessonStatusData} innerRadius={60} outerRadius={80} dataKey="value">{lessonStatusData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
                        </ResponsiveContainer>
                     </div>
                  </div>
-                 <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
-                    <h3 className="text-base font-black text-slate-800 tracking-tight">Frequência Semanal</h3>
+                 <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+                    <h3 className="text-base font-black text-foreground tracking-tight">Frequência Semanal</h3>
                     <div className="h-64 w-full">
                        <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={monthlyData?.slice(-6) || []}><XAxis dataKey="month" /><Tooltip /><Bar dataKey="aulas" fill="#7C3AED" radius={[8, 8, 0, 0]} /></BarChart>
@@ -344,32 +344,32 @@ export default function Relatorios() {
           )}
 
           {/* Table Section (Visible in all categories, but could be filtered) */}
-          <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm overflow-hidden">
+          <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm overflow-hidden">
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <h3 className="text-base font-black text-slate-800 tracking-tight">Histórico de Relatórios</h3>
+                <h3 className="text-base font-black text-foreground tracking-tight">Histórico de Relatórios</h3>
                 <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest gap-2">Ver todos <ChevronRight size={14} /></Button>
              </div>
              <div className="overflow-x-auto">
                 <table className="w-full">
                    <thead>
-                      <tr className="text-left border-b border-slate-50">
-                         <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Relatório</th>
-                         <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Período</th>
-                         <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Status</th>
-                         <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 text-right">Ações</th>
+                      <tr className="text-left border-b border-border">
+                         <th className="pb-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4">Relatório</th>
+                         <th className="pb-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4">Período</th>
+                         <th className="pb-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4">Status</th>
+                         <th className="pb-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 text-right">Ações</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
                       {[
                         { name: "Financeiro Completo", period: "Maio 2025", status: "Gerado", color: "text-emerald-500 bg-emerald-50", icon: DollarSign },
                         { name: "Desempenho de Alunos", period: "Maio 2025", status: "Gerado", color: "text-blue-500 bg-blue-50", icon: Users },
-                        { name: "Carga Horária Professores", period: "Abril 2025", status: "Arquivado", color: "text-slate-400 bg-slate-50", icon: Clock },
+                        { name: "Carga Horária Professores", period: "Abril 2025", status: "Arquivado", color: "text-muted-foreground bg-muted", icon: Clock },
                       ].map((report, i) => (
-                        <tr key={i} className="group hover:bg-slate-50/50 transition-colors">
-                           <td className="py-5 px-4"><div className="flex items-center gap-3"><div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", report.color)}><report.icon size={16} /></div><span className="text-xs font-black text-slate-800">{report.name}</span></div></td>
-                           <td className="py-5 px-4 text-xs font-black text-slate-600">{report.period}</td>
-                           <td className="py-5 px-4"><span className="px-3 py-1 rounded-full bg-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500">{report.status}</span></td>
-                           <td className="py-5 px-4 text-right"><div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600"><Download size={14} /></button></div></td>
+                        <tr key={i} className="group hover:bg-muted/50 transition-colors">
+                           <td className="py-5 px-4"><div className="flex items-center gap-3"><div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", report.color)}><report.icon size={16} /></div><span className="text-xs font-black text-foreground">{report.name}</span></div></td>
+                           <td className="py-5 px-4 text-xs font-black text-muted-foreground">{report.period}</td>
+                           <td className="py-5 px-4"><span className="px-3 py-1 rounded-full bg-slate-100 text-[9px] font-black uppercase tracking-widest text-muted-foreground">{report.status}</span></td>
+                           <td className="py-5 px-4 text-right"><div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-blue-600"><Download size={14} /></button></div></td>
                         </tr>
                       ))}
                    </tbody>
@@ -383,3 +383,5 @@ export default function Relatorios() {
     </div>
   );
 }
+
+
