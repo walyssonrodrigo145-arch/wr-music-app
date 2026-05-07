@@ -59,10 +59,10 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
     : "WR";
 
   return (
-    <header className="h-16 lg:h-20 bg-white border-b border-slate-100 flex items-center px-4 lg:px-8 gap-4 lg:gap-6 flex-shrink-0 z-10 sticky top-0">
+    <header className="h-16 lg:h-20 bg-background border-b border-border flex items-center px-4 lg:px-8 gap-4 lg:gap-6 flex-shrink-0 z-10 sticky top-0">
       {/* Mobile menu button */}
       <button
-        className="lg:hidden w-10 h-10 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-100 flex-shrink-0 transition-colors shadow-sm active:scale-95"
+        className="lg:hidden w-10 h-10 rounded-xl bg-muted text-muted-foreground flex items-center justify-center hover:bg-accent flex-shrink-0 transition-colors shadow-sm active:scale-95"
         onClick={onMobileMenuOpen}
         aria-label="Abrir menu"
       >
@@ -71,10 +71,10 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
 
       {/* Page title */}
       <div className="flex-1 min-w-0 text-left">
-        <h1 className="text-base lg:text-xl font-black text-slate-800 tracking-tight leading-none truncate">
+        <h1 className="text-base lg:text-xl font-black text-foreground tracking-tight leading-none truncate">
           {pageInfo.title}
         </h1>
-        {location !== "/dashboard" && <p className="hidden lg:block text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-2">{pageInfo.subtitle}</p>}
+        {location !== "/dashboard" && <p className="hidden lg:block text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-2">{pageInfo.subtitle}</p>}
       </div>
 
       {/* Search global - hidden on mobile, shown as icon or compact on tablet */}

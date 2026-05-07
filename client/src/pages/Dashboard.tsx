@@ -25,7 +25,7 @@ function MetricCard({
   title: string; value: string | number; icon: any; color: string; sparkData?: any[]; trend: string 
 }) {
   return (
-    <div className="bg-white rounded-[1.25rem] p-6 border border-slate-100 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 group cursor-default">
+    <div className="bg-card rounded-[1.25rem] p-6 border border-border shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 group cursor-default">
       <div className="flex items-start justify-between mb-4">
         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-6", color.replace('text-', 'bg-').replace('-600', '-50').replace('-500', '-50'))}>
           <Icon size={24} className={color} />
@@ -35,12 +35,12 @@ function MetricCard({
             <ArrowUpRight size={12} />
             {trend}
           </div>
-          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">este mês</p>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">este mês</p>
         </div>
       </div>
       <div>
-        <h3 className="text-2xl font-black text-slate-800 tracking-tight">{value}</h3>
-        <p className="text-xs font-bold text-slate-400 mt-1">{title}</p>
+        <h3 className="text-2xl font-black text-foreground tracking-tight">{value}</h3>
+        <p className="text-xs font-bold text-muted-foreground mt-1">{title}</p>
       </div>
       {sparkData && (
         <div className="h-12 mt-6 -mx-2">
@@ -169,22 +169,22 @@ export default function Dashboard() {
       {/* ── Main Section (Chart + Summary) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Evolution Chart */}
-        <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
+        <div className="lg:col-span-2 bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
              <div>
-                <h3 className="text-base font-black text-slate-800 tracking-tight">Evolução Mensal</h3>
+                <h3 className="text-base font-black text-foreground tracking-tight">Evolução Mensal</h3>
                 <div className="flex items-center gap-4 mt-2">
                    <div className="flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-sm" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aulas realizadas</span>
+                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Aulas realizadas</span>
                    </div>
                    <div className="flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Novos alunos</span>
+                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Novos alunos</span>
                    </div>
                 </div>
              </div>
-             <select className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:outline-none">
+             <select className="bg-muted border border-border rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground focus:outline-none">
                 <option>Últimos 6 meses</option>
                 <option>Este ano</option>
              </select>
@@ -218,18 +218,18 @@ export default function Dashboard() {
         </div>
 
         {/* Daily Summary */}
-        <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
-           <h3 className="text-base font-black text-slate-800 tracking-tight">Resumo do dia</h3>
+        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+           <h3 className="text-base font-black text-foreground tracking-tight">Resumo do dia</h3>
            <div className="space-y-4">
               {todaySummary.map((item, i) => (
                 <div key={i} className="flex items-center justify-between group cursor-default">
                   <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border border-white", item.color)}>
+                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border border-card", item.color)}>
                       <item.icon size={18} />
                     </div>
-                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
+                    <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{item.label}</span>
                   </div>
-                  <span className="text-base font-black text-slate-800">{item.count}</span>
+                  <span className="text-base font-black text-foreground">{item.count}</span>
                 </div>
               ))}
            </div>
@@ -242,24 +242,24 @@ export default function Dashboard() {
         {/* Upcoming Lessons */}
         <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-800 tracking-tight">Próximas Aulas</h3>
+              <h3 className="text-base font-black text-foreground tracking-tight">Próximas Aulas</h3>
               <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50" onClick={() => navigate('/aulas')}>Ver todas</Button>
            </div>
            <div className="space-y-4">
               {upcomingLessons?.slice(0, 4).map((lesson) => (
-                <div key={lesson.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/50 border border-transparent hover:border-slate-100 transition-all group">
+                <div key={lesson.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-transparent hover:border-border transition-all group">
                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 flex flex-col items-center justify-center shadow-sm">
+                      <div className="w-12 h-12 rounded-xl bg-card border border-border flex flex-col items-center justify-center shadow-sm">
                          <span className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">
                            {lesson.scheduledAt ? format(new Date(lesson.scheduledAt), "MMM", { locale: ptBR }).replace('.', '') : '---'}
                          </span>
-                         <span className="text-sm font-black text-slate-800 leading-none">
+                         <span className="text-sm font-black text-foreground leading-none">
                            {lesson.scheduledAt ? format(new Date(lesson.scheduledAt), "d") : '--'}
                          </span>
                       </div>
                       <div>
-                         <p className="text-xs font-black text-slate-800">{lesson.studentName || lesson.experimentalName || "Aluno"}</p>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
+                         <p className="text-xs font-black text-foreground">{lesson.studentName || lesson.experimentalName || "Aluno"}</p>
+                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1 flex items-center gap-2">
                            <Clock size={12} className="text-blue-500" /> 
                            {lesson.scheduledAt ? format(new Date(lesson.scheduledAt), "HH:mm") : '--:--'} • {lesson.title}
                          </p>
@@ -271,7 +271,7 @@ export default function Dashboard() {
                 </div>
               ))}
               {upcomingLessons?.length === 0 && (
-                <div className="py-8 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhuma aula agendada</div>
+                <div className="py-8 text-center text-muted-foreground text-xs font-bold uppercase tracking-widest">Nenhuma aula agendada</div>
               )}
            </div>
         </div>
@@ -279,19 +279,19 @@ export default function Dashboard() {
         {/* Overdue Payments */}
         <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-800 tracking-tight">Inadimplentes</h3>
+              <h3 className="text-base font-black text-foreground tracking-tight">Inadimplentes</h3>
               <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50" onClick={() => navigate('/mensalidades')}>Ver todas</Button>
            </div>
            <div className="space-y-4">
               {overduePayments?.slice(0, 4).map((payment: any) => (
-                <div key={payment.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/50 border border-transparent hover:border-slate-100 transition-all group">
+                <div key={payment.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-transparent hover:border-border transition-all group">
                    <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center font-black text-xs">
                          {(payment.studentName || "A")[0]}
                       </div>
                       <div>
-                         <p className="text-xs font-black text-slate-800">{payment.studentName}</p>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                         <p className="text-xs font-black text-foreground">{payment.studentName}</p>
+                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
                            {Math.floor((new Date().getTime() - new Date(payment.dueDate).getTime()) / (1000 * 60 * 60 * 24))} dias em atraso
                          </p>
                       </div>
@@ -306,7 +306,7 @@ export default function Dashboard() {
                    <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-4">
                       <CheckCircle2 size={32} />
                    </div>
-                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhum pagamento atrasado</p>
+                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nenhum pagamento atrasado</p>
                 </div>
               )}
            </div>
