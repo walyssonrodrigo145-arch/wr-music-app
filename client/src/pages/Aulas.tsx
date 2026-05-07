@@ -280,8 +280,8 @@ export default function Aulas() {
         <div className="w-[360px] bg-white border-l border-slate-100 p-8 space-y-12 overflow-y-auto no-scrollbar">
            <div className="space-y-8">
               <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm"><Calendar size={24} /></div>
-                 <div><h3 className="text-base font-black text-slate-800 tracking-tight">Estatísticas</h3><p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}</p></div>
+                 <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm"><Calendar size={20} /></div>
+                 <div><h3 className="text-sm font-black text-slate-800 tracking-tight">Estatísticas</h3><p className="text-[9px] text-slate-400 font-bold uppercase mt-1">{format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}</p></div>
               </div>
               <div className="grid grid-cols-1 gap-3">
                  {[
@@ -292,7 +292,7 @@ export default function Aulas() {
                    <div key={i} className="p-6 bg-white rounded-[2.5rem] border border-slate-100 flex items-center justify-between group hover:shadow-xl transition-all cursor-default">
                       <div className="flex items-center gap-5">
                          <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", stat.color)}><stat.icon size={20} /></div>
-                         <div><p className="text-3xl font-black text-slate-800 leading-none mb-1">{stat.count}</p><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p></div>
+                         <div><p className="text-xl font-black text-slate-800 leading-none mb-1">{stat.count}</p><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p></div>
                       </div>
                       <ChevronRight size={20} className="text-slate-200 group-hover:text-blue-500 transition-colors" />
                    </div>
@@ -301,13 +301,13 @@ export default function Aulas() {
            </div>
 
            <div className="space-y-6">
-              <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center"><Clock size={24} /></div><h3 className="text-base font-black text-slate-800 tracking-tight">Próxima Aula</h3></div>
+               <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm"><Clock size={20} /></div><h3 className="text-sm font-black text-slate-800 tracking-tight">Próxima Aula</h3></div>
               {nextLesson ? (
                 <div className="p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all">
                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 bg-blue-50 px-3 py-1 rounded-full w-fit">{format(new Date(nextLesson.scheduledAt), "HH:mm")}</p>
                    <div className="flex items-center gap-5 mb-8">
                       <Avatar className="w-16 h-16 border-4 border-white shadow-xl"><AvatarFallback className="bg-blue-600 text-white font-black">{(nextLesson.studentName || "A")[0]}</AvatarFallback></Avatar>
-                      <div><p className="text-lg font-black text-slate-800 truncate">{nextLesson.studentName || nextLesson.experimentalName}</p><p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{nextLesson.instrumentName}</p></div>
+                       <div><p className="text-base font-black text-slate-800 truncate">{nextLesson.studentName || nextLesson.experimentalName}</p><p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{nextLesson.instrumentName}</p></div>
                    </div>
                    <Button className="w-full h-12 rounded-2xl bg-white border border-slate-100 text-blue-600 font-black hover:bg-blue-600 hover:text-white transition-all" onClick={() => setDetailLessonId(nextLesson.id)}>Ver Detalhes</Button>
                 </div>
@@ -348,7 +348,7 @@ export default function Aulas() {
             return (
               <button key={i} onClick={() => setSelectedDate(day)} className={cn("flex flex-col items-center gap-2 min-w-[55px] flex-1 py-4 rounded-2xl transition-all relative", isActive ? "bg-blue-600 text-white shadow-xl" : "text-slate-400 hover:bg-slate-50")}>
                 <span className={cn("text-[9px] font-black uppercase tracking-widest", isActive ? "text-white/80" : "text-slate-400")}>{format(day, "eee", { locale: ptBR }).slice(0, 3)}</span>
-                <span className="text-lg font-black tracking-tight">{format(day, "d")}</span>
+                <span className="text-sm font-black tracking-tight">{format(day, "d")}</span>
                 {isActive && <div className="absolute -bottom-1.5 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_#fff]" />}
               </button>
             );
@@ -367,7 +367,7 @@ export default function Aulas() {
       {/* Lesson Grid (1 col mobile, 2 cols tablet) */}
       <section className="space-y-6">
         <div className="flex items-center justify-between px-2">
-           <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Aulas de {isToday(selectedDate) ? "hoje" : format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</h3>
+           <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Aulas de {isToday(selectedDate) ? "hoje" : format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</h3>
            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white border border-slate-100 px-3 py-1 rounded-full shadow-sm">{filteredLessons.length} aulas</span>
         </div>
 
@@ -379,13 +379,13 @@ export default function Aulas() {
               filteredLessons.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()).map(lesson => {
                 const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
                 return (
-                  <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-white rounded-[2.5rem] p-6 lg:p-8 border border-slate-100 shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[200px]" onClick={() => setDetailLessonId(lesson.id)}>
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3"><div className={cn("w-1.5 h-8 rounded-full", config.color)} /><span className="text-3xl font-black text-slate-800 tracking-tighter">{format(new Date(lesson.scheduledAt), "HH:mm")}</span></div>
+                  <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-white rounded-[2.5rem] p-6 lg:p-8 border border-slate-100 shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[180px]" onClick={() => setDetailLessonId(lesson.id)}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3"><div className={cn("w-1.5 h-6 rounded-full", config.color)} /><span className="text-lg font-black text-slate-800 tracking-tighter">{format(new Date(lesson.scheduledAt), "HH:mm")}</span></div>
                       <span className={cn("px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm", config.bg, config.text, config.border)}>{config.label}</span>
                     </div>
-                    <div className="space-y-2">
-                      <h4 className="text-xl font-black text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">{lesson.studentName || lesson.experimentalName}</h4>
+                    <div className="space-y-1.5">
+                      <h4 className="text-sm font-black text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">{lesson.studentName || lesson.experimentalName}</h4>
                       <div className="flex items-center gap-4 flex-wrap">
                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest"><Music size={14} className="text-blue-500" /> {lesson.instrumentName}</div>
                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest"><Users size={14} className="text-purple-500" /> {(lesson as any).teacherName || "Professor"}</div>
