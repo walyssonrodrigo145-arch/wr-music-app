@@ -224,9 +224,22 @@ export default function Aulas() {
                   ))}
                </div>
                <div className="flex items-center gap-4">
-                  <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400"><ChevronLeft size={18} /></button>
-                  <h3 className="text-lg font-black text-slate-800 w-40 text-center">{format(currentDate, "MMMM yyyy", { locale: ptBR })}</h3>
-                  <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400"><ChevronRight size={18} /></button>
+                  <button onClick={() => {
+                     if (view === "dia") setCurrentDate(addDays(currentDate, -1));
+                     else setCurrentDate(subMonths(currentDate, 1));
+                   }} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400"><ChevronLeft size={18} /></button>
+                   
+                   <div className="w-64 text-center">
+                      <h3 className="text-lg font-black text-slate-800 leading-tight">
+                         {view === "dia" ? format(currentDate, "dd 'de' MMMM", { locale: ptBR }) : format(currentDate, "MMMM yyyy", { locale: ptBR })}
+                      </h3>
+                      {view === "dia" && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{format(currentDate, "yyyy")}</p>}
+                   </div>
+
+                   <button onClick={() => {
+                     if (view === "dia") setCurrentDate(addDays(currentDate, 1));
+                     else setCurrentDate(addMonths(currentDate, 1));
+                   }} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400"><ChevronRight size={18} /></button>
                   <Button variant="outline" className="h-10 rounded-xl px-4 text-xs font-bold" onClick={() => setCurrentDate(new Date())}>Hoje</Button>
                </div>
             </div>
@@ -244,7 +257,18 @@ export default function Aulas() {
                             const lessonsInDay = filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day));
                             const isCurrMonth = isSameMonth(day, currentDate);
                             return (
-                              <div key={idx} className={cn("p-2 border-r border-b border-slate-50 min-h-[140px] relative", !isCurrMonth && "opacity-20 bg-slate-50/50", isToday(day) && "bg-blue-50/30")}>
+                               <div 
+                                 key={idx} 
+                                 onClick={() => {
+                                   setCurrentDate(day);
+                                   setView("dia");
+                                 }}
+                                 className={cn(
+                                   "p-2 border-r border-b border-slate-50 min-h-[140px] relative cursor-pointer hover:bg-slate-50 transition-colors", 
+                                   !isCurrMonth && "opacity-20 bg-slate-50/50", 
+                                   isToday(day) && "bg-blue-50/30"
+                                 )}
+                               >
                                 <span className={cn("w-8 h-8 flex items-center justify-center rounded-full text-xs font-black mb-2", isToday(day) ? "bg-blue-600 text-white shadow-lg" : "text-slate-400")}>{format(day, "d")}</span>
                                 <div className="space-y-1">
                                   {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} />)}
@@ -269,6 +293,47 @@ export default function Aulas() {
                            </div>
                         </div>
                       ))}
+                    </motion.div>
+                  )}
+                  {view === "dia" && (
+                    <motion.div key="day" className="space-y-6">
+                       <div className="flex items-center justify-between bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                          <div className="flex items-center gap-4">
+                             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xl">
+                                {format(currentDate, "d")}
+                             </div>
+                             <div>
+                                <h3 className="text-lg font-black text-slate-800 tracking-tight">{format(currentDate, "EEEE", { locale: ptBR })}</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{format(currentDate, "dd 'de' MMMM", { locale: ptBR })}</p>
+                             </div>
+                          </div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+                             {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), currentDate)).length} aulas
+                          </span>
+                       </div>
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {filteredLessons
+                            .filter(l => isSameDay(new Date(l.scheduledAt), currentDate))
+                            .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+                            .map(l => <LessonCardDesktop key={l.id} lesson={l} />)}
+                       </div>
+                    </motion.div>
+                  )}
+                  {view === "eventos" && (
+                    <motion.div key="events" className="space-y-8">
+                       {/* Group by month or just a list */}
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {filteredLessons
+                            .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+                            .map(l => (
+                              <div key={l.id} className="relative">
+                                <div className="absolute -top-3 left-6 z-10 px-3 py-1 bg-slate-800 text-white text-[9px] font-black rounded-full uppercase tracking-widest shadow-lg">
+                                   {format(new Date(l.scheduledAt), "dd/MM")}
+                                </div>
+                                <LessonCardDesktop lesson={l} />
+                              </div>
+                            ))}
+                       </div>
                     </motion.div>
                   )}
                </AnimatePresence>
