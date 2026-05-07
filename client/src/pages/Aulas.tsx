@@ -217,30 +217,71 @@ export default function Aulas() {
             </div>
 
             {/* Desktop Calendar Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
                <div className="flex p-1 bg-white rounded-xl shadow-sm border border-slate-100">
                   {(["mes", "semana", "dia", "eventos"] as const).map(v => (
                     <button key={v} onClick={() => setView(v)} className={cn("px-5 py-2 rounded-lg text-[11px] font-black transition-all capitalize", view === v ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:bg-slate-50")}>{v}</button>
                   ))}
                </div>
-               <div className="flex items-center gap-4">
+               <div className="flex items-center gap-3 flex-wrap">
+                  {/* Month/Year filter — visible in mes/eventos view */}
+                  {(view === "mes" || view === "eventos") && (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={currentDate.getMonth()}
+                        onChange={e => setCurrentDate(new Date(currentDate.getFullYear(), Number(e.target.value), 1))}
+                        className="h-10 px-3 rounded-xl bg-white border border-slate-100 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
+                      >
+                        {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((m, i) => (
+                          <option key={i} value={i}>{m}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={currentDate.getFullYear()}
+                        onChange={e => setCurrentDate(new Date(Number(e.target.value), currentDate.getMonth(), 1))}
+                        className="h-10 px-3 rounded-xl bg-white border border-slate-100 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
+                      >
+                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <button onClick={() => {
                      if (view === "dia") setCurrentDate(addDays(currentDate, -1));
+                     else if (view === "semana") setCurrentDate(addDays(currentDate, -7));
                      else setCurrentDate(subMonths(currentDate, 1));
-                   }} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400"><ChevronLeft size={18} /></button>
+                   }} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"><ChevronLeft size={18} /></button>
                    
-                   <div className="w-64 text-center">
+                   <div className="min-w-[200px] text-center">
                       <h3 className="text-lg font-black text-slate-800 leading-tight">
-                         {view === "dia" ? format(currentDate, "dd 'de' MMMM", { locale: ptBR }) : format(currentDate, "MMMM yyyy", { locale: ptBR })}
+                         {view === "dia"
+                           ? format(currentDate, "dd 'de' MMMM", { locale: ptBR })
+                           : view === "semana"
+                           ? `${format(startOfWeek(currentDate), "dd/MM", { locale: ptBR })} – ${format(endOfWeek(currentDate), "dd/MM", { locale: ptBR })}`
+                           : format(currentDate, "MMMM yyyy", { locale: ptBR })}
                       </h3>
-                      {view === "dia" && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{format(currentDate, "yyyy")}</p>}
+                      {view === "dia" && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{format(currentDate, "EEEE • yyyy", { locale: ptBR })}</p>}
+                      {view === "semana" && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{format(currentDate, "yyyy", { locale: ptBR })}</p>}
                    </div>
 
                    <button onClick={() => {
                      if (view === "dia") setCurrentDate(addDays(currentDate, 1));
+                     else if (view === "semana") setCurrentDate(addDays(currentDate, 7));
                      else setCurrentDate(addMonths(currentDate, 1));
-                   }} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400"><ChevronRight size={18} /></button>
-                  <Button variant="outline" className="h-10 rounded-xl px-4 text-xs font-bold" onClick={() => setCurrentDate(new Date())}>Hoje</Button>
+                   }} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"><ChevronRight size={18} /></button>
+
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-xl px-4 text-xs font-bold hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all"
+                    onClick={() => {
+                      setCurrentDate(new Date());
+                      setView("dia");
+                    }}
+                  >
+                    Hoje
+                  </Button>
                </div>
             </div>
 
