@@ -74,16 +74,35 @@ export default function Dashboard() {
   const { user } = useAuth();
   
   // Queries
-  const { data: stats } = trpc.dashboard.stats.useQuery();
+  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
   const { data: monthlyData } = trpc.dashboard.monthlyStats.useQuery();
   const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery();
   const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery();
+  const { data: allLessons = [] } = trpc.lessons.list.useQuery();
 
-  // MOCK sparkline data for demo if not in DB or as visual backup
-  const sparkAlunos = useMemo(() => monthlyData?.slice(-6).map(d => ({ value: d.alunos })) || [ {value: 10}, {value: 15}, {value: 12}, {value: 20}, {value: 25}, {value: 28} ], [monthlyData]);
-  const sparkAulas = useMemo(() => monthlyData?.slice(-6).map(d => ({ value: d.aulas })) || [ {value: 80}, {value: 120}, {value: 100}, {value: 150}, {value: 180}, {value: 175} ], [monthlyData]);
-  const sparkAgendadas = [ {value: 30}, {value: 45}, {value: 40}, {value: 56}, {value: 52}, {value: 56} ];
-  const sparkReceita = [ {value: 8000}, {value: 9500}, {value: 10200}, {value: 11000}, {value: 12450}, {value: 12450} ];
+  // Real sparkline data from monthlyStats
+  const sparkAlunos = useMemo(() => monthlyData?.map(d => ({ value: d.alunos })) || [], [monthlyData]);
+  const sparkAulas = useMemo(() => monthlyData?.map(d => ({ value: d.aulas })) || [], [monthlyData]);
+  const sparkReceita = useMemo(() => monthlyData?.map(d => ({ value: d.receita })) || [], [monthlyData]);
+  
+  // Today's summary calculation
+  const todaySummary = useMemo(() => {
+    const today = new Date();
+    const todays = allLessons.filter(l => {
+      const lessonDate = new Date(l.scheduledAt);
+      return lessonDate.getDate() === today.getDate() &&
+             lessonDate.getMonth() === today.getMonth() &&
+             lessonDate.getFullYear() === today.getFullYear();
+    });
+
+    return [
+      { label: "Aulas agendadas", count: todays.length, color: "bg-blue-50 text-blue-600", icon: Calendar },
+      { label: "Concluídas", count: todays.filter(l => l.status === "concluida").length, color: "bg-emerald-50 text-emerald-600", icon: CheckCircle2 },
+      { label: "Faltas", count: todays.filter(l => l.status === "falta").length, color: "bg-orange-50 text-orange-600", icon: MinusCircle },
+      { label: "Remarcadas", count: todays.filter(l => l.status === "remarcada").length, color: "bg-purple-50 text-purple-600", icon: RefreshCcw },
+      { label: "Canceladas", count: todays.filter(l => l.status === "cancelada").length, color: "bg-rose-50 text-rose-600", icon: XCircle },
+    ];
+  }, [allLessons]);
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -91,50 +110,19 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
       
-      {/* ── Header Section ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-            Olá, {user?.name?.split(' ')[0] || 'WR'}! <span className="animate-bounce">👋</span>
-          </h1>
-          <p className="text-sm font-bold text-slate-400 mt-1">
-            Aqui está o resumo geral da sua escola de música.
-          </p>
-        </div>
-        
-        {/* Header Actions Desktop */}
-        <div className="hidden lg:flex items-center gap-4">
-           <div className="relative group">
-              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Procurar..." 
-                className="h-12 w-64 bg-white border border-slate-100 rounded-2xl pl-12 pr-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
-              />
-           </div>
-           <button className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all shadow-sm relative">
-              <Bell size={20} />
-              <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-blue-600 border-2 border-white rounded-full" />
-           </button>
-           <Avatar className="w-12 h-12 border-2 border-white shadow-sm ring-1 ring-slate-100">
-              <AvatarFallback className="bg-blue-600 text-white font-black">WR</AvatarFallback>
-           </Avatar>
-        </div>
-      </div>
-
       {/* ── Metrics Grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard 
           title="Total de Alunos" 
-          value={stats?.totalStudents || 128} 
+          value={statsLoading ? "..." : stats?.totalStudents ?? 0} 
           icon={Users} 
           color="text-blue-600" 
           trend="12%" 
           sparkData={sparkAlunos}
         />
         <MetricCard 
-          title="Aulas Esta Semana" 
-          value={stats?.weekLessons || 56} 
+          title="Aulas Realizadas" 
+          value={statsLoading ? "..." : stats?.weekLessons ?? 0} 
           icon={CheckCircle2} 
           color="text-emerald-500" 
           trend="8%" 
@@ -142,15 +130,15 @@ export default function Dashboard() {
         />
         <MetricCard 
           title="Aulas Agendadas" 
-          value={stats?.weekLessons || 56} 
+          value={statsLoading ? "..." : stats?.weekLessons ?? 0} 
           icon={Clock} 
           color="text-orange-500" 
           trend="15%" 
-          sparkData={sparkAgendadas}
+          sparkData={sparkAulas}
         />
         <MetricCard 
           title="Receita do Mês" 
-          value={formatCurrency(stats?.monthlyRevenue || 12450)} 
+          value={statsLoading ? "..." : formatCurrency(stats?.monthlyRevenue ?? 0)} 
           icon={DollarSign} 
           color="text-purple-600" 
           trend="18%" 
@@ -213,13 +201,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm space-y-8">
            <h3 className="text-base font-black text-slate-800 tracking-tight">Resumo do dia</h3>
            <div className="space-y-4">
-              {[
-                { label: "Aulas agendadas", count: 5, color: "bg-blue-50 text-blue-600", icon: Calendar },
-                { label: "Concluídas", count: 1, color: "bg-emerald-50 text-emerald-600", icon: CheckCircle2 },
-                { label: "Faltas", count: 1, color: "bg-orange-50 text-orange-600", icon: MinusCircle },
-                { label: "Remarcadas", count: 1, color: "bg-purple-50 text-purple-600", icon: RefreshCcw },
-                { label: "Canceladas", count: 1, color: "bg-rose-50 text-rose-600", icon: XCircle },
-              ].map((item, i) => (
+              {todaySummary.map((item, i) => (
                 <div key={i} className="flex items-center justify-between group cursor-default">
                   <div className="flex items-center gap-4">
                     <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border border-white", item.color)}>
@@ -263,6 +245,9 @@ export default function Dashboard() {
                    </div>
                 </div>
               ))}
+              {upcomingLessons?.length === 0 && (
+                <div className="py-8 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhuma aula agendada</div>
+              )}
            </div>
         </div>
 
