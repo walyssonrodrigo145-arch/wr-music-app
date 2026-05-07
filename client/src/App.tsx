@@ -16,15 +16,17 @@ import Mensalidades from "./pages/Mensalidades";
 import Login from "./pages/Login";
 import Progresso from "./pages/Progresso";
 
+import LandingPage from "./pages/LandingPage";
+
 function Router() {
   return (
     <Switch>
+      <Route path="/" component={LandingPage} />
       <Route path="/login" component={Login} />
       <Route>
-
         <MusicLayout>
           <Switch>
-            <Route path="/" component={Dashboard} />
+            <Route path="/dashboard" component={Dashboard} />
             <Route path="/alunos" component={Alunos} />
             <Route path="/aulas" component={Aulas} />
             <Route path="/instrumentos" component={Instrumentos} />
