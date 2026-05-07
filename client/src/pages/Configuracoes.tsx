@@ -349,7 +349,7 @@ export default function Configuracoes() {
   const updateSchool = trpc.settings.updateSchool.useMutation({
     onSuccess: () => {
       toast.success("Dados da escola atualizados!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
-      utils.settings.get.invalidate();
+    utils.settings.get.invalidate();
     },
     onError: (e) => toast.error("Erro ao salvar escola: " + e.message),
   });
@@ -377,291 +377,261 @@ export default function Configuracoes() {
   }
 
   return (
-    <div className="space-y-5 max-w-[900px]">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center">
-          <Shield size={20} className="text-slate-500" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-foreground">Configurações</h2>
-          <p className="text-xs text-muted-foreground">Gerencie seu perfil e preferências do sistema</p>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        {/* Sidebar de abas */}
-        <div className="sm:w-48 flex-shrink-0">
-          <div className="bg-card rounded-2xl border border-border p-2 flex sm:flex-col gap-1">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all w-full text-left",
-                    activeTab === tab.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <Icon size={15} className="flex-shrink-0" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              );
-            })}
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-[#F8FAFC]">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
+        {/* Header */}
+        <div className="flex items-center gap-3 lg:gap-4">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-slate-500/10 flex items-center justify-center shadow-sm">
+            <Shield size={22} className="text-slate-500" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight leading-none">Configurações</h2>
+            <p className="text-[10px] lg:text-xs text-slate-400 font-medium mt-1 lg:mt-2">Gerencie seu perfil e preferências do sistema</p>
           </div>
         </div>
 
-        {/* Conteúdo da aba */}
-        <div className="flex-1 bg-card rounded-2xl border border-border p-5 sm:p-6">
-
-          {/* ── ABA: PERFIL ── */}
-          {activeTab === "perfil" && (
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">Meu Perfil</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Suas informações pessoais e profissionais</p>
-              </div>
-
-              {/* Avatar */}
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg flex-shrink-0">
-                  <span className="text-xl font-bold text-white">{initials}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{user?.name ?? "Professor"}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email ?? ""}</p>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary mt-1 inline-block">
-                    Administrador
-                  </span>
-                </div>
-              </div>
-
-              <div className="h-px bg-border" />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Nome completo">
-                  <div className="relative">
-                    <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={profileName}
-                      onChange={e => setProfileName(e.target.value)}
-                      placeholder="Seu nome"
-                      className="pl-8 h-9 text-sm rounded-xl border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="E-mail">
-                  <div className="relative">
-                    <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={profileEmail}
-                      onChange={e => setProfileEmail(e.target.value)}
-                      placeholder="seu@email.com"
-                      type="email"
-                      className="pl-8 h-9 text-sm rounded-xl border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Telefone / WhatsApp">
-                  <div className="relative">
-                    <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={profilePhone}
-                      onChange={e => setProfilePhone(e.target.value)}
-                      placeholder="(11) 99999-9999"
-                      className="pl-8 h-9 text-sm rounded-xl border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                </Field>
-              </div>
-
-              <Field label="Bio / Apresentação" hint="Aparece no seu perfil público">
-                <div className="relative">
-                  <FileText size={13} className="absolute left-3 top-3 text-muted-foreground" />
-                  <textarea
-                    value={profileBio}
-                    onChange={e => setProfileBio(e.target.value)}
-                    placeholder="Conte um pouco sobre você, sua experiência musical..."
-                    rows={3}
-                    className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-border bg-muted/30 focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-              </Field>
-
-              <Button
-                className="gap-2 rounded-xl"
-                disabled={updateProfile.isPending}
-                onClick={() => updateProfile.mutate({ name: profileName, email: profileEmail, phone: profilePhone, bio: profileBio })}
-              >
-                {updateProfile.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                Salvar Perfil
-              </Button>
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+          {/* Sidebar de abas - Horizontal scroll on mobile */}
+          <div className="w-full lg:w-64 shrink-0 overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
+            <div className="flex lg:flex-col gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm min-w-max lg:min-w-0">
+              {TABS.map(tab => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black transition-all lg:w-full text-left uppercase tracking-widest",
+                      activeTab === tab.id
+                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
+                        : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                    )}
+                  >
+                    <Icon size={16} className="shrink-0" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
 
-          {/* ── ABA: ESCOLA ── */}
-          {activeTab === "escola" && (
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">Dados da Escola</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Informações da sua escola ou estúdio de música</p>
-              </div>
+          {/* Conteúdo da aba */}
+          <div className="flex-1 w-full bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 lg:p-10">
 
-              <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Music size={18} className="text-primary" />
+            {/* ── ABA: PERFIL ── */}
+            {activeTab === "perfil" && (
+              <div className="space-y-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Meu Perfil</h3>
+                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Suas informações pessoais</p>
+                  </div>
+                  <Button
+                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
+                    disabled={updateProfile.isPending}
+                    onClick={() => updateProfile.mutate({ name: profileName, email: profileEmail, phone: profilePhone, bio: profileBio })}
+                  >
+                    {updateProfile.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
+                  </Button>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-foreground">{schoolName || "Nome da sua escola"}</p>
-                  <p className="text-[10px] text-muted-foreground">{schoolCity || "Cidade"}</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Nome da escola / estúdio">
+                <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100">
+                  <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-[1.5rem] bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-xl shadow-indigo-200 shrink-0">
+                    <span className="text-2xl font-black text-white">{initials}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-base lg:text-xl font-black text-slate-800 truncate">{user?.name || "Professor"}</p>
+                    <p className="text-xs lg:text-sm font-bold text-slate-400 truncate mt-1">{user?.email}</p>
+                    <div className="mt-3">
+                      <span className="px-3 py-1 rounded-lg bg-indigo-100 text-[10px] font-black text-indigo-700 uppercase tracking-widest">Administrador</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                  <Field label="Nome completo">
+                    <div className="relative">
+                      <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <Input
+                        value={profileName}
+                        onChange={e => setProfileName(e.target.value)}
+                        placeholder="Seu nome"
+                        className="pl-11 h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="E-mail profissional">
+                    <div className="relative">
+                      <Mail size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <Input
+                        value={profileEmail}
+                        onChange={e => setProfileEmail(e.target.value)}
+                        placeholder="seu@email.com"
+                        type="email"
+                        className="pl-11 h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Telefone / WhatsApp">
+                    <div className="relative">
+                      <Phone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <Input
+                        value={profilePhone}
+                        onChange={e => setProfilePhone(e.target.value)}
+                        placeholder="(11) 99999-9999"
+                        className="pl-11 h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                      />
+                    </div>
+                  </Field>
+                </div>
+
+                <Field label="Bio / Apresentação" hint="Aparece no seu perfil público">
                   <div className="relative">
-                    <Building2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <FileText size={14} className="absolute left-4 top-4 text-slate-300" />
+                    <textarea
+                      value={profileBio}
+                      onChange={e => setProfileBio(e.target.value)}
+                      placeholder="Conte um pouco sobre você..."
+                      rows={4}
+                      className="w-full pl-11 pr-4 py-4 text-sm font-bold rounded-xl border border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm resize-none text-slate-700 outline-none placeholder:text-slate-300"
+                    />
+                  </div>
+                </Field>
+              </div>
+            )}
+
+            {/* ── ABA: ESCOLA ── */}
+            {activeTab === "escola" && (
+              <div className="space-y-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Dados da Escola</h3>
+                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Identidade da sua escola</p>
+                  </div>
+                  <Button
+                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
+                    disabled={updateSchool.isPending}
+                    onClick={() => updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription })}
+                  >
+                    {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                  <Field label="Nome da escola">
                     <Input
                       value={schoolName}
                       onChange={e => setSchoolName(e.target.value)}
-                      placeholder="Ex: Escola de Música Harmonia"
-                      className="pl-8 h-9 text-sm rounded-xl border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      placeholder="Ex: Escola Harmonia"
+                      className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
                     />
-                  </div>
-                </Field>
+                  </Field>
 
-                <Field label="Cidade">
-                  <div className="relative">
-                    <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={schoolCity}
-                      onChange={e => setSchoolCity(e.target.value)}
-                      placeholder="São Paulo, SP"
-                      className="pl-8 h-9 text-sm rounded-xl border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Endereço completo">
-                  <div className="relative">
-                    <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={schoolAddress}
-                      onChange={e => setSchoolAddress(e.target.value)}
-                      placeholder="Rua, número, bairro"
-                      className="pl-8 h-9 text-sm rounded-xl border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Telefone da escola">
-                  <div className="relative">
-                    <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Field label="Telefone comercial">
                     <Input
                       value={schoolPhone}
                       onChange={e => setSchoolPhone(e.target.value)}
                       placeholder="(11) 3333-4444"
-                      className="pl-8 h-9 text-sm rounded-xl border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
                     />
-                  </div>
-                </Field>
+                  </Field>
 
-                <Field label="Site / Redes sociais" hint="URL completa com https://">
-                  <div className="relative">
-                    <Globe size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Field label="Cidade / UF">
                     <Input
-                      value={schoolWebsite}
-                      onChange={e => setSchoolWebsite(e.target.value)}
-                      placeholder="https://suaescola.com.br"
-                      className="pl-8 h-9 text-sm rounded-xl border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      value={schoolCity}
+                      onChange={e => setSchoolCity(e.target.value)}
+                      placeholder="Ex: São Paulo, SP"
+                      className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
                     />
-                  </div>
-                </Field>
-              </div>
+                  </Field>
 
-              <Field label="Descrição da escola">
-                <div className="relative">
-                  <FileText size={13} className="absolute left-3 top-3 text-muted-foreground" />
+                  <Field label="Endereço">
+                    <Input
+                      value={schoolAddress}
+                      onChange={e => setSchoolAddress(e.target.value)}
+                      placeholder="Rua, número, bairro"
+                      className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Site ou Instagram">
+                  <Input
+                    value={schoolWebsite}
+                    onChange={e => setSchoolWebsite(e.target.value)}
+                    placeholder="https://suaescola.com.br"
+                    className="h-12 text-sm font-bold rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
+                  />
+                </Field>
+
+                <Field label="Sobre a escola">
                   <textarea
                     value={schoolDescription}
                     onChange={e => setSchoolDescription(e.target.value)}
-                    placeholder="Descreva sua escola, metodologia de ensino, diferenciais..."
-                    rows={3}
-                    className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-border bg-muted/30 focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none text-foreground placeholder:text-muted-foreground"
+                    placeholder="Breve descrição da metodologia..."
+                    rows={4}
+                    className="w-full px-4 py-4 text-sm font-bold rounded-xl border border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm resize-none text-slate-700 outline-none"
                   />
-                </div>
-              </Field>
-
-              <Button
-                className="gap-2 rounded-xl"
-                disabled={updateSchool.isPending}
-                onClick={() => updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription })}
-              >
-                {updateSchool.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                Salvar Dados da Escola
-              </Button>
-            </div>
-          )}
-
-          {/* ── ABA: NOTIFICAÇÕES ── */}
-          {activeTab === "notificacoes" && (
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">Notificações</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Escolha quais alertas deseja receber</p>
+                </Field>
               </div>
+            )}
 
-              <div className="space-y-3">
-                {[
-                  { label: "Lembrete de aulas", desc: "Aviso 1 hora antes de cada aula agendada", value: notifyLesson, onChange: setNotifyLesson },
-                  { label: "Pagamento pendente", desc: "Alerta quando mensalidade estiver próxima do vencimento", value: notifyPayment, onChange: setNotifyPayment },
-                  { label: "Falta de aluno", desc: "Notificação quando um aluno faltar à aula", value: notifyAbsence, onChange: setNotifyAbsence },
-                  { label: "Novo aluno", desc: "Aviso ao cadastrar um novo aluno no sistema", value: notifyNewStudent, onChange: setNotifyNewStudent },
-                  { label: "Relatório semanal", desc: "Resumo das aulas e receitas toda segunda-feira", value: notifyWeekly, onChange: setNotifyWeekly },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border">
-                    <div className="flex-1 min-w-0 pr-4">
-                      <p className="text-xs font-semibold text-foreground">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{item.desc}</p>
-                    </div>
-                    <Toggle checked={item.value} onChange={item.onChange} />
+            {/* ── ABA: NOTIFICAÇÕES ── */}
+            {activeTab === "notificacoes" && (
+              <div className="space-y-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Notificações</h3>
+                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Controle de alertas</p>
                   </div>
-                ))}
+                  <Button
+                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
+                    disabled={updateNotifications.isPending}
+                    onClick={() => updateNotifications.mutate({
+                      notifyLessonReminder: notifyLesson,
+                      notifyPaymentDue: notifyPayment,
+                      notifyStudentAbsence: notifyAbsence,
+                      notifyNewStudent: notifyNewStudent,
+                      notifyWeeklyReport: notifyWeekly,
+                    })}
+                  >
+                    {updateNotifications.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {[
+                    { label: "Lembrete de aulas", desc: "Aviso 1h antes de cada aula", value: notifyLesson, onChange: setNotifyLesson },
+                    { label: "Pagamento pendente", desc: "Alerta de mensalidade próxima do vencimento", value: notifyPayment, onChange: setNotifyPayment },
+                    { label: "Falta de aluno", desc: "Notificação quando um aluno não comparecer", value: notifyAbsence, onChange: setNotifyAbsence },
+                    { label: "Relatório semanal", desc: "Resumo de desempenho toda segunda-feira", value: notifyWeekly, onChange: setNotifyWeekly },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-100 transition-colors">
+                      <div className="pr-4">
+                        <p className="text-xs font-black text-slate-700 uppercase tracking-widest mb-1">{item.label}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.desc}</p>
+                      </div>
+                      <Toggle checked={item.value} onChange={item.onChange} />
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
 
-              <Button
-                className="gap-2 rounded-xl"
-                disabled={updateNotifications.isPending}
-                onClick={() => updateNotifications.mutate({
-                  notifyLessonReminder: notifyLesson,
-                  notifyPaymentDue: notifyPayment,
-                  notifyStudentAbsence: notifyAbsence,
-                  notifyNewStudent: notifyNewStudent,
-                  notifyWeeklyReport: notifyWeekly,
-                })}
-              >
-                {updateNotifications.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                Salvar Notificações
-              </Button>
-            </div>
-          )}
+            {/* ── ABA: APARÊNCIA ── */}
+            {activeTab === "aparencia" && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Personalização</h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Aparência do sistema</p>
+                </div>
 
-          {/* ── ABA: APARÊNCIA ── */}
-          {activeTab === "aparencia" && (
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">Aparência</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Personalize o visual do sistema</p>
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold text-foreground mb-3">Tema do sistema</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {/* Light */}
                   <button
                     onClick={() => {
@@ -672,31 +642,30 @@ export default function Configuracoes() {
                       }
                     }}
                     className={cn(
-                      "relative p-4 rounded-2xl border-2 transition-all text-left",
+                      "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "light"
-                        ? "border-primary bg-primary/5 shadow-md"
-                        : "border-border bg-muted/30 hover:border-primary/40"
+                        ? "border-indigo-600 bg-indigo-50/50 shadow-xl shadow-indigo-100"
+                        : "border-slate-100 bg-white hover:border-indigo-200"
                     )}
                   >
-                    <div className="w-full h-16 rounded-xl bg-white border border-slate-200 mb-3 overflow-hidden shadow-sm">
-                      <div className="h-3 bg-slate-100 border-b border-slate-200 flex items-center px-2 gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                        <div className="w-8 h-1 rounded bg-slate-200" />
-                      </div>
-                      <div className="flex h-full">
-                        <div className="w-8 bg-slate-100 border-r border-slate-200" />
-                        <div className="flex-1 p-1.5 space-y-1">
-                          <div className="h-2 bg-indigo-100 rounded w-3/4" />
-                          <div className="h-1.5 bg-slate-100 rounded w-1/2" />
-                        </div>
-                      </div>
+                    <div className="w-full h-24 rounded-[1.25rem] bg-white border border-slate-100 mb-6 overflow-hidden shadow-sm flex flex-col">
+                       <div className="h-4 bg-slate-50 border-b border-slate-100 flex items-center px-2 gap-1">
+                         <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                         <div className="w-6 h-1 rounded bg-slate-100" />
+                       </div>
+                       <div className="flex-1 p-3 space-y-2">
+                         <div className="h-3 bg-indigo-100 rounded-full w-3/4" />
+                         <div className="h-2 bg-slate-50 rounded-full w-1/2" />
+                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Sun size={14} className="text-amber-500" />
-                      <span className="text-xs font-semibold text-foreground">Claro</span>
-                      {theme === "light" && (
-                        <CheckCircle2 size={14} className="text-primary ml-auto" />
-                      )}
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
+                            <Sun size={18} />
+                         </div>
+                         <span className="text-xs font-black uppercase tracking-widest text-slate-800">Modo Claro</span>
+                       </div>
+                       {theme === "light" && <CheckCircle2 size={18} className="text-indigo-600" />}
                     </div>
                   </button>
 
@@ -710,85 +679,61 @@ export default function Configuracoes() {
                       }
                     }}
                     className={cn(
-                      "relative p-4 rounded-2xl border-2 transition-all text-left",
+                      "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "dark"
-                        ? "border-primary bg-primary/5 shadow-md"
-                        : "border-border bg-muted/30 hover:border-primary/40"
+                        ? "border-indigo-600 bg-indigo-50/50 shadow-xl shadow-indigo-100"
+                        : "border-slate-100 bg-white hover:border-indigo-200"
                     )}
                   >
-                    <div className="w-full h-16 rounded-xl bg-slate-900 border border-slate-700 mb-3 overflow-hidden shadow-sm">
-                      <div className="h-3 bg-slate-800 border-b border-slate-700 flex items-center px-2 gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                        <div className="w-8 h-1 rounded bg-slate-700" />
-                      </div>
-                      <div className="flex h-full">
-                        <div className="w-8 bg-slate-800 border-r border-slate-700" />
-                        <div className="flex-1 p-1.5 space-y-1">
-                          <div className="h-2 bg-indigo-900 rounded w-3/4" />
-                          <div className="h-1.5 bg-slate-700 rounded w-1/2" />
-                        </div>
-                      </div>
+                    <div className="w-full h-24 rounded-[1.25rem] bg-slate-900 border border-slate-800 mb-6 overflow-hidden shadow-sm flex flex-col">
+                       <div className="h-4 bg-slate-800 border-b border-slate-700 flex items-center px-2 gap-1">
+                         <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+                         <div className="w-6 h-1 rounded bg-slate-800" />
+                       </div>
+                       <div className="flex-1 p-3 space-y-2">
+                         <div className="h-3 bg-indigo-900 rounded-full w-3/4" />
+                         <div className="h-2 bg-slate-800 rounded-full w-1/2" />
+                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Moon size={14} className="text-indigo-400" />
-                      <span className="text-xs font-semibold text-foreground">Escuro</span>
-                      {theme === "dark" && (
-                        <CheckCircle2 size={14} className="text-primary ml-auto" />
-                      )}
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-xl bg-indigo-900 text-indigo-400 flex items-center justify-center">
+                            <Moon size={18} />
+                         </div>
+                         <span className="text-xs font-black uppercase tracking-widest text-slate-800">Modo Escuro</span>
+                       </div>
+                       {theme === "dark" && <CheckCircle2 size={18} className="text-indigo-600" />}
                     </div>
                   </button>
                 </div>
               </div>
+            )}
 
-              <div className="p-4 bg-muted/30 rounded-xl border border-border">
-                <p className="text-xs font-semibold text-foreground mb-1">Tema atual</p>
-                <p className="text-xs text-muted-foreground">
-                  O sistema está usando o tema <strong>{theme === "dark" ? "escuro" : "claro"}</strong>. A preferência é salva automaticamente ao clicar.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ── ABA: SEGURANÇA ── */}
-          {activeTab === "seguranca" && (
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">Segurança</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Informações sobre sua conta e acesso</p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400" />
-                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Conta autenticada via Manus OAuth</p>
-                  </div>
-                  <p className="text-[10px] text-emerald-600/80 dark:text-emerald-500">
-                    Sua conta está protegida pelo sistema de autenticação seguro do Manus. Não é necessário gerenciar senha manualmente.
-                  </p>
+            {/* ── ABA: SEGURANÇA ── */}
+            {activeTab === "seguranca" && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-base lg:text-lg font-black text-slate-800 uppercase tracking-widest">Segurança e Acesso</h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">Dados da conta</p>
                 </div>
 
-                <div className="p-4 bg-muted/30 rounded-xl border border-border space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">Provedor de login</p>
-                      <p className="text-[10px] text-muted-foreground">Manus OAuth</p>
-                    </div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">Ativo</span>
+                <div className="p-6 bg-indigo-50 rounded-[1.5rem] border border-indigo-100 flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
+                    <Shield size={20} />
                   </div>
-                  <div className="h-px bg-border" />
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">Função no sistema</p>
-                      <p className="text-[10px] text-muted-foreground">Acesso total ao painel</p>
-                    </div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">Admin</span>
+                  <div>
+                    <p className="text-xs font-black text-indigo-900 uppercase tracking-widest mb-1">Conta Verificada</p>
+                    <p className="text-[11px] text-indigo-800/70 font-medium leading-relaxed">
+                      Sua conta está vinculada ao Manus OAuth. A autenticação é gerenciada de forma centralizada para máxima segurança.
+                    </p>
                   </div>
-                  <div className="h-px bg-border" />
-                  <div className="flex justify-between items-center">
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
                     <div>
-                      <p className="text-xs font-semibold text-foreground">Último acesso</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Último Acesso</p>
+                      <p className="text-xs font-bold text-slate-700">
                         {user?.lastSignedIn
                           ? new Date(user.lastSignedIn).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
                           : "—"}
@@ -812,9 +757,8 @@ export default function Configuracoes() {
                 <ExportDataSection />
                 <CleanupTestDataSection />
               </div>
-            </div>
-          )}
-
+            )}
+          </div>
         </div>
       </div>
     </div>

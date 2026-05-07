@@ -13,6 +13,7 @@ import {
   Bell,
   DollarSign,
   Activity,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -68,10 +69,21 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-[#0B1220] text-slate-400 transition-all duration-300 ease-in-out relative border-r border-slate-800/50 shadow-2xl z-20",
-        collapsed ? "w-[80px]" : "w-[260px]"
+        "flex flex-col h-full bg-[#0B1220] text-slate-400 transition-all duration-300 ease-in-out relative border-r border-slate-800/50 shadow-2xl z-20 overflow-hidden",
+        collapsed ? "w-[80px]" : "w-[260px]",
+        // Mobile drawer specific styling
+        "lg:translate-x-0"
       )}
     >
+      {/* Mobile Close Button */}
+      <button
+        onClick={onToggle}
+        className="lg:hidden absolute top-6 right-4 w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 transition-colors z-50"
+        aria-label="Fechar menu"
+      >
+        <X size={20} />
+      </button>
+
       {/* Toggle button - desktop only */}
       <button
         onClick={onToggle}
@@ -90,7 +102,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
           <Music size={20} className="text-white" />
         </div>
         {!collapsed && (
-          <div>
+          <div className="animate-in fade-in slide-in-from-left-2 duration-300">
             <p className="text-base font-black text-white tracking-tight leading-none">MusicPro</p>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Gestão Musical</p>
           </div>
@@ -98,11 +110,11 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto scrollbar-none">
+      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto no-scrollbar scroll-smooth">
         {!collapsed && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-4">Menu</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-4 animate-in fade-in duration-500">Menu</p>
         )}
-        {navItems.map((item) => {
+        {navItems.map((item, idx) => {
           const Icon = item.icon;
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
           return (
@@ -117,6 +129,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                   collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
+                style={{ animationDelay: `${idx * 50}ms` }}
               >
                 <Icon
                   size={18}
@@ -144,7 +157,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         })}
 
         {!collapsed && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mt-8 mb-4">Geral</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mt-8 mb-4 animate-in fade-in duration-500">Geral</p>
         )}
         {bottomItems.map((item) => {
           const Icon = item.icon;
@@ -172,7 +185,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
 
       {/* User profile at bottom */}
       <div className={cn(
-        "p-4 bg-slate-900/30",
+        "p-4 bg-slate-900/30 border-t border-slate-800/50",
         collapsed ? "flex justify-center" : ""
       )}>
         {collapsed ? (
@@ -182,8 +195,8 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
             </AvatarFallback>
           </Avatar>
         ) : (
-          <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30">
-            <Avatar className="w-9 h-9 flex-shrink-0 border border-slate-600 shadow-lg">
+          <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30 group/profile">
+            <Avatar className="w-9 h-9 flex-shrink-0 border border-slate-600 shadow-lg group-hover/profile:scale-105 transition-transform">
               <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-[#7C3AED] text-white text-xs font-black">
                 {initials}
               </AvatarFallback>

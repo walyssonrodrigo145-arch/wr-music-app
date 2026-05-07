@@ -13,11 +13,8 @@ import {
   Edit2,
   Trash2,
   ChevronRight,
-  Filter,
   TrendingUp,
   Loader2,
-  Smile,
-  Frown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,10 +47,12 @@ export default function Progresso() {
   const utils = trpc.useUtils();
 
   const { data: students = [], isLoading: studentsLoading } = trpc.students.list.useQuery();
+  
   const { data: timeline = [], isLoading: timelineLoading } = trpc.progress.getTimeline.useQuery(
     { studentId: selectedStudentId! },
     { enabled: !!selectedStudentId }
   );
+  
   const { data: summary, isLoading: summaryLoading } = trpc.progress.getSummary.useQuery(
     { studentId: selectedStudentId! },
     { enabled: !!selectedStudentId }
@@ -122,7 +121,7 @@ export default function Progresso() {
       title: event.title,
       description: event.description || "",
       category: event.category,
-      grade: event.grade || "",
+      grade: event.grade?.toString() || "",
       achievedAt: format(new Date(event.achievedAt), "yyyy-MM-dd'T'HH:mm"),
     });
     setIsModalOpen(true);
@@ -160,53 +159,77 @@ export default function Progresso() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] gap-0 lg:gap-8 overflow-hidden -m-4 sm:-m-6">
-      {/* Sidebar de Alunos (Linear Style) */}
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] gap-0 lg:gap-0 overflow-hidden -m-4 sm:-m-6 bg-[#F8FAFC]">
+      {/* Sidebar de Alunos */}
       <div className={cn(
-        "w-full lg:w-72 flex flex-col bg-background border-r border-border/50 transition-all",
+        "w-full lg:w-80 flex flex-col bg-white border-r border-slate-100 transition-all",
         selectedStudentId && "hidden lg:flex"
       )}>
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Alunos</h3>
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 tracking-tight">Progresso</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Timeline dos alunos</p>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Activity size={20} />
+            </div>
           </div>
+          
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/40" size={14} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
             <Input
-              placeholder="Buscar..."
-              className="pl-9 h-9 text-sm rounded-lg border-border/40 bg-muted/20 focus:bg-background transition-all"
+              placeholder="Buscar aluno..."
+              className="pl-9 h-11 text-xs rounded-xl border-slate-100 bg-slate-50 focus:bg-white transition-all shadow-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-2 pb-6 space-y-0.5 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-1 scrollbar-thin no-scrollbar">
           {studentsLoading ? (
-            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-muted-foreground/20" /></div>
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-200" /></div>
           ) : filteredStudents.length === 0 ? (
-            <p className="text-xs text-muted-foreground/60 text-center p-8 italic">Nenhum aluno</p>
+            <div className="flex flex-col items-center justify-center p-8 space-y-2">
+              <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                <Search size={20} />
+              </div>
+              <p className="text-xs text-slate-400 font-medium italic">Nenhum aluno encontrado</p>
+            </div>
           ) : (
             filteredStudents.map((student: any) => (
               <button
                 key={student.id}
                 onClick={() => setSelectedStudentId(student.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group",
+                  "w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 group",
                   selectedStudentId === student.id
-                    ? "bg-primary/5 text-primary"
-                    : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
+                    : "hover:bg-slate-50 text-slate-600 hover:text-slate-900"
                 )}
               >
-                <div className={cn(
-                  "w-1.5 h-1.5 rounded-full transition-all",
-                  selectedStudentId === student.id ? "bg-primary scale-100" : "bg-transparent scale-0 group-hover:scale-100 group-hover:bg-muted-foreground/30"
-                )} />
+                <Avatar className="w-9 h-9 border-2 border-white/20 shrink-0">
+                  <AvatarFallback className={cn(
+                    "text-[10px] font-black uppercase",
+                    selectedStudentId === student.id ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-600"
+                  )}>
+                    {student.name.substring(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                
                 <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-medium truncate">{student.name}</p>
+                  <p className="text-xs font-bold truncate leading-none mb-1">{student.name}</p>
+                  <p className={cn(
+                    "text-[10px] font-medium truncate uppercase tracking-widest",
+                    selectedStudentId === student.id ? "text-white/60" : "text-slate-400"
+                  )}>
+                    {student.level || "Iniciante"}
+                  </p>
                 </div>
-                <ChevronRight size={12} className={cn(
-                  "transition-all",
+                
+                <ChevronRight size={14} className={cn(
+                  "transition-all shrink-0",
                   selectedStudentId === student.id ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0"
                 )} />
               </button>
@@ -215,182 +238,175 @@ export default function Progresso() {
         </div>
       </div>
 
-      {/* Conteúdo Principal (Modern Dashboard) */}
+      {/* Conteúdo Principal */}
       <div className={cn(
-        "flex-1 flex flex-col min-w-0 bg-muted/5 overflow-hidden",
+        "flex-1 flex flex-col min-w-0 bg-[#F8FAFC] overflow-hidden",
         !selectedStudentId && "hidden lg:flex"
       )}>
         {!selectedStudentId ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
-            <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mb-4">
-              <Activity size={24} className="text-muted-foreground/40" />
+            <div className="w-20 h-20 rounded-[2rem] bg-white border border-slate-100 shadow-xl shadow-slate-200/50 flex items-center justify-center mb-6">
+              <Activity size={32} className="text-indigo-200" />
             </div>
-            <h2 className="text-lg font-semibold text-foreground/80">Selecione um aluno</h2>
-            <p className="text-sm text-muted-foreground/60 max-w-[240px] mt-1">
-              Escolha um aluno na lista ao lado para visualizar o progresso detalhado.
+            <h2 className="text-xl font-bold text-slate-800">Acompanhe a Evolução</h2>
+            <p className="text-sm text-slate-400 max-w-[280px] mt-2 font-medium">
+              Selecione um aluno para ver o histórico completo de desempenho e conquistas.
             </p>
           </div>
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedStudentId}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              {/* NÍVEL 1: HEADER COMPACTO (Ajustado para Mobile) */}
-              <div className="bg-background border-b border-border/40 px-4 py-3 lg:px-6 lg:py-4 flex items-center gap-3 lg:gap-8 shrink-0">
+              {/* HEADER COMPACTO */}
+              <div className="bg-white border-b border-slate-100 px-4 py-4 lg:px-8 lg:py-6 flex items-center gap-4 shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="lg:hidden shrink-0 h-8 w-8"
+                  className="lg:hidden shrink-0 h-10 w-10 rounded-xl bg-slate-50 border border-slate-100"
                   onClick={() => setSelectedStudentId(null)}
                 >
-                  <ChevronRight size={16} className="rotate-180" />
+                  <ChevronRight size={18} className="rotate-180" />
                 </Button>
 
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <Avatar className="w-8 h-8 lg:w-10 lg:h-10 border border-border/40 shrink-0">
-                    <AvatarFallback className="bg-primary/5 text-primary text-[10px] lg:text-sm font-bold">
-                      {selectedStudent?.name.substring(0, 2).toUpperCase()}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <Avatar className="w-10 h-10 lg:w-14 lg:h-14 border-4 border-slate-50 shrink-0 shadow-sm">
+                    <AvatarFallback className="bg-indigo-600 text-white text-xs lg:text-base font-black uppercase">
+                      {selectedStudent?.name.substring(0, 2)}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-sm lg:text-lg font-bold text-foreground truncate leading-none">{selectedStudent?.name}</h2>
-                      <span className="px-1.5 py-0.5 rounded-md bg-muted text-[8px] lg:text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                        {selectedStudent?.level}
+                    <div className="flex items-center gap-2 mb-1 lg:mb-2">
+                      <h2 className="text-base lg:text-2xl font-black text-slate-800 truncate leading-none">{selectedStudent?.name}</h2>
+                      <span className="px-2 py-0.5 rounded-lg bg-indigo-50 text-[8px] lg:text-[10px] font-black text-indigo-600 uppercase tracking-widest border border-indigo-100/50">
+                        {selectedStudent?.level || "Nível I"}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <div className="w-20 lg:w-32 h-1 bg-muted rounded-full overflow-hidden shrink-0">
-                        <div 
-                          className="h-full bg-primary transition-all duration-700" 
-                          style={{ width: `${summary?.frequency || 0}%` }}
+                    <div className="flex items-center gap-3">
+                      <div className="w-24 lg:w-48 h-2 bg-slate-100 rounded-full overflow-hidden shrink-0 border border-slate-200/50">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${summary?.frequency || 0}%` }}
+                          className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 shadow-[0_0_10px_rgba(79,70,229,0.3)]" 
                         />
                       </div>
-                      <span className="text-[9px] lg:text-[10px] text-muted-foreground font-medium truncate">
-                        {summary?.lastLesson ? format(new Date(summary.lastLesson), "dd/MM", { locale: ptBR }) : "N/A"}
+                      <span className="text-[10px] lg:text-xs text-slate-400 font-bold uppercase tracking-wider">
+                        {summary?.frequency || 0}% Frequência
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="hidden xl:flex items-center gap-3 max-w-[300px] bg-amber-50/50 border border-amber-100 px-3 py-2 rounded-lg">
-                  <div className="shrink-0 w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
-                    {summary && summary.averageGrade >= 7 ? <Smile size={14} className="text-amber-600" /> : <Frown size={14} className="text-amber-600" />}
-                  </div>
-                  <p className="text-[11px] text-amber-900/70 font-medium leading-tight">
-                    {summaryLoading ? "Analisando..." : (
-                      summary && summary.averageGrade >= 8 ? "Evolução excelente! Mantenha o ritmo." :
-                      summary && summary.averageGrade >= 6 ? "Progresso constante. Foco na técnica." :
-                      "Atenção aos fundamentos básicos."
-                    )}
-                  </p>
+                <div className="hidden xl:flex items-center gap-4 bg-emerald-50 border border-emerald-100 px-5 py-3 rounded-[1.25rem]">
+                   <TrendingUp size={20} className="text-emerald-600" />
+                   <div>
+                     <p className="text-[10px] font-black text-emerald-800/50 uppercase tracking-widest">Status da Evolução</p>
+                     <p className="text-xs text-emerald-900 font-bold">Excelente Desempenho</p>
+                   </div>
                 </div>
               </div>
 
-              {/* NÍVEL 2: CARDS DE MÉTRICAS CLEAN (Ajustado para Mobile) */}
-              <div className="px-4 py-4 lg:px-6 lg:py-6 overflow-x-auto scrollbar-none shrink-0 bg-muted/5">
-                <div className="flex items-center gap-3 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
+              {/* CARDS DE MÉTRICAS */}
+              <div className="px-4 py-4 lg:px-8 lg:py-8 overflow-x-auto no-scrollbar shrink-0">
+                <div className="flex items-center gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
                   {[
-                    { label: "Média", value: summary?.averageGrade || "0.0", icon: Star, color: "text-amber-500", bg: "bg-amber-50" },
-                    { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-blue-500", bg: "bg-blue-50" },
-                    { label: "Freq.", value: `${summary?.frequency || 0}%`, icon: Calendar, color: "text-emerald-500", bg: "bg-emerald-50" },
-                    { label: "Status", value: "Ativo", icon: TrendingUp, color: "text-indigo-500", bg: "bg-indigo-50" },
+                    { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500", bg: "bg-amber-50" },
+                    { label: "Aulas Concluídas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-blue-500", bg: "bg-blue-50" },
+                    { label: "Última Aula", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "N/A", icon: Calendar, color: "text-emerald-500", bg: "bg-emerald-50" },
+                    { label: "Tempo Total", value: "12h 40m", icon: Clock, color: "text-indigo-500", bg: "bg-indigo-50" },
                   ].map((stat, i) => (
-                    <div key={i} className="relative p-3 lg:p-4 bg-background rounded-xl lg:rounded-2xl border border-border/40 shadow-[0_1px_3px_rgba(0,0,0,0.02)] w-32 lg:w-full overflow-hidden group">
-                      <div className="flex items-center justify-between mb-2 lg:mb-3 relative z-10">
-                        <div className={cn("w-6 h-6 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center", stat.bg, stat.color)}>
-                          <stat.icon className="w-3 h-3 lg:w-4 lg:h-4" />
-                        </div>
+                    <div key={i} className="bg-white p-4 lg:p-6 rounded-[1.5rem] border border-slate-100 shadow-sm w-36 lg:w-full group hover:shadow-md transition-all">
+                      <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center mb-3 lg:mb-4 transition-transform group-hover:scale-110", stat.bg, stat.color)}>
+                        <stat.icon className="w-5 h-5" />
                       </div>
-                      <p className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-0.5 relative z-10">{stat.label}</p>
-                      <p className="text-sm lg:text-lg font-bold text-foreground relative z-10">{stat.value}</p>
+                      <p className="text-[9px] lg:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">{stat.label}</p>
+                      <p className="text-base lg:text-xl font-black text-slate-800">{stat.value}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* NÍVEL 3: TIMELINE (Ajustado para Mobile) */}
-              <div className="flex-1 px-4 lg:px-6 pb-6 overflow-hidden flex flex-col">
-                <div className="flex flex-row items-center justify-between mb-4 lg:mb-6 shrink-0 gap-2">
-                  <div className="flex items-center gap-1.5 lg:gap-2 min-w-0">
-                    <h3 className="text-xs lg:text-sm font-bold text-foreground truncate">Atividade Recente</h3>
-                    <div className="hidden sm:block h-4 w-px bg-border/60 mx-2" />
-                    <button className="hidden sm:flex text-[11px] font-medium text-muted-foreground hover:text-primary items-center gap-1 transition-colors">
-                      <Filter size={12} />
-                      Filtrar
-                    </button>
-                  </div>
-                  
-                  <Button 
+              {/* TIMELINE */}
+              <div className="flex-1 px-4 lg:px-8 pb-6 overflow-hidden flex flex-col">
+                <div className="flex items-center justify-between mb-6 shrink-0">
+                   <div className="flex items-center gap-3">
+                     <div className="w-2 h-6 bg-indigo-600 rounded-full" />
+                     <h3 className="text-sm lg:text-base font-black text-slate-800 uppercase tracking-widest">Jornada Musical</h3>
+                   </div>
+                   
+                   <Button 
                     onClick={() => { resetForm(); setIsModalOpen(true); }}
-                    className="h-7 lg:h-8 rounded-lg px-2 lg:px-3 bg-primary hover:bg-primary/90 text-white text-[9px] lg:text-[11px] font-bold gap-1 lg:gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
+                    className="h-10 rounded-xl px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest gap-2 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
                   >
-                    <Plus className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
-                    <span className="hidden xs:inline">Novo registro</span>
-                    <span className="xs:hidden">Novo</span>
+                    <Plus size={18} />
+                    <span className="hidden sm:inline">Novo Registro</span>
+                    <span className="sm:hidden">Novo</span>
                   </Button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin space-y-4">
+                <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-6">
                   {timelineLoading ? (
-                    <div className="flex justify-center p-12"><Loader2 className="animate-spin text-muted-foreground/20" /></div>
+                    <div className="flex justify-center p-12"><Loader2 className="animate-spin text-slate-200" /></div>
                   ) : timeline.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 border-2 border-dashed border-border/40 rounded-2xl">
-                      <p className="text-xs font-medium italic">Nenhuma atividade registrada.</p>
+                    <div className="flex flex-col items-center justify-center py-20 bg-white border-2 border-dashed border-slate-100 rounded-[2rem]">
+                      <Activity size={40} className="text-slate-100 mb-4" />
+                      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Nenhuma atividade registrada</p>
                     </div>
                   ) : (
-                    <div className="relative pl-4 border-l border-border/60 ml-2 space-y-8 pb-8">
+                    <div className="relative pl-6 border-l-2 border-slate-100 ml-3 space-y-8 pb-10">
                       {timeline.map((event) => (
                         <div key={event.id} className="relative">
                           {/* Dot */}
                           <div className={cn(
-                            "absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-background ring-4 ring-background shadow-sm",
+                            "absolute -left-[35px] top-4 w-5 h-5 rounded-full border-4 border-white shadow-md z-10",
                             event.category === 'tecnica' ? 'bg-indigo-500' :
                             event.category === 'teoria' ? 'bg-amber-500' :
                             event.category === 'repertorio' ? 'bg-emerald-500' :
                             'bg-slate-400'
                           )} />
                           
-                          <div className="group bg-background hover:border-primary/20 p-4 rounded-xl border border-border/40 transition-all duration-200 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-md">
-                            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                          <motion.div 
+                            whileHover={{ y: -2 }}
+                            className="bg-white p-5 lg:p-6 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all group"
+                          >
+                            <div className="flex flex-col md:flex-row items-start justify-between gap-6">
                               <div className="flex-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-3 mb-2">
-                                  <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">
+                                <div className="flex flex-wrap items-center gap-3 mb-3">
+                                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md">
                                     {format(new Date(event.achievedAt), "dd MMM yyyy", { locale: ptBR })}
                                   </span>
-                                  <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border", getCategoryColor(event.category))}>
+                                  <span className={cn("px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border", getCategoryColor(event.category))}>
                                     {event.category}
                                   </span>
                                 </div>
-                                <h4 className="text-sm font-bold text-foreground mb-1">{event.title}</h4>
-                                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{event.description}</p>
+                                <h4 className="text-sm lg:text-base font-black text-slate-800 mb-2">{event.title}</h4>
+                                <p className="text-xs text-slate-400 font-medium leading-relaxed">{event.description}</p>
                               </div>
                               
-                              <div className="flex items-center gap-6 shrink-0 self-end sm:self-center">
+                              <div className="flex items-center gap-6 shrink-0 w-full md:w-auto justify-between md:justify-end border-t md:border-none pt-4 md:pt-0 border-slate-50">
                                 {event.grade && (
-                                  <div className={cn("flex items-center gap-1 px-2 py-1 rounded-lg border font-bold text-xs", getStatusColor(Number(event.grade)))}>
-                                    <Star size={12} className="fill-current" />
+                                  <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-xl border font-black text-xs shadow-sm", getStatusColor(Number(event.grade)))}>
+                                    <Star size={14} className="fill-current" />
                                     {Number(event.grade).toFixed(1)}
                                   </div>
                                 )}
                                 
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleEdit(event)}>
-                                    <Edit2 size={12} />
+                                <div className="flex gap-2">
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-slate-300 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleEdit(event)}>
+                                    <Edit2 size={16} />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteEventMutation.mutate({ id: event.id })}>
-                                    <Trash2 size={12} />
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50" onClick={() => deleteEventMutation.mutate({ id: event.id })}>
+                                    <Trash2 size={16} />
                                   </Button>
                                 </div>
                               </div>
                             </div>
-                          </div>
+                          </motion.div>
                         </div>
                       ))}
                     </div>
@@ -402,94 +418,94 @@ export default function Progresso() {
         )}
       </div>
 
-      {/* Modal: Novo/Editar Registro (Clean Style) */}
+      {/* Modal Dialog */}
       <Dialog open={isModalOpen} onOpenChange={(open) => {
         setIsModalOpen(open);
         if (!open) resetForm();
       }}>
-        <DialogContent className="sm:max-w-[440px] p-0 gap-0 border-none shadow-2xl rounded-2xl overflow-hidden">
-          <div className="px-6 py-6 border-b border-border/40">
+        <DialogContent className="sm:max-w-[440px] p-0 gap-0 border-none shadow-2xl rounded-[2rem] overflow-hidden">
+          <div className="px-8 py-8 border-b border-slate-50 bg-slate-50/50">
             <DialogHeader>
-              <DialogTitle className="text-base font-bold text-foreground">
-                {editingEvent ? "Editar registro" : "Novo registro"}
+              <DialogTitle className="text-lg font-black text-slate-800 uppercase tracking-widest">
+                {editingEvent ? "Editar Registro" : "Novo Registro"}
               </DialogTitle>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Adicione detalhes sobre a evolução musical hoje.
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                Documente a evolução musical
               </p>
             </DialogHeader>
           </div>
           
-          <div className="px-6 py-6 space-y-4">
+          <div className="px-8 py-8 space-y-6">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Data</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Data</label>
                 <Input
                   type="datetime-local"
-                  className="rounded-lg h-9 text-xs border-border/40 bg-muted/10"
+                  className="rounded-xl h-12 text-xs border-slate-100 bg-slate-50 font-bold text-slate-700"
                   value={formData.achievedAt}
                   onChange={(e) => setFormData({ ...formData, achievedAt: e.target.value })}
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Categoria</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Categoria</label>
                 <Select
                   value={formData.category}
                   onValueChange={(val) => setFormData({ ...formData, category: val as any })}
                 >
-                  <SelectTrigger className="rounded-lg h-9 text-xs border-border/40 bg-muted/10">
-                    <SelectValue placeholder="Selecione" />
+                  <SelectTrigger className="rounded-xl h-12 text-xs border-slate-100 bg-slate-50 font-bold text-slate-700">
+                    <SelectValue placeholder="Categoria" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="tecnica">Técnica</SelectItem>
-                    <SelectItem value="teoria">Teoria</SelectItem>
-                    <SelectItem value="repertorio">Repertório</SelectItem>
-                    <SelectItem value="geral">Geral</SelectItem>
+                  <SelectContent className="rounded-xl border-slate-100">
+                    <SelectItem value="tecnica" className="text-xs font-bold py-3">Técnica</SelectItem>
+                    <SelectItem value="teoria" className="text-xs font-bold py-3">Teoria</SelectItem>
+                    <SelectItem value="repertorio" className="text-xs font-bold py-3">Repertório</SelectItem>
+                    <SelectItem value="geral" className="text-xs font-bold py-3">Geral</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Título</label>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Título da Atividade</label>
               <Input
-                placeholder="Ex: Escala de Sol Maior"
-                className="rounded-lg h-9 text-xs border-border/40 bg-muted/10"
+                placeholder="Ex: Escala Pentatônica de Am"
+                className="rounded-xl h-12 text-xs border-slate-100 bg-slate-50 font-bold text-slate-700"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Descrição (opcional)</label>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Observações</label>
               <Textarea
-                placeholder="Como foi o desempenho?"
-                className="rounded-lg text-xs border-border/40 bg-muted/10 min-h-[80px] resize-none"
+                placeholder="Detalhes sobre o desempenho..."
+                className="rounded-xl text-xs border-slate-100 bg-slate-50 font-bold text-slate-700 min-h-[100px] resize-none p-4"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 ml-0.5">Nota</label>
-              <div className="flex items-center gap-3">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Avaliação (0-10)</label>
+              <div className="flex items-center gap-4">
                 <Input
                   type="number"
                   step="0.5"
                   min="0"
                   max="10"
-                  className="rounded-lg h-9 text-xs border-border/40 bg-muted/10 w-20"
+                  className="rounded-xl h-12 text-sm border-slate-100 bg-slate-50 font-black text-slate-800 w-24 text-center"
                   value={formData.grade}
                   onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
                 />
-                <div className="flex gap-1.5">
-                  {[6, 7, 8, 9, 10].map(n => (
+                <div className="flex gap-2 flex-wrap">
+                  {[7, 8, 9, 10].map(n => (
                     <button
                       key={n}
                       type="button"
                       onClick={() => setFormData({ ...formData, grade: n.toString() })}
                       className={cn(
-                        "w-7 h-7 rounded-md text-[10px] font-bold border border-border/40 transition-all",
-                        formData.grade === n.toString() ? "bg-primary text-white border-primary" : "bg-muted/10 hover:bg-muted/30"
+                        "w-10 h-10 rounded-xl text-xs font-black border transition-all active:scale-90",
+                        formData.grade === n.toString() ? "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200" : "bg-white text-slate-400 border-slate-100 hover:bg-slate-50"
                       )}
                     >
                       {n}
@@ -500,23 +516,23 @@ export default function Progresso() {
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-4 bg-muted/20 flex gap-2">
+          <DialogFooter className="px-8 py-6 bg-slate-50 flex gap-3">
             <Button
               variant="ghost"
               onClick={() => setIsModalOpen(false)}
-              className="h-9 px-4 text-xs font-bold"
+              className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={createEventMutation.isPending || updateEventMutation.isPending}
-              className="h-9 px-6 bg-primary text-white text-xs font-bold shadow-sm"
+              className="flex-1 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20"
             >
               {createEventMutation.isPending || updateEventMutation.isPending ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={18} className="animate-spin" />
               ) : (
-                editingEvent ? "Salvar alterações" : "Salvar registro"
+                editingEvent ? "Atualizar" : "Salvar"
               )}
             </Button>
           </DialogFooter>

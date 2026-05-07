@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Preset colors ────────────────────────────────────────────────────────────
 const PRESET_COLORS = [
@@ -220,73 +221,121 @@ export default function Instrumentos() {
   const maxCount = Math.max(...(instruments ?? []).map(i => Number(i.studentCount)), 1);
 
   return (
-    <div className="space-y-5 max-w-[1400px]">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-xl">
-            🎸
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-[#F8FAFC]">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 lg:gap-4 w-full sm:w-auto">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-teal-500/10 flex items-center justify-center shadow-sm shrink-0">
+              <Guitar size={24} className="text-teal-600" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight leading-none">Instrumentos</h2>
+              <p className="text-[10px] lg:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1 lg:mt-2">{instruments?.length ?? 0} instrumentos ativos</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Instrumentos</h2>
-            <p className="text-xs text-muted-foreground">{instruments?.length ?? 0} instrumentos cadastrados</p>
-          </div>
+          <Button 
+            className="w-full sm:w-auto h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95" 
+            onClick={() => { setEditInstrument(null); setModalOpen(true); }}
+          >
+            <Plus size={18} /> Novo Instrumento
+          </Button>
         </div>
-        <Button className="gap-2 rounded-xl text-sm" onClick={() => { setEditInstrument(null); setModalOpen(true); }}>
-          <Plus size={15} /> Novo Instrumento
-        </Button>
-      </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 size={24} className="animate-spin text-primary" />
-        </div>
-      ) : (instruments ?? []).length === 0 ? (
-        <div className="bg-card rounded-2xl border border-border p-16 flex flex-col items-center text-muted-foreground">
-          <div className="text-5xl mb-3 opacity-40">🎵</div>
-          <p className="text-sm font-medium">Nenhum instrumento cadastrado</p>
-          <p className="text-xs mt-1">Clique em "Novo Instrumento" para começar</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {(instruments ?? []).map((inst: InstrumentRow) => (
-            <div key={inst.id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-lg transition-all hover:-translate-y-1 duration-200 group">
-              <div className="flex items-start justify-between mb-4">
-                <InstrumentIcon name={inst.name} color={inst.color} size={48} />
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ background: (inst.color ?? "#6366f1") + "20", color: inst.color ?? "#6366f1" }}>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 size={32} className="animate-spin text-indigo-200" />
+          </div>
+        ) : (instruments ?? []).length === 0 ? (
+          <div className="bg-white rounded-[2rem] border border-slate-100 p-20 flex flex-col items-center text-center shadow-sm">
+            <div className="w-20 h-20 rounded-[2rem] bg-slate-50 flex items-center justify-center text-4xl mb-6 shadow-inner">
+              🎸
+            </div>
+            <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest">Nenhum instrumento</h3>
+            <p className="text-sm text-slate-400 font-medium mt-2 max-w-xs">
+              Cadastre os instrumentos que sua escola oferece para vincular aos alunos.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {(instruments ?? []).map((inst: InstrumentRow) => (
+              <div 
+                key={inst.id} 
+                className="bg-white rounded-[2rem] border border-slate-100 p-6 hover:shadow-xl transition-all duration-300 group relative overflow-hidden"
+              >
+                {/* Decorative background element */}
+                <div 
+                  className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-[0.03] group-hover:opacity-[0.08] transition-opacity"
+                  style={{ background: inst.color ?? "#6366f1" }}
+                />
+
+                <div className="flex items-start justify-between mb-6">
+                  <InstrumentIcon name={inst.name} color={inst.color} size={56} />
+                  <span className="text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest"
+                    style={{ background: (inst.color ?? "#6366f1") + "15", color: inst.color ?? "#6366f1" }}>
                     {inst.category}
                   </span>
                 </div>
+
+                <div className="mb-6">
+                   <h3 className="text-base font-black text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors">{inst.name}</h3>
+                   <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                     <Users size={12} className="text-slate-300" />
+                     <span>{inst.studentCount} Aluno{Number(inst.studentCount) !== 1 ? "s" : ""}</span>
+                   </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (Number(inst.studentCount) / maxCount) * 100)}%` }}
+                      className="h-full rounded-full"
+                      style={{ background: inst.color ?? "#6366f1" }} 
+                    />
+                  </div>
+                  
+                  {/* Actions */}
+                  <div className="flex gap-2 opacity-0 lg:group-hover:opacity-100 lg:translate-y-2 lg:group-hover:translate-y-0 transition-all">
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100"
+                      onClick={() => { setEditInstrument(inst); setModalOpen(true); }}
+                    >
+                      <Pencil size={12} className="mr-2" /> Editar
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100"
+                      onClick={() => setDeleteInstrument(inst)}
+                    >
+                      <Trash2 size={12} className="mr-2" /> Excluir
+                    </Button>
+                  </div>
+                  
+                  {/* Mobile Actions Always Visible */}
+                  <div className="flex lg:hidden gap-2">
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 active:bg-slate-100 border border-slate-50"
+                      onClick={() => { setEditInstrument(inst); setModalOpen(true); }}
+                    >
+                      <Pencil size={12} />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 active:bg-rose-50 active:text-rose-600 border border-slate-50"
+                      onClick={() => setDeleteInstrument(inst)}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-sm font-bold text-foreground mb-1">{inst.name}</h3>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-                <Users size={12} />
-                <span>{inst.studentCount} aluno{Number(inst.studentCount) !== 1 ? "s" : ""}</span>
-              </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-4">
-                <div className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${Math.min(100, (Number(inst.studentCount) / maxCount) * 100)}%`, background: inst.color ?? "#6366f1" }} />
-              </div>
-              {/* Actions */}
-              <div className="flex gap-1.5 pt-3 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => { setEditInstrument(inst); setModalOpen(true); }}
-                  className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-                >
-                  <Pencil size={10} /> Editar
-                </button>
-                <button
-                  onClick={() => setDeleteInstrument(inst)}
-                  className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold text-muted-foreground hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                >
-                  <Trash2 size={10} /> Excluir
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Modals */}
       {modalOpen && (

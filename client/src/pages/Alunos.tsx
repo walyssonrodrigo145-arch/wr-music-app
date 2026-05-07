@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { format, isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
-  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical
+  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StudentRow = {
@@ -355,27 +356,27 @@ export default function Alunos() {
   const activeRate = stats.total > 0 ? Math.round((stats.ativos / stats.total) * 100) : 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-[#f8faff]">
-      <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-[#f8faff] relative">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
         {/* SECTION HEADER: Alunos & Action */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/5 text-primary flex items-center justify-center shadow-sm">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 lg:gap-6">
+          <div className="flex items-center gap-3 lg:gap-4 w-full md:w-auto">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-primary/5 text-primary flex items-center justify-center shadow-sm shrink-0">
               <Users size={24} />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">Alunos</h2>
-              <p className="text-xs text-slate-400 font-medium mt-2">
+            <div className="min-w-0">
+              <h2 className="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight leading-none">Alunos</h2>
+              <p className="text-[10px] lg:text-xs text-slate-400 font-medium mt-1 lg:mt-2">
                 {stats.total} matrículas • {stats.ativos} ativos
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-             <div className="relative w-64">
+          <div className="flex items-center gap-3 w-full md:w-auto">
+             <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
                 <Input 
-                  placeholder="Buscar aluno..." 
+                  placeholder="Buscar..." 
                   className="pl-9 h-10 border-slate-100 bg-white rounded-xl shadow-sm text-xs"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -383,50 +384,45 @@ export default function Alunos() {
              </div>
              <Button 
                onClick={() => { setEditStudent(null); setModalOpen(true); }}
-               className="h-10 rounded-xl px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95"
+               className="h-10 rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
              >
                <Plus size={18} />
-               Novo aluno
+               <span className="hidden sm:inline">Novo aluno</span>
              </Button>
           </div>
         </div>
 
-        {/* METRICS CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* METRICS CARDS - Horizontal Scroll on Mobile */}
+        <div className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
           {[
-            { label: "Total geral", count: stats.total, sub: "Matrículas", icon: Users, color: "text-blue-600", bg: "from-blue-50 to-white", border: "border-blue-100/50" },
-            { label: "Ativos", count: stats.ativos, sub: "Alunos ativos", icon: CheckCircle2, color: "text-purple-600", bg: "from-purple-50 to-white", border: "border-purple-100/50" },
-            { label: "Pausados", count: stats.pausados, sub: "Alunos pausados", icon: Clock, color: "text-red-600", bg: "from-red-50 to-white", border: "border-red-100/50" },
-            { label: "Inativos", count: stats.inativos, sub: "Alunos inativos", icon: X, color: "text-emerald-600", bg: "from-emerald-50 to-white", border: "border-emerald-100/50" },
+            { label: "Total", count: stats.total, sub: "Matrículas", icon: Users, color: "text-blue-600", bg: "from-blue-50 to-white", border: "border-blue-100/50" },
+            { label: "Ativos", count: stats.ativos, sub: "Regulares", icon: CheckCircle2, color: "text-purple-600", bg: "from-purple-50 to-white", border: "border-purple-100/50" },
+            { label: "Pausados", count: stats.pausados, sub: "Em pausa", icon: Clock, color: "text-red-600", bg: "from-red-50 to-white", border: "border-red-100/50" },
+            { label: "Inativos", count: stats.inativos, sub: "Desligados", icon: X, color: "text-emerald-600", bg: "from-emerald-50 to-white", border: "border-emerald-100/50" },
           ].map((item, i) => (
-            <div key={i} className={cn("relative h-32 p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden group", item.bg, item.border)}>
+            <div key={i} className={cn("relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden group shrink-0", item.bg, item.border)}>
               <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center bg-white shadow-sm", item.color)}>
-                    <item.icon size={18} />
+                <div className="flex items-center gap-2 lg:gap-3 mb-2 lg:mb-4">
+                  <div className={cn("w-8 h-8 lg:w-9 lg:h-9 rounded-xl flex items-center justify-center bg-white shadow-sm shrink-0", item.color)}>
+                    <item.icon size={16} />
                   </div>
                   <div>
-                    <p className={cn("text-[10px] font-bold uppercase tracking-wider opacity-60", item.color)}>{item.label}</p>
-                    <p className="text-2xl font-black text-slate-800 leading-none">{item.count}</p>
+                    <p className={cn("text-[8px] lg:text-[10px] font-bold uppercase tracking-wider opacity-60", item.color)}>{item.label}</p>
+                    <p className="text-lg lg:text-2xl font-black text-slate-800 leading-none">{item.count}</p>
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-400 font-medium">{item.sub}</p>
-              </div>
-              {/* Wave SVG Decorator */}
-              <div className="absolute bottom-0 right-0 w-32 h-16 opacity-10 group-hover:opacity-20 transition-opacity">
-                 <svg viewBox="0 0 100 40" className={cn("w-full h-full", item.color)} preserveAspectRatio="none">
-                   <path d="M0 40 C 30 40, 40 10, 70 20 S 90 0, 100 10 V 40 H 0 Z" fill="currentColor" />
-                 </svg>
+                <p className="text-[8px] lg:text-[10px] text-slate-400 font-medium">{item.sub}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* MAIN CONTENT GRID */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-          {/* TABLE SECTION */}
-          <div className="xl:col-span-9 bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-            <div className="overflow-x-auto scrollbar-thin">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* TABLE / CARD SECTION */}
+          <div className="xl:col-span-9 bg-white lg:rounded-[2rem] border-0 lg:border border-slate-100 lg:shadow-sm overflow-hidden flex flex-col -mx-4 lg:mx-0">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-slate-50">
@@ -505,10 +501,75 @@ export default function Alunos() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden grid grid-cols-1 gap-4 p-4">
+              {isLoading ? (
+                <div className="py-10 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></div>
+              ) : filtered.length === 0 ? (
+                <div className="py-10 text-center text-xs text-slate-400 font-medium italic">Nenhum aluno encontrado.</div>
+              ) : (
+                filtered.map((student: StudentRow) => (
+                  <div 
+                    key={student.id} 
+                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm active:scale-[0.98] transition-all"
+                    onClick={() => setDetailsStudentId(student.id)}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10 border-2 border-white shadow-sm shrink-0">
+                          <AvatarFallback className="bg-blue-100 text-blue-600 text-xs font-bold uppercase">
+                            {student.name.substring(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-700 truncate">{student.name}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className="w-2 h-2 rounded-full" style={{ background: student.instrumentColor || "#6366f1" }} />
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">{student.instrumentName}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <StatusBadge
+                        status={student.status}
+                        id={student.id}
+                        onUpdate={(id, s) => updateStatusMutation.mutate({ id, status: s as any })}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-50">
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mensalidade</p>
+                        <p className="text-xs font-black text-slate-700">
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Nível</p>
+                        <LevelBadge level={student.level} />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-4">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">Vencimento: Dia {student.dueDay || 10}</p>
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-slate-400" onClick={() => { setEditStudent(student); setModalOpen(true); }}>
+                          <Pencil size={14} />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-50" onClick={() => setDeleteStudent(student)}>
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
             
-            {/* Pagination UI */}
-            <div className="p-6 border-t border-slate-50 flex items-center justify-between bg-slate-50/20">
-               <p className="text-[11px] text-slate-400 font-medium">Mostrando 1 a {filtered.length} de {stats.total} alunos</p>
+            {/* Pagination UI - Adjusted for mobile */}
+            <div className="p-4 lg:p-6 border-t border-slate-50 flex items-center justify-between bg-slate-50/20">
+               <p className="hidden sm:block text-[11px] text-slate-400 font-medium">Mostrando 1 a {filtered.length} de {stats.total} alunos</p>
+               <p className="sm:hidden text-[11px] text-slate-400 font-medium">{filtered.length} registros</p>
                <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><ChevronDown className="rotate-90" size={14} /></Button>
                   <Button variant="ghost" className="h-8 w-8 text-xs font-bold bg-primary text-white hover:bg-primary">1</Button>
@@ -517,43 +578,38 @@ export default function Alunos() {
             </div>
           </div>
 
-          {/* RIGHT SIDEBAR Area */}
-          <div className="xl:col-span-3 space-y-6">
+          {/* RIGHT SIDEBAR Area - Adjusted for mobile (stacks at bottom) */}
+          <div className="xl:col-span-3 space-y-6 lg:sticky lg:top-8">
              {/* Resumo Rápido Card */}
-             <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-800 mb-4">Resumo rápido</h3>
-                <div className="space-y-6">
-                   <div className="h-20 w-full relative">
+             <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-8 translate-x-8 blur-2xl" />
+                <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <TrendingUp size={16} className="text-primary" />
+                  Resumo rápido
+                </h3>
+                <div className="space-y-6 relative z-10">
+                   <div className="h-16 w-full relative">
                       <svg viewBox="0 0 200 60" className="w-full h-full text-primary" preserveAspectRatio="none">
                         <path d="M0 60 C 20 50, 40 40, 60 45 S 80 20, 100 30 S 140 10, 160 15 S 180 30, 200 20 V 60 H 0 Z" fill="currentColor" fillOpacity="0.05" />
                         <path d="M0 60 C 20 50, 40 40, 60 45 S 80 20, 100 30 S 140 10, 160 15 S 180 30, 200 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                       </svg>
                    </div>
                    
-                   <div className="space-y-4 pt-2">
+                   <div className="grid grid-cols-2 xl:grid-cols-1 gap-4 pt-2">
                       <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Novos alunos (30 dias)</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Novos (30 dias)</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xl font-black text-slate-800">{newStudentsLast30Days}</span>
-                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full">Matrículas</span>
+                          <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-none text-[9px] font-bold px-1.5 h-4">+12%</Badge>
                         </div>
                       </div>
                       
                       <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Recebimentos (mês)</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Ativos (%)</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xl font-black text-slate-800">
-                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(dashboardStats?.monthlyRevenue ?? 0)}
-                          </span>
+                          <span className="text-xl font-black text-slate-800">{activeRate}%</span>
                         </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-end mb-2">
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Taxa de ativos</p>
-                          <span className="text-[11px] font-black text-primary">{activeRate}%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
                            <div className="h-full bg-primary" style={{ width: `${activeRate}%` }} />
                         </div>
                       </div>
@@ -564,41 +620,37 @@ export default function Alunos() {
              {/* Lembretes Card */}
              <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
-                  <Clock size={16} className="text-primary" />
-                  <h3 className="text-sm font-bold text-slate-800">Lembretes</h3>
+                  <Bell size={16} className="text-primary" />
+                  <h3 className="text-sm font-bold text-slate-800">Alertas</h3>
                 </div>
                 <div className="space-y-3">
-                   <div className="p-4 bg-red-50/50 border border-red-100/50 rounded-2xl group cursor-pointer hover:bg-red-50 transition-colors">
+                   <div className="p-3 bg-rose-50/50 border border-rose-100/50 rounded-2xl group cursor-pointer hover:bg-rose-50 transition-colors">
                       <div className="flex gap-3">
-                         <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-red-500 shrink-0">
+                         <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-rose-500 shrink-0">
                             <Plus size={16} />
                          </div>
-                         <div>
-                            <p className="text-[11px] font-bold text-slate-800">Mensalidades em atraso</p>
-                            <p className="text-[10px] text-red-500 font-bold mt-0.5">
+                         <div className="min-w-0">
+                            <p className="text-[11px] font-bold text-slate-800 truncate">Mensalidades em atraso</p>
+                            <p className="text-[10px] text-rose-500 font-bold mt-0.5">
                               {overduePayments.length} {overduePayments.length === 1 ? 'pendência' : 'pendências'}
                             </p>
                          </div>
                       </div>
                    </div>
                    
-                   <div className="p-4 bg-blue-50/50 border border-blue-100/50 rounded-2xl group cursor-pointer hover:bg-blue-50 transition-colors">
+                   <div className="p-3 bg-blue-50/50 border border-blue-100/50 rounded-2xl group cursor-pointer hover:bg-blue-50 transition-colors">
                       <div className="flex gap-3">
                          <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-blue-500 shrink-0">
                             <Users size={16} />
                          </div>
-                         <div>
-                            <p className="text-[11px] font-bold text-slate-800">Aulas hoje</p>
+                         <div className="min-w-0">
+                            <p className="text-[11px] font-bold text-slate-800 truncate">Aulas hoje</p>
                             <p className="text-[10px] text-blue-500 font-bold mt-0.5">
                               {lessonsToday} {lessonsToday === 1 ? 'aula agendada' : 'aulas agendadas'}
                             </p>
                          </div>
                       </div>
                    </div>
-                   
-                   <button className="w-full py-2 text-[10px] font-bold text-primary hover:underline transition-all">
-                     Ver todos lembretes {">"}
-                   </button>
                 </div>
              </div>
           </div>

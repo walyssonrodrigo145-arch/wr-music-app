@@ -193,18 +193,18 @@ export default function Dashboard() {
     <div className="space-y-8 max-w-[1400px] animate-in fade-in duration-700">
       
       {/* ── Dashboard Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
+          <h1 className="text-xl lg:text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
             {greeting}, {user?.name?.split(' ')[0] || 'Professor'}! <span className="animate-bounce">👋</span>
           </h1>
-          <p className="text-sm text-muted-foreground font-semibold mt-1 font-outfit">
+          <p className="text-xs lg:text-sm text-muted-foreground font-semibold mt-1 font-outfit">
             Aqui está o que está acontecendo na sua escola hoje.
           </p>
         </div>
 
         {/* Quick Actions Row */}
-        <div className="flex items-center gap-4 bg-card p-4 rounded-3xl border border-border shadow-sm">
+        <div className="grid grid-cols-4 sm:flex items-center gap-2 lg:gap-4 bg-card p-3 lg:p-4 rounded-3xl border border-border shadow-sm overflow-x-auto no-scrollbar">
           <QuickAction 
             icon={PlusCircle} 
             label="Novo Aluno" 
@@ -213,19 +213,19 @@ export default function Dashboard() {
           />
           <QuickAction 
             icon={Calendar} 
-            label="Agendar Aula" 
+            label="Agenda" 
             onClick={() => navigate('/aulas')} 
             color="bg-violet-500 hover:bg-violet-600" 
           />
           <QuickAction 
             icon={CreditCard} 
-            label="Mensalidades" 
+            label="Financeiro" 
             onClick={() => navigate('/mensalidades')} 
             color="bg-rose-500 hover:bg-rose-600" 
           />
           <QuickAction 
             icon={Send} 
-            label="Lembretes" 
+            label="Avisos" 
             onClick={() => navigate('/lembretes')} 
             color="bg-emerald-500 hover:bg-emerald-600" 
           />
@@ -331,7 +331,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Main Dashboard Content ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
         {/* Left Column (Main Charts) */}
         <div className="lg:col-span-2 space-y-8">
@@ -488,8 +488,8 @@ export default function Dashboard() {
                 Ver todos <ChevronRight size={14} className="ml-1" />
               </Button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full min-w-[600px] lg:min-w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/20">
                     <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-6 py-4">Aluno</th>
