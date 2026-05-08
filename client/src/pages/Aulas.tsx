@@ -66,6 +66,7 @@ export default function Aulas() {
   // Desktop specific states
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("mes");
+  const [animateToday, setAnimateToday] = useState(false);
   const [instrumentFilter, setInstrumentFilter] = useState("todos");
   const [statusFilterDesktop, setStatusFilterDesktop] = useState("geral");
 
@@ -287,7 +288,8 @@ export default function Aulas() {
                     className="h-10 rounded-xl px-4 text-xs font-bold hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all"
                     onClick={() => {
                       setCurrentDate(new Date());
-                      setView("dia");
+                      setAnimateToday(true);
+                      setTimeout(() => setAnimateToday(false), 1000);
                     }}
                   >
                     Hoje
@@ -320,7 +322,15 @@ export default function Aulas() {
                                    isToday(day) && "bg-blue-50/30"
                                  )}
                                >
-                                <span className={cn("w-8 h-8 flex items-center justify-center rounded-full text-xs font-black mb-2", isToday(day) ? "bg-blue-600 text-white shadow-lg" : "text-muted-foreground")}>{format(day, "d")}</span>
+                                 <motion.span 
+                                   animate={animateToday && isToday(day) ? { 
+                                     scale: [1, 1.4, 1],
+                                     transition: { duration: 0.5, repeat: 1 }
+                                   } : {}}
+                                   className={cn("w-8 h-8 flex items-center justify-center rounded-full text-xs font-black mb-2", isToday(day) ? "bg-blue-600 text-white shadow-lg" : "text-muted-foreground")}
+                                 >
+                                   {format(day, "d")}
+                                 </motion.span>
                                 <div className="space-y-1">
                                   {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} />)}
                                   {lessonsInDay.length > 3 && <p className="text-[9px] font-black text-blue-600 text-center">+ {lessonsInDay.length - 3} aulas</p>}
