@@ -60,6 +60,35 @@ const statusConfig = {
   falta: { label: "Falta", color: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
 };
 
+const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: () => void }) => {
+    const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
+    return (
+      <motion.div
+        layoutId={`lesson-${lesson.id}`}
+        onClick={onClick}
+        className={cn(
+          "p-3.5 rounded-xl border-l-4 bg-card border-border transition-all cursor-pointer shadow-sm mb-2",
+          config.border
+        )}
+        style={{ borderLeftColor: config.color.replace('bg-', '') }}
+      >
+        <div className="flex items-center justify-between mb-1.5">
+          <span className={cn("text-[10px] font-black uppercase tracking-widest", config.text)}>
+            {format(new Date(lesson.scheduledAt), "HH:mm")}
+          </span>
+          <div className={cn("w-2 h-2 rounded-full", config.color)} />
+        </div>
+        <p className="text-xs font-black text-foreground truncate leading-tight">
+          {lesson.studentName || lesson.experimentalName}
+        </p>
+        <div className="flex items-center gap-1.5 mt-1.5 opacity-60">
+           <Music size={10} className="text-muted-foreground" />
+           <p className="text-[9px] text-muted-foreground font-bold truncate uppercase">{lesson.instrumentName}</p>
+        </div>
+      </motion.div>
+    );
+};
+
 export default function Aulas() {
   const { isDesktop } = useBreakpoint();
   
@@ -169,34 +198,6 @@ export default function Aulas() {
   // DESKTOP LAYOUT (NOTEBOOK)
   // ──────────────────────────────────────────────────────────────────────────
   if (isDesktop) {
-    const LessonCardDesktop = ({ lesson }: { lesson: any }) => {
-        const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
-        return (
-          <motion.div
-            layoutId={`lesson-${lesson.id}`}
-            onClick={() => setDetailLessonId(lesson.id)}
-            className={cn(
-              "p-3.5 rounded-xl border-l-4 bg-card border-border transition-all cursor-pointer shadow-sm mb-2",
-              config.border
-            )}
-            style={{ borderLeftColor: config.color.replace('bg-', '') }}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className={cn("text-[10px] font-black uppercase tracking-widest", config.text)}>
-                {format(new Date(lesson.scheduledAt), "HH:mm")}
-              </span>
-              <div className={cn("w-2 h-2 rounded-full", config.color)} />
-            </div>
-            <p className="text-xs font-black text-foreground truncate leading-tight">
-              {lesson.studentName || lesson.experimentalName}
-            </p>
-            <div className="flex items-center gap-1.5 mt-1.5 opacity-60">
-               <Music size={10} className="text-muted-foreground" />
-               <p className="text-[9px] text-muted-foreground font-bold truncate uppercase">{lesson.instrumentName}</p>
-            </div>
-          </motion.div>
-        );
-    };
 
     return (
       <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] -m-4 sm:-m-6 bg-background overflow-hidden">
@@ -323,6 +324,7 @@ export default function Aulas() {
                                  )}
                                >
                                  <motion.span 
+                                   layout={false}
                                    animate={animateToday && isToday(day) ? { 
                                      scale: [1, 1.4, 1],
                                      transition: { duration: 0.5, repeat: 1 }
@@ -332,7 +334,7 @@ export default function Aulas() {
                                    {format(day, "d")}
                                  </motion.span>
                                 <div className="space-y-1">
-                                  {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} />)}
+                                   {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={() => setDetailLessonId(l.id)} />)}
                                   {lessonsInDay.length > 3 && <p className="text-[9px] font-black text-blue-600 text-center">+ {lessonsInDay.length - 3} aulas</p>}
                                 </div>
                               </div>
@@ -350,7 +352,7 @@ export default function Aulas() {
                               <p className="text-2xl font-black">{format(day, "d")}</p>
                            </div>
                            <div className="space-y-3">
-                              {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => <LessonCardDesktop key={l.id} lesson={l} />)}
+                              {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={() => setDetailLessonId(l.id)} />)}
                            </div>
                         </div>
                       ))}
@@ -376,7 +378,7 @@ export default function Aulas() {
                           {filteredLessons
                             .filter(l => isSameDay(new Date(l.scheduledAt), currentDate))
                             .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-                            .map(l => <LessonCardDesktop key={l.id} lesson={l} />)}
+                            .map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={() => setDetailLessonId(l.id)} />)}
                        </div>
                     </motion.div>
                   )}
@@ -391,7 +393,7 @@ export default function Aulas() {
                                 <div className="absolute -top-3 left-6 z-10 px-3 py-1 bg-slate-800 text-white text-[9px] font-black rounded-full uppercase tracking-widest shadow-lg">
                                    {format(new Date(l.scheduledAt), "dd/MM")}
                                 </div>
-                                <LessonCardDesktop lesson={l} />
+                                <LessonCardDesktop lesson={l} onClick={() => setDetailLessonId(l.id)} />
                               </div>
                             ))}
                        </div>
