@@ -16,7 +16,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline } from "../drizzle/schema";
+import { users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline, studentFiles } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -309,6 +309,88 @@ export const appRouter = router({
       } catch (e) {
         return { insight: "O aluno tem se saído bem nas últimas aulas. Foco em melhorar a constância na prática diária e avançar nas metas de repertório." }; // Fallback
       }
+    }),
+  }),
+
+  musicLibrary: router({
+    list: protectedProcedure.input(z.object({ 
+      studentId: z.number(),
+      category: z.string().optional(),
+      search: z.string().optional(),
+    })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      
+      let whereClause = and(
+        eq(studentFiles.userId, ctx.user.id),
+        eq(studentFiles.studentId, input.studentId)
+      );
+
+      if (input.category && input.category !== 'todos') {
+        whereClause = and(whereClause, eq(studentFiles.category, input.category as any));
+      }
+
+      if (input.search) {
+        whereClause = and(whereClause, sql`LOWER(${studentFiles.fileName}) LIKE ${`%${input.search.toLowerCase()}%`}`);
+      }
+
+      return db.select().from(studentFiles)
+        .where(whereClause)
+        .orderBy(desc(studentFiles.createdAt));
+    }),
+
+    create: protectedProcedure.input(z.object({
+      studentId: z.number(),
+      fileName: z.string(),
+      fileType: z.string(),
+      category: z.enum(['imagem', 'video', 'pdf', 'audio', 'documento']),
+      fileUrl: z.string(),
+      thumbnailUrl: z.string().optional(),
+      comments: z.string().optional(),
+      size: z.number().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      await db.insert(studentFiles).values({
+        userId: ctx.user.id,
+        studentId: input.studentId,
+        fileName: input.fileName,
+        fileType: input.fileType,
+        category: input.category,
+        fileUrl: input.fileUrl,
+        thumbnailUrl: input.thumbnailUrl,
+        comments: input.comments,
+        size: input.size,
+      });
+      
+      return { success: true };
+    }),
+
+    update: protectedProcedure.input(z.object({
+      id: z.number(),
+      comments: z.string().optional(),
+      fileName: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const { id, ...data } = input;
+      await db.update(studentFiles)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(studentFiles.id, id), eq(studentFiles.userId, ctx.user.id)));
+      
+      return { success: true };
+    }),
+
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      await db.delete(studentFiles)
+        .where(and(eq(studentFiles.id, input.id), eq(studentFiles.userId, ctx.user.id)));
+      
+      return { success: true };
     }),
   }),
 

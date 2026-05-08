@@ -20,6 +20,7 @@ export const reminderStatusEnum = pgEnum('reminder_status', ["pendente", "enviad
 export const paymentDueStatusEnum = pgEnum('payment_due_status', ["pendente", "pago", "atrasado"]);
 export const goalStatusEnum = pgEnum('goal_status', ["pendente", "concluida"]);
 export const timelineCategoryEnum = pgEnum('timeline_category', ["tecnica", "teoria", "repertorio", "geral"]);
+export const fileCategoryEnum = pgEnum('file_category', ["imagem", "video", "pdf", "audio", "documento"]);
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -197,6 +198,21 @@ export const studentTimeline = pgTable("student_timeline", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const studentFiles = pgTable("student_files", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  studentId: integer("studentId").notNull(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileType: varchar("fileType", { length: 100 }).notNull(),
+  category: fileCategoryEnum("category").notNull(),
+  fileUrl: text("fileUrl").notNull(),
+  thumbnailUrl: text("thumbnailUrl"),
+  comments: text("comments"),
+  size: integer("size"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = typeof reminders.$inferInsert;
 export type ReminderTemplate = typeof reminderTemplates.$inferSelect;
@@ -218,3 +234,5 @@ export type StudentGoal = typeof studentGoals.$inferSelect;
 export type InsertStudentGoal = typeof studentGoals.$inferInsert;
 export type StudentTimeline = typeof studentTimeline.$inferSelect;
 export type InsertStudentTimeline = typeof studentTimeline.$inferInsert;
+export type StudentFile = typeof studentFiles.$inferSelect;
+export type InsertStudentFile = typeof studentFiles.$inferInsert;

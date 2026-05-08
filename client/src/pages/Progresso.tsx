@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -15,6 +15,17 @@ import {
   ChevronRight,
   TrendingUp,
   Loader2,
+  Image as ImageIcon,
+  Video,
+  FileText,
+  Music,
+  Folder,
+  UploadCloud,
+  File,
+  Download,
+  Filter,
+  MoreVertical,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +54,7 @@ export default function Progresso() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"jornada" | "biblioteca" | "observacoes" | "metas" | "desempenho">("jornada");
 
   const utils = trpc.useUtils();
 
@@ -311,6 +323,42 @@ export default function Progresso() {
                 </div>
               </div>
 
+              </div>
+
+              {/* TABS DE NAVEGAÇÃO */}
+              <div className="px-4 lg:px-8 mt-6 shrink-0">
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-border pb-px">
+                  {[
+                    { id: "jornada", label: "Jornada Musical", icon: Activity },
+                    { id: "biblioteca", label: "Biblioteca Musical", icon: Folder },
+                    { id: "observacoes", label: "Observações", icon: BookOpen },
+                    { id: "metas", label: "Metas", icon: Star },
+                    { id: "desempenho", label: "Desempenho", icon: TrendingUp },
+                  ].map((tab) => {
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={cn(
+                          "flex items-center gap-2 px-6 py-4 text-[10px] lg:text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap",
+                          isActive ? "text-indigo-600" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <tab.icon size={16} />
+                        {tab.label}
+                        {isActive && (
+                          <motion.div 
+                            layoutId="activeTab"
+                            className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-t-full shadow-[0_-2px_10px_rgba(79,70,229,0.2)]"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* CARDS DE MÉTRICAS */}
               <div className="px-4 py-4 lg:px-8 lg:py-8 overflow-x-auto no-scrollbar shrink-0">
                 <div className="flex items-center gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-4">
@@ -331,87 +379,121 @@ export default function Progresso() {
                 </div>
               </div>
 
-              {/* TIMELINE */}
-              <div className="flex-1 px-4 lg:px-8 pb-6 overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between mb-6 shrink-0">
-                   <div className="flex items-center gap-3">
-                     <div className="w-2 h-6 bg-indigo-600 rounded-full" />
-                     <h3 className="text-sm lg:text-base font-black text-foreground uppercase tracking-widest">Jornada Musical</h3>
-                   </div>
-                   
-                   <Button 
-                    onClick={() => { resetForm(); setIsModalOpen(true); }}
-                    className="h-10 rounded-xl px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest gap-2 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
-                  >
-                    <Plus size={18} />
-                    <span className="hidden sm:inline">Novo Registro</span>
-                    <span className="sm:hidden">Novo</span>
-                  </Button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-6">
-                  {timelineLoading ? (
-                    <div className="flex justify-center p-12"><Loader2 className="animate-spin text-slate-200" /></div>
-                  ) : timeline.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-card border-2 border-dashed border-border rounded-[2rem]">
-                      <Activity size={40} className="text-slate-100 mb-4" />
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nenhuma atividade registrada</p>
-                    </div>
-                  ) : (
-                    <div className="relative pl-6 border-l-2 border-border ml-3 space-y-8 pb-10">
-                      {timeline.map((event) => (
-                        <div key={event.id} className="relative">
-                          {/* Dot */}
-                          <div className={cn(
-                            "absolute -left-[35px] top-4 w-5 h-5 rounded-full border-4 border-white shadow-md z-10",
-                            event.category === 'tecnica' ? 'bg-indigo-500' :
-                            event.category === 'teoria' ? 'bg-amber-500' :
-                            event.category === 'repertorio' ? 'bg-emerald-500' :
-                            'bg-slate-400'
-                          )} />
-                          
-                          <motion.div 
-                            whileHover={{ y: -2 }}
-                            className="bg-card p-5 lg:p-6 rounded-[1.5rem] border border-border shadow-sm hover:shadow-lg transition-all group"
-                          >
-                            <div className="flex flex-col md:flex-row items-start justify-between gap-6">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-3 mb-3">
-                                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-2 py-1 rounded-md">
-                                    {format(new Date(event.achievedAt), "dd MMM yyyy", { locale: ptBR })}
-                                  </span>
-                                  <span className={cn("px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border", getCategoryColor(event.category))}>
-                                    {event.category}
-                                  </span>
-                                </div>
-                                <h4 className="text-sm lg:text-base font-black text-foreground mb-2">{event.title}</h4>
-                                <p className="text-xs text-muted-foreground font-medium leading-relaxed">{event.description}</p>
-                              </div>
-                              
-                              <div className="flex items-center gap-6 shrink-0 w-full md:w-auto justify-between md:justify-end border-t md:border-none pt-4 md:pt-0 border-border">
-                                {event.grade && (
-                                  <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-xl border font-black text-xs shadow-sm", getStatusColor(Number(event.grade)))}>
-                                    <Star size={14} className="fill-current" />
-                                    {Number(event.grade).toFixed(1)}
-                                  </div>
-                                )}
-                                
-                                <div className="flex gap-2">
-                                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleEdit(event)}>
-                                    <Edit2 size={16} />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-muted-foreground hover:text-rose-600 hover:bg-rose-50" onClick={() => deleteEventMutation.mutate({ id: event.id })}>
-                                    <Trash2 size={16} />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
+              {/* CONTEÚDO DAS ABAS */}
+              <div className="flex-1 px-4 lg:px-8 pb-6 overflow-hidden flex flex-col mt-8">
+                <AnimatePresence mode="wait">
+                  {activeTab === "jornada" && (
+                    <motion.div 
+                      key="jornada"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex-1 flex flex-col overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between mb-6 shrink-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-6 bg-indigo-600 rounded-full" />
+                          <h3 className="text-sm lg:text-base font-black text-foreground uppercase tracking-widest">Jornada Musical</h3>
                         </div>
-                      ))}
+                        
+                        <Button 
+                          onClick={() => { resetForm(); setIsModalOpen(true); }}
+                          className="h-10 rounded-xl px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest gap-2 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+                        >
+                          <Plus size={18} />
+                          <span className="hidden sm:inline">Novo Registro</span>
+                          <span className="sm:hidden">Novo</span>
+                        </Button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-6">
+                        {timelineLoading ? (
+                          <div className="flex justify-center p-12"><Loader2 className="animate-spin text-slate-200" /></div>
+                        ) : timeline.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-20 bg-card border-2 border-dashed border-border rounded-[2rem]">
+                            <Activity size={40} className="text-slate-100 mb-4" />
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nenhuma atividade registrada</p>
+                          </div>
+                        ) : (
+                          <div className="relative pl-6 border-l-2 border-border ml-3 space-y-8 pb-10">
+                            {timeline.map((event) => (
+                              <div key={event.id} className="relative">
+                                {/* Dot */}
+                                <div className={cn(
+                                  "absolute -left-[35px] top-4 w-5 h-5 rounded-full border-4 border-white shadow-md z-10",
+                                  event.category === 'tecnica' ? 'bg-indigo-500' :
+                                  event.category === 'teoria' ? 'bg-amber-500' :
+                                  event.category === 'repertorio' ? 'bg-emerald-500' :
+                                  'bg-slate-400'
+                                )} />
+                                
+                                <motion.div 
+                                  whileHover={{ y: -2 }}
+                                  className="bg-card p-5 lg:p-6 rounded-[1.5rem] border border-border shadow-sm hover:shadow-lg transition-all group"
+                                >
+                                  <div className="flex flex-col md:flex-row items-start justify-between gap-6">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex flex-wrap items-center gap-3 mb-3">
+                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-2 py-1 rounded-md">
+                                          {format(new Date(event.achievedAt), "dd MMM yyyy", { locale: ptBR })}
+                                        </span>
+                                        <span className={cn("px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border", getCategoryColor(event.category))}>
+                                          {event.category}
+                                        </span>
+                                      </div>
+                                      <h4 className="text-sm lg:text-base font-black text-foreground mb-2">{event.title}</h4>
+                                      <p className="text-xs text-muted-foreground font-medium leading-relaxed">{event.description}</p>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-6 shrink-0 w-full md:w-auto justify-between md:justify-end border-t md:border-none pt-4 md:pt-0 border-border">
+                                      {event.grade && (
+                                        <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-xl border font-black text-xs shadow-sm", getStatusColor(Number(event.grade)))}>
+                                          <Star size={14} className="fill-current" />
+                                          {Number(event.grade).toFixed(1)}
+                                        </div>
+                                      )}
+                                      
+                                      <div className="flex gap-2">
+                                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleEdit(event)}>
+                                          <Edit2 size={16} />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-muted-foreground hover:text-rose-600 hover:bg-rose-50" onClick={() => deleteEventMutation.mutate({ id: event.id })}>
+                                          <Trash2 size={16} />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {activeTab === "biblioteca" && (
+                    <motion.div 
+                      key="biblioteca"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex-1 flex flex-col overflow-hidden"
+                    >
+                      <BibliotecaMusicalView studentId={selectedStudentId!} />
+                    </motion.div>
+                  )}
+
+                  {["observacoes", "metas", "desempenho"].includes(activeTab) && (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-card rounded-[2rem] border-2 border-dashed border-border opacity-50">
+                      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                        <Activity size={24} className="text-muted-foreground" />
+                      </div>
+                      <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Em Desenvolvimento</h3>
+                      <p className="text-xs text-muted-foreground mt-2 font-medium">Esta funcionalidade estará disponível em breve.</p>
                     </div>
                   )}
-                </div>
+                </AnimatePresence>
               </div>
             </motion.div>
           </AnimatePresence>
@@ -541,6 +623,347 @@ export default function Progresso() {
     </div>
   );
 }
+
+function BibliotecaMusicalView({ studentId }: { studentId: number }) {
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("todos");
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  
+  const utils = trpc.useUtils();
+  const { data: files = [], isLoading } = trpc.musicLibrary.list.useQuery({ studentId, category, search });
+  
+  const deleteMutation = trpc.musicLibrary.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Arquivo removido");
+      utils.musicLibrary.list.invalidate();
+    }
+  });
+
+  const categories = [
+    { id: "imagem", label: "Imagens", icon: ImageIcon, color: "text-purple-600", bg: "bg-purple-50", count: files.filter(f => f.category === 'imagem').length },
+    { id: "video", label: "Vídeos", icon: Video, color: "text-rose-600", bg: "bg-rose-50", count: files.filter(f => f.category === 'video').length },
+    { id: "pdf", label: "PDFs", icon: FileText, color: "text-blue-600", bg: "bg-blue-50", count: files.filter(f => f.category === 'pdf').length },
+    { id: "audio", label: "Áudios", icon: Music, color: "text-emerald-600", bg: "bg-emerald-50", count: files.filter(f => f.category === 'audio').length },
+    { id: "documento", label: "Documentos", icon: File, color: "text-amber-600", bg: "bg-amber-50", count: files.filter(f => f.category === 'documento').length },
+  ];
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header da Biblioteca */}
+      <div className="flex items-center justify-between mb-8 shrink-0">
+        <div>
+          <h3 className="text-sm lg:text-base font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+            Biblioteca Musical
+          </h3>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Envie quantos arquivos desejar. Imagens, vídeos, PDFs e áudios.</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="hidden md:block text-right">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Armazenamento</span>
+              <span className="text-[10px] font-black text-indigo-600">12.4 GB / Ilimitado</span>
+            </div>
+            <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden border border-border">
+              <div className="h-full bg-indigo-600 w-1/3" />
+            </div>
+          </div>
+          <Button 
+            onClick={() => setIsUploadModalOpen(true)}
+            className="h-10 rounded-xl px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest gap-2 shadow-lg shadow-indigo-500/20"
+          >
+            <Plus size={18} />
+            Novo Material
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-8">
+        {/* Cards de Categorias e Upload */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 shrink-0">
+          <div className="lg:col-span-2 bg-card border-2 border-dashed border-indigo-200 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center group hover:border-indigo-400 transition-all cursor-pointer">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+              <UploadCloud size={24} />
+            </div>
+            <p className="text-xs font-black text-foreground uppercase tracking-widest mb-1">Arraste arquivos aqui</p>
+            <p className="text-[9px] text-muted-foreground font-bold uppercase">ou clique para enviar</p>
+            <div className="mt-4 flex gap-2 opacity-40">
+              <ImageIcon size={12} />
+              <Video size={12} />
+              <FileText size={12} />
+              <Music size={12} />
+            </div>
+          </div>
+
+          {categories.map((cat) => (
+            <div key={cat.id} className="bg-card border border-border rounded-[2rem] p-5 hover:shadow-lg transition-all group cursor-pointer">
+              <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform", cat.bg, cat.color)}>
+                <cat.icon size={20} />
+              </div>
+              <p className="text-xs font-black text-foreground mb-1">{cat.label}</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{cat.count} arquivos</p>
+              
+              <Button variant="ghost" size="sm" className="w-full mt-4 h-8 rounded-lg text-[9px] font-black uppercase tracking-widest border border-border gap-2 hover:bg-muted">
+                <Plus size={12} />
+                Adicionar
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        {/* Filtros e Busca */}
+        <div className="flex flex-col md:flex-row items-center gap-4 bg-card p-2 rounded-2xl border border-border shadow-sm">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+            <Input 
+              placeholder="Buscar materiais..." 
+              className="pl-9 h-10 text-xs border-none bg-transparent focus-visible:ring-0"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 w-full md:w-auto px-2 border-l border-border">
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="h-10 border-none bg-transparent text-xs font-bold w-[120px] focus:ring-0 uppercase tracking-widest">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="todos" className="text-xs font-bold py-3 uppercase tracking-widest">Todos</SelectItem>
+                {categories.map(c => (
+                  <SelectItem key={c.id} value={c.id} className="text-xs font-bold py-3 uppercase tracking-widest">{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <div className="h-6 w-px bg-border mx-2" />
+            
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-muted text-muted-foreground">
+              <Filter size={16} />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-muted text-muted-foreground">
+              <Folder size={16} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Lista de Arquivos */}
+        <div className="space-y-6 pb-10">
+          {isLoading ? (
+            <div className="flex justify-center p-12"><Loader2 className="animate-spin text-slate-200" /></div>
+          ) : files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-card border-2 border-dashed border-border rounded-[2rem] opacity-50">
+              <Folder size={40} className="text-slate-200 mb-4" />
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic">Nenhum arquivo encontrado</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {files.map((file) => (
+                <motion.div
+                  key={file.id}
+                  whileHover={{ y: -4 }}
+                  className="bg-card border border-border rounded-[1.5rem] overflow-hidden group shadow-sm hover:shadow-xl transition-all"
+                >
+                  <div className="aspect-video bg-muted relative group-hover:bg-slate-100 transition-colors flex items-center justify-center overflow-hidden">
+                    {file.thumbnailUrl ? (
+                      <img src={file.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-300">
+                        {file.category === 'imagem' && <ImageIcon size={32} />}
+                        {file.category === 'video' && <Video size={32} />}
+                        {file.category === 'pdf' && <FileText size={32} />}
+                        {file.category === 'audio' && <Music size={32} />}
+                        {file.category === 'documento' && <File size={32} />}
+                      </div>
+                    )}
+                    
+                    <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <Button className="h-8 w-8 rounded-full bg-white text-indigo-600 shadow-lg hover:scale-110 transition-transform">
+                        <Download size={14} />
+                      </Button>
+                    </div>
+
+                    <div className="absolute top-3 left-3 bg-card/90 backdrop-blur shadow-sm px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                      {format(new Date(file.createdAt), "dd MMM")}
+                    </div>
+                  </div>
+                  
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <h4 className="text-[11px] font-black text-foreground truncate uppercase tracking-tight">{file.fileName}</h4>
+                        <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest flex items-center gap-1 mt-1">
+                          {file.category} • {(file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.5")} MB
+                        </p>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-muted" onClick={() => deleteMutation.mutate({ id: file.id })}>
+                           <Trash2 size={12} />
+                         </Button>
+                      </div>
+                    </div>
+                    {file.comments && (
+                      <p className="text-[10px] text-muted-foreground font-medium italic line-clamp-1 border-t border-border pt-2 mt-2">
+                        "{file.comments}"
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <UploadModal 
+        isOpen={isUploadModalOpen} 
+        onClose={() => setIsUploadModalOpen(false)} 
+        studentId={studentId}
+      />
+    </div>
+  );
+}
+
+function UploadModal({ isOpen, onClose, studentId }: { isOpen: boolean; onClose: () => void; studentId: number }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [comments, setComments] = useState("");
+  const [category, setCategory] = useState<any>("pdf");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const utils = trpc.useUtils();
+  const createMutation = trpc.musicLibrary.create.useMutation({
+    onSuccess: () => {
+      toast.success("Arquivo enviado com sucesso!");
+      utils.musicLibrary.list.invalidate();
+      onClose();
+      reset();
+    }
+  });
+
+  const reset = () => {
+    setFile(null);
+    setComments("");
+    setCategory("pdf");
+  };
+
+  const handleUpload = async () => {
+    if (!file) return toast.error("Selecione um arquivo");
+    
+    setIsUploading(true);
+    try {
+      const mockUrl = URL.createObjectURL(file);
+      
+      createMutation.mutate({
+        studentId,
+        fileName: file.name,
+        fileType: file.type,
+        category,
+        fileUrl: mockUrl,
+        size: file.size,
+        comments,
+      });
+    } catch (error) {
+      toast.error("Erro no upload");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[440px] p-0 gap-0 border-none shadow-2xl rounded-[2rem] overflow-hidden">
+        <div className="px-8 py-8 border-b border-border bg-muted/50">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-foreground uppercase tracking-widest flex items-center gap-3">
+              <UploadCloud className="text-indigo-600" />
+              Novo Material
+            </DialogTitle>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
+              Adicione arquivos ao histórico do aluno
+            </p>
+          </DialogHeader>
+        </div>
+        
+        <div className="px-8 py-8 space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Arquivo</label>
+            <div 
+              className={cn(
+                "border-2 border-dashed border-border rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-muted/50 transition-all",
+                file && "border-indigo-200 bg-indigo-50/30"
+              )}
+              onClick={() => document.getElementById('file-upload')?.click()}
+            >
+              <input 
+                id="file-upload" 
+                type="file" 
+                className="hidden" 
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />
+              <UploadCloud size={32} className={cn("mb-2", file ? "text-indigo-600" : "text-muted-foreground")} />
+              {file ? (
+                <div className="min-w-0 px-4">
+                  <p className="text-xs font-black text-indigo-600 truncate uppercase tracking-tight">{file.name}</p>
+                  <p className="text-[9px] text-muted-foreground font-bold uppercase">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                </div>
+              ) : (
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Clique para selecionar</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Categoria</label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="rounded-xl h-12 text-xs border-border bg-muted font-bold">
+                <SelectValue placeholder="Selecione a categoria" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="imagem" className="text-xs font-bold py-3 uppercase tracking-widest">Imagem</SelectItem>
+                <SelectItem value="video" className="text-xs font-bold py-3 uppercase tracking-widest">Vídeo</SelectItem>
+                <SelectItem value="pdf" className="text-xs font-bold py-3 uppercase tracking-widest">PDF</SelectItem>
+                <SelectItem value="audio" className="text-xs font-bold py-3 uppercase tracking-widest">Áudio</SelectItem>
+                <SelectItem value="documento" className="text-xs font-bold py-3 uppercase tracking-widest">Documento</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Observações</label>
+            <Textarea 
+              placeholder="Adicione um comentário ou feedback sobre este material..."
+              className="rounded-xl text-xs border-border bg-muted font-bold text-foreground min-h-[80px] resize-none p-4"
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="px-8 py-6 bg-muted flex gap-3">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleUpload}
+            disabled={!file || isUploading || createMutation.isPending}
+            className="flex-1 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20"
+          >
+            {isUploading || createMutation.isPending ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              "Fazer Upload"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 
 
