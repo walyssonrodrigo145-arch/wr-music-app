@@ -122,34 +122,42 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               <div
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative",
+                  "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative overflow-hidden",
                   isActive
-                    ? "bg-[#2563EB] text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]"
-                    : "text-slate-400 hover:bg-slate-800/40 hover:text-white",
+                    ? "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]"
+                    : "text-slate-400 hover:bg-indigo-600/10 hover:text-white",
                   collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
+                {isActive && (
+                  <motion.div 
+                    layoutId="sidebarActiveGlow"
+                    className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-indigo-500 -z-10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  />
+                )}
                 <Icon
                   size={18}
                   className={cn(
-                    "flex-shrink-0 transition-transform duration-300",
-                    isActive ? "scale-110" : "group-hover:scale-110"
+                    "flex-shrink-0 transition-transform duration-300 relative z-10",
+                    isActive ? "scale-110" : "group-hover:scale-110 group-hover:text-indigo-400"
                   )}
                 />
                 {!collapsed && (
-                  <span className="truncate tracking-tight">{item.label}</span>
+                  <span className="truncate tracking-tight relative z-10">{item.label}</span>
                 )}
                 {!collapsed && item.badge && (
-                  <span className="ml-auto bg-[#EF4444] text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg shadow-red-500/20">
+                  <span className="ml-auto bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg shadow-rose-500/20 relative z-10">
                     {item.badge}
                   </span>
                 )}
                 
                 {/* Active Indicator Glow */}
                 {isActive && !collapsed && (
-                   <div className="absolute left-[-4px] top-1/4 bottom-1/4 w-1 bg-white rounded-full shadow-[0_0_10px_#fff]" />
+                   <div className="absolute left-[-4px] top-1/4 bottom-1/4 w-1 bg-white rounded-full shadow-[0_0_10px_#fff] z-20" />
                 )}
               </div>
             </Link>
@@ -170,12 +178,12 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                   "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group",
                   isActive
                     ? "bg-slate-800 text-white"
-                    : "text-slate-400 hover:bg-slate-800/40 hover:text-white",
+                    : "text-slate-400 hover:bg-indigo-600/10 hover:text-white",
                   collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
               >
-                <Icon size={18} className="flex-shrink-0 group-hover:scale-110 transition-transform" />
+                <Icon size={18} className="flex-shrink-0 group-hover:scale-110 transition-transform group-hover:text-indigo-400" />
                 {!collapsed && <span className="truncate tracking-tight">{item.label}</span>}
               </div>
             </Link>
