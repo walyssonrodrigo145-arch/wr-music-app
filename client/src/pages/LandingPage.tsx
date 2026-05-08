@@ -86,8 +86,13 @@ const LandingPage = () => {
 
           <div className="hidden md:flex items-center gap-4">
             <Link href="/login">
+              <button className="px-5 py-2 text-sm font-black uppercase tracking-widest text-slate-600 hover:text-blue-600 transition-colors">
+                Área do Aluno
+              </button>
+            </Link>
+            <Link href="/login">
               <button className="px-5 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-                Entrar
+                Área do Professor
               </button>
             </Link>
             <Link href="/login">
@@ -172,14 +177,14 @@ const LandingPage = () => {
               <div className="flex flex-col sm:flex-row items-center gap-4 mb-10">
                 <Link href="/login">
                   <button className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-xl shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group">
-                    Testar grátis por 7 dias
+                    Área do Professor
                     <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                   </button>
                 </Link>
-                <Link href="/dashboard">
-                  <button className="w-full sm:w-auto px-8 py-4 bg-white/5 text-white border border-white/10 rounded-2xl font-bold backdrop-blur-md hover:bg-white/10 transition-all flex items-center justify-center gap-2">
-                    <Play size={18} className="fill-current" />
-                    Ver demonstração
+                <Link href="/login">
+                  <button className="w-full sm:w-auto px-8 py-4 bg-white/10 text-white border border-white/20 rounded-2xl font-bold backdrop-blur-md hover:bg-white/20 transition-all flex items-center justify-center gap-2">
+                    <Users size={18} />
+                    Área do Aluno
                   </button>
                 </Link>
               </div>

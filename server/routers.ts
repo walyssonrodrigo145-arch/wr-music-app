@@ -561,7 +561,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
         
-        await db.insert(students).values({
+        const result = await db.insert(students).values({
           userId: ctx.user.id,
           name: input.name,
           email: input.email || null,
@@ -574,9 +574,9 @@ export const appRouter = router({
           status: input.status,
           createdAt: new Date(),
           updatedAt: new Date(),
-        });
+        }).returning({ id: students.id });
         
-        return { success: true };
+        return { success: true, studentId: result[0].id };
       } catch (error) {
         return handleDbError(error, "cadastrar o aluno");
       }

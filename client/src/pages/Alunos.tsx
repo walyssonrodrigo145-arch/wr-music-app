@@ -129,14 +129,28 @@ function StudentModal({
   );
 
   const [updateFutureDues, setUpdateFutureDues] = useState(false);
+  const [generatePortalAccess, setGeneratePortalAccess] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const set = (k: keyof FormData, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  const createMutation = trpc.students.create.useMutation({
-    onSuccess: () => {
-      toast.success("Aluno cadastrado!");
+  const enableAccessMutation = trpc.students.enablePortalAccess.useMutation({
+    onSuccess: (data) => {
+      setCredentials(data);
       utils.students.list.invalidate();
-      onClose();
+    },
+    onError: (e) => toast.error("Erro ao liberar acesso: " + e.message),
+  });
+
+  const createMutation = trpc.students.create.useMutation({
+    onSuccess: (data: any) => {
+      toast.success("Aluno cadastrado!");
+      if (generatePortalAccess && data.studentId) {
+        enableAccessMutation.mutate({ studentId: data.studentId });
+      } else {
+        utils.students.list.invalidate();
+        onClose();
+      }
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
@@ -252,7 +266,51 @@ function StudentModal({
               </select>
             </div>
           </div>
+
+          {!editData && (
+            <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-center justify-between group cursor-pointer" onClick={() => setGeneratePortalAccess(!generatePortalAccess)}>
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Liberar Portal?</p>
+                <p className="text-[9px] text-muted-foreground font-medium">Gera e-mail e senha automaticamente</p>
+              </div>
+              <div className={cn(
+                "w-10 h-5 rounded-full p-1 transition-all duration-300",
+                generatePortalAccess ? "bg-indigo-600" : "bg-slate-200"
+              )}>
+                <div className={cn(
+                  "w-3 h-3 bg-white rounded-full transition-all duration-300",
+                  generatePortalAccess ? "translate-x-5" : "translate-x-0"
+                )} />
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Credentials Feedback */}
+        {credentials && (
+          <div className="absolute inset-0 z-[60] bg-background flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 size={32} />
+             </div>
+             <h4 className="text-lg font-black text-foreground">Acesso Criado!</h4>
+             <p className="text-xs text-muted-foreground mt-2 mb-6">O aluno foi cadastrado e o acesso ao portal liberado.</p>
+             
+             <div className="w-full bg-muted/50 p-4 rounded-2xl border border-border text-left space-y-3 mb-6">
+                <div>
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">E-mail</p>
+                   <p className="text-xs font-black text-foreground">{credentials.email}</p>
+                </div>
+                <div>
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Senha</p>
+                   <p className="text-base font-black text-primary tracking-widest">{credentials.password}</p>
+                </div>
+             </div>
+             
+             <Button className="w-full h-11 rounded-xl text-xs font-black uppercase tracking-widest" onClick={onClose}>
+                Concluir Cadastro
+             </Button>
+          </div>
+        )}
         <div className="p-6 border-t border-border/40 bg-muted/5 flex gap-3">
           <Button variant="ghost" className="flex-1 h-9 text-xs font-bold" onClick={onClose}>Cancelar</Button>
           <Button className="flex-1 h-9 text-xs font-bold gap-2" onClick={handleSubmit} disabled={isPending}>
