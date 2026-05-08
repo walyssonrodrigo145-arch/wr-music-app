@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { format, isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
-  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp
+  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp, Activity
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,6 +25,7 @@ type StudentRow = {
   level: string; status: string; monthlyFee: string; dueDay?: number | null;
   startDate?: string | null; instrumentName?: string | null;
   instrumentColor?: string | null; instrumentIcon?: string | null;
+  portalEnabled?: boolean;
 };
 
 interface FormData {
@@ -185,6 +186,12 @@ function StudentModal({
         id: editData.id, 
         ...payload,
         updateFutureDues 
+      }, {
+        onSuccess: () => {
+          if (generatePortalAccess) {
+            enableAccessMutation.mutate({ studentId: editData.id });
+          }
+        }
       });
     } else {
       createMutation.mutate(payload);
@@ -267,23 +274,21 @@ function StudentModal({
             </div>
           </div>
 
-          {!editData && (
-            <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-center justify-between group cursor-pointer" onClick={() => setGeneratePortalAccess(!generatePortalAccess)}>
-              <div className="space-y-0.5">
-                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Liberar Portal?</p>
-                <p className="text-[9px] text-muted-foreground font-medium">Gera e-mail e senha automaticamente</p>
-              </div>
-              <div className={cn(
-                "w-10 h-5 rounded-full p-1 transition-all duration-300",
-                generatePortalAccess ? "bg-indigo-600" : "bg-slate-200"
-              )}>
-                <div className={cn(
-                  "w-3 h-3 bg-white rounded-full transition-all duration-300",
-                  generatePortalAccess ? "translate-x-5" : "translate-x-0"
-                )} />
-              </div>
+          <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-center justify-between group cursor-pointer" onClick={() => setGeneratePortalAccess(!generatePortalAccess)}>
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Liberar Portal?</p>
+              <p className="text-[9px] text-muted-foreground font-medium">Gera e-mail e senha automaticamente</p>
             </div>
-          )}
+            <div className={cn(
+              "w-10 h-5 rounded-full p-1 transition-all duration-300",
+              generatePortalAccess ? "bg-indigo-600" : "bg-slate-200"
+            )}>
+              <div className={cn(
+                "w-3 h-3 bg-white rounded-full transition-all duration-300",
+                generatePortalAccess ? "translate-x-5" : "translate-x-0"
+              )} />
+            </div>
+          </div>
         </div>
 
         {/* Credentials Feedback */}
@@ -541,14 +546,18 @@ export default function Alunos() {
                                     <MoreVertical size={18} />
                                  </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-32">
+                              <DropdownMenuContent align="end" className="w-48">
                                  <DropdownMenuItem onClick={() => { setEditStudent(student); setModalOpen(true); }}>
                                     <Pencil className="mr-2 h-4 w-4" />
-                                    <span>Editar</span>
+                                    <span>Editar Aluno</span>
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => { setDetailsStudentId(student.id); }}>
+                                    <Activity className="mr-2 h-4 w-4" />
+                                    <span>Gerar Acesso Portal</span>
                                  </DropdownMenuItem>
                                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteStudent(student)}>
                                     <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Excluir</span>
+                                    <span>Excluir Aluno</span>
                                  </DropdownMenuItem>
                               </DropdownMenuContent>
                            </DropdownMenu>
@@ -747,6 +756,3 @@ export default function Alunos() {
     </div>
   );
 }
-
-
-

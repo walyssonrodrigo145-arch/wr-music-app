@@ -183,23 +183,26 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
             </div>
 
             <div className="p-5 pt-0 space-y-2">
-               {!student.portalEnabled ? (
-                 <Button
-                   className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all active:scale-95 border-none"
-                   onClick={() => {
-                     enableAccessMutation.mutate({ studentId: student.id });
-                   }}
-                   disabled={enableAccessMutation.isPending}
-                 >
-                   {enableAccessMutation.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : <Activity size={14} className="mr-2" />}
-                   Liberar Acesso Portal
-                 </Button>
-               ) : (
-                 <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-center">
-                    <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Acesso ao Portal Ativo</p>
-                    <p className="text-[9px] font-medium text-muted-foreground">O aluno já possui acesso ao portal.</p>
-                 </div>
-               )}
+               <Button
+                 className={cn(
+                   "w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95 border-none",
+                   student.portalEnabled 
+                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20" 
+                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20"
+                 )}
+                 onClick={() => {
+                   enableAccessMutation.mutate({ studentId: student.id });
+                 }}
+                 disabled={enableAccessMutation.isPending}
+               >
+                 {enableAccessMutation.isPending ? (
+                    <Loader2 size={14} className="animate-spin mr-2" />
+                 ) : (
+                    <Activity size={14} className="mr-2" />
+                 )}
+                 {student.portalEnabled ? "Gerar Novo Acesso" : "Liberar Acesso Portal"}
+               </Button>
+
                <Button
                  variant="outline"
                  className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border-border/40 hover:bg-muted/50 transition-all active:scale-95 shadow-sm"
