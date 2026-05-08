@@ -111,7 +111,7 @@ export const appRouter = router({
           maxAge: isRemembered ? expiresInMs : undefined 
         });
 
-        return { success: true };
+        return { success: true, role: user.role };
       }),
     register: publicProcedure
       .input(z.object({ 
@@ -501,11 +501,46 @@ export const appRouter = router({
         .orderBy(asc(paymentDues.dueDate))
         .limit(1);
 
+      const [studentUser] = await db.select({ email: users.email }).from(users).where(eq(users.studentId, input.id)).limit(1);
+
       return {
         ...student,
         lastPaymentDate: lastPayment?.paidAt || null,
         nextDueDate: nextPayment?.dueDate || null, 
+        hasPortalAccess: !!studentUser,
+        portalEmail: studentUser?.email || null,
       };
+    }),
+    enablePortalAccess: professorProcedure.input(z.object({
+      studentId: z.number(),
+      email: z.string().email(),
+      password: z.string().min(6),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Banco de dados não disponível");
+      
+      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.userId, ctx.user.id))).limit(1);
+      if (!student) throw new Error("Aluno não encontrado ou permissão negada.");
+
+      const [existingUser] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+      if (existingUser) throw new Error("Este e-mail já está em uso por outro usuário.");
+
+      const salt = crypto.randomBytes(16).toString("hex");
+      const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
+      const passwordHash = `${salt}:${derivedKey}`;
+      const openId = crypto.randomUUID();
+
+      await db.insert(users).values({
+        openId,
+        name: student.name,
+        email: input.email,
+        passwordHash,
+        role: 'student',
+        studentId: student.id,
+        isEmailVerified: true,
+      });
+
+      return { success: true };
     }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
@@ -2130,6 +2165,107 @@ export const appRouter = router({
           .where(and(eq(paymentDues.studentId, input.studentId), eq(paymentDues.userId, ctx.user.id)))
           .orderBy(asc(paymentDues.year), asc(paymentDues.month));
       }),
+  }),
+  studentPortal: router({
+    getDashboard: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado ou perfil de aluno incompleto.");
+      
+      const studentId = ctx.user.studentId;
+      const now = new Date();
+      
+      // Próximas aulas
+      const upcoming = await db.select({
+        id: lessons.id,
+        title: lessons.title,
+        scheduledAt: lessons.scheduledAt,
+        status: lessons.status,
+      }).from(lessons)
+        .where(and(eq(lessons.studentId, studentId), gte(lessons.scheduledAt, now), eq(lessons.status, 'agendada')))
+        .orderBy(asc(lessons.scheduledAt))
+        .limit(5);
+
+      // Progresso (Últimos eventos da timeline)
+      const timeline = await db.select().from(studentTimeline)
+        .where(eq(studentTimeline.studentId, studentId))
+        .orderBy(desc(studentTimeline.achievedAt))
+        .limit(5);
+
+      // Estatísticas
+      const [done] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.status, 'concluida')));
+      const [pendingExercises] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.status, 'pendente')));
+      
+      // Frequência (últimos 3 meses)
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(now.getMonth() - 3);
+      const [totalRecent] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), gte(lessons.scheduledAt, threeMonthsAgo), ne(lessons.status, 'cancelada')));
+      const [doneRecent] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), gte(lessons.scheduledAt, threeMonthsAgo), eq(lessons.status, 'concluida')));
+      const frequency = totalRecent.count > 0 ? Math.round((doneRecent.count / totalRecent.count) * 100) : 100;
+
+      return {
+        upcomingLessons: upcoming,
+        recentActivities: timeline,
+        stats: {
+          lessonsDone: done.count,
+          pendingExercises: pendingExercises.count,
+          frequency,
+          generalProgress: 85, // Mock ou calculado
+        }
+      };
+    }),
+    getLessons: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      return db.select().from(lessons).where(eq(lessons.studentId, ctx.user.studentId)).orderBy(desc(lessons.scheduledAt)).limit(50);
+    }),
+    getMaterials: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      return db.select().from(studentFiles).where(eq(studentFiles.studentId, ctx.user.studentId)).orderBy(desc(studentFiles.createdAt));
+    }),
+    getExercises: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      return db.select().from(studentGoals).where(eq(studentGoals.studentId, ctx.user.studentId)).orderBy(desc(studentGoals.createdAt));
+    }),
+    getProgress: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      const timeline = await db.select().from(studentTimeline).where(eq(studentTimeline.studentId, ctx.user.studentId)).orderBy(desc(studentTimeline.achievedAt));
+      const [done] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, ctx.user.studentId), eq(lessons.status, 'concluida')));
+      return {
+        timeline,
+        stats: {
+          lessonsDone: done.count,
+          averageGrade: 9.2, // Mock
+        }
+      };
+    }),
+    getPayments: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      return db.select().from(paymentDues).where(eq(paymentDues.studentId, ctx.user.studentId)).orderBy(desc(paymentDues.dueDate));
+    }),
+    getProfile: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      const [student] = await db.select({
+        id: students.id,
+        name: students.name,
+        email: students.email,
+        level: students.level,
+        instrumentId: students.instrumentId,
+        teacherId: students.userId,
+        startDate: students.startDate,
+      }).from(students).where(eq(students.id, ctx.user.studentId)).limit(1);
+      
+      const [teacher] = await db.select({ name: users.name }).from(users).where(eq(users.id, student.teacherId)).limit(1);
+      
+      return {
+        ...student,
+        teacherName: teacher?.name || 'Professor',
+      };
+    }),
   }),
 });
 

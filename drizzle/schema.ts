@@ -11,7 +11,7 @@ import {
   boolean
 } from "drizzle-orm/pg-core";
 
-export const roleEnum = pgEnum('role', ["user", "admin"]);
+export const roleEnum = pgEnum('role', ["user", "admin", "professor", "student"]);
 export const levelEnum = pgEnum('level', ["iniciante", "intermediario", "avancado"]);
 export const statusEnum = pgEnum('status', ["ativo", "inativo", "pausado"]);
 export const lessonStatusEnum = pgEnum('lesson_status', ["agendada", "concluida", "cancelada", "remarcada", "falta"]);
@@ -30,6 +30,7 @@ export const users = pgTable("users", {
   passwordHash: varchar("passwordHash", { length: 255 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: roleEnum("role").default("user").notNull(),
+  studentId: integer("studentId"), // Link to students table if role is 'student'
   isEmailVerified: boolean("isEmailVerified").default(false).notNull(),
   verificationToken: text("verificationToken"),
   verificationTokenExpiresAt: timestamp("verificationTokenExpiresAt"),

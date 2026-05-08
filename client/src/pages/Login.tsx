@@ -21,8 +21,12 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(true);
 
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: () => {
-      window.location.href = "/dashboard";
+    onSuccess: (data) => {
+      if (data.role === 'student') {
+        window.location.href = "/aluno";
+      } else {
+        window.location.href = "/dashboard";
+      }
     },
     onError: (err) => setErrorMsg(err.message)
   });

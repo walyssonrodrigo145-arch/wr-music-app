@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -20,6 +20,15 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/instrumentos": { title: "Instrumentos", subtitle: "Instrumentos ensinados" },
   "/relatorios": { title: "Relatórios", subtitle: "Análises e estatísticas" },
   "/configuracoes": { title: "Configurações", subtitle: "Preferências do sistema" },
+  "/aluno": { title: "Portal do Aluno", subtitle: "Bem-vinda de volta ao seu portal de estudos" },
+  "/aluno/aulas": { title: "Minhas Aulas", subtitle: "Acompanhe seu cronograma de aulas" },
+  "/aluno/agenda": { title: "Agenda", subtitle: "Seus compromissos e eventos musicais" },
+  "/aluno/materiais": { title: "Materiais", subtitle: "Acesse seus PDFs, vídeos e áudios" },
+  "/aluno/exercicios": { title: "Exercícios", subtitle: "Pratique e envie suas atividades" },
+  "/aluno/progresso": { title: "Meu Progresso", subtitle: "Sua evolução musical em detalhes" },
+  "/aluno/mensagens": { title: "Mensagens", subtitle: "Comunicação direta com seu professor" },
+  "/aluno/pagamentos": { title: "Pagamentos", subtitle: "Histórico financeiro e mensalidades" },
+  "/aluno/perfil": { title: "Meu Perfil", subtitle: "Suas informações e conquistas" },
 };
 
 interface AppHeaderProps {
@@ -223,7 +232,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
               </Avatar>
               <div className="hidden lg:block text-left">
                 <p className="text-xs font-black text-foreground leading-tight tracking-tight">{user?.name?.split(" ")[0] ?? "WR"}</p>
-                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Admin</p>
+                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">{user?.role === 'student' ? 'Aluno' : 'Admin'}</p>
               </div>
               <ChevronDown size={14} className="text-muted-foreground hidden lg:block group-hover:text-muted-foreground transition-colors" />
             </button>

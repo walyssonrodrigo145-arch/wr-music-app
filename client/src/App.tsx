@@ -6,6 +6,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { MusicLayout } from "./components/MusicLayout";
+import { StudentPortalLayout } from "./components/StudentPortalLayout";
 
 // Lazy loading the pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -21,6 +22,17 @@ const Progresso = lazy(() => import("./pages/Progresso"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// Student Portal Pages
+const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
+const StudentLessons = lazy(() => import("./pages/student/Aulas"));
+const StudentMaterials = lazy(() => import("./pages/student/Materiais"));
+const StudentExercises = lazy(() => import("./pages/student/Exercicios"));
+const StudentProgress = lazy(() => import("./pages/student/Progresso"));
+const StudentPayments = lazy(() => import("./pages/student/Pagamentos"));
+const StudentProfile = lazy(() => import("./pages/student/Perfil"));
+const StudentAgenda = lazy(() => import("./pages/student/Agenda"));
+const StudentMessages = lazy(() => import("./pages/student/Mensagens"));
+
 const PageLoader = () => (
   <div className="flex-1 h-full min-h-[50vh] flex flex-col items-center justify-center text-muted-foreground gap-4">
     <Loader2 className="animate-spin text-primary" size={32} />
@@ -34,6 +46,28 @@ function Router() {
       <Switch>
         <Route path="/" component={LandingPage} />
         <Route path="/login" component={Login} />
+        
+        {/* Student Portal Routes */}
+        <Route path="/aluno/:rest*">
+          <StudentPortalLayout>
+            <Suspense fallback={<PageLoader />}>
+              <Switch>
+                <Route path="/aluno" component={StudentDashboard} />
+                <Route path="/aluno/aulas" component={StudentLessons} />
+                <Route path="/aluno/agenda" component={StudentAgenda} />
+                <Route path="/aluno/materiais" component={StudentMaterials} />
+                <Route path="/aluno/exercicios" component={StudentExercises} />
+                <Route path="/aluno/progresso" component={StudentProgress} />
+                <Route path="/aluno/mensagens" component={StudentMessages} />
+                <Route path="/aluno/pagamentos" component={StudentPayments} />
+                <Route path="/aluno/perfil" component={StudentProfile} />
+                <Route component={NotFound} />
+              </Switch>
+            </Suspense>
+          </StudentPortalLayout>
+        </Route>
+
+        {/* Admin/Professor Routes */}
         <Route>
           <MusicLayout>
             <Suspense fallback={<PageLoader />}>

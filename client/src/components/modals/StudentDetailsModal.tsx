@@ -1,4 +1,6 @@
-﻿import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2 } from "lucide-react";
+import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,10 +18,23 @@ interface StudentDetailsModalProps {
 }
 
 export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onDelete }: StudentDetailsModalProps) {
+  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const utils = trpc.useUtils();
+  
   const { data: student, isLoading } = trpc.students.getDetails.useQuery(
     { id: studentId as number },
     { enabled: !!studentId && open }
   );
+
+  const enableAccessMutation = trpc.students.enablePortalAccess.useMutation({
+    onSuccess: (data) => {
+      setCredentials(data);
+      utils.students.getDetails.invalidate({ id: studentId as number });
+      utils.students.list.invalidate();
+      toast.success("Acesso liberado com sucesso!");
+    },
+    onError: (e) => toast.error("Erro ao liberar acesso: " + e.message),
+  });
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -167,7 +182,24 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
               </div>
             </div>
 
-            <div className="p-5 pt-0">
+            <div className="p-5 pt-0 space-y-2">
+               {!student.portalEnabled ? (
+                 <Button
+                   className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all active:scale-95 border-none"
+                   onClick={() => {
+                     enableAccessMutation.mutate({ studentId: student.id });
+                   }}
+                   disabled={enableAccessMutation.isPending}
+                 >
+                   {enableAccessMutation.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : <Activity size={14} className="mr-2" />}
+                   Liberar Acesso Portal
+                 </Button>
+               ) : (
+                 <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-center">
+                    <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Acesso ao Portal Ativo</p>
+                    <p className="text-[9px] font-medium text-muted-foreground">O aluno já possui acesso ao portal.</p>
+                 </div>
+               )}
                <Button
                  variant="outline"
                  className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border-border/40 hover:bg-muted/50 transition-all active:scale-95 shadow-sm"
@@ -176,6 +208,41 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                  Fechar Detalhes
                </Button>
             </div>
+
+            {/* Credentials Modal */}
+            {credentials && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
+                <div className="bg-card border border-border shadow-2xl rounded-[2rem] p-8 max-w-sm w-full text-center space-y-6 animate-in zoom-in-95 duration-300">
+                  <div className="w-16 h-16 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black">Acesso Liberado!</h3>
+                    <p className="text-xs text-muted-foreground font-medium mt-2">Compartilhe as credenciais com o aluno:</p>
+                  </div>
+                  
+                  <div className="bg-muted/30 p-6 rounded-2xl border border-border/40 space-y-4">
+                    <div className="text-left">
+                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">E-mail de Acesso</p>
+                      <p className="text-sm font-black text-foreground break-all">{credentials.email}</p>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Senha Temporária</p>
+                      <p className="text-lg font-black text-primary tracking-widest">{credentials.password}</p>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground font-medium italic">O aluno poderá alterar a senha após o primeiro acesso.</p>
+
+                  <Button 
+                    className="w-full h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest"
+                    onClick={() => setCredentials(null)}
+                  >
+                    Entendido
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </DialogContent>
