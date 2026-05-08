@@ -513,8 +513,8 @@ export const appRouter = router({
     }),
     enablePortalAccess: professorProcedure.input(z.object({
       studentId: z.number(),
-      email: z.string().email(),
-      password: z.string().min(6),
+      email: z.string().email().optional(),
+      password: z.string().min(6).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Banco de dados não disponível");
@@ -522,25 +522,29 @@ export const appRouter = router({
       const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.userId, ctx.user.id))).limit(1);
       if (!student) throw new Error("Aluno não encontrado ou permissão negada.");
 
-      const [existingUser] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+      // Se não informado, gerar email e senha
+      const email = input.email || `${student.name.toLowerCase().replace(/\s+/g, '.')}@musicpro.com`;
+      const password = input.password || Math.random().toString(36).slice(-8);
+
+      const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
       if (existingUser) throw new Error("Este e-mail já está em uso por outro usuário.");
 
       const salt = crypto.randomBytes(16).toString("hex");
-      const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
+      const derivedKey = crypto.scryptSync(password, salt, 64).toString("hex");
       const passwordHash = `${salt}:${derivedKey}`;
       const openId = crypto.randomUUID();
 
       await db.insert(users).values({
         openId,
         name: student.name,
-        email: input.email,
+        email,
         passwordHash,
         role: 'student',
         studentId: student.id,
         isEmailVerified: true,
       });
 
-      return { success: true };
+      return { success: true, email, password };
     }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
