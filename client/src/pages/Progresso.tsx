@@ -639,11 +639,11 @@ function BibliotecaMusicalView({ studentId }: { studentId: number }) {
   });
 
   const categories = [
-    { id: "imagem", label: "Imagens", icon: ImageIcon, color: "text-purple-600", bg: "bg-purple-50", count: files.filter(f => f.category === 'imagem').length },
-    { id: "video", label: "Vídeos", icon: Video, color: "text-rose-600", bg: "bg-rose-50", count: files.filter(f => f.category === 'video').length },
-    { id: "pdf", label: "PDFs", icon: FileText, color: "text-blue-600", bg: "bg-blue-50", count: files.filter(f => f.category === 'pdf').length },
-    { id: "audio", label: "Áudios", icon: Music, color: "text-emerald-600", bg: "bg-emerald-50", count: files.filter(f => f.category === 'audio').length },
-    { id: "documento", label: "Documentos", icon: File, color: "text-amber-600", bg: "bg-amber-50", count: files.filter(f => f.category === 'documento').length },
+    { id: "imagem", label: "Imagens", icon: ImageIcon, color: "text-purple-600", bg: "bg-purple-50", gradient: "from-purple-500/10 to-purple-500/0", count: files.filter(f => f.category === 'imagem').length },
+    { id: "video", label: "Vídeos", icon: Video, color: "text-rose-600", bg: "bg-rose-50", gradient: "from-rose-500/10 to-rose-500/0", count: files.filter(f => f.category === 'video').length },
+    { id: "pdf", label: "PDFs", icon: FileText, color: "text-blue-600", bg: "bg-blue-50", gradient: "from-blue-500/10 to-blue-500/0", count: files.filter(f => f.category === 'pdf').length },
+    { id: "audio", label: "Áudios", icon: Music, color: "text-emerald-600", bg: "bg-emerald-50", gradient: "from-emerald-500/10 to-emerald-500/0", count: files.filter(f => f.category === 'audio').length },
+    { id: "documento", label: "Documentos", icon: File, color: "text-amber-600", bg: "bg-amber-50", gradient: "from-amber-500/10 to-amber-500/0", count: files.filter(f => f.category === 'documento').length },
   ];
 
   return (
@@ -677,72 +677,98 @@ function BibliotecaMusicalView({ studentId }: { studentId: number }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-8">
+      <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-10">
         {/* Cards de Categorias e Upload */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 shrink-0">
-          <div className="lg:col-span-2 bg-card border-2 border-dashed border-indigo-200 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center group hover:border-indigo-400 transition-all cursor-pointer">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <UploadCloud size={24} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 shrink-0">
+          <div 
+            onClick={() => setIsUploadModalOpen(true)}
+            className="lg:col-span-2 bg-gradient-to-br from-indigo-50/50 to-white border-2 border-dashed border-indigo-200 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-center group hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-500/5 transition-all cursor-pointer relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <UploadCloud size={80} className="text-indigo-600" />
             </div>
-            <p className="text-xs font-black text-foreground uppercase tracking-widest mb-1">Arraste arquivos aqui</p>
-            <p className="text-[9px] text-muted-foreground font-bold uppercase">ou clique para enviar</p>
-            <div className="mt-4 flex gap-2 opacity-40">
-              <ImageIcon size={12} />
-              <Video size={12} />
-              <FileText size={12} />
-              <Music size={12} />
+            
+            <div className="w-16 h-16 rounded-[1.25rem] bg-indigo-600 text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-200">
+              <UploadCloud size={32} />
+            </div>
+            <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-2">Upload de Arquivos</h4>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest max-w-[180px]">
+              Arraste seus materiais ou clique para selecionar
+            </p>
+            
+            <div className="mt-6 flex gap-3 opacity-60">
+              <div className="w-8 h-8 rounded-lg bg-card flex items-center justify-center border border-border shadow-sm"><ImageIcon size={14} className="text-purple-500" /></div>
+              <div className="w-8 h-8 rounded-lg bg-card flex items-center justify-center border border-border shadow-sm"><Video size={14} className="text-rose-500" /></div>
+              <div className="w-8 h-8 rounded-lg bg-card flex items-center justify-center border border-border shadow-sm"><FileText size={14} className="text-blue-500" /></div>
+              <div className="w-8 h-8 rounded-lg bg-card flex items-center justify-center border border-border shadow-sm"><Music size={14} className="text-emerald-500" /></div>
             </div>
           </div>
 
           {categories.map((cat) => (
-            <div key={cat.id} className="bg-card border border-border rounded-[2rem] p-5 hover:shadow-lg transition-all group cursor-pointer">
-              <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform", cat.bg, cat.color)}>
-                <cat.icon size={20} />
-              </div>
-              <p className="text-xs font-black text-foreground mb-1">{cat.label}</p>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{cat.count} arquivos</p>
+            <div 
+              key={cat.id} 
+              onClick={() => setCategory(cat.id)}
+              className={cn(
+                "bg-card border rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center hover:shadow-2xl transition-all group cursor-pointer relative overflow-hidden",
+                category === cat.id ? "border-indigo-600 ring-2 ring-indigo-600/10 shadow-xl" : "border-border hover:border-indigo-200"
+              )}
+            >
+              <div className={cn("absolute inset-0 bg-gradient-to-b opacity-0 group-hover:opacity-100 transition-opacity", cat.gradient)} />
               
-              <Button variant="ghost" size="sm" className="w-full mt-4 h-8 rounded-lg text-[9px] font-black uppercase tracking-widest border border-border gap-2 hover:bg-muted">
-                <Plus size={12} />
-                Adicionar
-              </Button>
+              <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform relative z-10 shadow-sm", cat.bg, cat.color)}>
+                <cat.icon size={24} />
+              </div>
+              <p className="text-xs font-black text-foreground mb-1 relative z-10 uppercase tracking-tight">{cat.label}</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest relative z-10">{cat.count} arquivos</p>
+              
+              <div className="mt-6 w-full relative z-10">
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden border border-border/50">
+                   <motion.div 
+                     initial={{ width: 0 }}
+                     animate={{ width: `${Math.min((cat.count / 10) * 100, 100)}%` }}
+                     className={cn("h-full", cat.bg.replace('bg-', 'bg-').replace('50', '500'))}
+                   />
+                </div>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Filtros e Busca */}
-        <div className="flex flex-col md:flex-row items-center gap-4 bg-card p-2 rounded-2xl border border-border shadow-sm">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+        <div className="flex flex-col md:flex-row items-center gap-4 bg-card p-3 rounded-[1.5rem] border border-border shadow-sm">
+          <div className="relative flex-1 w-full group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-600 transition-colors" size={16} />
             <Input 
-              placeholder="Buscar materiais..." 
-              className="pl-9 h-10 text-xs border-none bg-transparent focus-visible:ring-0"
+              placeholder="Buscar materiais na biblioteca..." 
+              className="pl-11 h-11 text-xs border-none bg-transparent focus-visible:ring-0 placeholder:text-muted-foreground/60 font-medium"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           
-          <div className="flex items-center gap-2 w-full md:w-auto px-2 border-l border-border">
+          <div className="flex items-center gap-2 w-full md:w-auto px-2 border-l border-border/50">
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="h-10 border-none bg-transparent text-xs font-bold w-[120px] focus:ring-0 uppercase tracking-widest">
+              <SelectTrigger className="h-11 border-none bg-transparent text-[10px] font-black w-[140px] focus:ring-0 uppercase tracking-widest text-foreground/80">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="todos" className="text-xs font-bold py-3 uppercase tracking-widest">Todos</SelectItem>
+              <SelectContent className="rounded-xl border-border">
+                <SelectItem value="todos" className="text-[10px] font-black py-3 uppercase tracking-widest">Todos os Arquivos</SelectItem>
                 {categories.map(c => (
-                  <SelectItem key={c.id} value={c.id} className="text-xs font-bold py-3 uppercase tracking-widest">{c.label}</SelectItem>
+                  <SelectItem key={c.id} value={c.id} className="text-[10px] font-black py-3 uppercase tracking-widest">{c.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             
-            <div className="h-6 w-px bg-border mx-2" />
+            <div className="h-6 w-px bg-border/50 mx-2" />
             
-            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-muted text-muted-foreground">
-              <Filter size={16} />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-muted text-muted-foreground">
-              <Folder size={16} />
-            </Button>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-muted text-muted-foreground">
+                <Filter size={16} />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-muted text-muted-foreground">
+                <LayoutGrid size={16} />
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -751,9 +777,21 @@ function BibliotecaMusicalView({ studentId }: { studentId: number }) {
           {isLoading ? (
             <div className="flex justify-center p-12"><Loader2 className="animate-spin text-slate-200" /></div>
           ) : files.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 bg-card border-2 border-dashed border-border rounded-[2rem] opacity-50">
-              <Folder size={40} className="text-slate-200 mb-4" />
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic">Nenhum arquivo encontrado</p>
+            <div className="flex flex-col items-center justify-center py-24 bg-gradient-to-b from-card to-muted/30 border-2 border-dashed border-border rounded-[3rem] group">
+              <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                <Folder size={40} className="text-slate-300" />
+              </div>
+              <p className="text-sm font-black text-foreground uppercase tracking-widest">Sua biblioteca está vazia</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-2 max-w-[200px] text-center leading-relaxed">
+                Comece enviando seu primeiro material musical para este aluno.
+              </p>
+              <Button 
+                onClick={() => setIsUploadModalOpen(true)}
+                variant="outline" 
+                className="mt-8 h-10 rounded-xl px-6 text-[10px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+              >
+                Adicionar Material
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
