@@ -321,7 +321,6 @@ export default function Progresso() {
                      <p className="text-xs text-emerald-900 font-bold">Excelente Desempenho</p>
                    </div>
                 </div>
-              </div>
 
               </div>
 
