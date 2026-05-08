@@ -55,8 +55,17 @@ export const students = pgTable("students", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
+  socialName: varchar("socialName", { length: 255 }),
   email: varchar("email", { length: 320 }).unique(),
   phone: varchar("phone", { length: 30 }).default("").notNull(),
+  birthDate: date("birthDate"),
+  gender: varchar("gender", { length: 50 }),
+  cpf: varchar("cpf", { length: 20 }),
+  rg: varchar("rg", { length: 20 }),
+  address: text("address"),
+  guardianName: varchar("guardianName", { length: 255 }),
+  guardianPhone: varchar("guardianPhone", { length: 30 }),
+  guardianEmail: varchar("guardianEmail", { length: 320 }),
   avatar: text("avatar"),
   instrumentId: integer("instrumentId"),
   level: levelEnum("level").default("iniciante").notNull(),
@@ -68,6 +77,7 @@ export const students = pgTable("students", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
+
 
 export const lessons = pgTable("lessons", {
   id: serial("id").primaryKey(),

@@ -358,7 +358,9 @@ function DeleteConfirm({ name, onConfirm, onCancel, isPending }: {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Alunos() {
   const utils = trpc.useUtils();
+  const [location, setLocation] = useLocation();
   const [search, setSearch] = useState("");
+
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsStudentId, setDetailsStudentId] = useState<number | null>(null);
@@ -446,9 +448,10 @@ export default function Alunos() {
                 />
              </div>
              <Button 
-               onClick={() => { setEditStudent(null); setModalOpen(true); }}
+               onClick={() => setLocation("/alunos/novo")}
                className="h-10 rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
              >
+
                <Plus size={18} />
                <span className="hidden sm:inline">Novo aluno</span>
              </Button>

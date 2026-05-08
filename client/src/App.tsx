@@ -21,6 +21,8 @@ const Login = lazy(() => import("./pages/Login"));
 const Progresso = lazy(() => import("./pages/Progresso"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const NovoAluno = lazy(() => import("./pages/NovoAluno"));
+
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -74,6 +76,8 @@ function Router() {
               <Switch>
                 <Route path="/dashboard" component={Dashboard} />
                 <Route path="/alunos" component={Alunos} />
+                <Route path="/alunos/novo" component={NovoAluno} />
+
                 <Route path="/aulas" component={Aulas} />
                 <Route path="/instrumentos" component={Instrumentos} />
                 <Route path="/relatorios" component={Relatorios} />

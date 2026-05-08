@@ -548,8 +548,17 @@ export const appRouter = router({
     }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+      socialName: z.string().optional().nullable(),
       email: z.string().email("E-mail inválido").optional().nullable(),
       phone: z.string().min(8, "Telefone é obrigatório"),
+      birthDate: z.string().optional().nullable(),
+      gender: z.string().optional().nullable(),
+      cpf: z.string().optional().nullable(),
+      rg: z.string().optional().nullable(),
+      address: z.string().optional().nullable(),
+      guardianName: z.string().optional().nullable(),
+      guardianPhone: z.string().optional().nullable(),
+      guardianEmail: z.string().email("E-mail do responsável inválido").optional().nullable(),
       instrumentId: z.number().optional(),
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
       monthlyFee: z.number().default(0),
@@ -564,8 +573,17 @@ export const appRouter = router({
         const result = await db.insert(students).values({
           userId: ctx.user.id,
           name: input.name,
+          socialName: input.socialName,
           email: input.email || null,
           phone: input.phone,
+          birthDate: input.birthDate,
+          gender: input.gender,
+          cpf: input.cpf,
+          rg: input.rg,
+          address: input.address,
+          guardianName: input.guardianName,
+          guardianPhone: input.guardianPhone,
+          guardianEmail: input.guardianEmail,
           instrumentId: input.instrumentId,
           level: input.level,
           monthlyFee: String(input.monthlyFee),
@@ -581,6 +599,7 @@ export const appRouter = router({
         return handleDbError(error, "cadastrar o aluno");
       }
     }),
+
 
     update: protectedProcedure.input(z.object({
       id: z.number(),
