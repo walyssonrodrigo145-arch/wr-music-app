@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { 
   BarChart3, Calendar, Filter, UserPlus, TrendingUp, 
@@ -18,6 +18,14 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { toast } from "sonner";
+
+const EmptyChart = () => (
+  <div className="h-full flex flex-col items-center justify-center text-muted-foreground/50">
+     <LucideBarChart size={48} className="mb-4 opacity-50" />
+     <p className="text-xs font-bold uppercase tracking-widest text-center">Sem dados suficientes<br/>para o gráfico</p>
+  </div>
+);
 
 // ─── Stat Card Component ───────────────────────────────────────────────────
 function ReportMetricCard({ 
@@ -169,10 +177,10 @@ export default function Relatorios() {
             <Calendar size={16} className="text-blue-600" />
             <span className="text-[11px] font-black text-muted-foreground uppercase tracking-tight">01/05/2025 - 31/05/2025</span>
           </div>
-          <Button className="h-12 px-6 rounded-2xl bg-card border-border text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground gap-2 shadow-sm hover:bg-muted">
+          <Button onClick={() => toast.info("Filtros em desenvolvimento")} className="h-12 px-6 rounded-2xl bg-card border-border text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground gap-2 shadow-sm hover:bg-muted">
              <Filter size={16} className="text-blue-600" /> Filtros
           </Button>
-          <Button className="hidden md:flex h-12 px-6 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.15em] gap-2 shadow-xl shadow-blue-500/20 hover:bg-blue-700">
+          <Button onClick={() => toast.info("Exportação em desenvolvimento")} className="hidden md:flex h-12 px-6 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.15em] gap-2 shadow-xl shadow-blue-500/20 hover:bg-blue-700">
              <Download size={16} /> Exportar
           </Button>
         </div>
@@ -212,16 +220,18 @@ export default function Relatorios() {
                 <div className="lg:col-span-2 bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
                    <h3 className="text-base font-black text-foreground tracking-tight">Evolução da Receita</h3>
                    <div className="h-[340px] w-full">
-                     <ResponsiveContainer width="100%" height="100%">
-                       <AreaChart data={monthlyData || []}>
-                         <defs><linearGradient id="chartBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563EB" stopOpacity={0.1} /><stop offset="95%" stopColor="#2563EB" stopOpacity={0} /></linearGradient></defs>
-                         <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                         <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }} dy={10} />
-                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }} />
-                         <Tooltip contentStyle={{ borderRadius: '1.25rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
-                         <Area type="monotone" dataKey="receita" name="Receita" stroke="#2563EB" strokeWidth={4} fill="url(#chartBlue)" dot={{ r: 5, strokeWidth: 3, fill: 'white' }} />
-                       </AreaChart>
-                     </ResponsiveContainer>
+                     {(!monthlyData || monthlyData.length === 0) ? <EmptyChart /> : (
+                       <ResponsiveContainer width="100%" height="100%">
+                         <AreaChart data={monthlyData}>
+                           <defs><linearGradient id="chartBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563EB" stopOpacity={0.1} /><stop offset="95%" stopColor="#2563EB" stopOpacity={0} /></linearGradient></defs>
+                           <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                           <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }} dy={10} />
+                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }} />
+                           <Tooltip contentStyle={{ borderRadius: '1.25rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
+                           <Area type="monotone" dataKey="receita" name="Receita" stroke="#2563EB" strokeWidth={4} fill="url(#chartBlue)" dot={{ r: 5, strokeWidth: 3, fill: 'white' }} />
+                         </AreaChart>
+                       </ResponsiveContainer>
+                     )}
                    </div>
                 </div>
                 <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8 flex flex-col justify-between">
@@ -261,9 +271,11 @@ export default function Relatorios() {
                     <h3 className="text-base font-black text-foreground tracking-tight">Receita por Categoria</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                        <div className="h-56 relative">
-                          <ResponsiveContainer width="100%" height="100%">
-                             <PieChart><Pie data={revenueCategoryData} innerRadius={65} outerRadius={90} paddingAngle={8} dataKey="value">{revenueCategoryData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
-                          </ResponsiveContainer>
+                          {(!stats?.monthlyRevenue || stats.monthlyRevenue === 0) ? <EmptyChart /> : (
+                            <ResponsiveContainer width="100%" height="100%">
+                               <PieChart><Pie data={revenueCategoryData} innerRadius={65} outerRadius={90} paddingAngle={8} dataKey="value">{revenueCategoryData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
+                            </ResponsiveContainer>
+                          )}
                        </div>
                        <div className="space-y-4">
                           {revenueCategoryData.map((item, i) => (
@@ -278,9 +290,11 @@ export default function Relatorios() {
                  <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
                     <h3 className="text-base font-black text-foreground tracking-tight">Projeção Próximos Meses</h3>
                     <div className="h-64 w-full">
-                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={monthlyData?.slice(-6) || []}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="month" /><Tooltip /><Bar dataKey="receita" fill="#2563EB" radius={[8, 8, 0, 0]} /></BarChart>
-                       </ResponsiveContainer>
+                       {(!monthlyData || monthlyData.length === 0) ? <EmptyChart /> : (
+                         <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={monthlyData.slice(-6)}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="month" /><Tooltip /><Bar dataKey="receita" fill="#2563EB" radius={[8, 8, 0, 0]} /></BarChart>
+                         </ResponsiveContainer>
+                       )}
                     </div>
                  </div>
               </div>
@@ -299,15 +313,17 @@ export default function Relatorios() {
               <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
                  <h3 className="text-base font-black text-foreground tracking-tight">Crescimento da Base de Alunos</h3>
                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                       <AreaChart data={monthlyData || []}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <Tooltip />
-                          <Area type="monotone" dataKey="alunos" name="Alunos" stroke="#10B981" fill="#10B98120" strokeWidth={3} />
-                       </AreaChart>
-                    </ResponsiveContainer>
+                    {(!monthlyData || monthlyData.length === 0) ? <EmptyChart /> : (
+                      <ResponsiveContainer width="100%" height="100%">
+                         <AreaChart data={monthlyData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="month" />
+                            <YAxis />
+                            <Tooltip />
+                            <Area type="monotone" dataKey="alunos" name="Alunos" stroke="#10B981" fill="#10B98120" strokeWidth={3} />
+                         </AreaChart>
+                      </ResponsiveContainer>
+                    )}
                  </div>
               </div>
             </>
@@ -326,17 +342,21 @@ export default function Relatorios() {
                  <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
                     <h3 className="text-base font-black text-foreground tracking-tight">Aulas por Status</h3>
                     <div className="h-64 w-full">
-                       <ResponsiveContainer width="100%" height="100%">
-                          <PieChart><Pie data={lessonStatusData} innerRadius={60} outerRadius={80} dataKey="value">{lessonStatusData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
-                       </ResponsiveContainer>
+                       {(!allLessons || allLessons.length === 0) ? <EmptyChart /> : (
+                         <ResponsiveContainer width="100%" height="100%">
+                            <PieChart><Pie data={lessonStatusData} innerRadius={60} outerRadius={80} dataKey="value">{lessonStatusData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
+                         </ResponsiveContainer>
+                       )}
                     </div>
                  </div>
                  <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
                     <h3 className="text-base font-black text-foreground tracking-tight">Frequência Semanal</h3>
                     <div className="h-64 w-full">
-                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={monthlyData?.slice(-6) || []}><XAxis dataKey="month" /><Tooltip /><Bar dataKey="aulas" fill="#7C3AED" radius={[8, 8, 0, 0]} /></BarChart>
-                       </ResponsiveContainer>
+                       {(!monthlyData || monthlyData.length === 0) ? <EmptyChart /> : (
+                         <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={monthlyData.slice(-6)}><XAxis dataKey="month" /><Tooltip /><Bar dataKey="aulas" fill="#7C3AED" radius={[8, 8, 0, 0]} /></BarChart>
+                         </ResponsiveContainer>
+                       )}
                     </div>
                  </div>
               </div>
@@ -347,7 +367,7 @@ export default function Relatorios() {
           <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm overflow-hidden">
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <h3 className="text-base font-black text-foreground tracking-tight">Histórico de Relatórios</h3>
-                <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest gap-2">Ver todos <ChevronRight size={14} /></Button>
+                <Button variant="ghost" onClick={() => toast.info("Histórico completo em desenvolvimento")} className="text-[10px] font-black text-blue-600 uppercase tracking-widest gap-2">Ver todos <ChevronRight size={14} /></Button>
              </div>
              <div className="overflow-x-auto">
                 <table className="w-full">
@@ -369,7 +389,7 @@ export default function Relatorios() {
                            <td className="py-5 px-4"><div className="flex items-center gap-3"><div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", report.color)}><report.icon size={16} /></div><span className="text-xs font-black text-foreground">{report.name}</span></div></td>
                            <td className="py-5 px-4 text-xs font-black text-muted-foreground">{report.period}</td>
                            <td className="py-5 px-4"><span className="px-3 py-1 rounded-full bg-muted text-[9px] font-black uppercase tracking-widest text-muted-foreground">{report.status}</span></td>
-                           <td className="py-5 px-4 text-right"><div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-blue-600"><Download size={14} /></button></div></td>
+                           <td className="py-5 px-4 text-right"><div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => toast.info("Download em desenvolvimento")} className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-blue-600"><Download size={14} /></button></div></td>
                         </tr>
                       ))}
                    </tbody>
@@ -379,7 +399,7 @@ export default function Relatorios() {
         </motion.div>
       </AnimatePresence>
 
-      <button className="fixed bottom-8 right-6 lg:hidden w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl z-50"><Download size={24} /></button>
+      <button onClick={() => toast.info("Exportação em desenvolvimento")} className="fixed bottom-8 right-6 lg:hidden w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl z-50"><Download size={24} /></button>
     </div>
   );
 }

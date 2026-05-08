@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { format, isSameDay, startOfDay } from "date-fns";
 import {
@@ -571,9 +571,9 @@ export default function Alunos() {
                <p className="hidden sm:block text-[11px] text-muted-foreground font-medium">Mostrando 1 a {filtered.length} de {stats.total} alunos</p>
                <p className="sm:hidden text-[11px] text-muted-foreground font-medium">{filtered.length} registros</p>
                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ChevronDown className="rotate-90" size={14} /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => toast.info("Funcionalidade em desenvolvimento")}><ChevronDown className="rotate-90" size={14} /></Button>
                   <Button variant="ghost" className="h-8 w-8 text-xs font-bold bg-primary text-white hover:bg-primary">1</Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ChevronDown className="-rotate-90" size={14} /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => toast.info("Funcionalidade em desenvolvimento")}><ChevronDown className="-rotate-90" size={14} /></Button>
                </div>
             </div>
           </div>

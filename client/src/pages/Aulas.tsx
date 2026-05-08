@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { 
   ChevronLeft, 
@@ -76,6 +76,7 @@ export default function Aulas() {
 
   const [agendarOpen, setAgendarOpen] = useState(false);
   const [detailLessonId, setDetailLessonId] = useState<number | null>(null);
+  const [editingLesson, setEditingLesson] = useState<any>(null);
 
   const utils = trpc.useUtils();
   const { data: lessons = [], isLoading } = trpc.lessons.list.useQuery();
@@ -88,6 +89,15 @@ export default function Aulas() {
       utils.lessons.list.invalidate();
     },
     onError: (e) => toast.error("Erro ao atualizar status: " + e.message)
+  });
+
+  const deleteMutation = trpc.lessons.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Aula removida!");
+      utils.lessons.list.invalidate();
+      setDetailLessonId(null);
+    },
+    onError: (e) => toast.error("Erro ao remover: " + e.message)
   });
 
   const filteredLessons = useMemo(() => {
@@ -428,8 +438,8 @@ export default function Aulas() {
            </div>
         </div>
 
-        <AgendarModal open={agendarOpen} onOpenChange={setAgendarOpen} />
-        <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => {}} onEdit={() => {}} />
+        <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} />
+        <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => { if (detailLessonId) deleteMutation.mutate({ id: detailLessonId }); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
       </div>
     );
   }
@@ -515,8 +525,8 @@ export default function Aulas() {
         </motion.button>
       </div>
 
-      <AgendarModal open={agendarOpen} onOpenChange={setAgendarOpen} />
-      <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => {}} onEdit={() => {}} />
+      <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} />
+      <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => { if (detailLessonId) deleteMutation.mutate({ id: detailLessonId }); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
     </div>
   );
 }

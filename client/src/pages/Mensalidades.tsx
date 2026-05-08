@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   DollarSign, CheckCircle2, Clock, AlertCircle, Plus, X,
@@ -214,6 +214,15 @@ export default function Mensalidades() {
     onError: (e: any) => toast.error("Erro: " + e.message),
   });
 
+  const deleteMutation = trpc.paymentDues.delete.useMutation({
+    onSuccess: () => { 
+      toast.success("Mensalidade removida!"); 
+      utils.paymentDues.invalidate();
+      utils.dashboard.stats.invalidate();
+    },
+    onError: (e: any) => toast.error("Erro ao excluir: " + e.message),
+  });
+
   const prevMonth = () => {
     if (viewMonth === 1) { setViewMonth(12); setViewYear(y => y - 1); }
     else setViewMonth(m => m - 1);
@@ -411,7 +420,7 @@ export default function Mensalidades() {
                                  <DropdownMenuSeparator className="bg-muted" />
                                  <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
                                    if(confirm("Deseja excluir esta mensalidade?")) {
-                                     // delete logic
+                                     deleteMutation.mutate({ id: payment.id });
                                    }
                                  }}>
                                     <Trash2 className="w-4 h-4" />
