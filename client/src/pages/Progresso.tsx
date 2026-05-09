@@ -97,6 +97,75 @@ export default function Progresso() {
     setEditingEvent(null);
   };
 
+  const createMutation = trpc.progress.createTimelineEvent.useMutation({
+    onSuccess: () => {
+      utils.progress.getTimeline.invalidate({ studentId: selectedStudentId! });
+      utils.progress.getSummary.invalidate({ studentId: selectedStudentId! });
+      toast.success("Registro adicionado com sucesso!");
+      setIsModalOpen(false);
+      resetForm();
+    },
+    onError: (e) => toast.error("Erro ao salvar: " + e.message),
+  });
+
+  const updateMutation = trpc.progress.updateTimelineEvent.useMutation({
+    onSuccess: () => {
+      utils.progress.getTimeline.invalidate({ studentId: selectedStudentId! });
+      utils.progress.getSummary.invalidate({ studentId: selectedStudentId! });
+      toast.success("Registro atualizado com sucesso!");
+      setIsModalOpen(false);
+      resetForm();
+    },
+    onError: (e) => toast.error("Erro ao atualizar: " + e.message),
+  });
+
+  const deleteMutation = trpc.progress.deleteTimelineEvent.useMutation({
+    onSuccess: () => {
+      utils.progress.getTimeline.invalidate({ studentId: selectedStudentId! });
+      utils.progress.getSummary.invalidate({ studentId: selectedStudentId! });
+      toast.success("Registro removido");
+    },
+    onError: (e) => toast.error("Erro ao remover: " + e.message),
+  });
+
+  const handleEdit = (event: any) => {
+    setEditingEvent(event);
+    setFormData({
+      title: event.title,
+      description: event.description || "",
+      category: event.category,
+      grade: event.grade || "",
+      achievedAt: format(new Date(event.achievedAt), "yyyy-MM-dd'T'HH:mm"),
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm("Deseja realmente excluir este registro?")) {
+      deleteMutation.mutate({ id });
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!selectedStudentId) return;
+    if (!formData.title) return toast.error("Título é obrigatório");
+
+    const data = {
+      studentId: selectedStudentId,
+      title: formData.title,
+      description: formData.description,
+      category: formData.category,
+      grade: formData.grade,
+      achievedAt: formData.achievedAt,
+    };
+
+    if (editingEvent) {
+      updateMutation.mutate({ id: editingEvent.id, ...data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
   const filteredStudents = useMemo(() => {
     return students
       .filter((s: any) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -240,7 +309,8 @@ export default function Progresso() {
                       </Avatar>
                       <motion.div 
                         whileHover={{ scale: 1.1 }}
-                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-white border border-slate-100 shadow-md flex items-center justify-center text-indigo-600 cursor-pointer"
+                        onClick={() => toast.info("Funcionalidade de troca de foto em breve!")}
+                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-white border border-slate-100 shadow-md flex items-center justify-center text-indigo-600 cursor-pointer z-10"
                       >
                         <Edit2 size={12} />
                       </motion.div>
@@ -278,7 +348,10 @@ export default function Progresso() {
                           <span className="text-xs font-black text-emerald-600 uppercase tracking-tight">Excelente Desempenho</span>
                        </div>
                     </div>
-                    <Button className="h-12 w-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all active:scale-95 border-none">
+                    <Button 
+                      onClick={() => { resetForm(); setIsModalOpen(true); }}
+                      className="h-12 w-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-all active:scale-95 border-none"
+                    >
                        <Plus size={24} />
                     </Button>
                   </div>
@@ -286,8 +359,8 @@ export default function Progresso() {
               </div>
 
               {/* INTERNAL HEADER - TABS */}
-              <div className="px-8 mt-8 shrink-0">
-                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-slate-200/60">
+               <div className="px-8 mt-8 shrink-0">
+                  <div className="flex items-center gap-8 overflow-x-auto no-scrollbar border-b border-slate-200/60">
                     {[
                       { id: "jornada", label: "Jornada Musical", icon: Activity },
                       { id: "biblioteca", label: "Biblioteca Musical", icon: Folder },
@@ -301,7 +374,7 @@ export default function Progresso() {
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id as any)}
                           className={cn(
-                            "flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap",
+                            "flex items-center gap-2 px-2 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap",
                             isActive ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"
                           )}
                         >
@@ -425,12 +498,18 @@ export default function Progresso() {
                                          <div className="flex items-center justify-between pt-4 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <span className="text-[10px] font-bold text-slate-400">Registrado por: Professor Aladim</span>
                                             <div className="flex gap-2">
-                                               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
-                                                  <Edit2 size={14} />
-                                               </Button>
-                                               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50">
-                                                  <Trash2 size={14} />
-                                               </Button>
+                                                <Button 
+                                                  variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                                                  onClick={() => handleEdit(event)}
+                                                >
+                                                   <Edit2 size={14} />
+                                                </Button>
+                                                <Button 
+                                                  variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                                  onClick={() => handleDelete(event.id)}
+                                                >
+                                                   <Trash2 size={14} />
+                                                </Button>
                                             </div>
                                          </div>
                                       </div>
@@ -645,7 +724,14 @@ export default function Progresso() {
 
           <DialogFooter className="p-8 bg-slate-50 border-t border-slate-200 flex gap-3">
              <Button variant="ghost" className="flex-1 h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-             <Button className="flex-1 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20">
+             <Button 
+               className="flex-1 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20"
+               onClick={handleSubmit}
+               disabled={createMutation.isPending || updateMutation.isPending}
+             >
+                {(createMutation.isPending || updateMutation.isPending) ? (
+                  <Loader2 className="animate-spin mr-2" size={14} />
+                ) : null}
                 {editingEvent ? "Salvar Alterações" : "Registrar Progresso"}
              </Button>
           </DialogFooter>
