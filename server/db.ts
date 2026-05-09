@@ -12,6 +12,7 @@ let _schemaInitialized = false;
 async function ensureSchemaConsistency(db: any) {
   if (_schemaInitialized) return;
   
+  console.time("[DB] schema-consistency-check");
   try {
     console.log("[Database] Checking schema consistency for 'lessons.studentId'...");
     // Tenta remover a restrição NOT NULL de studentId se ela ainda existir
@@ -23,6 +24,7 @@ async function ensureSchemaConsistency(db: any) {
     if (error.detail) console.warn(`[Database] Error detail: ${error.detail}`);
   } finally {
     _schemaInitialized = true;
+    console.timeEnd("[DB] schema-consistency-check");
   }
 }
 

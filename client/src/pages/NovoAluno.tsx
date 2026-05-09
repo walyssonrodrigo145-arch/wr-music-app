@@ -51,7 +51,6 @@ export default function NovoAluno() {
   );
 
   const [isSaving, setIsSaving] = useState(false);
-  const [formReady, setFormReady] = useState(!isEditMode);
   const [form, setForm] = useState({
     name: "",
     socialName: "",
@@ -76,34 +75,40 @@ export default function NovoAluno() {
   // Pre-populate form when editing
   useEffect(() => {
     if (isEditMode && studentData) {
+      console.log("[NovoAluno] Populating form with student data:", studentData.name);
       setForm({
         name: studentData.name ?? "",
         socialName: (studentData as any).socialName ?? "",
-        birthDate: (studentData as any).birthDate ?? "",
+        birthDate: (studentData as any).birthDate ? String(studentData.birthDate).slice(0, 10) : "",
         gender: (studentData as any).gender ?? "",
         cpf: (studentData as any).cpf ?? "",
         rg: (studentData as any).rg ?? "",
         email: studentData.email ?? "",
         phone: studentData.phone ?? "",
         address: (studentData as any).address ?? "",
-        instrumentId: (studentData as any).instrumentId ? String((studentData as any).instrumentId) : "",
+        instrumentId: studentData.instrumentId ? String(studentData.instrumentId) : "",
         level: studentData.level ?? "iniciante",
-        startDate: studentData.startDate ?? new Date().toISOString().split('T')[0],
+        startDate: studentData.startDate ? String(studentData.startDate).slice(0, 10) : new Date().toISOString().split('T')[0],
         monthlyFee: studentData.monthlyFee ? String(Number(studentData.monthlyFee)) : "",
-        dueDay: (studentData as any).dueDay ? String((studentData as any).dueDay) : "10",
+        dueDay: studentData.dueDay ? String(studentData.dueDay) : "10",
         guardianName: (studentData as any).guardianName ?? "",
         guardianPhone: (studentData as any).guardianPhone ?? "",
         guardianEmail: (studentData as any).guardianEmail ?? "",
         notes: (studentData as any).notes ?? "",
       });
+
       const bd = (studentData as any).birthDate;
       if (bd) {
-        const date = parseISO(bd);
-        if (isValid(date)) setIsMinor(differenceInYears(new Date(), date) < 18);
+        const date = parseISO(String(bd));
+        if (isValid(date)) {
+          setIsMinor(differenceInYears(new Date(), date) < 18);
+        }
       }
-      setFormReady(true);
+    } else if (isEditMode && !isLoadingStudent && studentData === null) {
+      toast.error("Aluno não encontrado ou sem permissão de acesso.");
+      setLocation("/alunos");
     }
-  }, [studentData, isEditMode]);
+  }, [studentData, isEditMode, isLoadingStudent, setLocation]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isMinor, setIsMinor] = useState(false);
@@ -361,7 +366,7 @@ export default function NovoAluno() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] ml-1">Gênero</label>
-                    <Select onValueChange={(v) => handleInputChange('gender', v)}>
+                    <Select value={form.gender} onValueChange={(v) => handleInputChange('gender', v)}>
                       <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50/30 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-semibold px-4">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>

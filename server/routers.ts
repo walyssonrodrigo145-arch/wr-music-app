@@ -460,8 +460,12 @@ export const appRouter = router({
       return getStudentsWithInstrument(ctx.user.id, 8);
     }),
     getForEdit: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
+      console.log(`[TRPC] students.getForEdit called for ID: ${input.id} by user: ${ctx.user.id}`);
       const db = await getDb();
-      if (!db) return null;
+      if (!db) {
+        console.error("[TRPC] students.getForEdit: Database not available");
+        return null;
+      }
 
       const [student] = await db.select({
         id: students.id,
@@ -489,7 +493,13 @@ export const appRouter = router({
         .where(and(eq(students.id, input.id), eq(students.userId, ctx.user.id)))
         .limit(1);
 
-      return student ?? null;
+      if (!student) {
+        console.warn(`[TRPC] students.getForEdit: Student ${input.id} not found or doesn't belong to user ${ctx.user.id}`);
+        return null;
+      }
+
+      console.log(`[TRPC] students.getForEdit: Successfully retrieved student ${student.name}`);
+      return student;
     }),
     getDetails: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
       const db = await getDb();
