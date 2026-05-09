@@ -181,7 +181,7 @@ export default function NovoAluno() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-20">
       {/* Header Premium */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button 
