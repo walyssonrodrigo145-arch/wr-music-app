@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import { 
   Calendar, 
   CheckCircle2, 

@@ -204,7 +204,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                <Button
                  className={cn(
                    "w-full h-14 rounded-3xl text-[11px] font-black uppercase tracking-[0.25em] shadow-2xl transition-all active:scale-95 border-none relative overflow-hidden group",
-                   student.portalEnabled 
+                   student.hasPortalAccess 
                     ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-amber-500/20" 
                     : "bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white shadow-indigo-500/30"
                  )}
@@ -218,7 +218,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                  ) : (
                     <Activity size={16} className="mr-3 group-hover:scale-110 transition-transform" />
                  )}
-                 {student.portalEnabled ? "Gerar Novo Acesso" : "Liberar Acesso Portal"}
+                 {student.hasPortalAccess ? "Gerar Novo Acesso" : "Liberar Acesso Portal"}
                </Button>
 
                <Button

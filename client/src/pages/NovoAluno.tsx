@@ -159,7 +159,7 @@ export default function NovoAluno() {
     });
   };
 
-  const containerVariants = {
+  const containerVariants: any = {
     hidden: { opacity: 0 },
     visible: { 
       opacity: 1,
@@ -169,7 +169,7 @@ export default function NovoAluno() {
     }
   };
 
-  const cardVariants = {
+  const cardVariants: any = {
     hidden: { y: 20, opacity: 0 },
     visible: { 
       y: 0, 

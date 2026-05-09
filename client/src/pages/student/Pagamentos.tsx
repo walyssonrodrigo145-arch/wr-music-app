@@ -8,10 +8,11 @@ import {
   FileText,
   History
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 export default function StudentPayments() {
   const { data: payments, isLoading } = trpc.studentPortal.getPayments.useQuery();
@@ -98,7 +99,10 @@ export default function StudentPayments() {
                       <span className="text-xs font-bold opacity-80">Mensalidade Atual</span>
                       <span className="text-sm font-black">R$ 250,00</span>
                    </div>
-                   <button className="w-full bg-white text-primary font-black text-xs uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl hover:scale-[1.02] transition-all">
+                   <button 
+                     onClick={() => toast.info("Integração com gateway de pagamento em desenvolvimento.")}
+                     className="w-full bg-white text-primary font-black text-xs uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl hover:scale-[1.02] transition-all"
+                   >
                       Pagar Agora
                    </button>
                 </div>
