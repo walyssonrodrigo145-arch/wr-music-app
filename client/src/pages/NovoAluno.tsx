@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useParams } from "wouter";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { 
   ChevronLeft, 
@@ -36,16 +36,18 @@ import { cn } from "@/lib/utils";
 import { differenceInYears, parseISO, isValid } from "date-fns";
 
 export default function NovoAluno() {
-  const [, setLocation] = useLocation();
-  const params = useParams<{ id?: string }>();
-  const studentId = params.id ? Number(params.id) : null;
+  const [location, setLocation] = useLocation();
+
+  // Extract student ID from URL: /alunos/:id/editar
+  const editMatch = location.match(/^\/alunos\/(\d+)\/editar$/);
+  const studentId = editMatch ? Number(editMatch[1]) : null;
   const isEditMode = !!studentId;
 
   const utils = trpc.useUtils();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
-  const { data: studentData, isLoading: isLoadingStudent } = trpc.students.getDetails.useQuery(
+  const { data: studentData, isLoading: isLoadingStudent } = trpc.students.getForEdit.useQuery(
     { id: studentId! },
-    { enabled: isEditMode }
+    { enabled: isEditMode, staleTime: 0 }
   );
 
   const [isSaving, setIsSaving] = useState(false);
@@ -163,7 +165,7 @@ export default function NovoAluno() {
     onSuccess: () => {
       toast.success("Aluno atualizado com sucesso!");
       utils.students.list.invalidate();
-      utils.students.getDetails.invalidate({ id: studentId! });
+      utils.students.getForEdit.invalidate({ id: studentId! });
       setLocation("/alunos");
     },
     onError: (e) => {

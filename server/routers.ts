@@ -459,6 +459,38 @@ export const appRouter = router({
     recent: protectedProcedure.query(async ({ ctx }) => {
       return getStudentsWithInstrument(ctx.user.id, 8);
     }),
+    getForEdit: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return null;
+
+      const [student] = await db.select({
+        id: students.id,
+        name: students.name,
+        socialName: students.socialName,
+        birthDate: students.birthDate,
+        gender: students.gender,
+        cpf: students.cpf,
+        rg: students.rg,
+        address: students.address,
+        guardianName: students.guardianName,
+        guardianPhone: students.guardianPhone,
+        guardianEmail: students.guardianEmail,
+        instrumentId: students.instrumentId,
+        email: students.email,
+        phone: students.phone,
+        level: students.level,
+        status: students.status,
+        monthlyFee: students.monthlyFee,
+        dueDay: students.dueDay,
+        notes: students.notes,
+        startDate: students.startDate,
+        userId: students.userId,
+      }).from(students)
+        .where(and(eq(students.id, input.id), eq(students.userId, ctx.user.id)))
+        .limit(1);
+
+      return student ?? null;
+    }),
     getDetails: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) return null;
