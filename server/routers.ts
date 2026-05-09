@@ -476,12 +476,21 @@ export const appRouter = router({
         instrumentName: instruments.name,
         instrumentColor: instruments.color,
         instrumentIcon: instruments.icon,
+        userId: students.userId,
       }).from(students)
         .leftJoin(instruments, eq(students.instrumentId, instruments.id))
-        .where(and(eq(students.id, input.id), eq(students.userId, ctx.user.id)))
+        .where(eq(students.id, input.id))
         .limit(1);
 
       if (!student) return null;
+
+      // Check permission: owner of the student or admin/owner of the system
+      const isOwner = student.userId === ctx.user.id;
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      
+      if (!isOwner && !isAdmin) {
+        return null; // Or throw error
+      }
 
       // Buscar último pagamento
       const [lastPayment] = await db.select().from(paymentDues)
@@ -519,8 +528,15 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Banco de dados não disponível");
       
-      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.userId, ctx.user.id))).limit(1);
-      if (!student) throw new Error("Aluno não encontrado ou permissão negada.");
+      const [student] = await db.select().from(students).where(eq(students.id, input.studentId)).limit(1);
+      if (!student) throw new Error("Aluno não encontrado.");
+
+      const isOwner = student.userId === ctx.user.id;
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      
+      if (!isOwner && !isAdmin) {
+        throw new Error("Você não tem permissão para liberar o acesso deste aluno.");
+      }
 
       // Se não informado, gerar email e senha
       const email = input.email || `${student.name.toLowerCase().replace(/\s+/g, '.')}@musicpro.com`;
