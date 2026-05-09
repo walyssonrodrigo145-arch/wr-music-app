@@ -1,4 +1,4 @@
-import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2, CheckCircle2 } from "lucide-react";
+import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2, CheckCircle2, Clock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
