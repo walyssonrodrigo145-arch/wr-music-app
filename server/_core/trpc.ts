@@ -44,11 +44,13 @@ export const adminProcedure = t.procedure.use(
   }),
 );
 
+import { ENV } from "./env";
+
 export const professorProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || (ctx.user.role !== 'professor' && ctx.user.role !== 'admin')) {
+    if (!ctx.user || (ctx.user.role !== 'professor' && ctx.user.role !== 'admin' && ctx.user.openId !== ENV.ownerOpenId)) {
       throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores e administradores" });
     }
 

@@ -213,7 +213,9 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-black text-white truncate tracking-tight">{user?.name ?? "WR Music"}</p>
-              <p className="text-[9px] text-slate-500 font-bold truncate uppercase tracking-tighter">Admin</p>
+              <p className="text-[9px] text-slate-500 font-bold truncate uppercase tracking-tighter">
+                {user?.role === 'admin' ? 'Administrador' : user?.role === 'professor' ? 'Professor' : user?.role === 'student' ? 'Aluno' : 'Membro'}
+              </p>
             </div>
             <button
               className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-400/10 flex items-center justify-center flex-shrink-0 transition-all"

@@ -49,146 +49,164 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[380px] rounded-[1.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
+      <DialogContent className="sm:max-w-[420px] rounded-[2.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
         {isLoading || !student ? (
-          <div className="flex flex-col items-center justify-center p-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-            <p className="text-sm font-bold text-muted-foreground">Carregando detalhes...</p>
+          <div className="flex flex-col items-center justify-center p-16">
+            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground animate-pulse">Sincronizando dados...</p>
           </div>
         ) : (
           <>
             {/* Profile Header */}
-            <div className="px-6 pt-8 pb-6 bg-gradient-to-b from-primary/5 to-transparent flex flex-col items-center text-center relative">
-              {/* Profile Avatar */}
-              <div className="w-20 h-20 rounded-[1.8rem] bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-xl shadow-primary/20 mb-4 text-white font-black text-2xl border-4 border-background transition-transform hover:scale-105 duration-300">
-                 {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+            <div className="px-8 pt-10 pb-8 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent flex flex-col items-center text-center relative border-b border-border/10">
+              {/* Profile Avatar with status indicator */}
+              <div className="relative mb-6">
+                <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary via-indigo-600 to-violet-600 flex items-center justify-center shadow-2xl shadow-primary/30 text-white font-black text-3xl border-4 border-background transition-all hover:scale-105 hover:rotate-2 duration-500">
+                   {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <div className={cn(
+                  "absolute -bottom-1 -right-1 w-7 h-7 rounded-full border-4 border-background shadow-lg flex items-center justify-center",
+                  student.status === 'ativo' ? 'bg-emerald-500' : student.status === 'pausado' ? 'bg-amber-500' : 'bg-rose-500'
+                )}>
+                  {student.status === 'ativo' ? <CheckCircle2 size={12} className="text-white" /> : <Activity size={12} className="text-white" />}
+                </div>
               </div>
               
-              <DialogTitle className="text-xl font-black uppercase tracking-tighter text-foreground leading-tight px-4 flex flex-col items-center gap-1">
+              <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-tight px-4 flex flex-col items-center gap-1.5">
                 {student.name}
-                <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em]">
-                  {student.instrumentName || "Música"}
-                </span>
+                <div className="flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                   <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.25em]">
+                     {student.instrumentName || "Estudante"}
+                   </span>
+                   <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                </div>
               </DialogTitle>
               
-              {/* Action row - COMPACT & VISIBLE */}
-              <div className="flex items-center gap-2 mt-6">
-                <div className={cn("px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-[0.2em] shadow-sm backdrop-blur-sm", statusConfig.color)}>
+              {/* Action row - Premium Glassmorphism */}
+              <div className="flex items-center gap-3 mt-8">
+                <div className={cn("px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-[0.2em] shadow-sm backdrop-blur-md transition-all hover:scale-105", statusConfig.color)}>
                   {statusConfig.label}
                 </div>
                 
-                <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-xl border border-border/20 shadow-inner">
+                <div className="flex items-center gap-1.5 bg-muted/40 p-1.5 rounded-2xl border border-border/20 shadow-inner">
                   <button
                     onClick={onEdit}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-background hover:bg-primary hover:text-white text-muted-foreground transition-all shadow-sm active:scale-95 border border-border/40"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-background hover:bg-primary hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40 group"
                     title="Editar Aluno"
                   >
-                    <Edit3 size={14} />
+                    <Edit3 size={15} className="group-hover:rotate-12 transition-transform" />
                   </button>
                   <button
                     onClick={onDelete}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-background hover:bg-destructive hover:text-white text-muted-foreground transition-all shadow-sm active:scale-95 border border-border/40"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-background hover:bg-destructive hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40 group"
                     title="Excluir Aluno"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={15} className="group-hover:scale-110 transition-transform" />
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Details Content */}
-            <div className="p-5 space-y-4">
+            <div className="p-8 pt-6 space-y-6">
               
-              <div className="grid grid-cols-2 gap-3">
-                 {/* Cadastro */}
-                 <div className="bg-card p-3 rounded-2xl border border-border/40 flex flex-col justify-center relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="flex items-center gap-2 text-muted-foreground/40 mb-2 relative z-10">
-                       <CalendarIcon size={12} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-[0.2em]">Cadastro</span>
+              {/* Info Grid - Matrícula e Mensalidade */}
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="bg-muted/30 p-4 rounded-3xl border border-border/30 flex flex-col justify-center relative overflow-hidden group hover:border-primary/20 transition-colors">
+                    <div className="flex items-center gap-2 text-muted-foreground/50 mb-2">
+                       <CalendarIcon size={13} strokeWidth={2.5} />
+                       <span className="text-[9px] font-black uppercase tracking-[0.2em]">Início</span>
                     </div>
-                    <p className="text-sm font-black text-foreground relative z-10 tracking-tight">
-                       {student.createdAt ? format(new Date(student.createdAt), "dd 'de' MMM, yyyy", { locale: ptBR }) : "—"}
+                    <p className="text-sm font-black text-foreground tracking-tight">
+                       {student.createdAt ? format(new Date(student.createdAt), "dd MMM, yyyy", { locale: ptBR }) : "—"}
                     </p>
                  </div>
                  
-                 {/* Mensalidade Base */}
-                 <div className="bg-card p-3 rounded-2xl border border-border/40 flex flex-col justify-center relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="flex items-center gap-2 text-muted-foreground/40 mb-2 relative z-10">
-                       <DollarSign size={12} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-[0.2em]">Mensal</span>
+                 <div className="bg-muted/30 p-4 rounded-3xl border border-border/30 flex flex-col justify-center relative overflow-hidden group hover:border-emerald-500/20 transition-colors">
+                    <div className="flex items-center gap-2 text-muted-foreground/50 mb-2">
+                       <DollarSign size={13} strokeWidth={2.5} />
+                       <span className="text-[9px] font-black uppercase tracking-[0.2em]">Valor</span>
                     </div>
-                    <p className="text-sm font-black text-foreground relative z-10 tracking-tight">
+                    <p className="text-sm font-black text-foreground tracking-tight">
                        {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
                     </p>
                  </div>
               </div>
 
-              {/* Pagamentos */}
-              <div className="bg-card/50 p-5 rounded-[1.5rem] border border-border/40 space-y-4 shadow-inner relative overflow-hidden">
-                 <div className="absolute -left-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
+              {/* Financeiro - Distinct Section */}
+              <div className="bg-card p-6 rounded-[2rem] border border-border/40 space-y-5 shadow-sm relative overflow-hidden">
+                 <div className="absolute right-0 top-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16" />
                  
-                 <div className="relative z-10">
-                    <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 mb-2 flex items-center gap-2">
-                       <div className="w-1 h-1 rounded-full bg-amber-500" />
-                       Próximo Vencimento
-                    </h4>
-                    {student.nextDueDate ? (
-                      <p className="text-base font-black text-amber-600 dark:text-amber-500 tracking-tight">
-                         {format(new Date(student.nextDueDate), "dd 'de' MMMM, yyyy", { locale: ptBR })}
-                      </p>
-                    ) : (
-                      <p className="text-sm font-bold text-muted-foreground/30 uppercase italic">
-                         Nenhuma pendência.
-                      </p>
-                    )}
-                 </div>
-                 
-                 <div className="h-[1px] w-full bg-border/20" />
+                 <div className="grid grid-cols-1 gap-5">
+                    <div className="flex items-center justify-between group">
+                       <div className="space-y-1">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                             Vencimento
+                          </h4>
+                          <p className="text-base font-black text-foreground group-hover:text-amber-600 transition-colors">
+                             {student.nextDueDate ? format(new Date(student.nextDueDate), "dd 'de' MMMM", { locale: ptBR }) : "Sem pendências"}
+                          </p>
+                       </div>
+                       <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                          <Clock size={18} />
+                       </div>
+                    </div>
 
-                 <div className="relative z-10">
-                    <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 mb-2 flex items-center gap-2">
-                       <div className="w-1 h-1 rounded-full bg-emerald-500" />
-                       Último Pagamento
-                    </h4>
-                    {student.lastPaymentDate ? (
-                      <p className="text-base font-black text-emerald-600 dark:text-emerald-500 tracking-tight">
-                         {format(new Date(student.lastPaymentDate), "dd 'de' MMMM, yyyy", { locale: ptBR })}
-                      </p>
-                    ) : (
-                      <p className="text-sm font-bold text-muted-foreground/30 uppercase italic">
-                         Sem registros.
-                      </p>
-                    )}
+                    <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-border/20 to-transparent" />
+
+                    <div className="flex items-center justify-between group">
+                       <div className="space-y-1">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                             Último Pago
+                          </h4>
+                          <p className="text-base font-black text-foreground group-hover:text-emerald-600 transition-colors">
+                             {student.lastPaymentDate ? format(new Date(student.lastPaymentDate), "dd 'de' MMMM", { locale: ptBR }) : "Sem registros"}
+                          </p>
+                       </div>
+                       <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                          <CheckCircle2 size={18} />
+                       </div>
+                    </div>
                  </div>
               </div>
 
-              {/* Contato (Extra) */}
-              <div className="px-4 py-4 rounded-[1.5rem] bg-muted/20 border border-border/10 space-y-3">
-                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Email</span>
-                    <span className="text-xs font-black text-foreground tracking-tight">{student.email}</span>
-                 </div>
-                 {student.phone && (
-                   <>
-                    <div className="h-[1px] w-full bg-border/10" />
-                    <div className="flex items-center justify-between">
-                       <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">WhatsApp</span>
-                       <span className="text-xs font-black text-foreground tracking-tight">{student.phone}</span>
+              {/* Contact Pills */}
+              <div className="flex flex-col gap-3">
+                 <div className="flex items-center gap-3 bg-muted/20 p-3 rounded-2xl border border-border/10 hover:bg-muted/30 transition-colors group">
+                    <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-muted-foreground/60 shadow-sm">
+                       <UserIcon size={14} />
                     </div>
-                   </>
+                    <div className="flex-1 min-w-0">
+                       <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest leading-none mb-1">E-mail</p>
+                       <p className="text-xs font-black text-foreground truncate">{student.email}</p>
+                    </div>
+                 </div>
+                 
+                 {student.phone && (
+                    <div className="flex items-center gap-3 bg-muted/20 p-3 rounded-2xl border border-border/10 hover:bg-muted/30 transition-colors group">
+                       <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-muted-foreground/60 shadow-sm">
+                          <Activity size={14} />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                          <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest leading-none mb-1">WhatsApp</p>
+                          <p className="text-xs font-black text-foreground truncate">{student.phone}</p>
+                       </div>
+                    </div>
                  )}
               </div>
             </div>
 
-            <div className="p-5 pt-0 space-y-2">
+            {/* Bottom Actions - Portal Focus */}
+            <div className="p-8 pt-0 space-y-3">
                <Button
                  className={cn(
-                   "w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95 border-none",
+                   "w-full h-14 rounded-3xl text-[11px] font-black uppercase tracking-[0.25em] shadow-2xl transition-all active:scale-95 border-none relative overflow-hidden group",
                    student.portalEnabled 
-                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20" 
-                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20"
+                    ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-amber-500/20" 
+                    : "bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white shadow-indigo-500/30"
                  )}
                  onClick={() => {
                    enableAccessMutation.mutate({ studentId: student.id });
@@ -196,16 +214,16 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                  disabled={enableAccessMutation.isPending}
                >
                  {enableAccessMutation.isPending ? (
-                    <Loader2 size={14} className="animate-spin mr-2" />
+                    <Loader2 size={16} className="animate-spin mr-3" />
                  ) : (
-                    <Activity size={14} className="mr-2" />
+                    <Activity size={16} className="mr-3 group-hover:scale-110 transition-transform" />
                  )}
                  {student.portalEnabled ? "Gerar Novo Acesso" : "Liberar Acesso Portal"}
                </Button>
 
                <Button
-                 variant="outline"
-                 className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border-border/40 hover:bg-muted/50 transition-all active:scale-95 shadow-sm"
+                 variant="ghost"
+                 className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
                  onClick={() => onOpenChange(false)}
                >
                  Fechar Detalhes
