@@ -78,6 +78,19 @@ export default function Progresso() {
     { enabled: !!selectedStudentId }
   );
 
+  const { data: goals = [], isLoading: goalsLoading } = trpc.progress.getGoals.useQuery(
+    { studentId: selectedStudentId! },
+    { enabled: !!selectedStudentId }
+  );
+
+  const { data: upcomingLessons = [] } = trpc.lessons.upcoming.useQuery();
+
+  const [insight, setInsight] = useState<string | null>(null);
+  const aiInsightMutation = trpc.progress.generateAIInsight.useMutation({
+    onSuccess: (data) => setInsight(data.insight),
+    onError: (e) => toast.error("Erro ao gerar insight: " + e.message)
+  });
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -126,6 +139,29 @@ export default function Progresso() {
       toast.success("Registro removido");
     },
     onError: (e) => toast.error("Erro ao remover: " + e.message),
+  });
+
+  const createGoalMutation = trpc.progress.createGoal.useMutation({
+    onSuccess: () => {
+      utils.progress.getGoals.invalidate({ studentId: selectedStudentId! });
+      toast.success("Meta adicionada com sucesso!");
+    },
+    onError: (e) => toast.error("Erro ao adicionar meta: " + e.message)
+  });
+
+  const updateGoalMutation = trpc.progress.updateGoal.useMutation({
+    onSuccess: () => {
+      utils.progress.getGoals.invalidate({ studentId: selectedStudentId! });
+    },
+    onError: (e) => toast.error("Erro ao atualizar meta: " + e.message)
+  });
+
+  const deleteGoalMutation = trpc.progress.deleteGoal.useMutation({
+    onSuccess: () => {
+      utils.progress.getGoals.invalidate({ studentId: selectedStudentId! });
+      toast.success("Meta removida");
+    },
+    onError: (e) => toast.error("Erro ao remover meta: " + e.message)
   });
 
   const handleEdit = (event: any) => {
@@ -531,6 +567,50 @@ export default function Progresso() {
                          <BibliotecaMusical studentId={selectedStudentId!} />
                       </motion.div>
                     )}
+
+                    {activeTab === "metas" && (
+                      <motion.div 
+                        key="metas"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.98 }}
+                      >
+                         <MetasMusicais 
+                           studentId={selectedStudentId!} 
+                           goals={goals} 
+                           createGoalMutation={createGoalMutation} 
+                           updateGoalMutation={updateGoalMutation} 
+                           deleteGoalMutation={deleteGoalMutation} 
+                         />
+                      </motion.div>
+                    )}
+
+                    {activeTab === "observacoes" && (
+                      <motion.div 
+                        key="observacoes"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.98 }}
+                      >
+                         <Observacoes timeline={timeline} />
+                      </motion.div>
+                    )}
+
+                    {activeTab === "desempenho" && (
+                      <motion.div 
+                        key="desempenho"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.98 }}
+                      >
+                         <DesempenhoIA 
+                           studentId={selectedStudentId!} 
+                           summary={summary} 
+                           insight={insight} 
+                           aiInsightMutation={aiInsightMutation} 
+                         />
+                      </motion.div>
+                    )}
                  </AnimatePresence>
               </div>
             </div>
@@ -572,7 +652,7 @@ export default function Progresso() {
                     </div>
                     <div>
                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Próxima Meta</p>
-                       <p className="text-sm font-black text-slate-900">Nível III</p>
+                       <p className="text-sm font-black text-slate-900">{goals.find((g: any) => g.status !== 'concluida')?.title || "Nenhuma meta pendente"}</p>
                     </div>
                  </div>
               </div>
@@ -581,24 +661,26 @@ export default function Progresso() {
            {/* WIDGET METAS */}
            <WidgetCard title="Metas Musicais" icon={Target} color="text-indigo-500" bg="bg-indigo-500/5">
               <div className="mt-6 space-y-4">
-                 {[
-                   { label: "Dominar Escala Pentatônica", done: true },
-                   { label: "Aprender Solos do Pink Floyd", done: false },
-                   { label: "Leitura de Partitura Básico", done: false },
-                 ].map((meta, i) => (
-                   <div key={i} className="flex items-center gap-3">
+                 {goals.length === 0 ? (
+                   <p className="text-xs text-slate-400 italic">Nenhuma meta cadastrada.</p>
+                 ) : goals.slice(0, 3).map((meta: any) => (
+                   <div key={meta.id} className="flex items-center gap-3">
                       <div className={cn(
-                        "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                        meta.done ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-200 bg-slate-50"
-                      )}>
-                         {meta.done && <CheckCircle2 size={12} />}
+                        "w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer",
+                        meta.status === 'concluida' ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-200 bg-slate-50 hover:border-indigo-300"
+                      )} onClick={() => updateGoalMutation.mutate({ id: meta.id, status: meta.status === 'concluida' ? 'pendente' : 'concluida' })}>
+                         {meta.status === 'concluida' && <CheckCircle2 size={12} />}
                       </div>
-                      <span className={cn("text-xs font-bold", meta.done ? "text-slate-400 line-through" : "text-slate-700")}>
-                        {meta.label}
+                      <span className={cn("text-xs font-bold", meta.status === 'concluida' ? "text-slate-400 line-through" : "text-slate-700")}>
+                        {meta.title}
                       </span>
                    </div>
                  ))}
-                 <Button variant="ghost" className="w-full h-8 text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 border-none">
+                 <Button 
+                   variant="ghost" 
+                   className="w-full h-8 text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 border-none"
+                   onClick={() => setActiveTab('metas')}
+                 >
                     Ver todas as metas
                  </Button>
               </div>
@@ -614,31 +696,43 @@ export default function Progresso() {
                     {eachDayOfInterval({
                       start: startOfMonth(new Date()),
                       end: endOfMonth(new Date()),
-                    }).slice(0, 14).map((day, i) => (
+                    }).slice(0, 14).map((day, i) => {
+                      const hasLesson = upcomingLessons.some((l: any) => l.studentId === selectedStudentId && isSameDay(new Date(l.scheduledAt), day));
+                      return (
                       <div key={i} className={cn(
                         "aspect-square rounded-lg flex items-center justify-center text-[9px] font-black transition-all",
-                        isSameDay(day, new Date()) ? "bg-indigo-600 text-white shadow-lg" : "text-slate-400 hover:bg-slate-100"
+                        isSameDay(day, new Date()) ? "bg-indigo-600 text-white shadow-lg" : 
+                        hasLesson ? "bg-indigo-50 text-indigo-600 border border-indigo-100 font-bold" : "text-slate-400 hover:bg-slate-100"
                       )}>
                         {day.getDate()}
                       </div>
-                    ))}
+                    )})}
                  </div>
-                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Próxima Aula</p>
-                    <div className="flex items-center justify-between">
-                       <span className="text-xs font-black text-slate-900">Quinta, 15:30</span>
-                       <span className="text-[10px] font-bold text-rose-500">Hoje</span>
-                    </div>
-                 </div>
+                 {(() => {
+                   const nextLesson = upcomingLessons.find((l: any) => l.studentId === selectedStudentId);
+                   return (
+                     <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Próxima Aula</p>
+                        <div className="flex items-center justify-between">
+                           <span className="text-xs font-black text-slate-900">
+                             {nextLesson ? format(new Date(nextLesson.scheduledAt), "EEEE, HH:mm", { locale: ptBR }) : "Nenhuma aula agendada"}
+                           </span>
+                           {nextLesson && isSameDay(new Date(nextLesson.scheduledAt), new Date()) && (
+                             <span className="text-[10px] font-bold text-rose-500">Hoje</span>
+                           )}
+                        </div>
+                     </div>
+                   );
+                 })()}
               </div>
            </WidgetCard>
 
            {/* WIDGET OBSERVAÇÕES RÁPIDAS */}
            <WidgetCard title="Notas Rápidas" icon={Edit2} color="text-emerald-500" bg="bg-emerald-500/5">
               <div className="mt-4">
-                 <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic">
-                      "Aluno com dificuldade na troca de acordes com pestana. Focar nos exercícios de fortalecimento."
+                 <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setActiveTab('observacoes')}>
+                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic line-clamp-3">
+                      {timeline.find((e: any) => e.category === 'geral')?.description || '"Nenhuma anotação recente encontrada. Clique aqui para registrar uma observação."'}
                     </p>
                  </div>
               </div>
@@ -768,6 +862,33 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
   const utils = trpc.useUtils();
   const { data: files = [], isLoading } = trpc.musicLibrary.list.useQuery({ studentId, category, search });
   
+  const createMutation = trpc.musicLibrary.create.useMutation({
+    onSuccess: () => {
+      utils.musicLibrary.list.invalidate({ studentId });
+      toast.success("Material adicionado com sucesso!");
+    },
+    onError: (e) => toast.error("Erro ao adicionar material: " + e.message)
+  });
+
+  const deleteMutation = trpc.musicLibrary.delete.useMutation({
+    onSuccess: () => {
+      utils.musicLibrary.list.invalidate({ studentId });
+      toast.success("Material excluído!");
+    },
+    onError: (e) => toast.error("Erro ao excluir material: " + e.message)
+  });
+
+  const handleSimulateUpload = (cat: 'imagem' | 'video' | 'pdf' | 'audio' = 'pdf') => {
+    createMutation.mutate({
+      studentId,
+      fileName: `Material de Apoio ${format(new Date(), "HH:mm")}`,
+      fileType: cat,
+      category: cat,
+      fileUrl: "https://example.com/mock-file.pdf",
+      size: Math.floor(Math.random() * 5 * 1024 * 1024) + 1024 * 1024,
+    });
+  };
+
   const categories = [
     { id: "imagem", label: "Imagens", icon: ImageIcon, color: "text-purple-500", bg: "bg-purple-50" },
     { id: "video", label: "Vídeos", icon: Video, color: "text-rose-500", bg: "bg-rose-50" },
@@ -794,17 +915,22 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                    <div className="h-full bg-indigo-600 w-1/3" />
                 </div>
              </div>
-             <Button className="h-11 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-xl shadow-indigo-500/20 border-none">
-                <Plus size={18} /> Novo Material
+             <Button 
+               onClick={() => handleSimulateUpload('pdf')}
+               disabled={createMutation.isPending}
+               className="h-11 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-xl shadow-indigo-500/20 border-none"
+             >
+                {createMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Novo Material
              </Button>
           </div>
        </div>
 
        {/* ÁREA DE UPLOAD (DRAG & DROP) */}
-       <motion.div 
-         whileHover={{ borderColor: "#6366F1", backgroundColor: "rgba(99, 102, 241, 0.02)" }}
-         className="relative p-12 border-2 border-dashed border-slate-200 rounded-[3rem] bg-white flex flex-col items-center justify-center text-center group cursor-pointer transition-all overflow-hidden"
-       >
+        <motion.div 
+          onClick={() => handleSimulateUpload('pdf')}
+          whileHover={{ borderColor: "#6366F1", backgroundColor: "rgba(99, 102, 241, 0.02)" }}
+          className="relative p-12 border-2 border-dashed border-slate-200 rounded-[3rem] bg-white flex flex-col items-center justify-center text-center group cursor-pointer transition-all overflow-hidden"
+        >
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="w-20 h-20 rounded-[2rem] bg-indigo-600 text-white flex items-center justify-center mb-6 shadow-2xl shadow-indigo-500/40 relative z-10 group-hover:scale-110 transition-transform">
              <UploadCloud size={36} />
@@ -884,11 +1010,16 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                        </div>
                        
                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
-                          <Button className="h-10 px-4 rounded-xl bg-white text-slate-900 font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-xl">
+                          <Button variant="ghost" className="h-10 px-4 rounded-xl bg-white text-slate-900 font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-xl">
                              <Download size={14} className="mr-2" /> Download
                           </Button>
-                          <Button variant="ghost" className="h-10 w-10 rounded-xl bg-white/10 text-white hover:bg-rose-500 hover:text-white backdrop-blur-md">
-                             <Trash2 size={14} />
+                          <Button 
+                            variant="ghost" 
+                            onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
+                            disabled={deleteMutation.isPending}
+                            className="h-10 w-10 rounded-xl bg-white/10 text-white hover:bg-rose-500 hover:text-white backdrop-blur-md"
+                          >
+                             {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                           </Button>
                        </div>
                        
@@ -920,6 +1051,163 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
              )}
           </div>
        </div>
+    </div>
+  );
+}
+
+function MetasMusicais({ studentId, goals, createGoalMutation, updateGoalMutation, deleteGoalMutation }: any) {
+  const [title, setTitle] = useState("");
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between">
+         <div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Metas Musicais</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Acompanhamento de Objetivos</p>
+         </div>
+      </div>
+      <div className="bg-white border border-slate-200/60 rounded-[2.5rem] p-8 shadow-sm space-y-6">
+        <div className="flex gap-4">
+          <Input 
+            value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="Ex: Aprender o solo de Hotel California"
+            className="flex-1 rounded-2xl h-12 bg-slate-50 border-slate-200 text-xs font-bold px-4"
+          />
+          <Button 
+            onClick={() => {
+              if(!title) return;
+              createGoalMutation.mutate({ studentId, title });
+              setTitle("");
+            }}
+            disabled={createGoalMutation.isPending}
+            className="h-12 rounded-2xl px-6 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
+          >
+            {createGoalMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />}
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {goals.length === 0 ? (
+            <div className="py-12 text-center border border-dashed border-slate-200 rounded-3xl">
+               <Target size={32} className="mx-auto text-slate-200 mb-3" />
+               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhuma meta cadastrada</p>
+            </div>
+          ) : goals.map((meta: any) => (
+            <div key={meta.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50/50 group">
+               <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer",
+                    meta.status === 'concluida' ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 bg-white hover:border-indigo-400"
+                  )} onClick={() => updateGoalMutation.mutate({ id: meta.id, status: meta.status === 'concluida' ? 'pendente' : 'concluida' })}>
+                     {meta.status === 'concluida' && <CheckCircle2 size={14} />}
+                  </div>
+                  <span className={cn("text-sm font-bold", meta.status === 'concluida' ? "text-slate-400 line-through" : "text-slate-700")}>
+                    {meta.title}
+                  </span>
+               </div>
+               <Button 
+                 variant="ghost" 
+                 size="icon"
+                 onClick={() => deleteGoalMutation.mutate({ id: meta.id })}
+                 disabled={deleteGoalMutation.isPending}
+                 className="h-8 w-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
+               >
+                 <Trash2 size={16} />
+               </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Observacoes({ timeline }: any) {
+  const notes = timeline.filter((e: any) => e.category === 'geral');
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div>
+         <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Observações</h3>
+         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Anotações Gerais do Aluno</p>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {notes.length === 0 ? (
+          <div className="col-span-full py-12 text-center border border-dashed border-slate-200 rounded-3xl bg-white">
+             <BookOpen size={32} className="mx-auto text-slate-200 mb-3" />
+             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhuma anotação registrada</p>
+          </div>
+        ) : notes.map((note: any) => (
+          <div key={note.id} className="bg-yellow-50 border border-yellow-200/50 p-6 rounded-3xl shadow-sm relative">
+             <div className="absolute top-4 right-4 text-yellow-600/20">
+               <Edit2 size={24} />
+             </div>
+             <p className="text-[10px] font-black text-yellow-600/60 uppercase tracking-widest mb-3">
+               {format(new Date(note.achievedAt), "dd 'de' MMMM, yyyy", { locale: ptBR })}
+             </p>
+             <h4 className="text-sm font-black text-yellow-900 mb-2">{note.title}</h4>
+             <p className="text-xs font-medium text-yellow-900/80 leading-relaxed whitespace-pre-wrap">{note.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DesempenhoIA({ studentId, summary, insight, aiInsightMutation }: any) {
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between">
+         <div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Desempenho & IA</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Análise Inteligente de Progresso</p>
+         </div>
+         <Button 
+           onClick={() => aiInsightMutation.mutate({ studentId })}
+           disabled={aiInsightMutation.isPending}
+           className="h-11 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-xl shadow-indigo-500/20 border-none"
+         >
+            {aiInsightMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Zap size={18} />} Gerar Insight
+         </Button>
+      </div>
+      
+      {insight && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-indigo-600 to-violet-700 p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32" />
+          <div className="flex items-start gap-4 relative z-10">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+               <Zap size={24} className="text-white" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black uppercase tracking-widest text-indigo-200 mb-2">Análise Concluída</h4>
+              <p className="text-sm font-medium leading-relaxed text-indigo-50">{insight}</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <div className="bg-white border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Métricas Gerais</h4>
+            <div className="space-y-6">
+               <div>
+                  <div className="flex items-center justify-between mb-2">
+                     <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Frequência</span>
+                     <span className="text-xs font-black text-slate-900">{summary?.frequency || 0}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                     <motion.div initial={{width:0}} animate={{width: `${summary?.frequency || 0}%`}} className="h-full bg-emerald-500" />
+                  </div>
+               </div>
+               <div>
+                  <div className="flex items-center justify-between mb-2">
+                     <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Nota Média</span>
+                     <span className="text-xs font-black text-slate-900">{summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0"}</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                     <motion.div initial={{width:0}} animate={{width: `${Number(summary?.averageGrade || 0) * 10}%`}} className="h-full bg-amber-500" />
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
     </div>
   );
 }
