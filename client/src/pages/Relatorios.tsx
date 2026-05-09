@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import { VencimentosReportModal } from "@/components/modals/VencimentosReportModal";
 
 const EmptyChart = () => (
   <div className="h-full flex flex-col items-center justify-center text-muted-foreground/50">
@@ -29,14 +30,20 @@ const EmptyChart = () => (
 
 // ─── Stat Card Component ───────────────────────────────────────────────────
 function ReportMetricCard({ 
-  title, value, trend, color, sparkData, icon: Icon 
+  title, value, trend, color, sparkData, icon: Icon, onClick
 }: { 
-  title: string; value: string | number; trend: string; color: string; sparkData?: any[]; icon: any 
+  title: string; value: string | number; trend: string; color: string; sparkData?: any[]; icon: any; onClick?: () => void;
 }) {
   const isPositive = trend.startsWith('+');
   
   return (
-    <div className="bg-card rounded-[1.5rem] lg:rounded-[2rem] p-6 border border-border shadow-sm hover:shadow-md transition-all group cursor-default">
+    <div 
+      onClick={onClick}
+      className={cn(
+        "bg-card rounded-[1.5rem] lg:rounded-[2rem] p-6 border border-border shadow-sm hover:shadow-md transition-all group cursor-default",
+        onClick && "cursor-pointer hover:border-primary/40 active:scale-[0.98]"
+      )}
+    >
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{title}</p>
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-6", color.replace('text-', 'bg-').replace('-600', '-50').replace('-500', '-50'))}>
@@ -106,6 +113,7 @@ function CategoryChip({
 export default function Relatorios() {
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Visão Geral");
+  const [isVencimentosModalOpen, setIsVencimentosModalOpen] = useState(false);
   
   // Queries
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
@@ -262,8 +270,8 @@ export default function Relatorios() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <ReportMetricCard title="Receita Bruta" value={formatCurrency(stats?.monthlyRevenue || 0)} trend={trends.receita} color="text-blue-600" sparkData={sparkReceita} icon={DollarSign} />
                 <ReportMetricCard title="Ticket Médio" value={formatCurrency((stats?.monthlyRevenue || 0) / (stats?.totalStudents || 1))} trend="+2%" color="text-emerald-500" icon={TrendingUp} />
+                <ReportMetricCard title="Previsão Receita" value={formatCurrency((stats?.monthlyRevenue || 0) * 1.05)} trend="+5%" color="text-indigo-600" icon={TrendingUp} onClick={() => setIsVencimentosModalOpen(true)} />
                 <ReportMetricCard title="Inadimplência" value={formatCurrency((stats?.monthlyRevenue || 0) * 0.12)} trend="-5%" color="text-rose-500" icon={XCircle} />
-                <ReportMetricCard title="Lucro Bruto" value={formatCurrency((stats?.monthlyRevenue || 0) * 0.75)} trend="+15%" color="text-indigo-600" icon={CheckCircle2} />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -400,6 +408,13 @@ export default function Relatorios() {
       </AnimatePresence>
 
       <button onClick={() => toast.info("Exportação em desenvolvimento")} className="fixed bottom-8 right-6 lg:hidden w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl z-50"><Download size={24} /></button>
+
+      <VencimentosReportModal 
+        open={isVencimentosModalOpen} 
+        onClose={() => setIsVencimentosModalOpen(false)}
+        month={new Date().getMonth() + 1}
+        year={new Date().getFullYear()}
+      />
     </div>
   );
 }
