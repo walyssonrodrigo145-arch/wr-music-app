@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { 
   ChevronLeft, 
@@ -37,10 +37,19 @@ import { differenceInYears, parseISO, isValid } from "date-fns";
 
 export default function NovoAluno() {
   const [, setLocation] = useLocation();
+  const params = useParams<{ id?: string }>();
+  const studentId = params.id ? Number(params.id) : null;
+  const isEditMode = !!studentId;
+
   const utils = trpc.useUtils();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
+  const { data: studentData, isLoading: isLoadingStudent } = trpc.students.getDetails.useQuery(
+    { id: studentId! },
+    { enabled: isEditMode }
+  );
 
   const [isSaving, setIsSaving] = useState(false);
+  const [formReady, setFormReady] = useState(!isEditMode);
   const [form, setForm] = useState({
     name: "",
     socialName: "",
@@ -53,7 +62,6 @@ export default function NovoAluno() {
     address: "",
     instrumentId: "",
     level: "iniciante",
-    professor: "", // Note: professor field might need to be linked to users or just a text field for now
     startDate: new Date().toISOString().split('T')[0],
     monthlyFee: "",
     dueDay: "10",
@@ -62,6 +70,38 @@ export default function NovoAluno() {
     guardianEmail: "",
     notes: "",
   });
+
+  // Pre-populate form when editing
+  useEffect(() => {
+    if (isEditMode && studentData) {
+      setForm({
+        name: studentData.name ?? "",
+        socialName: (studentData as any).socialName ?? "",
+        birthDate: (studentData as any).birthDate ?? "",
+        gender: (studentData as any).gender ?? "",
+        cpf: (studentData as any).cpf ?? "",
+        rg: (studentData as any).rg ?? "",
+        email: studentData.email ?? "",
+        phone: studentData.phone ?? "",
+        address: (studentData as any).address ?? "",
+        instrumentId: (studentData as any).instrumentId ? String((studentData as any).instrumentId) : "",
+        level: studentData.level ?? "iniciante",
+        startDate: studentData.startDate ?? new Date().toISOString().split('T')[0],
+        monthlyFee: studentData.monthlyFee ? String(Number(studentData.monthlyFee)) : "",
+        dueDay: (studentData as any).dueDay ? String((studentData as any).dueDay) : "10",
+        guardianName: (studentData as any).guardianName ?? "",
+        guardianPhone: (studentData as any).guardianPhone ?? "",
+        guardianEmail: (studentData as any).guardianEmail ?? "",
+        notes: (studentData as any).notes ?? "",
+      });
+      const bd = (studentData as any).birthDate;
+      if (bd) {
+        const date = parseISO(bd);
+        if (isValid(date)) setIsMinor(differenceInYears(new Date(), date) < 18);
+      }
+      setFormReady(true);
+    }
+  }, [studentData, isEditMode]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isMinor, setIsMinor] = useState(false);
@@ -119,6 +159,19 @@ export default function NovoAluno() {
     }
   });
 
+  const updateMutation = trpc.students.update.useMutation({
+    onSuccess: () => {
+      toast.success("Aluno atualizado com sucesso!");
+      utils.students.list.invalidate();
+      utils.students.getDetails.invalidate({ id: studentId! });
+      setLocation("/alunos");
+    },
+    onError: (e) => {
+      toast.error("Erro ao atualizar aluno: " + e.message);
+      setIsSaving(false);
+    }
+  });
+
   const handleSave = async () => {
     // Basic validation
     const newErrors: Record<string, string> = {};
@@ -138,7 +191,7 @@ export default function NovoAluno() {
     }
 
     setIsSaving(true);
-    createMutation.mutate({
+    const payload = {
       name: form.name,
       socialName: form.socialName,
       email: form.email,
@@ -156,7 +209,13 @@ export default function NovoAluno() {
       monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
       dueDay: Number(form.dueDay),
       notes: form.notes,
-    });
+    };
+
+    if (isEditMode) {
+      updateMutation.mutate({ id: studentId!, ...payload });
+    } else {
+      createMutation.mutate(payload);
+    }
   };
 
   const containerVariants: any = {
@@ -180,6 +239,12 @@ export default function NovoAluno() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-20">
+      {isEditMode && isLoadingStudent ? (
+        <div className="flex items-center justify-center h-screen">
+          <Loader2 size={40} className="animate-spin text-indigo-500" />
+        </div>
+      ) : (
+        <>
       {/* Header Premium */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -191,8 +256,8 @@ export default function NovoAluno() {
               <ChevronLeft size={24} />
             </button>
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Novo Aluno</h1>
-              <p className="text-sm text-slate-500 font-medium">Preencha as informações do aluno para cadastrá-lo no sistema.</p>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">{isEditMode ? "Editar Aluno" : "Novo Aluno"}</h1>
+              <p className="text-sm text-slate-500 font-medium">{isEditMode ? "Atualize as informações do cadastro do aluno." : "Preencha as informações do aluno para cadastrá-lo no sistema."}</p>
             </div>
           </div>
           
@@ -210,7 +275,7 @@ export default function NovoAluno() {
               disabled={isSaving}
             >
               {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
-              Salvar aluno
+              {isEditMode ? "Salvar alterações" : "Salvar aluno"}
             </Button>
           </div>
         </div>
@@ -636,6 +701,8 @@ export default function NovoAluno() {
             </Button>
         </div>
       </main>
+        </>
+      )}
     </div>
   );
 }

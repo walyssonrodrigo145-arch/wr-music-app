@@ -551,7 +551,7 @@ export default function Alunos() {
                                  </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
-                                 <DropdownMenuItem onClick={() => { setEditStudent(student); setModalOpen(true); }}>
+                                 <DropdownMenuItem onClick={() => setLocation(`/alunos/${student.id}/editar`)}>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     <span>Editar Aluno</span>
                                  </DropdownMenuItem>
@@ -624,7 +624,7 @@ export default function Alunos() {
                     <div className="flex items-center justify-between mt-4">
                       <p className="text-[10px] text-muted-foreground font-bold uppercase">Vencimento: Dia {student.dueDay || 10}</p>
                       <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground" onClick={() => { setEditStudent(student); setModalOpen(true); }}>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground" onClick={() => setLocation(`/alunos/${student.id}/editar`)}>
                           <Pencil size={14} />
                         </Button>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-50" onClick={() => setDeleteStudent(student)}>
@@ -742,7 +742,7 @@ export default function Alunos() {
         studentId={detailsStudentId}
         onEdit={() => {
           const s = (students as StudentRow[]).find(st => st.id === detailsStudentId);
-          if (s) { setEditStudent(s); setModalOpen(true); setDetailsStudentId(null); }
+          if (s) { setLocation(`/alunos/${s.id}/editar`); setDetailsStudentId(null); }
         }}
         onDelete={() => {
           const s = (students as StudentRow[]).find(st => st.id === detailsStudentId);

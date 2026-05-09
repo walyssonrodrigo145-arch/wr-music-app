@@ -77,6 +77,7 @@ function Router() {
                 <Route path="/dashboard" component={Dashboard} />
                 <Route path="/alunos" component={Alunos} />
                 <Route path="/alunos/novo" component={NovoAluno} />
+                <Route path="/alunos/:id/editar" component={NovoAluno} />
 
                 <Route path="/aulas" component={Aulas} />
                 <Route path="/instrumentos" component={Instrumentos} />
