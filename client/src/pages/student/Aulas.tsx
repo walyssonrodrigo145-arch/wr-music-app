@@ -42,11 +42,11 @@ export default function StudentLessons() {
   };
 
   const LessonCard = ({ lesson }: { lesson: any }) => (
-    <Card className="border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm hover:shadow-xl transition-all group overflow-hidden">
+    <Card className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm hover:shadow-xl transition-all group overflow-hidden">
       <CardContent className="p-0">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center p-4 gap-4">
           {/* Date Column */}
-          <div className="flex flex-row sm:flex-col items-center justify-center sm:w-20 sm:border-r border-slate-200 dark:border-slate-800 pr-4 gap-2">
+          <div className="flex flex-row sm:flex-col items-center justify-center sm:w-20 sm:border-r border-border border-border pr-4 gap-2">
             <span className="text-2xl font-black text-foreground">
               {format(new Date(lesson.scheduledAt), "dd")}
             </span>
@@ -84,17 +84,17 @@ export default function StudentLessons() {
           <h1 className="text-3xl font-black tracking-tight text-foreground">Minhas Aulas</h1>
           <p className="text-muted-foreground font-medium">Acompanhe suas aulas e revise conteúdos.</p>
         </div>
-        <button className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 transition-all">
+        <button className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/10 hover:scale-105 transition-all">
           Ver Agenda
         </button>
       </div>
 
       <Tabs defaultValue="proximas" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="bg-slate-100 dark:bg-slate-900/50 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 mb-6">
-          <TabsTrigger value="proximas" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md transition-all">
+        <TabsList className="bg-muted bg-muted/50 p-1 rounded-2xl border border-border border-border mb-6">
+          <TabsTrigger value="proximas" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-card dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md transition-all">
             Próximas
           </TabsTrigger>
-          <TabsTrigger value="concluidas" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md transition-all">
+          <TabsTrigger value="concluidas" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-card dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-md transition-all">
             Concluídas
           </TabsTrigger>
         </TabsList>
@@ -103,7 +103,7 @@ export default function StudentLessons() {
           {upcoming.length > 0 ? (
             upcoming.map(lesson => <LessonCard key={lesson.id} lesson={lesson} />)
           ) : (
-            <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <div className="text-center py-20 bg-muted/50 bg-card/20 rounded-3xl border-2 border-dashed border-border border-border">
               <Calendar className="mx-auto text-muted-foreground mb-4" size={40} />
               <p className="text-muted-foreground font-bold">Nenhuma aula agendada para os próximos dias.</p>
             </div>
@@ -114,7 +114,7 @@ export default function StudentLessons() {
           {completed.length > 0 ? (
             completed.map(lesson => <LessonCard key={lesson.id} lesson={lesson} />)
           ) : (
-            <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <div className="text-center py-20 bg-muted/50 bg-card/20 rounded-3xl border-2 border-dashed border-border border-border">
               <History className="mx-auto text-muted-foreground mb-4" size={40} />
               <p className="text-muted-foreground font-bold">Você ainda não possui aulas concluídas.</p>
             </div>

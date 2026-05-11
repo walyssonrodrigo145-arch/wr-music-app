@@ -57,7 +57,7 @@ const EMPTY_FORM: FormData = {
 function LevelBadge({ level }: { level: string }) {
   const config: Record<string, { label: string; className: string }> = {
     iniciante: { label: "Iniciante", className: "bg-muted text-muted-foreground border-border" },
-    intermediario: { label: "Intermediário", className: "bg-indigo-50 text-indigo-600 border-indigo-100" },
+    intermediario: { label: "Intermediário", className: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
     avancado: { label: "Avançado", className: "bg-primary/5 text-primary border-primary/10" },
   };
   const c = config[level] ?? config.iniciante;
@@ -71,9 +71,9 @@ function LevelBadge({ level }: { level: string }) {
 function StatusBadge({ status, id, onUpdate }: { status: string; id: number; onUpdate: (id: number, s: string) => void }) {
   const [open, setOpen] = useState(false);
   const cfg: Record<string, { cls: string }> = {
-    ativo: { cls: "bg-emerald-50 text-emerald-600 border-emerald-100" },
-    pausado: { cls: "bg-amber-50 text-amber-600 border-amber-100" },
-    inativo: { cls: "bg-red-50 text-red-600 border-red-100" },
+    ativo: { cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+    pausado: { cls: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+    inativo: { cls: "bg-red-500/10 text-red-600 border-red-500/20" },
   };
   const c = cfg[status] ?? cfg.ativo;
   return (
@@ -337,7 +337,7 @@ function DeleteConfirm({ name, onConfirm, onCancel, isPending }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onCancel} />
       <div className="relative bg-background rounded-2xl border border-border shadow-2xl w-full max-w-sm p-8 text-center">
-        <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
           <Trash2 size={20} className="text-red-500" />
         </div>
         <h3 className="text-sm font-bold text-foreground mb-1">Excluir aluno?</h3>
@@ -422,7 +422,7 @@ export default function Alunos() {
   const activeRate = stats.total > 0 ? Math.round((stats.ativos / stats.total) * 100) : 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-[#f8faff] relative">
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background relative">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
         {/* SECTION HEADER: Alunos & Action */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 lg:gap-6">
@@ -500,7 +500,7 @@ export default function Alunos() {
                     <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-border">
                   {isLoading ? (
                     <tr><td colSpan={5} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></td></tr>
                   ) : filtered.length === 0 ? (
@@ -510,8 +510,8 @@ export default function Alunos() {
                       <tr key={student.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailsStudentId(student.id)}>
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-4">
-                            <Avatar className="w-10 h-10 border-2 border-white shadow-sm shrink-0">
-                              <AvatarFallback className="bg-blue-100 text-blue-600 text-xs font-bold uppercase">
+                            <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
+                              <AvatarFallback className="bg-blue-500/10 text-blue-600 text-xs font-bold uppercase">
                                 {student.name.substring(0, 2)}
                               </AvatarFallback>
                             </Avatar>

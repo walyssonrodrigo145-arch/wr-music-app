@@ -53,11 +53,11 @@ type CalendarView = "mes" | "semana" | "dia" | "eventos";
 const DAYS_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 const statusConfig = {
-  agendada: { label: "Agendada", color: "bg-blue-600", text: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" },
-  concluida: { label: "Concluída", color: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" },
-  cancelada: { label: "Cancelada", color: "bg-rose-500", text: "text-rose-600", bg: "bg-rose-50", border: "border-rose-100" },
-  remarcada: { label: "Remarcada", color: "bg-purple-500", text: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100" },
-  falta: { label: "Falta", color: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
+  agendada: { label: "Agendada", color: "bg-blue-600", text: "text-blue-600", bg: "bg-blue-500/100/10", border: "border-blue-500/20" },
+  concluida: { label: "Concluída", color: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+  cancelada: { label: "Cancelada", color: "bg-rose-500", text: "text-rose-600", bg: "bg-rose-500/10", border: "border-rose-500/20" },
+  remarcada: { label: "Remarcada", color: "bg-purple-500/100", text: "text-purple-600", bg: "bg-purple-500/100/10", border: "border-purple-500/20" },
+  falta: { label: "Falta", color: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-500/20" },
 };
 
 const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: () => void }) => {
@@ -182,10 +182,10 @@ export default function Aulas() {
     const now = new Date();
     const list = [];
     if (pendingReminders.length > 0) {
-      list.push({ label: "Lembrete pendente", sub: pendingReminders[0].studentName || "Geral", icon: Bell, color: "text-orange-500", bg: "bg-orange-50/50" });
+      list.push({ label: "Lembrete pendente", sub: pendingReminders[0].studentName || "Geral", icon: Bell, color: "text-orange-500", bg: "bg-orange-500/10" });
     }
     if (list.length === 0) {
-      list.push({ label: "Sem alertas críticos", sub: "Tudo em ordem", icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-50/50" });
+      list.push({ label: "Sem alertas críticos", sub: "Tudo em ordem", icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-500/10" });
     }
     return list;
   }, [pendingReminders]);
@@ -222,7 +222,7 @@ export default function Aulas() {
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Status</p>
                   <div className="flex flex-wrap gap-2">
                      {["geral", "agendada", "concluida", "cancelada", "remarcada", "falta"].map((st) => (
-                       <button key={st} onClick={() => setStatusFilterDesktop(st)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm capitalize", statusFilterDesktop === st ? "bg-slate-800 text-white border-slate-800" : "bg-card text-muted-foreground border-border")}>{st}</button>
+                       <button key={st} onClick={() => setStatusFilterDesktop(st)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm capitalize", statusFilterDesktop === st ? "bg-blue-600 text-white border-slate-800" : "bg-card text-muted-foreground border-border")}>{st}</button>
                      ))}
                   </div>
                </div>
@@ -230,7 +230,7 @@ export default function Aulas() {
 
             {/* Desktop Calendar Header */}
             <div className="flex items-center justify-between flex-wrap gap-4">
-               <div className="flex p-1 bg-card rounded-xl shadow-sm border border-border">
+               <div className="flex p-1 bg-muted/40 rounded-xl shadow-sm border border-border/30">
                   {(["mes", "semana", "dia", "eventos"] as const).map(v => (
                     <button key={v} onClick={() => setView(v)} className={cn("px-5 py-2 rounded-lg text-[11px] font-black transition-all capitalize", view === v ? "bg-blue-600 text-white shadow-lg" : "text-muted-foreground hover:bg-muted")}>{v}</button>
                   ))}
@@ -320,7 +320,7 @@ export default function Aulas() {
                                  className={cn(
                                    "p-2 border-r border-b border-border min-h-[140px] relative cursor-pointer hover:bg-muted transition-colors", 
                                    !isCurrMonth && "opacity-20 bg-muted/50", 
-                                   isToday(day) && "bg-blue-50/30"
+                                   isToday(day) && "bg-blue-500/10/30"
                                  )}
                                >
                                  <motion.span 
@@ -362,7 +362,7 @@ export default function Aulas() {
                     <motion.div key="day" className="space-y-6">
                        <div className="flex items-center justify-between bg-card p-6 rounded-3xl border border-border shadow-sm">
                           <div className="flex items-center gap-4">
-                             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xl">
+                             <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-black text-xl">
                                 {format(currentDate, "d")}
                              </div>
                              <div>
@@ -390,7 +390,7 @@ export default function Aulas() {
                             .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
                             .map(l => (
                               <div key={l.id} className="relative">
-                                <div className="absolute -top-3 left-6 z-10 px-3 py-1 bg-slate-800 text-white text-[9px] font-black rounded-full uppercase tracking-widest shadow-lg">
+                                <div className="absolute -top-3 left-6 z-10 px-3 py-1 bg-blue-600 text-white text-[9px] font-black rounded-full uppercase tracking-widest shadow-lg">
                                    {format(new Date(l.scheduledAt), "dd/MM")}
                                 </div>
                                 <LessonCardDesktop lesson={l} onClick={() => setDetailLessonId(l.id)} />
@@ -408,14 +408,14 @@ export default function Aulas() {
         <div className="w-[360px] bg-card border-l border-border p-8 space-y-12 overflow-y-auto no-scrollbar">
            <div className="space-y-8">
               <div className="flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm"><Calendar size={20} /></div>
+                 <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center shadow-sm"><Calendar size={20} /></div>
                  <div><h3 className="text-sm font-black text-foreground tracking-tight">Estatísticas</h3><p className="text-[9px] text-muted-foreground font-bold uppercase mt-1">{format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}</p></div>
               </div>
               <div className="grid grid-cols-1 gap-3">
                  {[
-                   { label: "Agendadas", count: dailyStats.agendadas, color: "bg-blue-100 text-blue-600", icon: Calendar },
-                   { label: "Concluídas", count: dailyStats.concluidas, color: "bg-emerald-100 text-emerald-600", icon: CheckCircle2 },
-                   { label: "Faltas", count: dailyStats.faltas, color: "bg-orange-100 text-orange-600", icon: AlertCircle }
+                   { label: "Agendadas", count: dailyStats.agendadas, color: "bg-blue-500/10 text-blue-600", icon: Calendar },
+                   { label: "Concluídas", count: dailyStats.concluidas, color: "bg-emerald-500/10 text-emerald-600", icon: CheckCircle2 },
+                   { label: "Faltas", count: dailyStats.faltas, color: "bg-orange-500/10 text-orange-600", icon: AlertCircle }
                  ].map((stat, i) => (
                    <div key={i} className="p-6 bg-card rounded-[2.5rem] border border-border flex items-center justify-between group hover:shadow-xl transition-all cursor-default">
                       <div className="flex items-center gap-5">
@@ -429,12 +429,12 @@ export default function Aulas() {
            </div>
 
            <div className="space-y-6">
-               <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-sm"><Clock size={20} /></div><h3 className="text-sm font-black text-foreground tracking-tight">Próxima Aula</h3></div>
+               <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center shadow-sm"><Clock size={20} /></div><h3 className="text-sm font-black text-foreground tracking-tight">Próxima Aula</h3></div>
               {nextLesson ? (
                 <div className="p-6 bg-card rounded-[2.5rem] border border-border shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all">
-                   <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 bg-blue-50 px-3 py-1 rounded-full w-fit">{format(new Date(nextLesson.scheduledAt), "HH:mm")}</p>
+                   <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 bg-blue-500/10 px-3 py-1 rounded-full w-fit">{format(new Date(nextLesson.scheduledAt), "HH:mm")}</p>
                    <div className="flex items-center gap-5 mb-8">
-                      <Avatar className="w-16 h-16 border-4 border-white shadow-xl"><AvatarFallback className="bg-blue-600 text-white font-black">{(nextLesson.studentName || "A")[0]}</AvatarFallback></Avatar>
+                      <Avatar className="w-16 h-16 border-4 border-background shadow-xl"><AvatarFallback className="bg-blue-600 text-white font-black">{(nextLesson.studentName || "A")[0]}</AvatarFallback></Avatar>
                        <div><p className="text-base font-black text-foreground truncate">{nextLesson.studentName || nextLesson.experimentalName}</p><p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">{nextLesson.instrumentName}</p></div>
                    </div>
                    <Button className="w-full h-12 rounded-2xl bg-card border border-border text-blue-600 font-black hover:bg-blue-600 hover:text-white transition-all" onClick={() => setDetailLessonId(nextLesson.id)}>Ver Detalhes</Button>

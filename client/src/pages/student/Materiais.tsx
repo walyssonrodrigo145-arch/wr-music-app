@@ -74,7 +74,7 @@ export default function StudentMaterials() {
             placeholder="Buscar materiais..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
+            className="w-full bg-card bg-card border border-border border-border rounded-2xl py-3 pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
           />
         </div>
 
@@ -86,8 +86,8 @@ export default function StudentMaterials() {
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all border",
                 category === cat.id 
-                  ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20" 
-                  : "bg-white dark:bg-slate-900 text-muted-foreground border-slate-200 dark:border-slate-800 hover:border-primary/50"
+                  ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/10" 
+                  : "bg-card bg-card text-muted-foreground border-border border-border hover:border-primary/50"
               )}
             >
               <cat.icon size={14} />
@@ -96,16 +96,16 @@ export default function StudentMaterials() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
-          <button className="p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm"><LayoutGrid size={16} /></button>
-          <button className="p-2 rounded-lg text-muted-foreground hover:bg-white/50"><List size={16} /></button>
+        <div className="flex items-center gap-2 bg-muted bg-card p-1 rounded-xl">
+          <button className="p-2 rounded-lg bg-card dark:bg-slate-800 shadow-sm"><LayoutGrid size={16} /></button>
+          <button className="p-2 rounded-lg text-muted-foreground hover:bg-card/50"><List size={16} /></button>
         </div>
       </div>
 
       {/* Materials List */}
       <div className="grid grid-cols-1 gap-4">
         {filteredMaterials.map((item) => (
-          <Card key={item.id} className="border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden">
+          <Card key={item.id} className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden">
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 {/* Icon Box */}
@@ -138,7 +138,7 @@ export default function StudentMaterials() {
                      <Download size={14} />}
                     {getActionLabel(item.category)}
                   </button>
-                  <button className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground transition-colors">
+                  <button className="p-3 rounded-2xl bg-muted dark:bg-slate-800 text-muted-foreground hover:text-foreground transition-colors">
                     <MoreVertical size={18} />
                   </button>
                 </div>
@@ -148,7 +148,7 @@ export default function StudentMaterials() {
         ))}
 
         {filteredMaterials.length === 0 && (
-          <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+          <div className="text-center py-20 bg-muted/50 bg-card/20 rounded-3xl border-2 border-dashed border-border border-border">
             <FileBox className="mx-auto text-muted-foreground mb-4 opacity-20" size={60} />
             <p className="text-muted-foreground font-bold">Nenhum material encontrado.</p>
           </div>

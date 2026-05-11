@@ -40,7 +40,7 @@ export default function StudentProgress() {
           <h1 className="text-3xl font-black tracking-tight text-foreground">Meu Progresso</h1>
           <p className="text-muted-foreground font-medium">Acompanhe sua evolução musical detalhada.</p>
         </div>
-        <select className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest outline-none">
+        <select className="bg-card bg-card border border-border border-border rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest outline-none">
           <option>Últimos 6 meses</option>
           <option>Último ano</option>
         </select>
@@ -54,7 +54,7 @@ export default function StudentProgress() {
           { label: "Exercícios Concluídos", value: "18", sub: "Total", color: "text-green-600" },
           { label: "Frequência", value: "95%", sub: "Excelente", color: "text-orange-600" },
         ].map((stat, i) => (
-          <Card key={i} className="border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+          <Card key={i} className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm">
             <CardContent className="p-6">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">{stat.label}</p>
               <p className={cn("text-3xl font-black mb-1", stat.color)}>{stat.value}</p>
@@ -66,7 +66,7 @@ export default function StudentProgress() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Evolution Chart */}
-        <Card className="border-none shadow-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+        <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg font-black">Evolução no Período</CardTitle>
           </CardHeader>
@@ -92,7 +92,7 @@ export default function StudentProgress() {
         </Card>
 
         {/* Skills Progress */}
-        <Card className="border-none shadow-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+        <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg font-black">Habilidades</CardTitle>
           </CardHeader>
@@ -103,7 +103,7 @@ export default function StudentProgress() {
                   <span className="text-sm font-bold text-foreground">{skill.name}</span>
                   <span className="text-xs font-black text-primary">{skill.value}%</span>
                 </div>
-                <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-primary transition-all duration-1000 ease-out" 
                     style={{ width: `${skill.value}%` }} 

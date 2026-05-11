@@ -198,7 +198,7 @@ export default function Lembretes() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-[#F8FAFC]">
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-3 lg:gap-4">
@@ -218,7 +218,7 @@ export default function Lembretes() {
             <Button variant="outline" className="h-11 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest gap-2 bg-card border-border shrink-0" onClick={() => setModalOpen(true)}>
               <Plus size={16} /> <span className="hidden xs:inline">Manual</span>
             </Button>
-            <Button className="h-11 rounded-xl px-5 text-[10px] font-black uppercase tracking-widest gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 shrink-0" onClick={handleGenerateAll} disabled={isGenerating || !autoEnabled}>
+            <Button className="h-11 rounded-xl px-5 text-[10px] font-black uppercase tracking-widest gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 shrink-0" onClick={handleGenerateAll} disabled={isGenerating || !autoEnabled}>
               {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
               Gerar
             </Button>
@@ -236,7 +236,7 @@ export default function Lembretes() {
         <div className={cn(
           "relative overflow-hidden p-6 rounded-[2rem] border transition-all duration-300",
           autoEnabled 
-            ? "bg-gradient-to-br from-indigo-600 to-indigo-800 border-indigo-700 shadow-xl shadow-indigo-200 text-white" 
+            ? "bg-gradient-to-br from-indigo-600 to-indigo-800 border-indigo-700 shadow-xl shadow-indigo-500/20 text-white" 
             : "bg-card border-border shadow-sm text-muted-foreground"
         )}>
           {autoEnabled && (
@@ -280,21 +280,21 @@ export default function Lembretes() {
                 ? <Loader2 size={48} className="animate-spin opacity-50" />
                 : autoEnabled
                   ? <ToggleRight size={64} className="text-white drop-shadow-lg" />
-                  : <ToggleLeft size={64} className="text-slate-200" />
+                  : <ToggleLeft size={64} className="text-muted-foreground/30" />
               }
             </button>
           </div>
         </div>
 
         {isSupported && permission === "default" && (
-          <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-50 border border-amber-100 shadow-sm shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+          <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-100 shadow-sm shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
               <BellRing size={20} />
             </div>
             <p className="text-[11px] lg:text-xs text-amber-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">
               Ative os alertas para ser avisado sobre novos lembretes.
             </p>
-            <Button size="sm" className="w-full sm:w-auto h-9 rounded-xl bg-amber-600 text-white font-black uppercase tracking-widest text-[9px] px-4 shadow-lg shadow-amber-200" onClick={async () => {
+            <Button size="sm" className="w-full sm:w-auto h-9 rounded-xl bg-amber-600 text-white font-black uppercase tracking-widest text-[9px] px-4 shadow-lg shadow-amber-500/20" onClick={async () => {
               const result = await requestPermission();
               if (result === 'granted') toast.success('Notificações ativadas!');
             }}>
@@ -316,7 +316,7 @@ export default function Lembretes() {
           ) : allReminders.length === 0 ? (
             <div className="bg-card rounded-[2rem] border border-dashed border-border p-20 flex flex-col items-center text-center shadow-sm">
               <div className="w-20 h-20 bg-muted rounded-[2rem] flex items-center justify-center mb-6 shadow-inner">
-                <Bell size={36} className="text-slate-200" />
+                <Bell size={36} className="text-muted-foreground/30" />
               </div>
               <h3 className="text-lg font-black text-foreground uppercase tracking-widest">Sem lembretes</h3>
               <p className="text-sm text-muted-foreground font-medium mt-2 mb-8 max-w-xs">
@@ -325,10 +325,10 @@ export default function Lembretes() {
             </div>
           ) : (
             <div className="space-y-10 pb-10">
-              {renderSection("Atrasados", AlertTriangle, groups.atrasados, "bg-rose-500 shadow-rose-200")}
-              {renderSection("Aulas", BookOpen, groups.aulas, "bg-indigo-500 shadow-indigo-200")}
-              {renderSection("Pagamentos", CreditCard, groups.pagamentos, "bg-emerald-500 shadow-emerald-200")}
-              {renderSection("Manuais", ListTodo, groups.outros, "bg-slate-700 shadow-slate-200")}
+              {renderSection("Atrasados", AlertTriangle, groups.atrasados, "bg-rose-500 shadow-rose-500/20")}
+              {renderSection("Aulas", BookOpen, groups.aulas, "bg-indigo-500 shadow-indigo-500/20")}
+              {renderSection("Pagamentos", CreditCard, groups.pagamentos, "bg-emerald-500 shadow-emerald-500/20")}
+              {renderSection("Manuais", ListTodo, groups.outros, "bg-slate-700 shadow-slate-500/20")}
             </div>
           )}
         </div>

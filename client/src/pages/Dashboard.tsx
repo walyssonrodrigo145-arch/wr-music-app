@@ -27,7 +27,7 @@ function MetricCard({
   return (
     <div className="bg-card rounded-[1.25rem] p-6 border border-border shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 group cursor-default">
       <div className="flex items-start justify-between mb-4">
-        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-6", color.replace('text-', 'bg-').replace('-600', '-50').replace('-500', '-50'))}>
+        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-6 shadow-sm", color.replace('text-', 'bg-') + '/10')}>
           <Icon size={24} className={color} />
         </div>
         <div className="flex flex-col items-end">
@@ -96,11 +96,11 @@ export default function Dashboard() {
     });
 
     return [
-      { label: "Aulas agendadas", count: todays.length, color: "bg-blue-50 text-blue-600", icon: Calendar },
-      { label: "Concluídas", count: todays.filter(l => l.status === "concluida").length, color: "bg-emerald-50 text-emerald-600", icon: CheckCircle2 },
-      { label: "Faltas", count: todays.filter(l => l.status === "falta").length, color: "bg-orange-50 text-orange-600", icon: MinusCircle },
-      { label: "Remarcadas", count: todays.filter(l => l.status === "remarcada").length, color: "bg-purple-50 text-purple-600", icon: RefreshCcw },
-      { label: "Canceladas", count: todays.filter(l => l.status === "cancelada").length, color: "bg-rose-50 text-rose-600", icon: XCircle },
+      { label: "Aulas agendadas", count: todays.length, color: "bg-blue-500/10 text-blue-600", icon: Calendar },
+      { label: "Concluídas", count: todays.filter(l => l.status === "concluida").length, color: "bg-emerald-500/10 text-emerald-600", icon: CheckCircle2 },
+      { label: "Faltas", count: todays.filter(l => l.status === "falta").length, color: "bg-orange-500/10 text-orange-600", icon: MinusCircle },
+      { label: "Remarcadas", count: todays.filter(l => l.status === "remarcada").length, color: "bg-purple-500/10 text-purple-600", icon: RefreshCcw },
+      { label: "Canceladas", count: todays.filter(l => l.status === "cancelada").length, color: "bg-rose-500/10 text-rose-600", icon: XCircle },
     ];
   }, [allLessons]);
 
@@ -209,15 +209,15 @@ export default function Dashboard() {
                       <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94A3B8' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94A3B8' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: 'currentColor' }} opacity={0.5} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: 'currentColor' }} opacity={0.5} />
                   <Tooltip 
                     contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '1rem' }}
                     itemStyle={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}
                   />
-                  <Area type="monotone" dataKey="aulas" name="Aulas" stroke="#2563EB" strokeWidth={3} fill="url(#chartBlue)" dot={{ r: 4, strokeWidth: 2, fill: 'white' }} activeDot={{ r: 6, strokeWidth: 0 }} />
-                  <Area type="monotone" dataKey="alunos" name="Alunos" stroke="#10B981" strokeWidth={3} fill="url(#chartEmerald)" dot={{ r: 4, strokeWidth: 2, fill: 'white' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  <Area type="monotone" dataKey="aulas" name="Aulas" stroke="#2563EB" strokeWidth={3} fill="url(#chartBlue)" dot={{ r: 4, strokeWidth: 2, fill: 'var(--background)' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  <Area type="monotone" dataKey="alunos" name="Alunos" stroke="#10B981" strokeWidth={3} fill="url(#chartEmerald)" dot={{ r: 4, strokeWidth: 2, fill: 'var(--background)' }} activeDot={{ r: 6, strokeWidth: 0 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -250,7 +250,7 @@ export default function Dashboard() {
         <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Próximas Aulas</h3>
-              <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50" onClick={() => navigate('/aulas')}>Ver todas</Button>
+              <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-500/10" onClick={() => navigate('/aulas')}>Ver todas</Button>
            </div>
            <div className="space-y-4">
               {upcomingLessons?.slice(0, 4).map((lesson) => (
@@ -272,7 +272,7 @@ export default function Dashboard() {
                          </p>
                       </div>
                    </div>
-                   <div className="px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100">
+                   <div className="px-4 py-1.5 rounded-full bg-blue-500/10 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-500/20">
                       Agendada
                    </div>
                 </div>
@@ -287,13 +287,13 @@ export default function Dashboard() {
         <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Inadimplentes</h3>
-              <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50" onClick={() => navigate('/mensalidades')}>Ver todas</Button>
+              <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-500/10" onClick={() => navigate('/mensalidades')}>Ver todas</Button>
            </div>
            <div className="space-y-4">
               {overduePayments?.slice(0, 4).map((payment: any) => (
                 <div key={payment.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-transparent hover:border-border transition-all group">
                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center font-black text-xs">
+                      <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center font-black text-xs">
                          {(payment.studentName || "A")[0]}
                       </div>
                       <div>
@@ -310,7 +310,7 @@ export default function Dashboard() {
               ))}
               {overduePayments.length === 0 && (
                 <div className="py-12 text-center">
-                   <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-4">
+                   <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-4">
                       <CheckCircle2 size={32} />
                    </div>
                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nenhum pagamento atrasado</p>

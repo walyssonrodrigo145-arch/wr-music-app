@@ -31,14 +31,14 @@ export default function StudentProfile() {
           <h1 className="text-3xl font-black tracking-tight text-foreground">Meu Perfil</h1>
           <p className="text-muted-foreground font-medium">Suas informações de aluno e do seu curso.</p>
         </div>
-        <button className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-all shadow-sm">
+        <button className="flex items-center gap-2 bg-muted bg-card border border-border border-border rounded-xl px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-all shadow-sm">
           <Settings size={16} /> Configurações
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Profile Card */}
-        <Card className="border-none shadow-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl overflow-hidden">
+        <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-xl overflow-hidden">
           <div className="h-32 bg-gradient-to-br from-primary/20 to-violet-500/20" />
           <CardContent className="px-8 pb-8 -mt-16 text-center">
             <Avatar className="w-32 h-32 mx-auto border-4 border-white dark:border-slate-900 shadow-2xl mb-4">
@@ -50,7 +50,7 @@ export default function StudentProfile() {
             <h2 className="text-2xl font-black text-foreground">{profile?.name}</h2>
             <p className="text-sm font-bold text-primary uppercase tracking-widest mt-1">Aluno {profile?.level}</p>
             
-            <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <div className="mt-8 pt-8 border-t border-border/50 border-border space-y-4">
                <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
                   <Mail size={16} className="text-primary" />
                   <span>{profile?.email}</span>
@@ -70,7 +70,7 @@ export default function StudentProfile() {
         {/* Detailed Info */}
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+            <Card className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm">
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
@@ -84,7 +84,7 @@ export default function StudentProfile() {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+            <Card className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm">
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
                    <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-600">
@@ -99,7 +99,7 @@ export default function StudentProfile() {
             </Card>
           </div>
 
-          <Card className="border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+          <Card className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm">
             <CardContent className="p-8">
                <h3 className="text-lg font-black mb-6">Conquistas e Habilidades</h3>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
@@ -108,7 +108,7 @@ export default function StudentProfile() {
                         <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Frequência Geral</span>
                         <span className="text-sm font-black text-green-600">95%</span>
                      </div>
-                     <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                     <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
                         <div className="h-full bg-green-500 w-[95%]" />
                      </div>
                   </div>
@@ -117,7 +117,7 @@ export default function StudentProfile() {
                         <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Exercícios Concluídos</span>
                         <span className="text-sm font-black text-blue-600">18/20</span>
                      </div>
-                     <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                     <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
                         <div className="h-full bg-blue-500 w-[90%]" />
                      </div>
                   </div>
@@ -130,7 +130,7 @@ export default function StudentProfile() {
                      { icon: Music, label: "Repertório", value: "12 Peças" },
                      { icon: Trophy, label: "Nível", value: profile?.level },
                   ].map((item, i) => (
-                     <div key={i} className="text-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 group hover:border-primary/30 transition-all">
+                     <div key={i} className="text-center p-4 rounded-2xl bg-muted/50 bg-card/40 border border-border/50 border-border group hover:border-primary/30 transition-all">
                         <item.icon size={20} className="mx-auto text-primary mb-2 transition-transform group-hover:scale-110" />
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
                         <p className="text-xs font-black text-foreground uppercase">{item.value}</p>

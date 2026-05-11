@@ -71,7 +71,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-[#0B1220] text-slate-400 transition-all duration-300 ease-in-out relative border-r border-slate-800/50 shadow-2xl z-20 overflow-hidden",
+        "flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out relative border-r border-sidebar-border shadow-2xl z-20 overflow-hidden",
         collapsed ? "w-[80px]" : "w-[260px]",
         // Mobile drawer specific styling
         "lg:translate-x-0"
@@ -80,7 +80,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       {/* Mobile Close Button */}
       <button
         onClick={onToggle}
-        className="lg:hidden absolute top-6 right-4 w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 transition-colors z-50"
+        className="lg:hidden absolute top-6 right-4 w-10 h-10 rounded-xl bg-sidebar-accent text-sidebar-foreground flex items-center justify-center hover:bg-sidebar-accent/80 transition-colors z-50"
         aria-label="Fechar menu"
       >
         <X size={20} />
@@ -89,7 +89,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       {/* Toggle button - desktop only */}
       <button
         onClick={onToggle}
-        className="hidden lg:flex absolute -right-3.5 top-10 z-30 w-7 h-7 rounded-full bg-[#0B1220] text-slate-400 items-center justify-center shadow-xl hover:text-white hover:scale-110 transition-all border border-slate-800"
+        className="hidden lg:flex absolute -right-3.5 top-10 z-30 w-7 h-7 rounded-full bg-sidebar text-sidebar-foreground items-center justify-center shadow-xl hover:text-white hover:scale-110 transition-all border border-sidebar-border"
         aria-label="Recolher menu"
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
@@ -106,7 +106,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         {!collapsed && (
           <div className="animate-in fade-in slide-in-from-left-2 duration-300">
             <p className="text-base font-black text-white tracking-tight leading-none">MusicPro</p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Gestão Musical</p>
+            <p className="text-[10px] text-sidebar-foreground/50 font-bold uppercase tracking-widest mt-1">Gestão Musical</p>
           </div>
         )}
       </div>
@@ -114,7 +114,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto no-scrollbar scroll-smooth">
         {!collapsed && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-4 animate-in fade-in duration-500">Menu</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mb-4 animate-in fade-in duration-500">Menu</p>
         )}
         {navItems.map((item, idx) => {
           const Icon = item.icon;
@@ -127,7 +127,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                   "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative overflow-hidden",
                   isActive
                     ? "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]"
-                    : "text-slate-400 hover:bg-indigo-600/10 hover:text-white",
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                   collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
@@ -167,7 +167,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         })}
 
         {!collapsed && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mt-8 mb-4 animate-in fade-in duration-500">Geral</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mt-8 mb-4 animate-in fade-in duration-500">Geral</p>
         )}
         {bottomItems.map((item) => {
           const Icon = item.icon;
@@ -180,7 +180,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                   "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group",
                   isActive
                     ? "bg-slate-800 text-white"
-                    : "text-slate-400 hover:bg-indigo-600/10 hover:text-white",
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                   collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
@@ -195,25 +195,25 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
 
       {/* User profile at bottom */}
       <div className={cn(
-        "p-4 bg-slate-900/30 border-t border-slate-800/50",
+        "p-4 bg-sidebar-accent/30 border-t border-sidebar-border",
         collapsed ? "flex justify-center" : ""
       )}>
         {collapsed ? (
-          <Avatar className="w-10 h-10 cursor-pointer border-2 border-slate-800 shadow-xl" title={user?.name ?? "Perfil"}>
+          <Avatar className="w-10 h-10 cursor-pointer border-2 border-sidebar-border shadow-xl" title={user?.name ?? "Perfil"}>
             <AvatarFallback className="bg-[#2563EB] text-white text-xs font-black">
               {initials}
             </AvatarFallback>
           </Avatar>
         ) : (
-          <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30 group/profile">
-            <Avatar className="w-9 h-9 flex-shrink-0 border border-slate-600 shadow-lg group-hover/profile:scale-105 transition-transform">
+          <div className="flex items-center gap-3 bg-sidebar-accent/50 p-3 rounded-2xl border border-sidebar-border/50 group/profile">
+            <Avatar className="w-9 h-9 flex-shrink-0 border border-sidebar-border shadow-lg group-hover/profile:scale-105 transition-transform">
               <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-[#7C3AED] text-white text-xs font-black">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-black text-white truncate tracking-tight">{user?.name ?? "WR Music"}</p>
-              <p className="text-[9px] text-slate-500 font-bold truncate uppercase tracking-tighter">
+              <p className="text-[9px] text-sidebar-foreground/40 font-bold truncate uppercase tracking-tighter">
                 {user?.role === 'admin' ? 'Administrador' : user?.role === 'professor' ? 'Professor' : user?.role === 'student' ? 'Aluno' : 'Membro'}
               </p>
             </div>

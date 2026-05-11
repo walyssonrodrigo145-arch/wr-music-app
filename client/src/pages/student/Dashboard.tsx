@@ -54,7 +54,7 @@ export default function StudentDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/50 overflow-hidden group hover:scale-[1.02] transition-transform">
+        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 from-card to-card/50 overflow-hidden group hover:scale-[1.02] transition-transform">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
@@ -75,7 +75,7 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/50 overflow-hidden group hover:scale-[1.02] transition-transform">
+        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 from-card to-card/50 overflow-hidden group hover:scale-[1.02] transition-transform">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600">
@@ -90,7 +90,7 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/50 overflow-hidden group hover:scale-[1.02] transition-transform">
+        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 from-card to-card/50 overflow-hidden group hover:scale-[1.02] transition-transform">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600">
@@ -105,7 +105,7 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/50 overflow-hidden group hover:scale-[1.02] transition-transform">
+        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 from-card to-card/50 overflow-hidden group hover:scale-[1.02] transition-transform">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-600">
@@ -123,7 +123,7 @@ export default function StudentDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Progress Chart */}
-        <Card className="lg:col-span-2 border-none shadow-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+        <Card className="lg:col-span-2 border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-lg font-black">Resumo do Progresso</CardTitle>
@@ -179,7 +179,7 @@ export default function StudentDashboard() {
         </Card>
 
         {/* Recent Activities */}
-        <Card className="border-none shadow-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+        <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-xl">
           <CardHeader>
             <CardTitle className="text-lg font-black">Atividades Recentes</CardTitle>
           </CardHeader>

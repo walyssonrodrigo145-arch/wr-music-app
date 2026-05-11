@@ -26,9 +26,9 @@ export default function StudentMessages() {
         <div className="hidden md:flex w-80 flex-col gap-4">
            <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-              <input type="text" placeholder="Buscar conversa..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl py-3 pl-12 pr-4 text-xs font-bold outline-none" />
+              <input type="text" placeholder="Buscar conversa..." className="w-full bg-card bg-card border border-border border-border rounded-2xl py-3 pl-12 pr-4 text-xs font-bold outline-none" />
            </div>
-           <Card className="flex-1 border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm overflow-hidden">
+           <Card className="flex-1 border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm overflow-hidden">
               <CardContent className="p-2">
                  <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-3 cursor-pointer transition-all">
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-xs font-black border border-primary/30">ES</div>
@@ -42,9 +42,9 @@ export default function StudentMessages() {
         </div>
 
         {/* Chat Area */}
-        <Card className="flex-1 border-none shadow-2xl bg-white dark:bg-slate-900/80 backdrop-blur-2xl flex flex-col overflow-hidden">
+        <Card className="flex-1 border-none shadow-2xl bg-card bg-card/80 backdrop-blur-2xl flex flex-col overflow-hidden">
            {/* Chat Header */}
-           <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+           <div className="p-4 border-b border-border/50 border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-xs font-black shadow-lg">ES</div>
                  <div>
@@ -52,7 +52,7 @@ export default function StudentMessages() {
                     <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">Online agora</p>
                  </div>
               </div>
-              <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all text-muted-foreground"><MoreHorizontal size={20} /></button>
+              <button className="p-2 hover:bg-muted dark:hover:bg-slate-800 rounded-xl transition-all text-muted-foreground"><MoreHorizontal size={20} /></button>
            </div>
 
            {/* Messages Scroll Area */}
@@ -66,7 +66,7 @@ export default function StudentMessages() {
                      "p-4 rounded-3xl text-sm font-medium shadow-sm",
                      msg.isMe 
                       ? "bg-primary text-white rounded-br-none" 
-                      : "bg-slate-100 dark:bg-slate-800 text-foreground rounded-bl-none"
+                      : "bg-muted dark:bg-slate-800 text-foreground rounded-bl-none"
                    )}>
                       {msg.text}
                    </div>
@@ -76,15 +76,15 @@ export default function StudentMessages() {
            </div>
 
            {/* Input Area */}
-           <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 p-2 rounded-2xl">
+           <div className="p-4 border-t border-border/50 border-border">
+              <div className="flex items-center gap-3 bg-muted/50 dark:bg-slate-800 p-2 rounded-2xl">
                  <button className="p-3 text-muted-foreground hover:text-primary transition-colors"><Music size={18} /></button>
                  <input 
                    type="text" 
                    placeholder="Escreva sua mensagem..." 
                    className="flex-1 bg-transparent border-none outline-none text-sm font-medium px-2"
                  />
-                 <button className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 transition-all">
+                 <button className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/10 hover:scale-105 transition-all">
                     <Send size={18} />
                  </button>
               </div>

@@ -173,9 +173,9 @@ function PwaInstallSection() {
   }
 
   return (
-    <div className="p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 space-y-4">
+    <div className="p-4 bg-indigo-500/100/10 rounded-xl border border-indigo-500/20 space-y-4">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+        <div className="w-10 h-10 rounded-xl bg-indigo-500/100 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
           <Download size={20} />
         </div>
         <div>
@@ -185,7 +185,7 @@ function PwaInstallSection() {
       </div>
       <Button 
         onClick={handleInstall}
-        className="w-full h-10 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-95"
+        className="w-full h-10 rounded-xl bg-indigo-500/100 hover:bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-95"
       >
         INSTALAR AGORA
       </Button>
@@ -213,7 +213,7 @@ function CleanupTestDataSection() {
   };
 
   return (
-    <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-900/30 space-y-3">
+    <div className="p-4 bg-red-500/10 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-900/30 space-y-3">
       <div>
         <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1 flex items-center gap-2">
           <AlertTriangle size={14} /> Zona de Perigo
@@ -377,11 +377,11 @@ export default function Configuracoes() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-[#F8FAFC]">
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
         {/* Header */}
         <div className="flex items-center gap-3 lg:gap-4">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-slate-500/10 flex items-center justify-center shadow-sm">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-muted/40 flex items-center justify-center shadow-sm">
             <Shield size={22} className="text-muted-foreground" />
           </div>
           <div className="min-w-0">
@@ -403,7 +403,7 @@ export default function Configuracoes() {
                     className={cn(
                       "flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black transition-all lg:w-full text-left uppercase tracking-widest",
                       activeTab === tab.id
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
+                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                         : "text-muted-foreground hover:bg-muted hover:text-muted-foreground"
                     )}
                   >
@@ -427,7 +427,7 @@ export default function Configuracoes() {
                     <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Suas informações pessoais</p>
                   </div>
                   <Button
-                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
+                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
                     disabled={updateProfile.isPending}
                     onClick={() => updateProfile.mutate({ name: profileName, email: profileEmail, phone: profilePhone, bio: profileBio })}
                   >
@@ -437,14 +437,14 @@ export default function Configuracoes() {
                 </div>
 
                 <div className="flex items-center gap-6 p-6 bg-muted rounded-[1.5rem] border border-border">
-                  <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-[1.5rem] bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-xl shadow-indigo-200 shrink-0">
+                  <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-[1.5rem] bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-xl shadow-indigo-500/20 shrink-0">
                     <span className="text-2xl font-black text-white">{initials}</span>
                   </div>
                   <div className="min-w-0">
                     <p className="text-base lg:text-xl font-black text-foreground truncate">{user?.name || "Professor"}</p>
                     <p className="text-xs lg:text-sm font-bold text-muted-foreground truncate mt-1">{user?.email}</p>
                     <div className="mt-3">
-                      <span className="px-3 py-1 rounded-lg bg-indigo-100 text-[10px] font-black text-indigo-700 uppercase tracking-widest">Administrador</span>
+                      <span className="px-3 py-1 rounded-lg bg-indigo-500/20 text-[10px] font-black text-indigo-700 uppercase tracking-widest">Administrador</span>
                     </div>
                   </div>
                 </div>
@@ -512,7 +512,7 @@ export default function Configuracoes() {
                     <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Identidade da sua escola</p>
                   </div>
                   <Button
-                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
+                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
                     disabled={updateSchool.isPending}
                     onClick={() => updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription })}
                   >
@@ -589,7 +589,7 @@ export default function Configuracoes() {
                     <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Controle de alertas</p>
                   </div>
                   <Button
-                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-200"
+                    className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
                     disabled={updateNotifications.isPending}
                     onClick={() => updateNotifications.mutate({
                       notifyLessonReminder: notifyLesson,
@@ -644,7 +644,7 @@ export default function Configuracoes() {
                     className={cn(
                       "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "light"
-                        ? "border-indigo-600 bg-indigo-50/50 shadow-xl shadow-indigo-100"
+                        ? "border-indigo-600 bg-indigo-500/100/10 shadow-xl shadow-indigo-500/20"
                         : "border-border bg-card hover:border-indigo-200"
                     )}
                   >
@@ -654,13 +654,13 @@ export default function Configuracoes() {
                          <div className="w-6 h-1 rounded bg-muted" />
                        </div>
                        <div className="flex-1 p-3 space-y-2">
-                         <div className="h-3 bg-indigo-100 rounded-full w-3/4" />
+                         <div className="h-3 bg-indigo-500/20 rounded-full w-3/4" />
                          <div className="h-2 bg-muted rounded-full w-1/2" />
                        </div>
                     </div>
                     <div className="flex items-center justify-between">
                        <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
+                         <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
                             <Sun size={18} />
                          </div>
                          <span className="text-xs font-black uppercase tracking-widest text-foreground">Modo Claro</span>
@@ -681,7 +681,7 @@ export default function Configuracoes() {
                     className={cn(
                       "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "dark"
-                        ? "border-indigo-600 bg-indigo-50/50 shadow-xl shadow-indigo-100"
+                        ? "border-indigo-600 bg-indigo-500/100/10 shadow-xl shadow-indigo-500/20"
                         : "border-border bg-card hover:border-indigo-200"
                     )}
                   >
@@ -717,8 +717,8 @@ export default function Configuracoes() {
                   <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Dados da conta</p>
                 </div>
 
-                <div className="p-6 bg-indigo-50 rounded-[1.5rem] border border-indigo-100 flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
+                <div className="p-6 bg-indigo-500/10 rounded-[1.5rem] border border-indigo-100 flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
                     <Shield size={20} />
                   </div>
                   <div>

@@ -59,7 +59,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-[#0B1220] text-slate-400 transition-all duration-300 ease-in-out relative border-r border-slate-800/50 shadow-2xl z-20 overflow-hidden",
+        "flex flex-col h-full bg-sidebar text-sidebar-foreground/70 transition-all duration-300 ease-in-out relative border-r border-sidebar-border shadow-2xl z-20 overflow-hidden",
         collapsed ? "w-[80px]" : "w-[260px]",
         "lg:translate-x-0"
       )}
@@ -67,7 +67,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
       {/* Mobile Close Button */}
       <button
         onClick={onToggle}
-        className="lg:hidden absolute top-6 right-4 w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 transition-colors z-50"
+        className="lg:hidden absolute top-6 right-4 w-10 h-10 rounded-xl bg-sidebar-accent text-white flex items-center justify-center hover:bg-slate-700 transition-colors z-50"
         aria-label="Fechar menu"
       >
         <X size={20} />
@@ -76,7 +76,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
       {/* Toggle button - desktop only */}
       <button
         onClick={onToggle}
-        className="hidden lg:flex absolute -right-3.5 top-10 z-30 w-7 h-7 rounded-full bg-[#0B1220] text-slate-400 items-center justify-center shadow-xl hover:text-white hover:scale-110 transition-all border border-slate-800"
+        className="hidden lg:flex absolute -right-3.5 top-10 z-30 w-7 h-7 rounded-full bg-sidebar text-sidebar-foreground/70 items-center justify-center shadow-xl hover:text-white hover:scale-110 transition-all border border-sidebar-border"
         aria-label="Recolher menu"
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
@@ -101,7 +101,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto no-scrollbar scroll-smooth">
         {!collapsed && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-4 animate-in fade-in duration-500">Menu Principal</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mb-4 animate-in fade-in duration-500">Menu Principal</p>
         )}
         {navItems.map((item, idx) => {
           const Icon = item.icon;
@@ -114,7 +114,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
                   "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative",
                   isActive
                     ? "bg-[#7C3AED] text-white shadow-[0_0_20px_rgba(124,58,237,0.4)]"
-                    : "text-slate-400 hover:bg-slate-800/40 hover:text-white",
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-white",
                   collapsed && "justify-center px-0"
                 )}
                 title={collapsed ? item.label : undefined}
@@ -143,18 +143,18 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
 
       {/* User profile at bottom */}
       <div className={cn(
-        "p-4 bg-slate-900/30 border-t border-slate-800/50",
+        "p-4 bg-sidebar-accent/30 border-t border-sidebar-border",
         collapsed ? "flex justify-center" : ""
       )}>
         {collapsed ? (
-          <Avatar className="w-10 h-10 cursor-pointer border-2 border-slate-800 shadow-xl" title={user?.name ?? "Perfil"}>
+          <Avatar className="w-10 h-10 cursor-pointer border-2 border-sidebar-border shadow-xl" title={user?.name ?? "Perfil"}>
             <AvatarFallback className="bg-[#7C3AED] text-white text-xs font-black">
               {initials}
             </AvatarFallback>
           </Avatar>
         ) : (
-          <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30 group/profile">
-            <Avatar className="w-9 h-9 flex-shrink-0 border border-slate-600 shadow-lg group-hover/profile:scale-105 transition-transform">
+          <div className="flex items-center gap-3 bg-sidebar-accent/50 p-3 rounded-2xl border border-sidebar-border/50 group/profile">
+            <Avatar className="w-9 h-9 flex-shrink-0 border border-sidebar-border shadow-lg group-hover/profile:scale-105 transition-transform">
               <AvatarFallback className="bg-gradient-to-br from-[#7C3AED] to-[#2563EB] text-white text-xs font-black">
                 {initials}
               </AvatarFallback>
@@ -164,7 +164,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
               <p className="text-[9px] text-purple-400 font-bold truncate uppercase tracking-tighter">Aluno</p>
             </div>
             <button
-              className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-400/10 flex items-center justify-center flex-shrink-0 transition-all"
+              className="w-8 h-8 rounded-lg bg-sidebar-accent text-sidebar-foreground/70 hover:text-red-400 hover:bg-red-400/10 flex items-center justify-center flex-shrink-0 transition-all"
               onClick={() => logoutMutation.mutate()}
               title="Sair"
             >

@@ -46,7 +46,7 @@ function ReportMetricCard({
     >
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{title}</p>
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-6", color.replace('text-', 'bg-').replace('-600', '-50').replace('-500', '-50'))}>
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-6 shadow-sm", color.replace('text-', 'bg-') + '/10')}>
           <Icon size={18} className={color} />
         </div>
       </div>
@@ -232,11 +232,11 @@ export default function Relatorios() {
                        <ResponsiveContainer width="100%" height="100%">
                          <AreaChart data={monthlyData}>
                            <defs><linearGradient id="chartBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563EB" stopOpacity={0.1} /><stop offset="95%" stopColor="#2563EB" stopOpacity={0} /></linearGradient></defs>
-                           <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                           <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }} dy={10} />
-                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }} />
+                           <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
+                           <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: 'currentColor' }} opacity={0.5} dy={10} />
+                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: 'currentColor' }} opacity={0.5} />
                            <Tooltip contentStyle={{ borderRadius: '1.25rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
-                           <Area type="monotone" dataKey="receita" name="Receita" stroke="#2563EB" strokeWidth={4} fill="url(#chartBlue)" dot={{ r: 5, strokeWidth: 3, fill: 'white' }} />
+                           <Area type="monotone" dataKey="receita" name="Receita" stroke="#2563EB" strokeWidth={4} fill="url(#chartBlue)" dot={{ r: 5, strokeWidth: 3, fill: 'var(--background)' }} />
                          </AreaChart>
                        </ResponsiveContainer>
                      )}

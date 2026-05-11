@@ -47,10 +47,10 @@ export default function StudentPayments() {
           </h2>
           
           {payments?.map((payment) => (
-            <Card key={payment.id} className="border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden">
+            <Card key={payment.id} className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row items-center gap-6">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+                  <div className="w-12 h-12 rounded-2xl bg-muted dark:bg-slate-800 flex items-center justify-center text-slate-500">
                     <FileText size={20} />
                   </div>
 
@@ -77,7 +77,7 @@ export default function StudentPayments() {
           ))}
 
           {payments?.length === 0 && (
-            <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <div className="text-center py-20 bg-muted/50 bg-card/20 rounded-3xl border-2 border-dashed border-border border-border">
               <AlertCircle className="mx-auto text-muted-foreground mb-4 opacity-20" size={50} />
               <p className="text-muted-foreground font-bold">Nenhum registro de pagamento encontrado.</p>
             </div>
@@ -101,7 +101,7 @@ export default function StudentPayments() {
                    </div>
                    <button 
                      onClick={() => toast.info("Integração com gateway de pagamento em desenvolvimento.")}
-                     className="w-full bg-white text-primary font-black text-xs uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl hover:scale-[1.02] transition-all"
+                     className="w-full bg-card text-primary font-black text-xs uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl hover:scale-[1.02] transition-all"
                    >
                       Pagar Agora
                    </button>
@@ -109,7 +109,7 @@ export default function StudentPayments() {
              </CardContent>
           </Card>
 
-          <Card className="border-none shadow-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+          <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-xl">
              <CardHeader>
                 <CardTitle className="text-sm font-black uppercase tracking-widest">Informações</CardTitle>
              </CardHeader>

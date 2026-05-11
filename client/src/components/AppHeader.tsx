@@ -94,7 +94,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
           onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
           onFocus={() => setSearchOpen(true)}
           placeholder="Procurar..."
-          className="w-full h-10 lg:h-11 pl-10 lg:pl-12 pr-10 text-xs font-bold bg-[#F8FAFC] border-none rounded-2xl focus:bg-card focus:ring-2 focus:ring-blue-500/20 transition-all text-foreground placeholder:text-muted-foreground shadow-sm"
+          className="w-full h-10 lg:h-11 pl-10 lg:pl-12 pr-10 text-xs font-bold bg-muted/40 border border-border/30 rounded-2xl focus:bg-card focus:ring-2 focus:ring-blue-500/20 transition-all text-foreground placeholder:text-muted-foreground shadow-sm"
         />
         {searchQuery && (
           <button onClick={() => { setSearchQuery(""); setSearchOpen(false); }}
@@ -217,7 +217,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
 
         <button className="w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground hover:text-[#2563EB] hover:bg-muted transition-all shadow-sm relative flex items-center justify-center active:scale-95" onClick={() => navigate("/configuracoes")}>
           <Bell size={18} />
-          <span className="absolute top-3 right-3 w-2 h-2 bg-[#2563EB] rounded-full border border-white" />
+          <span className="absolute top-3 right-3 w-2 h-2 bg-[#2563EB] rounded-full border border-background" />
         </button>
 
         <div className="h-8 w-px bg-muted mx-1 hidden lg:block" />
@@ -225,7 +225,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 lg:gap-3 pl-1 pr-1 py-1 rounded-2xl hover:bg-muted transition-all group active:scale-95">
-              <Avatar className="w-9 h-9 lg:w-10 lg:h-10 border-2 border-white shadow-md group-hover:scale-105 transition-transform">
+              <Avatar className="w-9 h-9 lg:w-10 lg:h-10 border-2 border-background shadow-md group-hover:scale-105 transition-transform">
                 <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-[#7C3AED] text-white text-[10px] lg:text-[11px] font-black">
                   {initials}
                 </AvatarFallback>
@@ -245,7 +245,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
               <Settings size={16} /> Configurações
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-muted my-2" />
-            <DropdownMenuItem className="gap-3 rounded-xl p-3 cursor-pointer text-xs font-bold text-rose-500 hover:bg-rose-50 hover:text-rose-600 focus:text-rose-600 focus:bg-rose-50" onClick={() => logoutMutation.mutate()}>
+            <DropdownMenuItem className="gap-3 rounded-xl p-3 cursor-pointer text-xs font-bold text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 focus:text-rose-600 focus:bg-rose-500/10" onClick={() => logoutMutation.mutate()}>
               <LogOut size={16} /> Sair do Sistema
             </DropdownMenuItem>
           </DropdownMenuContent>

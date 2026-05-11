@@ -19,7 +19,7 @@ export default function StudentExercises() {
   const completed = exercises?.filter(e => e.status === 'concluida') || [];
 
   const ExerciseCard = ({ exercise, isCompleted }: { exercise: any, isCompleted?: boolean }) => (
-    <Card className="border-none shadow-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden">
+    <Card className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden">
       <CardContent className="p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <div className={cn(
@@ -46,7 +46,7 @@ export default function StudentExercises() {
             <button className={cn(
               "flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md",
               isCompleted 
-                ? "bg-slate-100 dark:bg-slate-800 text-foreground hover:bg-slate-200" 
+                ? "bg-muted dark:bg-slate-800 text-foreground hover:bg-slate-200" 
                 : "bg-primary text-primary-foreground hover:opacity-90 shadow-primary/20"
             )}>
               {isCompleted ? "Ver Correção" : "Enviar"}
@@ -66,14 +66,14 @@ export default function StudentExercises() {
       </div>
 
       <Tabs defaultValue="pendentes" className="w-full">
-        <TabsList className="bg-slate-100 dark:bg-slate-900/50 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 mb-6">
-          <TabsTrigger value="pendentes" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 transition-all">
+        <TabsList className="bg-muted bg-muted/50 p-1 rounded-2xl border border-border border-border mb-6">
+          <TabsTrigger value="pendentes" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-card dark:data-[state=active]:bg-slate-800 transition-all">
             Pendentes
           </TabsTrigger>
-          <TabsTrigger value="entregues" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 transition-all">
+          <TabsTrigger value="entregues" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-card dark:data-[state=active]:bg-slate-800 transition-all">
             Entregues
           </TabsTrigger>
-          <TabsTrigger value="corrigidos" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 transition-all">
+          <TabsTrigger value="corrigidos" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-card dark:data-[state=active]:bg-slate-800 transition-all">
             Corrigidos
           </TabsTrigger>
         </TabsList>
@@ -82,7 +82,7 @@ export default function StudentExercises() {
           {pending.length > 0 ? (
             pending.map(ex => <ExerciseCard key={ex.id} exercise={ex} />)
           ) : (
-            <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <div className="text-center py-20 bg-muted/50 bg-card/20 rounded-3xl border-2 border-dashed border-border border-border">
               <CheckCircle2 className="mx-auto text-green-500 mb-4 opacity-50" size={50} />
               <p className="text-muted-foreground font-bold">Parabéns! Você não tem exercícios pendentes.</p>
             </div>
@@ -93,7 +93,7 @@ export default function StudentExercises() {
           {completed.length > 0 ? (
             completed.map(ex => <ExerciseCard key={ex.id} exercise={ex} isCompleted />)
           ) : (
-            <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <div className="text-center py-20 bg-muted/50 bg-card/20 rounded-3xl border-2 border-dashed border-border border-border">
               <ClipboardList className="mx-auto text-muted-foreground mb-4 opacity-20" size={50} />
               <p className="text-muted-foreground font-bold">Ainda não há exercícios corrigidos.</p>
             </div>

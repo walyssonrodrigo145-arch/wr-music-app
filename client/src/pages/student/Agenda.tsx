@@ -27,25 +27,25 @@ export default function StudentAgenda() {
           <h1 className="text-3xl font-black tracking-tight text-foreground">Minha Agenda</h1>
           <p className="text-muted-foreground font-medium">Visualize todos os seus horários e eventos.</p>
         </div>
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-           <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">Mês</button>
-           <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg shadow-primary/20">Semana</button>
-           <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">Dia</button>
+        <div className="flex items-center gap-2 bg-card bg-card p-1 rounded-2xl border border-border border-border shadow-sm">
+           <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-muted dark:hover:bg-slate-800 rounded-xl transition-all">Mês</button>
+           <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg shadow-primary/10">Semana</button>
+           <button className="px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-muted dark:hover:bg-slate-800 rounded-xl transition-all">Dia</button>
         </div>
       </div>
 
-      <Card className="border-none shadow-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl overflow-hidden">
+      <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-xl overflow-hidden">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between p-6 border-b border-border/50 border-border">
              <div className="flex items-center gap-4">
-                <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"><ChevronLeft size={20} /></button>
+                <button className="p-2 hover:bg-muted dark:hover:bg-slate-800 rounded-xl transition-all"><ChevronLeft size={20} /></button>
                 <h2 className="text-lg font-black">{format(currentDate, "MMMM yyyy", { locale: ptBR })}</h2>
-                <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"><ChevronRight size={20} /></button>
+                <button className="p-2 hover:bg-muted dark:hover:bg-slate-800 rounded-xl transition-all"><ChevronRight size={20} /></button>
              </div>
              <button className="text-xs font-black uppercase tracking-widest text-primary px-4 py-2 bg-primary/5 rounded-xl border border-primary/10">Hoje</button>
           </div>
 
-          <div className="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="grid grid-cols-7 border-b border-border/50 border-border bg-muted/30 dark:bg-slate-800/30">
              {days.map(day => (
                <div key={day} className="py-4 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{day}</div>
              ))}
@@ -55,7 +55,7 @@ export default function StudentAgenda() {
              {weekDays.map(day => {
                const dayLessons = lessons?.filter(l => isSameDay(new Date(l.scheduledAt), day)) || [];
                return (
-                 <div key={day.toString()} className="border-r border-slate-100 dark:border-slate-800 p-2 space-y-2 last:border-r-0 hover:bg-slate-50/30 dark:hover:bg-slate-800/10 transition-colors">
+                 <div key={day.toString()} className="border-r border-border/50 border-border p-2 space-y-2 last:border-r-0 hover:bg-muted/50/30 dark:hover:bg-slate-800/10 transition-colors">
                     <div className={cn(
                       "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black mx-auto mb-4",
                       isSameDay(day, new Date()) ? "bg-primary text-white shadow-lg shadow-primary/30" : "text-foreground"
