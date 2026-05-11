@@ -22,8 +22,20 @@ export const goalStatusEnum = pgEnum('goal_status', ["pendente", "concluida"]);
 export const timelineCategoryEnum = pgEnum('timeline_category', ["tecnica", "teoria", "repertorio", "geral"]);
 export const fileCategoryEnum = pgEnum('file_category', ["imagem", "video", "pdf", "audio", "documento"]);
 
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  logo: text("logo"),
+  active: boolean("active").default(true).notNull(),
+  ownerId: integer("ownerId"), // Admin/Owner of the school
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"), // Multi-tenancy isolation
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -43,6 +55,7 @@ export const users = pgTable("users", {
 
 export const professores = pgTable("professores", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull().unique(),
   especialidade: text("especialidade"),
   telefone: varchar("telefone", { length: 30 }),
@@ -52,6 +65,7 @@ export const professores = pgTable("professores", {
 
 export const instruments = pgTable("instruments", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
   name: varchar("name", { length: 100 }).notNull(),
   category: varchar("category", { length: 100 }).notNull(),
@@ -62,8 +76,9 @@ export const instruments = pgTable("instruments", {
 
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   professorId: integer("professorId").notNull(), // Owner of the student record
-  studentUserId: integer("studentUserId"), // Student's own user account (optional until portal access is granted)
+  studentUserId: integer("studentUserId"), // Student's own user account
   name: varchar("name", { length: 255 }).notNull(),
   socialName: varchar("socialName", { length: 255 }),
   email: varchar("email", { length: 320 }).unique(),
@@ -88,21 +103,20 @@ export const students = pgTable("students", {
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
 
-
-
 export const lessons = pgTable("lessons", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
-  studentId: integer("studentId"), // Made optional for experimental lessons
+  studentId: integer("studentId"),
   isExperimental: boolean("isExperimental").default(false).notNull(),
   experimentalName: varchar("experimentalName", { length: 255 }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   scheduledAt: timestamp("scheduledAt").notNull(),
-  duration: integer("duration").default(60).notNull(), // minutes
+  duration: integer("duration").default(60).notNull(),
   status: lessonStatusEnum("status").default("agendada").notNull(),
   notes: text("notes"),
-  rating: integer("rating"), // 1-5
+  rating: integer("rating"),
   instrumentId: integer("instrumentId"),
   recurringGroupId: varchar("recurringGroupId", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -111,6 +125,7 @@ export const lessons = pgTable("lessons", {
 
 export const monthlyStats = pgTable("monthly_stats", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
   month: integer("month").notNull(),
   year: integer("year").notNull(),
@@ -124,27 +139,23 @@ export const monthlyStats = pgTable("monthly_stats", {
 
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull().unique(),
-  // Perfil do professor
   phone: varchar("phone", { length: 30 }),
   bio: text("bio"),
-  // Dados da escola
   schoolName: varchar("schoolName", { length: 255 }),
   schoolAddress: text("schoolAddress"),
   schoolCity: varchar("schoolCity", { length: 100 }),
   schoolPhone: varchar("schoolPhone", { length: 30 }),
   schoolWebsite: varchar("schoolWebsite", { length: 255 }),
   schoolDescription: text("schoolDescription"),
-  // Notificações
   notifyLessonReminder: integer("notifyLessonReminder").default(1).notNull(),
   notifyPaymentDue: integer("notifyPaymentDue").default(1).notNull(),
   notifyStudentAbsence: integer("notifyStudentAbsence").default(1).notNull(),
   notifyNewStudent: integer("notifyNewStudent").default(1).notNull(),
   notifyWeeklyReport: integer("notifyWeeklyReport").default(0).notNull(),
-  // Automação de lembretes
   automationEnabled: integer("automationEnabled").default(0).notNull(),
   automationLastRun: timestamp("automationLastRun"),
-  // Aparência
   theme: varchar("theme", { length: 20 }).default("light"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
@@ -152,6 +163,7 @@ export const settings = pgTable("settings", {
 
 export const reminders = pgTable("reminders", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
   studentId: integer("studentId"),
   lessonId: integer("lessonId"),
@@ -171,10 +183,11 @@ export const reminders = pgTable("reminders", {
 
 export const reminderTemplates = pgTable("reminder_templates", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
   name: varchar("name", { length: 100 }).notNull(),
   type: reminderTypeEnum("type").default("manual").notNull(),
-  body: text("body").notNull(), // ex: "Olá {nome}, sua aula é dia {data_aula} às {hora_aula}."
+  body: text("body").notNull(),
   isDefault: integer("isDefault").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
@@ -182,6 +195,7 @@ export const reminderTemplates = pgTable("reminder_templates", {
 
 export const paymentDues = pgTable("payment_dues", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
   studentId: integer("studentId").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
@@ -197,6 +211,7 @@ export const paymentDues = pgTable("payment_dues", {
 
 export const studentGoals = pgTable("student_goals", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
   studentId: integer("studentId").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
@@ -210,6 +225,7 @@ export const studentGoals = pgTable("student_goals", {
 
 export const studentTimeline = pgTable("student_timeline", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
   studentId: integer("studentId").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
@@ -222,6 +238,7 @@ export const studentTimeline = pgTable("student_timeline", {
 
 export const studentFiles = pgTable("student_files", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
   userId: integer("userId").notNull(),
   studentId: integer("studentId").notNull(),
   fileName: varchar("fileName", { length: 255 }).notNull(),
@@ -258,3 +275,6 @@ export type StudentTimeline = typeof studentTimeline.$inferSelect;
 export type InsertStudentTimeline = typeof studentTimeline.$inferInsert;
 export type StudentFile = typeof studentFiles.$inferSelect;
 export type InsertStudentFile = typeof studentFiles.$inferInsert;
+
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = typeof organizations.$inferInsert;

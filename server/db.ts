@@ -15,13 +15,10 @@ async function ensureSchemaConsistency(db: any) {
   console.time("[DB] schema-consistency-check");
   try {
     console.log("[Database] Checking schema consistency for 'lessons.studentId'...");
-    // Tenta remover a restrição NOT NULL de studentId se ela ainda existir
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
     console.log("[Database] Schema consistency check passed: 'studentId' is now nullable.");
   } catch (error: any) {
-    // Se falhar (ex: por falta de permissão), registramos o erro detalhado
     console.warn(`[Database] Schema consistency check failed. Code: ${error.code}. Message: ${error.message}`);
-    if (error.detail) console.warn(`[Database] Error detail: ${error.detail}`);
   } finally {
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
@@ -31,9 +28,8 @@ async function ensureSchemaConsistency(db: any) {
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      // Configuração para Supabase no Render (exige SSL)
       const options: any = {
-        prepare: false, // Necessário para PgBouncer no Supabase Transaction mode
+        prepare: false,
         connection: {
           search_path: "public"
         }
@@ -44,8 +40,6 @@ export async function getDb() {
 
       queryClient = postgres(process.env.DATABASE_URL, options);
       _db = drizzle(queryClient);
-      
-      // Executa a auto-correção na primeira conexão
       await ensureSchemaConsistency(_db);
     } catch (error) {
       console.error("[Database] Failed to connect:", error);
@@ -62,7 +56,7 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
   while (attempt < maxRetries) {
     try {
       const db = await getDb();
-      if (!db) { console.warn("[Database] Cannot upsert user: database not available"); return; }
+      if (!db) return;
 
       const [existing] = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
 
@@ -72,6 +66,7 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
         loginMethod: user.loginMethod,
         isEmailVerified: user.isEmailVerified ?? true,
         role: user.role || (user.openId === ENV.ownerOpenId ? 'admin' : undefined),
+        organizationId: user.organizationId,
         updatedAt: new Date(),
         lastSignedIn: new Date(),
       };
@@ -85,28 +80,11 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
           createdAt: new Date(),
         });
       }
-      return; // Sucesso, sai do loop
+      return;
     } catch (error: any) {
       attempt++;
-      const dbErr = error.cause || error.driverError || error;
-      const isTransient = dbErr?.code === 'ENETUNREACH' || dbErr?.code === 'ECONNRESET' || dbErr?.code === 'ETIMEDOUT';
-      
-      if (isTransient && attempt < maxRetries) {
-        console.warn(`[Database] Transient error (${dbErr.code}) during upsertUser. Retrying... (${attempt}/${maxRetries})`);
-        await new Promise(res => setTimeout(res, 1000 * attempt)); // Exponential backoff leve
-        continue;
-      }
-      
-      console.error("[Database] Failed to upsert user. Error detail:", {
-        message: error.message,
-        code: dbErr?.code,
-        detail: dbErr?.detail,
-        schema: dbErr?.schema,
-        table: dbErr?.table,
-        column: dbErr?.column,
-        constraint: dbErr?.constraint
-      });
-      throw error;
+      if (attempt >= maxRetries) throw error;
+      await new Promise(res => setTimeout(res, 1000 * attempt));
     }
   }
 }
@@ -119,39 +97,43 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // Dashboard stats
-export async function getDashboardStats(userId?: number) {
+export async function getDashboardStats(organizationId: number, userId?: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const [totalStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(userId ? eq(students.professorId, userId) : undefined);
-  const [activeStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(userId ? eq(students.professorId, userId) : undefined, eq(students.status, 'ativo')));
+  const orgFilter = eq(students.organizationId, organizationId);
+  const userFilter = userId ? eq(students.professorId, userId) : undefined;
+
+  const [totalStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(orgFilter, userFilter));
+  const [activeStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(orgFilter, userFilter, eq(students.status, 'ativo')));
 
   const now = new Date();
   const startOfWeek = new Date(now);
-  // Reseta no Domingo (Sunday = 0). A semana de aulas é Segunda-Sábado.
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 6);
   endOfWeek.setHours(23, 59, 59, 999);
 
-  // Aulas totais agendadas para esta semana
-  const [weekLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
-    .where(and(userId ? eq(lessons.userId, userId) : undefined, gte(lessons.scheduledAt, startOfWeek), lte(lessons.scheduledAt, endOfWeek)));
+  const lessonOrgFilter = eq(lessons.organizationId, organizationId);
+  const lessonUserFilter = userId ? eq(lessons.userId, userId) : undefined;
 
-  // Taxa de Conclusão focada na SEMANA ATUAL (Sun-Sat)
+  const [weekLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
+    .where(and(lessonOrgFilter, lessonUserFilter, gte(lessons.scheduledAt, startOfWeek), lte(lessons.scheduledAt, endOfWeek)));
+
   const [completedLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
     .where(and(
-      userId ? eq(lessons.userId, userId) : undefined, 
+      lessonOrgFilter,
+      lessonUserFilter, 
       eq(lessons.status, 'concluida'),
       gte(lessons.scheduledAt, startOfWeek),
       lte(lessons.scheduledAt, endOfWeek)
     ));
 
-  // Aulas que já deveriam ter ocorrido nesta semana (status não é 'agendada')
   const [totalLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
     .where(and(
-      userId ? eq(lessons.userId, userId) : undefined, 
+      lessonOrgFilter,
+      lessonUserFilter, 
       sql`status != 'agendada'`,
       gte(lessons.scheduledAt, startOfWeek),
       lte(lessons.scheduledAt, endOfWeek)
@@ -160,11 +142,15 @@ export async function getDashboardStats(userId?: number) {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
   
+  const paymentOrgFilter = eq(paymentDues.organizationId, organizationId);
+  const paymentUserFilter = userId ? eq(paymentDues.userId, userId) : undefined;
+
   const [revenueResult] = await db.select({
     total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)`
   }).from(paymentDues)
     .where(and(
-      userId ? eq(paymentDues.userId, userId) : undefined,
+      paymentOrgFilter,
+      paymentUserFilter,
       eq(paymentDues.month, currentMonth),
       eq(paymentDues.year, currentYear),
       eq(paymentDues.status, 'pago')
@@ -184,38 +170,36 @@ export async function getDashboardStats(userId?: number) {
 }
 
 // Monthly stats for charts
-export async function getMonthlyStats(userId?: number, limit = 12) {
+export async function getMonthlyStats(organizationId: number, userId?: number, limit = 12) {
   const db = await getDb();
   if (!db) return [];
   
   const now = new Date();
   const data = [];
-  
-  // Format month names
   const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   
   for (let i = limit - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const y = d.getFullYear();
-    const m = d.getMonth() + 1; // 1-12
+    const m = d.getMonth() + 1;
     
-    // Alunos ativos criados ANTES ou DURANTE este mês
     const startOfNextMonth = new Date(y, m, 1);
     const [ativos] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
       .from(students)
       .where(and(
+        eq(students.organizationId, organizationId),
         userId ? eq(students.professorId, userId) : undefined,
         eq(students.status, 'ativo'),
         lt(students.createdAt, startOfNextMonth)
       ));
 
-    // Aulas do mês (qualquer status não-cancelado, ou simplesmente total agendadas/concluidas no mes)
     const startOfMonth = new Date(y, m - 1, 1);
     const endOfMonth = new Date(y, m, 0, 23, 59, 59, 999);
     
     const [aulasVal] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
       .from(lessons)
       .where(and(
+        eq(lessons.organizationId, organizationId),
         userId ? eq(lessons.userId, userId) : undefined,
         gte(lessons.scheduledAt, startOfMonth),
         lte(lessons.scheduledAt, endOfMonth)
@@ -224,6 +208,7 @@ export async function getMonthlyStats(userId?: number, limit = 12) {
     const [revenueRes] = await db.select({ total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)` })
       .from(paymentDues)
       .where(and(
+        eq(paymentDues.organizationId, organizationId),
         userId ? eq(paymentDues.userId, userId) : undefined,
         eq(paymentDues.month, m),
         eq(paymentDues.year, y),
@@ -242,8 +227,7 @@ export async function getMonthlyStats(userId?: number, limit = 12) {
 }
 
 // Students with instrument info
-// Students with instrument info
-export async function getStudentsWithInstrument(userId?: number, limit?: number) {
+export async function getStudentsWithInstrument(organizationId: number, userId?: number, limit?: number) {
   const db = await getDb();
   if (!db) return [];
   const query = db.select({
@@ -259,14 +243,17 @@ export async function getStudentsWithInstrument(userId?: number, limit?: number)
     instrumentColor: instruments.color,
     instrumentIcon: instruments.icon,
   }).from(students).leftJoin(instruments, eq(students.instrumentId, instruments.id))
-    .where(userId ? eq(students.professorId, userId) : undefined)
+    .where(and(
+        eq(students.organizationId, organizationId),
+        userId ? eq(students.professorId, userId) : undefined
+    ))
     .orderBy(desc(students.createdAt));
   if (limit) return (query as any).limit(limit);
   return query;
 }
 
 // Recent lessons with student info
-export async function getRecentLessons(userId?: number, limit = 10) {
+export async function getRecentLessons(organizationId: number, userId?: number, limit = 10) {
   const db = await getDb();
   if (!db) return [];
   return db.select({
@@ -285,12 +272,15 @@ export async function getRecentLessons(userId?: number, limit = 10) {
   }).from(lessons)
     .leftJoin(students, eq(lessons.studentId, students.id))
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
-    .where(userId ? eq(lessons.userId, userId) : undefined)
+    .where(and(
+        eq(lessons.organizationId, organizationId),
+        userId ? eq(lessons.userId, userId) : undefined
+    ))
     .orderBy(desc(lessons.scheduledAt)).limit(limit);
 }
 
 // Instruments with student count
-export async function getInstrumentsWithCount(userId?: number) {
+export async function getInstrumentsWithCount(organizationId: number, userId?: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select({
@@ -301,40 +291,43 @@ export async function getInstrumentsWithCount(userId?: number) {
     color: instruments.color,
     studentCount: sql<number>`count(${students.id})`,
   }).from(instruments).leftJoin(students, eq(instruments.id, students.instrumentId))
-    .where(userId ? eq(instruments.userId, userId) : undefined)
+    .where(and(
+        eq(instruments.organizationId, organizationId),
+        userId ? eq(instruments.userId, userId) : undefined
+    ))
     .groupBy(instruments.id).orderBy(desc(sql`count(${students.id})`));
 }
 
 // Settings helpers
-export async function getSettingsByUserId(userId: number) {
+export async function getSettingsByUserId(organizationId: number, userId: number) {
   const db = await getDb();
   if (!db) return null;
-  const result = await db.select().from(settings).where(eq(settings.userId, userId)).limit(1);
+  const result = await db.select().from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);
   return result.length > 0 ? result[0] : null;
 }
 
-export async function upsertSettings(userId: number, data: Partial<InsertSettings>) {
+export async function upsertSettings(organizationId: number, userId: number, data: Partial<InsertSettings>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const existing = await getSettingsByUserId(userId);
+  const existing = await getSettingsByUserId(organizationId, userId);
   if (existing) {
-    await db.update(settings).set({ ...data, updatedAt: new Date() }).where(eq(settings.userId, userId));
+    await db.update(settings).set({ ...data, updatedAt: new Date() }).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId)));
   } else {
-    await db.insert(settings).values({ userId, ...data });
+    await db.insert(settings).values({ organizationId, userId, ...data });
   }
-  return getSettingsByUserId(userId);
+  return getSettingsByUserId(organizationId, userId);
 }
 
-export async function updateUserProfile(userId: number, data: { name?: string; email?: string }) {
+export async function updateUserProfile(organizationId: number, userId: number, data: { name?: string; email?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, userId));
-  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  await db.update(users).set({ ...data, updatedAt: new Date() }).where(and(eq(users.id, userId), eq(users.organizationId, organizationId)));
+  const result = await db.select().from(users).where(and(eq(users.id, userId), eq(users.organizationId, organizationId))).limit(1);
   return result[0] ?? null;
 }
 
-// Lessons by day of week (last 4 weeks)
-export async function getLessonsByDayOfWeek(userId?: number) {
+// Lessons by day of week
+export async function getLessonsByDayOfWeek(organizationId: number, userId?: number) {
   const db = await getDb();
   if (!db) return [];
   const fourWeeksAgo = new Date();
@@ -343,18 +336,20 @@ export async function getLessonsByDayOfWeek(userId?: number) {
     dayOfWeek: sql<number>`CAST(EXTRACT(DOW FROM "scheduledAt") + 1 AS INT)`,
     count: sql<number>`CAST(count(*) AS INT)`,
   }).from(lessons).where(and(
+    eq(lessons.organizationId, organizationId),
     userId ? eq(lessons.userId, userId) : undefined,
     gte(lessons.scheduledAt, fourWeeksAgo),
     eq(lessons.status, 'concluida')
   )).groupBy(sql`EXTRACT(DOW FROM "scheduledAt")`);
 }
 
-// Stats for experimental lessons and conversion
-export async function getExperimentalStats(userId?: number, month?: number, year?: number) {
+// Stats for experimental lessons
+export async function getExperimentalStats(organizationId: number, userId?: number, month?: number, year?: number) {
   const db = await getDb();
   if (!db) return { total: 0, converted: 0, notConverted: 0, conversionRate: 0 };
 
   let whereClause = and(
+    eq(lessons.organizationId, organizationId),
     userId ? eq(lessons.userId, userId) : undefined, 
     eq(lessons.isExperimental, true),
     eq(lessons.status, 'concluida')
@@ -371,7 +366,6 @@ export async function getExperimentalStats(userId?: number, month?: number, year
   const total = expLessons.length;
   let converted = 0;
 
-  // Heurística de conversão: studentId preenchido OU nome coincide com um aluno existente
   for (const lesson of expLessons) {
     if (lesson.studentId) {
        converted++;
@@ -381,6 +375,7 @@ export async function getExperimentalStats(userId?: number, month?: number, year
       const [student] = await db.select({ id: students.id })
         .from(students)
         .where(and(
+          eq(students.organizationId, organizationId),
           userId ? eq(students.professorId, userId) : undefined, 
           sql`LOWER(${students.name}) = LOWER(${lesson.experimentalName})`
         ))
@@ -397,4 +392,18 @@ export async function getExperimentalStats(userId?: number, month?: number, year
     notConverted: total - converted,
     conversionRate: total > 0 ? Math.round((converted / total) * 100) : 0
   };
+}
+
+export async function createOrganization(name: string, ownerOpenId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const [org] = await db.insert(organizations).values({
+    name,
+    ownerOpenId,
+    slug: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+    createdAt: new Date(),
+  }).returning();
+  
+  return org;
 }
