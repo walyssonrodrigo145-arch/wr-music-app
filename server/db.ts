@@ -119,12 +119,12 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // Dashboard stats
-export async function getDashboardStats(userId: number) {
+export async function getDashboardStats(userId?: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const [totalStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(eq(students.professorId, userId));
-  const [activeStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(eq(students.professorId, userId), eq(students.status, 'ativo')));
+  const [totalStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(userId ? eq(students.professorId, userId) : undefined);
+  const [activeStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(userId ? eq(students.professorId, userId) : undefined, eq(students.status, 'ativo')));
 
   const now = new Date();
   const startOfWeek = new Date(now);
@@ -137,12 +137,12 @@ export async function getDashboardStats(userId: number) {
 
   // Aulas totais agendadas para esta semana
   const [weekLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
-    .where(and(eq(lessons.userId, userId), gte(lessons.scheduledAt, startOfWeek), lte(lessons.scheduledAt, endOfWeek)));
+    .where(and(userId ? eq(lessons.userId, userId) : undefined, gte(lessons.scheduledAt, startOfWeek), lte(lessons.scheduledAt, endOfWeek)));
 
   // Taxa de Conclusão focada na SEMANA ATUAL (Sun-Sat)
   const [completedLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
     .where(and(
-      eq(lessons.userId, userId), 
+      userId ? eq(lessons.userId, userId) : undefined, 
       eq(lessons.status, 'concluida'),
       gte(lessons.scheduledAt, startOfWeek),
       lte(lessons.scheduledAt, endOfWeek)
@@ -151,7 +151,7 @@ export async function getDashboardStats(userId: number) {
   // Aulas que já deveriam ter ocorrido nesta semana (status não é 'agendada')
   const [totalLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
     .where(and(
-      eq(lessons.userId, userId), 
+      userId ? eq(lessons.userId, userId) : undefined, 
       sql`status != 'agendada'`,
       gte(lessons.scheduledAt, startOfWeek),
       lte(lessons.scheduledAt, endOfWeek)
@@ -164,7 +164,7 @@ export async function getDashboardStats(userId: number) {
     total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)`
   }).from(paymentDues)
     .where(and(
-      eq(paymentDues.userId, userId),
+      userId ? eq(paymentDues.userId, userId) : undefined,
       eq(paymentDues.month, currentMonth),
       eq(paymentDues.year, currentYear),
       eq(paymentDues.status, 'pago')
@@ -184,7 +184,7 @@ export async function getDashboardStats(userId: number) {
 }
 
 // Monthly stats for charts
-export async function getMonthlyStats(userId: number, limit = 12) {
+export async function getMonthlyStats(userId?: number, limit = 12) {
   const db = await getDb();
   if (!db) return [];
   
@@ -204,7 +204,7 @@ export async function getMonthlyStats(userId: number, limit = 12) {
     const [ativos] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
       .from(students)
       .where(and(
-        eq(students.professorId, userId),
+        userId ? eq(students.professorId, userId) : undefined,
         eq(students.status, 'ativo'),
         lt(students.createdAt, startOfNextMonth)
       ));
@@ -216,7 +216,7 @@ export async function getMonthlyStats(userId: number, limit = 12) {
     const [aulasVal] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
       .from(lessons)
       .where(and(
-        eq(lessons.userId, userId),
+        userId ? eq(lessons.userId, userId) : undefined,
         gte(lessons.scheduledAt, startOfMonth),
         lte(lessons.scheduledAt, endOfMonth)
       ));
@@ -224,7 +224,7 @@ export async function getMonthlyStats(userId: number, limit = 12) {
     const [revenueRes] = await db.select({ total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)` })
       .from(paymentDues)
       .where(and(
-        eq(paymentDues.userId, userId),
+        userId ? eq(paymentDues.userId, userId) : undefined,
         eq(paymentDues.month, m),
         eq(paymentDues.year, y),
         eq(paymentDues.status, 'pago')
@@ -242,7 +242,8 @@ export async function getMonthlyStats(userId: number, limit = 12) {
 }
 
 // Students with instrument info
-export async function getStudentsWithInstrument(userId: number, limit?: number) {
+// Students with instrument info
+export async function getStudentsWithInstrument(userId?: number, limit?: number) {
   const db = await getDb();
   if (!db) return [];
   const query = db.select({
@@ -258,14 +259,14 @@ export async function getStudentsWithInstrument(userId: number, limit?: number) 
     instrumentColor: instruments.color,
     instrumentIcon: instruments.icon,
   }).from(students).leftJoin(instruments, eq(students.instrumentId, instruments.id))
-    .where(eq(students.professorId, userId))
+    .where(userId ? eq(students.professorId, userId) : undefined)
     .orderBy(desc(students.createdAt));
   if (limit) return (query as any).limit(limit);
   return query;
 }
 
 // Recent lessons with student info
-export async function getRecentLessons(userId: number, limit = 10) {
+export async function getRecentLessons(userId?: number, limit = 10) {
   const db = await getDb();
   if (!db) return [];
   return db.select({
@@ -284,12 +285,12 @@ export async function getRecentLessons(userId: number, limit = 10) {
   }).from(lessons)
     .leftJoin(students, eq(lessons.studentId, students.id))
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
-    .where(eq(lessons.userId, userId))
+    .where(userId ? eq(lessons.userId, userId) : undefined)
     .orderBy(desc(lessons.scheduledAt)).limit(limit);
 }
 
 // Instruments with student count
-export async function getInstrumentsWithCount(userId: number) {
+export async function getInstrumentsWithCount(userId?: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select({
@@ -300,7 +301,7 @@ export async function getInstrumentsWithCount(userId: number) {
     color: instruments.color,
     studentCount: sql<number>`count(${students.id})`,
   }).from(instruments).leftJoin(students, eq(instruments.id, students.instrumentId))
-    .where(eq(instruments.userId, userId))
+    .where(userId ? eq(instruments.userId, userId) : undefined)
     .groupBy(instruments.id).orderBy(desc(sql`count(${students.id})`));
 }
 
@@ -333,7 +334,7 @@ export async function updateUserProfile(userId: number, data: { name?: string; e
 }
 
 // Lessons by day of week (last 4 weeks)
-export async function getLessonsByDayOfWeek(userId: number) {
+export async function getLessonsByDayOfWeek(userId?: number) {
   const db = await getDb();
   if (!db) return [];
   const fourWeeksAgo = new Date();
@@ -342,19 +343,19 @@ export async function getLessonsByDayOfWeek(userId: number) {
     dayOfWeek: sql<number>`CAST(EXTRACT(DOW FROM "scheduledAt") + 1 AS INT)`,
     count: sql<number>`CAST(count(*) AS INT)`,
   }).from(lessons).where(and(
-    eq(lessons.userId, userId),
+    userId ? eq(lessons.userId, userId) : undefined,
     gte(lessons.scheduledAt, fourWeeksAgo),
     eq(lessons.status, 'concluida')
   )).groupBy(sql`EXTRACT(DOW FROM "scheduledAt")`);
 }
 
 // Stats for experimental lessons and conversion
-export async function getExperimentalStats(userId: number, month?: number, year?: number) {
+export async function getExperimentalStats(userId?: number, month?: number, year?: number) {
   const db = await getDb();
   if (!db) return { total: 0, converted: 0, notConverted: 0, conversionRate: 0 };
 
   let whereClause = and(
-    eq(lessons.userId, userId), 
+    userId ? eq(lessons.userId, userId) : undefined, 
     eq(lessons.isExperimental, true),
     eq(lessons.status, 'concluida')
   );
@@ -380,7 +381,7 @@ export async function getExperimentalStats(userId: number, month?: number, year?
       const [student] = await db.select({ id: students.id })
         .from(students)
         .where(and(
-          eq(students.professorId, userId), 
+          userId ? eq(students.professorId, userId) : undefined, 
           sql`LOWER(${students.name}) = LOWER(${lesson.experimentalName})`
         ))
         .limit(1);

@@ -176,9 +176,13 @@ export const appRouter = router({
 
   progress: router({
     getGoals: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) return [];
-      return db.select().from(studentGoals).where(and(eq(studentGoals.userId, ctx.user.id), eq(studentGoals.studentId, input.studentId))).orderBy(asc(studentGoals.targetDate));
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return db.select().from(studentGoals)
+        .where(and(
+          isAdmin ? undefined : eq(studentGoals.userId, ctx.user.id), 
+          eq(studentGoals.studentId, input.studentId)
+        ))
+        .orderBy(asc(studentGoals.targetDate));
     }),
     createGoal: protectedProcedure.input(z.object({
       studentId: z.number(),
@@ -220,9 +224,13 @@ export const appRouter = router({
       return { success: true };
     }),
     getTimeline: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) return [];
-      return db.select().from(studentTimeline).where(and(eq(studentTimeline.userId, ctx.user.id), eq(studentTimeline.studentId, input.studentId))).orderBy(desc(studentTimeline.achievedAt));
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return db.select().from(studentTimeline)
+        .where(and(
+          isAdmin ? undefined : eq(studentTimeline.userId, ctx.user.id), 
+          eq(studentTimeline.studentId, input.studentId)
+        ))
+        .orderBy(desc(studentTimeline.achievedAt));
     }),
     createTimelineEvent: protectedProcedure.input(z.object({
       studentId: z.number(),
@@ -392,14 +400,37 @@ export const appRouter = router({
       
       return { success: true };
     }),
+    getStats: protectedProcedure.query(async ({ ctx }) => {
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getDashboardStats(isAdmin ? undefined : ctx.user.id);
+    }),
+    getMonthlyStats: protectedProcedure.query(async ({ ctx }) => {
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const stats = await getMonthlyStats(isAdmin ? undefined : ctx.user.id, 12);
+      return stats;
+    }),
+    getExperimentalStats: protectedProcedure.input(z.object({ 
+      month: z.number().optional(), 
+      year: z.number().optional() 
+    }).optional()).query(async ({ ctx, input }) => {
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        return getExperimentalStats(isAdmin ? undefined : ctx.user.id, input?.month, input?.year);
+    }),
+    getLessonsByDay: protectedProcedure.query(async ({ ctx }) => {
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const data = await getLessonsByDayOfWeek(isAdmin ? undefined : ctx.user.id);
+      return data;
+    }),
   }),
 
   dashboard: router({
     stats: protectedProcedure.query(async ({ ctx }) => {
-      return getDashboardStats(ctx.user.id);
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getDashboardStats(isAdmin ? undefined : ctx.user.id);
     }),
     monthlyStats: protectedProcedure.query(async ({ ctx }) => {
-      const stats = await getMonthlyStats(ctx.user.id, 12);
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const stats = await getMonthlyStats(isAdmin ? undefined : ctx.user.id, 12);
       return stats.reverse();
     }),
     experimentalStats: protectedProcedure
@@ -408,10 +439,12 @@ export const appRouter = router({
         year: z.number().optional()
       }).optional())
       .query(async ({ ctx, input }) => {
-        return getExperimentalStats(ctx.user.id, input?.month, input?.year);
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        return getExperimentalStats(isAdmin ? undefined : ctx.user.id, input?.month, input?.year);
       }),
     lessonsByDay: protectedProcedure.query(async ({ ctx }) => {
-      const data = await getLessonsByDayOfWeek(ctx.user.id);
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const data = await getLessonsByDayOfWeek(isAdmin ? undefined : ctx.user.id);
       const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
       const result = days.map((day, i) => ({
         day,
@@ -454,10 +487,12 @@ export const appRouter = router({
 
   students: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      return getStudentsWithInstrument(ctx.user.id);
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getStudentsWithInstrument(isAdmin ? undefined : ctx.user.id);
     }),
     recent: protectedProcedure.query(async ({ ctx }) => {
-      return getStudentsWithInstrument(ctx.user.id, 8);
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getStudentsWithInstrument(isAdmin ? undefined : ctx.user.id, 8);
     }),
     getForEdit: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
       console.log(`[TRPC] students.getForEdit called for ID: ${input.id} by user: ${ctx.user.id}`);
@@ -844,7 +879,8 @@ export const appRouter = router({
 
   lessons: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      return getRecentLessons(ctx.user.id, 50);
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getRecentLessons(isAdmin ? undefined : ctx.user.id, 50);
     }),
     upcoming: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
@@ -1340,7 +1376,8 @@ export const appRouter = router({
 
   instruments: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      return getInstrumentsWithCount(ctx.user.id);
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getInstrumentsWithCount(isAdmin ? undefined : ctx.user.id);
     }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(2),
@@ -2025,7 +2062,11 @@ export const appRouter = router({
         })
           .from(paymentDues)
           .leftJoin(students, eq(paymentDues.studentId, students.id))
-          .where(and(eq(paymentDues.month, m), eq(paymentDues.year, y), eq(paymentDues.userId, ctx.user.id)))
+          .where(and(
+            eq(paymentDues.month, m), 
+            eq(paymentDues.year, y), 
+            (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : eq(paymentDues.userId, ctx.user.id)
+          ))
           .orderBy(asc(paymentDues.dueDate));
         if (input?.status) return rows.filter(r => r.status === input.status);
         return rows;
