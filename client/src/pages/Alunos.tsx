@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StudentDetailsModal } from "@/components/modals/StudentDetailsModal";
+import { GenerateAccessModal } from "@/components/modals/GenerateAccessModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -366,6 +367,7 @@ export default function Alunos() {
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsStudentId, setDetailsStudentId] = useState<number | null>(null);
+  const [generateAccessStudentId, setGenerateAccessStudentId] = useState<number | null>(null);
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<StudentRow | null>(null);
 
@@ -556,10 +558,10 @@ export default function Alunos() {
                                     <Pencil className="mr-2 h-4 w-4" />
                                     <span>Editar Aluno</span>
                                  </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => { setDetailsStudentId(student.id); }}>
-                                    <Activity className="mr-2 h-4 w-4" />
-                                    <span>Gerar Acesso Portal</span>
-                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => { setGenerateAccessStudentId(student.id); }}>
+                                   <Activity className="mr-2 h-4 w-4" />
+                                   <span>Gerar Acesso Portal</span>
+                                </DropdownMenuItem>
                                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteStudent(student)}>
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     <span>Excluir Aluno</span>
@@ -749,6 +751,11 @@ export default function Alunos() {
           const s = (students as StudentRow[]).find(st => st.id === detailsStudentId);
           if (s) { setDeleteStudent(s); setDetailsStudentId(null); }
         }}
+      />
+      <GenerateAccessModal
+        open={generateAccessStudentId !== null}
+        onOpenChange={(open) => { if (!open) setGenerateAccessStudentId(null); }}
+        studentId={generateAccessStudentId}
       />
       {deleteStudent && (
         <DeleteConfirm

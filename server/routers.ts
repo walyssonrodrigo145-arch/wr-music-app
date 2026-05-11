@@ -1525,6 +1525,8 @@ export const appRouter = router({
       bio: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
+      const { name, email, phone, bio } = input;
+      const userFields = { name, email };
       if (userFields.name || userFields.email) {
         await updateUserProfile(orgId, ctx.user.id, userFields);
       }
@@ -1539,6 +1541,7 @@ export const appRouter = router({
       schoolPhone: z.string().optional(),
       schoolWebsite: z.string().optional(),
       schoolDescription: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
       await upsertSettings(orgId, ctx.user.id, input);
       return { success: true };
@@ -1565,12 +1568,12 @@ export const appRouter = router({
     updateTheme: protectedProcedure.input(z.object({
       theme: z.enum(['light', 'dark']),
     })).mutation(async ({ ctx, input }) => {
-      await upsertSettings(ctx.user.id, { theme: input.theme });
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, { theme: input.theme });
       return { success: true };
     }),
 
     getAutomation: protectedProcedure.query(async ({ ctx }) => {
-      const s = await getSettingsByUserId(ctx.user.id);
+      const s = await getSettingsByUserId(ctx.user.organizationId!, ctx.user.id);
       return {
         enabled: s?.automationEnabled === 1,
         lastRun: s?.automationLastRun ?? null,
@@ -1580,7 +1583,7 @@ export const appRouter = router({
     toggleAutomation: protectedProcedure.input(z.object({
       enabled: z.boolean(),
     })).mutation(async ({ ctx, input }) => {
-      await upsertSettings(ctx.user.id, {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
         automationEnabled: input.enabled ? 1 : 0,
       });
       return { success: true, enabled: input.enabled };
@@ -1655,6 +1658,8 @@ export const appRouter = router({
       }).optional())
       .query(async ({ ctx, input }) => {
         const orgId = ctx.user.organizationId!;
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const rows = await db
           .select({
             id: reminders.id,
@@ -1678,7 +1683,7 @@ export const appRouter = router({
           .where(and(eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id)))
           .orderBy(desc(reminders.scheduledAt));
 
-        return rows.filter(r => {
+        return rows.filter((r: any) => {
           if (input?.studentId && r.studentId !== input.studentId) return false;
           if (input?.type && r.type !== input.type) return false;
           if (input?.status && r.status !== input.status) return false;
@@ -2032,6 +2037,8 @@ export const appRouter = router({
   reminderTemplates: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const orgId = ctx.user.organizationId!;
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
       return db.select().from(reminderTemplates)
         .where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, ctx.user.id)))
         .orderBy(asc(reminderTemplates.type));
@@ -2047,6 +2054,8 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         try {
           const orgId = ctx.user.organizationId!;
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
           
           if (input.isDefault) {
             await db.update(reminderTemplates)
@@ -2078,6 +2087,8 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
           const { id, isDefault, ...rest } = input;
           const updateData: Record<string, unknown> = { ...rest };
@@ -2103,6 +2114,8 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
           await db.delete(reminderTemplates)
             .where(and(eq(reminderTemplates.id, input.id), eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, ctx.user.id)));
@@ -2167,6 +2180,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         try {
           const db = await getDb();
+          if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
    
           // Security: verify student ownership
@@ -2202,6 +2216,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         try {
           const db = await getDb();
+          if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
           await db.update(paymentDues)
             .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
@@ -2229,6 +2244,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         try {
           const db = await getDb();
+          if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
           const { id, updateFutureDues, ...data } = input;
           
@@ -2300,6 +2316,8 @@ export const appRouter = router({
       }))
       .query(async ({ ctx, input }) => {
         try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
           
           const payments = await db.select()
@@ -2343,6 +2361,8 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
           await db.delete(paymentDues).where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id)));
           return { success: true };
@@ -2463,6 +2483,7 @@ export const appRouter = router({
       
       const studentId = ctx.user.studentId;
       const orgId = ctx.user.organizationId!;
+      const now = new Date();
       
       // Próximas aulas
       const upcoming = await db.select({
