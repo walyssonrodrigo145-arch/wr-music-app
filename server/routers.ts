@@ -503,8 +503,13 @@ export const appRouter = router({
     }),
     getDetails: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
       const db = await getDb();
-      if (!db) return null;
-      
+      if (!db) {
+        console.error("[TRPC] Database not available for getDetails");
+        return null;
+      }
+
+      console.log(`[TRPC] Fetching student details for ID: ${input.id} requested by user: ${ctx.user.id} (${ctx.user.role})`);
+
       const [student] = await db.select({
         id: students.id,
         name: students.name,
@@ -536,17 +541,25 @@ export const appRouter = router({
         .where(eq(students.id, input.id))
         .limit(1);
 
-      if (!student) return null;
+      if (!student) {
+        console.warn(`[TRPC] Student with ID ${input.id} not found`);
+        return null;
+      }
 
       // Check permission: owner of the student or admin/owner of the system
       const isOwner = student.userId === ctx.user.id;
       const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       
       if (!isOwner && !isAdmin) {
-        return null; // Or throw error
+        console.warn(`[TRPC] Access denied for user ${ctx.user.id} to student ${input.id}`);
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Você não tem permissão para visualizar os detalhes deste aluno.'
+        });
       }
 
-      // Buscar último pagamento
+      // Buscar informações financeiras e acesso portal
+      console.log(`[TRPC] Fetching additional info for student ${input.id}`);
       const [lastPayment] = await db.select().from(paymentDues)
         .where(and(
            eq(paymentDues.studentId, input.id),
@@ -555,7 +568,6 @@ export const appRouter = router({
         .orderBy(desc(paymentDues.paidAt))
         .limit(1);
 
-      // Buscar próximo vencimento pendente (ou o mais recente)
       const [nextPayment] = await db.select().from(paymentDues)
         .where(and(
            eq(paymentDues.studentId, input.id),
@@ -566,6 +578,8 @@ export const appRouter = router({
 
       const [studentUser] = await db.select({ email: users.email }).from(users).where(eq(users.studentId, input.id)).limit(1);
 
+      console.log(`[TRPC] Successfully fetched all info for student ${input.id}. Portal access: ${!!studentUser}`);
+
       return {
         ...student,
         lastPaymentDate: lastPayment?.paidAt || null,
@@ -574,45 +588,63 @@ export const appRouter = router({
         portalEmail: studentUser?.email || null,
       };
     }),
+
     enablePortalAccess: professorProcedure.input(z.object({
       studentId: z.number(),
       email: z.string().email().optional(),
       password: z.string().min(6).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
-      if (!db) throw new Error("Banco de dados não disponível");
-      
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Banco de dados não disponível" });
+
+      console.log(`[TRPC] Enabling portal access for student: ${input.studentId} requested by: ${ctx.user.id}`);
+
       const [student] = await db.select().from(students).where(eq(students.id, input.studentId)).limit(1);
-      if (!student) throw new Error("Aluno não encontrado.");
+      if (!student) throw new TRPCError({ code: 'NOT_FOUND', message: "Aluno não encontrado." });
 
       const isOwner = student.userId === ctx.user.id;
       const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       
       if (!isOwner && !isAdmin) {
-        throw new Error("Você não tem permissão para liberar o acesso deste aluno.");
+        console.warn(`[TRPC] Permission denied for enabling portal access - User: ${ctx.user.id}, Student: ${input.studentId}`);
+        throw new TRPCError({ code: 'FORBIDDEN', message: "Você não tem permissão para liberar o acesso deste aluno." });
       }
 
+      // Check if user already exists for this student
+      const [existingStudentUser] = await db.select().from(users).where(eq(users.studentId, student.id)).limit(1);
+      
       // Se não informado, gerar email e senha
       const email = input.email || `${student.name.toLowerCase().replace(/\s+/g, '.')}@musicpro.com`;
       const password = input.password || Math.random().toString(36).slice(-8);
 
-      const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      if (existingUser) throw new Error("Este e-mail já está em uso por outro usuário.");
+      // If creating a NEW user (not just updating), check email availability
+      if (!existingStudentUser) {
+        const [existingEmail] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        if (existingEmail) throw new TRPCError({ code: 'CONFLICT', message: "Este e-mail já está em uso por outro usuário." });
+      }
 
       const salt = crypto.randomBytes(16).toString("hex");
       const derivedKey = crypto.scryptSync(password, salt, 64).toString("hex");
       const passwordHash = `${salt}:${derivedKey}`;
-      const openId = crypto.randomUUID();
-
-      await db.insert(users).values({
-        openId,
-        name: student.name,
-        email,
-        passwordHash,
-        role: 'student',
-        studentId: student.id,
-        isEmailVerified: true,
-      });
+      
+      if (existingStudentUser) {
+        await db.update(users)
+          .set({ email, passwordHash, isEmailVerified: true })
+          .where(eq(users.id, existingStudentUser.id));
+        console.log(`[TRPC] Updated existing user ${existingStudentUser.id} for student ${student.id}`);
+      } else {
+        const openId = crypto.randomUUID();
+        await db.insert(users).values({
+          openId,
+          name: student.name,
+          email,
+          passwordHash,
+          role: 'student',
+          studentId: student.id,
+          isEmailVerified: true,
+        });
+        console.log(`[TRPC] Created new user for student ${student.id} with email: ${email}`);
+      }
 
       return { success: true, email, password };
     }),

@@ -50,10 +50,16 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[420px] rounded-[2.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
-        {isLoading || !student ? (
+        {isLoading && !student ? (
           <div className="flex flex-col items-center justify-center p-16">
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground animate-pulse">Sincronizando dados...</p>
+          </div>
+        ) : !student ? (
+          <div className="flex flex-col items-center justify-center p-16 text-center">
+            <Activity className="h-10 w-10 text-muted-foreground/30 mb-4" />
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Aluno não encontrado</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-2">Não foi possível carregar os dados ou você não tem permissão.</p>
           </div>
         ) : (
           <>
@@ -229,42 +235,42 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                  Fechar Detalhes
                </Button>
             </div>
+          </>
+        )}
 
-            {/* Credentials Modal */}
-            {credentials && (
-              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
-                <div className="bg-card border border-border shadow-2xl rounded-[2rem] p-8 max-w-sm w-full text-center space-y-6 animate-in zoom-in-95 duration-300">
-                  <div className="w-16 h-16 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 size={32} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black">Acesso Liberado!</h3>
-                    <p className="text-xs text-muted-foreground font-medium mt-2">Compartilhe as credenciais com o aluno:</p>
-                  </div>
-                  
-                  <div className="bg-muted/30 p-6 rounded-2xl border border-border/40 space-y-4">
-                    <div className="text-left">
-                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">E-mail de Acesso</p>
-                      <p className="text-sm font-black text-foreground break-all">{credentials.email}</p>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Senha Temporária</p>
-                      <p className="text-lg font-black text-primary tracking-widest">{credentials.password}</p>
-                    </div>
-                  </div>
-
-                  <p className="text-[10px] text-muted-foreground font-medium italic">O aluno poderá alterar a senha após o primeiro acesso.</p>
-
-                  <Button 
-                    className="w-full h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest"
-                    onClick={() => setCredentials(null)}
-                  >
-                    Entendido
-                  </Button>
+        {/* Credentials Modal - Moved outside the loading/student check to stay visible during refetch */}
+        {credentials && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-card border border-border shadow-2xl rounded-[2rem] p-8 max-w-sm w-full text-center space-y-6 animate-in zoom-in-95 duration-300">
+              <div className="w-16 h-16 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 size={32} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black">Acesso Liberado!</h3>
+                <p className="text-xs text-muted-foreground font-medium mt-2">Compartilhe as credenciais com o aluno:</p>
+              </div>
+              
+              <div className="bg-muted/30 p-6 rounded-2xl border border-border/40 space-y-4">
+                <div className="text-left">
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">E-mail de Acesso</p>
+                  <p className="text-sm font-black text-foreground break-all">{credentials.email}</p>
+                </div>
+                <div className="text-left">
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Senha Temporária</p>
+                  <p className="text-lg font-black text-primary tracking-widest">{credentials.password}</p>
                 </div>
               </div>
-            )}
-          </>
+
+              <p className="text-[10px] text-muted-foreground font-medium italic">O aluno poderá alterar a senha após o primeiro acesso.</p>
+
+              <Button 
+                className="w-full h-12 rounded-2xl font-black text-[10px] uppercase tracking-widest"
+                onClick={() => setCredentials(null)}
+              >
+                Entendido
+              </Button>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
