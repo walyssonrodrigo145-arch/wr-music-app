@@ -57,7 +57,7 @@ const EMPTY_FORM: FormData = {
 function LevelBadge({ level }: { level: string }) {
   const config: Record<string, { label: string; className: string }> = {
     iniciante: { label: "Iniciante", className: "bg-muted text-muted-foreground border-border" },
-    intermediario: { label: "Intermediário", className: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
+    intermediario: { label: "Intermediário", className: "bg-indigo-500/100/10 text-indigo-600 border-indigo-500/20" },
     avancado: { label: "Avançado", className: "bg-primary/5 text-primary border-primary/10" },
   };
   const c = config[level] ?? config.iniciante;
@@ -71,7 +71,7 @@ function LevelBadge({ level }: { level: string }) {
 function StatusBadge({ status, id, onUpdate }: { status: string; id: number; onUpdate: (id: number, s: string) => void }) {
   const [open, setOpen] = useState(false);
   const cfg: Record<string, { cls: string }> = {
-    ativo: { cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+    ativo: { cls: "bg-emerald-500/100/10 text-emerald-600 border-emerald-500/20" },
     pausado: { cls: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
     inativo: { cls: "bg-red-500/10 text-red-600 border-red-500/20" },
   };
@@ -275,17 +275,17 @@ function StudentModal({
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-center justify-between group cursor-pointer" onClick={() => setGeneratePortalAccess(!generatePortalAccess)}>
+          <div className="p-4 rounded-2xl bg-indigo-500/10/50 border border-indigo-500/20 flex items-center justify-between group cursor-pointer" onClick={() => setGeneratePortalAccess(!generatePortalAccess)}>
             <div className="space-y-0.5">
               <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Liberar Portal?</p>
               <p className="text-[9px] text-muted-foreground font-medium">Gera e-mail e senha automaticamente</p>
             </div>
             <div className={cn(
               "w-10 h-5 rounded-full p-1 transition-all duration-300",
-              generatePortalAccess ? "bg-indigo-600" : "bg-slate-200"
+              generatePortalAccess ? "bg-indigo-600" : "bg-muted"
             )}>
               <div className={cn(
-                "w-3 h-3 bg-white rounded-full transition-all duration-300",
+                "w-3 h-3 bg-card rounded-full transition-all duration-300",
                 generatePortalAccess ? "translate-x-5" : "translate-x-0"
               )} />
             </div>
@@ -462,10 +462,10 @@ export default function Alunos() {
         {/* METRICS CARDS - Horizontal Scroll on Mobile */}
         <div className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
           {[
-            { label: "Total", count: stats.total, sub: "Matrículas", icon: Users, color: "text-blue-600", bg: "from-blue-50 to-white", border: "border-blue-100/50" },
-            { label: "Ativos", count: stats.ativos, sub: "Regulares", icon: CheckCircle2, color: "text-purple-600", bg: "from-purple-50 to-white", border: "border-purple-100/50" },
-            { label: "Pausados", count: stats.pausados, sub: "Em pausa", icon: Clock, color: "text-red-600", bg: "from-red-50 to-white", border: "border-red-100/50" },
-            { label: "Inativos", count: stats.inativos, sub: "Desligados", icon: X, color: "text-emerald-600", bg: "from-emerald-50 to-white", border: "border-emerald-100/50" },
+            { label: "Total", count: stats.total, sub: "Matrículas", icon: Users, color: "text-blue-600", bg: "from-blue-500/10 to-background", border: "border-blue-500/20" },
+            { label: "Ativos", count: stats.ativos, sub: "Regulares", icon: CheckCircle2, color: "text-purple-600", bg: "from-purple-500/10 to-background", border: "border-purple-100/50" },
+            { label: "Pausados", count: stats.pausados, sub: "Em pausa", icon: Clock, color: "text-red-600", bg: "from-red-500/10 to-background", border: "border-red-100/50" },
+            { label: "Inativos", count: stats.inativos, sub: "Desligados", icon: X, color: "text-emerald-600", bg: "from-emerald-500/10 to-background", border: "border-emerald-100/50" },
           ].map((item, i) => (
             <div key={i} className={cn("relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden group shrink-0", item.bg, item.border)}>
               <div className="relative z-10">
@@ -511,7 +511,7 @@ export default function Alunos() {
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
-                              <AvatarFallback className="bg-blue-500/10 text-blue-600 text-xs font-bold uppercase">
+                              <AvatarFallback className="bg-blue-500/100/10 text-blue-600 text-xs font-bold uppercase">
                                 {student.name.substring(0, 2)}
                               </AvatarFallback>
                             </Avatar>
@@ -588,8 +588,8 @@ export default function Alunos() {
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <Avatar className="w-10 h-10 border-2 border-white shadow-sm shrink-0">
-                          <AvatarFallback className="bg-blue-100 text-blue-600 text-xs font-bold uppercase">
+                        <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
+                          <AvatarFallback className="bg-blue-500/100/10 text-blue-600 text-xs font-bold uppercase">
                             {student.name.substring(0, 2)}
                           </AvatarFallback>
                         </Avatar>
@@ -627,7 +627,7 @@ export default function Alunos() {
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground" onClick={() => setLocation(`/alunos/${student.id}/editar`)}>
                           <Pencil size={14} />
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-50" onClick={() => setDeleteStudent(student)}>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-500/10" onClick={() => setDeleteStudent(student)}>
                           <Trash2 size={14} />
                         </Button>
                       </div>
@@ -671,7 +671,7 @@ export default function Alunos() {
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Novos (30 dias)</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xl font-black text-foreground">{newStudentsLast30Days}</span>
-                          <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-none text-[9px] font-bold px-1.5 h-4">+12%</Badge>
+                          <Badge variant="secondary" className="bg-emerald-500/100/10 text-emerald-600 border-none text-[9px] font-bold px-1.5 h-4">+12%</Badge>
                         </div>
                       </div>
                       
@@ -695,7 +695,7 @@ export default function Alunos() {
                   <h3 className="text-sm font-bold text-foreground">Alertas</h3>
                 </div>
                 <div className="space-y-3">
-                   <div className="p-3 bg-rose-50/50 border border-rose-100/50 rounded-2xl group cursor-pointer hover:bg-rose-50 transition-colors">
+                   <div className="p-3 bg-rose-500/100/10 border border-rose-500/20 rounded-2xl group cursor-pointer hover:bg-rose-500/10 transition-colors">
                       <div className="flex gap-3">
                          <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center text-rose-500 shrink-0">
                             <Plus size={16} />
@@ -709,7 +709,7 @@ export default function Alunos() {
                       </div>
                    </div>
                    
-                   <div className="p-3 bg-blue-50/50 border border-blue-100/50 rounded-2xl group cursor-pointer hover:bg-blue-50 transition-colors">
+                   <div className="p-3 bg-blue-500/100/10 border border-blue-500/20 rounded-2xl group cursor-pointer hover:bg-blue-500/10 transition-colors">
                       <div className="flex gap-3">
                          <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center text-blue-500 shrink-0">
                             <Users size={16} />
