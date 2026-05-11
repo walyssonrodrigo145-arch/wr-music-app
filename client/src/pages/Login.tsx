@@ -22,7 +22,7 @@ export default function Login() {
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: (data) => {
-      if (data.role === 'student') {
+      if (data.role === 'aluno') {
         window.location.href = "/aluno";
       } else {
         window.location.href = "/dashboard";

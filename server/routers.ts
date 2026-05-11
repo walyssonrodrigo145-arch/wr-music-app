@@ -59,7 +59,7 @@ export const appRouter = router({
       if (!db) throw new Error("Database not available");
       const term = "%teste%";
       const studentList = await db.select({ id: students.id }).from(students)
-        .where(and(eq(students.userId, ctx.user.id), sql`LOWER(name) LIKE ${term} OR LOWER(email) LIKE ${term}`));
+        .where(and(eq(students.professorId, ctx.user.id), sql`LOWER(name) LIKE ${term} OR LOWER(email) LIKE ${term}`));
       const studentIds = studentList.map(s => s.id);
       if (studentIds.length > 0) {
         await db.delete(lessons).where(sql`studentId IN ${studentIds}`);
@@ -488,9 +488,9 @@ export const appRouter = router({
         dueDay: students.dueDay,
         notes: students.notes,
         startDate: students.startDate,
-        userId: students.userId,
+        professorId: students.professorId,
       }).from(students)
-        .where(and(eq(students.id, input.id), eq(students.userId, ctx.user.id)))
+        .where(and(eq(students.id, input.id), eq(students.professorId, ctx.user.id)))
         .limit(1);
 
       if (!student) {
@@ -535,7 +535,7 @@ export const appRouter = router({
         instrumentName: instruments.name,
         instrumentColor: instruments.color,
         instrumentIcon: instruments.icon,
-        userId: students.userId,
+        professorId: students.professorId,
       }).from(students)
         .leftJoin(instruments, eq(students.instrumentId, instruments.id))
         .where(eq(students.id, input.id))
@@ -547,7 +547,7 @@ export const appRouter = router({
       }
 
       // Check permission: owner of the student or admin/owner of the system
-      const isOwner = student.userId === ctx.user.id;
+      const isOwner = student.professorId === ctx.user.id;
       const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       
       if (!isOwner && !isAdmin) {
@@ -602,7 +602,7 @@ export const appRouter = router({
       const [student] = await db.select().from(students).where(eq(students.id, input.studentId)).limit(1);
       if (!student) throw new TRPCError({ code: 'NOT_FOUND', message: "Aluno não encontrado." });
 
-      const isOwner = student.userId === ctx.user.id;
+      const isOwner = student.professorId === ctx.user.id;
       const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       
       if (!isOwner && !isAdmin) {
@@ -639,7 +639,7 @@ export const appRouter = router({
           name: student.name,
           email,
           passwordHash,
-          role: 'student',
+          role: 'aluno',
           studentId: student.id,
           isEmailVerified: true,
         });
@@ -667,13 +667,15 @@ export const appRouter = router({
       dueDay: z.number().default(10),
       notes: z.string().optional(),
       status: z.enum(['ativo','inativo','pausado']).default('ativo'),
+      temporaryPassword: z.string().min(6, "A senha temporária deve ter pelo menos 6 caracteres").optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
         
-        const result = await db.insert(students).values({
-          userId: ctx.user.id,
+        // 1. Criar o Aluno primeiro para ter o ID
+        const [newStudent] = await db.insert(students).values({
+          professorId: ctx.user.id,
           name: input.name,
           socialName: input.socialName,
           email: input.email || null,
@@ -695,8 +697,31 @@ export const appRouter = router({
           createdAt: new Date(),
           updatedAt: new Date(),
         }).returning({ id: students.id });
+
+        // 2. Se informada senha temporária e email, criar o usuário
+        if (input.temporaryPassword && input.email) {
+          const salt = crypto.randomBytes(16).toString("hex");
+          const derivedKey = crypto.scryptSync(input.temporaryPassword, salt, 64).toString("hex");
+          const passwordHash = `${salt}:${derivedKey}`;
+          const openId = crypto.randomUUID();
+
+          const [newUser] = await db.insert(users).values({
+            openId,
+            name: input.name,
+            email: input.email,
+            passwordHash,
+            role: 'aluno',
+            studentId: newStudent.id,
+            isEmailVerified: true,
+          }).returning({ id: users.id });
+
+          // Atualizar o aluno com o link para o usuário
+          await db.update(students)
+            .set({ studentUserId: newUser.id })
+            .where(eq(students.id, newStudent.id));
+        }
         
-        return { success: true, studentId: result[0].id };
+        return { success: true, studentId: newStudent.id };
       } catch (error) {
         return handleDbError(error, "cadastrar o aluno");
       }
@@ -735,7 +760,7 @@ export const appRouter = router({
           updateData.monthlyFee = String(updateData.monthlyFee);
         }
         
-        await db.update(students).set(updateData).where(and(eq(students.id, id), eq(students.userId, ctx.user.id)));
+        await db.update(students).set(updateData).where(and(eq(students.id, id), eq(students.professorId, ctx.user.id)));
 
         // Sincronizar vencimentos futuros se solicitado
         if (updateFutureDues && data.dueDay) {
@@ -778,7 +803,7 @@ export const appRouter = router({
         await db.update(students).set({
           status: input.status,
           updatedAt: new Date(),
-        }).where(and(eq(students.id, input.id), eq(students.userId, ctx.user.id)));
+        }).where(and(eq(students.id, input.id), eq(students.professorId, ctx.user.id)));
         return { success: true };
       } catch (error) {
         return handleDbError(error, "atualizar o status do aluno");
@@ -793,7 +818,7 @@ export const appRouter = router({
         
         // Deletar aulas relacionadas primeiro para evitar erro de FK (garantindo que sejam aulas do próprio professor)
         await db.delete(lessons).where(and(eq(lessons.studentId, input.id), eq(lessons.userId, ctx.user.id)));
-        await db.delete(students).where(and(eq(students.id, input.id), eq(students.userId, ctx.user.id)));
+        await db.delete(students).where(and(eq(students.id, input.id), eq(students.professorId, ctx.user.id)));
         
         return { success: true };
       } catch (error) {
@@ -811,7 +836,7 @@ export const appRouter = router({
         email: students.email,
         status: students.status,
       }).from(students).where(and(
-        eq(students.userId, ctx.user.id),
+        eq(students.professorId, ctx.user.id),
         sql`LOWER(name) LIKE ${term} OR LOWER(email) LIKE ${term}`
       )).limit(8);
     }),
@@ -873,7 +898,7 @@ export const appRouter = router({
         if (!input.isExperimental) {
           if (!input.studentId) throw new Error("O campo aluno é obrigatório para aulas comuns.");
           const [ownedStudent] = await db.select({ id: students.id }).from(students)
-            .where(and(eq(students.id, input.studentId), eq(students.userId, ctx.user.id)))
+            .where(and(eq(students.id, input.studentId), eq(students.professorId, ctx.user.id)))
             .limit(1);
             
           if (!ownedStudent) {
@@ -954,7 +979,7 @@ export const appRouter = router({
         // Segurança: Verificar propriedade do aluno se estiver sendo alterado
         if (data.studentId) {
           const [ownedStudent] = await db.select({ id: students.id }).from(students)
-            .where(and(eq(students.id, data.studentId), eq(students.userId, ctx.user.id)))
+            .where(and(eq(students.id, data.studentId), eq(students.professorId, ctx.user.id)))
             .limit(1);
           if (!ownedStudent) throw new Error("O aluno selecionado não pertence ao seu perfil.");
         }
@@ -1260,7 +1285,7 @@ export const appRouter = router({
 
         // Segurança: Verificar se o aluno pertence ao usuário logado
         const [ownedStudent] = await db.select({ id: students.id }).from(students)
-          .where(and(eq(students.id, input.studentId), eq(students.userId, ctx.user.id)))
+          .where(and(eq(students.id, input.studentId), eq(students.professorId, ctx.user.id)))
           .limit(1);
 
         if (!ownedStudent) {
@@ -1360,7 +1385,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
         // Remove instrument reference from students (only if student belongs to user)
-        await db.update(students).set({ instrumentId: null }).where(and(eq(students.instrumentId, input.id), eq(students.userId, ctx.user.id)));
+        await db.update(students).set({ instrumentId: null }).where(and(eq(students.instrumentId, input.id), eq(students.professorId, ctx.user.id)));
         await db.delete(instruments).where(and(eq(instruments.id, input.id), eq(instruments.userId, ctx.user.id)));
         return { success: true };
       } catch (error) {
@@ -1469,7 +1494,7 @@ export const appRouter = router({
         status: students.status,
         monthlyFee: students.monthlyFee,
         startDate: students.startDate,
-      }).from(students).where(eq(students.userId, ctx.user.id)).orderBy(students.name);
+      }).from(students).where(eq(students.professorId, ctx.user.id)).orderBy(students.name);
 
       // Aulas (somente do usuário logado)
       const allLessons = await db.select({
@@ -2022,7 +2047,7 @@ export const appRouter = router({
    
           // Security: verify student ownership
           const [ownedStudent] = await db.select({ id: students.id }).from(students)
-              .where(and(eq(students.id, input.studentId), eq(students.userId, ctx.user.id)))
+              .where(and(eq(students.id, input.studentId), eq(students.professorId, ctx.user.id)))
               .limit(1);
           
           if (!ownedStudent) {
@@ -2113,7 +2138,7 @@ export const appRouter = router({
             // Atualizar cadastro do aluno
             await db.update(students)
               .set({ dueDay: newDay, updatedAt: new Date() })
-              .where(and(eq(students.id, currentPayment.studentId), eq(students.userId, ctx.user.id)));
+              .where(and(eq(students.id, currentPayment.studentId), eq(students.professorId, ctx.user.id)));
 
             // Atualizar futuras cobranças pendentes
             const unpaidPayments = await db.select()
@@ -2389,7 +2414,7 @@ export const appRouter = router({
         email: students.email,
         level: students.level,
         instrumentId: students.instrumentId,
-        teacherId: students.userId,
+        teacherId: students.professorId,
         startDate: students.startDate,
       }).from(students).where(eq(students.id, ctx.user.studentId)).limit(1);
       

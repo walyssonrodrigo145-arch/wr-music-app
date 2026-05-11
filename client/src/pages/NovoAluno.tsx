@@ -70,6 +70,7 @@ export default function NovoAluno() {
     guardianPhone: "",
     guardianEmail: "",
     notes: "",
+    temporaryPassword: "",
   });
 
   // Pre-populate form when editing
@@ -216,6 +217,7 @@ export default function NovoAluno() {
       monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
       dueDay: Number(form.dueDay),
       notes: form.notes,
+      temporaryPassword: form.temporaryPassword || undefined,
     };
 
     if (isEditMode) {
@@ -224,6 +226,44 @@ export default function NovoAluno() {
       createMutation.mutate(payload);
     }
   };
+
+  // UI section for Portal Access
+  const PortalAccessCard = () => (
+    <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-emerald-500/20 bg-emerald-500/5 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-500 relative overflow-hidden group">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
+      
+      <div className="flex items-center gap-4 mb-8 relative z-10">
+        <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-110 transition-transform">
+          <UserCheck size={24} />
+        </div>
+        <div>
+          <h3 className="text-lg font-black text-foreground tracking-tight">Portal do Aluno</h3>
+          <p className="text-[10px] text-emerald-600/70 font-bold uppercase tracking-[0.2em]">Acesso ao portal</p>
+        </div>
+      </div>
+
+      <div className="space-y-6 relative z-10">
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
+            Senha Temporária (mín. 6 caracteres)
+          </label>
+          <div className="relative group/input">
+            <Input 
+              placeholder="Defina uma senha inicial" 
+              type="password"
+              value={form.temporaryPassword}
+              onChange={(e) => handleInputChange('temporaryPassword', e.target.value)}
+              className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-semibold pl-11"
+            />
+            <AlertCircle className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-emerald-500 transition-colors" size={18} />
+          </div>
+          <p className="text-[10px] text-muted-foreground/70 font-medium px-1">
+            O aluno usará o e-mail cadastrado e esta senha para o primeiro acesso.
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
 
   const containerVariants: any = {
     hidden: { opacity: 0 },
@@ -685,8 +725,10 @@ export default function NovoAluno() {
                 </div>
               </div>
             </motion.div>
-          </div>
 
+            {/* CARD 6 — Portal do Aluno (Novo) */}
+            {!isEditMode && <PortalAccessCard />}
+          </div>
         </motion.div>
 
         {/* Footer actions mobile */}

@@ -214,7 +214,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
             <div className="flex-1 min-w-0">
               <p className="text-xs font-black text-white truncate tracking-tight">{user?.name ?? "WR Music"}</p>
               <p className="text-[9px] text-sidebar-foreground/40 font-bold truncate uppercase tracking-tighter">
-                {user?.role === 'admin' ? 'Administrador' : user?.role === 'professor' ? 'Professor' : user?.role === 'student' ? 'Aluno' : 'Membro'}
+                {user?.role === 'admin' ? 'Administrador' : user?.role === 'professor' ? 'Professor' : user?.role === 'aluno' ? 'Aluno' : 'Membro'}
               </p>
             </div>
             <button

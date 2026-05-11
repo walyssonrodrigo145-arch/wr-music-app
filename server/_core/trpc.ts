@@ -67,7 +67,7 @@ export const studentProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || ctx.user.role !== 'student') {
+    if (!ctx.user || ctx.user.role !== 'aluno') {
       throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a alunos" });
     }
 

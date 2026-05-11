@@ -11,7 +11,7 @@ import {
   boolean
 } from "drizzle-orm/pg-core";
 
-export const roleEnum = pgEnum('role', ["user", "admin", "professor", "student"]);
+export const roleEnum = pgEnum('role', ["admin", "professor", "aluno"]);
 export const levelEnum = pgEnum('level', ["iniciante", "intermediario", "avancado"]);
 export const statusEnum = pgEnum('status', ["ativo", "inativo", "pausado"]);
 export const lessonStatusEnum = pgEnum('lesson_status', ["agendada", "concluida", "cancelada", "remarcada", "falta"]);
@@ -29,8 +29,8 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 320 }),
   passwordHash: varchar("passwordHash", { length: 255 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: roleEnum("role").default("user").notNull(),
-  studentId: integer("studentId"), // Link to students table if role is 'student'
+  role: roleEnum("role").default("professor").notNull(),
+  studentId: integer("studentId"), // Link to students table if role is 'aluno'
   isEmailVerified: boolean("isEmailVerified").default(false).notNull(),
   verificationToken: text("verificationToken"),
   verificationTokenExpiresAt: timestamp("verificationTokenExpiresAt"),
@@ -39,6 +39,15 @@ export const users = pgTable("users", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+});
+
+export const professores = pgTable("professores", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().unique(),
+  especialidade: text("especialidade"),
+  telefone: varchar("telefone", { length: 30 }),
+  foto: text("foto"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export const instruments = pgTable("instruments", {
@@ -53,7 +62,8 @@ export const instruments = pgTable("instruments", {
 
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
-  userId: integer("userId").notNull(),
+  professorId: integer("professorId").notNull(), // Owner of the student record
+  studentUserId: integer("studentUserId"), // Student's own user account (optional until portal access is granted)
   name: varchar("name", { length: 255 }).notNull(),
   socialName: varchar("socialName", { length: 255 }),
   email: varchar("email", { length: 320 }).unique(),
@@ -77,6 +87,7 @@ export const students = pgTable("students", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
+
 
 
 export const lessons = pgTable("lessons", {

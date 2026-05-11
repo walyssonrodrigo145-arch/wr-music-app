@@ -27,6 +27,7 @@ type StudentRow = {
   startDate?: string | null; instrumentName?: string | null;
   instrumentColor?: string | null; instrumentIcon?: string | null;
   portalEnabled?: boolean;
+  professorId: number;
 };
 
 interface FormData {

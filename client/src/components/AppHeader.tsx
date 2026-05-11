@@ -232,7 +232,9 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
               </Avatar>
               <div className="hidden lg:block text-left">
                 <p className="text-xs font-black text-foreground leading-tight tracking-tight">{user?.name?.split(" ")[0] ?? "WR"}</p>
-                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">{user?.role === 'student' ? 'Aluno' : 'Admin'}</p>
+                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
+                  {user?.role === 'aluno' ? 'Aluno' : user?.role === 'professor' ? 'Professor' : 'Admin'}
+                </p>
               </div>
               <ChevronDown size={14} className="text-muted-foreground hidden lg:block group-hover:text-muted-foreground transition-colors" />
             </button>

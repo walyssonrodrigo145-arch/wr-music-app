@@ -123,8 +123,8 @@ export async function getDashboardStats(userId: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const [totalStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(eq(students.userId, userId));
-  const [activeStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(eq(students.userId, userId), eq(students.status, 'ativo')));
+  const [totalStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(eq(students.professorId, userId));
+  const [activeStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(eq(students.professorId, userId), eq(students.status, 'ativo')));
 
   const now = new Date();
   const startOfWeek = new Date(now);
@@ -204,7 +204,7 @@ export async function getMonthlyStats(userId: number, limit = 12) {
     const [ativos] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
       .from(students)
       .where(and(
-        eq(students.userId, userId),
+        eq(students.professorId, userId),
         eq(students.status, 'ativo'),
         lt(students.createdAt, startOfNextMonth)
       ));
@@ -258,7 +258,7 @@ export async function getStudentsWithInstrument(userId: number, limit?: number) 
     instrumentColor: instruments.color,
     instrumentIcon: instruments.icon,
   }).from(students).leftJoin(instruments, eq(students.instrumentId, instruments.id))
-    .where(eq(students.userId, userId))
+    .where(eq(students.professorId, userId))
     .orderBy(desc(students.createdAt));
   if (limit) return (query as any).limit(limit);
   return query;
@@ -380,7 +380,7 @@ export async function getExperimentalStats(userId: number, month?: number, year?
       const [student] = await db.select({ id: students.id })
         .from(students)
         .where(and(
-          eq(students.userId, userId), 
+          eq(students.professorId, userId), 
           sql`LOWER(${students.name}) = LOWER(${lesson.experimentalName})`
         ))
         .limit(1);
