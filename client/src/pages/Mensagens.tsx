@@ -14,10 +14,11 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 export default function Mensagens() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
@@ -35,11 +36,29 @@ export default function Mensagens() {
     onSuccess: () => {
       setMessage("");
       refetch();
+    },
+    onError: (err) => {
+      console.error("Chat error:", err);
+      toast.error("Erro ao enviar mensagem: " + err.message);
     }
   });
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   const handleSend = () => {
-    if (!message.trim() || !selectedStudent?.studentUserId) return;
+    console.log("handleSend called", { message, receiverId: selectedStudent?.studentUserId });
+    if (!message.trim() || !selectedStudent?.studentUserId) {
+      if (!selectedStudent?.studentUserId) toast.error("Este aluno não possui ID de usuário.");
+      return;
+    }
     sendMutation.mutate({ receiverId: selectedStudent.studentUserId, content: message });
   };
 
@@ -179,6 +198,7 @@ export default function Mensagens() {
                          </span>
                       </motion.div>
                     ))}
+                   <div ref={messagesEndRef} />
                   </AnimatePresence>
                </div>
 
