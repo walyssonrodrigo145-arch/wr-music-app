@@ -708,7 +708,13 @@ export const appRouter = router({
       
       if (existingStudentUser) {
         await db.update(users)
-          .set({ email, passwordHash, isEmailVerified: true })
+          .set({ 
+            email, 
+            passwordHash, 
+            role: 'aluno', 
+            studentId: student.id, 
+            isEmailVerified: true 
+          })
           .where(eq(users.id, existingStudentUser.id));
         console.log(`[TRPC] Updated existing user ${existingStudentUser.id} for student ${student.id}`);
       } else {
@@ -725,6 +731,12 @@ export const appRouter = router({
           isEmailVerified: true,
         });
         console.log(`[TRPC] Created new user for student ${student.id} with email: ${email}`);
+      }
+
+      // Link back the user to the student record
+      const [finalUser] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, email), eq(users.organizationId, orgId))).limit(1);
+      if (finalUser) {
+        await db.update(students).set({ studentUserId: finalUser.id }).where(eq(students.id, student.id));
       }
 
       return { success: true, email, password };

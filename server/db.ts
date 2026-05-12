@@ -72,12 +72,33 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
       };
 
       if (existing) {
-        await db.update(users).set(data).where(eq(users.openId, user.openId));
+        // Only update fields that are provided and not undefined
+        const updateData: any = { 
+          updatedAt: new Date(),
+          lastSignedIn: new Date()
+        };
+        if (user.name !== undefined) updateData.name = user.name;
+        if (user.email !== undefined) updateData.email = user.email;
+        if (user.loginMethod !== undefined) updateData.loginMethod = user.loginMethod;
+        if (user.isEmailVerified !== undefined) updateData.isEmailVerified = user.isEmailVerified;
+        if (user.role !== undefined) updateData.role = user.role;
+        if (user.organizationId !== undefined) updateData.organizationId = user.organizationId;
+        if ((user as any).studentId !== undefined) updateData.studentId = (user as any).studentId;
+
+        await db.update(users).set(updateData).where(eq(users.openId, user.openId));
       } else {
         await db.insert(users).values({
-          ...data,
           openId: user.openId,
+          name: user.name || "",
+          email: user.email || "",
+          loginMethod: user.loginMethod,
+          isEmailVerified: user.isEmailVerified ?? true,
+          role: user.role || (user.openId === ENV.ownerOpenId ? 'admin' : 'professor'),
+          organizationId: user.organizationId,
+          studentId: (user as any).studentId,
           createdAt: new Date(),
+          updatedAt: new Date(),
+          lastSignedIn: new Date(),
         });
       }
       return;
