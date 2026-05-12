@@ -41,6 +41,9 @@ export default function StudentProfile() {
   const { data: profile, isLoading } = trpc.studentPortal.getProfile.useQuery();
   const { logout } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => { window.location.href = "/"; },
+  });
 
   if (isLoading) return (
     <div className="flex items-center justify-center min-h-[40vh]">
@@ -51,10 +54,6 @@ export default function StudentProfile() {
   const initials = profile?.name
     ? profile.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "AL";
-
-  const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => { window.location.href = "/"; },
-  });
 
   return (
     <div className="space-y-8 pb-10">

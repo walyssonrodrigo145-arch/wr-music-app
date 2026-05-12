@@ -2716,75 +2716,81 @@ export const appRouter = router({
       const now = new Date();
       
       const [student] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
-      const [teacher] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1);
-
-      const upcoming = await db.select({
-        id: lessons.id,
-        title: lessons.title,
-        scheduledAt: lessons.scheduledAt,
-        status: lessons.status,
-        instrumentId: lessons.instrumentId,
-      }).from(lessons)
-        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
-        .orderBy(asc(lessons.scheduledAt))
-        .limit(5);
-
-      const timeline = await db.select().from(studentTimeline)
-        .where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId)))
-        .orderBy(desc(studentTimeline.achievedAt))
-        .limit(5);
-
-      const dbAnnouncements = await db.select({
-        id: announcements.id,
-        title: announcements.title,
-        author: users.name,
-        date: announcements.createdAt,
-        important: announcements.important,
-        content: announcements.content,
-      })
-      .from(announcements)
-      .leftJoin(users, eq(announcements.userId, users.id))
-      .where(and(
-        eq(announcements.organizationId, orgId),
-        eq(announcements.userId, student.professorId),
-        sql`(${announcements.targetStudentId} IS NULL OR ${announcements.targetStudentId} = ${studentId})`
-      ))
-      .orderBy(desc(announcements.createdAt))
-      .limit(10);
-
-      const materials = await db.select().from(studentFiles)
-        .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)))
-        .orderBy(desc(studentFiles.createdAt))
-        .limit(4);
-
-      const [done] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')));
-      const [pendingExercises] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, 'pendente')));
       
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(now.getMonth() - 3);
-      const [totalRecent] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, threeMonthsAgo), ne(lessons.status, 'cancelada')));
-      const [doneRecent] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, threeMonthsAgo), eq(lessons.status, 'concluida')));
-      const frequency = totalRecent.count > 0 ? Math.round((doneRecent.count / totalRecent.count) * 100) : 100;
-
-      const payments = await db.select().from(paymentDues)
-        .where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId)))
-        .orderBy(desc(paymentDues.dueDate))
-        .limit(3);
-
-      const latestMessages = await db.select({
-        id: chatMessages.id,
-        content: chatMessages.content,
-        createdAt: chatMessages.createdAt,
-        senderName: users.name,
-        isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
-      }).from(chatMessages)
-        .leftJoin(users, eq(chatMessages.senderId, users.id))
+      const [
+        teacher,
+        upcoming,
+        timeline,
+        dbAnnouncements,
+        materials,
+        statsDone,
+        statsPending,
+        statsTotalRecent,
+        statsDoneRecent,
+        payments,
+        latestMessages
+      ] = await Promise.all([
+        db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1).then(res => res[0]),
+        db.select({
+          id: lessons.id,
+          title: lessons.title,
+          scheduledAt: lessons.scheduledAt,
+          status: lessons.status,
+          instrumentId: lessons.instrumentId,
+        }).from(lessons)
+          .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
+          .orderBy(asc(lessons.scheduledAt))
+          .limit(5),
+        db.select().from(studentTimeline)
+          .where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId)))
+          .orderBy(desc(studentTimeline.achievedAt))
+          .limit(5),
+        db.select({
+          id: announcements.id,
+          title: announcements.title,
+          author: users.name,
+          date: announcements.createdAt,
+          important: announcements.important,
+          content: announcements.content,
+        })
+        .from(announcements)
+        .leftJoin(users, eq(announcements.userId, users.id))
         .where(and(
-          eq(chatMessages.organizationId, orgId),
-          sql`(${chatMessages.senderId} = ${ctx.user.id} OR ${chatMessages.receiverId} = ${ctx.user.id})`
+          eq(announcements.organizationId, orgId),
+          eq(announcements.userId, student.professorId),
+          sql`(${announcements.targetStudentId} IS NULL OR ${announcements.targetStudentId} = ${studentId})`
         ))
-        .orderBy(desc(chatMessages.createdAt))
-        .limit(3);
+        .orderBy(desc(announcements.createdAt))
+        .limit(10),
+        db.select().from(studentFiles)
+          .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)))
+          .orderBy(desc(studentFiles.createdAt))
+          .limit(4),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).then(res => res[0]),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, 'pendente'))).then(res => res[0]),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date(new Date().setMonth(new Date().getMonth() - 3))), ne(lessons.status, 'cancelada'))).then(res => res[0]),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date(new Date().setMonth(new Date().getMonth() - 3))), eq(lessons.status, 'concluida'))).then(res => res[0]),
+        db.select().from(paymentDues)
+          .where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId)))
+          .orderBy(desc(paymentDues.dueDate))
+          .limit(3),
+        db.select({
+          id: chatMessages.id,
+          content: chatMessages.content,
+          createdAt: chatMessages.createdAt,
+          senderName: users.name,
+          isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
+        }).from(chatMessages)
+          .leftJoin(users, eq(chatMessages.senderId, users.id))
+          .where(and(
+            eq(chatMessages.organizationId, orgId),
+            sql`(${chatMessages.senderId} = ${ctx.user.id} OR ${chatMessages.receiverId} = ${ctx.user.id})`
+          ))
+          .orderBy(desc(chatMessages.createdAt))
+          .limit(3)
+      ]);
+
+      const frequency = statsTotalRecent.count > 0 ? Math.round((statsDoneRecent.count / statsTotalRecent.count) * 100) : 100;
 
       return {
         upcomingLessons: upcoming,
@@ -2796,8 +2802,8 @@ export const appRouter = router({
         teacherId: teacher?.id,
         messages: latestMessages,
         stats: {
-          lessonsDone: done.count,
-          pendingExercises: pendingExercises.count,
+          lessonsDone: statsDone.count,
+          pendingExercises: statsPending.count,
           unreadAnnouncements: dbAnnouncements.length,
           frequency,
           generalProgress: 85,
