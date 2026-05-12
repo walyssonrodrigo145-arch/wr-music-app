@@ -16,7 +16,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline, studentFiles } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline, studentFiles } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -153,7 +153,6 @@ export const appRouter = router({
         const org = await db.insert(organizations).values({
           name: `${input.name}'s School`,
           slug: input.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-          ownerOpenId: openId,
           createdAt: new Date(),
         }).returning().then(res => res[0]);
 
@@ -191,12 +190,14 @@ export const appRouter = router({
 
   progress: router({
     getGoals: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
       return db.select().from(studentGoals)
         .where(and(
           eq(studentGoals.organizationId, orgId),
-          isAdmin ? undefined : eq(studentGoals.userId, ctx.user.id), 
+          isUserAdmin ? undefined : eq(studentGoals.userId, ctx.user.id), 
           eq(studentGoals.studentId, input.studentId)
         ))
         .orderBy(asc(studentGoals.targetDate));
@@ -245,10 +246,12 @@ export const appRouter = router({
       return { success: true };
     }),
     getTimeline: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
       return db.select().from(studentTimeline)
         .where(and(
-          isAdmin ? undefined : eq(studentTimeline.userId, ctx.user.id), 
+          isUserAdmin ? undefined : eq(studentTimeline.userId, ctx.user.id), 
           eq(studentTimeline.studentId, input.studentId)
         ))
         .orderBy(desc(studentTimeline.achievedAt));
@@ -301,7 +304,7 @@ export const appRouter = router({
       if (!db) throw new Error("Database not available");
       
       const timelineEvents = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.userId, ctx.user.id)));
-      const studentLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId), eq(lessons.userId, ctx.user.id)));
+      const studentLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId as number), eq(lessons.userId, ctx.user.id)));
       
       const grades = timelineEvents.map(e => e.grade).filter(g => g !== null).map(Number);
       const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
@@ -324,9 +327,9 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
-      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId)));
       if (!student) throw new Error("Aluno não encontrado");
-      const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).limit(10).orderBy(desc(lessons.scheduledAt));
+      const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId as number), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).limit(10).orderBy(desc(lessons.scheduledAt));
       const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
       
       const prompt = `Analise o progresso musical do aluno ${student.name} (nível: ${student.level}). Últimas aulas: ${pastLessons.length} concluídas. Metas cadastradas: ${goals.length}. Dê um feedback motivador e com 2 pontos de foco para as próximas aulas em um único parágrafo pequeno.`;
@@ -363,6 +366,8 @@ export const appRouter = router({
         whereClause = and(whereClause, sql`LOWER(${studentFiles.fileName}) LIKE ${`%${input.search.toLowerCase()}%`}`);
       }
 
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
       return db.select().from(studentFiles)
         .where(whereClause)
         .orderBy(desc(studentFiles.createdAt));
@@ -379,6 +384,7 @@ export const appRouter = router({
       size: z.number().optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
+      if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
       await db.insert(studentFiles).values({
         organizationId: orgId,
@@ -423,40 +429,40 @@ export const appRouter = router({
       return { success: true };
     }),
     getStats: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
-      return getDashboardStats(orgId, isAdmin ? undefined : ctx.user.id);
+      return getDashboardStats(orgId, isUserAdmin ? undefined : ctx.user.id);
     }),
     getMonthlyStats: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
-      const stats = await getMonthlyStats(orgId, isAdmin ? undefined : ctx.user.id, 12);
+      const stats = await getMonthlyStats(orgId, isUserAdmin ? undefined : ctx.user.id, 12);
       return stats;
     }),
     getExperimentalStats: protectedProcedure.input(z.object({ 
       month: z.number().optional(), 
       year: z.number().optional() 
     }).optional()).query(async ({ ctx, input }) => {
-        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const orgId = ctx.user.organizationId!;
-        return getExperimentalStats(orgId, isAdmin ? undefined : ctx.user.id, input?.month, input?.year);
+        return getExperimentalStats(orgId, isUserAdmin ? undefined : ctx.user.id, input?.month, input?.year);
     }),
     getLessonsByDay: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
-      const data = await getLessonsByDayOfWeek(orgId, isAdmin ? undefined : ctx.user.id);
+      const data = await getLessonsByDayOfWeek(orgId, isUserAdmin ? undefined : ctx.user.id);
       return data;
     }),
   }),
 
   dashboard: router({
     stats: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-      return getDashboardStats(isAdmin ? undefined : ctx.user.id);
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getDashboardStats(ctx.user.organizationId!, isUserAdmin ? undefined : ctx.user.id);
     }),
     monthlyStats: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-      const stats = await getMonthlyStats(isAdmin ? undefined : ctx.user.id, 12);
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const stats = await getMonthlyStats(ctx.user.organizationId!, isUserAdmin ? undefined : ctx.user.id, 12);
       return stats.reverse();
     }),
     experimentalStats: protectedProcedure
@@ -465,12 +471,12 @@ export const appRouter = router({
         year: z.number().optional()
       }).optional())
       .query(async ({ ctx, input }) => {
-        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-        return getExperimentalStats(isAdmin ? undefined : ctx.user.id, input?.month, input?.year);
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        return getExperimentalStats(ctx.user.organizationId!, isUserAdmin ? undefined : ctx.user.id, input?.month, input?.year);
       }),
     lessonsByDay: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-      const data = await getLessonsByDayOfWeek(isAdmin ? undefined : ctx.user.id);
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const data = await getLessonsByDayOfWeek(ctx.user.organizationId!, isUserAdmin ? undefined : ctx.user.id);
       const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
       const result = days.map((day, i) => ({
         day,
@@ -513,12 +519,12 @@ export const appRouter = router({
 
   students: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-      return getStudentsWithInstrument(isAdmin ? undefined : ctx.user.id);
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getStudentsWithInstrument(ctx.user.organizationId!, isUserAdmin ? undefined : ctx.user.id);
     }),
     recent: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-      return getStudentsWithInstrument(isAdmin ? undefined : ctx.user.id, 8);
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getStudentsWithInstrument(ctx.user.organizationId!, isUserAdmin ? undefined : ctx.user.id, 8);
     }),
     getForEdit: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
       console.log(`[TRPC] students.getForEdit called for ID: ${input.id} by user: ${ctx.user.id}`);
@@ -528,7 +534,7 @@ export const appRouter = router({
         return null;
       }
 
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
       const [student] = await db.select({
         id: students.id,
@@ -556,7 +562,7 @@ export const appRouter = router({
         .where(and(
           eq(students.id, input.id), 
           eq(students.organizationId, orgId),
-          isAdmin ? undefined : eq(students.professorId, ctx.user.id)
+          isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
         ))
         .limit(1);
 
@@ -577,7 +583,7 @@ export const appRouter = router({
 
       console.log(`[TRPC] Fetching student details for ID: ${input.id} requested by user: ${ctx.user.id} (${ctx.user.role})`);
 
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
 
       const [student] = await db.select({
@@ -618,9 +624,9 @@ export const appRouter = router({
 
       // Check permission: owner of the student or admin/owner of the system
       const isOwner = student.professorId === ctx.user.id;
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      // const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId; // Removed redeclaration
       
-      if (!isOwner && !isAdmin) {
+      if (!isOwner && !isUserAdmin) {
         console.warn(`[TRPC] Access denied for user ${ctx.user.id} to student ${input.id}`);
         throw new TRPCError({
           code: 'FORBIDDEN',
@@ -672,13 +678,13 @@ export const appRouter = router({
       const orgId = ctx.user.organizationId!;
       console.log(`[TRPC] Enabling portal access for student: ${input.studentId} requested by: ${ctx.user.id}`);
 
-      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId))).limit(1);
+      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId))).limit(1);
       if (!student) throw new TRPCError({ code: 'NOT_FOUND', message: "Aluno não encontrado." });
 
       const isOwner = student.professorId === ctx.user.id;
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       
-      if (!isOwner && !isAdmin) {
+      if (!isOwner && !isUserAdmin) {
         console.warn(`[TRPC] Permission denied for enabling portal access - User: ${ctx.user.id}, Student: ${input.studentId}`);
         throw new TRPCError({ code: 'FORBIDDEN', message: "Você não tem permissão para liberar o acesso deste aluno." });
       }
@@ -879,6 +885,8 @@ export const appRouter = router({
       status: z.enum(['ativo', 'inativo', 'pausado']),
     })).mutation(async ({ ctx, input }) => {
       try {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
         await db.update(students).set({
           status: input.status,
@@ -927,14 +935,15 @@ export const appRouter = router({
 
   lessons: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
-      return getRecentLessons(orgId, isAdmin ? undefined : ctx.user.id, 50);
+      return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 50);
     }),
     upcoming: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];
       const orgId = ctx.user.organizationId!;
+      const now = new Date();
       now.setHours(0, 0, 0, 0); // Mostrar aulas a partir do início de hoje
       
       const twoWeeksLater = new Date(now);
@@ -956,7 +965,7 @@ export const appRouter = router({
           eq(lessons.organizationId, orgId),
           eq(lessons.status, 'agendada'), 
           eq(lessons.userId, ctx.user.id),
-          gte(lessons.scheduledAt, now),
+          gte(lessons.scheduledAt, new Date()),
           lte(lessons.scheduledAt, twoWeeksLater)
         ))
         .orderBy(asc(lessons.scheduledAt))
@@ -985,7 +994,7 @@ export const appRouter = router({
         if (!input.isExperimental) {
           if (!input.studentId) throw new Error("O campo aluno é obrigatório para aulas comuns.");
           const [ownedStudent] = await db.select({ id: students.id }).from(students)
-            .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+            .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
             .limit(1);
             
           if (!ownedStudent) {
@@ -1210,6 +1219,8 @@ export const appRouter = router({
       id: z.number(),
     })).mutation(async ({ ctx, input }) => {
       try {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
         await db.delete(lessons).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
         return { success: true };
@@ -1225,6 +1236,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
 
         if (input.type === 'student') {
@@ -1232,7 +1244,7 @@ export const appRouter = router({
           await db.delete(lessons).where(and(
              eq(lessons.organizationId, orgId),
              eq(lessons.userId, ctx.user.id),
-             eq(lessons.studentId, input.studentId),
+             eq(lessons.studentId, input.studentId as number),
              eq(lessons.status, 'agendada')
           ));
         } else {
@@ -1254,6 +1266,7 @@ export const appRouter = router({
       weekStart: z.string(), // ISO string da segunda-feira da semana
     })).query(async ({ ctx, input }) => {
       const db = await getDb();
+      if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
       const start = new Date(input.weekStart);
       start.setHours(0, 0, 0, 0);
@@ -1386,7 +1399,7 @@ export const appRouter = router({
         const orgId = ctx.user.organizationId!;
         // Segurança: Verificar se o aluno pertence ao usuário logado
         const [ownedStudent] = await db.select({ id: students.id }).from(students)
-          .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+          .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
           .limit(1);
 
         if (!ownedStudent) {
@@ -1443,9 +1456,9 @@ export const appRouter = router({
 
   instruments: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
-      return getInstrumentsWithCount(orgId, isAdmin ? undefined : ctx.user.id);
+      return getInstrumentsWithCount(orgId, isUserAdmin ? undefined : ctx.user.id);
     }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(2),
@@ -1454,6 +1467,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
         await db.insert(instruments).values({
           organizationId: orgId,
@@ -1475,6 +1489,8 @@ export const appRouter = router({
       color: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
         const { id, ...rest } = input;
         await db.update(instruments).set(rest).where(and(eq(instruments.id, id), eq(instruments.organizationId, orgId), eq(instruments.userId, ctx.user.id)));
@@ -1488,6 +1504,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
         // Remove instrument reference from students (only if student belongs to user)
         await db.update(students).set({ instrumentId: null }).where(and(eq(students.instrumentId, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)));
@@ -1652,7 +1669,7 @@ export const appRouter = router({
     // ─ Listar com filtros ─────────────────────────────────────────────────────────────
     list: protectedProcedure
       .input(z.object({
-        studentId: z.number().optional(),
+        studentId: z.number().nullable().optional(),
         type: z.enum(["aula", "cobranca", "inadimplencia", "manual"]).optional(),
         status: z.enum(["pendente", "enviado", "cancelado"]).optional(),
         dateFrom: z.string().optional(),
@@ -1919,7 +1936,7 @@ export const appRouter = router({
     // ─ Criar lembrete manual ────────────────────────────────────────────────────────────
     create: protectedProcedure
       .input(z.object({
-        studentId: z.number().optional(),
+        studentId: z.number().nullable().optional(),
         type: z.enum(["aula", "cobranca", "inadimplencia", "manual"]),
         message: z.string().min(1),
         scheduledAt: z.string(), // ISO
@@ -2141,8 +2158,8 @@ export const appRouter = router({
         if (!db) return [];
         const orgId = ctx.user.organizationId!;
         const now = new Date();
-        const m = input?.month ?? now.getMonth() + 1;
-        const y = input?.year ?? now.getFullYear();
+        const m = input?.month ?? new Date().getMonth() + 1;
+        const y = input?.year ?? new Date().getFullYear();
         const rows = await db.select({
           id: paymentDues.id,
           studentId: paymentDues.studentId,
@@ -2187,7 +2204,7 @@ export const appRouter = router({
    
           // Security: verify student ownership
           const [ownedStudent] = await db.select({ id: students.id }).from(students)
-              .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+              .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
               .limit(1);
           
           if (!ownedStudent) {
@@ -2494,7 +2511,7 @@ export const appRouter = router({
         scheduledAt: lessons.scheduledAt,
         status: lessons.status,
       }).from(lessons)
-        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, now), eq(lessons.status, 'agendada')))
+        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
         .orderBy(asc(lessons.scheduledAt))
         .limit(5);
 

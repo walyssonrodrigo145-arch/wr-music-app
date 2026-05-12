@@ -101,11 +101,11 @@ export const systemRouter = router({
         id: students.id,
         name: students.name,
         email: students.email,
-        userId: students.userId,
+        professorId: students.professorId,
         ownerName: users.name,
       })
       .from(students)
-      .leftJoin(users, eq(students.userId, users.id))
+      .leftJoin(users, eq(students.professorId, users.id))
       .where(or(
         ilike(students.name, `%${input.query}%`),
         sql`CAST(${students.id} AS TEXT) = ${input.query}`

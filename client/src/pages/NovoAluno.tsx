@@ -96,6 +96,7 @@ export default function NovoAluno() {
         guardianPhone: (studentData as any).guardianPhone ?? "",
         guardianEmail: (studentData as any).guardianEmail ?? "",
         notes: (studentData as any).notes ?? "",
+        temporaryPassword: "",
       });
 
       const bd = (studentData as any).birthDate;

@@ -2,7 +2,7 @@ import { eq, desc, sql, and, gte, lte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { InsertUser, users, students, instruments, lessons, monthlyStats, settings, InsertSettings, paymentDues, studentGoals, studentTimeline } from "../drizzle/schema";
+import { InsertUser, users, students, instruments, lessons, monthlyStats, settings, InsertSettings, paymentDues, studentGoals, studentTimeline, organizations } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -400,7 +400,6 @@ export async function createOrganization(name: string, ownerOpenId: string) {
   
   const [org] = await db.insert(organizations).values({
     name,
-    ownerOpenId,
     slug: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
     createdAt: new Date(),
   }).returning();
