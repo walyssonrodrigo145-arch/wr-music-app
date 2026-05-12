@@ -23,7 +23,8 @@ import {
   Moon,
   User,
   LayoutDashboard,
-  ClipboardCheck
+  ClipboardCheck,
+  Circle
 } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

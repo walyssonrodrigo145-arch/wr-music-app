@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   X, User, Lock, CheckCircle2, Calendar, 
-  Mail, Shield, Info, RefreshCw, AlertCircle
+  Mail, Shield, Info, RefreshCw, AlertCircle,
+  Circle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
