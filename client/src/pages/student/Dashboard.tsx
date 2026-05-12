@@ -22,7 +22,8 @@ import {
   Search,
   Moon,
   User,
-  LayoutDashboard
+  LayoutDashboard,
+  ClipboardCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
