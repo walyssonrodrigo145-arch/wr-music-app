@@ -50,74 +50,70 @@ function Router() {
 
   if (loading) return <PageLoader />;
 
+  // Redirect unauthenticated users to login, except for landing page
+  if (!isAuthenticated) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Switch>
+          <Route path="/" component={LandingPage} />
+          <Route path="/login" component={Login} />
+          <Route>
+            <Redirect to="/login" />
+          </Route>
+        </Switch>
+      </Suspense>
+    );
+  }
+
+  // Redirect Alunos trying to access Admin pages
+  if (user?.role === "aluno") {
+    return (
+      <StudentPortalLayout>
+        <Suspense fallback={<PageLoader />}>
+          <Switch>
+            <Route path="/aluno" component={StudentDashboard} />
+            <Route path="/aluno/aulas" component={StudentLessons} />
+            <Route path="/aluno/agenda" component={StudentAgenda} />
+            <Route path="/aluno/materiais" component={StudentMaterials} />
+            <Route path="/aluno/exercicios" component={StudentExercises} />
+            <Route path="/aluno/progresso" component={StudentProgress} />
+            <Route path="/aluno/mensagens" component={StudentMessages} />
+            <Route path="/aluno/pagamentos" component={StudentPayments} />
+            <Route path="/aluno/perfil" component={StudentProfile} />
+            <Route path="/aluno/avisos" component={StudentAnnouncements} />
+            <Route path="/aluno/solicitar-reposicao" component={StudentRequestMakeUp} />
+            <Route path="/aluno/solicitar-remarcacao" component={StudentRequestReschedule} />
+            <Route>
+              <Redirect to="/aluno" />
+            </Route>
+          </Switch>
+        </Suspense>
+      </StudentPortalLayout>
+    );
+  }
+
+  // Admin/Professor Routes
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Switch>
-        {/* Public Routes */}
-        <Route path="/" component={LandingPage} />
-        <Route path="/login" component={Login} />
-        
-        {!isAuthenticated ? (
+    <MusicLayout>
+      <Suspense fallback={<PageLoader />}>
+        <Switch>
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/alunos" component={Alunos} />
+          <Route path="/alunos/novo" component={NovoAluno} />
+          <Route path="/alunos/:id/editar" component={NovoAluno} />
+          <Route path="/aulas" component={Aulas} />
+          <Route path="/instrumentos" component={Instrumentos} />
+          <Route path="/relatorios" component={Relatorios} />
+          <Route path="/lembretes" component={Lembretes} />
+          <Route path="/mensalidades" component={Mensalidades} />
+          <Route path="/configuracoes" component={Configuracoes} />
+          <Route path="/progresso" component={Progresso} />
           <Route>
-            <Redirect to="/login" />
+            <Redirect to="/dashboard" />
           </Route>
-        ) : user?.role === "aluno" ? (
-          /* Student Routes */
-          <Route path="/aluno/:rest*">
-            <StudentPortalLayout>
-              <Suspense fallback={<PageLoader />}>
-                <Switch>
-                  <Route path="/aluno" component={StudentDashboard} />
-                  <Route path="/aluno/aulas" component={StudentLessons} />
-                  <Route path="/aluno/agenda" component={StudentAgenda} />
-                  <Route path="/aluno/materiais" component={StudentMaterials} />
-                  <Route path="/aluno/exercicios" component={StudentExercises} />
-                  <Route path="/aluno/progresso" component={StudentProgress} />
-                  <Route path="/aluno/mensagens" component={StudentMessages} />
-                  <Route path="/aluno/pagamentos" component={StudentPayments} />
-                  <Route path="/aluno/perfil" component={StudentProfile} />
-                  <Route path="/aluno/avisos" component={StudentAnnouncements} />
-                  <Route path="/aluno/solicitar-reposicao" component={StudentRequestMakeUp} />
-                  <Route path="/aluno/solicitar-remarcacao" component={StudentRequestReschedule} />
-                  <Route component={() => <Redirect to="/aluno" />} />
-                </Switch>
-              </Suspense>
-            </StudentPortalLayout>
-          </Route>
-        ) : (
-          /* Admin/Professor Routes */
-          <Route>
-            <MusicLayout>
-              <Suspense fallback={<PageLoader />}>
-                <Switch>
-                  <Route path="/dashboard" component={Dashboard} />
-                  <Route path="/alunos" component={Alunos} />
-                  <Route path="/alunos/novo" component={NovoAluno} />
-                  <Route path="/alunos/:id/editar" component={NovoAluno} />
-                  <Route path="/aulas" component={Aulas} />
-                  <Route path="/instrumentos" component={Instrumentos} />
-                  <Route path="/relatorios" component={Relatorios} />
-                  <Route path="/lembretes" component={Lembretes} />
-                  <Route path="/mensalidades" component={Mensalidades} />
-                  <Route path="/configuracoes" component={Configuracoes} />
-                  <Route path="/progresso" component={Progresso} />
-                  <Route component={() => <Redirect to="/dashboard" />} />
-                </Switch>
-              </Suspense>
-            </MusicLayout>
-          </Route>
-        )}
-        
-        {/* Default Redirect if authenticated but path not caught */}
-        <Route>
-          {isAuthenticated ? (
-            user?.role === "aluno" ? <Redirect to="/aluno" /> : <Redirect to="/dashboard" />
-          ) : (
-            <Redirect to="/login" />
-          )}
-        </Route>
-      </Switch>
-    </Suspense>
+        </Switch>
+      </Suspense>
+    </MusicLayout>
   );
 }
 
