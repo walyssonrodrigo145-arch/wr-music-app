@@ -34,6 +34,9 @@ const StudentPayments = lazy(() => import("./pages/student/Pagamentos"));
 const StudentProfile = lazy(() => import("./pages/student/Perfil"));
 const StudentAgenda = lazy(() => import("./pages/student/Agenda"));
 const StudentMessages = lazy(() => import("./pages/student/Mensagens"));
+const StudentAnnouncements = lazy(() => import("./pages/student/Avisos"));
+const StudentRequestMakeUp = lazy(() => import("./pages/student/SolicitarReposicao"));
+const StudentRequestReschedule = lazy(() => import("./pages/student/SolicitarRemarcacao"));
 
 const PageLoader = () => (
   <div className="flex-1 h-full min-h-[50vh] flex flex-col items-center justify-center text-muted-foreground gap-4">
@@ -63,6 +66,9 @@ function Router() {
                 <Route path="/aluno/mensagens" component={StudentMessages} />
                 <Route path="/aluno/pagamentos" component={StudentPayments} />
                 <Route path="/aluno/perfil" component={StudentProfile} />
+                <Route path="/aluno/avisos" component={StudentAnnouncements} />
+                <Route path="/aluno/solicitar-reposicao" component={StudentRequestMakeUp} />
+                <Route path="/aluno/solicitar-remarcacao" component={StudentRequestReschedule} />
                 <Route component={NotFound} />
               </Switch>
             </Suspense>

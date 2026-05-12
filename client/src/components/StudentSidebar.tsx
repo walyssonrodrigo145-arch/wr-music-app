@@ -14,6 +14,10 @@ import {
   Music,
   X,
   CalendarDays,
+  Bell,
+  RefreshCcw,
+  Clock,
+  PlusCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -26,14 +30,20 @@ interface NavItem {
   icon: React.ElementType;
 }
 
-const navItems: NavItem[] = [
+const mainNavItems: NavItem[] = [
   { label: "Dashboard", href: "/aluno", icon: LayoutDashboard },
-  { label: "Aulas", href: "/aluno/aulas", icon: Calendar },
-  { label: "Agenda", href: "/aluno/agenda", icon: CalendarDays },
+  { label: "Avisos", href: "/aluno/avisos", icon: Bell },
+  { label: "Aulas / Agenda", href: "/aluno/aulas", icon: CalendarDays },
   { label: "Materiais", href: "/aluno/materiais", icon: Library },
-  { label: "Progresso", href: "/aluno/progresso", icon: Activity },
-  { label: "Pagamentos", href: "/aluno/pagamentos", icon: DollarSign },
-  { label: "Perfil", href: "/aluno/perfil", icon: User },
+  { label: "Exercícios", href: "/aluno/exercicios", icon: ClipboardCheck },
+  { label: "Financeiro", href: "/aluno/pagamentos", icon: DollarSign },
+  { label: "Mensagens", href: "/aluno/mensagens", icon: MessageSquare },
+  { label: "Meu Perfil", href: "/aluno/perfil", icon: User },
+];
+
+const requestItems: NavItem[] = [
+  { label: "Solicitar Reposição", href: "/aluno/solicitar-reposicao", icon: PlusCircle },
+  { label: "Solicitar Remarcação", href: "/aluno/solicitar-remarcacao", icon: Clock },
 ];
 
 interface StudentSidebarProps {
@@ -101,7 +111,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
         {!collapsed && (
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mb-4 animate-in fade-in duration-500">Menu Principal</p>
         )}
-        {navItems.map((item, idx) => {
+        {mainNavItems.map((item, idx) => {
           const Icon = item.icon;
           const isActive = location === item.href || (item.href !== "/aluno" && location.startsWith(item.href));
           return (
@@ -129,7 +139,6 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
                   <span className="truncate tracking-tight">{item.label}</span>
                 )}
                 
-                {/* Active Indicator Glow */}
                 {isActive && !collapsed && (
                    <div className="absolute left-[-4px] top-1/4 bottom-1/4 w-1 bg-white rounded-full shadow-[0_0_10px_#fff]" />
                 )}
@@ -137,6 +146,43 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
             </Link>
           );
         })}
+
+        {/* Solicitações Section */}
+        <div className="pt-6 pb-2">
+          {!collapsed && (
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mb-4 animate-in fade-in duration-500">Solicitações</p>
+          )}
+          {requestItems.map((item, idx) => {
+            const Icon = item.icon;
+            const isActive = location === item.href;
+            return (
+              <Link key={item.href} href={item.href}>
+                <div
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative mt-1",
+                    isActive
+                      ? "bg-[#7C3AED] text-white shadow-[0_0_20px_rgba(124,58,237,0.4)]"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-white",
+                    collapsed && "justify-center px-0"
+                  )}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon
+                    size={18}
+                    className={cn(
+                      "flex-shrink-0 transition-transform duration-300",
+                      isActive ? "scale-110" : "group-hover:scale-110"
+                    )}
+                  />
+                  {!collapsed && (
+                    <span className="truncate tracking-tight">{item.label}</span>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       {/* User profile at bottom */}

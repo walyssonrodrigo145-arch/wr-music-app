@@ -3,103 +3,176 @@ import {
   FileText, 
   Send, 
   CheckCircle2, 
-  ClipboardList
+  ClipboardList,
+  Clock,
+  AlertCircle,
+  Trophy,
+  Star,
+  ChevronRight,
+  Info
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const item = {
+  hidden: { y: 20, opacity: 0 },
+  show: { y: 0, opacity: 1 }
+};
 
 export default function StudentExercises() {
   const { data: exercises, isLoading } = trpc.studentPortal.getExercises.useQuery();
+  const [activeTab, setActiveTab] = useState("pendentes");
 
-  if (isLoading) return <div>Carregando exercícios...</div>;
+  if (isLoading) return (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+    </div>
+  );
 
   const pending = exercises?.filter(e => e.status === 'pendente') || [];
   const completed = exercises?.filter(e => e.status === 'concluida') || [];
 
   const ExerciseCard = ({ exercise, isCompleted }: { exercise: any, isCompleted?: boolean }) => (
-    <Card className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm group hover:shadow-xl transition-all overflow-hidden">
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row items-center gap-6">
-          <div className={cn(
-            "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0",
-            isCompleted ? "bg-green-500/10 text-green-600" : "bg-blue-500/10 text-blue-600"
-          )}>
-            <FileText size={20} />
-          </div>
-
-          <div className="flex-1 text-center sm:text-left">
-            <h3 className="text-base font-black text-foreground">{exercise.title}</h3>
-            <p className="text-xs font-medium text-muted-foreground">
-              {exercise.targetDate ? `Vence em ${format(new Date(exercise.targetDate), "dd/MM/yyyy")}` : "Sem data de entrega"}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span className={cn(
-              "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
-              isCompleted ? "bg-green-500/10 text-green-600" : "bg-orange-500/10 text-orange-600"
+    <motion.div variants={item}>
+      <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm group hover:shadow-2xl transition-all overflow-hidden relative">
+        {!isCompleted && (
+          <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
+        )}
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className={cn(
+              "w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner transition-transform group-hover:scale-110 group-hover:rotate-3",
+              isCompleted ? "bg-green-100 text-green-600 dark:bg-green-500/10" : "bg-orange-100 text-orange-600 dark:bg-orange-500/10"
             )}>
-              {isCompleted ? "Corrigido" : "Pendente"}
-            </span>
-            <button className={cn(
-              "flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md",
-              isCompleted 
-                ? "bg-muted dark:bg-slate-800 text-foreground hover:bg-slate-200" 
-                : "bg-primary text-primary-foreground hover:opacity-90 shadow-primary/20"
-            )}>
-              {isCompleted ? "Ver Correção" : "Enviar"}
-              {!isCompleted && <Send size={14} />}
-            </button>
+              <ClipboardList size={28} />
+            </div>
+
+            <div className="flex-1 text-center sm:text-left space-y-2 min-w-0">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <span className={cn(
+                  "text-[9px] font-black uppercase px-2 py-0.5 rounded-full",
+                  isCompleted ? "bg-green-100 text-green-600" : "bg-orange-100 text-orange-600"
+                )}>
+                  {isCompleted ? "Concluído" : "Pendente"}
+                </span>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <Clock size={12} className="text-primary" />
+                  {exercise.targetDate ? `Entrega até ${format(new Date(exercise.targetDate), "dd 'de' MMMM", { locale: ptBR })}` : "Sem prazo"}
+                </div>
+              </div>
+              <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors truncate">{exercise.title}</h3>
+              <p className="text-sm font-medium text-muted-foreground line-clamp-1">{exercise.description || "Nenhuma instrução adicional informada pelo professor."}</p>
+            </div>
+
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              {isCompleted ? (
+                <div className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-green-50 dark:bg-green-500/5 text-green-600 font-black text-[10px] uppercase tracking-widest border border-green-100 dark:border-green-500/10">
+                   <Trophy size={14} /> Nota: 9.5
+                </div>
+              ) : (
+                <button className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                  <Send size={16} />
+                  Enviar Atividade
+                </button>
+              )}
+              <button className="w-12 h-12 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center">
+                <ChevronRight size={20} />
+              </button>
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 
   return (
     <div className="space-y-8 pb-10">
-      <div>
-        <h1 className="text-3xl font-black tracking-tight text-foreground">Meus Exercícios</h1>
-        <p className="text-muted-foreground font-medium">Veja e entregue suas atividades práticas.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-foreground">Meus Exercícios</h1>
+          <p className="text-muted-foreground font-medium">Pratique e envie suas atividades para avaliação do professor.</p>
+        </div>
+        <div className="flex items-center gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10">
+           <div className="text-right">
+             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Sua Evolução</p>
+             <p className="text-sm font-black text-primary">85% Concluído</p>
+           </div>
+           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+             <Star size={18} fill="currentColor" />
+           </div>
+        </div>
       </div>
 
-      <Tabs defaultValue="pendentes" className="w-full">
-        <TabsList className="bg-muted bg-muted/50 p-1 rounded-2xl border border-border border-border mb-6">
-          <TabsTrigger value="pendentes" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-card dark:data-[state=active]:bg-slate-800 transition-all">
-            Pendentes
+      <Tabs defaultValue="pendentes" className="w-full" onValueChange={setActiveTab}>
+        <TabsList className="bg-muted/50 p-1 rounded-2xl border border-border mb-8 max-w-md">
+          <TabsTrigger value="pendentes" className="rounded-xl font-black text-[10px] uppercase tracking-widest px-8 data-[state=active]:bg-card data-[state=active]:shadow-md transition-all h-10">
+            Pendentes ({pending.length})
           </TabsTrigger>
-          <TabsTrigger value="entregues" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-card dark:data-[state=active]:bg-slate-800 transition-all">
-            Entregues
-          </TabsTrigger>
-          <TabsTrigger value="corrigidos" className="rounded-xl font-bold text-xs uppercase tracking-widest px-6 data-[state=active]:bg-card dark:data-[state=active]:bg-slate-800 transition-all">
-            Corrigidos
+          <TabsTrigger value="corrigidos" className="rounded-xl font-black text-[10px] uppercase tracking-widest px-8 data-[state=active]:bg-card data-[state=active]:shadow-md transition-all h-10">
+            Histórico ({completed.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pendentes" className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {pending.length > 0 ? (
-            pending.map(ex => <ExerciseCard key={ex.id} exercise={ex} />)
-          ) : (
-            <div className="text-center py-20 bg-muted/50 bg-card/20 rounded-3xl border-2 border-dashed border-border border-border">
-              <CheckCircle2 className="mx-auto text-green-500 mb-4 opacity-50" size={50} />
-              <p className="text-muted-foreground font-bold">Parabéns! Você não tem exercícios pendentes.</p>
-            </div>
-          )}
-        </TabsContent>
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          key={activeTab}
+        >
+          <TabsContent value="pendentes" className="space-y-6 outline-none">
+            {pending.length > 0 ? (
+              pending.map(ex => <ExerciseCard key={ex.id} exercise={ex} />)
+            ) : (
+              <div className="text-center py-24 bg-card/30 rounded-[2rem] border-2 border-dashed border-border">
+                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="text-green-500 opacity-30" size={40} />
+                </div>
+                <h3 className="text-xl font-black text-foreground">Tudo pronto!</h3>
+                <p className="text-muted-foreground font-medium mt-2">Você não tem exercícios pendentes no momento.</p>
+              </div>
+            )}
+          </TabsContent>
 
-        <TabsContent value="corrigidos" className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {completed.length > 0 ? (
-            completed.map(ex => <ExerciseCard key={ex.id} exercise={ex} isCompleted />)
-          ) : (
-            <div className="text-center py-20 bg-muted/50 bg-card/20 rounded-3xl border-2 border-dashed border-border border-border">
-              <ClipboardList className="mx-auto text-muted-foreground mb-4 opacity-20" size={50} />
-              <p className="text-muted-foreground font-bold">Ainda não há exercícios corrigidos.</p>
-            </div>
-          )}
-        </TabsContent>
+          <TabsContent value="corrigidos" className="space-y-6 outline-none">
+            {completed.length > 0 ? (
+              completed.map(ex => <ExerciseCard key={ex.id} exercise={ex} isCompleted />)
+            ) : (
+              <div className="text-center py-24 bg-card/30 rounded-[2rem] border-2 border-dashed border-border">
+                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ClipboardList className="text-muted-foreground opacity-30" size={40} />
+                </div>
+                <h3 className="text-xl font-black text-foreground">Sem histórico</h3>
+                <p className="text-muted-foreground font-medium mt-2">Seus exercícios concluídos aparecerão aqui.</p>
+              </div>
+            )}
+          </TabsContent>
+        </motion.div>
       </Tabs>
+
+      <Card className="border-none shadow-md bg-secondary/30 rounded-2xl overflow-hidden">
+        <CardContent className="p-5 flex items-center gap-4">
+           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+             <Info size={20} />
+           </div>
+           <div className="flex-1">
+             <p className="text-xs font-black text-primary uppercase tracking-widest">Dica do Professor</p>
+             <p className="text-xs text-muted-foreground font-medium mt-0.5">A prática diária de 15 minutos é mais eficaz que 2 horas em um único dia. Mantenha o ritmo!</p>
+           </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

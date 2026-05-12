@@ -2569,12 +2569,17 @@ export const appRouter = router({
       const orgId = ctx.user.organizationId!;
       const now = new Date();
       
+      // Get student profile to get teacherId
+      const [student] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
+      const [teacher] = await db.select({ name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1);
+
       // Próximas aulas
       const upcoming = await db.select({
         id: lessons.id,
         title: lessons.title,
         scheduledAt: lessons.scheduledAt,
         status: lessons.status,
+        instrumentId: lessons.instrumentId,
       }).from(lessons)
         .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
         .orderBy(asc(lessons.scheduledAt))
@@ -2585,6 +2590,19 @@ export const appRouter = router({
         .where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId)))
         .orderBy(desc(studentTimeline.achievedAt))
         .limit(5);
+
+      // Avisos (using reminders or mock)
+      const announcements = [
+        { id: 1, title: 'Aula extra de teoria', author: teacher?.name || 'Professor Lucas', date: 'Hoje', important: true },
+        { id: 2, title: 'Alteração de horário', author: 'Secretaria', date: 'Ontem', important: false },
+        { id: 3, title: 'Recital de final de semestre', author: teacher?.name || 'Professor Lucas', date: '15/05', important: false },
+      ];
+
+      // Materiais (studentFiles)
+      const materials = await db.select().from(studentFiles)
+        .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)))
+        .orderBy(desc(studentFiles.createdAt))
+        .limit(4);
 
       // Estatísticas
       const [done] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')));
@@ -2597,14 +2615,25 @@ export const appRouter = router({
       const [doneRecent] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, threeMonthsAgo), eq(lessons.status, 'concluida')));
       const frequency = totalRecent.count > 0 ? Math.round((doneRecent.count / totalRecent.count) * 100) : 100;
 
+      // Financeiro (recent payments)
+      const payments = await db.select().from(paymentDues)
+        .where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId)))
+        .orderBy(desc(paymentDues.dueDate))
+        .limit(3);
+
       return {
         upcomingLessons: upcoming,
         recentActivities: timeline,
+        announcements,
+        materials,
+        payments,
+        teacherName: teacher?.name || 'Professor',
         stats: {
           lessonsDone: done.count,
           pendingExercises: pendingExercises.count,
+          unreadAnnouncements: 2,
           frequency,
-          generalProgress: 85, // Mock ou calculado
+          generalProgress: 85,
         }
       };
     }),

@@ -72,7 +72,7 @@ export const studentProcedure = t.procedure.use(
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Não autenticado" });
     }
 
-    if (ctx.user.role !== 'aluno') {
+    if (ctx.user.role !== 'aluno' && ctx.user.role !== 'admin') {
       console.warn(`[studentProcedure] Access denied for user ${ctx.user.id} with role ${ctx.user.role}`);
       throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a alunos" });
     }

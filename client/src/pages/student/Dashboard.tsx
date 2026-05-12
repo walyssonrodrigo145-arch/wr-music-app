@@ -5,232 +5,482 @@ import {
   Calendar, 
   CheckCircle2, 
   Clock, 
-  TrendingUp, 
   ChevronRight,
   BookOpen,
   Music,
   Video,
-  FileText
+  FileText,
+  Bell,
+  Download,
+  Play,
+  MessageSquare,
+  DollarSign,
+  PlusCircle,
+  ExternalLink,
+  ShieldCheck,
+  TrendingUp,
+  Search,
+  Moon,
+  User,
+  LayoutDashboard
 } from "lucide-react";
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { motion } from "framer-motion";
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const item = {
+  hidden: { y: 20, opacity: 0 },
+  show: { y: 0, opacity: 1 }
+};
 
 export default function StudentDashboard() {
   const { user } = useAuth();
   const { data: dashboard, isLoading } = trpc.studentPortal.getDashboard.useQuery();
 
-  if (isLoading) return <div>Carregando dashboard...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Carregando dados...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const chartData = [
-    { name: 'Dez', progresso: 20 },
-    { name: 'Jan', progresso: 45 },
-    { name: 'Fev', progresso: 55 },
-    { name: 'Mar', progresso: 75 },
-    { name: 'Abr', progresso: 70 },
-    { name: 'Mai', progresso: 85 },
-  ];
+  const firstName = user?.name?.split(' ')[0] || 'Aluno';
 
   return (
-    <div className="space-y-8 pb-10">
-      {/* Header Section */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight text-foreground">
-          Olá, {user?.name?.split(' ')[0] || 'Aluno'}! 🎵
-        </h1>
-        <p className="text-muted-foreground font-medium">Bem-vinda ao seu portal de estudos.</p>
+    <motion.div 
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="space-y-8 pb-10"
+    >
+      {/* Top Header & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground font-medium flex items-center gap-2 mt-1">
+            Olá, {firstName}! 👋 <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-bold uppercase tracking-tighter">Aluno</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Aqui está um resumo das suas atividades.</p>
+        </div>
+        <div className="flex items-center gap-3">
+           <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={16} />
+              <input 
+                type="text" 
+                placeholder="Procurar..." 
+                className="bg-card border-none rounded-xl pl-10 pr-4 py-2.5 text-sm w-full md:w-[280px] shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              />
+           </div>
+           <button className="w-10 h-10 rounded-xl bg-card flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors shadow-sm">
+             <Moon size={18} />
+           </button>
+           <button className="w-10 h-10 rounded-xl bg-card flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors shadow-sm relative">
+             <Bell size={18} />
+             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-card" />
+           </button>
+           <div className="flex items-center gap-3 pl-2 border-l">
+             <div className="text-right hidden sm:block">
+                <p className="text-xs font-black leading-none">{user?.name}</p>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter mt-1">ALUNO</p>
+             </div>
+             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shadow-lg">
+                {user?.name?.slice(0, 2).toUpperCase()}
+             </div>
+           </div>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 from-card to-card/50 overflow-hidden group hover:scale-[1.02] transition-transform">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
-                <BookOpen size={24} />
+      {/* Stats Cards Row */}
+      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Aulas Realizadas */}
+        <Card className="border-none shadow-xl bg-white dark:bg-card/50 overflow-hidden group hover:translate-y-[-4px] transition-all duration-300">
+          <CardContent className="p-6 flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center text-purple-600">
+              <Calendar size={28} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-muted-foreground">Aulas Realizadas</p>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-3xl font-black">{dashboard?.stats.lessonsDone || 0}</h3>
+                <span className="text-xs font-bold text-muted-foreground">este mês</span>
               </div>
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Próxima Aula</p>
-                <p className="text-lg font-black text-foreground">
-                  {dashboard?.upcomingLessons[0] 
-                    ? format(new Date(dashboard.upcomingLessons[0].scheduledAt), "dd 'mai' yyyy", { locale: ptBR })
-                    : "Sem aulas"}
-                </p>
-                <p className="text-xs font-medium text-muted-foreground">
-                   {dashboard?.upcomingLessons[0] ? format(new Date(dashboard.upcomingLessons[0].scheduledAt), "HH:mm") : "-"}
-                </p>
+              <div className="mt-2 flex items-center gap-1 text-[10px] font-black text-green-500 uppercase">
+                <TrendingUp size={12} /> + 10% vs mês anterior
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 from-card to-card/50 overflow-hidden group hover:scale-[1.02] transition-transform">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-600">
-                <CheckCircle2 size={24} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Aulas Realizadas</p>
-                <p className="text-2xl font-black text-foreground">{dashboard?.stats.lessonsDone || 0}</p>
-                <p className="text-xs font-medium text-green-600">Frequência: {dashboard?.stats.frequency}%</p>
+        {/* Exercícios Pendentes */}
+        <Card className="border-none shadow-xl bg-white dark:bg-card/50 overflow-hidden group hover:translate-y-[-4px] transition-all duration-300">
+          <CardContent className="p-6 flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-green-100 dark:bg-green-500/10 flex items-center justify-center text-green-600">
+              <CheckCircle2 size={28} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-muted-foreground">Exercícios Pendentes</p>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-3xl font-black">{dashboard?.stats.pendingExercises || 0}</h3>
+                <span className="text-xs font-bold text-muted-foreground">para entregar</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 from-card to-card/50 overflow-hidden group hover:scale-[1.02] transition-transform">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600">
-                <Clock size={24} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Exercícios</p>
-                <p className="text-2xl font-black text-foreground">{dashboard?.stats.pendingExercises || 0}</p>
-                <p className="text-xs font-medium text-muted-foreground">Pendentes</p>
+        {/* Avisos Não Lidos */}
+        <Card className="border-none shadow-xl bg-white dark:bg-card/50 overflow-hidden group hover:translate-y-[-4px] transition-all duration-300">
+          <CardContent className="p-6 flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-orange-100 dark:bg-orange-500/10 flex items-center justify-center text-orange-600">
+              <Bell size={28} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-muted-foreground">Avisos Não Lidos</p>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-3xl font-black">{dashboard?.stats.unreadAnnouncements || 0}</h3>
+                <span className="text-xs font-bold text-muted-foreground">avisos importantes</span>
               </div>
             </div>
           </CardContent>
         </Card>
+      </motion.div>
 
-        <Card className="border-none shadow-xl bg-gradient-to-br from-white to-slate-50/50 from-card to-card/50 overflow-hidden group hover:scale-[1.02] transition-transform">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-600">
-                <TrendingUp size={24} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Progresso Geral</p>
-                <p className="text-2xl font-black text-foreground">{dashboard?.stats.generalProgress || 0}%</p>
-                <p className="text-xs font-bold text-green-600 uppercase">Excelente</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Progress Chart */}
-        <Card className="lg:col-span-2 border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-xl">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg font-black">Resumo do Progresso</CardTitle>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Últimos 6 meses</p>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorProg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#7C3AED" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fontSize: 12, fontWeight: 600, fill: '#64748B'}}
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fontSize: 12, fontWeight: 600, fill: '#64748B'}}
-                    tickFormatter={(value) => `${value}%`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                      borderRadius: '16px', 
-                      border: 'none', 
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                      backdropFilter: 'blur(8px)'
-                    }}
-                    labelStyle={{ fontWeight: 800, color: '#1E293B' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="progresso" 
-                    stroke="#7C3AED" 
-                    strokeWidth={4}
-                    fillOpacity={1} 
-                    fill="url(#colorProg)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activities */}
-        <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-xl">
-          <CardHeader>
-            <CardTitle className="text-lg font-black">Atividades Recentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {dashboard?.recentActivities.map((activity, idx) => (
-                <div key={activity.id} className="flex gap-4 group cursor-pointer">
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110",
-                    activity.category === 'tecnica' ? "bg-blue-500/10 text-blue-600" :
-                    activity.category === 'teoria' ? "bg-purple-500/10 text-purple-600" :
-                    "bg-orange-500/10 text-orange-600"
-                  )}>
-                    {activity.category === 'tecnica' ? <Music size={18} /> :
-                     activity.category === 'teoria' ? <FileText size={18} /> :
-                     <Video size={18} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate">{activity.title}</p>
-                    <p className="text-xs text-muted-foreground font-medium">Há {idx + 1} dias</p>
-                  </div>
-                </div>
-              ))}
-              {!dashboard?.recentActivities.length && (
-                <div className="text-center py-10">
-                  <p className="text-sm text-muted-foreground">Nenhuma atividade recente.</p>
-                </div>
-              )}
-            </div>
+        
+        {/* Left & Center Column (Col Span 2) */}
+        <div className="lg:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
-            <Button variant="ghost" className="w-full mt-6 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary/5">
-              Ver Tudo <ChevronRight size={14} className="ml-1" />
-            </Button>
-          </CardContent>
-        </Card>
+            {/* Avisos Section */}
+            <motion.div variants={item}>
+              <Card className="border-none shadow-xl bg-white dark:bg-card/50 h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div className="flex items-center gap-2">
+                    <Bell size={18} className="text-primary" />
+                    <CardTitle className="text-lg font-black">Avisos</CardTitle>
+                  </div>
+                  <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  {dashboard?.announcements.map((aviso: any) => (
+                    <div key={aviso.id} className="flex items-start gap-4 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
+                      <div className={cn(
+                        "w-2 h-2 rounded-full mt-1.5 flex-shrink-0",
+                        aviso.important ? "bg-primary shadow-[0_0_8px_rgba(124,58,237,0.6)]" : "bg-muted"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{aviso.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{aviso.author}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-muted-foreground whitespace-nowrap">{aviso.date}</span>
+                    </div>
+                  ))}
+                  <div className="pt-2">
+                    <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                      Ver todos os avisos
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Materiais Recentes Section */}
+            <motion.div variants={item}>
+              <Card className="border-none shadow-xl bg-white dark:bg-card/50 h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div className="flex items-center gap-2">
+                    <BookOpen size={18} className="text-primary" />
+                    <CardTitle className="text-lg font-black">Materiais Recentes</CardTitle>
+                  </div>
+                  <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  {dashboard?.materials.map((mat: any) => (
+                    <div key={mat.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                        {mat.category === 'pdf' ? <FileText size={20} /> : 
+                         mat.category === 'video' ? <Video size={20} /> : 
+                         <Music size={20} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{mat.fileName}</p>
+                        <p className="text-[10px] text-muted-foreground font-black uppercase">{mat.category} • {(mat.size / 1024 / 1024).toFixed(1)} MB</p>
+                      </div>
+                      <button className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-white transition-all shadow-sm">
+                        {mat.category === 'video' || mat.category === 'audio' ? <Play size={14} /> : <Download size={14} />}
+                      </button>
+                    </div>
+                  ))}
+                  <div className="pt-2">
+                    <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                      Ver todos os materiais
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            {/* Financeiro Section */}
+            <motion.div variants={item}>
+              <Card className="border-none shadow-xl bg-white dark:bg-card/50 h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div className="flex items-center gap-2">
+                    <DollarSign size={18} className="text-primary" />
+                    <CardTitle className="text-lg font-black">Financeiro</CardTitle>
+                  </div>
+                  <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <Tabs defaultValue="mensalidades" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 bg-secondary/50 p-1 rounded-xl mb-4 h-10">
+                      <TabsTrigger value="mensalidades" className="rounded-lg text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-sm">Mensalidades</TabsTrigger>
+                      <TabsTrigger value="historico" className="rounded-lg text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-sm">Histórico</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="mensalidades" className="space-y-3">
+                      {dashboard?.payments.map((payment: any) => (
+                        <div key={payment.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-secondary/20">
+                          <div>
+                            <p className="text-sm font-black text-foreground">
+                              {format(new Date(payment.dueDate), "MMMM / yyyy", { locale: ptBR })}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground font-medium">Vencimento: {format(new Date(payment.dueDate), "dd/MM/yyyy")}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={cn(
+                              "text-[10px] font-black uppercase px-2.5 py-1 rounded-full",
+                              payment.status === 'pago' ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                            )}>
+                              {payment.status === 'pago' ? 'Paga' : 'Pendente'}
+                            </span>
+                            <button className="text-muted-foreground hover:text-primary transition-colors">
+                              <Download size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="pt-2">
+                        <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                          Ver histórico financeiro
+                        </button>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Mensagens Section */}
+            <motion.div variants={item}>
+              <Card className="border-none shadow-xl bg-white dark:bg-card/50 h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare size={18} className="text-primary" />
+                    <CardTitle className="text-lg font-black">Mensagens</CardTitle>
+                  </div>
+                  <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  {[1, 2, 3].map((msg) => (
+                    <div key={msg} className="flex items-center gap-4 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
+                      <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex-shrink-0 border border-border/50">
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center text-primary font-bold text-xs">
+                          {msg === 1 ? 'PL' : msg === 2 ? 'SC' : 'SP'}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-bold text-foreground truncate">{msg === 1 ? 'Professor Lucas' : msg === 2 ? 'Secretaria' : 'Suporte'}</p>
+                          <span className="text-[10px] text-muted-foreground">10:30</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate font-medium">Olá, {firstName}! Tudo bem? Gostaria de saber...</p>
+                      </div>
+                      {msg === 1 && (
+                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white text-[10px] font-black shadow-lg shadow-primary/30">1</div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="pt-2">
+                    <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                      Abrir mensagens
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-8">
+          
+          {/* Exercícios Pendentes Section */}
+          <motion.div variants={item}>
+            <Card className="border-none shadow-xl bg-white dark:bg-card/50">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex items-center gap-2">
+                  <ClipboardCheck size={18} className="text-primary" />
+                  <CardTitle className="text-lg font-black">Exercícios Pendentes</CardTitle>
+                </div>
+                <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <Tabs defaultValue="pendentes" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 bg-secondary/50 p-1 rounded-xl mb-4 h-10">
+                    <TabsTrigger value="pendentes" className="rounded-lg text-[9px] font-black uppercase tracking-tighter data-[state=active]:bg-white data-[state=active]:shadow-sm px-1">Pendentes</TabsTrigger>
+                    <TabsTrigger value="enviados" className="rounded-lg text-[9px] font-black uppercase tracking-tighter data-[state=active]:bg-white data-[state=active]:shadow-sm px-1">Enviados</TabsTrigger>
+                    <TabsTrigger value="concluidos" className="rounded-lg text-[9px] font-black uppercase tracking-tighter data-[state=active]:bg-white data-[state=active]:shadow-sm px-1">Concluídos</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="pendentes" className="space-y-3">
+                    {[1, 2, 3].map((ex) => (
+                      <div key={ex} className="p-4 rounded-xl border border-border/50 hover:border-primary/30 transition-all cursor-pointer group">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                               <FileText size={16} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-foreground">Exercício 0{ex} - {ex === 1 ? 'Dedilhado' : ex === 2 ? 'Campo Harmônico' : 'Leitura Rítmica'}</p>
+                              <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Enviado em {10-ex}/05</p>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-black uppercase bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Pendente</span>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="pt-2">
+                      <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                        Ver todos os exercícios
+                      </button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Atalhos Section */}
+          <motion.div variants={item}>
+            <Card className="border-none shadow-xl bg-white dark:bg-card/50 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard size={18} className="text-primary" />
+                  <CardTitle className="text-lg font-black">Atalhos</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-4">
+                <button className="w-full flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all group">
+                   <div className="flex items-center gap-3 text-left">
+                     <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
+                       <PlusCircle size={18} />
+                     </div>
+                     <div>
+                       <p className="text-sm font-bold text-foreground">Solicitar Reposição</p>
+                       <p className="text-[10px] text-muted-foreground font-medium">Solicite reposição de aulas</p>
+                     </div>
+                   </div>
+                   <ChevronRight size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                </button>
+
+                <button className="w-full flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all group">
+                   <div className="flex items-center gap-3 text-left">
+                     <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
+                       <Clock size={18} />
+                     </div>
+                     <div>
+                       <p className="text-sm font-bold text-foreground">Solicitar Remarcação</p>
+                       <p className="text-[10px] text-muted-foreground font-medium">Solicite remarcação de aulas</p>
+                     </div>
+                   </div>
+                   <ChevronRight size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                </button>
+
+                <button className="w-full flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all group">
+                   <div className="flex items-center gap-3 text-left">
+                     <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">
+                       <Calendar size={18} />
+                     </div>
+                     <div>
+                       <p className="text-sm font-bold text-foreground">Ver Agenda</p>
+                       <p className="text-[10px] text-muted-foreground font-medium">Consulte seus próximos horários</p>
+                     </div>
+                   </div>
+                   <ChevronRight size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                </button>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Próximas Aulas (Simplified Card) */}
+          <motion.div variants={item}>
+             {dashboard?.upcomingLessons[0] && (
+               <Card className="border-none shadow-xl bg-gradient-to-br from-[#7C3AED] to-[#2563EB] text-white overflow-hidden relative group">
+                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Music size={120} strokeWidth={1} />
+                 </div>
+                 <CardContent className="p-6 relative z-10">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Sua Próxima Aula</p>
+                    <h3 className="text-2xl font-black mt-2">
+                       {format(new Date(dashboard.upcomingLessons[0].scheduledAt), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                    </h3>
+                    <div className="mt-6 flex items-center gap-6">
+                       <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Horário</p>
+                          <p className="text-lg font-bold">{format(new Date(dashboard.upcomingLessons[0].scheduledAt), "HH:mm")}</p>
+                       </div>
+                       <div className="w-px h-8 bg-white/20" />
+                       <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Professor</p>
+                          <p className="text-lg font-bold">{dashboard.teacherName}</p>
+                       </div>
+                    </div>
+                    <button className="w-full mt-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+                       Ver detalhes da aula
+                    </button>
+                 </CardContent>
+               </Card>
+             )}
+          </motion.div>
+
+        </div>
+
       </div>
-    </div>
+
+      {/* Security Footer Card */}
+      <motion.div variants={item} className="pt-4">
+        <Card className="border-none shadow-lg bg-primary/5 border-l-4 border-l-primary rounded-xl overflow-hidden">
+           <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-black text-primary">Acesso Restrito</p>
+                <p className="text-xs text-muted-foreground font-medium">Você está acessando sua área exclusiva. Seus dados estão protegidos e apenas você pode visualizar suas informações.</p>
+              </div>
+           </CardContent>
+        </Card>
+      </motion.div>
+
+    </motion.div>
   );
 }
-
-const Button = ({ children, className, variant, ...props }: any) => {
-  return (
-    <button 
-      className={cn(
-        "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-        variant === 'ghost' ? "hover:bg-accent" : "bg-primary text-primary-foreground hover:opacity-90",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};

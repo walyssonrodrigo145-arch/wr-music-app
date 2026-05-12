@@ -6,22 +6,54 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip 
+  Tooltip,
+  BarChart,
+  Bar,
+  Cell
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { 
+  TrendingUp, 
+  Target, 
+  CheckCircle2, 
+  Clock, 
+  Star,
+  Award,
+  Zap,
+  ChevronRight,
+  Info
+} from "lucide-react";
+import { motion } from "framer-motion";
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const item = {
+  hidden: { y: 20, opacity: 0 },
+  show: { y: 0, opacity: 1 }
+};
 
 export default function StudentProgress() {
   const { data: progress, isLoading } = trpc.studentPortal.getProgress.useQuery();
 
-  if (isLoading) return <div>Carregando progresso...</div>;
+  if (isLoading) return (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+    </div>
+  );
 
   const skills = [
-    { name: "Técnica Vocal", value: 90 },
-    { name: "Harmonia", value: 85 },
-    { name: "Ritmo", value: 80 },
-    { name: "Leitura", value: 88 },
-    { name: "Teoria", value: 85 },
+    { name: "Técnica Vocal", value: 90, color: "#8B5CF6" },
+    { name: "Harmonia", value: 85, color: "#3B82F6" },
+    { name: "Ritmo", value: 80, color: "#10B981" },
+    { name: "Leitura", value: 88, color: "#F59E0B" },
+    { name: "Teoria", value: 85, color: "#EC4899" },
   ];
 
   const chartData = [
@@ -38,53 +70,99 @@ export default function StudentProgress() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-foreground">Meu Progresso</h1>
-          <p className="text-muted-foreground font-medium">Acompanhe sua evolução musical detalhada.</p>
+          <p className="text-muted-foreground font-medium">Visualize sua evolução musical através de dados e conquistas.</p>
         </div>
-        <select className="bg-card bg-card border border-border border-border rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest outline-none">
+        <select className="bg-card border border-border rounded-xl px-6 py-3 text-[10px] font-black uppercase tracking-widest outline-none shadow-sm focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer">
           <option>Últimos 6 meses</option>
           <option>Último ano</option>
         </select>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div 
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+      >
         {[
-          { label: "Desempenho Geral", value: "87%", sub: "Excelente", color: "text-purple-600" },
-          { label: "Aulas Concluídas", value: progress?.stats.lessonsDone || 0, sub: "Total", color: "text-blue-600" },
-          { label: "Exercícios Concluídos", value: "18", sub: "Total", color: "text-green-600" },
-          { label: "Frequência", value: "95%", sub: "Excelente", color: "text-orange-600" },
+          { label: "Performance Geral", value: "87%", sub: "Top 5% da Escola", icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-100" },
+          { label: "Aulas Concluídas", value: progress?.stats.lessonsDone || 0, sub: "Meta: 50", icon: CheckCircle2, color: "text-blue-600", bg: "bg-blue-100" },
+          { label: "Exercícios", value: "18", sub: "100% Taxa de Entrega", icon: Target, color: "text-green-600", bg: "bg-green-100" },
+          { label: "Frequência", value: "95%", sub: "Assiduidade Exemplar", icon: Zap, color: "text-orange-600", bg: "bg-orange-100" },
         ].map((stat, i) => (
-          <Card key={i} className="border-none shadow-lg bg-card/50 bg-muted/50 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">{stat.label}</p>
-              <p className={cn("text-3xl font-black mb-1", stat.color)}>{stat.value}</p>
-              <p className="text-xs font-bold text-muted-foreground uppercase">{stat.sub}</p>
-            </CardContent>
-          </Card>
+          <motion.div variants={item} key={i}>
+            <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm group hover:scale-[1.02] transition-transform">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                   <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-inner", stat.bg, stat.color)}>
+                      <stat.icon size={20} />
+                   </div>
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</p>
+                </div>
+                <p className={cn("text-4xl font-black mb-1", stat.color)}>{stat.value}</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{stat.sub}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Evolution Chart */}
-        <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-black">Evolução no Período</CardTitle>
+        <Card className="border-none shadow-2xl bg-card/50 backdrop-blur-xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <TrendingUp size={20} />
+              </div>
+              <CardTitle className="text-xl font-black tracking-tight">Curva de Aprendizado</CardTitle>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+               <TrendingUp size={10} /> +12% esse mês
+            </div>
           </CardHeader>
-          <CardContent className="pt-4">
+          <CardContent>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="progGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 700}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 700}} />
-                  <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
-                  <Area type="monotone" dataKey="val" stroke="#2563EB" strokeWidth={4} fillOpacity={1} fill="url(#progGradient)" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 10, fontWeight: 900, fill: '#64748b'}} 
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 10, fontWeight: 900, fill: '#64748b'}} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '24px', 
+                      border: 'none', 
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+                      padding: '16px'
+                    }} 
+                    itemStyle={{ fontSize: '12px', fontWeight: 900, color: '#8B5CF6' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="val" 
+                    stroke="#8B5CF6" 
+                    strokeWidth={4} 
+                    fillOpacity={1} 
+                    fill="url(#progGradient)" 
+                    animationDuration={2000}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -92,27 +170,64 @@ export default function StudentProgress() {
         </Card>
 
         {/* Skills Progress */}
-        <Card className="border-none shadow-xl bg-card/50 bg-muted/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-black">Habilidades</CardTitle>
+        <Card className="border-none shadow-2xl bg-card/50 backdrop-blur-xl">
+          <CardHeader className="pb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600">
+                <Star size={20} />
+              </div>
+              <CardTitle className="text-xl font-black tracking-tight">Habilidades Dominadas</CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
             {skills.map((skill) => (
-              <div key={skill.name} className="space-y-2">
+              <div key={skill.name} className="space-y-3 group cursor-default">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-foreground">{skill.name}</span>
-                  <span className="text-xs font-black text-primary">{skill.value}%</span>
+                  <span className="text-xs font-black uppercase tracking-widest text-foreground group-hover:text-primary transition-colors">{skill.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-primary">{skill.value}%</span>
+                    <ChevronRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                  </div>
                 </div>
-                <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-1000 ease-out" 
-                    style={{ width: `${skill.value}%` }} 
+                <div className="h-3 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${skill.value}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="h-full rounded-full shadow-[0_0_15px_rgba(139,92,246,0.3)]"
+                    style={{ backgroundColor: skill.color }}
                   />
                 </div>
               </div>
             ))}
+
+            <div className="pt-6 mt-6 border-t border-border flex items-center gap-4">
+               <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <Award size={24} />
+               </div>
+               <div className="flex-1">
+                  <p className="text-xs font-black text-foreground uppercase tracking-tight">Próxima Conquista</p>
+                  <p className="text-xs text-muted-foreground font-medium">Complete 5 exercícios de harmonia para liberar o selo "Harmonizador".</p>
+               </div>
+            </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Proactive Tip */}
+      <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/10 flex flex-col md:flex-row items-center justify-between gap-6">
+         <div className="flex items-center gap-4 text-center md:text-left">
+            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/20">
+               <Zap size={24} fill="currentColor" />
+            </div>
+            <div>
+               <h4 className="text-base font-black text-foreground">Como melhorar seu progresso?</h4>
+               <p className="text-sm text-muted-foreground font-medium">Participe dos fóruns e tire dúvidas no chat para subir de nível mais rápido.</p>
+            </div>
+         </div>
+         <button className="bg-primary text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all whitespace-nowrap">
+            Falar com Suporte
+         </button>
       </div>
     </div>
   );
