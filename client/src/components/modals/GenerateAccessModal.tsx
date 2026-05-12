@@ -22,9 +22,9 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
   const [password, setPassword] = useState("");
   const utils = trpc.useUtils();
 
-  const { data: student, isLoading } = trpc.students.getDetails.useQuery(
+  const { data: student, isLoading, error } = trpc.students.getDetails.useQuery(
     { id: studentId as number },
-    { enabled: !!studentId && open }
+    { enabled: !!studentId && open, retry: false }
   );
 
   const { data: me } = trpc.auth.me.useQuery(undefined, { enabled: open });
@@ -69,6 +69,8 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
 
   if (!open) return null;
 
+  const isDataLoading = isLoading || (!!studentId && !student && !error);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden bg-background rounded-3xl border-border/40 shadow-2xl max-h-[95vh] flex flex-col">
@@ -110,10 +112,23 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
           </div>
         </div>
 
-        {isLoading || !student ? (
+        {isDataLoading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-4 min-h-[400px]">
             <RefreshCw className="animate-spin text-primary w-10 h-10" />
             <p className="text-muted-foreground animate-pulse">Carregando dados do aluno...</p>
+          </div>
+        ) : error || !student ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-4 min-h-[400px]">
+            <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
+              <AlertCircle size={32} />
+            </div>
+            <p className="text-foreground font-bold">Aluno não encontrado</p>
+            <p className="text-sm text-muted-foreground text-center max-w-xs">
+              Não foi possível carregar os dados deste aluno. Verifique se ele ainda existe ou se você tem permissão para acessá-lo.
+            </p>
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="mt-4">
+              Fechar
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] lg:grid-cols-[1.2fr_1fr] flex-1 overflow-hidden min-h-0">
