@@ -79,8 +79,13 @@ export default function Mensagens() {
                      <Loader2 className="animate-spin text-primary" />
                    </div>
                  ) : filteredStudents.length === 0 ? (
-                   <div className="text-center p-8 text-muted-foreground text-xs font-bold uppercase tracking-widest opacity-40">
-                     Nenhum aluno encontrado
+                   <div className="text-center p-8 space-y-4">
+                     <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest opacity-40">
+                       Nenhum aluno com acesso
+                     </p>
+                     <p className="text-[10px] text-muted-foreground/60 font-medium leading-relaxed">
+                       Apenas alunos com **Acesso ao Portal** liberado aparecem aqui para troca de mensagens.
+                     </p>
                    </div>
                  ) : filteredStudents.map(student => (
                    <div 
