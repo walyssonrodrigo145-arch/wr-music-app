@@ -14,10 +14,11 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 export default function StudentMessages() {
   const { data: dashboard } = trpc.studentPortal.getDashboard.useQuery();
@@ -34,6 +35,16 @@ export default function StudentMessages() {
       refetch();
     }
   });
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSend = () => {
     if (!message.trim() || !dashboard?.teacherId) return;
@@ -147,6 +158,7 @@ export default function StudentMessages() {
                      </span>
                   </motion.div>
                 ))}
+                   <div ref={messagesEndRef} />
               </AnimatePresence>
            </div>
 

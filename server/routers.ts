@@ -17,7 +17,7 @@ import {
   getExperimentalStats,
 } from "./db";
 import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests } from "../drizzle/schema";
-import { eq, desc, sql, and, gte, lt, lte, asc, ne } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne, or } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
 import { TRPCError } from "@trpc/server";
@@ -2649,7 +2649,10 @@ export const appRouter = router({
        }).from(chatMessages)
          .where(and(
            eq(chatMessages.organizationId, orgId),
-           sql`(${chatMessages.senderId} = ${ctx.user.id} AND ${chatMessages.receiverId} = ${input.withUserId}) OR (${chatMessages.senderId} = ${input.withUserId} AND ${chatMessages.receiverId} = ${ctx.user.id})`
+           or(
+             and(eq(chatMessages.senderId, ctx.user.id), eq(chatMessages.receiverId, input.withUserId)),
+             and(eq(chatMessages.senderId, input.withUserId), eq(chatMessages.receiverId, ctx.user.id))
+           )
          ))
          .orderBy(asc(chatMessages.createdAt));
     }),
@@ -2892,7 +2895,10 @@ export const appRouter = router({
        }).from(chatMessages)
          .where(and(
            eq(chatMessages.organizationId, orgId),
-           sql`(${chatMessages.senderId} = ${ctx.user.id} AND ${chatMessages.receiverId} = ${input.withUserId}) OR (${chatMessages.senderId} = ${input.withUserId} AND ${chatMessages.receiverId} = ${ctx.user.id})`
+           or(
+             and(eq(chatMessages.senderId, ctx.user.id), eq(chatMessages.receiverId, input.withUserId)),
+             and(eq(chatMessages.senderId, input.withUserId), eq(chatMessages.receiverId, ctx.user.id))
+           )
          ))
          .orderBy(asc(chatMessages.createdAt));
     }),
