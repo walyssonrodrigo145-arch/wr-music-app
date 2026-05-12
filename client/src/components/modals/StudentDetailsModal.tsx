@@ -49,7 +49,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px] rounded-[2.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
+      <DialogContent className="sm:max-w-[420px] max-h-[90vh] flex flex-col rounded-[2.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
         {isLoading && !student ? (
           <div className="flex flex-col items-center justify-center p-16">
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
@@ -64,7 +64,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
         ) : (
           <>
             {/* Profile Header */}
-            <div className="px-8 pt-10 pb-8 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent flex flex-col items-center text-center relative border-b border-border/10">
+            <div className="px-8 pt-10 pb-8 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent flex flex-col items-center text-center relative border-b border-border/10 flex-shrink-0">
               {/* Profile Avatar with status indicator */}
               <div className="relative mb-6">
                 <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary via-indigo-600 to-violet-600 flex items-center justify-center shadow-2xl shadow-primary/30 text-white font-black text-3xl border-4 border-background transition-all hover:scale-105 hover:rotate-2 duration-500">
@@ -114,8 +114,8 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
               </div>
             </div>
 
-            {/* Details Content */}
-            <div className="p-8 pt-6 space-y-6">
+            {/* Details Content - Scrollable */}
+            <div className="overflow-y-auto flex-1 p-8 pt-6 space-y-6">
               
               {/* Info Grid - Matrícula e Mensalidade */}
               <div className="grid grid-cols-2 gap-4">
@@ -205,8 +205,8 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
               </div>
             </div>
 
-            {/* Bottom Actions - Portal Focus */}
-            <div className="p-8 pt-0 space-y-3">
+            {/* Bottom Actions - Fixed footer, outside scroll */}
+            <div className="p-8 pt-4 space-y-3 border-t border-border/10 flex-shrink-0 bg-card">
                <Button
                  className={cn(
                    "w-full h-14 rounded-3xl text-[11px] font-black uppercase tracking-[0.25em] shadow-2xl transition-all active:scale-95 border-none relative overflow-hidden group",
