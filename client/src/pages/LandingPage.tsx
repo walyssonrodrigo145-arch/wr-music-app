@@ -25,10 +25,14 @@ const LandingPage = () => {
   const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
-    if (!loading && isAuthenticated) {
-      setLocation("/dashboard");
+    if (!loading && isAuthenticated && user) {
+      if (user.role === 'aluno') {
+        setLocation("/aluno");
+      } else {
+        setLocation("/dashboard");
+      }
     }
-  }, [isAuthenticated, loading, setLocation]);
+  }, [isAuthenticated, loading, user, setLocation]);
 
   useEffect(() => {
     const handleScroll = () => {

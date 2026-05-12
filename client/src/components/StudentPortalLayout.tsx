@@ -29,11 +29,11 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
     if (!loading) {
       if (!isAuthenticated) {
         window.location.href = getLoginUrl();
-      } else if (user?.role !== 'aluno' && user?.role !== 'admin') {
+      } else if (user?.role && user.role !== 'aluno' && user.role !== 'admin') {
         window.location.href = "/dashboard";
       }
     }
-  }, [loading, isAuthenticated, user]);
+  }, [loading, isAuthenticated, user?.role]);
 
   if (loading) {
     return (

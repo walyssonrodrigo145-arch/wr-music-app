@@ -33,11 +33,11 @@ export function MusicLayout({ children }: MusicLayoutProps) {
     if (!loading) {
       if (!isAuthenticated) {
         window.location.href = getLoginUrl();
-      } else if (user?.role === 'aluno') {
+      } else if (user?.role === 'aluno' && !window.location.pathname.startsWith('/aluno')) {
         window.location.href = "/aluno";
       }
     }
-  }, [loading, isAuthenticated, user]);
+  }, [loading, isAuthenticated, user?.role]);
 
   if (loading) {
     return (
