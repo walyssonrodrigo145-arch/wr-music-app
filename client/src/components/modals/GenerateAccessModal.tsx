@@ -116,10 +116,10 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
             <p className="text-muted-foreground animate-pulse">Carregando dados do aluno...</p>
           </div>
         ) : (
-          <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] lg:grid-cols-[1.2fr_1fr] flex-1 overflow-hidden min-h-0">
             
             {/* Left Column - Form */}
-            <div className="flex-1 p-6 md:p-10 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <div className="p-6 md:p-10 overflow-y-auto border-r border-border/20">
               
               <div className="space-y-6">
                 {/* DADOS PESSOAIS */}
@@ -201,7 +201,7 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
             </div>
 
             {/* Right Column - Preview */}
-            <div className="flex-1 bg-muted/30 p-6 md:p-10 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent border-l border-border/20">
+            <div className="bg-muted/20 p-6 md:p-10 overflow-y-auto">
               <h3 className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4">Pré-visualização do acesso</h3>
               
               <div className="bg-card rounded-[32px] border border-border/60 shadow-xl overflow-hidden max-w-md mx-auto">
