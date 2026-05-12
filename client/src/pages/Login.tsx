@@ -79,39 +79,52 @@ export default function Login() {
   const isLoading = loginMutation.isPending || registerMutation.isPending;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-zinc-950 relative overflow-hidden">
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/20 blur-[120px]" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-600/20 blur-[120px]" />
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#050816] relative overflow-hidden">
+      {/* Dynamic Background Elements */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-primary/20 blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/10 blur-[120px]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-[0.03] pointer-events-none">
+        <Music size={600} className="absolute top-0 left-0 -rotate-12" />
+        <Music size={400} className="absolute bottom-0 right-0 rotate-12" />
+      </div>
       
-      <div className="z-10 w-full max-w-md p-6">
-        <div className="mb-8 text-center flex flex-col items-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-indigo-500/20">
+      <div className="z-10 w-full max-w-[440px] p-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-10 text-center flex flex-col items-center"
+        >
+          <div className="w-16 h-16 bg-gradient-to-br from-primary to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-primary/20 group hover:scale-110 transition-transform duration-500">
             <Music className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-100">
-            {isRegistering ? "Crie sua conta" : "Acesse sua conta"}
+          <h1 className="text-4xl font-black tracking-tight text-white font-outfit">
+            Music<span className="text-primary">Pro</span>
           </h1>
-          <p className="text-zinc-400 mt-2">
-            Gestão inteligente para sua escola de música
+          <p className="text-zinc-400 mt-3 font-medium uppercase text-[10px] tracking-[0.3em]">
+            {isRegistering ? "Crie sua conta exclusiva" : "Acesse seu painel musical"}
           </p>
-        </div>
+        </motion.div>
 
-        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800/50 p-8 rounded-3xl shadow-2xl space-y-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-zinc-900/40 backdrop-blur-3xl border border-white/10 p-8 md:p-10 rounded-[2.5rem] shadow-2xl space-y-8 relative overflow-hidden"
+        >
           {successMsg ? (
-            <div className="text-center py-4 space-y-4">
-              <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+            <div className="text-center py-6 space-y-6">
+              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500" />
               </div>
-              <h2 className="text-xl font-semibold text-white">Quase lá!</h2>
-              <p className="text-zinc-400 leading-relaxed">
+              <h2 className="text-2xl font-black text-white font-outfit">Sucesso!</h2>
+              <p className="text-zinc-400 leading-relaxed font-medium">
                 {successMsg}
               </p>
               <Button 
                 onClick={() => setSuccessMsg("")}
-                variant="outline"
-                className="mt-4 border-zinc-700 text-zinc-300 hover:text-white"
+                className="w-full bg-primary text-white py-6 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 transition-all"
               >
-                Voltar para Login
+                Fazer Login Agora
               </Button>
             </div>
           ) : (
@@ -131,7 +144,7 @@ export default function Login() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Ex: João Silva" 
-                      className="bg-zinc-950/50 border-zinc-800 focus-visible:ring-indigo-500 text-zinc-100 h-12"
+                      className="bg-zinc-950/30 border-white/5 focus-visible:ring-primary text-zinc-100 h-14 rounded-2xl"
                     />
                   </div>
                 )}
@@ -143,7 +156,7 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     type="email" 
                     placeholder="seu@email.com" 
-                    className="bg-zinc-950/50 border-zinc-800 focus-visible:ring-indigo-500 text-zinc-100 h-12"
+                    className="bg-zinc-950/30 border-white/5 focus-visible:ring-primary text-zinc-100 h-14 rounded-2xl"
                   />
                 </div>
 
@@ -166,7 +179,7 @@ export default function Login() {
                       onChange={(e) => setRegistrationToken(e.target.value)}
                       type="password"
                       placeholder="Digite o token de acesso" 
-                      className="bg-zinc-950/50 border-zinc-800 focus-visible:ring-indigo-500 text-zinc-100 h-12"
+                      className="bg-zinc-950/30 border-white/5 focus-visible:ring-primary text-zinc-100 h-14 rounded-2xl"
                     />
                     <p className="text-[10px] text-zinc-500 px-1">
                       Este token é obrigatório para autorizar seu acesso exclusivo.
@@ -180,7 +193,7 @@ export default function Login() {
                       id="remember" 
                       checked={rememberMe} 
                       onCheckedChange={(checked) => setRememberMe(!!checked)}
-                      className="border-zinc-700 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                      className="border-zinc-700 data-[state=checked]:bg-primary data-[state=checked]:border-primary rounded-md"
                     />
                     <label 
                       htmlFor="remember" 
@@ -194,7 +207,7 @@ export default function Login() {
                 <Button 
                   type="submit" 
                   disabled={isLoading}
-                  className="w-full h-12 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-medium text-base rounded-xl border-0 shadow-lg shadow-indigo-500/25 transition-all duration-300"
+                  className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl border-0 shadow-2xl shadow-primary/20 transition-all duration-300"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

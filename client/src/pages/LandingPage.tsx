@@ -90,7 +90,7 @@ const LandingPage = () => {
 
           <div className="hidden md:flex items-center gap-4">
             <Link href="/login">
-              <button className="px-5 py-2 text-sm font-black uppercase tracking-widest text-muted-foreground hover:text-blue-600 transition-colors">
+              <button className="px-5 py-2 text-xs font-black uppercase tracking-[0.2em] text-primary hover:opacity-80 transition-all border border-primary/20 bg-primary/5 rounded-xl">
                 Área do Aluno
               </button>
             </Link>
@@ -186,7 +186,7 @@ const LandingPage = () => {
                   </button>
                 </Link>
                 <Link href="/login">
-                  <button className="w-full sm:w-auto px-8 py-4 bg-background/10 text-white border border-white/20 rounded-2xl font-bold backdrop-blur-md hover:bg-background/20 transition-all flex items-center justify-center gap-2">
+                  <button className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-purple-500/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3">
                     <Users size={18} />
                     Área do Aluno
                   </button>
