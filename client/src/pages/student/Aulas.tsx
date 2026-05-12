@@ -15,10 +15,12 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { RescheduleModal } from "@/components/RescheduleModal";
 
 export default function StudentLessons() {
   const { data: lessons, isLoading } = trpc.studentPortal.getLessons.useQuery();
   const [activeTab, setActiveTab] = useState("proximas");
+  const [selectedLesson, setSelectedLesson] = useState<{ id: number, title: string } | null>(null);
 
   if (isLoading) return <div>Carregando aulas...</div>;
 
@@ -66,10 +68,18 @@ export default function StudentLessons() {
           </div>
 
           {/* Action Column */}
-          <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-none pt-4 sm:pt-0">
+          <div className="flex items-center justify-between sm:justify-end gap-2 border-t sm:border-none pt-4 sm:pt-0">
             <StatusBadge status={lesson.status} />
-            <button className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-primary hover:opacity-80 px-3 py-2 rounded-xl border border-primary/20 bg-primary/5 transition-all">
-              Ver Detalhes
+            {lesson.status === 'agendada' && (
+              <button 
+                onClick={() => setSelectedLesson({ id: lesson.id, title: lesson.title })}
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary px-3 py-2 rounded-xl border border-border hover:border-primary/20 transition-all"
+              >
+                Remarcar
+              </button>
+            )}
+            <button className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 px-3 py-2 rounded-xl border border-primary/20 bg-primary/5 transition-all">
+              Detalhes
             </button>
           </div>
         </div>
@@ -121,6 +131,15 @@ export default function StudentLessons() {
           )}
         </TabsContent>
       </Tabs>
+
+      {selectedLesson && (
+        <RescheduleModal 
+          open={!!selectedLesson} 
+          onOpenChange={(open) => !open && setSelectedLesson(null)}
+          lessonId={selectedLesson.id}
+          lessonTitle={selectedLesson.title}
+        />
+      )}
     </div>
   );
 }

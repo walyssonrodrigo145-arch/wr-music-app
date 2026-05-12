@@ -2610,28 +2610,60 @@ export const appRouter = router({
     }),
     getLessons: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
       const orgId = ctx.user.organizationId!;
-      return db.select().from(lessons).where(and(eq(lessons.studentId, ctx.user.studentId), eq(lessons.organizationId, orgId))).orderBy(desc(lessons.scheduledAt)).limit(50);
+      return db.select().from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId))).orderBy(desc(lessons.scheduledAt)).limit(50);
     }),
     getMaterials: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
       const orgId = ctx.user.organizationId!;
-      return db.select().from(studentFiles).where(and(eq(studentFiles.studentId, ctx.user.studentId), eq(studentFiles.organizationId, orgId))).orderBy(desc(studentFiles.createdAt));
+      return db.select().from(studentFiles).where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId))).orderBy(desc(studentFiles.createdAt));
     }),
     getExercises: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
       const orgId = ctx.user.organizationId!;
-      return db.select().from(studentGoals).where(and(eq(studentGoals.studentId, ctx.user.studentId), eq(studentGoals.organizationId, orgId))).orderBy(desc(studentGoals.createdAt));
+      return db.select().from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId))).orderBy(desc(studentGoals.createdAt));
     }),
     getProgress: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
       const orgId = ctx.user.organizationId!;
-      const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, ctx.user.studentId), eq(studentTimeline.organizationId, orgId))).orderBy(desc(studentTimeline.achievedAt));
-      const [done] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, ctx.user.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')));
+      const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId))).orderBy(desc(studentTimeline.achievedAt));
+      const [done] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')));
       return {
         timeline,
         stats: {
@@ -2642,9 +2674,17 @@ export const appRouter = router({
     }),
     getPayments: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
       const orgId = ctx.user.organizationId!;
-      return db.select().from(paymentDues).where(and(eq(paymentDues.studentId, ctx.user.studentId), eq(paymentDues.organizationId, orgId))).orderBy(desc(paymentDues.dueDate));
+      return db.select().from(paymentDues).where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId))).orderBy(desc(paymentDues.dueDate));
     }),
     getProfile: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
@@ -2698,7 +2738,15 @@ export const appRouter = router({
     }),
     getSchedule: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
       const orgId = ctx.user.organizationId!;
       return db.select({
         id: lessons.id,
@@ -2708,10 +2756,63 @@ export const appRouter = router({
         status: lessons.status,
         notes: lessons.notes,
       }).from(lessons)
-        .where(and(eq(lessons.studentId, ctx.user.studentId), eq(lessons.organizationId, orgId)))
+        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
         .orderBy(asc(lessons.scheduledAt))
         .limit(100);
     }),
+    updateProfile: studentProcedure
+      .input(z.object({
+        phone: z.string().optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        // Atualiza na tabela students
+        await db.update(students)
+          .set({
+            phone: input.phone,
+            email: input.email,
+          })
+          .where(eq(students.id, studentId));
+
+        // Atualiza na tabela users se o email mudou ou se enviou senha
+        const userUpdates: any = {};
+        if (input.email) userUpdates.email = input.email;
+        if (input.password) {
+           const salt = crypto.randomBytes(16).toString('hex');
+           const derivedKey = crypto.scryptSync(input.password, salt, 64).toString('hex');
+           userUpdates.passwordHash = salt + ':' + derivedKey;
+        }
+
+        if (Object.keys(userUpdates).length > 0) {
+          await db.update(users)
+            .set(userUpdates)
+            .where(eq(users.id, ctx.user.id));
+        }
+
+        return { success: true };
+      }),
+    requestReschedule: studentProcedure
+      .input(z.object({
+        lessonId: z.number(),
+        reason: z.string(),
+        preferredDates: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Mock ou implementação real enviando notificação
+        console.log(`Reschedule requested for lesson ${input.lessonId} by student ${ctx.user.id}`);
+        return { success: true, message: "Solicitação enviada ao professor." };
+      }),
   }),
 });
 

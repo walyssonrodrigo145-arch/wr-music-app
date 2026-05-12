@@ -5,6 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Loader2, Music } from "lucide-react";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { useLocation } from "wouter";
 
 interface MusicLayoutProps {
   children: React.ReactNode;
@@ -28,16 +29,18 @@ export function MusicLayout({ children }: MusicLayoutProps) {
     }
   }, [isTablet, isDesktop]);
 
+  const [, setLocation] = useLocation();
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading) {
       if (!isAuthenticated) {
-        window.location.href = getLoginUrl();
+        setLocation(getLoginUrl());
       } else if (user?.role === 'aluno' && !window.location.pathname.startsWith('/aluno')) {
-        window.location.href = "/aluno";
+        setLocation("/aluno");
       }
     }
-  }, [loading, isAuthenticated, user?.role]);
+  }, [loading, isAuthenticated, user?.role, setLocation]);
 
   if (loading) {
     return (

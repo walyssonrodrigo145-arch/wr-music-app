@@ -14,9 +14,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useState } from "react";
+import { EditProfileModal } from "@/components/EditProfileModal";
 
 export default function StudentProfile() {
   const { data: profile, isLoading } = trpc.studentPortal.getProfile.useQuery();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   if (isLoading) return <div>Carregando perfil...</div>;
 
@@ -31,7 +34,10 @@ export default function StudentProfile() {
           <h1 className="text-3xl font-black tracking-tight text-foreground">Meu Perfil</h1>
           <p className="text-muted-foreground font-medium">Suas informações de aluno e do seu curso.</p>
         </div>
-        <button className="flex items-center gap-2 bg-muted bg-card border border-border border-border rounded-xl px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-all shadow-sm">
+        <button 
+          onClick={() => setIsEditModalOpen(true)}
+          className="flex items-center gap-2 bg-muted bg-card border border-border border-border rounded-xl px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-all shadow-sm"
+        >
           <Settings size={16} /> Configurações
         </button>
       </div>
@@ -141,6 +147,17 @@ export default function StudentProfile() {
           </Card>
         </div>
       </div>
+
+      {profile && (
+        <EditProfileModal 
+          open={isEditModalOpen} 
+          onOpenChange={setIsEditModalOpen}
+          initialData={{
+            phone: profile.phone || "",
+            email: profile.email || "",
+          }}
+        />
+      )}
     </div>
   );
 }

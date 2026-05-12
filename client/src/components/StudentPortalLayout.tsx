@@ -5,6 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Loader2, Music } from "lucide-react";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { useLocation } from "wouter";
 
 interface StudentPortalLayoutProps {
   children: React.ReactNode;
@@ -25,15 +26,17 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
     }
   }, [isTablet, isDesktop]);
 
+  const [, setLocation] = useLocation();
+
   useEffect(() => {
     if (!loading) {
       if (!isAuthenticated) {
-        window.location.href = getLoginUrl();
+        setLocation(getLoginUrl());
       } else if (user?.role && user.role !== 'aluno' && user.role !== 'admin') {
-        window.location.href = "/dashboard";
+        setLocation("/dashboard");
       }
     }
-  }, [loading, isAuthenticated, user?.role]);
+  }, [loading, isAuthenticated, user?.role, setLocation]);
 
   if (loading) {
     return (
