@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { format } from "date-fns";
 
 export default function StudentAnnouncements() {
   const { data: dashboard, isLoading } = trpc.studentPortal.getDashboard.useQuery();

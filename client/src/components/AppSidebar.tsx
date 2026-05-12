@@ -14,6 +14,9 @@ import {
   DollarSign,
   Activity,
   X,
+  Megaphone,
+  Inbox,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -39,6 +42,9 @@ const staticNavItems = [
   { label: "Instrumentos", href: "/instrumentos", icon: Guitar },
   { label: "Relatórios", href: "/relatorios", icon: BarChart3 },
   { label: "Lembretes", href: "/lembretes", icon: Bell },
+  { label: "Comunicados", href: "/comunicados", icon: Megaphone },
+  { label: "Mensagens", href: "/mensagens", icon: MessageSquare },
+  { label: "Solicitações", href: "/solicitacoes", icon: Inbox },
   { label: "Progresso", href: "/progresso", icon: Activity },
   { label: "Mensalidades", href: "/mensalidades", icon: DollarSign },
 ];

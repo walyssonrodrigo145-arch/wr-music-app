@@ -21,6 +21,7 @@ export const paymentDueStatusEnum = pgEnum('payment_due_status', ["pendente", "p
 export const goalStatusEnum = pgEnum('goal_status', ["pendente", "concluida"]);
 export const timelineCategoryEnum = pgEnum('timeline_category', ["tecnica", "teoria", "repertorio", "geral"]);
 export const fileCategoryEnum = pgEnum('file_category', ["imagem", "video", "pdf", "audio", "documento"]);
+export const rescheduleStatusEnum = pgEnum('reschedule_status', ["pendente", "aprovada", "recusada"]);
 
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -99,6 +100,7 @@ export const students = pgTable("students", {
   dueDay: integer("dueDay").default(10).notNull(),
   startDate: date("startDate"),
   notes: text("notes"),
+  permissions: text("permissions"), // JSON string: { canSeeFinanceiro: boolean, etc }
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -252,6 +254,38 @@ export const studentFiles = pgTable("student_files", {
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
 
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(), // Author (Professor/Admin)
+  targetStudentId: integer("targetStudentId"), // Null means "All students of this professor"
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  important: boolean("important").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  senderId: integer("senderId").notNull(),
+  receiverId: integer("receiverId").notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("isRead").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const rescheduleRequests = pgTable("reschedule_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  studentId: integer("studentId").notNull(),
+  lessonId: integer("lessonId").notNull(),
+  reason: text("reason").notNull(),
+  preferredDates: text("preferredDates").notNull(),
+  status: rescheduleStatusEnum("status").default("pendente").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = typeof reminders.$inferInsert;
 export type ReminderTemplate = typeof reminderTemplates.$inferSelect;
@@ -275,6 +309,13 @@ export type StudentTimeline = typeof studentTimeline.$inferSelect;
 export type InsertStudentTimeline = typeof studentTimeline.$inferInsert;
 export type StudentFile = typeof studentFiles.$inferSelect;
 export type InsertStudentFile = typeof studentFiles.$inferInsert;
+
+export type Announcement = typeof announcements.$inferSelect;
+export type InsertAnnouncement = typeof announcements.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = typeof chatMessages.$inferInsert;
+export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
+export type InsertRescheduleRequest = typeof rescheduleRequests.$inferInsert;
 
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = typeof organizations.$inferInsert;

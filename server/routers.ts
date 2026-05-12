@@ -16,7 +16,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline, studentFiles } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -211,6 +211,16 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
+
+      // Security: verify student ownership
+      const [ownedStudent] = await db.select({ id: students.id }).from(students)
+        .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+        .limit(1);
+      
+      if (!ownedStudent) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "O aluno selecionado não existe ou não pertence ao seu perfil." });
+      }
+
       await db.insert(studentGoals).values({
         organizationId: orgId,
         userId: ctx.user.id,
@@ -247,10 +257,12 @@ export const appRouter = router({
     }),
     getTimeline: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
       const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const orgId = ctx.user.organizationId!;
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       return db.select().from(studentTimeline)
         .where(and(
+          eq(studentTimeline.organizationId, orgId),
           isUserAdmin ? undefined : eq(studentTimeline.userId, ctx.user.id), 
           eq(studentTimeline.studentId, input.studentId)
         ))
@@ -266,7 +278,19 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      // Security: verify student ownership
+      const [ownedStudent] = await db.select({ id: students.id }).from(students)
+        .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+        .limit(1);
+      
+      if (!ownedStudent) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "O aluno selecionado não existe ou não pertence ao seu perfil." });
+      }
+
       await db.insert(studentTimeline).values({
+        organizationId: orgId,
         userId: ctx.user.id,
         studentId: input.studentId,
         title: input.title,
@@ -287,16 +311,18 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
       const { id, ...data } = input;
       const updateData: any = { ...data };
       if (data.achievedAt) updateData.achievedAt = new Date(data.achievedAt);
-      await db.update(studentTimeline).set(updateData).where(and(eq(studentTimeline.id, id), eq(studentTimeline.userId, ctx.user.id)));
+      await db.update(studentTimeline).set(updateData).where(and(eq(studentTimeline.id, id), eq(studentTimeline.organizationId, orgId), eq(studentTimeline.userId, ctx.user.id)));
       return { success: true };
     }),
     deleteTimelineEvent: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-      await db.delete(studentTimeline).where(and(eq(studentTimeline.id, input.id), eq(studentTimeline.userId, ctx.user.id)));
+      const orgId = ctx.user.organizationId!;
+      await db.delete(studentTimeline).where(and(eq(studentTimeline.id, input.id), eq(studentTimeline.organizationId, orgId), eq(studentTimeline.userId, ctx.user.id)));
       return { success: true };
     }),
     getSummary: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
@@ -386,6 +412,16 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
+
+      // Security: verify student ownership
+      const [ownedStudent] = await db.select({ id: students.id }).from(students)
+        .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+        .limit(1);
+      
+      if (!ownedStudent) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "O aluno selecionado não existe ou não pertence ao seu perfil." });
+      }
+
       await db.insert(studentFiles).values({
         organizationId: orgId,
         userId: ctx.user.id,
@@ -2552,12 +2588,119 @@ export const appRouter = router({
       }),
   }),
 
+  announcements: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      return db.select({
+        id: announcements.id,
+        title: announcements.title,
+        content: announcements.content,
+        important: announcements.important,
+        targetStudentId: announcements.targetStudentId,
+        createdAt: announcements.createdAt,
+        authorName: users.name,
+      })
+      .from(announcements)
+      .leftJoin(users, eq(announcements.userId, users.id))
+      .where(and(eq(announcements.organizationId, orgId), eq(announcements.userId, ctx.user.id)))
+      .orderBy(desc(announcements.createdAt));
+    }),
+    create: protectedProcedure.input(z.object({
+      title: z.string(),
+      content: z.string(),
+      important: z.boolean().default(false),
+      targetStudentId: z.number().nullable().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      await db.insert(announcements).values({
+        organizationId: orgId,
+        userId: ctx.user.id,
+        title: input.title,
+        content: input.content,
+        important: input.important,
+        targetStudentId: input.targetStudentId ?? null,
+      });
+      return { success: true };
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      await db.delete(announcements).where(and(eq(announcements.id, input.id), eq(announcements.organizationId, orgId), eq(announcements.userId, ctx.user.id)));
+      return { success: true };
+    }),
+  }),
+
+  chat: router({
+    getMessages: protectedProcedure.input(z.object({ withUserId: z.number() })).query(async ({ ctx, input }) => {
+       const db = await getDb();
+       if (!db) throw new Error("Database not available");
+       const orgId = ctx.user.organizationId!;
+       return db.select({
+         id: chatMessages.id,
+         senderId: chatMessages.senderId,
+         content: chatMessages.content,
+         createdAt: chatMessages.createdAt,
+         isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
+       }).from(chatMessages)
+         .where(and(
+           eq(chatMessages.organizationId, orgId),
+           sql`(${chatMessages.senderId} = ${ctx.user.id} AND ${chatMessages.receiverId} = ${input.withUserId}) OR (${chatMessages.senderId} = ${input.withUserId} AND ${chatMessages.receiverId} = ${ctx.user.id})`
+         ))
+         .orderBy(asc(chatMessages.createdAt));
+    }),
+    send: protectedProcedure.input(z.object({ receiverId: z.number(), content: z.string() })).mutation(async ({ ctx, input }) => {
+       const db = await getDb();
+       if (!db) throw new Error("Database not available");
+       const orgId = ctx.user.organizationId!;
+       await db.insert(chatMessages).values({
+         organizationId: orgId,
+         senderId: ctx.user.id,
+         receiverId: input.receiverId,
+         content: input.content,
+       });
+       return { success: true };
+    }),
+  }),
+
+  reschedule: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      return db.select({
+        id: rescheduleRequests.id,
+        studentName: students.name,
+        lessonTitle: lessons.title,
+        reason: rescheduleRequests.reason,
+        preferredDates: rescheduleRequests.preferredDates,
+        status: rescheduleRequests.status,
+        createdAt: rescheduleRequests.createdAt,
+      })
+      .from(rescheduleRequests)
+      .leftJoin(students, eq(rescheduleRequests.studentId, students.id))
+      .leftJoin(lessons, eq(rescheduleRequests.lessonId, lessons.id))
+      .where(and(eq(rescheduleRequests.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+      .orderBy(desc(rescheduleRequests.createdAt));
+    }),
+    respond: protectedProcedure.input(z.object({ id: z.number(), status: z.enum(['aprovada', 'recusada']) })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      await db.update(rescheduleRequests).set({ status: input.status }).where(and(eq(rescheduleRequests.id, input.id), eq(rescheduleRequests.organizationId, orgId)));
+      return { success: true };
+    }),
+  }),
+
   studentPortal: router({
     getDashboard: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      // Tenta pelo studentId no user, senão busca pelo studentUserId no students
       let studentId = ctx.user.studentId;
       if (!studentId) {
         const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
@@ -2569,11 +2712,9 @@ export const appRouter = router({
       const orgId = ctx.user.organizationId!;
       const now = new Date();
       
-      // Get student profile to get teacherId
       const [student] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
-      const [teacher] = await db.select({ name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1);
+      const [teacher] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1);
 
-      // Próximas aulas
       const upcoming = await db.select({
         id: lessons.id,
         title: lessons.title,
@@ -2585,53 +2726,76 @@ export const appRouter = router({
         .orderBy(asc(lessons.scheduledAt))
         .limit(5);
 
-      // Progresso (Últimos eventos da timeline)
       const timeline = await db.select().from(studentTimeline)
         .where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId)))
         .orderBy(desc(studentTimeline.achievedAt))
         .limit(5);
 
-      // Avisos (using reminders or mock)
-      const announcements = [
-        { id: 1, title: 'Aula extra de teoria', author: teacher?.name || 'Professor Lucas', date: 'Hoje', important: true },
-        { id: 2, title: 'Alteração de horário', author: 'Secretaria', date: 'Ontem', important: false },
-        { id: 3, title: 'Recital de final de semestre', author: teacher?.name || 'Professor Lucas', date: '15/05', important: false },
-      ];
+      const dbAnnouncements = await db.select({
+        id: announcements.id,
+        title: announcements.title,
+        author: users.name,
+        date: announcements.createdAt,
+        important: announcements.important,
+        content: announcements.content,
+      })
+      .from(announcements)
+      .leftJoin(users, eq(announcements.userId, users.id))
+      .where(and(
+        eq(announcements.organizationId, orgId),
+        eq(announcements.userId, student.professorId),
+        sql`(${announcements.targetStudentId} IS NULL OR ${announcements.targetStudentId} = ${studentId})`
+      ))
+      .orderBy(desc(announcements.createdAt))
+      .limit(10);
 
-      // Materiais (studentFiles)
       const materials = await db.select().from(studentFiles)
         .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)))
         .orderBy(desc(studentFiles.createdAt))
         .limit(4);
 
-      // Estatísticas
       const [done] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')));
       const [pendingExercises] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, 'pendente')));
       
-      // Frequência (últimos 3 meses)
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(now.getMonth() - 3);
       const [totalRecent] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, threeMonthsAgo), ne(lessons.status, 'cancelada')));
       const [doneRecent] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, threeMonthsAgo), eq(lessons.status, 'concluida')));
       const frequency = totalRecent.count > 0 ? Math.round((doneRecent.count / totalRecent.count) * 100) : 100;
 
-      // Financeiro (recent payments)
       const payments = await db.select().from(paymentDues)
         .where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId)))
         .orderBy(desc(paymentDues.dueDate))
         .limit(3);
 
+      const latestMessages = await db.select({
+        id: chatMessages.id,
+        content: chatMessages.content,
+        createdAt: chatMessages.createdAt,
+        senderName: users.name,
+        isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
+      }).from(chatMessages)
+        .leftJoin(users, eq(chatMessages.senderId, users.id))
+        .where(and(
+          eq(chatMessages.organizationId, orgId),
+          sql`(${chatMessages.senderId} = ${ctx.user.id} OR ${chatMessages.receiverId} = ${ctx.user.id})`
+        ))
+        .orderBy(desc(chatMessages.createdAt))
+        .limit(3);
+
       return {
         upcomingLessons: upcoming,
         recentActivities: timeline,
-        announcements,
+        announcements: dbAnnouncements.map(a => ({ ...a, date: a.date.toLocaleDateString('pt-BR') })),
         materials,
         payments,
         teacherName: teacher?.name || 'Professor',
+        teacherId: teacher?.id,
+        messages: latestMessages,
         stats: {
           lessonsDone: done.count,
           pendingExercises: pendingExercises.count,
-          unreadAnnouncements: 2,
+          unreadAnnouncements: dbAnnouncements.length,
           frequency,
           generalProgress: 85,
         }
@@ -2715,11 +2879,39 @@ export const appRouter = router({
       const orgId = ctx.user.organizationId!;
       return db.select().from(paymentDues).where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId))).orderBy(desc(paymentDues.dueDate));
     }),
+    getMessages: studentProcedure.input(z.object({ withUserId: z.number() })).query(async ({ ctx, input }) => {
+       const db = await getDb();
+       if (!db) throw new Error("Database not available");
+       const orgId = ctx.user.organizationId!;
+       return db.select({
+         id: chatMessages.id,
+         senderId: chatMessages.senderId,
+         content: chatMessages.content,
+         createdAt: chatMessages.createdAt,
+         isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
+       }).from(chatMessages)
+         .where(and(
+           eq(chatMessages.organizationId, orgId),
+           sql`(${chatMessages.senderId} = ${ctx.user.id} AND ${chatMessages.receiverId} = ${input.withUserId}) OR (${chatMessages.senderId} = ${input.withUserId} AND ${chatMessages.receiverId} = ${ctx.user.id})`
+         ))
+         .orderBy(asc(chatMessages.createdAt));
+    }),
+    sendMessage: studentProcedure.input(z.object({ receiverId: z.number(), content: z.string() })).mutation(async ({ ctx, input }) => {
+       const db = await getDb();
+       if (!db) throw new Error("Database not available");
+       const orgId = ctx.user.organizationId!;
+       await db.insert(chatMessages).values({
+         organizationId: orgId,
+         senderId: ctx.user.id,
+         receiverId: input.receiverId,
+         content: input.content,
+       });
+       return { success: true };
+    }),
     getProfile: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      // Tenta buscar pelo studentId vinculado ao usuário, ou pelo studentUserId na tabela students
       let studentId = ctx.user.studentId;
       let [student] = studentId ? await db.select({
         id: students.id,
@@ -2737,7 +2929,6 @@ export const appRouter = router({
       }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
 
       if (!student) {
-        // Fallback: buscar pelo link reverso
         [student] = await db.select({
           id: students.id,
           name: students.name,
@@ -2754,16 +2945,11 @@ export const appRouter = router({
         }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
       }
       
-      if (!student) {
-        throw new Error("Dados do aluno não encontrados.");
-      }
+      if (!student) throw new Error("Dados do aluno não encontrados.");
       
       const [teacher] = await db.select({ name: users.name }).from(users).where(eq(users.id, student.teacherId)).limit(1);
       
-      return {
-        ...student,
-        teacherName: teacher?.name || 'Professor',
-      };
+      return { ...student, teacherName: teacher?.name || 'Professor' };
     }),
     getSchedule: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
@@ -2806,15 +2992,8 @@ export const appRouter = router({
         }
         if (!studentId) throw new Error("Acesso não autorizado");
 
-        // Atualiza na tabela students
-        await db.update(students)
-          .set({
-            phone: input.phone,
-            email: input.email,
-          })
-          .where(eq(students.id, studentId));
+        await db.update(students).set({ phone: input.phone, email: input.email }).where(eq(students.id, studentId));
 
-        // Atualiza na tabela users se o email mudou ou se enviou senha
         const userUpdates: any = {};
         if (input.email) userUpdates.email = input.email;
         if (input.password) {
@@ -2824,9 +3003,7 @@ export const appRouter = router({
         }
 
         if (Object.keys(userUpdates).length > 0) {
-          await db.update(users)
-            .set(userUpdates)
-            .where(eq(users.id, ctx.user.id));
+          await db.update(users).set(userUpdates).where(eq(users.id, ctx.user.id));
         }
 
         return { success: true };
@@ -2838,8 +3015,25 @@ export const appRouter = router({
         preferredDates: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Mock ou implementação real enviando notificação
-        console.log(`Reschedule requested for lesson ${input.lessonId} by student ${ctx.user.id}`);
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        await db.insert(rescheduleRequests).values({
+          organizationId: orgId,
+          studentId: studentId,
+          lessonId: input.lessonId,
+          reason: input.reason,
+          preferredDates: input.preferredDates,
+        });
+
         return { success: true, message: "Solicitação enviada ao professor." };
       }),
   }),

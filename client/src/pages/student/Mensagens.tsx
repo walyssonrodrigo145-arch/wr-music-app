@@ -16,16 +16,31 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function StudentMessages() {
   const { data: dashboard } = trpc.studentPortal.getDashboard.useQuery();
   const [message, setMessage] = useState("");
 
-  const mockMessages = [
-    { id: 1, sender: `Prof. ${dashboard?.teacherName || 'Eduardo'}`, text: 'Olá! Enviei um novo exercício de harmonia para você. Dê uma olhada na aba de materiais.', time: '10:30', isMe: false },
-    { id: 2, sender: 'Você', text: 'Certo professor! Vou verificar agora mesmo. Obrigado!', time: '10:45', isMe: true },
-    { id: 3, sender: `Prof. ${dashboard?.teacherName || 'Eduardo'}`, text: 'Qualquer dúvida pode me chamar por aqui.', time: '10:50', isMe: false },
-  ];
+  const { data: messages, refetch } = trpc.studentPortal.getMessages.useQuery(
+    { withUserId: dashboard?.teacherId as number },
+    { enabled: !!dashboard?.teacherId }
+  );
+
+  const sendMutation = trpc.studentPortal.sendMessage.useMutation({
+    onSuccess: () => {
+      setMessage("");
+      refetch();
+    }
+  });
+
+  const handleSend = () => {
+    if (!message.trim() || !dashboard?.teacherId) return;
+    sendMutation.mutate({ receiverId: dashboard.teacherId, content: message });
+  };
+
+  const displayMessages = messages || [];
 
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col space-y-6 pb-6">
@@ -62,7 +77,7 @@ export default function StudentMessages() {
                        <p className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">Prof. {dashboard?.teacherName || "Carregando..."}</p>
                        <p className="text-[10px] font-bold text-primary truncate uppercase tracking-widest flex items-center gap-1.5">
                           <Circle size={8} fill="currentColor" className="animate-pulse" />
-                          Digitando...
+                          Online
                        </p>
                     </div>
                  </div>
@@ -90,7 +105,7 @@ export default function StudentMessages() {
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-card" />
                  </div>
                  <div>
-                    <h3 className="text-base font-black tracking-tight">Prof. {dashboard?.teacherName || "Eduardo Silva"}</h3>
+                    <h3 className="text-base font-black tracking-tight">Prof. {dashboard?.teacherName || "Professor"}</h3>
                     <div className="flex items-center gap-1.5">
                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">Online agora</p>
                     </div>
@@ -106,8 +121,8 @@ export default function StudentMessages() {
 
            {/* Messages Scroll Area */}
            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin relative z-10">
-              <AnimatePresence initial={false}>
-                {mockMessages.map((msg, idx) => (
+               <AnimatePresence initial={false}>
+                {displayMessages.map((msg: any, idx: number) => (
                   <motion.div 
                     initial={{ opacity: 0, x: msg.isMe ? 20 : -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -124,10 +139,10 @@ export default function StudentMessages() {
                         ? "bg-primary text-white rounded-br-none" 
                         : "bg-muted dark:bg-slate-800 text-foreground rounded-bl-none"
                      )}>
-                        {msg.text}
+                        {msg.content}
                      </div>
                      <span className="text-[9px] font-black uppercase text-muted-foreground mt-3 tracking-widest flex items-center gap-2">
-                        {msg.time}
+                        {format(new Date(msg.createdAt), "HH:mm")}
                         {msg.isMe && <Circle size={4} fill="currentColor" className="text-primary" />}
                      </span>
                   </motion.div>
@@ -143,11 +158,16 @@ export default function StudentMessages() {
                    type="text" 
                    value={message}
                    onChange={(e) => setMessage(e.target.value)}
+                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                    placeholder="Escreva sua mensagem aqui..." 
                    className="flex-1 bg-transparent border-none outline-none text-sm font-medium px-2 py-2"
                  />
                  <button className="p-2 text-muted-foreground hover:text-primary transition-all active:scale-90"><Smile size={20} /></button>
-                 <button className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                 <button 
+                   onClick={handleSend}
+                   disabled={sendMutation.isPending}
+                   className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                 >
                     <Send size={20} fill="currentColor" className="ml-1" />
                  </button>
               </div>

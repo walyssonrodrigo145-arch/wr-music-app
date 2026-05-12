@@ -23,6 +23,9 @@ const Progresso = lazy(() => import("./pages/Progresso"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const NovoAluno = lazy(() => import("./pages/NovoAluno"));
+const Comunicados = lazy(() => import("./pages/Comunicados"));
+const Mensagens = lazy(() => import("./pages/Mensagens"));
+const Solicitacoes = lazy(() => import("./pages/Solicitacoes"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -108,6 +111,9 @@ function Router() {
           <Route path="/mensalidades" component={Mensalidades} />
           <Route path="/configuracoes" component={Configuracoes} />
           <Route path="/progresso" component={Progresso} />
+          <Route path="/comunicados" component={Comunicados} />
+          <Route path="/mensagens" component={Mensagens} />
+          <Route path="/solicitacoes" component={Solicitacoes} />
           <Route>
             <Redirect to="/dashboard" />
           </Route>

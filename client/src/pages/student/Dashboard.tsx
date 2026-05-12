@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   ClipboardCheck
 } from "lucide-react";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -176,7 +177,9 @@ export default function StudentDashboard() {
                     <Bell size={18} className="text-primary" />
                     <CardTitle className="text-lg font-black">Avisos</CardTitle>
                   </div>
-                  <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                  <Link href="/aluno/avisos">
+                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                  </Link>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   {dashboard?.announcements.map((aviso: any) => (
@@ -193,9 +196,11 @@ export default function StudentDashboard() {
                     </div>
                   ))}
                   <div className="pt-2">
-                    <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
-                      Ver todos os avisos
-                    </button>
+                    <Link href="/aluno/avisos">
+                      <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                        Ver todos os avisos
+                      </button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -209,7 +214,9 @@ export default function StudentDashboard() {
                     <BookOpen size={18} className="text-primary" />
                     <CardTitle className="text-lg font-black">Materiais Recentes</CardTitle>
                   </div>
-                  <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                  <Link href="/aluno/materiais">
+                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                  </Link>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   {dashboard?.materials.map((mat: any) => (
@@ -229,9 +236,11 @@ export default function StudentDashboard() {
                     </div>
                   ))}
                   <div className="pt-2">
-                    <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
-                      Ver todos os materiais
-                    </button>
+                    <Link href="/aluno/materiais">
+                      <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                        Ver todos os materiais
+                      </button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -280,9 +289,11 @@ export default function StudentDashboard() {
                         </div>
                       ))}
                       <div className="pt-2">
-                        <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
-                          Ver histórico financeiro
-                        </button>
+                        <Link href="/aluno/pagamentos">
+                          <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                            Ver histórico financeiro
+                          </button>
+                        </Link>
                       </div>
                     </TabsContent>
                   </Tabs>
@@ -298,32 +309,35 @@ export default function StudentDashboard() {
                     <MessageSquare size={18} className="text-primary" />
                     <CardTitle className="text-lg font-black">Mensagens</CardTitle>
                   </div>
-                  <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                  <Link href="/aluno/mensagens">
+                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Ver todos</button>
+                  </Link>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                  {[1, 2, 3].map((msg) => (
-                    <div key={msg} className="flex items-center gap-4 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
-                      <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex-shrink-0 border border-border/50">
-                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center text-primary font-bold text-xs">
-                          {msg === 1 ? 'PL' : msg === 2 ? 'SC' : 'SP'}
+                  {dashboard?.messages.map((msg: any) => (
+                    <Link key={msg.id} href="/aluno/mensagens">
+                      <div className="flex items-center gap-4 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
+                        <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex-shrink-0 border border-border/50">
+                          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center text-primary font-bold text-xs">
+                            {msg.senderName.slice(0, 2).toUpperCase()}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-bold text-foreground truncate">{msg.senderName}</p>
+                            <span className="text-[10px] text-muted-foreground">{format(new Date(msg.createdAt), "HH:mm")}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate font-medium">{msg.content}</p>
                         </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-bold text-foreground truncate">{msg === 1 ? 'Professor Lucas' : msg === 2 ? 'Secretaria' : 'Suporte'}</p>
-                          <span className="text-[10px] text-muted-foreground">10:30</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate font-medium">Olá, {firstName}! Tudo bem? Gostaria de saber...</p>
-                      </div>
-                      {msg === 1 && (
-                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white text-[10px] font-black shadow-lg shadow-primary/30">1</div>
-                      )}
-                    </div>
+                    </Link>
                   ))}
                   <div className="pt-2">
-                    <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
-                      Abrir mensagens
-                    </button>
+                    <Link href="/aluno/mensagens">
+                      <button className="w-full py-2.5 rounded-xl text-xs font-black text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest">
+                        Abrir mensagens
+                      </button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
