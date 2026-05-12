@@ -71,7 +71,7 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[1000px] p-0 overflow-hidden bg-background rounded-3xl border-border/40 shadow-2xl">
+      <DialogContent className="max-w-5xl p-0 overflow-hidden bg-background rounded-3xl border-border/40 shadow-2xl max-h-[95vh] flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between p-6 pb-4 border-b border-border/20">
           <div>
@@ -111,14 +111,15 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
         </div>
 
         {isLoading || !student ? (
-          <div className="p-12 flex justify-center">
-            <RefreshCw className="animate-spin text-primary w-8 h-8" />
+          <div className="p-12 flex flex-col items-center justify-center gap-4 min-h-[400px]">
+            <RefreshCw className="animate-spin text-primary w-10 h-10" />
+            <p className="text-muted-foreground animate-pulse">Carregando dados do aluno...</p>
           </div>
         ) : (
-          <div className="flex flex-col md:flex-row h-[600px] overflow-hidden">
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
             
-            {/* Left Column - Form (Read-only for personal data) */}
-            <div className="flex-1 p-6 md:p-8 overflow-y-auto border-r border-border/20">
+            {/* Left Column - Form */}
+            <div className="flex-1 p-6 md:p-10 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               
               <div className="space-y-6">
                 {/* DADOS PESSOAIS */}
@@ -200,19 +201,19 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
             </div>
 
             {/* Right Column - Preview */}
-            <div className="flex-1 bg-muted/10 p-6 md:p-8 overflow-y-auto">
+            <div className="flex-1 bg-muted/30 p-6 md:p-10 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent border-l border-border/20">
               <h3 className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4">Pré-visualização do acesso</h3>
               
-              <div className="bg-card rounded-3xl border border-border/50 shadow-sm overflow-hidden">
+              <div className="bg-card rounded-[32px] border border-border/60 shadow-xl overflow-hidden max-w-md mx-auto">
                 {/* Preview Header */}
-                <div className="p-6 pb-5 border-b border-border/40 flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-black uppercase tracking-widest mb-4">
+                <div className="p-8 pb-6 border-b border-border/40 flex flex-col items-center text-center bg-gradient-to-b from-primary/5 to-transparent">
+                  <div className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-black uppercase tracking-tighter mb-5 border-4 border-background shadow-lg">
                     {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                   </div>
-                  <h4 className="text-lg font-bold text-foreground mb-1">{student.name}</h4>
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Aluno</p>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold uppercase tracking-widest">
-                    Ativo <CheckCircle2 size={12} />
+                  <h4 className="text-xl font-bold text-foreground mb-1 tracking-tight">{student.name}</h4>
+                  <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mb-4">Portal do Aluno</p>
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-xs font-bold uppercase tracking-wide">
+                    Acesso Ativo <CheckCircle2 size={14} className="fill-emerald-500/20" />
                   </div>
                 </div>
 
