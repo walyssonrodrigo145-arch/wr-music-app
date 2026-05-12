@@ -2461,27 +2461,27 @@ export const appRouter = router({
     overdue: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];
-        const orgId = ctx.user.organizationId!;
-        const today = new Date().toISOString().slice(0, 10);
-        const rows = await db.select({
-          id: paymentDues.id,
-          studentId: paymentDues.studentId,
-          amount: paymentDues.amount,
-          dueDate: paymentDues.dueDate,
-          status: paymentDues.status,
-          month: paymentDues.month,
-          year: paymentDues.year,
-          studentName: students.name,
-          studentPhone: students.phone,
-        })
-          .from(paymentDues)
-          .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
-          .where(and(
-            eq(paymentDues.organizationId, orgId),
-            eq(paymentDues.userId, ctx.user.id),
-            sql`${paymentDues.dueDate} < ${today}`,
-            sql`${paymentDues.status} != 'pago'`
-          ))
+      const orgId = ctx.user.organizationId!;
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = await db.select({
+        id: paymentDues.id,
+        studentId: paymentDues.studentId,
+        amount: paymentDues.amount,
+        dueDate: paymentDues.dueDate,
+        status: paymentDues.status,
+        month: paymentDues.month,
+        year: paymentDues.year,
+        studentName: students.name,
+        studentPhone: students.phone,
+      })
+        .from(paymentDues)
+        .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
+        .where(and(
+          eq(paymentDues.organizationId, orgId),
+          eq(paymentDues.userId, ctx.user.id),
+          sql`${paymentDues.dueDate} < ${today}`,
+          sql`${paymentDues.status} != 'pago'`
+        ))
         .orderBy(asc(paymentDues.dueDate));
       return rows;
     }),
@@ -2507,6 +2507,51 @@ export const appRouter = router({
           .orderBy(asc(paymentDues.year), asc(paymentDues.month));
       }),
   }),
+
+  reports: router({
+    getInstrumentStats: protectedProcedure.query(async ({ ctx }) => {
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const orgId = ctx.user.organizationId!;
+      return getInstrumentsWithCount(orgId, isUserAdmin ? undefined : ctx.user.id);
+    }),
+    getFinanceiroDetails: protectedProcedure
+      .input(z.object({ month: z.number(), year: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        const userId = (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : ctx.user.id;
+
+        const payments = await db.select({
+          status: paymentDues.status,
+          amount: paymentDues.amount,
+        }).from(paymentDues)
+          .where(and(
+            eq(paymentDues.organizationId, orgId),
+            userId ? eq(paymentDues.userId, userId) : undefined,
+            eq(paymentDues.month, input.month),
+            eq(paymentDues.year, input.year)
+          ));
+
+        const summary = {
+          pago: 0,
+          pendente: 0,
+          atrasado: 0,
+          total: 0
+        };
+
+        payments.forEach(p => {
+          const amt = Number(p.amount);
+          if (p.status === 'pago') summary.pago += amt;
+          else if (p.status === 'pendente') summary.pendente += amt;
+          else if (p.status === 'atrasado') summary.atrasado += amt;
+          summary.total += amt;
+        });
+
+        return summary;
+      }),
+  }),
+
   studentPortal: router({
     getDashboard: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
@@ -2595,7 +2640,8 @@ export const appRouter = router({
     }),
     getProfile: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado ou perfil incompleto.");
+      
       const [student] = await db.select({
         id: students.id,
         name: students.name,
@@ -2610,6 +2656,11 @@ export const appRouter = router({
         guardianName: students.guardianName,
         guardianPhone: students.guardianPhone,
       }).from(students).where(eq(students.id, ctx.user.studentId)).limit(1);
+      
+      if (!student) {
+        console.error(`[StudentPortal] Student record not found for ID: ${ctx.user.studentId}`);
+        throw new Error("Dados do aluno não encontrados.");
+      }
       
       const [teacher] = await db.select({ name: users.name }).from(users).where(eq(users.id, student.teacherId)).limit(1);
       
