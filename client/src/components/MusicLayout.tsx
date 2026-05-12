@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -30,10 +30,14 @@ export function MusicLayout({ children }: MusicLayoutProps) {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      window.location.href = getLoginUrl();
+    if (!loading) {
+      if (!isAuthenticated) {
+        window.location.href = getLoginUrl();
+      } else if (user?.role === 'aluno') {
+        window.location.href = "/aluno";
+      }
     }
-  }, [loading, isAuthenticated]);
+  }, [loading, isAuthenticated, user]);
 
   if (loading) {
     return (

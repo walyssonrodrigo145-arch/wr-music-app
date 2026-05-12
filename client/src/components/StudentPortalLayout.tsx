@@ -26,12 +26,12 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
   }, [isTablet, isDesktop]);
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      window.location.href = getLoginUrl();
-    }
-    // Redirect if not a student
-    if (!loading && isAuthenticated && user?.role !== 'student' && user?.role !== 'admin') {
-       window.location.href = "/dashboard";
+    if (!loading) {
+      if (!isAuthenticated) {
+        window.location.href = getLoginUrl();
+      } else if (user?.role !== 'aluno' && user?.role !== 'admin') {
+        window.location.href = "/dashboard";
+      }
     }
   }, [loading, isAuthenticated, user]);
 
@@ -51,7 +51,7 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
     );
   }
 
-  if (!isAuthenticated || (user?.role !== 'student' && user?.role !== 'admin')) return null;
+  if (!isAuthenticated || (user?.role !== 'aluno' && user?.role !== 'admin')) return null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

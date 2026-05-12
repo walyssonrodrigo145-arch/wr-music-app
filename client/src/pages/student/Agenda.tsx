@@ -11,7 +11,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 export default function StudentAgenda() {
-  const { data: lessons } = trpc.studentPortal.getLessons.useQuery();
+  const { data: lessons } = trpc.studentPortal.getSchedule.useQuery();
   const [currentDate] = useState(new Date());
 
   const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];

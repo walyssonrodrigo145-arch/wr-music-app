@@ -31,9 +31,7 @@ const navItems: NavItem[] = [
   { label: "Aulas", href: "/aluno/aulas", icon: Calendar },
   { label: "Agenda", href: "/aluno/agenda", icon: CalendarDays },
   { label: "Materiais", href: "/aluno/materiais", icon: Library },
-  { label: "Exercícios", href: "/aluno/exercicios", icon: ClipboardCheck },
   { label: "Progresso", href: "/aluno/progresso", icon: Activity },
-  { label: "Mensagens", href: "/aluno/mensagens", icon: MessageSquare },
   { label: "Pagamentos", href: "/aluno/pagamentos", icon: DollarSign },
   { label: "Perfil", href: "/aluno/perfil", icon: User },
 ];

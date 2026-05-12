@@ -713,6 +713,7 @@ export const appRouter = router({
           name: student.name,
           email,
           passwordHash,
+          loginMethod: 'local',
           role: 'aluno',
           studentId: student.id,
           isEmailVerified: true,
@@ -787,6 +788,7 @@ export const appRouter = router({
             name: input.name,
             email: input.email,
             passwordHash,
+            loginMethod: 'local',
             role: 'aluno',
             studentId: newStudent.id,
             isEmailVerified: true,
@@ -2569,10 +2571,15 @@ export const appRouter = router({
         id: students.id,
         name: students.name,
         email: students.email,
+        phone: students.phone,
         level: students.level,
         instrumentId: students.instrumentId,
         teacherId: students.professorId,
         startDate: students.startDate,
+        birthDate: students.birthDate,
+        address: students.address,
+        guardianName: students.guardianName,
+        guardianPhone: students.guardianPhone,
       }).from(students).where(eq(students.id, ctx.user.studentId)).limit(1);
       
       const [teacher] = await db.select({ name: users.name }).from(users).where(eq(users.id, student.teacherId)).limit(1);
@@ -2581,6 +2588,22 @@ export const appRouter = router({
         ...student,
         teacherName: teacher?.name || 'Professor',
       };
+    }),
+    getSchedule: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado");
+      const orgId = ctx.user.organizationId!;
+      return db.select({
+        id: lessons.id,
+        title: lessons.title,
+        scheduledAt: lessons.scheduledAt,
+        duration: lessons.duration,
+        status: lessons.status,
+        notes: lessons.notes,
+      }).from(lessons)
+        .where(and(eq(lessons.studentId, ctx.user.studentId), eq(lessons.organizationId, orgId)))
+        .orderBy(asc(lessons.scheduledAt))
+        .limit(100);
     }),
   }),
 });

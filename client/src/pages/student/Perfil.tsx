@@ -53,11 +53,11 @@ export default function StudentProfile() {
             <div className="mt-8 pt-8 border-t border-border/50 border-border space-y-4">
                <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
                   <Mail size={16} className="text-primary" />
-                  <span>{profile?.email}</span>
+                  <span>{profile?.email || 'Não informado'}</span>
                </div>
                <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
                   <Phone size={16} className="text-primary" />
-                  <span>(11) 99999-9999</span> {/* Mock phone */}
+                  <span>{profile?.phone || 'Não informado'}</span>
                </div>
                <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
                   <Calendar size={16} className="text-primary" />
