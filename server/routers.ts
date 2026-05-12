@@ -2555,9 +2555,17 @@ export const appRouter = router({
   studentPortal: router({
     getDashboard: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado ou perfil de aluno incompleto.");
+      if (!db) throw new Error("Database not available");
       
-      const studentId = ctx.user.studentId;
+      // Tenta pelo studentId no user, senão busca pelo studentUserId no students
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+
+      if (!studentId) throw new Error("Acesso não autorizado ou perfil de aluno incompleto.");
+      
       const orgId = ctx.user.organizationId!;
       const now = new Date();
       
@@ -2640,9 +2648,11 @@ export const appRouter = router({
     }),
     getProfile: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      if (!db || !ctx.user.studentId) throw new Error("Acesso não autorizado ou perfil incompleto.");
+      if (!db) throw new Error("Database not available");
       
-      const [student] = await db.select({
+      // Tenta buscar pelo studentId vinculado ao usuário, ou pelo studentUserId na tabela students
+      let studentId = ctx.user.studentId;
+      let [student] = studentId ? await db.select({
         id: students.id,
         name: students.name,
         email: students.email,
@@ -2655,10 +2665,27 @@ export const appRouter = router({
         address: students.address,
         guardianName: students.guardianName,
         guardianPhone: students.guardianPhone,
-      }).from(students).where(eq(students.id, ctx.user.studentId)).limit(1);
+      }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
+
+      if (!student) {
+        // Fallback: buscar pelo link reverso
+        [student] = await db.select({
+          id: students.id,
+          name: students.name,
+          email: students.email,
+          phone: students.phone,
+          level: students.level,
+          instrumentId: students.instrumentId,
+          teacherId: students.professorId,
+          startDate: students.startDate,
+          birthDate: students.birthDate,
+          address: students.address,
+          guardianName: students.guardianName,
+          guardianPhone: students.guardianPhone,
+        }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+      }
       
       if (!student) {
-        console.error(`[StudentPortal] Student record not found for ID: ${ctx.user.studentId}`);
         throw new Error("Dados do aluno não encontrados.");
       }
       

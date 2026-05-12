@@ -67,9 +67,17 @@ export const studentProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || ctx.user.role !== 'aluno') {
+    if (!ctx.user) {
+      console.warn("[studentProcedure] No user in context");
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Não autenticado" });
+    }
+
+    if (ctx.user.role !== 'aluno') {
+      console.warn(`[studentProcedure] Access denied for user ${ctx.user.id} with role ${ctx.user.role}`);
       throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a alunos" });
     }
+    
+    console.log(`[studentProcedure] Access granted for student ${ctx.user.name} (studentId: ${ctx.user.studentId})`);
 
     return next({
       ctx: {
