@@ -12,6 +12,9 @@ import { startAutomationJob } from "../automationJob";
 import { createRateLimiter } from "./rateLimiter";
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
+import { getDb } from "../db";
+import { paymentDues } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -48,9 +51,60 @@ async function startServer() {
   registerOAuthRoutes(app);
   registerGoogleAuthRoutes(app);
 
+  // ─── Asaas Webhook ───────────────────────────────────────────────────────
+  // Recebe notificações do Asaas e atualiza o status das mensalidades automaticamente.
+  app.post("/api/webhooks/asaas", async (req, res) => {
+    try {
+      const { event, payment } = req.body as {
+        event: string;
+        payment?: { id: string; status: string; value: number };
+      };
+
+      console.log(`[Asaas Webhook] Evento recebido: ${event}`, payment?.id);
+
+      if (!payment?.id) {
+        return res.status(200).json({ ok: true });
+      }
+
+      const db = await getDb();
+      if (!db) return res.status(500).json({ error: "DB unavailable" });
+
+      if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
+        await db
+          .update(paymentDues)
+          .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
+          .where(eq(paymentDues.asaasId, payment.id));
+        console.log(`[Asaas Webhook] Mensalidade marcada como PAGA (${payment.id})`);
+      }
+
+      if (event === "PAYMENT_OVERDUE") {
+        await db
+          .update(paymentDues)
+          .set({ status: "atrasado", updatedAt: new Date() })
+          .where(eq(paymentDues.asaasId, payment.id));
+        console.log(`[Asaas Webhook] Mensalidade marcada como ATRASADA (${payment.id})`);
+      }
+
+      if (event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") {
+        await db
+          .update(paymentDues)
+          .set({ status: "pendente", asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
+          .where(eq(paymentDues.asaasId, payment.id));
+        console.log(`[Asaas Webhook] Cobrança removida/estornada (${payment.id})`);
+      }
+
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error("[Asaas Webhook] Erro ao processar:", err);
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Rate Limiting para a API
   const apiLimiter = createRateLimiter(60 * 1000, 120, "Muitas requisições. Tente novamente em um minuto.");
   app.use("/api/trpc", apiLimiter);
+
 
   // tRPC API
   app.use(

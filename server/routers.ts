@@ -16,13 +16,14 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
 import { TRPCError } from "@trpc/server";
 
 import crypto from "crypto";
+import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
 import { nanoid } from "nanoid";
 import { sdk } from "./_core/sdk";
 import { sendVerificationEmail } from "./_core/email";
@@ -2226,6 +2227,9 @@ export const appRouter = router({
           month: paymentDues.month,
           year: paymentDues.year,
           notes: paymentDues.notes,
+          asaasId: paymentDues.asaasId,
+          asaasPaymentLink: paymentDues.asaasPaymentLink,
+          asaasBillingType: paymentDues.asaasBillingType,
           studentName: students.name,
           studentPhone: students.phone,
           email: students.email,
@@ -2593,6 +2597,117 @@ export const appRouter = router({
         });
 
         return summary;
+      }),
+
+    generateAsaasCharge: protectedProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+        billingType: z.enum(["PIX", "CREDIT_CARD"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const orgId = ctx.user.organizationId!;
+        const professorId = ctx.user.id;
+
+        // Fetch payment due
+        const [due] = await db.select().from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, professorId)))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (due.asaasId) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no Asaas" });
+
+        // Fetch student
+        const [student] = await db.select().from(students)
+          .where(and(eq(students.id, due.studentId), eq(students.organizationId, orgId)))
+          .limit(1);
+
+        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+
+        // Get or create Asaas customer
+        let asaasCustomerId: string;
+        const [existingCustomer] = await db.select().from(asaasCustomers)
+          .where(and(eq(asaasCustomers.studentId, student.id), eq(asaasCustomers.organizationId, orgId)))
+          .limit(1);
+
+        if (existingCustomer) {
+          asaasCustomerId = existingCustomer.asaasCustomerId;
+        } else {
+          asaasCustomerId = await createAsaasCustomer({
+            name: student.name,
+            email: student.email ?? undefined,
+            phone: student.phone ?? undefined,
+          });
+          await db.insert(asaasCustomers).values({
+            organizationId: orgId,
+            studentId: student.id,
+            asaasCustomerId,
+          });
+        }
+
+        // Create charge on Asaas
+        const charge = await createAsaasCharge({
+          asaasCustomerId,
+          billingType: input.billingType,
+          value: Number(due.amount),
+          dueDate: due.dueDate,
+          description: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
+        });
+
+        // Fetch PIX QR code if PIX
+        let pixPayload: string | null = null;
+        let pixQrCode: string | null = null;
+        if (input.billingType === "PIX") {
+          try {
+            const pix = await getAsaasPixQrCode(charge.id);
+            pixPayload = pix.payload;
+            pixQrCode = pix.encodedImage;
+          } catch (e) {
+            console.error("[Asaas] Erro ao buscar QR code PIX:", e);
+          }
+        }
+
+        // Persist Asaas charge data
+        const paymentLink = input.billingType === "PIX" ? (pixPayload ?? charge.invoiceUrl) : charge.invoiceUrl;
+        await db.update(paymentDues)
+          .set({
+            asaasId: charge.id,
+            asaasPaymentLink: paymentLink,
+            asaasBillingType: input.billingType,
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentDues.id, input.paymentDueId));
+
+        return {
+          asaasId: charge.id,
+          paymentLink,
+          pixQrCode,
+          billingType: input.billingType,
+        };
+      }),
+
+    cancelAsaasCharge: protectedProcedure
+      .input(z.object({ paymentDueId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const [due] = await db.select().from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (!due.asaasId) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade não possui cobrança no Asaas" });
+
+        await deleteAsaasCharge(due.asaasId);
+
+        await db.update(paymentDues)
+          .set({ asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
+          .where(eq(paymentDues.id, input.paymentDueId));
+
+        return { success: true };
       }),
   }),
 

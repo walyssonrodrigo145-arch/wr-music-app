@@ -13,7 +13,11 @@ export const ENV = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.SECRET_GOOGLE || "",
   appUrl: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000",
   registrationToken: (process.env.REGISTRATION_TOKEN || process.env.REGIATRATION_TOKEN || "44C9rDweFjfrEwk").trim(),
+  // Asaas
+  asaasApiKey: process.env.ASAAS_API_KEY ?? "",
+  asaasBaseUrl: process.env.ASAAS_BASE_URL ?? "https://sandbox.asaas.com/api/v3",
 };
+
 
 
 

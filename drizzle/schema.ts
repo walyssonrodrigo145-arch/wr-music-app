@@ -207,9 +207,22 @@ export const paymentDues = pgTable("payment_dues", {
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   notes: text("notes"),
+  // Asaas integration
+  asaasId: text("asaasId"),
+  asaasPaymentLink: text("asaasPaymentLink"),
+  asaasBillingType: varchar("asaasBillingType", { length: 30 }), // PIX, CREDIT_CARD
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
+
+export const asaasCustomers = pgTable("asaas_customers", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  studentId: integer("studentId").notNull(),
+  asaasCustomerId: text("asaasCustomerId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 
 export const studentGoals = pgTable("student_goals", {
   id: serial("id").primaryKey(),

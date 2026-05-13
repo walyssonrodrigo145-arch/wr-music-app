@@ -1,12 +1,12 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import {
-  DollarSign, CheckCircle2, Clock, AlertCircle, Plus, X,
-  Loader2, Trash2, ChevronLeft, ChevronRight, Pencil, 
-  Search, MoreVertical, CreditCard, 
-  ChevronDown, TrendingUp
+  DollarSign, CheckCircle2, Plus, X,
+  Loader2, Trash2, ChevronLeft, ChevronRight, Pencil,
+  Search, MoreVertical, CreditCard,
+  ChevronDown, TrendingUp, Zap, Link2, Copy, QrCode, Ban
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { EditMensalidadeModal } from "@/components/modals/EditMensalidadeModal";
@@ -15,12 +15,12 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  DropdownMenu, 
-  DropdownMenuTrigger, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator 
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 
 const MONTHS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
@@ -32,6 +32,9 @@ type PaymentRow = {
   status: string; month: number; year: number;
   notes?: string | null; studentName?: string | null; studentPhone?: string | null;
   email?: string | null;
+  asaasId?: string | null;
+  asaasPaymentLink?: string | null;
+  asaasBillingType?: string | null;
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -46,6 +49,172 @@ function StatusBadge({ status }: { status: string }) {
     <span className={cn("inline-flex items-center justify-center text-[10px] font-bold px-3 py-1.5 rounded-lg", c.cls)}>
       {c.label}
     </span>
+  );
+}
+
+// ─── Modal: Gerar Cobrança Asaas ──────────────────────────────────────────────
+function AsaasChargeModal({ open, onClose, payment }: {
+  open: boolean;
+  onClose: () => void;
+  payment: PaymentRow | null;
+}) {
+  const utils = trpc.useUtils();
+  const [billingType, setBillingType] = useState<"PIX" | "CREDIT_CARD">("PIX");
+  const [result, setResult] = useState<{
+    paymentLink: string;
+    pixQrCode?: string | null;
+    billingType: string;
+  } | null>(null);
+
+  const generateMutation = trpc.reports.generateAsaasCharge.useMutation({
+    onSuccess: (data) => {
+      setResult(data);
+      utils.paymentDues.invalidate();
+      toast.success("Cobrança gerada no Asaas!");
+    },
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+
+  const handleGenerate = () => {
+    if (!payment) return;
+    generateMutation.mutate({ paymentDueId: payment.id, billingType });
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copiado!");
+  };
+
+  const handleClose = () => {
+    setResult(null);
+    onClose();
+  };
+
+  if (!open || !payment) return null;
+
+  const currencyFormat = (val: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-md" onClick={handleClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="relative bg-card rounded-[2rem] border border-border shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center">
+              <Zap size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Gerar Cobrança Asaas</h3>
+              <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{payment.studentName}</p>
+            </div>
+          </div>
+          <button onClick={handleClose} className="w-9 h-9 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Valor */}
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Valor da cobrança</span>
+            <span className="text-lg font-black text-foreground">{currencyFormat(Number(payment.amount))}</span>
+          </div>
+
+          {!result ? (
+            <>
+              {/* Seleção de Método */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Método de pagamento</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { key: "PIX", label: "PIX", icon: QrCode, color: "emerald" },
+                    { key: "CREDIT_CARD", label: "Cartão de Crédito", icon: CreditCard, color: "blue" },
+                  ] as const).map(({ key, label, icon: Icon, color }) => (
+                    <button
+                      key={key}
+                      onClick={() => setBillingType(key)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                        billingType === key
+                          ? color === "emerald"
+                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-600"
+                            : "border-blue-500 bg-blue-500/10 text-blue-600"
+                          : "border-border bg-muted/30 text-muted-foreground hover:border-muted-foreground/40"
+                      )}
+                    >
+                      <Icon size={22} />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                onClick={handleGenerate}
+                disabled={generateMutation.isPending}
+                className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs gap-2 shadow-lg shadow-violet-500/20"
+              >
+                {generateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                Gerar Cobrança
+              </Button>
+            </>
+          ) : (
+            /* Resultado */
+            <AnimatePresence>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-4"
+              >
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-200">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <span className="text-xs font-bold text-emerald-700">Cobrança gerada com sucesso!</span>
+                </div>
+
+                {/* QR Code PIX */}
+                {result.billingType === "PIX" && result.pixQrCode && (
+                  <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-muted/50 border border-border">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">QR Code PIX</p>
+                    <img
+                      src={`data:image/png;base64,${result.pixQrCode}`}
+                      alt="QR Code PIX"
+                      className="w-40 h-40 rounded-xl border border-border"
+                    />
+                  </div>
+                )}
+
+                {/* Link de Pagamento */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+                    {result.billingType === "PIX" ? "Chave PIX / Link" : "Link de Pagamento"}
+                  </p>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border">
+                    <Link2 size={14} className="text-violet-500 shrink-0" />
+                    <p className="text-[10px] text-muted-foreground font-medium truncate flex-1">{result.paymentLink}</p>
+                    <button
+                      onClick={() => copyToClipboard(result.paymentLink)}
+                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                    >
+                      <Copy size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                <Button variant="outline" onClick={handleClose} className="w-full h-10 rounded-xl text-xs font-bold">
+                  Fechar
+                </Button>
+              </motion.div>
+            </AnimatePresence>
+          )}
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -201,6 +370,7 @@ export default function Mensalidades() {
   const [novaOpen, setNovaOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
   const [detailsPaymentId, setDetailsPaymentId] = useState<number | null>(null);
+  const [asaasPayment, setAsaasPayment] = useState<PaymentRow | null>(null);
 
   const { data: payments = [], isLoading } = trpc.paymentDues.list.useQuery({ month: viewMonth, year: viewYear });
   const { data: students = [] } = trpc.students.list.useQuery();
@@ -215,12 +385,20 @@ export default function Mensalidades() {
   });
 
   const deleteMutation = trpc.paymentDues.delete.useMutation({
-    onSuccess: () => { 
-      toast.success("Mensalidade removida!"); 
+    onSuccess: () => {
+      toast.success("Mensalidade removida!");
       utils.paymentDues.invalidate();
       utils.dashboard.stats.invalidate();
     },
     onError: (e: any) => toast.error("Erro ao excluir: " + e.message),
+  });
+
+  const cancelAsaasMutation = trpc.reports.cancelAsaasCharge.useMutation({
+    onSuccess: () => {
+      toast.success("Cobrança Asaas cancelada!");
+      utils.paymentDues.invalidate();
+    },
+    onError: (e: any) => toast.error("Erro: " + e.message),
   });
 
   const prevMonth = () => {
@@ -395,8 +573,20 @@ export default function Mensalidades() {
                           </div>
                         </td>
                         <td className="px-8 py-4">
-                           <div className="flex justify-center">
-                              <StatusBadge status={payment.status} />
+                           <div className="flex items-center justify-center gap-2">
+                              <div className="flex items-center gap-2">
+                        <StatusBadge status={payment.status} />
+                        {payment.asaasId && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
+                            <Zap size={9} /> Asaas
+                          </span>
+                        )}
+                      </div>
+                              {payment.asaasId && (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
+                                  <Zap size={9} /> Asaas
+                                </span>
+                              )}
                            </div>
                         </td>
                         <td className="px-8 py-4 text-right" onClick={e => e.stopPropagation()}>
@@ -406,7 +596,7 @@ export default function Mensalidades() {
                                     <MoreVertical size={16} />
                                  </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 rounded-xl p-2 border-border">
+                              <DropdownMenuContent align="end" className="w-52 rounded-xl p-2 border-border">
                                  {payment.status !== "pago" && (
                                    <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}>
                                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -417,6 +607,28 @@ export default function Mensalidades() {
                                     <Pencil className="w-4 h-4 text-blue-500" />
                                     <span className="text-xs font-bold text-muted-foreground">Editar Registro</span>
                                  </DropdownMenuItem>
+                                 <DropdownMenuSeparator className="bg-muted" />
+                                 {!payment.asaasId ? (
+                                   <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setAsaasPayment(payment)}>
+                                      <Zap className="w-4 h-4 text-violet-500" />
+                                      <span className="text-xs font-bold text-muted-foreground">Gerar Cobrança Asaas</span>
+                                   </DropdownMenuItem>
+                                 ) : (
+                                   <>
+                                     <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
+                                       if (payment.asaasPaymentLink) navigator.clipboard.writeText(payment.asaasPaymentLink).then(() => toast.success("Link copiado!"));
+                                     }}>
+                                        <Copy className="w-4 h-4 text-violet-500" />
+                                        <span className="text-xs font-bold text-muted-foreground">Copiar Link Asaas</span>
+                                     </DropdownMenuItem>
+                                     <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
+                                       if (confirm("Cancelar a cobrança no Asaas?")) cancelAsaasMutation.mutate({ paymentDueId: payment.id });
+                                     }}>
+                                        <Ban className="w-4 h-4" />
+                                        <span className="text-xs font-bold">Cancelar no Asaas</span>
+                                     </DropdownMenuItem>
+                                   </>
+                                 )}
                                  <DropdownMenuSeparator className="bg-muted" />
                                  <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
                                    if(confirm("Deseja excluir esta mensalidade?")) {
@@ -461,7 +673,14 @@ export default function Mensalidades() {
                           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{MONTHS_PT[payment.month-1]} {payment.year}</p>
                         </div>
                       </div>
-                      <StatusBadge status={payment.status} />
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={payment.status} />
+                        {payment.asaasId && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
+                            <Zap size={9} /> Asaas
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 py-3 border-y border-border">
@@ -478,14 +697,29 @@ export default function Mensalidades() {
                     </div>
 
                     <div className="flex items-center justify-between mt-4">
-                      <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg border-border text-[10px] font-black uppercase gap-2 text-blue-600">
-                         Detalhes
-                      </Button>
-                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground">
-                          <MoreVertical size={14} />
-                        </Button>
-                      </div>
+                      {!payment.asaasId ? (
+                         <Button
+                           variant="outline" size="sm"
+                           className="h-8 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600 hover:bg-violet-500/10"
+                           onClick={() => setAsaasPayment(payment)}
+                         >
+                           <Zap size={12} /> Gerar Link
+                         </Button>
+                       ) : (
+                         <Button
+                           variant="outline" size="sm"
+                           className="h-8 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600"
+                           onClick={() => payment.asaasPaymentLink && navigator.clipboard.writeText(payment.asaasPaymentLink).then(() => toast.success("Link copiado!"))}
+                         >
+                           <Copy size={12} /> Copiar Link
+                         </Button>
+                       )}
+                       {payment.status !== "pago" && (
+                         <Button variant="ghost" size="sm" className="h-8 px-3 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
+                           onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}>
+                           <CheckCircle2 size={12} className="mr-1" /> Pago
+                         </Button>
+                       )}
                     </div>
                   </div>
                 ))
@@ -511,6 +745,11 @@ export default function Mensalidades() {
       {editPayment && (
         <EditMensalidadeModal open={!!editPayment} onClose={() => setEditPayment(null)} payment={editPayment} />
       )}
+      <AsaasChargeModal
+        open={!!asaasPayment}
+        onClose={() => setAsaasPayment(null)}
+        payment={asaasPayment}
+      />
     </div>
   );
 }
