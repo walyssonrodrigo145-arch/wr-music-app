@@ -716,7 +716,7 @@ export const appRouter = router({
       studentId: z.number(),
       email: z.string().email().optional(),
       password: z.string().min(6).optional(),
-      permissions: z.record(z.boolean()).optional(),
+      permissions: z.record(z.string(), z.boolean()).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Banco de dados não disponível" });
