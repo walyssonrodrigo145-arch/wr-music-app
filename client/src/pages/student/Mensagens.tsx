@@ -33,6 +33,10 @@ export default function StudentMessages() {
     onSuccess: () => {
       setMessage("");
       refetch();
+    },
+    onError: (err) => {
+      console.error("Chat error:", err);
+      toast.error("Erro ao enviar mensagem: " + err.message);
     }
   });
 
@@ -47,7 +51,11 @@ export default function StudentMessages() {
   }, [messages]);
 
   const handleSend = () => {
-    if (!message.trim() || !dashboard?.teacherId) return;
+    if (!message.trim()) return;
+    if (!dashboard?.teacherId) {
+       toast.error("Professor não encontrado para envio.");
+       return;
+    }
     sendMutation.mutate({ receiverId: dashboard.teacherId, content: message });
   };
 
@@ -176,6 +184,7 @@ export default function StudentMessages() {
                  />
                  <button className="p-2 text-muted-foreground hover:text-primary transition-all active:scale-90"><Smile size={20} /></button>
                  <button 
+                   type="button"
                    onClick={handleSend}
                    disabled={sendMutation.isPending}
                    className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
