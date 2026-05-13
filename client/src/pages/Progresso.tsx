@@ -394,9 +394,9 @@ export default function Progresso() {
                 </div>
               </div>
 
-              {/* INTERNAL HEADER - TABS */}
-               <div className="px-8 mt-8 shrink-0">
-                  <div className="flex items-center gap-8 overflow-x-auto no-scrollbar border-b border-border">
+               {/* INTERNAL HEADER - TABS */}
+               <div className="mt-8 shrink-0 border-b border-border">
+                  <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto no-scrollbar px-8">
                     {[
                       { id: "jornada", label: "Jornada Musical", icon: Activity },
                       { id: "biblioteca", label: "Biblioteca Musical", icon: Folder },
@@ -629,8 +629,8 @@ export default function Progresso() {
 
            {/* WIDGET DESEMPENHO */}
            <WidgetCard title="Desempenho Geral" icon={Trophy} color="text-amber-500" bg="bg-amber-500/100/5">
-              <div className="flex items-center justify-between mt-6">
-                 <div className="relative w-24 h-24">
+              <div className="flex items-center justify-between gap-4 mt-6">
+                 <div className="relative w-24 h-24 shrink-0">
                     <svg className="w-full h-full transform -rotate-90">
                        <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
                        <motion.circle 
@@ -650,9 +650,11 @@ export default function Progresso() {
                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Nível Atual</p>
                        <p className="text-sm font-black text-foreground">Intermediário</p>
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Próxima Meta</p>
-                       <p className="text-sm font-black text-foreground">{goals.find((g: any) => g.status !== 'concluida')?.title || "Nenhuma meta pendente"}</p>
+                       <p className="text-sm font-black text-foreground line-clamp-2" title={goals.find((g: any) => g.status !== 'concluida')?.title || "Nenhuma meta pendente"}>
+                         {goals.find((g: any) => g.status !== 'concluida')?.title || "Nenhuma meta pendente"}
+                       </p>
                     </div>
                  </div>
               </div>
@@ -671,7 +673,7 @@ export default function Progresso() {
                       )} onClick={() => updateGoalMutation.mutate({ id: meta.id, status: meta.status === 'concluida' ? 'pendente' : 'concluida' })}>
                          {meta.status === 'concluida' && <CheckCircle2 size={12} />}
                       </div>
-                      <span className={cn("text-xs font-bold", meta.status === 'concluida' ? "text-muted-foreground line-through" : "text-slate-700")}>
+                      <span className={cn("text-xs font-bold truncate flex-1", meta.status === 'concluida' ? "text-muted-foreground line-through" : "text-slate-700")} title={meta.title}>
                         {meta.title}
                       </span>
                    </div>
