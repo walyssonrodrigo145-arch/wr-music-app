@@ -168,6 +168,7 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <AlertCircle className="text-destructive" size={32} />
             <p className="text-sm text-muted-foreground">Não foi possível carregar os dados deste aluno.</p>
+            {error && <p className="text-xs text-destructive mt-2">{error.message}</p>}
           </div>
         ) : (
           <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -430,7 +431,8 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
           {step < 3 ? (
             <Button
               onClick={handleNext}
-              className="h-10 px-7 rounded-lg bg-primary text-white font-semibold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all"
+              disabled={isDataLoading || !!error || !student}
+              className="h-10 px-7 rounded-lg bg-primary text-white font-semibold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all disabled:opacity-50"
             >
               Continuar <ChevronRight size={16} className="ml-1" />
             </Button>
