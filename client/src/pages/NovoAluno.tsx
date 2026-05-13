@@ -186,7 +186,6 @@ export default function NovoAluno() {
     const newErrors: Record<string, string> = {};
     if (!form.name.trim()) newErrors.name = "Nome é obrigatório";
     if (!form.phone.trim()) newErrors.phone = "Telefone é obrigatório";
-    if (!form.birthDate) newErrors.birthDate = "Data de nascimento é obrigatória";
     
     if (isMinor) {
       if (!form.guardianName.trim()) newErrors.guardianName = "Nome do responsável é obrigatório";
@@ -389,7 +388,7 @@ export default function NovoAluno() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] flex items-center gap-1.5 ml-1">
-                      Data de nascimento <span className="text-rose-500">*</span>
+                      Data de nascimento
                     </label>
                     <div className="relative group/input">
                       <Input 
