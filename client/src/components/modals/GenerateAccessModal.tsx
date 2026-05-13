@@ -152,84 +152,84 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
         ) : (
           <div className="grid grid-cols-12 gap-0 overflow-hidden flex-1 min-h-0">
             {/* FORM (7 columns) */}
-            <div className="col-span-12 lg:col-span-7 p-8 overflow-y-auto border-r border-border/40 space-y-8">
+            <div className="col-span-12 lg:col-span-7 p-10 overflow-y-auto border-r border-border/40 space-y-12 scrollbar-none">
               
               {/* SEÇÃO: DADOS PESSOAIS */}
-              <div>
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <User className="h-5 w-5" />
+              <div className="animate-in fade-in slide-in-from-left duration-500">
+                <div className="mb-6 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm">
+                    <User className="h-6 w-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">Dados pessoais</h3>
-                    <p className="text-sm text-muted-foreground">Informações do aluno</p>
+                    <h3 className="text-xl font-bold text-foreground tracking-tight">Dados pessoais</h3>
+                    <p className="text-sm text-muted-foreground">Informações básicas do cadastro do aluno</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="sm:col-span-2">
-                    <label className="mb-2 block text-sm font-semibold text-foreground">Nome completo</label>
-                    <Input value={student.name} readOnly className="h-12 w-full rounded-2xl bg-muted/30 border-border" />
+                    <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground/80">Nome completo</label>
+                    <Input value={student.name} readOnly className="h-14 w-full rounded-2xl bg-muted/20 border-border/60 text-base font-medium focus:ring-0" />
                   </div>
                   
                   <div className="sm:col-span-2">
-                    <label className="mb-2 block text-sm font-semibold text-foreground">E-mail</label>
+                    <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground/80">E-mail para login</label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input value={student.email || ""} readOnly className="h-12 w-full pl-11 rounded-2xl bg-muted/30 border-border" />
+                      <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground/60" />
+                      <Input value={student.email || ""} readOnly className="h-14 w-full pl-12 rounded-2xl bg-muted/20 border-border/60 text-base font-medium" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-semibold text-foreground">Telefone</label>
+                    <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground/80">Telefone / WhatsApp</label>
                     <div className="relative">
-                      <Phone className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input value={student.phone || ""} readOnly className="h-12 w-full pl-11 rounded-2xl bg-muted/30 border-border" />
+                      <Phone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground/60" />
+                      <Input value={student.phone || ""} readOnly className="h-14 w-full pl-12 rounded-2xl bg-muted/20 border-border/60 text-base font-medium" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-semibold text-foreground">Nascimento</label>
+                    <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground/80">Nascimento</label>
                     <div className="relative">
-                      <Calendar className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input value="--" readOnly className="h-12 w-full pl-11 rounded-2xl bg-muted/30 border-border" />
+                      <Calendar className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground/60" />
+                      <Input value="--" readOnly className="h-14 w-full pl-12 rounded-2xl bg-muted/20 border-border/60 text-base font-medium" />
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* SEÇÃO: ACESSO */}
-              <div>
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
-                    <ShieldCheck className="h-5 w-5" />
+              <div className="animate-in fade-in slide-in-from-left duration-700 delay-100">
+                <div className="mb-6 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 shadow-sm">
+                    <ShieldCheck className="h-6 w-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">Acesso do aluno</h3>
-                    <p className="text-sm text-muted-foreground">Credenciais de login</p>
+                    <h3 className="text-xl font-bold text-foreground tracking-tight">Segurança e Acesso</h3>
+                    <p className="text-sm text-muted-foreground">Configure as credenciais de login</p>
                   </div>
                 </div>
 
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <div>
-                    <label className="mb-2 block text-sm font-semibold text-foreground">Login (e-mail)</label>
-                    <Input value={student.email || ""} readOnly className="h-12 w-full rounded-2xl bg-muted/30 border-border" />
+                    <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground/80">Usuário (Login)</label>
+                    <Input value={student.email || ""} readOnly className="h-14 w-full rounded-2xl bg-primary/5 border-primary/20 text-base font-semibold text-primary" />
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-semibold text-foreground">Senha temporária</label>
+                    <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground/80">Senha temporária sugerida</label>
                     <div className="flex items-center gap-3">
-                      <Input value={password} readOnly className="h-12 w-full rounded-2xl bg-muted/30 border-border font-mono" />
+                      <Input value={password} readOnly className="h-14 w-full rounded-2xl bg-muted/20 border-border/60 font-mono text-lg tracking-tight" />
                       <button 
                         onClick={handleCopyPassword}
-                        className="w-12 h-12 flex items-center justify-center border border-border rounded-2xl text-muted-foreground hover:bg-muted transition-colors shrink-0"
+                        className="w-14 h-14 flex items-center justify-center border border-border rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all shrink-0 shadow-sm"
                         title="Copiar senha"
                       >
-                        <Copy size={18} />
+                        <Copy size={20} />
                       </button>
                       <button 
                         onClick={generatePassword}
-                        className="text-[14px] font-bold text-primary hover:text-primary/80 transition-colors shrink-0 px-2"
+                        className="text-sm font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-all shrink-0 px-4"
                       >
                         Gerar nova
                       </button>
@@ -240,39 +240,62 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
             </div>
 
             {/* PREVIEW (5 columns) */}
-            <div className="col-span-12 lg:col-span-5 bg-muted/10 p-8 flex flex-col">
-              <div className="sticky top-0 space-y-6">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Pré-visualização</p>
-                  <h3 className="mt-2 text-xl font-bold text-foreground">Como o aluno verá o acesso</h3>
+            <div className="col-span-12 lg:col-span-5 bg-muted/5 p-10 flex flex-col justify-center items-center relative overflow-hidden">
+              {/* Background Decoration */}
+              <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
+              <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl" />
+
+              <div className="w-full max-w-[360px] animate-in zoom-in duration-500">
+                <div className="mb-10 text-center">
+                  <p className="text-[11px] font-black uppercase tracking-[0.3em] text-primary/60 mb-2">Live Preview</p>
+                  <h3 className="text-2xl font-black text-foreground tracking-tight">Experiência do Aluno</h3>
                 </div>
 
-                <div className="flex flex-col items-center rounded-[28px] border border-border bg-background px-8 py-10 text-center shadow-sm">
-                  {/* Avatar */}
-                  <div className="flex h-28 w-28 items-center justify-center rounded-full bg-primary/10 text-4xl font-black text-primary shadow-inner">
-                    {student.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                  </div>
+                {/* ID Card Styled Preview */}
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-b from-primary/20 to-emerald-500/20 rounded-[40px] blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+                  
+                  <div className="relative flex flex-col items-center rounded-[38px] border border-border/60 bg-background/80 backdrop-blur-xl px-10 py-12 text-center shadow-2xl">
+                    {/* Status Badge */}
+                    <div className="absolute top-6 right-6">
+                      <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-600 border border-emerald-500/20">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Ativo
+                      </div>
+                    </div>
 
-                  <h2 className="mt-6 text-3xl font-black tracking-[-1px] text-foreground leading-tight">
-                    {student.name}
-                  </h2>
+                    {/* Avatar */}
+                    <div className="relative">
+                      <div className="flex h-32 w-32 items-center justify-center rounded-[32px] bg-gradient-to-br from-primary to-primary/80 text-5xl font-black text-white shadow-xl shadow-primary/20 transform -rotate-3 transition-transform group-hover:rotate-0 duration-500">
+                        {student.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                      </div>
+                      <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-background border-4 border-background rounded-full flex items-center justify-center text-emerald-500 shadow-lg">
+                        <CheckCircle2 className="h-6 w-6" />
+                      </div>
+                    </div>
 
-                  <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-                    Portal do aluno
-                  </p>
+                    <div className="mt-8 space-y-1">
+                      <h2 className="text-3xl font-black tracking-[-1px] text-foreground leading-tight">
+                        {student.name}
+                      </h2>
+                      <p className="text-sm font-bold uppercase tracking-[0.25em] text-primary/70">
+                        Portal MusicPro
+                      </p>
+                    </div>
 
-                  <div className="mt-6 flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-700 border border-emerald-500/20">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Acesso ativo
-                  </div>
-
-                  <div className="mt-8 w-full rounded-2xl border border-border bg-muted/30 p-4 text-left">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      E-mail de acesso
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-foreground truncate">
-                      {student.email || "---"}
-                    </p>
+                    <div className="mt-10 w-full space-y-4">
+                      <div className="w-full rounded-2xl border border-border/40 bg-muted/30 p-5 text-left transition-colors group-hover:bg-muted/50">
+                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60 mb-2">Login de acesso</p>
+                        <p className="text-sm font-bold text-foreground truncate">
+                          {student.email || "---"}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center justify-center gap-2 text-[11px] font-medium text-muted-foreground/60 italic">
+                        <ShieldCheck size={14} />
+                        Criptografia de ponta a ponta
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -281,16 +304,19 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
         )}
 
         {/* FOOTER */}
-        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-border/40 px-8 py-6 bg-background gap-4">
-          <p className="text-sm text-muted-foreground text-center sm:text-left">
-            O aluno poderá alterar a senha no primeiro acesso.
-          </p>
+        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-border/40 px-10 py-8 bg-background gap-6">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <AlertCircle size={18} className="text-primary/60" />
+            <p className="text-sm font-medium">
+              O aluno receberá estas credenciais e deverá alterar a senha no primeiro acesso.
+            </p>
+          </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="h-12 px-6 rounded-2xl border-border text-foreground font-semibold hover:bg-muted w-full sm:w-auto"
+              className="h-14 px-8 rounded-2xl border-border/60 text-foreground font-bold hover:bg-muted transition-all active:scale-95 w-full sm:w-auto"
             >
               Cancelar
             </Button>
@@ -298,10 +324,10 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
             <Button
               onClick={handleSubmit}
               disabled={enableAccessMutation.isPending || !student?.email}
-              className="h-12 px-7 rounded-2xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/30 transition-all hover:bg-primary/90 w-full sm:w-auto flex items-center gap-2"
+              className="h-14 px-10 rounded-2xl bg-primary text-primary-foreground font-black shadow-xl shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-95 w-full sm:w-auto flex items-center gap-3"
             >
-              {enableAccessMutation.isPending ? <RefreshCw className="animate-spin" size={18} /> : null}
-              Continuar <ChevronRight size={18} />
+              {enableAccessMutation.isPending ? <RefreshCw className="animate-spin" size={20} /> : null}
+              Confirmar e Gerar <ChevronRight size={20} />
             </Button>
           </div>
         </div>
