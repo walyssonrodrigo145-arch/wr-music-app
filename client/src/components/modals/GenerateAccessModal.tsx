@@ -3,17 +3,14 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { 
-  X, CheckCircle2,
-  Mail, RefreshCw, AlertCircle,
-  Copy, ChevronRight, Calendar,
-  User, ShieldCheck, Phone, ChevronLeft,
-  DollarSign, FileText, BarChart3, Clock
+import {
+  X, CheckCircle2, Mail, RefreshCw, AlertCircle,
+  Copy, ChevronRight, Calendar, User, ShieldCheck,
+  Phone, ChevronLeft, DollarSign, FileText, BarChart3, Clock
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 interface GenerateAccessModalProps {
   open: boolean;
@@ -42,14 +39,14 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
     if (!student?.name) return;
     const namePart = student.name.split(" ")[0];
     const lastNamePart = student.name.split(" ").pop() || "";
-    let pass = namePart.charAt(0).toUpperCase() + namePart.slice(1) + "@2025!" + lastNamePart;
+    const pass = namePart.charAt(0).toUpperCase() + namePart.slice(1) + "@2025!" + lastNamePart;
     setPassword(pass);
   };
 
   useEffect(() => {
     if (open && student) {
       generatePassword();
-      setStep(1); // Reset step when opening
+      setStep(1);
     }
   }, [open, student]);
 
@@ -68,12 +65,7 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
       toast.error("O aluno precisa ter um e-mail cadastrado.");
       return;
     }
-    enableAccessMutation.mutate({
-      studentId,
-      email: student.email,
-      password,
-      permissions,
-    });
+    enableAccessMutation.mutate({ studentId, email: student.email, password, permissions });
   };
 
   const handleCopyPassword = () => {
@@ -95,225 +87,237 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
   const isDataLoading = isLoading || (!!studentId && !student && !error);
 
   const permissionList = [
-    { id: "canSeeFinanceiro", label: "Financeiro", desc: "Acesso a faturas e histórico de pagamentos", icon: DollarSign, color: "text-emerald-500", bg: "bg-emerald-50" },
-    { id: "canSeeProgress", label: "Progresso", desc: "Acesso ao diário de classe e avaliações", icon: BarChart3, color: "text-blue-500", bg: "bg-blue-50" },
-    { id: "canSeeFiles", label: "Arquivos", desc: "Acesso a partituras, PDFs e materiais extras", icon: FileText, color: "text-amber-500", bg: "bg-amber-50" },
-    { id: "canSeeSchedule", label: "Agenda", desc: "Acesso ao calendário de aulas e remarcações", icon: Clock, color: "text-purple-500", bg: "bg-purple-50" },
+    { id: "canSeeFinanceiro", label: "Financeiro", desc: "Faturas e histórico de pagamentos", icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { id: "canSeeProgress", label: "Progresso", desc: "Diário de classe e avaliações", icon: BarChart3, color: "text-blue-600", bg: "bg-blue-50" },
+    { id: "canSeeFiles", label: "Arquivos", desc: "Partituras, PDFs e materiais", icon: FileText, color: "text-amber-600", bg: "bg-amber-50" },
+    { id: "canSeeSchedule", label: "Agenda", desc: "Calendário de aulas", icon: Clock, color: "text-purple-600", bg: "bg-purple-50" },
   ];
+
+  const initials = student?.name
+    ? student.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "??";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1150px] w-[95vw] h-[88vh] p-0 overflow-hidden bg-background rounded-[40px] border border-border shadow-2xl flex flex-col gap-0 focus:outline-none">
-        
-        {/* HEADER */}
-        <div className="px-12 pt-12 pb-8 relative">
-          <div className="flex items-start justify-between gap-10">
-            <div className="space-y-3">
-              <DialogTitle className="text-[32px] font-black tracking-tight text-foreground leading-none">
+      <DialogContent className="sm:max-w-[860px] w-[95vw] max-h-[92vh] p-0 overflow-hidden bg-white dark:bg-card rounded-2xl border border-border shadow-2xl flex flex-col gap-0 focus:outline-none">
+
+        {/* ── HEADER ─────────────────────────────────────────────── */}
+        <div className="px-8 pt-7 pb-5 border-b border-border/60">
+          <div className="flex items-start justify-between">
+            <div>
+              <DialogTitle className="text-2xl font-bold text-foreground tracking-tight">
                 Gerar acesso do aluno
               </DialogTitle>
-
-              <DialogDescription className="text-[15px] text-muted-foreground/80 leading-relaxed max-w-[580px] font-medium">
-                {step === 1 && "Verifique os dados básicos do aluno antes de prosseguir com a criação das credenciais."}
-                {step === 2 && "Defina quais áreas o aluno poderá visualizar em seu portal exclusivo da plataforma."}
-                {step === 3 && "Confira o resumo das configurações antes de finalizar a liberação do acesso."}
+              <DialogDescription className="text-sm text-muted-foreground mt-1">
+                Crie o acesso de login para o aluno acessar sua área
               </DialogDescription>
             </div>
-
-            <button 
+            <button
               onClick={() => onOpenChange(false)}
-              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/60 text-muted-foreground transition-all hover:bg-muted hover:text-foreground hover:scale-105 active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* STEPPER - Refined & More subtle */}
-          <div className="mt-12 flex items-center gap-6">
-            {/* STEP 1 */}
-            <div className={`flex items-center gap-4 transition-all duration-300 ${step >= 1 ? 'opacity-100' : 'opacity-30'}`}>
-              <div className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black shadow-md transition-all ${step === 1 ? 'bg-primary text-primary-foreground scale-110 shadow-primary/20' : 'bg-emerald-500 text-white'}`}>
-                {step > 1 ? <CheckCircle2 size={18} /> : "1"}
+          {/* STEPPER */}
+          <div className="mt-5 flex items-center gap-2">
+            {/* Step 1 */}
+            <div className={`flex items-center gap-2 ${step >= 1 ? 'opacity-100' : 'opacity-40'}`}>
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${step === 1 ? 'bg-primary text-white' : step > 1 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                {step > 1 ? <CheckCircle2 size={14} /> : "1"}
               </div>
-              <div className="hidden sm:block">
-                <p className="text-[13px] font-bold text-foreground leading-tight">Dados</p>
-                <p className="text-[11px] text-muted-foreground/70 font-medium">Informações básicas</p>
-              </div>
+              <span className={`text-sm font-medium ${step === 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                Dados do aluno
+              </span>
             </div>
 
-            <div className={`h-[2px] w-12 rounded-full transition-colors duration-500 ${step > 1 ? 'bg-emerald-500' : 'bg-border/60'}`} />
+            <div className={`flex-1 h-px mx-3 ${step > 1 ? 'bg-primary' : 'bg-border'}`} />
 
-            {/* STEP 2 */}
-            <div className={`flex items-center gap-4 transition-all duration-300 ${step >= 2 ? 'opacity-100' : 'opacity-30'}`}>
-              <div className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black shadow-md transition-all ${step === 2 ? 'bg-primary text-primary-foreground scale-110 shadow-primary/20' : step > 2 ? 'bg-emerald-500 text-white' : 'border border-border/80 bg-muted/20 text-muted-foreground'}`}>
-                {step > 2 ? <CheckCircle2 size={18} /> : "2"}
+            {/* Step 2 */}
+            <div className={`flex items-center gap-2 ${step >= 2 ? 'opacity-100' : 'opacity-40'}`}>
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${step === 2 ? 'bg-primary text-white' : step > 2 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                {step > 2 ? <CheckCircle2 size={14} /> : "2"}
               </div>
-              <div className="hidden sm:block">
-                <p className="text-[13px] font-bold text-foreground leading-tight">Permissões</p>
-                <p className="text-[11px] text-muted-foreground/70 font-medium">Nível de acesso</p>
-              </div>
+              <span className={`text-sm font-medium ${step >= 2 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                Acesso e permissões
+              </span>
             </div>
 
-            <div className={`h-[2px] w-12 rounded-full transition-colors duration-500 ${step > 2 ? 'bg-emerald-500' : 'bg-border/60'}`} />
+            <div className={`flex-1 h-px mx-3 ${step > 2 ? 'bg-primary' : 'bg-border'}`} />
 
-            {/* STEP 3 */}
-            <div className={`flex items-center gap-4 transition-all duration-300 ${step >= 3 ? 'opacity-100' : 'opacity-30'}`}>
-              <div className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black shadow-md transition-all ${step === 3 ? 'bg-primary text-primary-foreground scale-110 shadow-primary/20' : 'border border-border/80 bg-muted/20 text-muted-foreground'}`}>
+            {/* Step 3 */}
+            <div className={`flex items-center gap-2 ${step >= 3 ? 'opacity-100' : 'opacity-40'}`}>
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${step === 3 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
                 3
               </div>
-              <div className="hidden sm:block">
-                <p className="text-[13px] font-bold text-foreground leading-tight">Resumo</p>
-                <p className="text-[11px] text-muted-foreground/70 font-medium">Conclusão</p>
-              </div>
+              <span className={`text-sm font-medium ${step >= 3 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                Resumo
+              </span>
             </div>
           </div>
         </div>
 
+        {/* ── BODY ───────────────────────────────────────────────── */}
         {isDataLoading ? (
-          <div className="p-20 flex flex-col items-center justify-center gap-6 min-h-[400px]">
-            <RefreshCw className="animate-spin text-primary" size={40} />
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Carregando dados...</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <RefreshCw className="animate-spin text-primary" size={32} />
+            <p className="text-sm text-muted-foreground">Carregando dados do aluno...</p>
           </div>
         ) : error || !student ? (
-          <div className="p-20 flex flex-col items-center justify-center gap-6 min-h-[400px]">
-            <div className="w-16 h-16 rounded-3xl bg-destructive/5 flex items-center justify-center">
-              <AlertCircle className="text-destructive" size={32} />
-            </div>
-            <p className="text-base font-bold text-muted-foreground">Não foi possível localizar os dados deste aluno.</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <AlertCircle className="text-destructive" size={32} />
+            <p className="text-sm text-muted-foreground">Não foi possível carregar os dados deste aluno.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-12 gap-0 overflow-hidden flex-1 min-h-0 px-12 pb-8">
-            {/* FORM (7 columns) */}
-            <div className="col-span-12 lg:col-span-7 pr-12 overflow-y-auto space-y-12 scrollbar-none">
-              
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+
+            {/* ── LEFT PANEL – Form ─────────────────────────────── */}
+            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+
+              {/* ── STEP 1 ── */}
               {step === 1 && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-12 pb-10">
+                <>
+                  {/* Dados pessoais */}
                   <div>
-                    <div className="mb-8 flex items-center gap-5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/5 text-primary shadow-sm border border-primary/10">
-                        <User className="h-6 w-6" />
-                      </div>
+                    <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4">Dados pessoais</p>
+                    <div className="space-y-4">
                       <div>
-                        <h3 className="text-[19px] font-black text-foreground tracking-tight leading-none">Dados pessoais</h3>
-                        <p className="text-[13px] text-muted-foreground mt-1 font-medium">Informações básicas do cadastro</p>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">
+                          Nome completo <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          value={student.name}
+                          readOnly
+                          className="h-10 bg-muted/40 border-border/60 rounded-lg text-sm"
+                        />
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-                      <div className="sm:col-span-2">
-                        <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.1em] text-muted-foreground/70">Nome completo</label>
-                        <Input value={student.name} readOnly className="h-14 w-full rounded-2xl bg-muted/30 border-none text-[15px] font-bold focus:ring-0 px-5" />
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">
+                          E-mail <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          value={student.email || ""}
+                          readOnly
+                          className="h-10 bg-muted/40 border-border/60 rounded-lg text-sm"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Será o usuário para login do aluno</p>
                       </div>
-                      
-                      <div className="sm:col-span-2">
-                        <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.1em] text-muted-foreground/70">E-mail de acesso</label>
-                        <div className="relative">
-                          <Mail className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground/40" />
-                          <Input value={student.email || ""} readOnly className="h-14 w-full pl-14 rounded-2xl bg-muted/30 border-none text-[15px] font-bold" />
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-1.5">Telefone (WhatsApp)</label>
+                          <Input
+                            value={student.phone || ""}
+                            readOnly
+                            className="h-10 bg-muted/40 border-border/60 rounded-lg text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-1.5">Data de nascimento</label>
+                          <Input
+                            value={student.birthDate ? format(new Date(student.birthDate), "dd/MM/yyyy") : ""}
+                            readOnly
+                            className="h-10 bg-muted/40 border-border/60 rounded-lg text-sm"
+                          />
                         </div>
                       </div>
 
-                      <div>
-                        <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.1em] text-muted-foreground/70">Telefone / WhatsApp</label>
-                        <div className="relative">
-                          <Phone className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground/40" />
-                          <Input value={student.phone || ""} readOnly className="h-14 w-full pl-14 rounded-2xl bg-muted/30 border-none text-[15px] font-bold" />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-1.5">Nome do responsável</label>
+                          <Input
+                            value={student.guardianName || ""}
+                            readOnly
+                            className="h-10 bg-muted/40 border-border/60 rounded-lg text-sm"
+                          />
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.1em] text-muted-foreground/70">Nascimento</label>
-                        <div className="relative">
-                          <Calendar className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground/40" />
-                          <Input 
-                            value={student.birthDate ? format(new Date(student.birthDate), "dd/MM/yyyy") : "--"} 
-                            readOnly 
-                            className="h-14 w-full pl-14 rounded-2xl bg-muted/30 border-none text-[15px] font-bold" 
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-1.5">Telefone do responsável</label>
+                          <Input
+                            value={student.guardianPhone || ""}
+                            readOnly
+                            className="h-10 bg-muted/40 border-border/60 rounded-lg text-sm"
                           />
                         </div>
                       </div>
                     </div>
                   </div>
 
+                  {/* Acesso do aluno */}
                   <div>
-                    <div className="mb-8 flex items-center gap-5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/5 text-emerald-600 shadow-sm border border-emerald-500/10">
-                        <ShieldCheck className="h-6 w-6" />
-                      </div>
+                    <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4">Acesso do aluno</p>
+                    <div className="space-y-4">
                       <div>
-                        <h3 className="text-[19px] font-black text-foreground tracking-tight leading-none">Segurança e Acesso</h3>
-                        <p className="text-[13px] text-muted-foreground mt-1 font-medium">Credenciais para o primeiro login</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="p-1 rounded-2xl bg-primary/5 border border-primary/10">
-                        <div className="p-4 flex items-center justify-between">
-                          <div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-primary/60 mb-1">Login (Usuário)</p>
-                            <p className="text-[16px] font-black text-primary">{student.email}</p>
-                          </div>
-                          <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-primary shadow-sm border border-primary/10">
-                            <User size={18} />
-                          </div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Login (e-mail)</label>
+                        <div className="relative">
+                          <Input
+                            value={student.email || ""}
+                            readOnly
+                            className="h-10 bg-muted/40 border-border/60 rounded-lg text-sm pr-10"
+                          />
+                          <Mail className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={15} />
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1">Será utilizado para login no portal do aluno</p>
                       </div>
 
                       <div>
-                        <label className="mb-3 block text-[11px] font-black uppercase tracking-[0.1em] text-muted-foreground/70">Senha sugerida</label>
-                        <div className="flex items-center gap-3">
-                          <Input value={password} readOnly className="h-14 w-full rounded-2xl bg-muted/30 border-none font-mono text-[16px] tracking-tight font-bold px-5" />
-                          <button 
-                            onClick={handleCopyPassword}
-                            className="w-14 h-14 flex items-center justify-center bg-background border border-border/60 rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground transition-all shrink-0 shadow-sm hover:scale-105 active:scale-95"
-                            title="Copiar senha"
-                          >
-                            <Copy size={20} />
-                          </button>
-                          <button 
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Senha temporária</label>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              value={password}
+                              readOnly
+                              className="h-10 bg-muted/40 border-border/60 rounded-lg text-sm font-mono pr-10"
+                            />
+                            <button
+                              onClick={handleCopyPassword}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <Copy size={15} />
+                            </button>
+                          </div>
+                          <button
                             onClick={generatePassword}
-                            className="text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-all shrink-0 px-6 h-14 rounded-2xl hover:bg-primary/5"
+                            className="text-sm font-medium text-primary hover:text-primary/80 transition-colors whitespace-nowrap"
                           >
-                            Recriar
+                            Gerar nova
                           </button>
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1">O aluno deverá alterar a senha no primeiro acesso</p>
                       </div>
                     </div>
                   </div>
-                </div>
+                </>
               )}
 
+              {/* ── STEP 2 – Permissions ── */}
               {step === 2 && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-10 pb-10">
-                  <div className="mb-10 flex items-center gap-5">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/5 text-primary shadow-sm border border-primary/10">
-                      <ShieldCheck className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-[19px] font-black text-foreground tracking-tight leading-none">Módulos do Portal</h3>
-                      <p className="text-[13px] text-muted-foreground mt-1 font-medium">Controle granular do que o aluno pode visualizar</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-5">
+                <div>
+                  <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4">Permissões de acesso</p>
+                  <p className="text-sm text-muted-foreground mb-6">Selecione quais módulos este aluno poderá visualizar no portal.</p>
+                  <div className="space-y-3">
                     {permissionList.map((perm) => {
                       const Icon = perm.icon;
                       const isChecked = permissions[perm.id as keyof typeof permissions];
                       return (
-                        <div key={perm.id} className={`flex items-center justify-between p-6 rounded-[28px] border transition-all duration-300 ${isChecked ? 'bg-primary/[0.02] border-primary/20 shadow-sm shadow-primary/5' : 'bg-muted/10 border-border/40 opacity-70'}`}>
-                          <div className="flex items-center gap-6">
-                            <div className={`w-14 h-14 rounded-2xl ${perm.bg} ${perm.color} flex items-center justify-center shadow-sm border border-current/10`}>
-                              <Icon size={26} />
+                        <div
+                          key={perm.id}
+                          className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${isChecked ? 'border-primary/20 bg-primary/[0.03]' : 'border-border/50 bg-muted/20 opacity-60'}`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-lg ${perm.bg} ${perm.color} flex items-center justify-center`}>
+                              <Icon size={20} />
                             </div>
                             <div>
-                              <p className={`text-[16px] font-black transition-colors ${isChecked ? 'text-foreground' : 'text-muted-foreground'}`}>{perm.label}</p>
-                              <p className="text-[13px] text-muted-foreground/80 font-medium leading-tight mt-0.5">{perm.desc}</p>
+                              <p className="text-sm font-semibold text-foreground">{perm.label}</p>
+                              <p className="text-xs text-muted-foreground">{perm.desc}</p>
                             </div>
                           </div>
-                          <Switch 
-                            checked={isChecked} 
-                            onCheckedChange={(val) => setPermissions(prev => ({ ...prev, [perm.id]: val }))} 
-                            className="data-[state=checked]:bg-primary"
+                          <Switch
+                            checked={isChecked}
+                            onCheckedChange={(val) => setPermissions(prev => ({ ...prev, [perm.id]: val }))}
                           />
                         </div>
                       );
@@ -322,189 +326,124 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
                 </div>
               )}
 
+              {/* ── STEP 3 – Summary ── */}
               {step === 3 && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-10 pb-10">
-                  <div className="mb-10 flex items-center gap-5">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/5 text-emerald-600 shadow-sm border border-emerald-500/10">
-                      <CheckCircle2 className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-[19px] font-black text-foreground tracking-tight leading-none">Tudo pronto!</h3>
-                      <p className="text-[13px] text-muted-foreground mt-1 font-medium">Confira o resumo das configurações finais</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-8">
-                    <div className="p-10 rounded-[40px] bg-muted/20 border border-border/40 space-y-10">
-                      <div className="flex items-center gap-8">
-                        <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-primary to-primary/80 text-white flex items-center justify-center text-3xl font-black shadow-xl shadow-primary/20">
-                          {student.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4">Resumo do acesso</p>
+                    <div className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden">
+                      <div className="p-5 space-y-4">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Aluno</p>
+                          <p className="text-sm font-semibold text-foreground">{student.name}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Login</p>
+                            <p className="text-sm font-semibold text-foreground">{student.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Senha temporária</p>
+                            <p className="text-sm font-mono font-semibold text-foreground">{password}</p>
+                          </div>
                         </div>
                         <div>
-                          <p className="text-[26px] font-black text-foreground leading-none tracking-tight">{student.name}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                             <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                             <p className="text-[12px] font-black text-primary uppercase tracking-widest">{student.email}</p>
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Módulos liberados</p>
+                          <div className="flex flex-wrap gap-2">
+                            {permissionList.map(p => permissions[p.id as keyof typeof permissions] && (
+                              <span key={p.id} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${p.bg} ${p.color}`}>
+                                <p.icon size={12} />
+                                {p.label}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-10">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60 mb-3">Usuário de Login</p>
-                          <p className="text-[16px] font-bold text-foreground">{student.email}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60 mb-3">Senha de Acesso</p>
-                          <p className="text-[16px] font-bold text-foreground font-mono tracking-tight">{password}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60">Acessos Habilitados</p>
-                        <div className="flex flex-wrap gap-3">
-                          {permissionList.map(p => permissions[p.id as keyof typeof permissions] && (
-                            <div key={p.id} className={`flex items-center gap-2.5 px-5 py-2.5 rounded-2xl ${p.bg} ${p.color} text-[11px] font-black uppercase border border-current/10 shadow-sm`}>
-                              <p.icon size={16} />
-                              {p.label}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
                     </div>
+                  </div>
 
-                    <div className="p-6 rounded-3xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-5">
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0">
-                         <AlertCircle size={22} />
-                      </div>
-                      <p className="text-[13px] text-amber-900/80 font-semibold leading-relaxed">
-                        Ao finalizar, o portal será liberado imediatamente. Recomendamos que você envie a senha temporária ao aluno para seu primeiro acesso.
-                      </p>
-                    </div>
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-900/20">
+                    <AlertCircle className="text-amber-600 mt-0.5 shrink-0" size={16} />
+                    <p className="text-sm text-amber-800 dark:text-amber-400">
+                      Ao confirmar, o portal será liberado imediatamente. Envie a senha temporária ao aluno para que ele possa fazer seu primeiro acesso.
+                    </p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* PREVIEW (5 columns) */}
-            <div className="col-span-12 lg:col-span-5 bg-muted/10 rounded-[48px] p-10 flex flex-col justify-center items-center relative overflow-hidden">
-              {/* Background Decoration */}
-              <div className="absolute top-[-20%] right-[-20%] w-96 h-96 bg-primary/5 rounded-full blur-[100px]" />
-              <div className="absolute bottom-[-20%] left-[-20%] w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px]" />
+            {/* ── RIGHT PANEL – Preview ─────────────────────────── */}
+            <div className="w-[220px] shrink-0 border-l border-border/60 bg-muted/20 flex flex-col items-center justify-start pt-8 px-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-6 text-center">
+                Pré-visualização do acesso
+              </p>
 
-              <div className="w-full max-w-[340px] animate-in zoom-in duration-700 relative z-10 scale-90 sm:scale-100">
-                <div className="mb-12 text-center">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-4 border border-primary/10">
-                     <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                     Live Preview
-                  </div>
-                  <h3 className="text-[22px] font-black text-foreground tracking-tight">Portal do Aluno</h3>
+              {/* Card de preview */}
+              <div className="w-full flex flex-col items-center">
+                {/* Avatar */}
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-primary/20 mb-4">
+                  {initials}
                 </div>
 
-                {/* ID Card Styled Preview */}
-                <div className="relative group perspective-1000">
-                  <div className="absolute -inset-1.5 bg-gradient-to-b from-primary/30 via-primary/5 to-emerald-500/30 rounded-[50px] blur-xl opacity-30 group-hover:opacity-50 transition duration-1000"></div>
-                  
-                  <div className="relative flex flex-col items-center rounded-[48px] border border-white/40 bg-white/60 dark:bg-card/40 backdrop-blur-2xl px-10 py-12 text-center shadow-2xl transition-transform duration-500 group-hover:translate-y-[-10px]">
-                    {/* Status Badge */}
-                    <div className="absolute top-8 right-8">
-                      <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-600 border border-emerald-500/10">
-                        Ativo
-                      </div>
-                    </div>
+                {/* Nome */}
+                <p className="text-base font-bold text-foreground text-center leading-tight">
+                  {student.name}
+                </p>
 
-                    {/* Avatar */}
-                    <div className="relative">
-                      <div className="flex h-32 w-32 items-center justify-center rounded-[36px] bg-gradient-to-br from-primary to-primary/80 text-5xl font-black text-white shadow-2xl shadow-primary/40 transform -rotate-3 transition-transform group-hover:rotate-0 duration-700">
-                        {student.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                      </div>
-                      <div className="absolute -bottom-3 -right-3 w-12 h-12 bg-white dark:bg-card border-8 border-white dark:border-card rounded-[20px] flex items-center justify-center text-emerald-500 shadow-xl">
-                        <CheckCircle2 size={24} />
-                      </div>
-                    </div>
+                {/* Subtítulo */}
+                <p className="text-[10px] font-bold text-primary/70 uppercase tracking-widest text-center mt-1 mb-4 leading-tight">
+                  Portal<br />do<br />Aluno
+                </p>
 
-                    <div className="mt-10 space-y-2">
-                      <h2 className="text-[28px] font-black tracking-tighter text-foreground leading-none">
-                        {student.name}
-                      </h2>
-                      <p className="text-[11px] font-black uppercase tracking-[0.3em] text-primary/60">
-                        Membro MusicPro
-                      </p>
-                    </div>
+                {/* Badge de status */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-900/30">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+                    Acesso ativo
+                  </span>
+                </div>
 
-                    <div className="mt-12 w-full space-y-5">
-                      <div className="w-full rounded-3xl border border-white/50 bg-white/40 dark:bg-card/30 p-6 text-left transition-all group-hover:bg-white/80 dark:group-hover:bg-card/60 shadow-sm">
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 mb-2">Identidade Digital</p>
-                        <p className="text-[14px] font-black text-foreground truncate">
-                          {student.email || "---"}
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center justify-center gap-2.5 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">
-                        <ShieldCheck size={16} />
-                        Segurança Verificada
-                      </div>
-                    </div>
-                  </div>
+                {/* E-mail */}
+                <div className="w-full mt-6 p-3 rounded-lg bg-background border border-border/60">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">E-mail de acesso</p>
+                  <p className="text-xs font-medium text-foreground truncate">{student.email || "—"}</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* FOOTER */}
-        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-border/40 px-12 py-10 bg-background/50 backdrop-blur-sm gap-8 rounded-b-[40px]">
-          <div className="flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-colors ${step === 3 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-primary/5 text-primary/60'}`}>
-               {step === 3 ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-            </div>
-            <div>
-              <p className="text-[13px] font-bold text-foreground">
-                {step === 3 ? "Tudo pronto para liberar!" : "Revisão de credenciais"}
-              </p>
-              <p className="text-[11px] text-muted-foreground font-medium">
-                {step === 3 ? "O acesso será liberado instantaneamente." : "O aluno deverá alterar a senha no primeiro login."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 w-full sm:w-auto">
+        {/* ── FOOTER ─────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between border-t border-border/60 px-8 py-5 bg-white dark:bg-card">
+          <Button
+            variant="ghost"
+            onClick={step > 1 ? handleBack : () => onOpenChange(false)}
+            className="h-10 px-6 rounded-lg text-muted-foreground hover:text-foreground font-medium"
+          >
             {step > 1 ? (
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                className="h-16 px-10 rounded-[22px] border-border/60 text-foreground font-black text-[15px] hover:bg-muted transition-all active:scale-95 w-full sm:w-auto flex items-center gap-3"
-              >
-                <ChevronLeft size={22} strokeWidth={2.5} /> Voltar
-              </Button>
+              <><ChevronLeft size={16} className="mr-1" /> Voltar</>
             ) : (
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="h-16 px-10 rounded-[22px] border-border/60 text-foreground font-black text-[15px] hover:bg-muted transition-all active:scale-95 w-full sm:w-auto"
-              >
-                Cancelar
-              </Button>
+              "Cancelar"
             )}
-            
-            {step < 3 ? (
-              <Button
-                onClick={handleNext}
-                className="h-16 px-12 rounded-[22px] bg-primary text-primary-foreground font-black text-[15px] shadow-2xl shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-[1.03] active:scale-95 w-full sm:w-auto flex items-center gap-3"
-              >
-                Próximo Passo <ChevronRight size={22} strokeWidth={2.5} />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={enableAccessMutation.isPending || !student?.email}
-                className="h-16 px-12 rounded-[22px] bg-emerald-600 text-white font-black text-[15px] shadow-2xl shadow-emerald-600/20 transition-all hover:bg-emerald-700 hover:scale-[1.03] active:scale-95 w-full sm:w-auto flex items-center gap-3"
-              >
-                {enableAccessMutation.isPending ? <RefreshCw className="animate-spin" size={22} /> : null}
-                Liberar Acesso <ChevronRight size={22} strokeWidth={2.5} />
-              </Button>
-            )}
-          </div>
+          </Button>
+
+          {step < 3 ? (
+            <Button
+              onClick={handleNext}
+              className="h-10 px-7 rounded-lg bg-primary text-white font-semibold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all"
+            >
+              Continuar <ChevronRight size={16} className="ml-1" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={enableAccessMutation.isPending || !student?.email}
+              className="h-10 px-7 rounded-lg bg-emerald-600 text-white font-semibold shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-all"
+            >
+              {enableAccessMutation.isPending && <RefreshCw className="animate-spin mr-2" size={16} />}
+              Liberar acesso <ChevronRight size={16} className="ml-1" />
+            </Button>
+          )}
         </div>
 
       </DialogContent>
