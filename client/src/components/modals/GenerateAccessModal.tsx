@@ -99,7 +99,7 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[860px] w-[95vw] max-h-[92vh] p-0 overflow-hidden bg-white dark:bg-card rounded-2xl border border-border shadow-2xl flex flex-col gap-0 focus:outline-none">
+      <DialogContent showCloseButton={false} className="sm:max-w-[860px] w-[95vw] max-h-[92vh] p-0 overflow-hidden bg-white dark:bg-card rounded-2xl border border-border shadow-2xl flex flex-col gap-0 focus:outline-none">
 
         {/* ── HEADER ─────────────────────────────────────────────── */}
         <div className="px-8 pt-7 pb-5 border-b border-border/60">
