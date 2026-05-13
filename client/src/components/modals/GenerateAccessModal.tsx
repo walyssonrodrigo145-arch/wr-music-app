@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   X, CheckCircle2,
   Mail, RefreshCw, AlertCircle,
-  Copy, ChevronRight, CalendarIcon
+  Copy, ChevronRight, Calendar,
+  User, ShieldCheck, Phone
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -72,38 +73,67 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[1100px] w-[95vw] p-0 overflow-hidden bg-background rounded-[24px] border border-border shadow-xl max-h-[90vh] flex flex-col gap-0 focus:outline-none">
+      <DialogContent className="max-w-[1100px] w-[95vw] p-0 overflow-hidden bg-background rounded-[32px] border border-border shadow-2xl max-h-[90vh] flex flex-col gap-0 focus:outline-none">
         
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between p-8 pb-6 border-b border-border/40 relative">
-          <div className="flex-1 pr-12">
-            <h2 className="text-[32px] font-bold text-foreground leading-tight">Gerar acesso do aluno</h2>
-            <p className="text-[16px] text-muted-foreground mt-1">Crie o acesso de login para o aluno acessar sua área</p>
-          </div>
-          
-          <button 
-            onClick={() => onOpenChange(false)}
-            className="absolute top-8 right-8 w-8 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-full transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
+        {/* HEADER */}
+        <div className="border-b border-border/40 px-8 py-7 relative">
+          <div className="flex items-start justify-between gap-6">
+            <div className="space-y-2">
+              <DialogTitle className="text-[38px] font-black tracking-[-1px] text-foreground leading-tight">
+                Gerar acesso do aluno
+              </DialogTitle>
 
-        {/* Stepper */}
-        <div className="px-8 py-6 border-b border-border/40 flex items-center justify-center gap-3 text-[14px] font-medium text-muted-foreground">
-          <div className="flex items-center gap-2 text-primary">
-            <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</div>
-            <span className="font-semibold">Dados do aluno</span>
+              <DialogDescription className="text-[16px] text-muted-foreground leading-relaxed max-w-[620px]">
+                Configure as credenciais de acesso do aluno ao portal exclusivo da plataforma.
+              </DialogDescription>
+            </div>
+
+            <button 
+              onClick={() => onOpenChange(false)}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-border text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <div className="w-16 h-[1px] bg-border mx-2"></div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">2</div>
-            <span>Acesso e permissões</span>
-          </div>
-          <div className="w-16 h-[1px] bg-border mx-2"></div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">3</div>
-            <span>Resumo</span>
+
+          {/* STEPPER */}
+          <div className="mt-8 flex items-center gap-4">
+            {/* STEP 1 */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-lg shadow-primary/30">
+                1
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Dados do aluno</p>
+                <p className="text-xs text-muted-foreground">Informações básicas</p>
+              </div>
+            </div>
+
+            <div className="h-px flex-1 bg-border" />
+
+            {/* STEP 2 */}
+            <div className="flex items-center gap-3 opacity-60">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-sm font-bold text-muted-foreground">
+                2
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Permissões</p>
+                <p className="text-xs text-muted-foreground">Controle de acesso</p>
+              </div>
+            </div>
+
+            <div className="h-px flex-1 bg-border" />
+
+            {/* STEP 3 */}
+            <div className="flex items-center gap-3 opacity-60">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-sm font-bold text-muted-foreground">
+                3
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Resumo</p>
+                <p className="text-xs text-muted-foreground">Finalização</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -120,109 +150,129 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
             <p className="text-base font-medium text-muted-foreground">Não foi possível localizar os dados deste aluno.</p>
           </div>
         ) : (
-          <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
-            
-            {/* Esquerda - Formulário (60%) */}
-            <div className="w-full md:w-[60%] p-8 overflow-y-auto border-r border-border/40 space-y-8">
+          <div className="grid grid-cols-12 gap-0 overflow-hidden flex-1 min-h-0">
+            {/* FORM (7 columns) */}
+            <div className="col-span-12 lg:col-span-7 p-8 overflow-y-auto border-r border-border/40 space-y-8">
               
-              {/* DADOS PESSOAIS */}
+              {/* SEÇÃO: DADOS PESSOAIS */}
               <div>
-                <h3 className="text-[13px] font-bold text-primary uppercase tracking-wider mb-5">Dados Pessoais</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-[14px] font-medium text-foreground">Nome completo <span className="text-destructive">*</span></label>
-                    <Input value={student.name} readOnly className="h-12 bg-background border-border text-foreground text-[15px]" />
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <User className="h-5 w-5" />
                   </div>
-                  
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-[14px] font-medium text-foreground">E-mail <span className="text-destructive">*</span></label>
-                    <Input value={student.email || ""} readOnly className="h-12 bg-background border-border text-foreground text-[15px]" />
-                    <p className="text-[13px] text-muted-foreground mt-1">Será o usuário para login do aluno</p>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Dados pessoais</h3>
+                    <p className="text-sm text-muted-foreground">Informações do aluno</p>
                   </div>
+                </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-foreground">Telefone (WhatsApp)</label>
-                    <Input value={student.phone || ""} readOnly className="h-12 bg-background border-border text-foreground text-[15px]" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="sm:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-foreground">Nome completo</label>
+                    <Input value={student.name} readOnly className="h-12 w-full rounded-2xl bg-muted/30 border-border" />
                   </div>
                   
-                  <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-foreground">Data de nascimento</label>
+                  <div className="sm:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-foreground">E-mail</label>
                     <div className="relative">
-                      <Input value="--" readOnly className="h-12 bg-background border-border text-foreground text-[15px] pr-10" />
-                      <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input value={student.email || ""} readOnly className="h-12 w-full pl-11 rounded-2xl bg-muted/30 border-border" />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-foreground">Nome do responsável</label>
-                    <Input value="--" readOnly className="h-12 bg-background border-border text-foreground text-[15px]" />
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">Telefone</label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input value={student.phone || ""} readOnly className="h-12 w-full pl-11 rounded-2xl bg-muted/30 border-border" />
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-foreground">Telefone do responsável</label>
-                    <Input value="--" readOnly className="h-12 bg-background border-border text-foreground text-[15px]" />
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">Nascimento</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input value="--" readOnly className="h-12 w-full pl-11 rounded-2xl bg-muted/30 border-border" />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* ACESSO DO ALUNO */}
+              {/* SEÇÃO: ACESSO */}
               <div>
-                <h3 className="text-[13px] font-bold text-primary uppercase tracking-wider mb-5">Acesso do Aluno</h3>
-                <div className="space-y-5">
-                  <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-foreground">Login (e-mail)</label>
-                    <Input value={student.email || ""} readOnly className="h-12 bg-muted/30 border-border text-foreground text-[15px]" />
-                    <p className="text-[13px] text-muted-foreground mt-1">Será utilizado para login no portal do aluno</p>
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                    <ShieldCheck className="h-5 w-5" />
                   </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-[14px] font-medium text-foreground">Senha temporária</label>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Acesso do aluno</h3>
+                    <p className="text-sm text-muted-foreground">Credenciais de login</p>
+                  </div>
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">Login (e-mail)</label>
+                    <Input value={student.email || ""} readOnly className="h-12 w-full rounded-2xl bg-muted/30 border-border" />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">Senha temporária</label>
                     <div className="flex items-center gap-3">
-                      <Input value={password} readOnly className="h-12 font-mono flex-1 bg-muted/30 border-border text-foreground text-[15px]" />
+                      <Input value={password} readOnly className="h-12 w-full rounded-2xl bg-muted/30 border-border font-mono" />
                       <button 
                         onClick={handleCopyPassword}
-                        className="w-12 h-12 flex items-center justify-center border border-border rounded-md text-muted-foreground hover:bg-muted transition-colors shrink-0"
+                        className="w-12 h-12 flex items-center justify-center border border-border rounded-2xl text-muted-foreground hover:bg-muted transition-colors shrink-0"
                         title="Copiar senha"
                       >
                         <Copy size={18} />
                       </button>
                       <button 
                         onClick={generatePassword}
-                        className="text-[14px] font-medium text-primary hover:text-primary/80 transition-colors shrink-0 px-2"
+                        className="text-[14px] font-bold text-primary hover:text-primary/80 transition-colors shrink-0 px-2"
                       >
                         Gerar nova
                       </button>
                     </div>
-                    <p className="text-[13px] text-muted-foreground mt-1">O aluno deverá alterar a senha no primeiro acesso</p>
                   </div>
                 </div>
               </div>
-
             </div>
 
-            {/* Direita - Preview (40%) */}
-            <div className="w-full md:w-[40%] bg-muted/10 p-8 flex flex-col items-center">
-              <h3 className="text-[13px] font-bold text-primary uppercase tracking-wider mb-8 w-full text-center">Pré-visualização do Acesso</h3>
-              
-              <div className="w-full max-w-[320px] bg-background rounded-3xl border border-border shadow-sm p-8 flex flex-col items-center text-center mt-4">
-                <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-3xl font-bold text-primary mb-5">
-                  {student.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+            {/* PREVIEW (5 columns) */}
+            <div className="col-span-12 lg:col-span-5 bg-muted/10 p-8 flex flex-col">
+              <div className="sticky top-0 space-y-6">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Pré-visualização</p>
+                  <h3 className="mt-2 text-xl font-bold text-foreground">Como o aluno verá o acesso</h3>
                 </div>
-                
-                <h4 className="text-[20px] font-bold text-foreground leading-tight mb-2">{student.name}</h4>
-                <p className="text-[12px] font-bold text-primary uppercase tracking-widest mb-6">Portal do Aluno</p>
-                
-                <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[12px] font-bold uppercase tracking-wider flex items-center gap-2 mb-8 border border-emerald-500/20">
-                  Acesso Ativo <CheckCircle2 size={14} strokeWidth={3} />
-                </div>
-                
-                <div className="w-full bg-muted/30 rounded-2xl p-4 flex items-center gap-4 text-left border border-border/50">
-                  <div className="w-10 h-10 rounded-xl bg-background border border-border/50 flex items-center justify-center text-muted-foreground shrink-0 shadow-sm">
-                    <Mail size={18} />
+
+                <div className="flex flex-col items-center rounded-[28px] border border-border bg-background px-8 py-10 text-center shadow-sm">
+                  {/* Avatar */}
+                  <div className="flex h-28 w-28 items-center justify-center rounded-full bg-primary/10 text-4xl font-black text-primary shadow-inner">
+                    {student.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">E-mail de acesso</p>
-                    <p className="text-[14px] font-medium text-foreground truncate">{student.email || "---"}</p>
+
+                  <h2 className="mt-6 text-3xl font-black tracking-[-1px] text-foreground leading-tight">
+                    {student.name}
+                  </h2>
+
+                  <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                    Portal do aluno
+                  </p>
+
+                  <div className="mt-6 flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-700 border border-emerald-500/20">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Acesso ativo
+                  </div>
+
+                  <div className="mt-8 w-full rounded-2xl border border-border bg-muted/30 p-4 text-left">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      E-mail de acesso
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-foreground truncate">
+                      {student.email || "---"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -230,23 +280,30 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
           </div>
         )}
 
-        {/* Footer */}
-        <div className="px-8 py-5 border-t border-border/40 bg-background flex flex-col sm:flex-row items-center justify-between gap-4">
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)} 
-            className="h-12 px-8 rounded-xl font-medium text-[15px] border-border text-foreground hover:bg-muted w-full sm:w-auto"
-          >
-            Cancelar
-          </Button>
-          <Button 
-            className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-[15px] flex items-center gap-2 w-full sm:w-auto"
-            onClick={handleSubmit}
-            disabled={enableAccessMutation.isPending || !student?.email}
-          >
-            {enableAccessMutation.isPending ? <RefreshCw className="animate-spin" size={18} /> : null}
-            Continuar <ChevronRight size={18} />
-          </Button>
+        {/* FOOTER */}
+        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-border/40 px-8 py-6 bg-background gap-4">
+          <p className="text-sm text-muted-foreground text-center sm:text-left">
+            O aluno poderá alterar a senha no primeiro acesso.
+          </p>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="h-12 px-6 rounded-2xl border-border text-foreground font-semibold hover:bg-muted w-full sm:w-auto"
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              onClick={handleSubmit}
+              disabled={enableAccessMutation.isPending || !student?.email}
+              className="h-12 px-7 rounded-2xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/30 transition-all hover:bg-primary/90 w-full sm:w-auto flex items-center gap-2"
+            >
+              {enableAccessMutation.isPending ? <RefreshCw className="animate-spin" size={18} /> : null}
+              Continuar <ChevronRight size={18} />
+            </Button>
+          </div>
         </div>
 
       </DialogContent>
