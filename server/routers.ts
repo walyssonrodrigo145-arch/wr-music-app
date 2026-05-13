@@ -707,6 +707,7 @@ export const appRouter = router({
       studentId: z.number(),
       email: z.string().email().optional(),
       password: z.string().min(6).optional(),
+      permissions: z.record(z.boolean()).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Banco de dados não disponível" });
@@ -723,6 +724,13 @@ export const appRouter = router({
       if (!isOwner && !isUserAdmin) {
         console.warn(`[TRPC] Permission denied for enabling portal access - User: ${ctx.user.id}, Student: ${input.studentId}`);
         throw new TRPCError({ code: 'FORBIDDEN', message: "Você não tem permissão para liberar o acesso deste aluno." });
+      }
+
+      // Update student permissions
+      if (input.permissions) {
+        await db.update(students).set({ 
+          permissions: JSON.stringify(input.permissions) 
+        }).where(eq(students.id, student.id));
       }
 
       // Check if user already exists for this student
