@@ -2876,7 +2876,8 @@ export const appRouter = router({
         statsTotalRecent,
         statsDoneRecent,
         payments,
-        latestMessages
+        latestMessages,
+        pendingGoals
       ] = await Promise.all([
         db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1).then(res => res[0]),
         
@@ -2954,7 +2955,18 @@ export const appRouter = router({
             sql`(${chatMessages.senderId} = ${ctx.user.id} OR ${chatMessages.receiverId} = ${ctx.user.id})`
           ))
           .orderBy(desc(chatMessages.createdAt))
-          .limit(3)
+          .limit(3),
+          
+        // Pending Exercises (Goals)
+        db.select({
+          id: studentGoals.id,
+          title: studentGoals.title,
+          status: studentGoals.status,
+          createdAt: studentGoals.createdAt,
+        }).from(studentGoals)
+          .where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, 'pendente')))
+          .orderBy(desc(studentGoals.createdAt))
+          .limit(5)
       ]);
 
       const frequency = statsTotalRecent.count > 0 ? Math.round((statsDoneRecent.count / statsTotalRecent.count) * 100) : 100;
@@ -2965,6 +2977,7 @@ export const appRouter = router({
         announcements: dbAnnouncements.map(a => ({ ...a, date: a.date.toLocaleDateString('pt-BR') })),
         materials,
         payments,
+        pendingGoals: pendingGoals,
         teacherName: teacher?.name || 'Professor',
         teacherId: teacher?.id,
         messages: latestMessages,

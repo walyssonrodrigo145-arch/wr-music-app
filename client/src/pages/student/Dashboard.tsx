@@ -72,42 +72,6 @@ export default function StudentDashboard() {
       animate="show"
       className="space-y-8 pb-10"
     >
-      {/* Top Header & Search */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground font-medium flex items-center gap-2 mt-1">
-            Olá, {firstName}! 👋 <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-bold uppercase tracking-tighter">Aluno</span>
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">Aqui está um resumo das suas atividades.</p>
-        </div>
-        <div className="flex items-center gap-3">
-           <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={16} />
-              <input 
-                type="text" 
-                placeholder="Procurar..." 
-                className="bg-card border-none rounded-xl pl-10 pr-4 py-2.5 text-sm w-full md:w-[280px] shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-              />
-           </div>
-           <button className="w-10 h-10 rounded-xl bg-card flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors shadow-sm">
-             <Moon size={18} />
-           </button>
-           <button className="w-10 h-10 rounded-xl bg-card flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors shadow-sm relative">
-             <Bell size={18} />
-             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-card" />
-           </button>
-           <div className="flex items-center gap-3 pl-2 border-l">
-             <div className="text-right hidden sm:block">
-                <p className="text-xs font-black leading-none">{user?.name}</p>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter mt-1">ALUNO</p>
-             </div>
-             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-black text-xs shadow-lg">
-                {user?.name?.slice(0, 2).toUpperCase()}
-             </div>
-           </div>
-        </div>
-      </div>
 
       {/* Stats Cards Row */}
       <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -368,16 +332,23 @@ export default function StudentDashboard() {
                     <TabsTrigger value="concluidos" className="rounded-lg text-[9px] font-black uppercase tracking-tighter data-[state=active]:bg-white data-[state=active]:shadow-sm px-1">Concluídos</TabsTrigger>
                   </TabsList>
                   <TabsContent value="pendentes" className="space-y-3">
-                    {[1, 2, 3].map((ex) => (
-                      <div key={ex} className="p-4 rounded-xl border border-border/50 hover:border-primary/30 transition-all cursor-pointer group">
+                    {dashboard?.pendingGoals?.length === 0 ? (
+                      <div className="text-center py-6">
+                        <CheckCircle2 className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
+                        <p className="text-xs font-bold text-muted-foreground">Nenhum exercício pendente</p>
+                      </div>
+                    ) : dashboard?.pendingGoals?.map((ex: any) => (
+                      <div key={ex.id} className="p-4 rounded-xl border border-border/50 hover:border-primary/30 transition-all cursor-pointer group">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
                                <FileText size={16} />
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-foreground">Exercício 0{ex} - {ex === 1 ? 'Dedilhado' : ex === 2 ? 'Campo Harmônico' : 'Leitura Rítmica'}</p>
-                              <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Enviado em {10-ex}/05</p>
+                              <p className="text-sm font-bold text-foreground">{ex.title}</p>
+                              <p className="text-[10px] text-muted-foreground font-medium mt-0.5">
+                                Enviado em {format(new Date(ex.createdAt), "dd/MM")}
+                              </p>
                             </div>
                           </div>
                           <span className="text-[9px] font-black uppercase bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Pendente</span>
