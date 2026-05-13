@@ -2725,6 +2725,23 @@ export const appRouter = router({
       
       const [student] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
       
+      // Parse permissions
+      let permissions = {
+        canSeeFinanceiro: true,
+        canSeeProgress: true,
+        canSeeFiles: true,
+        canSeeSchedule: true,
+      };
+
+      if (student.permissions) {
+        try {
+          const parsed = JSON.parse(student.permissions);
+          permissions = { ...permissions, ...parsed };
+        } catch (e) {
+          console.error("[studentPortal] Error parsing permissions for student", studentId, e);
+        }
+      }
+
       const [
         teacher,
         upcoming,
@@ -2739,20 +2756,29 @@ export const appRouter = router({
         latestMessages
       ] = await Promise.all([
         db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1).then(res => res[0]),
-        db.select({
-          id: lessons.id,
-          title: lessons.title,
-          scheduledAt: lessons.scheduledAt,
-          status: lessons.status,
-          instrumentId: lessons.instrumentId,
-        }).from(lessons)
-          .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
-          .orderBy(asc(lessons.scheduledAt))
-          .limit(5),
-        db.select().from(studentTimeline)
-          .where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId)))
-          .orderBy(desc(studentTimeline.achievedAt))
-          .limit(5),
+        
+        // Upcoming (Schedule)
+        permissions.canSeeSchedule 
+          ? db.select({
+              id: lessons.id,
+              title: lessons.title,
+              scheduledAt: lessons.scheduledAt,
+              status: lessons.status,
+              instrumentId: lessons.instrumentId,
+            }).from(lessons)
+              .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
+              .orderBy(asc(lessons.scheduledAt))
+              .limit(5)
+          : Promise.resolve([]),
+
+        // Timeline (Progress)
+        permissions.canSeeProgress
+          ? db.select().from(studentTimeline)
+              .where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId)))
+              .orderBy(desc(studentTimeline.achievedAt))
+              .limit(5)
+          : Promise.resolve([]),
+
         db.select({
           id: announcements.id,
           title: announcements.title,
@@ -2770,18 +2796,28 @@ export const appRouter = router({
         ))
         .orderBy(desc(announcements.createdAt))
         .limit(10),
-        db.select().from(studentFiles)
-          .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)))
-          .orderBy(desc(studentFiles.createdAt))
-          .limit(4),
+
+        // Materials (Files)
+        permissions.canSeeFiles
+          ? db.select().from(studentFiles)
+              .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)))
+              .orderBy(desc(studentFiles.createdAt))
+              .limit(4)
+          : Promise.resolve([]),
+
         db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).then(res => res[0]),
         db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, 'pendente'))).then(res => res[0]),
         db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date(new Date().setMonth(new Date().getMonth() - 3))), ne(lessons.status, 'cancelada'))).then(res => res[0]),
         db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date(new Date().setMonth(new Date().getMonth() - 3))), eq(lessons.status, 'concluida'))).then(res => res[0]),
-        db.select().from(paymentDues)
-          .where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId)))
-          .orderBy(desc(paymentDues.dueDate))
-          .limit(3),
+        
+        // Payments (Financeiro)
+        permissions.canSeeFinanceiro
+          ? db.select().from(paymentDues)
+              .where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId)))
+              .orderBy(desc(paymentDues.dueDate))
+              .limit(3)
+          : Promise.resolve([]),
+
         db.select({
           id: chatMessages.id,
           content: chatMessages.content,
@@ -2824,8 +2860,21 @@ export const appRouter = router({
       
       let studentId = ctx.user.studentId;
       if (!studentId) {
-        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) studentId = found.id;
+        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) {
+          // Check permission
+          if (found.permissions) {
+            const perms = JSON.parse(found.permissions);
+            if (perms.canSeeSchedule === false) return [];
+          }
+          studentId = found.id;
+        }
+      } else {
+        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
+        if (found?.permissions) {
+          const perms = JSON.parse(found.permissions);
+          if (perms.canSeeSchedule === false) return [];
+        }
       }
       if (!studentId) throw new Error("Acesso não autorizado");
 
@@ -2838,8 +2887,20 @@ export const appRouter = router({
       
       let studentId = ctx.user.studentId;
       if (!studentId) {
-        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) studentId = found.id;
+        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) {
+          if (found.permissions) {
+            const perms = JSON.parse(found.permissions);
+            if (perms.canSeeFiles === false) return [];
+          }
+          studentId = found.id;
+        }
+      } else {
+        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
+        if (found?.permissions) {
+          const perms = JSON.parse(found.permissions);
+          if (perms.canSeeFiles === false) return [];
+        }
       }
       if (!studentId) throw new Error("Acesso não autorizado");
 
@@ -2866,8 +2927,20 @@ export const appRouter = router({
       
       let studentId = ctx.user.studentId;
       if (!studentId) {
-        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) studentId = found.id;
+        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) {
+          if (found.permissions) {
+            const perms = JSON.parse(found.permissions);
+            if (perms.canSeeProgress === false) return { timeline: [], stats: { lessonsDone: 0, averageGrade: 0 } };
+          }
+          studentId = found.id;
+        }
+      } else {
+        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
+        if (found?.permissions) {
+          const perms = JSON.parse(found.permissions);
+          if (perms.canSeeProgress === false) return { timeline: [], stats: { lessonsDone: 0, averageGrade: 0 } };
+        }
       }
       if (!studentId) throw new Error("Acesso não autorizado");
 
@@ -2888,8 +2961,20 @@ export const appRouter = router({
       
       let studentId = ctx.user.studentId;
       if (!studentId) {
-        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) studentId = found.id;
+        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) {
+          if (found.permissions) {
+            const perms = JSON.parse(found.permissions);
+            if (perms.canSeeFinanceiro === false) return [];
+          }
+          studentId = found.id;
+        }
+      } else {
+        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
+        if (found?.permissions) {
+          const perms = JSON.parse(found.permissions);
+          if (perms.canSeeFinanceiro === false) return [];
+        }
       }
       if (!studentId) throw new Error("Acesso não autorizado");
 
@@ -2977,8 +3062,20 @@ export const appRouter = router({
       
       let studentId = ctx.user.studentId;
       if (!studentId) {
-        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) studentId = found.id;
+        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) {
+          if (found.permissions) {
+            const perms = JSON.parse(found.permissions);
+            if (perms.canSeeSchedule === false) return [];
+          }
+          studentId = found.id;
+        }
+      } else {
+        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
+        if (found?.permissions) {
+          const perms = JSON.parse(found.permissions);
+          if (perms.canSeeSchedule === false) return [];
+        }
       }
       if (!studentId) throw new Error("Acesso não autorizado");
 
