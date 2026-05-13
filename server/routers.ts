@@ -673,7 +673,11 @@ export const appRouter = router({
 
       // Buscar informações financeiras e acesso portal
       console.log(`[TRPC] Fetching additional info for student ${input.id}`);
-      const [lastPayment] = await db.select().from(paymentDues)
+      const [lastPayment] = await db.select({
+        paidAt: paymentDues.paidAt,
+        dueDate: paymentDues.dueDate,
+        status: paymentDues.status,
+      }).from(paymentDues)
         .where(and(
            eq(paymentDues.organizationId, orgId),
            eq(paymentDues.studentId, input.id),
@@ -682,7 +686,11 @@ export const appRouter = router({
         .orderBy(desc(paymentDues.paidAt))
         .limit(1);
 
-      const [nextPayment] = await db.select().from(paymentDues)
+      const [nextPayment] = await db.select({
+        paidAt: paymentDues.paidAt,
+        dueDate: paymentDues.dueDate,
+        status: paymentDues.status,
+      }).from(paymentDues)
         .where(and(
            eq(paymentDues.organizationId, orgId),
            eq(paymentDues.studentId, input.id),
