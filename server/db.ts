@@ -263,8 +263,10 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     instrumentName: instruments.name,
     instrumentColor: instruments.color,
     instrumentIcon: instruments.icon,
-    studentUserId: sql<number | null>`COALESCE(${students.studentUserId}, (SELECT id FROM users WHERE "studentId" = ${students.id} LIMIT 1))`,
-  }).from(students).leftJoin(instruments, eq(students.instrumentId, instruments.id))
+    studentUserId: sql<number | null>`COALESCE(${students.studentUserId}, ${users.id})`,
+  }).from(students)
+    .leftJoin(instruments, eq(students.instrumentId, instruments.id))
+    .leftJoin(users, eq(users.studentId, students.id))
     .where(and(
         eq(students.organizationId, organizationId),
         userId ? eq(students.professorId, userId) : undefined
