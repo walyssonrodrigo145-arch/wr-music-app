@@ -745,8 +745,8 @@ export const appRouter = router({
       // Check if user already exists for this student
       const [existingStudentUser] = await db.select().from(users).where(and(eq(users.studentId, student.id), eq(users.organizationId, orgId))).limit(1);
       
-      // Se não informado, gerar email e senha
-      const email = input.email || `${student.name.toLowerCase().replace(/\s+/g, '.')}@musicpro.com`;
+      // Se não informado, tentar usar o e-mail do cadastro do aluno, ou gerar um padrão
+      const email = input.email || student.email || `${student.name.toLowerCase().replace(/\s+/g, '.')}@musicpro.com`;
       const password = input.password || Math.random().toString(36).slice(-8);
 
       // If creating a NEW user (not just updating), check email availability

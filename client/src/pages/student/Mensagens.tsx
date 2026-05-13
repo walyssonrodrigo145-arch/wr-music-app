@@ -21,15 +21,15 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
 export default function StudentMessages() {
-  const { data: dashboard } = trpc.studentPortal.getDashboard.useQuery();
+  const { data: dashboard, isLoading: isDashboardLoading } = trpc.studentPortal.getDashboard.useQuery();
   const [message, setMessage] = useState("");
 
-  const { data: messages, refetch } = trpc.studentPortal.getMessages.useQuery(
+  const { data: messages, refetch, isLoading: isMessagesLoading } = trpc.studentPortal.getMessages.useQuery(
     { withUserId: dashboard?.teacherId as number },
     { enabled: !!dashboard?.teacherId }
   );
 
-  const sendMutation = trpc.studentPortal.sendMessage.useMutation({
+  const sendMutation = trpc.studentPortal.send.useMutation({
     onSuccess: () => {
       setMessage("");
       refetch();
@@ -60,6 +60,17 @@ export default function StudentMessages() {
   };
 
   const displayMessages = messages || [];
+
+  if (isDashboardLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Carregando mensagens...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col space-y-6 pb-6">
