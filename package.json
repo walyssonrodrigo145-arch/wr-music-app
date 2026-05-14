@@ -7,6 +7,7 @@
     "dev": "cross-env NODE_ENV=development tsx watch server/_core/index.ts",
     "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "cross-env NODE_ENV=production node dist/index.js",
+    "postinstall": "patch-package",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
@@ -104,14 +105,6 @@
     "vite": "^7.1.7",
     "vite-plugin-manus-runtime": "^0.0.57",
     "vitest": "^2.1.4"
-  },
-  "scripts": {
-    "postinstall": "patch-package",
-    "dev": "vite",
-    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "node dist/server/_core/index.js",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
