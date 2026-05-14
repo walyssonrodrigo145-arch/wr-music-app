@@ -1635,14 +1635,15 @@ export const appRouter = router({
       email: z.string().email().optional(),
       phone: z.string().optional(),
       bio: z.string().optional(),
+      pixKey: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
-      const { name, email, phone, bio } = input;
+      const { name, email, phone, bio, pixKey } = input;
       const userFields = { name, email };
       if (userFields.name || userFields.email) {
         await updateUserProfile(orgId, ctx.user.id, userFields);
       }
-      await upsertSettings(orgId, ctx.user.id, { phone, bio });
+      await upsertSettings(orgId, ctx.user.id, { phone, bio, pixKey });
       return { success: true };
     }),
 
@@ -3217,9 +3218,20 @@ export const appRouter = router({
       
       if (!student) throw new Error("Dados do aluno não encontrados.");
       
-      const [teacher] = await db.select({ name: users.name }).from(users).where(eq(users.id, student.teacherId)).limit(1);
+      const [teacher] = await db.select({ 
+        name: users.name,
+        pixKey: settings.pixKey
+      })
+      .from(users)
+      .leftJoin(settings, eq(users.id, settings.userId))
+      .where(eq(users.id, student.teacherId))
+      .limit(1);
       
-      return { ...student, teacherName: teacher?.name || 'Professor' };
+      return { 
+        ...student, 
+        teacherName: teacher?.name || 'Professor',
+        teacherPixKey: teacher?.pixKey 
+      };
     }),
     getSchedule: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();

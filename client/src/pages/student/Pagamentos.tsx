@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { 
   DollarSign, 
@@ -10,9 +11,19 @@ import {
   TrendingUp,
   CreditCard,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Copy,
+  Smartphone,
+  QrCode
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,6 +45,8 @@ const item = {
 
 export default function StudentPayments() {
   const { data: payments, isLoading } = trpc.studentPortal.getPayments.useQuery();
+  const { data: profile } = trpc.studentPortal.getProfile.useQuery();
+  const [isPixModalOpen, setIsPixModalOpen] = useState(false);
 
   if (isLoading) return (
     <div className="flex items-center justify-center min-h-[40vh]">
@@ -171,7 +184,13 @@ export default function StudentPayments() {
                       <span className="text-sm font-black">R$ {nextValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                    </div>
                    <button 
-                     onClick={() => toast.info("Gateway de pagamento em integração.")}
+                     onClick={() => {
+                       if (profile?.teacherPixKey) {
+                         setIsPixModalOpen(true);
+                       } else {
+                         toast.info("Aguardando configuração de pagamento do professor.");
+                       }
+                     }}
                      className="w-full bg-white text-primary font-black text-xs uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl hover:translate-y-[-2px] active:scale-95 transition-all"
                    >
                       Pagar Fatura
@@ -206,6 +225,61 @@ export default function StudentPayments() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={isPixModalOpen} onOpenChange={setIsPixModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none bg-card/95 backdrop-blur-2xl shadow-2xl p-0 overflow-hidden">
+          <div className="bg-gradient-to-br from-primary to-indigo-600 p-8 text-white relative">
+             <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
+                <QrCode size={120} />
+             </div>
+             <DialogHeader>
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
+                   <Smartphone size={28} />
+                </div>
+                <DialogTitle className="text-2xl font-black uppercase tracking-tight">Pagamento via PIX</DialogTitle>
+                <DialogDescription className="text-white/70 font-medium">
+                  Copie a chave PIX abaixo para realizar o pagamento para <strong>{profile?.teacherName}</strong>.
+                </DialogDescription>
+             </DialogHeader>
+          </div>
+
+          <div className="p-8 space-y-6">
+             <div className="p-6 bg-muted/50 rounded-3xl border-2 border-dashed border-primary/20 space-y-3">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] text-center">Chave PIX do Professor</p>
+                <div className="bg-card border border-border p-4 rounded-2xl flex items-center justify-between gap-4 group">
+                   <p className="text-sm font-bold text-foreground truncate flex-1">{profile?.teacherPixKey || "Chave não cadastrada"}</p>
+                   <button 
+                     onClick={() => {
+                       if (profile?.teacherPixKey) {
+                         navigator.clipboard.writeText(profile.teacherPixKey);
+                         toast.success("Chave PIX copiada!");
+                       }
+                     }}
+                     className="p-3 bg-primary text-white rounded-xl hover:scale-110 active:scale-90 transition-all shadow-lg shadow-primary/20"
+                   >
+                      <Copy size={16} />
+                   </button>
+                </div>
+             </div>
+
+             <div className="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-900/30">
+                <div className="w-10 h-10 bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0 rounded-xl">
+                   <AlertCircle size={20} />
+                </div>
+                <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase leading-relaxed tracking-wider">
+                  Após realizar o pagamento, envie o comprovante para o professor através do chat de mensagens.
+                </p>
+             </div>
+
+             <Button 
+               onClick={() => setIsPixModalOpen(false)}
+               className="w-full h-14 rounded-2xl bg-primary text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+             >
+                Entendido
+             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

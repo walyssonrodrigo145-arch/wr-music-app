@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -294,6 +294,7 @@ export default function Configuracoes() {
   const [profileEmail, setProfileEmail] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
   const [profileBio, setProfileBio] = useState("");
+  const [profilePixKey, setProfilePixKey] = useState("");
 
   // ── Escola state ──
   const [schoolName, setSchoolName] = useState("");
@@ -322,6 +323,7 @@ export default function Configuracoes() {
     if (settings) {
       setProfilePhone(settings.phone ?? "");
       setProfileBio(settings.bio ?? "");
+      setProfilePixKey(settings.pixKey ?? "");
       setSchoolName(settings.schoolName ?? "");
       setSchoolAddress(settings.schoolAddress ?? "");
       setSchoolCity(settings.schoolCity ?? "");
@@ -429,7 +431,7 @@ export default function Configuracoes() {
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
                     disabled={updateProfile.isPending}
-                    onClick={() => updateProfile.mutate({ name: profileName, email: profileEmail, phone: profilePhone, bio: profileBio })}
+                    onClick={() => updateProfile.mutate({ name: profileName, email: profileEmail, phone: profilePhone, bio: profileBio, pixKey: profilePixKey })}
                   >
                     {updateProfile.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
@@ -482,6 +484,20 @@ export default function Configuracoes() {
                         value={profilePhone}
                         onChange={e => setProfilePhone(e.target.value)}
                         placeholder="(11) 99999-9999"
+                        className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Chave PIX para Recebimento" hint="Aparecerá para o aluno ao realizar pagamentos">
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10H7z"/><path d="M16 16h2v2h-2z"/><path d="M16 6h2v2h-2z"/><path d="M6 16h2v2H6z"/><path d="M6 6h2v2H6z"/></svg>
+                      </div>
+                      <Input
+                        value={profilePixKey}
+                        onChange={e => setProfilePixKey(e.target.value)}
+                        placeholder="CPF, E-mail ou Telefone"
                         className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                       />
                     </div>

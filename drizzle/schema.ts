@@ -61,6 +61,7 @@ export const professores = pgTable("professores", {
   especialidade: text("especialidade"),
   telefone: varchar("telefone", { length: 30 }),
   foto: text("foto"),
+  pixKey: text("pixKey"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -159,6 +160,7 @@ export const settings = pgTable("settings", {
   automationEnabled: integer("automationEnabled").default(0).notNull(),
   automationLastRun: timestamp("automationLastRun"),
   theme: varchar("theme", { length: 20 }).default("light"),
+  pixKey: text("pixKey"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
