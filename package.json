@@ -107,7 +107,12 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild"
+      "esbuild",
+      "@tailwindcss/vite",
+      "tailwindcss",
+      "lightningcss",
+      "jiti",
+      "tsx"
     ],
     "patchedDependencies": {
       "wouter@3.7.1": "patches/wouter@3.7.1.patch"

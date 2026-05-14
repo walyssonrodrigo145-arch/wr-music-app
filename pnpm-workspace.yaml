@@ -1,2 +1,7 @@
 allowBuilds:
-  esbuild: set this to true or false
+  - esbuild
+  - "@tailwindcss/vite"
+  - tailwindcss
+  - lightningcss
+  - jiti
+  - tsx
