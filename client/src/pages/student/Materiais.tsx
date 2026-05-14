@@ -49,6 +49,7 @@ const item = {
 export default function StudentMaterials() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("todos");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [previewFile, setPreviewFile] = useState<any>(null);
   const { data: materials, isLoading } = trpc.studentPortal.getMaterials.useQuery();
 
@@ -60,7 +61,10 @@ export default function StudentMaterials() {
 
   const filteredMaterials = materials?.filter(m => {
     const matchesSearch = m.fileName.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = category === "todos" || m.category === category;
+    // Merge 'pdf' and 'documento' for the student's 'pdf' category filter
+    const matchesCategory = category === "todos" || 
+                          (category === "pdf" && (m.category === "pdf" || m.category === "documento")) ||
+                          m.category === category;
     return matchesSearch && matchesCategory;
   }) || [];
 
@@ -69,7 +73,7 @@ export default function StudentMaterials() {
     { id: 'pdf', label: 'Apostilas', icon: FileText },
     { id: 'video', label: 'Vídeos', icon: Video },
     { id: 'audio', label: 'Áudios', icon: Music },
-    { id: 'documento', label: 'Docs', icon: FileText },
+  ];
   ];
 
   const getIcon = (cat: string) => {
@@ -98,8 +102,18 @@ export default function StudentMaterials() {
           <p className="text-muted-foreground font-medium">Acesse partituras, vídeos e áudios compartilhados pelo seu professor.</p>
         </div>
         <div className="flex items-center gap-2 bg-card p-1 rounded-2xl border border-border shadow-sm">
-          <button className="p-2.5 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 transition-all"><LayoutGrid size={18} /></button>
-          <button className="p-2.5 rounded-xl text-muted-foreground hover:bg-muted transition-all"><List size={18} /></button>
+          <button 
+            onClick={() => setViewMode("grid")}
+            className={cn("p-2.5 rounded-xl transition-all", viewMode === "grid" ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted")}
+          >
+            <LayoutGrid size={18} />
+          </button>
+          <button 
+            onClick={() => setViewMode("list")}
+            className={cn("p-2.5 rounded-xl transition-all", viewMode === "list" ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted")}
+          >
+            <List size={18} />
+          </button>
         </div>
       </div>
 
@@ -140,7 +154,10 @@ export default function StudentMaterials() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4"
+        className={cn(
+          "grid gap-6",
+          viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+        )}
       >
         <AnimatePresence mode='popLayout'>
           {filteredMaterials.map((item: any) => (
@@ -187,7 +204,10 @@ export default function StudentMaterials() {
                     </div>
 
                     {/* Action */}
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className={cn(
+                      "flex items-center gap-3 w-full",
+                      viewMode === "grid" ? "justify-between" : "sm:w-auto"
+                    )}>
                       <Button 
                         onClick={() => setPreviewFile(item)}
                         className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-8 py-6 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all border-none"
@@ -198,15 +218,24 @@ export default function StudentMaterials() {
                         {getActionLabel(item.category)}
                       </Button>
                       
-                      <Button 
-                        asChild
-                        variant="ghost"
-                        className="w-12 h-12 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center"
-                      >
-                        <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" download={item.fileName}>
-                          <Download size={20} />
-                        </a>
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          asChild
+                          variant="ghost"
+                          className="w-12 h-12 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center"
+                        >
+                          <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" download={item.fileName}>
+                            <Download size={20} />
+                          </a>
+                        </Button>
+                        <Button 
+                          variant="ghost"
+                          onClick={() => setPreviewFile(item)}
+                          className="w-12 h-12 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center"
+                        >
+                          <Info size={20} />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -231,7 +260,10 @@ export default function StudentMaterials() {
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
           Mostrando {filteredMaterials.length} de {materials?.length || 0} materiais disponíveis
         </p>
-        <button className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
+        <button 
+          onClick={() => window.location.href = '/student/mensagens'}
+          className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+        >
           Solicitar material específico <ExternalLink size={12} />
         </button>
       </div>
