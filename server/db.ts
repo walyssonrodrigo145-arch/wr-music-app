@@ -14,9 +14,23 @@ async function ensureSchemaConsistency(db: any) {
   
   console.time("[DB] schema-consistency-check");
   try {
-    console.log("[Database] Checking schema consistency for 'lessons.studentId'...");
+    console.log("[Database] Checking schema consistency...");
+    
+    // lessons.studentId (nullable)
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
-    console.log("[Database] Schema consistency check passed: 'studentId' is now nullable.");
+    
+    // settings.pixKey
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "pixKey" text`);
+    
+    // students.studentUserId
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "studentUserId" integer`);
+    
+    // payment_dues columns for Asaas
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasId" text`);
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasPaymentLink" text`);
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasBillingType" varchar(30)`);
+    
+    console.log("[Database] Schema consistency check passed.");
   } catch (error: any) {
     console.warn(`[Database] Schema consistency check failed. Code: ${error.code}. Message: ${error.message}`);
   } finally {
