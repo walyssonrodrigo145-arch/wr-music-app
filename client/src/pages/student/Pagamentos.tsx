@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 const container = {
   hidden: { opacity: 0 },
