@@ -73,14 +73,7 @@ export default function StudentMessages() {
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col space-y-6 pb-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Mensagens</h1>
-          <p className="text-muted-foreground font-medium">Canal direto com seu professor para dúvidas e orientações.</p>
-        </div>
-      </div>
-
+    <div className="h-[calc(100vh-110px)] flex flex-col space-y-6 pb-6">
       <div className="flex-1 flex gap-6 overflow-hidden">
         {/* Chat List - Desktop */}
         <div className="hidden lg:flex w-80 flex-col gap-4">
