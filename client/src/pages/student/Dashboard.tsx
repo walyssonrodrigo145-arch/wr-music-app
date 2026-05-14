@@ -84,7 +84,7 @@ export default function StudentDashboard() {
             <div className="flex-1">
               <p className="text-sm font-bold text-muted-foreground">Aulas Realizadas</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-black">{dashboard?.stats.lessonsDone || 0}</h3>
+                <h3 className="text-3xl font-black">{dashboard?.stats?.lessonsDone || 0}</h3>
                 <span className="text-xs font-bold text-muted-foreground">este mês</span>
               </div>
               <div className="mt-2 flex items-center gap-1 text-[10px] font-black text-green-500 uppercase">
@@ -103,7 +103,7 @@ export default function StudentDashboard() {
             <div className="flex-1">
               <p className="text-sm font-bold text-muted-foreground">Exercícios Pendentes</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-black">{dashboard?.stats.pendingExercises || 0}</h3>
+                <h3 className="text-3xl font-black">{dashboard?.stats?.pendingExercises || 0}</h3>
                 <span className="text-xs font-bold text-muted-foreground">para entregar</span>
               </div>
             </div>
@@ -119,7 +119,7 @@ export default function StudentDashboard() {
             <div className="flex-1">
               <p className="text-sm font-bold text-muted-foreground">Avisos Não Lidos</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-black">{dashboard?.stats.unreadAnnouncements || 0}</h3>
+                <h3 className="text-3xl font-black">{dashboard?.stats?.unreadAnnouncements || 0}</h3>
                 <span className="text-xs font-bold text-muted-foreground">avisos importantes</span>
               </div>
             </div>
@@ -147,7 +147,7 @@ export default function StudentDashboard() {
                   </Link>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                  {dashboard?.announcements.map((aviso: any) => (
+                  {dashboard?.announcements?.map((aviso: any) => (
                     <div key={aviso.id} className="flex items-start gap-4 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
                       <div className={cn(
                         "w-2 h-2 rounded-full mt-1.5 flex-shrink-0",
@@ -184,7 +184,7 @@ export default function StudentDashboard() {
                   </Link>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                  {dashboard?.materials.map((mat: any) => (
+                  {dashboard?.materials?.map((mat: any) => (
                     <div key={mat.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
                       <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                         {mat.category === 'pdf' ? <FileText size={20} /> : 
@@ -232,7 +232,7 @@ export default function StudentDashboard() {
                       <TabsTrigger value="historico" className="rounded-lg text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-sm">Histórico</TabsTrigger>
                     </TabsList>
                     <TabsContent value="mensalidades" className="space-y-3">
-                      {dashboard?.payments.map((payment: any) => (
+                      {dashboard?.payments?.map((payment: any) => (
                         <div key={payment.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-secondary/20">
                           <div>
                             <p className="text-sm font-black text-foreground">
@@ -279,7 +279,7 @@ export default function StudentDashboard() {
                   </Link>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                  {dashboard?.messages.map((msg: any) => (
+                  {dashboard?.messages?.map((msg: any) => (
                     <Link key={msg.id} href="/aluno/mensagens">
                       <div className="flex items-center gap-4 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
                         <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex-shrink-0 border border-border/50">

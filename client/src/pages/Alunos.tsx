@@ -373,7 +373,7 @@ export default function Alunos() {
 
   const { data: students = [], isLoading } = trpc.students.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
-  const { data: dashboardStats } = trpc.dashboard.stats.useQuery();
+
   const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery();
   const { data: upcomingLessons = [] } = trpc.lessons.upcoming.useQuery();
 

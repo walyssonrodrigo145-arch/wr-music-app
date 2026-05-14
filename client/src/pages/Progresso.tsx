@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -860,10 +860,13 @@ function WidgetCard({ title, icon: Icon, color, bg, children }: any) {
 function BibliotecaMusical({ studentId }: { studentId: number }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("todos");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const utils = trpc.useUtils();
+  const { data: allFiles = [] } = trpc.musicLibrary.list.useQuery({ studentId, category: 'todos', search: '' });
   const { data: files = [], isLoading } = trpc.musicLibrary.list.useQuery({ studentId, category, search });
   
+  const uploadMutation = trpc.musicLibrary.upload.useMutation();
   const createMutation = trpc.musicLibrary.create.useMutation({
     onSuccess: () => {
       utils.musicLibrary.list.invalidate({ studentId });
@@ -880,15 +883,50 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
     onError: (e) => toast.error("Erro ao excluir material: " + e.message)
   });
 
-  const handleSimulateUpload = (cat: 'imagem' | 'video' | 'pdf' | 'audio' = 'pdf') => {
-    createMutation.mutate({
-      studentId,
-      fileName: `Material de Apoio ${format(new Date(), "HH:mm")}`,
-      fileType: cat,
-      category: cat,
-      fileUrl: "https://example.com/mock-file.pdf",
-      size: Math.floor(Math.random() * 5 * 1024 * 1024) + 1024 * 1024,
-    });
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const toastId = toast.loading(`Enviando ${file.name}...`);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result as string;
+          
+          let fileCategory: 'imagem' | 'video' | 'pdf' | 'audio' = 'pdf';
+          if (file.type.startsWith('image/')) fileCategory = 'imagem';
+          else if (file.type.startsWith('video/')) fileCategory = 'video';
+          else if (file.type.startsWith('audio/')) fileCategory = 'audio';
+          else if (file.type === 'application/pdf') fileCategory = 'pdf';
+
+          const { url } = await uploadMutation.mutateAsync({
+            fileName: file.name,
+            fileType: file.type,
+            base64Data,
+          });
+
+          await createMutation.mutateAsync({
+            studentId,
+            fileName: file.name,
+            fileType: file.type,
+            category: fileCategory,
+            fileUrl: url,
+            size: file.size,
+          });
+
+          toast.dismiss(toastId);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        } catch (err: any) {
+          toast.error("Erro no processamento: " + err.message, { id: toastId });
+        }
+      };
+      reader.onerror = () => toast.error("Erro ao ler arquivo", { id: toastId });
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      toast.error("Falha no upload: " + error.message, { id: toastId });
+    }
   };
 
   const categories = [
@@ -917,19 +955,26 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                    <div className="h-full bg-indigo-600 w-1/3" />
                 </div>
              </div>
+             <input 
+               type="file" 
+               ref={fileInputRef} 
+               className="hidden" 
+               onChange={handleFileUpload}
+               accept="image/*,video/*,audio/*,.pdf"
+             />
              <Button 
-               onClick={() => handleSimulateUpload('pdf')}
-               disabled={createMutation.isPending}
+               onClick={() => fileInputRef.current?.click()}
+               disabled={createMutation.isPending || uploadMutation.isPending}
                className="h-11 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-xl shadow-indigo-500/10 border-none"
              >
-                {createMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Novo Material
+                {(createMutation.isPending || uploadMutation.isPending) ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Novo Material
              </Button>
           </div>
        </div>
 
        {/* ÁREA DE UPLOAD (DRAG & DROP) */}
         <motion.div 
-          onClick={() => handleSimulateUpload('pdf')}
+          onClick={() => fileInputRef.current?.click()}
           whileHover={{ borderColor: "#6366F1", backgroundColor: "rgba(99, 102, 241, 0.02)" }}
           className="relative p-12 border-2 border-dashed border-border rounded-[3rem] bg-card flex flex-col items-center justify-center text-center group cursor-pointer transition-all overflow-hidden"
         >
@@ -957,14 +1002,20 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
             <motion.div 
               key={cat.id}
               whileHover={{ y: -5 }}
-              className="bg-card p-6 rounded-[2.5rem] border border-border shadow-sm flex items-center gap-4 group cursor-pointer"
+              onClick={() => setCategory(cat.id === category ? 'todos' : cat.id)}
+              className={cn(
+                "bg-card p-6 rounded-[2.5rem] border transition-all flex items-center gap-4 group cursor-pointer",
+                category === cat.id ? "border-indigo-600 shadow-lg ring-2 ring-indigo-500/10" : "border-border shadow-sm"
+              )}
             >
                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform group-hover:rotate-12", cat.bg, cat.color)}>
                   <cat.icon size={24} />
                </div>
                <div>
                   <p className="text-xs font-black text-foreground uppercase tracking-tight">{cat.label}</p>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">24 arquivos</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
+                    {allFiles.filter((f: any) => f.category === cat.id).length} arquivos
+                  </p>
                </div>
             </motion.div>
           ))}

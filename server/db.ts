@@ -125,57 +125,45 @@ export async function getDashboardStats(organizationId: number, userId?: number)
   const orgFilter = eq(students.organizationId, organizationId);
   const userFilter = userId ? eq(students.professorId, userId) : undefined;
 
-  const [totalStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(orgFilter, userFilter));
-  const [activeStudents] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(orgFilter, userFilter, eq(students.status, 'ativo')));
-
-  const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
-
-  const lessonOrgFilter = eq(lessons.organizationId, organizationId);
-  const lessonUserFilter = userId ? eq(lessons.userId, userId) : undefined;
-
-  const [weekLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
-    .where(and(lessonOrgFilter, lessonUserFilter, gte(lessons.scheduledAt, startOfWeek), lte(lessons.scheduledAt, endOfWeek)));
-
-  const [completedLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
-    .where(and(
-      lessonOrgFilter,
-      lessonUserFilter, 
-      eq(lessons.status, 'concluida'),
-      gte(lessons.scheduledAt, startOfWeek),
-      lte(lessons.scheduledAt, endOfWeek)
-    ));
-
-  const [totalLessons] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
-    .where(and(
-      lessonOrgFilter,
-      lessonUserFilter, 
-      sql`status != 'agendada'`,
-      gte(lessons.scheduledAt, startOfWeek),
-      lte(lessons.scheduledAt, endOfWeek)
-    ));
-
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-  
-  const paymentOrgFilter = eq(paymentDues.organizationId, organizationId);
-  const paymentUserFilter = userId ? eq(paymentDues.userId, userId) : undefined;
-
-  const [revenueResult] = await db.select({
-    total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)`
-  }).from(paymentDues)
-    .where(and(
-      paymentOrgFilter,
-      paymentUserFilter,
-      eq(paymentDues.month, currentMonth),
-      eq(paymentDues.year, currentYear),
-      eq(paymentDues.status, 'pago')
-    ));
+  const [
+    [totalStudents],
+    [activeStudents],
+    [weekLessons],
+    [completedLessons],
+    [totalLessons],
+    [revenueResult]
+  ] = await Promise.all([
+    db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(orgFilter, userFilter)),
+    db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(orgFilter, userFilter, eq(students.status, 'ativo'))),
+    db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
+      .where(and(lessonOrgFilter, lessonUserFilter, gte(lessons.scheduledAt, startOfWeek), lte(lessons.scheduledAt, endOfWeek))),
+    db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
+      .where(and(
+        lessonOrgFilter,
+        lessonUserFilter, 
+        eq(lessons.status, 'concluida'),
+        gte(lessons.scheduledAt, startOfWeek),
+        lte(lessons.scheduledAt, endOfWeek)
+      )),
+    db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
+      .where(and(
+        lessonOrgFilter,
+        lessonUserFilter, 
+        sql`status != 'agendada'`,
+        gte(lessons.scheduledAt, startOfWeek),
+        lte(lessons.scheduledAt, endOfWeek)
+      )),
+    db.select({
+      total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)`
+    }).from(paymentDues)
+      .where(and(
+        paymentOrgFilter,
+        paymentUserFilter,
+        eq(paymentDues.month, currentMonth),
+        eq(paymentDues.year, currentYear),
+        eq(paymentDues.status, 'pago')
+      ))
+  ]);
 
   const completionRate = totalLessons.count > 0
     ? Math.round((completedLessons.count / totalLessons.count) * 100)
@@ -199,50 +187,62 @@ export async function getMonthlyStats(organizationId: number, userId?: number, l
   const data = [];
   const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   
+  const promises = [];
+  
   for (let i = limit - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const y = d.getFullYear();
     const m = d.getMonth() + 1;
     
     const startOfNextMonth = new Date(y, m, 1);
-    const [ativos] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
-      .from(students)
-      .where(and(
-        eq(students.organizationId, organizationId),
-        userId ? eq(students.professorId, userId) : undefined,
-        eq(students.status, 'ativo'),
-        lt(students.createdAt, startOfNextMonth)
-      ));
-
     const startOfMonth = new Date(y, m - 1, 1);
     const endOfMonth = new Date(y, m, 0, 23, 59, 59, 999);
     
-    const [aulasVal] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
-      .from(lessons)
-      .where(and(
-        eq(lessons.organizationId, organizationId),
-        userId ? eq(lessons.userId, userId) : undefined,
-        gte(lessons.scheduledAt, startOfMonth),
-        lte(lessons.scheduledAt, endOfMonth)
-      ));
+    promises.push((async () => {
+      const [
+        [ativos],
+        [aulasVal],
+        [revenueRes]
+      ] = await Promise.all([
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+          .from(students)
+          .where(and(
+            eq(students.organizationId, organizationId),
+            userId ? eq(students.professorId, userId) : undefined,
+            eq(students.status, 'ativo'),
+            lt(students.createdAt, startOfNextMonth)
+          )),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+          .from(lessons)
+          .where(and(
+            eq(lessons.organizationId, organizationId),
+            userId ? eq(lessons.userId, userId) : undefined,
+            gte(lessons.scheduledAt, startOfMonth),
+            lte(lessons.scheduledAt, endOfMonth)
+          )),
+        db.select({ total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)` })
+          .from(paymentDues)
+          .where(and(
+            eq(paymentDues.organizationId, organizationId),
+            userId ? eq(paymentDues.userId, userId) : undefined,
+            eq(paymentDues.month, m),
+            eq(paymentDues.year, y),
+            eq(paymentDues.status, 'pago')
+          ))
+      ]);
       
-    const [revenueRes] = await db.select({ total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)` })
-      .from(paymentDues)
-      .where(and(
-        eq(paymentDues.organizationId, organizationId),
-        userId ? eq(paymentDues.userId, userId) : undefined,
-        eq(paymentDues.month, m),
-        eq(paymentDues.year, y),
-        eq(paymentDues.status, 'pago')
-      ));
-      
-    data.push({
-      month: `${monthNames[m - 1]}/${y.toString().slice(-2)}`,
-      alunos: ativos.count,
-      aulas: aulasVal.count,
-      receita: Number(revenueRes?.total ?? 0),
-    });
+      return {
+        month: `${monthNames[m - 1]}/${y.toString().slice(-2)}`,
+        alunos: ativos.count,
+        aulas: aulasVal.count,
+        receita: Number(revenueRes?.total ?? 0),
+        sortIndex: -i
+      };
+    })());
   }
+  
+  const results = await Promise.all(promises);
+  data.push(...results.sort((a, b) => a.sortIndex - b.sortIndex).map(({ sortIndex, ...rest }) => rest));
   
   return data;
 }

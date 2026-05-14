@@ -39,7 +39,7 @@ const item = {
 
 export default function StudentLessons() {
   const { data: lessons, isLoading } = trpc.studentPortal.getLessons.useQuery();
-  const { data: dashboard } = trpc.studentPortal.getDashboard.useQuery();
+  const { data: profile } = trpc.studentPortal.getProfile.useQuery();
   const [activeTab, setActiveTab] = useState("proximas");
   const [selectedLesson, setSelectedLesson] = useState<{ id: number, title: string } | null>(null);
 
@@ -107,9 +107,9 @@ export default function StudentLessons() {
               <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">{lesson.title}</h3>
               <div className="flex items-center gap-3">
                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-black">
-                   {dashboard?.teacherName?.slice(0, 2).toUpperCase()}
+                   {profile?.teacherName?.slice(0, 2).toUpperCase()}
                  </div>
-                 <p className="text-xs font-bold text-muted-foreground">Prof. {dashboard?.teacherName}</p>
+                 <p className="text-xs font-bold text-muted-foreground">Prof. {profile?.teacherName}</p>
               </div>
             </div>
 

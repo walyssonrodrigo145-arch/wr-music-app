@@ -21,12 +21,12 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
 export default function StudentMessages() {
-  const { data: dashboard, isLoading: isDashboardLoading } = trpc.studentPortal.getDashboard.useQuery();
+  const { data: profile, isLoading: isProfileLoading } = trpc.studentPortal.getProfile.useQuery();
   const [message, setMessage] = useState("");
 
   const { data: messages, refetch, isLoading: isMessagesLoading } = trpc.studentPortal.getMessages.useQuery(
-    { withUserId: dashboard?.teacherId as number },
-    { enabled: !!dashboard?.teacherId }
+    { withUserId: profile?.teacherId as number },
+    { enabled: !!profile?.teacherId }
   );
 
   const sendMutation = trpc.studentPortal.send.useMutation({
@@ -52,16 +52,16 @@ export default function StudentMessages() {
 
   const handleSend = () => {
     if (!message.trim()) return;
-    if (!dashboard?.teacherId) {
+    if (!profile?.teacherId) {
        toast.error("Professor não encontrado para envio.");
        return;
     }
-    sendMutation.mutate({ receiverId: dashboard.teacherId, content: message });
+    sendMutation.mutate({ receiverId: profile.teacherId, content: message });
   };
 
   const displayMessages = messages || [];
 
-  if (isDashboardLoading) {
+  if (isProfileLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">
@@ -97,14 +97,14 @@ export default function StudentMessages() {
                  <div className="p-4 rounded-3xl bg-primary/5 border border-primary/20 flex items-center gap-4 cursor-pointer transition-all hover:bg-primary/10 group">
                     <div className="relative">
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white text-sm font-black shadow-lg">
-                        {dashboard?.teacherName?.slice(0, 2).toUpperCase() || "PR"}
+                        {profile?.teacherName?.slice(0, 2).toUpperCase() || "PR"}
                       </div>
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-card flex items-center justify-center">
                          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                       <p className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">Prof. {dashboard?.teacherName || "Carregando..."}</p>
+                       <p className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">Prof. {profile?.teacherName || "Carregando..."}</p>
                        <p className="text-[10px] font-bold text-primary truncate uppercase tracking-widest flex items-center gap-1.5">
                           <Circle size={8} fill="currentColor" className="animate-pulse" />
                           Online
@@ -130,7 +130,7 @@ export default function StudentMessages() {
                  </button>
                  <div className="relative">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-sm font-black shadow-xl">
-                      {dashboard?.teacherName?.slice(0, 2).toUpperCase() || "PR"}
+                      {profile?.teacherName?.slice(0, 2).toUpperCase() || "PR"}
                     </div>
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-card" />
                  </div>

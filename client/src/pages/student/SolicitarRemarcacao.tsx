@@ -16,7 +16,7 @@ import { motion } from "framer-motion";
 
 export default function StudentRequestReschedule() {
   const [, setLocation] = useLocation();
-  const { data: dashboard } = trpc.studentPortal.getDashboard.useQuery();
+  const { data: lessons, isLoading } = trpc.studentPortal.getLessons.useQuery();
   const [formData, setFormData] = useState({
     lessonId: "",
     reason: "",
@@ -87,7 +87,7 @@ export default function StudentRequestReschedule() {
                      onChange={e => setFormData({...formData, lessonId: e.target.value})}
                    >
                      <option value="">Selecione uma aula agendada...</option>
-                     {dashboard?.upcomingLessons.map(l => (
+                     {lessons?.filter(l => new Date(l.scheduledAt) >= new Date() && l.status === 'agendada').map(l => (
                        <option key={l.id} value={l.id}>
                          {l.title} - {new Date(l.scheduledAt).toLocaleDateString()} às {new Date(l.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                        </option>

@@ -28,6 +28,7 @@ import { nanoid } from "nanoid";
 import { sdk } from "./_core/sdk";
 import { sendVerificationEmail } from "./_core/email";
 import { ENV } from "./_core/env";
+import { storagePut } from "./storage";
 
 export const appRouter = router({
   system: router({
@@ -439,6 +440,24 @@ export const appRouter = router({
       return { success: true };
     }),
 
+    upload: protectedProcedure.input(z.object({
+      fileName: z.string(),
+      fileType: z.string(),
+      base64Data: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId!;
+      // Simple sanitization of filename
+      const safeName = input.fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const key = `music-library/${orgId}/${ctx.user.id}/${Date.now()}-${safeName}`;
+      
+      // Remove data URL prefix if present
+      const base64 = input.base64Data.includes(',') ? input.base64Data.split(',')[1] : input.base64Data;
+      const buffer = Buffer.from(base64, 'base64');
+      
+      const { url } = await storagePut(key, buffer, input.fileType);
+      return { url };
+    }),
+
     update: protectedProcedure.input(z.object({
       id: z.number(),
       comments: z.string().optional(),
@@ -673,33 +692,42 @@ export const appRouter = router({
 
       // Buscar informações financeiras e acesso portal
       console.log(`[TRPC] Fetching additional info for student ${input.id}`);
-      const [lastPayment] = await db.select({
-        paidAt: paymentDues.paidAt,
-        dueDate: paymentDues.dueDate,
-        status: paymentDues.status,
-      }).from(paymentDues)
-        .where(and(
-           eq(paymentDues.organizationId, orgId),
-           eq(paymentDues.studentId, input.id),
-           eq(paymentDues.status, 'pago')
-        ))
-        .orderBy(desc(paymentDues.paidAt))
-        .limit(1);
+      const [
+        [lastPayment],
+        [nextPayment],
+        [studentUser]
+      ] = await Promise.all([
+        db.select({
+          paidAt: paymentDues.paidAt,
+          dueDate: paymentDues.dueDate,
+          status: paymentDues.status,
+        }).from(paymentDues)
+          .where(and(
+             eq(paymentDues.organizationId, orgId),
+             eq(paymentDues.studentId, input.id),
+             eq(paymentDues.status, 'pago')
+          ))
+          .orderBy(desc(paymentDues.paidAt))
+          .limit(1),
 
-      const [nextPayment] = await db.select({
-        paidAt: paymentDues.paidAt,
-        dueDate: paymentDues.dueDate,
-        status: paymentDues.status,
-      }).from(paymentDues)
-        .where(and(
-           eq(paymentDues.organizationId, orgId),
-           eq(paymentDues.studentId, input.id),
-           eq(paymentDues.status, 'pendente')
-        ))
-        .orderBy(asc(paymentDues.dueDate))
-        .limit(1);
+        db.select({
+          paidAt: paymentDues.paidAt,
+          dueDate: paymentDues.dueDate,
+          status: paymentDues.status,
+        }).from(paymentDues)
+          .where(and(
+             eq(paymentDues.organizationId, orgId),
+             eq(paymentDues.studentId, input.id),
+             eq(paymentDues.status, 'pendente')
+          ))
+          .orderBy(asc(paymentDues.dueDate))
+          .limit(1),
 
-      const [studentUser] = await db.select({ email: users.email }).from(users).where(and(eq(users.organizationId, orgId), eq(users.studentId, input.id))).limit(1);
+        db.select({ email: users.email })
+          .from(users)
+          .where(and(eq(users.organizationId, orgId), eq(users.studentId, input.id)))
+          .limit(1)
+      ]);
 
       console.log(`[TRPC] Successfully fetched all info for student ${input.id}. Portal access: ${!!studentUser}`);
 
@@ -2836,12 +2864,15 @@ export const appRouter = router({
       if (!db) throw new Error("Database not available");
       
       let studentId = ctx.user.studentId;
+
       if (!studentId) {
         const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
         if (found) studentId = found.id;
       }
 
-      if (!studentId) throw new Error("Acesso não autorizado ou perfil de aluno incompleto.");
+      if (!studentId) {
+        throw new Error("Acesso não autorizado ou perfil de aluno incompleto.");
+      }
       
       const orgId = ctx.user.organizationId!;
       const now = new Date();
@@ -2974,7 +3005,10 @@ export const appRouter = router({
       return {
         upcomingLessons: upcoming,
         recentActivities: timeline,
-        announcements: dbAnnouncements.map(a => ({ ...a, date: a.date.toLocaleDateString('pt-BR') })),
+        announcements: dbAnnouncements.map(a => ({ 
+          ...a, 
+          date: a.date instanceof Date ? a.date.toLocaleDateString('pt-BR') : a.date 
+        })),
         materials,
         payments,
         pendingGoals: pendingGoals,
@@ -2989,6 +3023,48 @@ export const appRouter = router({
           generalProgress: 85,
         }
       };
+    }),
+    getAnnouncements: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      const [student] = await db.select({ professorId: students.professorId })
+        .from(students)
+        .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+        .limit(1);
+      
+      if (!student) throw new Error("Estudante não encontrado.");
+
+      const dbAnnouncements = await db.select({
+        id: announcements.id,
+        title: announcements.title,
+        author: users.name,
+        date: announcements.createdAt,
+        important: announcements.important,
+        content: announcements.content,
+      })
+      .from(announcements)
+      .leftJoin(users, eq(announcements.userId, users.id))
+      .where(and(
+        eq(announcements.organizationId, orgId),
+        eq(announcements.userId, student.professorId),
+        sql`(${announcements.targetStudentId} IS NULL OR ${announcements.targetStudentId} = ${studentId})`
+      ))
+      .orderBy(desc(announcements.createdAt))
+      .limit(50);
+      
+      return dbAnnouncements.map(a => ({ 
+        ...a, 
+        date: a.date instanceof Date ? a.date.toLocaleDateString('pt-BR') : a.date 
+      }));
     }),
     getLessons: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();

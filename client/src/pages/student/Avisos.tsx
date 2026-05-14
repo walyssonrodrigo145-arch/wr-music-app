@@ -17,12 +17,13 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 
 export default function StudentAnnouncements() {
-  const { data: dashboard, isLoading } = trpc.studentPortal.getDashboard.useQuery();
+  const { data: announcements = [], isLoading: isLoadingAnnouncements } = trpc.studentPortal.getAnnouncements.useQuery();
+  const { data: profile } = trpc.studentPortal.getProfile.useQuery();
   const [search, setSearch] = useState("");
 
-  if (isLoading) return <div>Carregando avisos...</div>;
+  if (isLoadingAnnouncements) return <div>Carregando avisos...</div>;
 
-  const filteredAnnouncements = dashboard?.announcements.filter(a => 
+  const filteredAnnouncements = announcements.filter(a => 
     a.title.toLowerCase().includes(search.toLowerCase()) || 
     a.author.toLowerCase().includes(search.toLowerCase())
   ) || [];
@@ -80,7 +81,7 @@ export default function StudentAnnouncements() {
                       <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">{aviso.date}</span>
                     </div>
                     <p className="text-sm font-medium text-muted-foreground leading-relaxed">
-                      Este é um aviso enviado para todos os alunos da modalidade de {dashboard?.teacherName}. 
+                      Este é um aviso enviado para todos os alunos da modalidade de {profile?.teacherName}. 
                       Por favor, atente-se às datas e horários mencionados.
                     </p>
                     <div className="flex items-center gap-4 pt-2">
