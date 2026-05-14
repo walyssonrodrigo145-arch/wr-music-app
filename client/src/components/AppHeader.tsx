@@ -68,66 +68,80 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
     : "WR";
 
   return (
-    <header className="h-16 lg:h-20 bg-background border-b border-border flex items-center px-4 lg:px-8 gap-4 lg:gap-6 flex-shrink-0 z-10 sticky top-0">
-      {/* Mobile menu button */}
+    <header className="h-20 lg:h-24 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-6 lg:px-10 gap-6 lg:gap-10 flex-shrink-0 z-40 sticky top-0 transition-all duration-500">
+      {/* Mobile menu button - Refined */}
       <button
-        className="lg:hidden w-10 h-10 rounded-xl bg-muted text-muted-foreground flex items-center justify-center hover:bg-accent flex-shrink-0 transition-colors shadow-sm active:scale-95"
+        className="lg:hidden w-12 h-12 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40"
         onClick={onMobileMenuOpen}
         aria-label="Abrir menu"
       >
-        <Menu size={20} />
+        <Menu size={24} />
       </button>
 
-      {/* Page title */}
+      {/* Page title - Premium Typography */}
       <div className="flex-1 min-w-0 text-left">
-        <h1 className="text-base lg:text-xl font-black text-foreground tracking-tight leading-none truncate">
+        <h1 className="text-xl lg:text-3xl font-black text-foreground tracking-tight leading-none truncate drop-shadow-sm">
           {pageInfo.title}
         </h1>
-        {location !== "/dashboard" && <p className="hidden lg:block text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-2">{pageInfo.subtitle}</p>}
+        {location !== "/dashboard" && (
+          <div className="hidden lg:flex items-center gap-2 mt-2.5">
+             <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+             <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-60">{pageInfo.subtitle}</p>
+          </div>
+        )}
       </div>
 
-      {/* Search global - hidden on mobile, shown as icon or compact on tablet */}
-      <div ref={searchRef} className="relative hidden md:flex items-center w-40 lg:w-80">
-        <Search size={16} className="absolute left-4 text-muted-foreground pointer-events-none z-10" />
+      {/* Search global - Premium Glassmorphism Input */}
+      <div ref={searchRef} className="relative hidden md:flex items-center w-48 lg:w-96 group">
+        <Search size={18} className="absolute left-5 text-muted-foreground/50 group-focus-within:text-primary transition-colors pointer-events-none z-10" />
         <input
           value={searchQuery}
           onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
           onFocus={() => setSearchOpen(true)}
-          placeholder="Procurar..."
-          className="w-full h-10 lg:h-11 pl-10 lg:pl-12 pr-10 text-xs font-bold bg-muted/40 border border-border/30 rounded-2xl focus:bg-card focus:ring-2 focus:ring-blue-500/20 transition-all text-foreground placeholder:text-muted-foreground shadow-sm"
+          placeholder="Procurar conteúdo..."
+          className="w-full h-12 lg:h-14 pl-12 lg:pl-14 pr-12 text-xs font-bold bg-muted/30 border border-border/30 rounded-[1.25rem] focus:bg-card focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all text-foreground placeholder:text-muted-foreground/40 shadow-inner"
         />
         {searchQuery && (
           <button onClick={() => { setSearchQuery(""); setSearchOpen(false); }}
-            className="absolute right-3 text-muted-foreground hover:text-muted-foreground transition-colors">
+            className="absolute right-4 w-6 h-6 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
             <X size={14} />
           </button>
         )}
         
-        {/* Results dropdown */}
+        {/* Results dropdown - Premium Look */}
         <AnimatePresence>
           {searchOpen && searchQuery.trim().length >= 2 && (
             <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute top-14 left-0 right-0 bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
+              initial={{ opacity: 0, y: 15, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              className="absolute top-16 left-0 right-0 bg-card/90 backdrop-blur-2xl border border-border/40 rounded-[2rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] z-50 overflow-hidden p-3"
             >
               {!searchResults || searchResults.length === 0 ? (
-                <div className="px-6 py-4 text-xs text-muted-foreground font-bold text-center">Nenhum aluno encontrado</div>
+                <div className="px-8 py-10 text-xs text-muted-foreground font-black text-center uppercase tracking-widest opacity-40">Sem resultados para "{searchQuery}"</div>
               ) : (
-                <div className="py-2">
+                <div className="space-y-1">
                   {searchResults.map(s => (
-                    <button key={s.id} onClick={() => { navigate("/alunos"); setSearchQuery(""); setSearchOpen(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors text-left group">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#7C3AED] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <button key={s.id} onClick={() => { 
+                      if (user?.role === 'aluno') {
+                        navigate("/aluno/perfil");
+                      } else {
+                        navigate("/alunos");
+                      }
+                      setSearchQuery(""); 
+                      setSearchOpen(false); 
+                    }}
+                      className="w-full flex items-center gap-4 px-5 py-4 hover:bg-primary/5 rounded-2xl transition-all text-left group">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-all shadow-lg shadow-primary/10">
                         <span className="text-[10px] font-black text-white">
                           {s.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate">{s.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-medium truncate">{s.email}</p>
+                        <p className="text-sm font-black text-foreground truncate group-hover:text-primary transition-colors">{s.name}</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5 opacity-60">{s.email}</p>
                       </div>
+                      <ChevronRight size={14} className="text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </button>
                   ))}
                 </div>
@@ -137,118 +151,82 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-2 lg:gap-3">
-        {/* Mobile Search Icon */}
-        <div className="md:hidden">
-          <button 
-            onClick={() => setSearchOpen(true)}
-            className="w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground flex items-center justify-center active:scale-95 transition-all shadow-sm"
-          >
-            <Search size={18} />
-          </button>
-          
-          <AnimatePresence>
-            {searchOpen && (
-              <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="fixed inset-0 z-50 bg-card p-4"
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="flex-1 relative">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      autoFocus
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Procurar aluno..."
-                      className="w-full h-12 pl-12 pr-4 bg-muted rounded-2xl text-sm font-bold border-none outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <button 
-                    onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
-                    className="w-12 h-12 rounded-2xl bg-muted text-muted-foreground flex items-center justify-center"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
+      <div className="flex items-center gap-3 lg:gap-5">
+        {/* Actions - Theme & Notifications */}
+        <div className="flex items-center gap-2 lg:gap-3 bg-muted/30 p-1.5 rounded-2xl border border-border/20 shadow-inner">
+           <button 
+             className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group" 
+             onClick={toggleTheme}
+           >
+             {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+             <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full scale-0 group-hover:scale-100 transition-transform" />
+           </button>
 
-                <div className="space-y-4 text-left">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Resultados</p>
-                  {searchQuery.trim().length >= 2 ? (
-                    <div className="space-y-2">
-                      {!searchResults || searchResults.length === 0 ? (
-                        <div className="p-8 text-center">
-                          <p className="text-xs font-bold text-muted-foreground">Nenhum aluno encontrado</p>
-                        </div>
-                      ) : (
-                        searchResults.map(s => (
-                          <button 
-                            key={s.id} 
-                            onClick={() => { navigate("/alunos"); setSearchOpen(false); setSearchQuery(""); }}
-                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted active:bg-muted transition-colors"
-                          >
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-[10px] font-black">
-                              {s.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                            </div>
-                            <div className="text-left">
-                              <p className="text-sm font-bold text-foreground">{s.name}</p>
-                              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{s.email}</p>
-                            </div>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center">
-                      <p className="text-xs font-bold text-muted-foreground">Digite pelo menos 2 caracteres</p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+           <button 
+             className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl text-muted-foreground hover:text-primary hover:bg-card transition-all shadow-sm relative flex items-center justify-center active:scale-90 group" 
+             onClick={() => navigate("/aluno/avisos")}
+           >
+             <Bell size={20} />
+             <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-background animate-bounce group-hover:animate-none" />
+           </button>
         </div>
 
-        <button className="w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center active:scale-95" onClick={toggleTheme}>
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-
-        <button className="w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground hover:text-[#2563EB] hover:bg-muted transition-all shadow-sm relative flex items-center justify-center active:scale-95" onClick={() => navigate("/configuracoes")}>
-          <Bell size={18} />
-          <span className="absolute top-3 right-3 w-2 h-2 bg-[#2563EB] rounded-full border border-background" />
-        </button>
-
-        <div className="h-8 w-px bg-muted mx-1 hidden lg:block" />
+        <div className="h-10 w-px bg-border/40 mx-1 hidden lg:block" />
         
+        {/* User Profile Dropdown - Premium Style */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 lg:gap-3 pl-1 pr-1 py-1 rounded-2xl hover:bg-muted transition-all group active:scale-95">
-              <Avatar className="w-9 h-9 lg:w-10 lg:h-10 border-2 border-background shadow-md group-hover:scale-105 transition-transform">
-                <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-[#7C3AED] text-white text-[10px] lg:text-[11px] font-black">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+            <button className="flex items-center gap-3 lg:gap-4 pl-2 pr-4 py-2 rounded-[1.5rem] bg-card/40 hover:bg-card transition-all group active:scale-95 border border-border/20 shadow-sm">
+              <div className="relative">
+                 <Avatar className="w-10 h-10 lg:w-12 lg:h-12 border-2 border-primary/20 shadow-lg group-hover:rotate-6 transition-all duration-500">
+                   <AvatarFallback className="bg-gradient-to-br from-primary via-indigo-600 to-violet-600 text-white text-[11px] lg:text-[12px] font-black tracking-tight">
+                     {initials}
+                   </AvatarFallback>
+                 </Avatar>
+                 <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-card" />
+              </div>
               <div className="hidden lg:block text-left">
-                <p className="text-xs font-black text-foreground leading-tight tracking-tight">{user?.name?.split(" ")[0] ?? "WR"}</p>
-                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
-                  {user?.role === 'aluno' ? 'Aluno' : user?.role === 'professor' ? 'Professor' : 'Admin'}
+                <p className="text-sm font-black text-foreground leading-tight tracking-tight drop-shadow-sm">{user?.name?.split(" ")[0] ?? "WR"}</p>
+                <p className="text-[10px] text-primary font-black uppercase tracking-[0.1em] mt-1">
+                  Membro Premium
                 </p>
               </div>
-              <ChevronDown size={14} className="text-muted-foreground hidden lg:block group-hover:text-muted-foreground transition-colors" />
+              <ChevronDown size={16} className="text-muted-foreground/50 hidden lg:block group-hover:text-primary transition-all duration-300 group-hover:translate-y-0.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 rounded-[1.5rem] p-2 border-border shadow-2xl animate-in zoom-in-95 duration-200">
-            <DropdownMenuItem className="gap-3 rounded-xl p-3 cursor-pointer text-xs font-bold text-muted-foreground hover:text-[#2563EB]" onClick={() => navigate("/configuracoes")}>
-              <User size={16} /> Meu Perfil
+          <DropdownMenuContent align="end" className="w-64 rounded-[2rem] p-3 border-border/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] bg-card/80 backdrop-blur-2xl animate-in zoom-in-95 duration-300">
+            <div className="px-4 py-4 mb-2">
+               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Acesso Rápido</p>
+               <p className="text-sm font-bold text-foreground truncate">{user?.email}</p>
+            </div>
+            <DropdownMenuSeparator className="bg-border/20 my-2" />
+            <DropdownMenuItem 
+              className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-primary transition-all focus:bg-primary/5 focus:text-primary group" 
+              onClick={() => navigate(user?.role === 'aluno' ? "/aluno/perfil" : "/configuracoes")}
+            >
+              <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-all">
+                <User size={18} />
+              </div>
+              Meu Perfil
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-3 rounded-xl p-3 cursor-pointer text-xs font-bold text-muted-foreground hover:text-[#2563EB]" onClick={() => navigate("/configuracoes")}>
-              <Settings size={16} /> Configurações
+            <DropdownMenuItem 
+              className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-primary transition-all focus:bg-primary/5 focus:text-primary group" 
+              onClick={() => navigate(user?.role === 'aluno' ? "/aluno/perfil" : "/configuracoes")}
+            >
+              <div className="w-9 h-9 rounded-xl bg-muted text-muted-foreground flex items-center justify-center group-hover:scale-110 transition-all">
+                <Settings size={18} />
+              </div>
+              Configurações
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-muted my-2" />
-            <DropdownMenuItem className="gap-3 rounded-xl p-3 cursor-pointer text-xs font-bold text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 focus:text-rose-600 focus:bg-rose-500/10" onClick={() => logoutMutation.mutate()}>
-              <LogOut size={16} /> Sair do Sistema
+            <DropdownMenuSeparator className="bg-border/20 my-2" />
+            <DropdownMenuItem 
+               className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-black text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 focus:text-rose-600 focus:bg-rose-500/10 transition-all group" 
+               onClick={() => logoutMutation.mutate()}
+            >
+              <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center group-hover:scale-110 transition-all">
+                <LogOut size={18} />
+              </div>
+              Sair da Plataforma
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
