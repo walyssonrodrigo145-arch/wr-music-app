@@ -1,18 +1,23 @@
-// Preconfigured storage helpers for Manus WebDev templates
-// Uses the Biz-provided storage proxy (Authorization: Bearer <token>)
-
 import { ENV } from './_core/env';
+import fs from 'fs';
+import path from 'path';
+
+// Define the local uploads directory
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+
+// Ensure the directory exists
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
 
 type StorageConfig = { baseUrl: string; apiKey: string };
 
-function getStorageConfig(): StorageConfig {
+function getStorageConfig(): StorageConfig | null {
   const baseUrl = ENV.forgeApiUrl;
   const apiKey = ENV.forgeApiKey;
 
   if (!baseUrl || !apiKey) {
-    throw new Error(
-      "Storage proxy credentials missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY"
-    );
+    return null;
   }
 
   return { baseUrl: baseUrl.replace(/\/+$/, ""), apiKey };
@@ -49,20 +54,6 @@ function normalizeKey(relKey: string): string {
   return relKey.replace(/^\/+/, "");
 }
 
-function toFormData(
-  data: Buffer | Uint8Array | string,
-  contentType: string,
-  fileName: string
-): FormData {
-  const blob =
-    typeof data === "string"
-      ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
-  const form = new FormData();
-  form.append("file", blob, fileName || "file");
-  return form;
-}
-
 function buildAuthHeaders(apiKey: string): HeadersInit {
   return { Authorization: `Bearer ${apiKey}` };
 }
@@ -72,31 +63,69 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream"
 ): Promise<{ key: string; url: string }> {
-  const { baseUrl, apiKey } = getStorageConfig();
+  const config = getStorageConfig();
   const key = normalizeKey(relKey);
-  const uploadUrl = buildUploadUrl(baseUrl, key);
-  const formData = toFormData(data, contentType, key.split("/").pop() ?? key);
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    headers: buildAuthHeaders(apiKey),
-    body: formData,
-  });
 
-  if (!response.ok) {
-    const message = await response.text().catch(() => response.statusText);
-    throw new Error(
-      `Storage upload failed (${response.status} ${response.statusText}): ${message}`
-    );
+  // If Forge proxy credentials are available, use them
+  if (config) {
+    const { baseUrl, apiKey } = config;
+    const uploadUrl = buildUploadUrl(baseUrl, key);
+    
+    // Convert data to Blob for fetch
+    const blob = typeof data === "string" 
+      ? new Blob([data], { type: contentType }) 
+      : new Blob([data as any], { type: contentType });
+      
+    const formData = new FormData();
+    formData.append("file", blob, key.split("/").pop() ?? key);
+
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: buildAuthHeaders(apiKey),
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const message = await response.text().catch(() => response.statusText);
+      throw new Error(`Storage upload failed (${response.status} ${response.statusText}): ${message}`);
+    }
+    const url = (await response.json()).url;
+    return { key, url };
   }
-  const url = (await response.json()).url;
+
+  // Fallback to Local Storage (FileSystem)
+  console.log(`[Storage] Falling back to local storage for ${key}`);
+  const filePath = path.join(UPLOADS_DIR, key);
+  const dirPath = path.dirname(filePath);
+  
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+
+  fs.writeFileSync(filePath, data as any);
+  
+  const appUrl = ENV.appUrl.replace(/\/+$/, "");
+  const url = `${appUrl}/uploads/${key}`;
+  
   return { key, url };
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string; }> {
-  const { baseUrl, apiKey } = getStorageConfig();
+  const config = getStorageConfig();
   const key = normalizeKey(relKey);
+
+  if (config) {
+    const { baseUrl, apiKey } = config;
+    return {
+      key,
+      url: await buildDownloadUrl(baseUrl, key, apiKey),
+    };
+  }
+
+  // Local fallback
+  const appUrl = ENV.appUrl.replace(/\/+$/, "");
   return {
     key,
-    url: await buildDownloadUrl(baseUrl, key, apiKey),
+    url: `${appUrl}/uploads/${key}`,
   };
 }
