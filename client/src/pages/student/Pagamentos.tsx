@@ -135,7 +135,17 @@ export default function StudentPayments() {
 
                       <div className="flex items-center gap-2">
                         {payment.status === 'pago' ? (
-                          <button className="w-12 h-12 rounded-2xl bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-sm flex items-center justify-center">
+                          <button 
+                            onClick={() => payment.receiptUrl && window.open(payment.receiptUrl, "_blank")}
+                            disabled={!payment.receiptUrl}
+                            className={cn(
+                              "w-12 h-12 rounded-2xl transition-all shadow-sm flex items-center justify-center",
+                              payment.receiptUrl 
+                                ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-600 hover:text-white" 
+                                : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                            )}
+                            title={payment.receiptUrl ? "Ver Comprovante" : "Comprovante não disponível"}
+                          >
                             <Download size={20} />
                           </button>
                         ) : (
