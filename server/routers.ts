@@ -2267,6 +2267,7 @@ export const appRouter = router({
           asaasId: paymentDues.asaasId,
           asaasPaymentLink: paymentDues.asaasPaymentLink,
           asaasBillingType: paymentDues.asaasBillingType,
+          receiptUrl: paymentDues.receiptUrl,
           studentName: students.name,
           studentPhone: students.phone,
           email: students.email,
@@ -2484,6 +2485,48 @@ export const appRouter = router({
           return { success: true };
         } catch (error) {
           return handleDbError(error, "remover a mensalidade");
+        }
+      }),
+
+    uploadReceipt: protectedProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+        fileData: z.string(), // Base64
+        fileName: z.string(),
+        fileType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Banco de dados não disponível");
+          const orgId = ctx.user.organizationId!;
+
+          // Extrair buffer do base64
+          const base64Content = input.fileData.split(';base64,').pop() || input.fileData;
+          const buffer = Buffer.from(base64Content, 'base64');
+          
+          // Gerar nome de arquivo único
+          const ext = input.fileName.split('.').pop() || 'dat';
+          const storageKey = `receipts/org_${orgId}/user_${ctx.user.id}/pay_${input.paymentDueId}_${nanoid(6)}.${ext}`;
+          
+          // Salvar no storage
+          const { url } = await storagePut(storageKey, buffer, input.fileType);
+          
+          // Atualizar mensalidade
+          await db.update(paymentDues)
+            .set({ 
+              receiptUrl: url,
+              updatedAt: new Date()
+            })
+            .where(and(
+              eq(paymentDues.id, input.paymentDueId), 
+              eq(paymentDues.organizationId, orgId), 
+              eq(paymentDues.userId, ctx.user.id)
+            ));
+            
+          return { success: true, url };
+        } catch (error) {
+          return handleDbError(error, "enviar o comprovante");
         }
       }),
 

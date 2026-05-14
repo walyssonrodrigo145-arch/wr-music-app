@@ -213,6 +213,7 @@ export const paymentDues = pgTable("payment_dues", {
   asaasId: text("asaasId"),
   asaasPaymentLink: text("asaasPaymentLink"),
   asaasBillingType: varchar("asaasBillingType", { length: 30 }), // PIX, CREDIT_CARD
+  receiptUrl: text("receiptUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

@@ -29,6 +29,7 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasId" text`);
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasPaymentLink" text`);
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasBillingType" varchar(30)`);
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "receiptUrl" text`);
     
     console.log("[Database] Schema consistency check passed.");
   } catch (error: any) {

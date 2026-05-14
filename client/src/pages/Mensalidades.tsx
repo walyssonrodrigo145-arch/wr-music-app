@@ -1,10 +1,11 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   DollarSign, CheckCircle2, Plus, X,
   Loader2, Trash2, ChevronLeft, ChevronRight, Pencil,
   Search, MoreVertical, CreditCard,
-  ChevronDown, TrendingUp, Zap, Link2, Copy, QrCode, Ban
+  ChevronDown, TrendingUp, Zap, Link2, Copy, QrCode, Ban,
+  FileUp, FileCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -35,6 +36,7 @@ type PaymentRow = {
   asaasId?: string | null;
   asaasPaymentLink?: string | null;
   asaasBillingType?: string | null;
+  receiptUrl?: string | null;
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -371,6 +373,8 @@ export default function Mensalidades() {
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
   const [detailsPaymentId, setDetailsPaymentId] = useState<number | null>(null);
   const [asaasPayment, setAsaasPayment] = useState<PaymentRow | null>(null);
+  const [uploadingFor, setUploadingFor] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: payments = [], isLoading } = trpc.paymentDues.list.useQuery({ month: viewMonth, year: viewYear });
   const { data: students = [] } = trpc.students.list.useQuery();
@@ -400,6 +404,40 @@ export default function Mensalidades() {
     },
     onError: (e: any) => toast.error("Erro: " + e.message),
   });
+
+  const uploadReceiptMutation = trpc.paymentDues.uploadReceipt.useMutation({
+    onSuccess: () => {
+      toast.success("Comprovante anexado com sucesso!");
+      utils.paymentDues.invalidate();
+      setUploadingFor(null);
+    },
+    onError: (e: any) => {
+      toast.error("Erro ao enviar comprovante: " + e.message);
+      setUploadingFor(null);
+    }
+  });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingFor) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("O arquivo deve ter no máximo 10MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      uploadReceiptMutation.mutate({
+        paymentDueId: uploadingFor,
+        fileData: base64,
+        fileName: file.name,
+        fileType: file.type,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const prevMonth = () => {
     if (viewMonth === 1) { setViewMonth(12); setViewYear(y => y - 1); }
@@ -433,6 +471,13 @@ export default function Mensalidades() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept="image/*,application/pdf"
+        onChange={handleFileChange}
+      />
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 lg:gap-6">
@@ -597,6 +642,21 @@ export default function Mensalidades() {
                                  </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-52 rounded-xl p-2 border-border">
+                                 {payment.receiptUrl ? (
+                                   <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => window.open(payment.receiptUrl!, "_blank")}>
+                                      <FileCheck className="w-4 h-4 text-emerald-500" />
+                                      <span className="text-xs font-bold text-muted-foreground">Ver Comprovante</span>
+                                   </DropdownMenuItem>
+                                 ) : (
+                                   <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
+                                     setUploadingFor(payment.id);
+                                     setTimeout(() => fileInputRef.current?.click(), 100);
+                                   }}>
+                                      <FileUp className="w-4 h-4 text-amber-500" />
+                                      <span className="text-xs font-bold text-muted-foreground">Anexar Comprovante</span>
+                                   </DropdownMenuItem>
+                                 )}
+                                 <DropdownMenuSeparator className="bg-muted" />
                                  {payment.status !== "pago" && (
                                    <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}>
                                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -696,7 +756,19 @@ export default function Mensalidades() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-4">
+                    <div className="flex items-center justify-between mt-4 gap-2">
+                       {payment.receiptUrl ? (
+                         <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
+                           onClick={(e) => { e.stopPropagation(); window.open(payment.receiptUrl!, "_blank"); }}>
+                           <FileCheck size={12} className="mr-1" /> Ver
+                         </Button>
+                       ) : (
+                         <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10"
+                           onClick={(e) => { e.stopPropagation(); setUploadingFor(payment.id); setTimeout(() => fileInputRef.current?.click(), 100); }}>
+                           <FileUp size={12} className="mr-1" /> Anexar
+                         </Button>
+                       )}
+
                       {!payment.asaasId ? (
                          <Button
                            variant="outline" size="sm"
