@@ -3066,28 +3066,30 @@ export const appRouter = router({
         date: a.date instanceof Date ? a.date.toLocaleDateString('pt-BR') : a.date 
       }));
     }),
+    getSchedule: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      return db.select({
+        id: lessons.id,
+        title: lessons.title,
+        scheduledAt: lessons.scheduledAt,
+        status: lessons.status,
+        instrumentId: lessons.instrumentId,
+      }).from(lessons)
+        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
+        .orderBy(desc(lessons.scheduledAt))
+        .limit(100);
+    }),
     getLessons: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      let studentId = ctx.user.studentId;
-      if (!studentId) {
-        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) {
-          // Check permission
-          if (found.permissions) {
-            const perms = JSON.parse(found.permissions);
-            if (perms.canSeeSchedule === false) return [];
-          }
-          studentId = found.id;
-        }
-      } else {
-        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
-        if (found?.permissions) {
-          const perms = JSON.parse(found.permissions);
-          if (perms.canSeeSchedule === false) return [];
-        }
-      }
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
@@ -3097,23 +3099,7 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      let studentId = ctx.user.studentId;
-      if (!studentId) {
-        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) {
-          if (found.permissions) {
-            const perms = JSON.parse(found.permissions);
-            if (perms.canSeeFiles === false) return [];
-          }
-          studentId = found.id;
-        }
-      } else {
-        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
-        if (found?.permissions) {
-          const perms = JSON.parse(found.permissions);
-          if (perms.canSeeFiles === false) return [];
-        }
-      }
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
@@ -3123,11 +3109,7 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      let studentId = ctx.user.studentId;
-      if (!studentId) {
-        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) studentId = found.id;
-      }
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
@@ -3137,28 +3119,15 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      let studentId = ctx.user.studentId;
-      if (!studentId) {
-        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) {
-          if (found.permissions) {
-            const perms = JSON.parse(found.permissions);
-            if (perms.canSeeProgress === false) return { timeline: [], stats: { lessonsDone: 0, averageGrade: 0 } };
-          }
-          studentId = found.id;
-        }
-      } else {
-        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
-        if (found?.permissions) {
-          const perms = JSON.parse(found.permissions);
-          if (perms.canSeeProgress === false) return { timeline: [], stats: { lessonsDone: 0, averageGrade: 0 } };
-        }
-      }
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
-      const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId))).orderBy(desc(studentTimeline.achievedAt));
-      const [done] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')));
+      const [timeline, done] = await Promise.all([
+        db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId))).orderBy(desc(studentTimeline.achievedAt)),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).then(res => res[0])
+      ]);
+
       return {
         timeline,
         stats: {
@@ -3171,23 +3140,7 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      let studentId = ctx.user.studentId;
-      if (!studentId) {
-        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
-        if (found) {
-          if (found.permissions) {
-            const perms = JSON.parse(found.permissions);
-            if (perms.canSeeFinanceiro === false) return [];
-          }
-          studentId = found.id;
-        }
-      } else {
-        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
-        if (found?.permissions) {
-          const perms = JSON.parse(found.permissions);
-          if (perms.canSeeFinanceiro === false) return [];
-        }
-      }
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
