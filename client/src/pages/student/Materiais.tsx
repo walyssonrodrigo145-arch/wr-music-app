@@ -13,9 +13,18 @@ import {
   MoreVertical,
   FileBox,
   ExternalLink,
-  Info
+  Info,
+  Loader2,
+  X
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -40,6 +49,7 @@ const item = {
 export default function StudentMaterials() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("todos");
+  const [previewFile, setPreviewFile] = useState<any>(null);
   const { data: materials, isLoading } = trpc.studentPortal.getMaterials.useQuery();
 
   if (isLoading) return (
@@ -178,15 +188,25 @@ export default function StudentMaterials() {
 
                     {/* Action */}
                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <button className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                      <Button 
+                        onClick={() => setPreviewFile(item)}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-8 py-6 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all border-none"
+                      >
                         {item.category === 'video' ? <Play size={16} fill="currentColor" /> : 
                          item.category === 'audio' ? <Music size={16} /> : 
-                         <Download size={16} />}
+                         <Eye size={16} />}
                         {getActionLabel(item.category)}
-                      </button>
-                      <button className="w-12 h-12 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center">
-                        <MoreVertical size={20} />
-                      </button>
+                      </Button>
+                      
+                      <Button 
+                        asChild
+                        variant="ghost"
+                        className="w-12 h-12 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center"
+                      >
+                        <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" download={item.fileName}>
+                          <Download size={20} />
+                        </a>
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -215,6 +235,72 @@ export default function StudentMaterials() {
           Solicitar material específico <ExternalLink size={12} />
         </button>
       </div>
+
+      {/* MODAL DE PREVIEW DE ARQUIVOS */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+         <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90 border-none rounded-[2.5rem]">
+            <DialogHeader className="p-6 bg-card border-b border-border">
+               <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0 pr-4">
+                     <DialogTitle className="text-lg font-black text-foreground uppercase tracking-tight truncate">
+                        {previewFile?.fileName}
+                     </DialogTitle>
+                     <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
+                        Visualização de Material • {previewFile?.category}
+                     </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      asChild
+                      className="h-10 rounded-xl bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest px-5 shadow-lg shadow-primary/20 border-none"
+                    >
+                       <a href={previewFile?.fileUrl} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
+                          <Download size={14} className="mr-2" /> Baixar
+                       </a>
+                    </Button>
+                  </div>
+               </div>
+            </DialogHeader>
+
+            <div className="aspect-video w-full flex items-center justify-center bg-black/40 relative overflow-hidden">
+               {previewFile?.category === 'video' && (
+                  <video 
+                    src={previewFile.fileUrl} 
+                    controls 
+                    className="max-h-full max-w-full z-10"
+                    autoPlay
+                  />
+               )}
+               {previewFile?.category === 'audio' && (
+                  <div className="flex flex-col items-center gap-6 z-10 w-full px-12">
+                     <div className="w-32 h-32 rounded-[2.5rem] bg-primary flex items-center justify-center text-white shadow-2xl shadow-primary/40">
+                        <Music size={48} />
+                     </div>
+                     <audio 
+                       src={previewFile.fileUrl} 
+                       controls 
+                       className="w-full h-14"
+                       autoPlay
+                     />
+                  </div>
+               )}
+               {previewFile?.category === 'pdf' && (
+                  <iframe 
+                    src={`${previewFile.fileUrl}#toolbar=0`} 
+                    className="w-full h-full border-none z-10"
+                    title={previewFile.fileName}
+                  />
+               )}
+               {previewFile?.category === 'imagem' && (
+                  <img 
+                    src={previewFile.fileUrl} 
+                    alt={previewFile.fileName}
+                    className="max-h-full max-w-full object-contain z-10 shadow-2xl"
+                  />
+               )}
+            </div>
+         </DialogContent>
+      </Dialog>
     </div>
   );
 }

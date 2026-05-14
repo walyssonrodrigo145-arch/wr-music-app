@@ -860,6 +860,7 @@ function WidgetCard({ title, icon: Icon, color, bg, children }: any) {
 function BibliotecaMusical({ studentId }: { studentId: number }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("todos");
+  const [previewFile, setPreviewFile] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const utils = trpc.useUtils();
@@ -1062,15 +1063,29 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                           {file.category === 'audio' && <Music size={64} />}
                        </div>
                        
-                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
-                          <Button variant="ghost" className="h-10 px-4 rounded-xl bg-card text-foreground font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-xl">
-                             <Download size={14} className="mr-2" /> Download
-                          </Button>
+                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 p-4 text-center">
+                          <div className="flex gap-2">
+                             <Button 
+                               onClick={() => setPreviewFile(file)}
+                               className="h-10 px-4 rounded-xl bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl border-none"
+                             >
+                                <Activity size={14} className="mr-2" /> Visualizar
+                             </Button>
+                             <Button 
+                               asChild
+                               variant="ghost" 
+                               className="h-10 px-4 rounded-xl bg-card text-foreground font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-500/10 transition-all shadow-xl border-none"
+                             >
+                                <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" download={file.fileName}>
+                                   <Download size={14} className="mr-2" /> Download
+                                </a>
+                             </Button>
+                          </div>
                           <Button 
-                            variant="ghost" 
-                            onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
-                            disabled={deleteMutation.isPending}
-                            className="h-10 w-10 rounded-xl bg-card/10 text-white hover:bg-rose-500 hover:text-white backdrop-blur-md"
+                             variant="ghost" 
+                             onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
+                             disabled={deleteMutation.isPending}
+                             className="h-10 w-10 rounded-xl bg-card/10 text-white hover:bg-rose-500 hover:text-white backdrop-blur-md"
                           >
                              {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                           </Button>
@@ -1104,6 +1119,70 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
              )}
           </div>
        </div>
+
+       {/* MODAL DE PREVIEW DE ARQUIVOS */}
+       <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+          <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90 border-none rounded-[2rem]">
+             <DialogHeader className="p-6 bg-card border-b border-border">
+                <div className="flex items-center justify-between">
+                   <div>
+                      <DialogTitle className="text-lg font-black text-foreground uppercase tracking-tight truncate max-w-[400px]">
+                         {previewFile?.fileName}
+                      </DialogTitle>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
+                         Visualização de Material • {previewFile?.category}
+                      </p>
+                   </div>
+                   <Button 
+                     asChild
+                     className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest px-5"
+                   >
+                      <a href={previewFile?.fileUrl} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
+                         <Download size={14} className="mr-2" /> Baixar Arquivo
+                      </a>
+                   </Button>
+                </div>
+             </DialogHeader>
+
+             <div className="aspect-video w-full flex items-center justify-center bg-black/40 relative overflow-hidden">
+                {previewFile?.category === 'video' && (
+                   <video 
+                     src={previewFile.fileUrl} 
+                     controls 
+                     className="max-h-full max-w-full z-10"
+                     autoPlay
+                   />
+                )}
+                {previewFile?.category === 'audio' && (
+                   <div className="flex flex-col items-center gap-6 z-10 w-full px-12">
+                      <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/40">
+                         <Music size={48} />
+                      </div>
+                      <audio 
+                        src={previewFile.fileUrl} 
+                        controls 
+                        className="w-full h-14"
+                        autoPlay
+                      />
+                   </div>
+                )}
+                {previewFile?.category === 'pdf' && (
+                   <iframe 
+                     src={`${previewFile.fileUrl}#toolbar=0`} 
+                     className="w-full h-full border-none z-10"
+                     title={previewFile.fileName}
+                   />
+                )}
+                {previewFile?.category === 'imagem' && (
+                   <img 
+                     src={previewFile.fileUrl} 
+                     alt={previewFile.fileName}
+                     className="max-h-full max-w-full object-contain z-10 shadow-2xl"
+                   />
+                )}
+             </div>
+          </DialogContent>
+       </Dialog>
     </div>
   );
 }
