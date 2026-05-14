@@ -39,8 +39,8 @@ export default function Solicitacoes() {
   });
 
   const filteredRequests = requests?.filter(r => 
-    r.studentName.toLowerCase().includes(search.toLowerCase()) || 
-    r.lessonTitle.toLowerCase().includes(search.toLowerCase())
+    (r.studentName || '').toLowerCase().includes(search.toLowerCase()) || 
+    (r.lessonTitle || '').toLowerCase().includes(search.toLowerCase())
   ) || [];
 
   return (
@@ -104,10 +104,10 @@ export default function Solicitacoes() {
                             <div className="space-y-4 flex-1">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
-                                  {req.studentName.slice(0, 2).toUpperCase()}
+                                  {(req.studentName || '??').slice(0, 2).toUpperCase()}
                                 </div>
                                 <div>
-                                  <h3 className="text-lg font-black text-foreground tracking-tight">{req.studentName}</h3>
+                                  <h3 className="text-lg font-black text-foreground tracking-tight">{req.studentName || 'Aluno'}</h3>
                                   <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">Solicitou Reagendamento</p>
                                 </div>
                               </div>

@@ -125,6 +125,23 @@ export async function getDashboardStats(organizationId: number, userId?: number)
   const orgFilter = eq(students.organizationId, organizationId);
   const userFilter = userId ? eq(students.professorId, userId) : undefined;
 
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  const lessonOrgFilter = eq(lessons.organizationId, organizationId);
+  const lessonUserFilter = userId ? eq(lessons.userId, userId) : undefined;
+
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  
+  const paymentOrgFilter = eq(paymentDues.organizationId, organizationId);
+  const paymentUserFilter = userId ? eq(paymentDues.userId, userId) : undefined;
+
   const [
     [totalStudents],
     [activeStudents],

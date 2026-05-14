@@ -25,7 +25,7 @@ export default function StudentAnnouncements() {
 
   const filteredAnnouncements = announcements.filter(a => 
     a.title.toLowerCase().includes(search.toLowerCase()) || 
-    a.author.toLowerCase().includes(search.toLowerCase())
+    (a.author || "").toLowerCase().includes(search.toLowerCase())
   ) || [];
 
   return (

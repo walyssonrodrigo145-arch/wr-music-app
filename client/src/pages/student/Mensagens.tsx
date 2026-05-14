@@ -29,12 +29,12 @@ export default function StudentMessages() {
     { enabled: !!profile?.teacherId }
   );
 
-  const sendMutation = trpc.studentPortal.send.useMutation({
+  const sendMutation = trpc.studentPortal.sendMessage.useMutation({
     onSuccess: () => {
       setMessage("");
       refetch();
     },
-    onError: (err) => {
+    onError: (err: any) => {
       console.error("Chat error:", err);
       toast.error("Erro ao enviar mensagem: " + err.message);
     }
@@ -135,7 +135,7 @@ export default function StudentMessages() {
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-card" />
                  </div>
                  <div>
-                    <h3 className="text-base font-black tracking-tight">Prof. {dashboard?.teacherName || "Professor"}</h3>
+                    <h3 className="text-base font-black tracking-tight">Prof. {profile?.teacherName || "Professor"}</h3>
                     <div className="flex items-center gap-1.5">
                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">Online agora</p>
                     </div>
