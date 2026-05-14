@@ -56,6 +56,8 @@ export default function StudentPayments() {
   };
 
   const totalPaid = payments?.filter(p => p.status === 'pago').reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
+  const nextPayment = payments?.filter(p => p.status !== 'pago').sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
+  const nextValue = nextPayment ? Number(nextPayment.amount) : 0;
 
   return (
     <div className="space-y-8 pb-10">
@@ -166,7 +168,7 @@ export default function StudentPayments() {
                 <div className="mt-8 pt-6 border-t border-white/20 space-y-4">
                    <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-white/80">Próxima Mensalidade</span>
-                      <span className="text-sm font-black">R$ 250,00</span>
+                      <span className="text-sm font-black">R$ {nextValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                    </div>
                    <button 
                      onClick={() => toast.info("Gateway de pagamento em integração.")}
