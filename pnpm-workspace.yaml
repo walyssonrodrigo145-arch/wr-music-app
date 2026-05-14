@@ -1,7 +1,0 @@
-allowBuilds:
-  - esbuild
-  - "@tailwindcss/vite"
-  - tailwindcss
-  - lightningcss
-  - jiti
-  - tsx
