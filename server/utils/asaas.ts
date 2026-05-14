@@ -46,6 +46,7 @@ export async function createAsaasCustomer(params: {
   phone?: string;
   cpfCnpj?: string;
 }): Promise<string> {
+  console.log(`[Asaas] Criando cliente no ambiente: ${ENV.asaasBaseUrl}`);
   const res = await fetch(`${ENV.asaasBaseUrl}/customers`, {
     method: "POST",
     headers: headers(),
@@ -79,6 +80,7 @@ export async function createAsaasCharge(params: {
   dueDate: string; // "YYYY-MM-DD"
   description?: string;
 }): Promise<AsaasCharge> {
+  console.log(`[Asaas] Criando cobrança no ambiente: ${ENV.asaasBaseUrl}`);
   const res = await fetch(`${ENV.asaasBaseUrl}/payments`, {
     method: "POST",
     headers: headers(),

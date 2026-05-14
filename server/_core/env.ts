@@ -14,8 +14,8 @@ export const ENV = {
   appUrl: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000",
   registrationToken: (process.env.REGISTRATION_TOKEN || process.env.REGIATRATION_TOKEN || "44C9rDweFjfrEwk").trim(),
   // Asaas
-  asaasApiKey: process.env.ASAAS_API_KEY ?? "",
-  asaasBaseUrl: process.env.ASAAS_BASE_URL ?? "https://sandbox.asaas.com/api/v3",
+  asaasApiKey: (process.env.ASAAS_API_KEY ?? "").trim(),
+  asaasBaseUrl: (process.env.ASAAS_BASE_URL ?? "https://sandbox.asaas.com/api/v3").trim(),
 };
 
 
