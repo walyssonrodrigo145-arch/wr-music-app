@@ -74,7 +74,6 @@ export default function StudentMaterials() {
     { id: 'video', label: 'Vídeos', icon: Video },
     { id: 'audio', label: 'Áudios', icon: Music },
   ];
-  ];
 
   const getIcon = (cat: string) => {
     switch (cat) {
