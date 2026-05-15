@@ -855,6 +855,7 @@ export const appRouter = router({
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
       monthlyFee: z.number().default(0),
       dueDay: z.number().default(15),
+      lessonType: z.enum(['individual','turma']).default('individual'),
       notes: z.string().optional(),
       status: z.enum(['ativo','inativo','pausado']).default('ativo'),
       temporaryPassword: z.string().min(6, "A senha temporária deve ter pelo menos 6 caracteres").optional(),
@@ -884,6 +885,7 @@ export const appRouter = router({
           level: input.level,
           monthlyFee: String(input.monthlyFee),
           dueDay: input.dueDay,
+          lessonType: input.lessonType,
           notes: input.notes,
           status: input.status,
           createdAt: new Date(),
@@ -941,6 +943,7 @@ export const appRouter = router({
       monthlyFee: z.number().optional(),
       dueDay: z.number().optional(),
       status: z.enum(['ativo', 'inativo', 'pausado']).optional(),
+      lessonType: z.enum(['individual', 'turma']).optional(),
       notes: z.string().optional(),
       updateFutureDues: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
@@ -1090,6 +1093,7 @@ export const appRouter = router({
       description: z.string().optional(),
       notes: z.string().optional(),
       instrumentId: z.number().nullable().optional(),
+      lessonType: z.enum(['individual', 'turma']).default('individual'),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -1124,16 +1128,25 @@ export const appRouter = router({
         }
   
         // Prevenção de conflitos (mesmo professor/userId)
-        const conflict = await db.select({ id: lessons.id }).from(lessons)
-          .where(and(
-            eq(lessons.organizationId, orgId),
-            eq(lessons.userId, ctx.user.id),
-            eq(lessons.status, 'agendada'),
-            sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
-          )).limit(1);
+        // Se for aula individual, não permite sobreposição com NADA.
+        // Se for aula em turma, permite sobreposição com outras aulas em turma, mas não com individuais.
+        const conflictQuery = and(
+          eq(lessons.organizationId, orgId),
+          eq(lessons.userId, ctx.user.id),
+          eq(lessons.status, 'agendada'),
+          sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
+        );
+
+        const conflict = await db.select({ id: lessons.id, lessonType: lessons.lessonType }).from(lessons)
+          .where(conflictQuery).limit(1);
 
         if (conflict.length > 0) {
-          throw new Error("Já existe uma aula agendada para este horário.");
+          const conflictingLesson = conflict[0];
+          // Se a nova é individual OU a existente é individual, bloqueia.
+          // Só permite se AMBAS forem 'turma'.
+          if (input.lessonType === 'individual' || conflictingLesson.lessonType === 'individual') {
+            throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+          }
         }
 
         await db.insert(lessons).values({
@@ -1149,6 +1162,7 @@ export const appRouter = router({
           notes: input.notes ?? null,
           instrumentId: input.instrumentId ?? null,
           status: 'agendada',
+          lessonType: input.lessonType,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -1169,6 +1183,7 @@ export const appRouter = router({
       experimentalName: z.string().optional(),
       studentId: z.number().optional().nullable(),
       instrumentId: z.number().optional().nullable(),
+      lessonType: z.enum(['individual', 'turma']).optional(),
       updateSeries: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
@@ -1206,7 +1221,7 @@ export const appRouter = router({
           const endsAt = new Date(scheduledAt.getTime() + duration * 60000);
 
           // Prevenção de conflitos para a aula atual
-          const conflict = await db.select({ id: lessons.id }).from(lessons)
+          const conflict = await db.select({ id: lessons.id, lessonType: lessons.lessonType }).from(lessons)
             .where(and(
               eq(lessons.organizationId, orgId),
               eq(lessons.userId, ctx.user.id),
@@ -1216,7 +1231,11 @@ export const appRouter = router({
             )).limit(1);
 
           if (conflict.length > 0) {
-            throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+            const conflictingLesson = conflict[0];
+            const newLessonType = data.lessonType ?? currentLesson.lessonType;
+            if (newLessonType === 'individual' || conflictingLesson.lessonType === 'individual') {
+              throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+            }
           }
           updateData.scheduledAt = scheduledAt;
 
@@ -1398,6 +1417,7 @@ export const appRouter = router({
         instrumentName: instruments.name,
         instrumentColor: instruments.color,
         instrumentIcon: instruments.icon,
+        lessonType: lessons.lessonType,
       }).from(lessons)
         .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
         .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(students.organizationId, orgId)))
@@ -1436,6 +1456,7 @@ export const appRouter = router({
         instrumentName: instruments.name,
         instrumentColor: instruments.color,
         instrumentIcon: instruments.icon,
+        lessonType: lessons.lessonType,
       }).from(lessons)
         .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
         .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(students.organizationId, orgId)))
@@ -2287,6 +2308,7 @@ export const appRouter = router({
           studentName: students.name,
           studentPhone: students.phone,
           email: students.email,
+          lessonType: students.lessonType,
         })
           .from(paymentDues)
           .leftJoin(students, eq(paymentDues.studentId, students.id))
@@ -2886,6 +2908,49 @@ export const appRouter = router({
           userId ? eq(students.professorId, userId) : undefined
         ))
         .orderBy(students.name);
+      }),
+
+    getModalidadeStats: protectedProcedure
+      .input(z.object({ month: z.number(), year: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        const userId = (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : ctx.user.id;
+
+        // 1. Distribuição de alunos por modalidade (ativos)
+        const studentStats = await db.select({
+          lessonType: students.lessonType,
+          count: sql<number>`CAST(count(*) AS INT)`,
+        })
+        .from(students)
+        .where(and(
+          eq(students.organizationId, orgId),
+          userId ? eq(students.professorId, userId) : undefined,
+          eq(students.status, 'ativo')
+        ))
+        .groupBy(students.lessonType);
+
+        // 2. Faturamento por modalidade (mensalidades pagas)
+        const revenueStats = await db.select({
+          lessonType: students.lessonType,
+          total: sql<number>`CAST(sum(CAST(${paymentDues.amount} AS DECIMAL)) AS FLOAT)`,
+        })
+        .from(paymentDues)
+        .leftJoin(students, eq(paymentDues.studentId, students.id))
+        .where(and(
+          eq(paymentDues.organizationId, orgId),
+          userId ? eq(paymentDues.userId, userId) : undefined,
+          eq(paymentDues.month, input.month),
+          eq(paymentDues.year, input.year),
+          eq(paymentDues.status, 'pago')
+        ))
+        .groupBy(students.lessonType);
+
+        return {
+          students: studentStats,
+          revenue: revenueStats
+        };
       }),
   }),
 

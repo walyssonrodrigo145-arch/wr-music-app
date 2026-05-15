@@ -1,4 +1,4 @@
-﻿import { 
+import { 
   X, 
   Calendar, 
   Clock, 
@@ -113,6 +113,16 @@ export default function LessonDetailModal({
                   <div>
                      <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Instrumento</p>
                      <h4 className="font-bold text-foreground">{lesson.instrumentName || "Geral"}</h4>
+                  </div>
+               </div>
+
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-muted-foreground/40">
+                     <Users size={20} />
+                  </div>
+                  <div>
+                     <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Tipo de Aula</p>
+                     <h4 className="font-bold text-foreground capitalize">{lesson.lessonType || "Individual"}</h4>
                   </div>
                </div>
             </div>

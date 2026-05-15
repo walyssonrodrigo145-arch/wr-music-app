@@ -22,6 +22,7 @@ export const goalStatusEnum = pgEnum('goal_status', ["pendente", "concluida"]);
 export const timelineCategoryEnum = pgEnum('timeline_category', ["tecnica", "teoria", "repertorio", "geral"]);
 export const fileCategoryEnum = pgEnum('file_category', ["imagem", "video", "pdf", "audio", "documento"]);
 export const rescheduleStatusEnum = pgEnum('reschedule_status', ["pendente", "aprovada", "recusada"]);
+export const lessonTypeEnum = pgEnum('lesson_type', ["individual", "turma"]);
 
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -99,6 +100,7 @@ export const students = pgTable("students", {
   status: statusEnum("status").default("ativo").notNull(),
   monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }).default("0.00").notNull(),
   dueDay: integer("dueDay").default(10).notNull(),
+  lessonType: lessonTypeEnum("lessonType").default("individual").notNull(),
   startDate: date("startDate"),
   notes: text("notes"),
   permissions: text("permissions"), // JSON string: { canSeeFinanceiro: boolean, etc }
@@ -118,6 +120,7 @@ export const lessons = pgTable("lessons", {
   scheduledAt: timestamp("scheduledAt").notNull(),
   duration: integer("duration").default(60).notNull(),
   status: lessonStatusEnum("status").default("agendada").notNull(),
+  lessonType: lessonTypeEnum("lessonType").default("individual").notNull(),
   notes: text("notes"),
   rating: integer("rating"),
   instrumentId: integer("instrumentId"),

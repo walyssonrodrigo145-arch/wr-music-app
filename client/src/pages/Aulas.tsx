@@ -85,6 +85,11 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: () => vo
            <Music size={10} className="text-muted-foreground" />
            <p className="text-[9px] text-muted-foreground font-bold truncate uppercase">{lesson.instrumentName}</p>
         </div>
+        {lesson.lessonType === 'turma' && (
+          <div className="mt-2 py-0.5 px-2 bg-purple-500/10 rounded-full w-fit">
+            <p className="text-[8px] font-black text-purple-600 uppercase tracking-widest">Aula em Turma</p>
+          </div>
+        )}
       </motion.div>
     );
 };
@@ -98,6 +103,7 @@ export default function Aulas() {
   const [animateToday, setAnimateToday] = useState(false);
   const [instrumentFilter, setInstrumentFilter] = useState("todos");
   const [statusFilterDesktop, setStatusFilterDesktop] = useState("geral");
+  const [lessonTypeFilter, setLessonTypeFilter] = useState("todos");
 
   // Mobile specific states
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -136,17 +142,19 @@ export default function Aulas() {
         const matchesSearch = (l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
         const matchesInstrument = instrumentFilter === "todos" || String(l.instrumentId) === instrumentFilter;
         const matchesStatus = statusFilterDesktop === "geral" || l.status === statusFilterDesktop;
-        return matchesSearch && matchesInstrument && matchesStatus;
+        const matchesLessonType = lessonTypeFilter === "todos" || l.lessonType === lessonTypeFilter;
+        return matchesSearch && matchesInstrument && matchesStatus && matchesLessonType;
       } else {
         const isDayMatch = isSameDay(new Date(l.scheduledAt), selectedDate);
         const matchesSearch = (l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
         const matchesStatus = statusFilterMobile === "Todas" || 
                              (statusFilterMobile === "Hoje" && isToday(new Date(l.scheduledAt))) ||
                              l.status.toLowerCase() === statusFilterMobile.toLowerCase().replace("í", "i");
-        return isDayMatch && matchesSearch && matchesStatus;
+        const matchesLessonType = lessonTypeFilter === "todos" || l.lessonType === lessonTypeFilter;
+        return isDayMatch && matchesSearch && matchesStatus && matchesLessonType;
       }
     });
-  }, [lessons, isDesktop, search, instrumentFilter, statusFilterDesktop, selectedDate, statusFilterMobile]);
+  }, [lessons, isDesktop, search, instrumentFilter, statusFilterDesktop, selectedDate, statusFilterMobile, lessonTypeFilter]);
 
   const monthDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentDate));
@@ -223,6 +231,18 @@ export default function Aulas() {
                   <div className="flex flex-wrap gap-2">
                      {["geral", "agendada", "concluida", "cancelada", "remarcada", "falta"].map((st) => (
                        <button key={st} onClick={() => setStatusFilterDesktop(st)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm capitalize", statusFilterDesktop === st ? "bg-blue-600 text-white border-slate-800" : "bg-card text-muted-foreground border-border")}>{st}</button>
+                     ))}
+                  </div>
+               </div>
+               <div className="space-y-4">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Modalidade</p>
+                  <div className="flex flex-wrap gap-2">
+                     {[
+                       { id: "todos", label: "Todas" },
+                       { id: "individual", label: "Individual" },
+                       { id: "turma", label: "Turma" }
+                     ].map((t) => (
+                       <button key={t.id} onClick={() => setLessonTypeFilter(t.id)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm", lessonTypeFilter === t.id ? "bg-blue-600 text-white border-blue-600" : "bg-card text-muted-foreground border-border")}>{t.label}</button>
                      ))}
                   </div>
                </div>
@@ -489,7 +509,14 @@ export default function Aulas() {
         {["Todas", "Hoje", "Agendadas", "Concluídas", "Canceladas"].map(chip => (
           <button key={chip} onClick={() => setStatusFilterMobile(chip)} className={cn("px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border", statusFilterMobile === chip ? "bg-blue-600 text-white border-blue-600 shadow-blue-200" : "bg-card text-muted-foreground border-border hover:border-blue-200 hover:text-blue-600")}>{chip}</button>
         ))}
-        <button className="ml-auto w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-blue-600 transition-colors shadow-sm"><Filter size={18} /></button>
+        <div className="h-6 w-[1px] bg-border mx-1" />
+        {[
+          { id: "todos", label: "Modalidades" },
+          { id: "individual", label: "Indiv." },
+          { id: "turma", label: "Turma" }
+        ].map(t => (
+          <button key={t.id} onClick={() => setLessonTypeFilter(t.id)} className={cn("px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border", lessonTypeFilter === t.id ? "bg-purple-600 text-white border-purple-600" : "bg-card text-muted-foreground border-border hover:border-purple-200 hover:text-purple-600")}>{t.label}</button>
+        ))}
       </section>
 
       {/* Lesson Grid (1 col mobile, 2 cols tablet) */}
@@ -517,6 +544,9 @@ export default function Aulas() {
                       <div className="flex items-center gap-4 flex-wrap">
                          <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest"><Music size={14} className="text-blue-500" /> {lesson.instrumentName}</div>
                          <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest"><Users size={14} className="text-purple-500" /> {(lesson as any).teacherName || "Professor"}</div>
+                         {lesson.lessonType === 'turma' && (
+                           <div className="px-2 py-0.5 bg-purple-500/10 text-purple-600 text-[8px] font-black uppercase rounded-full border border-purple-500/20">Turma</div>
+                         )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">

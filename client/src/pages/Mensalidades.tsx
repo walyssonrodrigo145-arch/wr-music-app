@@ -368,6 +368,7 @@ export default function Mensalidades() {
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1);
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [filterStatus, setFilterStatus] = useState<string>("todas");
+  const [lessonTypeFilter, setLessonTypeFilter] = useState<string>("todos");
   const [search, setSearch] = useState("");
   const [novaOpen, setNovaOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
@@ -452,9 +453,10 @@ export default function Mensalidades() {
     return payments.filter((p) => {
       const nameMatch = p.studentName?.toLowerCase().includes(search.toLowerCase());
       const statusMatch = filterStatus === "todas" || p.status === filterStatus;
-      return nameMatch && statusMatch;
+      const lessonTypeMatch = lessonTypeFilter === "todos" || p.lessonType === lessonTypeFilter;
+      return nameMatch && statusMatch && lessonTypeMatch;
     });
-  }, [payments, search, filterStatus]);
+  }, [payments, search, filterStatus, lessonTypeFilter]);
 
   const stats = useMemo(() => {
     const sum = (arr: any[]) => arr.reduce((acc, p) => acc + Number(p.amount), 0);
@@ -568,6 +570,35 @@ export default function Mensalidades() {
                    </p>
                 </div>
               ))}
+           </div>
+        </div>
+
+        {/* FILTERS SECTION */}
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-card p-4 rounded-2xl border border-border shadow-sm">
+           <div className="flex flex-wrap items-center gap-3">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Status</p>
+              <div className="flex bg-muted/50 p-1 rounded-xl">
+                 {["todas", "pendente", "pago", "atrasado"].map(st => (
+                   <button key={st} onClick={() => setFilterStatus(st)} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all", filterStatus === st ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                      {st}
+                   </button>
+                 ))}
+              </div>
+           </div>
+           
+           <div className="flex flex-wrap items-center gap-3">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Modalidade</p>
+              <div className="flex bg-muted/50 p-1 rounded-xl">
+                 {[
+                   { id: "todos", label: "Todas" },
+                   { id: "individual", label: "Indiv." },
+                   { id: "turma", label: "Turma" }
+                 ].map(t => (
+                   <button key={t.id} onClick={() => setLessonTypeFilter(t.id)} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all", lessonTypeFilter === t.id ? "bg-purple-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                      {t.label}
+                   </button>
+                 ))}
+              </div>
            </div>
         </div>
 
@@ -758,9 +789,10 @@ export default function Mensalidades() {
 
                     <div className="flex items-center justify-between mt-4 gap-2">
                        {payment.receiptUrl ? (
-                         <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
-                           onClick={(e) => { e.stopPropagation(); window.open(payment.receiptUrl!, "_blank"); }}>
-                           <FileCheck size={12} className="mr-1" /> Ver
+                         <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10" asChild>
+                           <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" download onClick={(e) => e.stopPropagation()}>
+                             <FileCheck size={12} className="mr-1" /> Ver
+                           </a>
                          </Button>
                        ) : (
                          <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10"

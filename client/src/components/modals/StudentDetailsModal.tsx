@@ -1,4 +1,4 @@
-import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2, CheckCircle2, Clock } from "lucide-react";
+import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2, CheckCircle2, Clock, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -202,6 +202,16 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                        </div>
                     </div>
                  )}
+
+                 <div className="flex items-center gap-3 bg-muted/20 p-3 rounded-2xl border border-border/10 hover:bg-muted/30 transition-colors group">
+                    <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-muted-foreground/60 shadow-sm">
+                       <Users size={14} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                       <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest leading-none mb-1">Modalidade</p>
+                       <p className="text-xs font-black text-foreground truncate capitalize">Aula {student.lessonType || "Individual"}</p>
+                    </div>
+                 </div>
               </div>
             </div>
 

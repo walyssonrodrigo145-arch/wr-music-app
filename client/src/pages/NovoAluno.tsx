@@ -66,6 +66,7 @@ export default function NovoAluno() {
     startDate: new Date().toISOString().split('T')[0],
     monthlyFee: "",
     dueDay: "10",
+    lessonType: "individual",
     guardianName: "",
     guardianPhone: "",
     guardianEmail: "",
@@ -92,6 +93,7 @@ export default function NovoAluno() {
         startDate: studentData.startDate ? String(studentData.startDate).slice(0, 10) : new Date().toISOString().split('T')[0],
         monthlyFee: studentData.monthlyFee ? String(Number(studentData.monthlyFee)) : "",
         dueDay: studentData.dueDay ? String(studentData.dueDay) : "10",
+        lessonType: (studentData as any).lessonType ?? "individual",
         guardianName: (studentData as any).guardianName ?? "",
         guardianPhone: (studentData as any).guardianPhone ?? "",
         guardianEmail: (studentData as any).guardianEmail ?? "",
@@ -216,6 +218,7 @@ export default function NovoAluno() {
       level: form.level as any,
       monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
       dueDay: Number(form.dueDay),
+      lessonType: form.lessonType as any,
       notes: form.notes,
       temporaryPassword: form.temporaryPassword || undefined,
     };
@@ -590,7 +593,7 @@ export default function NovoAluno() {
                         <SelectValue placeholder="Dia" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        {[5, 10, 15, 20, 25].map(d => (
+                        {[5, 10, 15, 20].map(d => (
                           <SelectItem key={d} value={String(d)} className="rounded-lg font-medium">Dia {d}</SelectItem>
                         ))}
                       </SelectContent>
@@ -598,18 +601,21 @@ export default function NovoAluno() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Mensalidade (R$)</label>
-                  <div className="relative group/input">
-                    <Input 
-                      placeholder="0,00" 
-                      type="number"
-                      value={form.monthlyFee}
-                      onChange={(e) => handleInputChange('monthlyFee', e.target.value)}
-                      className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold pl-11"
-                    />
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 font-bold text-sm group-focus-within/input:text-violet-500 transition-colors">R$</span>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Tipo de Aula</label>
+                  <Select value={form.lessonType} onValueChange={(v) => handleInputChange('lessonType', v)}>
+                    <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                      <SelectItem value="individual" className="rounded-lg font-medium">Individual</SelectItem>
+                      <SelectItem value="turma" className="rounded-lg font-medium">Turma / Coletiva</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </motion.div>

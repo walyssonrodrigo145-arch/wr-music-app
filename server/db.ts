@@ -31,6 +31,10 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasBillingType" varchar(30)`);
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "receiptUrl" text`);
     
+    // lessonType column
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "lessonType" text DEFAULT 'individual'`);
+    await db.execute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "lessonType" text DEFAULT 'individual'`);
+    
     // student_evolution table
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "student_evolution" (
@@ -307,6 +311,7 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     monthlyFee: students.monthlyFee,
     startDate: students.startDate,
     avatar: students.avatar,
+    lessonType: students.lessonType,
     instrumentName: instruments.name,
     instrumentColor: instruments.color,
     instrumentIcon: instruments.icon,
@@ -340,6 +345,7 @@ export async function getRecentLessons(organizationId: number, userId?: number, 
     instrumentName: instruments.name,
     studentName: students.name,
     studentId: students.id,
+    lessonType: lessons.lessonType,
   }).from(lessons)
     .leftJoin(students, eq(lessons.studentId, students.id))
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))

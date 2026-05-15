@@ -56,7 +56,7 @@ function ReportMetricCard({
 }
 
 const Relatorios: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'financeiro' | 'alunos' | 'aulas' | 'instrumentos' | 'mensalidades'>('financeiro');
+  const [activeTab, setActiveTab] = useState<'financeiro' | 'alunos' | 'aulas' | 'instrumentos' | 'mensalidades' | 'modalidades'>('financeiro');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState('');
@@ -77,6 +77,7 @@ const Relatorios: React.FC = () => {
   const frequencyQuery = trpc.reports.getFrequencyDetails.useQuery({ month: selectedMonth, year: selectedYear });
   const evolutionQuery = trpc.reports.getEvolutionDetails.useQuery();
   const alunosReportQuery = trpc.reports.getAlunosReport.useQuery();
+  const modalidadeStatsQuery = trpc.reports.getModalidadeStats.useQuery({ month: selectedMonth, year: selectedYear });
 
   // Export functionality updated to match spreadsheet models
   const handleExport = () => {
@@ -306,6 +307,113 @@ const Relatorios: React.FC = () => {
     </div>
   );
 
+  const renderModalidades = () => {
+    const studentData = modalidadeStatsQuery.data?.students.map(s => ({
+      name: s.lessonType === 'individual' ? 'Individual' : 'Turma',
+      value: s.count
+    })) || [];
+
+    const revenueData = modalidadeStatsQuery.data?.revenue.map(r => ({
+      name: r.lessonType === 'individual' ? 'Individual' : 'Turma',
+      value: r.total
+    })) || [];
+
+    // Calcular ticket médio
+    const stats = (modalidadeStatsQuery.data?.students || []).map(s => {
+      const revenue = modalidadeStatsQuery.data?.revenue.find(r => r.lessonType === s.lessonType)?.total || 0;
+      return {
+        lessonType: s.lessonType,
+        count: s.count,
+        revenue,
+        avg: s.count > 0 ? revenue / s.count : 0
+      };
+    });
+
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Distribuição de Alunos */}
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="flex items-center gap-4 mb-8">
+               <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                  <Users size={20} />
+               </div>
+               <h3 className="text-lg font-black dark:text-white">Distribuição de Alunos</h3>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={studentData}
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={8}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  >
+                    <Cell fill="#6366f1" />
+                    <Cell fill="#a855f7" />
+                  </Pie>
+                  <Tooltip />
+                  <Legend verticalAlign="bottom" />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Comparação de Faturamento */}
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="flex items-center gap-4 mb-8">
+               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <DollarSign size={20} />
+               </div>
+               <h3 className="text-lg font-black dark:text-white">Faturamento por Modalidade</h3>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                  <Tooltip formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)} />
+                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                    {revenueData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 0 ? "#6366f1" : "#a855f7"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* Métricas Detalhadas */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
+          <h3 className="text-lg font-black mb-8 dark:text-white">Ticket Médio por Modalidade</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+             {stats.map((s, i) => (
+               <div key={i} className="p-6 rounded-[2rem] border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between group hover:scale-[1.02] transition-all">
+                  <div className="flex items-center gap-5">
+                     <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center", s.lessonType === 'individual' ? "bg-blue-500/10 text-blue-600" : "bg-purple-500/10 text-purple-600")}>
+                        {s.lessonType === 'individual' ? <Target size={24} /> : <Users size={24} />}
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{s.lessonType === 'individual' ? 'Aula Individual' : 'Aula em Turma'}</p>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(s.avg)}</p>
+                     </div>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.count} Alunos</p>
+                     <p className="text-xs font-bold text-slate-500">Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(s.revenue)}</p>
+                  </div>
+               </div>
+             ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderAulas = () => (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -470,6 +578,7 @@ const Relatorios: React.FC = () => {
           >
             {activeTab === 'financeiro' && renderFinanceiro()}
             {activeTab === 'alunos' && renderAlunos()}
+            {activeTab === 'modalidades' && renderModalidades()}
             {activeTab === 'aulas' && renderAulas()}
             {activeTab === 'instrumentos' && renderInstrumentos()}
             {activeTab === 'mensalidades' && renderMensalidades()}

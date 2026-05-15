@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { 
   User, 
   Clock, 
@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   Info,
   Beaker,
-  UserPlus
+  UserPlus,
+  Users
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -47,7 +48,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     updateSeries: false,
     date: format(new Date(), "yyyy-MM-dd"),
     isExperimental: false,
-    experimentalName: ""
+    experimentalName: "",
+    lessonType: "individual" as "individual" | "turma"
   });
 
   const [conflictError, setConflictError] = useState<string | null>(null);
@@ -68,7 +70,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           weeksCount: 1,
           updateSeries: false,
           isExperimental: !!editingLesson.isExperimental,
-          experimentalName: editingLesson.experimentalName || ""
+          experimentalName: editingLesson.experimentalName || "",
+          lessonType: editingLesson.lessonType || "individual"
         });
       } else {
         setFormData({
@@ -82,7 +85,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           weeksCount: 1,
           updateSeries: false,
           isExperimental: false,
-          experimentalName: ""
+          experimentalName: "",
+          lessonType: "individual"
         });
       }
       setConflictError(null);
@@ -128,7 +132,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       weeksCount: 1,
       updateSeries: false,
       isExperimental: false,
-      experimentalName: ""
+      experimentalName: "",
+      lessonType: "individual"
     });
     setStep("form");
     setBatchItems([]);
@@ -205,6 +210,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         notes: formData.notes,
         instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
         scheduledAt: scheduledDate.toISOString(),
+        lessonType: formData.lessonType,
         updateSeries: formData.updateSeries
       });
       return;
@@ -241,6 +247,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         scheduledAt: scheduledDate.toISOString(),
         duration: formData.duration,
         notes: formData.notes,
+        lessonType: formData.lessonType,
         instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null
       });
     }
@@ -318,7 +325,15 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                ) : (
                  <select
                    value={formData.studentId}
-                   onChange={(e) => setFormData({...formData, studentId: e.target.value})}
+                   onChange={(e) => {
+                     const sid = e.target.value;
+                     const s = students?.find((st: any) => st.id.toString() === sid);
+                     setFormData(prev => ({ 
+                       ...prev, 
+                       studentId: sid,
+                       lessonType: s?.lessonType || prev.lessonType
+                     }));
+                   }}
                    className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
                  >
                    <option value="">Selecione o aluno...</option>
@@ -345,6 +360,24 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                  ))}
                </select>
             </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Tipo de Aula */}
+            <div className="space-y-2">
+               <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
+                 <Users size={12} className="text-primary/40" /> Tipo de Aula
+               </label>
+               <select
+                 value={formData.lessonType}
+                 onChange={(e) => setFormData({...formData, lessonType: e.target.value as any})}
+                 className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
+               >
+                 <option value="individual">Individual</option>
+                 <option value="turma">Turma / Coletiva</option>
+               </select>
+            </div>
+            <div className="hidden md:block" />
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">

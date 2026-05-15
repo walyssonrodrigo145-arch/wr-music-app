@@ -29,6 +29,7 @@ type StudentRow = {
   instrumentColor?: string | null; instrumentIcon?: string | null;
   portalEnabled?: boolean;
   professorId: number;
+  lessonType: string;
 };
 
 interface FormData {
@@ -41,6 +42,7 @@ interface FormData {
   dueDay: string;
   notes: string;
   status: "ativo" | "inativo" | "pausado";
+  lessonType: "individual" | "turma";
 }
 
 const EMPTY_FORM: FormData = {
@@ -53,6 +55,7 @@ const EMPTY_FORM: FormData = {
   dueDay: "10",
   notes: "",
   status: "ativo",
+  lessonType: "individual",
 };
 
 // ─── Badges ───────────────────────────────────────────────────────────────────
@@ -128,6 +131,7 @@ function StudentModal({
           dueDay: String(editData.dueDay || 10),
           notes: "",
           status: editData.status as FormData["status"],
+          lessonType: (editData as any).lessonType as FormData["lessonType"] || "individual",
         }
       : EMPTY_FORM
   );
@@ -183,6 +187,7 @@ function StudentModal({
       dueDay: Number(form.dueDay),
       notes: form.notes.trim() || undefined,
       status: form.status,
+      lessonType: form.lessonType,
     };
     if (editData) {
       updateMutation.mutate({ 
@@ -272,9 +277,21 @@ function StudentModal({
                 onChange={e => set("dueDay", e.target.value)}
                 className="w-full h-9 text-xs rounded-lg border border-border/40 bg-muted/10 px-3 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground"
               >
-                {[5, 10, 15, 20, 25].map(d => <option key={d} value={d}>Dia {d}</option>)}
+                {[5, 10, 15, 20].map(d => <option key={d} value={d}>Dia {d}</option>)}
               </select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Tipo de Aula</label>
+            <select
+              value={form.lessonType}
+              onChange={e => set("lessonType", e.target.value as FormData["lessonType"])}
+              className="w-full h-9 text-xs rounded-lg border border-border/40 bg-muted/10 px-3 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground"
+            >
+              <option value="individual">Individual</option>
+              <option value="turma">Turma / Coletiva</option>
+            </select>
           </div>
 
           <div className="p-4 rounded-2xl bg-indigo-500/10/50 border border-indigo-500/20 flex items-center justify-between group cursor-pointer" onClick={() => setGeneratePortalAccess(!generatePortalAccess)}>
@@ -520,7 +537,12 @@ export default function Alunos() {
                             </Avatar>
                             <div className="min-w-0">
                               <p className="text-sm font-bold text-foreground truncate">{student.name}</p>
-                              <p className="text-[11px] text-muted-foreground font-medium truncate mt-0.5">{student.email}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-[11px] text-muted-foreground font-medium truncate">{student.email}</p>
+                                {student.lessonType === 'turma' && (
+                                  <Badge className="h-4 px-1 text-[8px] bg-purple-500/10 text-purple-600 border-none uppercase font-black">Turma</Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -601,6 +623,9 @@ export default function Alunos() {
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <div className="w-2 h-2 rounded-full" style={{ background: student.instrumentColor || "#6366f1" }} />
                             <span className="text-[10px] font-bold text-muted-foreground uppercase">{student.instrumentName}</span>
+                            {student.lessonType === 'turma' && (
+                              <Badge className="h-4 px-1 text-[8px] bg-purple-500/10 text-purple-600 border-none uppercase font-black">Turma</Badge>
+                            )}
                           </div>
                         </div>
                       </div>
