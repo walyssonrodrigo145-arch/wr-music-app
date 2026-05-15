@@ -179,7 +179,7 @@ export default function Comunicados() {
                               </div>
                               <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
                                 <span className="flex items-center gap-1.5"><Calendar size={12} className="text-primary/40" /> {format(new Date(ann.createdAt), "dd 'de' MMM, yyyy", { locale: ptBR })}</span>
-                                <span className="flex items-center gap-1.5"><User size={12} className="text-primary/40" /> {ann.targetStudentId ? `Enviado para ${students?.find(s => s.id === ann.targetStudentId)?.name}` : "Todos os alunos"}</span>
+                                <span className="flex items-center gap-1.5"><User size={12} className="text-primary/40" /> {ann.targetStudentId ? `Enviado para ${students?.find((s: any) => s.id === ann.targetStudentId)?.name}` : "Todos os alunos"}</span>
                               </div>
                             </div>
                             
@@ -243,7 +243,7 @@ export default function Comunicados() {
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-border/40 shadow-xl">
                   <SelectItem value="all" className="font-bold py-3">Todos os meus alunos</SelectItem>
-                  {students?.map(s => (
+                  {students?.map((s: any) => (
                     <SelectItem key={s.id} value={s.id.toString()} className="font-bold py-3">{s.name}</SelectItem>
                   ))}
                 </SelectContent>

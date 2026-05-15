@@ -600,22 +600,31 @@ export default function NovoAluno() {
                     </Select>
                   </div>
                 </div>
-
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 font-bold text-sm group-focus-within/input:text-violet-500 transition-colors">R$</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Mensalidade (R$)</label>
+                    <div className="relative group/input">
+                      <Input 
+                        placeholder="0,00" 
+                        value={form.monthlyFee}
+                        onChange={(e) => handleInputChange('monthlyFee', e.target.value)}
+                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold pl-11"
+                      />
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 font-bold text-sm group-focus-within/input:text-violet-500 transition-colors">R$</span>
+                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Tipo de Aula</label>
-                  <Select value={form.lessonType} onValueChange={(v) => handleInputChange('lessonType', v)}>
-                    <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                      <SelectItem value="individual" className="rounded-lg font-medium">Individual</SelectItem>
-                      <SelectItem value="turma" className="rounded-lg font-medium">Turma / Coletiva</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Tipo de Aula</label>
+                    <Select value={form.lessonType} onValueChange={(v) => handleInputChange('lessonType', v)}>
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                        <SelectItem value="individual" className="rounded-lg font-medium">Individual</SelectItem>
+                        <SelectItem value="turma" className="rounded-lg font-medium">Turma / Coletiva</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </motion.div>

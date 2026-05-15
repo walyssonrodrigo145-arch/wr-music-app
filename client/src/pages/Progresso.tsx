@@ -167,7 +167,7 @@ export default function Progresso() {
     onError: (e) => toast.error("Erro ao remover meta: " + e.message)
   });
   
-  const uploadAvatarMutation = trpc.studentFiles.upload.useMutation();
+  const uploadAvatarMutation = trpc.musicLibrary.upload.useMutation();
   const updateAvatarMutation = trpc.students.updateAvatar.useMutation({
     onSuccess: () => {
       utils.students.list.invalidate();

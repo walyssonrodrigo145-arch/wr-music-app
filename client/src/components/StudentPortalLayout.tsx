@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { StudentSidebar } from "./StudentSidebar";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "@/_core/hooks/useAuth";

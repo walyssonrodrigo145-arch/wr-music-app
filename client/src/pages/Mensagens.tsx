@@ -75,7 +75,7 @@ export default function Mensagens() {
     sendMutation.mutate({ receiverId: selectedStudent.studentUserId, content: message });
   };
 
-  const filteredStudents = students?.filter(s => 
+  const filteredStudents = students?.filter((s: any) => 
     s.name.toLowerCase().includes(search.toLowerCase()) && s.studentUserId
   ) || [];
 
@@ -119,7 +119,7 @@ export default function Mensagens() {
                        Apenas alunos com **Acesso ao Portal** liberado aparecem aqui para troca de mensagens.
                      </p>
                    </div>
-                 ) : filteredStudents.map(student => (
+                 ) : filteredStudents.map((student: any) => (
                    <div 
                      key={student.id}
                      onClick={() => setSelectedStudent(student)}
