@@ -246,9 +246,6 @@ importers:
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
-      pnpm:
-        specifier: '>=10'
-        version: 11.1.1
       postcss:
         specifier: ^8.4.47
         version: 8.5.14
@@ -3933,11 +3930,6 @@ packages:
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
     engines: {node: '>=12'}
-
-  pnpm@11.1.1:
-    resolution: {integrity: sha512-0f319zxhe2T6GlaoHDyN/g6WbjOmAQqiVrUXrne+Idk+Ba/8DeGoOw5PKdVp9otEaujwaM1yR8C7PfD7TXvfmg==}
-    engines: {node: '>=22.13'}
-    hasBin: true
 
   points-on-curve@0.2.0:
     resolution: {integrity: sha512-0mYKnYYe9ZcqMCWhUjItv/oHjvgEsfKvnUTg8sAtnHr3GVy7rGkXCb6d5cSyqrWqL4k81b9CPg3urd+T7aop3A==}
@@ -8634,8 +8626,6 @@ snapshots:
   picomatch@2.3.2: {}
 
   picomatch@4.0.4: {}
-
-  pnpm@11.1.1: {}
 
   points-on-curve@0.2.0: {}
 
