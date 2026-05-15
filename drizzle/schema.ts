@@ -80,6 +80,7 @@ export const instruments = pgTable("instruments", {
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
   organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(),
   professorId: integer("professorId").notNull(), // Owner of the student record
   studentUserId: integer("studentUserId"), // Student's own user account
   name: varchar("name", { length: 255 }).notNull(),
