@@ -16,7 +16,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -24,6 +24,9 @@ import { TRPCError } from "@trpc/server";
 
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
+import { buildUserContext } from "./utils/aiContext";
+import { getSystemPrompt } from "./utils/aiPrompts";
+import { callGemini } from "./utils/gemini";
 import { nanoid } from "nanoid";
 import { sdk } from "./_core/sdk";
 import { sendVerificationEmail } from "./_core/email";
@@ -3564,7 +3567,152 @@ export const appRouter = router({
           preferredDates: input.preferredDates,
         });
 
-        return { success: true, message: "Solicitação enviada ao professor." };
+      return { success: true, message: "Solicitação enviada ao professor." };
+      }),
+  }),
+
+  // ─── AI ASSISTANT (Gemini) ──────────────────────────────────────────────────────────
+  ai: router({
+    newConversation: protectedProcedure
+      .input(z.object({ title: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        const [conversation] = await db.insert(aiConversations).values({
+          organizationId: orgId,
+          userId: ctx.user.id,
+          title: input.title || "Nova Conversa",
+          createdAt: new Date(),
+        }).returning();
+
+        return conversation;
+      }),
+
+    listConversations: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const orgId = ctx.user.organizationId!;
+
+      return db.select()
+        .from(aiConversations)
+        .where(and(eq(aiConversations.userId, ctx.user.id), eq(aiConversations.organizationId, orgId)))
+        .orderBy(desc(aiConversations.updatedAt));
+    }),
+
+    getMessages: protectedProcedure
+      .input(z.object({ conversationId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const orgId = ctx.user.organizationId!;
+
+        // Verificar se a conversa pertence ao usuário
+        const [conv] = await db.select({ id: aiConversations.id }).from(aiConversations)
+          .where(and(
+            eq(aiConversations.id, input.conversationId),
+            eq(aiConversations.userId, ctx.user.id),
+            eq(aiConversations.organizationId, orgId)
+          )).limit(1);
+
+        if (!conv) throw new Error("Conversa não encontrada ou acesso negado");
+
+        return db.select()
+          .from(aiMessages)
+          .where(eq(aiMessages.conversationId, input.conversationId))
+          .orderBy(asc(aiMessages.createdAt));
+      }),
+
+    chat: protectedProcedure
+      .input(z.object({
+        conversationId: z.number(),
+        message: z.string().min(1).max(4000),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        // Verificar acesso
+        const [conv] = await db.select({ id: aiConversations.id, title: aiConversations.title }).from(aiConversations)
+          .where(and(
+            eq(aiConversations.id, input.conversationId),
+            eq(aiConversations.userId, ctx.user.id),
+            eq(aiConversations.organizationId, orgId)
+          )).limit(1);
+
+        if (!conv) throw new Error("Conversa não encontrada ou acesso negado");
+
+        // 1. Salva a mensagem do usuário
+        await db.insert(aiMessages).values({
+          conversationId: input.conversationId,
+          role: "user",
+          content: input.message,
+          createdAt: new Date(),
+        });
+
+        // 2. Se for a primeira mensagem e o título for "Nova Conversa", atualiza o título baseado na mensagem
+        if (conv.title === "Nova Conversa") {
+          const newTitle = input.message.length > 30 ? input.message.substring(0, 30) + "..." : input.message;
+          await db.update(aiConversations)
+            .set({ title: newTitle, updatedAt: new Date() })
+            .where(eq(aiConversations.id, input.conversationId));
+        } else {
+           await db.update(aiConversations)
+            .set({ updatedAt: new Date() })
+            .where(eq(aiConversations.id, input.conversationId));
+        }
+
+        // 3. Busca histórico (últimas 20 mensagens)
+        const history = await db.select({ role: aiMessages.role, content: aiMessages.content })
+          .from(aiMessages)
+          .where(eq(aiMessages.conversationId, input.conversationId))
+          .orderBy(desc(aiMessages.createdAt))
+          .limit(20);
+        
+        // Inverte para ficar cronológico
+        const formattedHistory = history.reverse();
+
+        // 4. Constrói o contexto em tempo real do banco de dados
+        const userDataContext = await buildUserContext(db, ctx.user.id, orgId);
+        const systemPrompt = getSystemPrompt(userDataContext);
+
+        // 5. Chama a IA
+        const aiResponseContent = await callGemini(formattedHistory, systemPrompt);
+
+        // 6. Salva a resposta da IA
+        const [aiMsg] = await db.insert(aiMessages).values({
+          conversationId: input.conversationId,
+          role: "assistant",
+          content: aiResponseContent,
+          createdAt: new Date(),
+        }).returning();
+
+        return { reply: aiMsg.content };
+      }),
+
+    deleteConversation: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        // Verifica e deleta (em cascata no postgres se configurado, mas faremos manual para garantir)
+        const [conv] = await db.select({ id: aiConversations.id }).from(aiConversations)
+          .where(and(
+            eq(aiConversations.id, input.id),
+            eq(aiConversations.userId, ctx.user.id),
+            eq(aiConversations.organizationId, orgId)
+          )).limit(1);
+
+        if (!conv) throw new Error("Conversa não encontrada");
+
+        await db.delete(aiMessages).where(eq(aiMessages.conversationId, input.id));
+        await db.delete(aiConversations).where(eq(aiConversations.id, input.id));
+
+        return { success: true };
       }),
   }),
 });

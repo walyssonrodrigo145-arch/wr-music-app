@@ -16,7 +16,8 @@ import {
   X,
   Megaphone,
   Inbox,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -45,6 +46,7 @@ const staticNavItems = [
   { label: "Comunicados", href: "/comunicados", icon: Megaphone },
   { label: "Mensagens", href: "/mensagens", icon: MessageSquare },
   { label: "Solicitações", href: "/solicitacoes", icon: Inbox },
+  { label: "IA Assistente", href: "/ia", icon: Sparkles },
   { label: "Progresso", href: "/progresso", icon: Activity },
   { label: "Mensalidades", href: "/mensalidades", icon: DollarSign },
 ];

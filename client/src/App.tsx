@@ -26,6 +26,7 @@ const NovoAluno = lazy(() => import("./pages/NovoAluno"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
 const Mensagens = lazy(() => import("./pages/Mensagens"));
 const Solicitacoes = lazy(() => import("./pages/Solicitacoes"));
+const IAAssistente = lazy(() => import("./pages/IAAssistente"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -114,6 +115,7 @@ function Router() {
           <Route path="/comunicados" component={Comunicados} />
           <Route path="/mensagens" component={Mensagens} />
           <Route path="/solicitacoes" component={Solicitacoes} />
+          <Route path="/ia" component={IAAssistente} />
           <Route>
             <Redirect to="/dashboard" />
           </Route>
