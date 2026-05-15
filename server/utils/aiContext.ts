@@ -47,7 +47,8 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
           eq(paymentDues.userId, userId),
           eq(paymentDues.organizationId, orgId),
           eq(paymentDues.status, "pendente"),
-          sql`${paymentDues.dueDate} < ${todayStr}::date`
+          sql`${paymentDues.dueDate} < ${todayStr}::date`,
+          eq(students.status, "ativo")
         )
       )
       .orderBy(asc(paymentDues.dueDate))
@@ -59,7 +60,10 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
     const paymentsThisMonth = await db.select({
       amount: paymentDues.amount,
       status: paymentDues.status,
-    }).from(paymentDues).where(
+      studentStatus: students.status,
+    }).from(paymentDues)
+      .leftJoin(students, eq(paymentDues.studentId, students.id))
+      .where(
       and(
         eq(paymentDues.userId, userId),
         eq(paymentDues.organizationId, orgId),
@@ -72,7 +76,9 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
     let totalPago = 0;
     paymentsThisMonth.forEach((p: any) => {
       const amt = Number(p.amount);
-      totalPrevisto += amt;
+      if (p.status === "pago" || p.studentStatus === "ativo") {
+        totalPrevisto += amt;
+      }
       if (p.status === "pago") totalPago += amt;
     });
 
