@@ -3209,25 +3209,6 @@ export const appRouter = router({
         date: a.date instanceof Date ? a.date.toLocaleDateString('pt-BR') : a.date 
       }));
     }),
-    getSchedule: studentProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
-      if (!studentId) throw new Error("Acesso não autorizado");
-
-      const orgId = ctx.user.organizationId!;
-      return db.select({
-        id: lessons.id,
-        title: lessons.title,
-        scheduledAt: lessons.scheduledAt,
-        status: lessons.status,
-        instrumentId: lessons.instrumentId,
-      }).from(lessons)
-        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
-        .orderBy(desc(lessons.scheduledAt))
-        .limit(100);
-    }),
     getLessons: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");

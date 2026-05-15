@@ -105,13 +105,13 @@ const Relatorios: React.FC = () => {
           const presence = f.status === 'concluida' ? 'Presente' : f.status === 'cancelada' ? 'Falta' : 'Reposição';
           csvContent += `${format(new Date(f.date), 'dd/MM/yyyy')},${f.studentName},${f.professorName},${presence},${f.observation || ''}\n`;
         });
-      } else if (activeTab === 'financeiro') {
-          // Relatório Geral
-          csvContent += "Indicador,Valor\n";
-          csvContent += `Total de alunos,${statsQuery.data?.totalStudents || 0}\n`;
-          csvContent += `Aulas realizadas,${statsQuery.data?.weekLessons || 0}\n`;
-          csvContent += `Receita mensal,${statsQuery.data?.monthlyRevenue || 0}\n`;
-          csvContent += `Faltas,14\n`; // Mock based on image
+      } else {
+        // Relatório Geral
+        csvContent += "Indicador,Valor\n";
+        csvContent += `Total de alunos,${statsQuery.data?.totalStudents || 0}\n`;
+        csvContent += `Aulas realizadas,${statsQuery.data?.weekLessons || 0}\n`;
+        csvContent += `Receita mensal,${statsQuery.data?.monthlyRevenue || 0}\n`;
+        csvContent += `Faltas,14\n`; // Mock based on image
       }
 
       const encodedUri = encodeURI(csvContent);
@@ -234,7 +234,7 @@ const Relatorios: React.FC = () => {
           <h3 className="text-lg font-black mb-6 dark:text-white">Status dos Alunos</h3>
           <div className="space-y-4">
             {['Ativo', 'Inativo', 'Pausado'].map((status) => {
-              const count = studentsQuery.data?.filter(s => s.status === status.toLowerCase()).length || 0;
+              const count = studentsQuery.data?.filter((s: any) => s.status === status.toLowerCase()).length || 0;
               const total = studentsQuery.data?.length || 1;
               const percent = (count / total) * 100;
               return (
@@ -273,8 +273,8 @@ const Relatorios: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {instrumentStatsQuery.data?.map((instr) => (
           <div key={instr.id} className="bg-white dark:bg-slate-800 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center gap-4 hover:shadow-md transition-shadow">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${instr.color}15` }}>
-              <Music className="w-7 h-7" style={{ color: instr.color }} />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${instr.color || '#6366f1'}15` }}>
+              <Music className="w-7 h-7" style={{ color: instr.color || '#6366f1' }} />
             </div>
             <div>
               <h4 className="font-black text-slate-900 dark:text-white">{instr.name}</h4>
