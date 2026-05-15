@@ -11,7 +11,8 @@ import {
   Search,
   Check,
   X,
-  Circle
+  Circle,
+  Trash2
 } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -34,8 +35,18 @@ export default function Solicitacoes() {
     onSuccess: () => {
       toast.success("Solicitação processada.");
       utils.reschedule.list.invalidate();
+      utils.reschedule.pendingCount.invalidate();
     },
     onError: (e) => toast.error("Erro ao processar: " + e.message)
+  });
+
+  const deleteMutation = trpc.reschedule.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Solicitação excluída.");
+      utils.reschedule.list.invalidate();
+      utils.reschedule.pendingCount.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao excluir: " + e.message)
   });
 
   const filteredRequests = requests?.filter(r => 
@@ -165,6 +176,19 @@ export default function Solicitacoes() {
                                     {req.status === 'aprovada' ? "Aprovada" : "Recusada"}
                                   </div>
                                 )}
+                                
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => {
+                                    if(confirm("Tem certeza que deseja excluir esta solicitação?")) {
+                                      deleteMutation.mutate({ id: req.id });
+                                    }
+                                  }}
+                                  className="h-10 w-10 rounded-xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10"
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
                               </div>
                               
                               <Link href="/aulas">

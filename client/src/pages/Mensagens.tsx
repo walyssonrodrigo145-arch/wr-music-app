@@ -43,6 +43,19 @@ export default function Mensagens() {
     }
   });
 
+  const utils = trpc.useUtils();
+  const markAsReadMutation = trpc.chat.markAsRead.useMutation({
+    onSuccess: () => {
+      utils.chat.unreadCount.invalidate();
+    }
+  });
+
+  useEffect(() => {
+    if (selectedStudent?.studentUserId && messages && messages.some((m: any) => !m.isMe && !m.isRead)) {
+      markAsReadMutation.mutate({ fromUserId: selectedStudent.studentUserId });
+    }
+  }, [selectedStudent, messages, markAsReadMutation]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {

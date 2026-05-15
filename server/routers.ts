@@ -1384,7 +1384,7 @@ export const appRouter = router({
         instrumentIcon: instruments.icon,
       }).from(lessons)
         .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
-        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(students.organizationId, orgId)))
         .where(and(
           eq(lessons.organizationId, orgId),
           eq(lessons.userId, ctx.user.id),
@@ -1422,7 +1422,7 @@ export const appRouter = router({
         instrumentIcon: instruments.icon,
       }).from(lessons)
         .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
-        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(students.organizationId, orgId)))
         .where(and(
           eq(lessons.organizationId, orgId),
           eq(lessons.userId, ctx.user.id),
@@ -1455,7 +1455,7 @@ export const appRouter = router({
           studentName: students.name 
         })
           .from(lessons)
-          .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
+          .leftJoin(students, and(eq(lessons.studentId, students.id), eq(lessons.organizationId, orgId)))
           .where(and(
             eq(lessons.organizationId, orgId),
             eq(lessons.userId, ctx.user.id),
@@ -1844,8 +1844,8 @@ export const appRouter = router({
         instrumentName: instruments.name,
       })
         .from(lessons)
-        .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
-        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+        .leftJoin(students, and(eq(lessons.studentId, students.id), eq(lessons.organizationId, orgId)))
+        .leftJoin(instruments, and(eq(lessons.instrumentId, instruments.id), eq(lessons.organizationId, orgId)))
         .where(
           and(
             eq(lessons.organizationId, orgId),
@@ -1948,7 +1948,7 @@ export const appRouter = router({
       })
         .from(paymentDues)
         .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
-        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(students.organizationId, orgId)))
         .where(and(eq(paymentDues.organizationId, orgId), eq(paymentDues.status, "pendente"), eq(paymentDues.userId, ctx.user.id)));
 
       let created = 0;
@@ -2603,7 +2603,7 @@ export const appRouter = router({
         studentPhone: students.phone,
       })
         .from(paymentDues)
-        .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
+        .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(paymentDues.organizationId, orgId)))
         .where(and(
           eq(paymentDues.organizationId, orgId),
           eq(paymentDues.userId, ctx.user.id),
@@ -2928,6 +2928,7 @@ export const appRouter = router({
          senderId: chatMessages.senderId,
          content: chatMessages.content,
          createdAt: chatMessages.createdAt,
+         isRead: chatMessages.isRead,
          isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
        }).from(chatMessages)
          .where(and(
@@ -2959,6 +2960,20 @@ export const appRouter = router({
         .from(chatMessages)
         .where(and(eq(chatMessages.organizationId, orgId), eq(chatMessages.receiverId, ctx.user.id), eq(chatMessages.isRead, false)));
       return result?.count || 0;
+    }),
+    markAsRead: protectedProcedure.input(z.object({ fromUserId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      await db.update(chatMessages)
+        .set({ isRead: true })
+        .where(and(
+          eq(chatMessages.organizationId, orgId),
+          eq(chatMessages.senderId, input.fromUserId),
+          eq(chatMessages.receiverId, ctx.user.id),
+          eq(chatMessages.isRead, false)
+        ));
+      return { success: true };
     }),
   }),
 
@@ -2997,6 +3012,13 @@ export const appRouter = router({
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
       await db.update(rescheduleRequests).set({ status: input.status }).where(and(eq(rescheduleRequests.id, input.id), eq(rescheduleRequests.organizationId, orgId)));
+      return { success: true };
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      await db.delete(rescheduleRequests).where(and(eq(rescheduleRequests.id, input.id), eq(rescheduleRequests.organizationId, orgId)));
       return { success: true };
     }),
   }),
