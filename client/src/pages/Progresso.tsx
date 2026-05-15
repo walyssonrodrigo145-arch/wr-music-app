@@ -63,6 +63,7 @@ export default function Progresso() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"jornada" | "biblioteca" | "observacoes" | "metas" | "desempenho">("jornada");
+  const [isListCollapsed, setIsListCollapsed] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -216,34 +217,54 @@ export default function Progresso() {
     <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
       <div className="flex flex-1 overflow-hidden">
         
-        {/* COLUNA 1: TIMELINE ALUNOS (22%) */}
+        {/* COLUNA 1: TIMELINE ALUNOS */}
         <div className={cn(
-          "w-full lg:w-[22%] flex flex-col bg-card border-r border-border z-20 transition-all",
+          "flex flex-col bg-card border-r border-border z-20 transition-all duration-500 ease-in-out relative group/sidebar",
+          isListCollapsed ? "w-[84px]" : "w-full lg:w-[22%]",
           selectedStudentId && "hidden lg:flex"
         )}>
-          <div className="p-6 pb-4">
-             <div className="flex items-center justify-between mb-6">
-                <div>
-                   <h2 className="text-xl font-black text-foreground tracking-tight">Progresso</h2>
-                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">Timeline dos Alunos</p>
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/100/10 text-indigo-600 flex items-center justify-center shadow-inner">
+          {/* Toggle Button for Column */}
+          <button 
+            onClick={() => setIsListCollapsed(!isListCollapsed)}
+            className="absolute -right-3 top-24 z-30 w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg opacity-0 group-hover/sidebar:opacity-100 transition-all hover:scale-110"
+          >
+            {isListCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+
+          <div className={cn("p-6 pb-4", isListCollapsed && "px-3")}>
+             <div className={cn("flex items-center justify-between mb-6", isListCollapsed && "flex-col gap-4")}>
+                {!isListCollapsed && (
+                   <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                      <h2 className="text-xl font-black text-foreground tracking-tight">Progresso</h2>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">Timeline</p>
+                   </div>
+                )}
+                <div className={cn("w-10 h-10 rounded-2xl bg-indigo-500/100/10 text-indigo-600 flex items-center justify-center shadow-inner shrink-0", isListCollapsed && "w-12 h-12")}>
                    <Activity size={20} />
                 </div>
              </div>
              
-             <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" size={14} />
-                <Input
-                  placeholder="Buscar aluno..."
-                  className="pl-10 h-11 text-xs rounded-xl border-border bg-muted/50 focus:bg-card transition-all shadow-sm focus:ring-2 focus:ring-indigo-500/10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-             </div>
+             {!isListCollapsed ? (
+                <div className="relative group animate-in fade-in duration-300">
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" size={14} />
+                   <Input
+                     placeholder="Buscar..."
+                     className="pl-10 h-11 text-xs rounded-xl border-border bg-muted/50 focus:bg-card transition-all shadow-sm focus:ring-2 focus:ring-indigo-500/10"
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                   />
+                </div>
+             ) : (
+                <button 
+                  onClick={() => setIsListCollapsed(false)}
+                  className="w-full h-10 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors"
+                >
+                  <Search size={16} />
+                </button>
+             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-none">
+          <div className={cn("flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-none", isListCollapsed && "px-2")}>
             {studentsLoading ? (
               <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-200" /></div>
             ) : filteredStudents.map((student: any) => (
@@ -256,8 +277,10 @@ export default function Progresso() {
                   "w-full flex items-center gap-3 p-4 rounded-2xl transition-all duration-300 relative group overflow-hidden",
                   selectedStudentId === student.id
                     ? "bg-indigo-600 text-white shadow-xl shadow-indigo-500/10"
-                    : "hover:bg-muted/80 text-slate-600"
+                    : "hover:bg-muted/80 text-slate-600",
+                  isListCollapsed && "p-2 justify-center"
                 )}
+                title={isListCollapsed ? student.name : undefined}
               >
                 {selectedStudentId === student.id && (
                   <motion.div 
@@ -267,10 +290,11 @@ export default function Progresso() {
                 )}
                 
                 <div className="relative z-10 shrink-0">
-                  <Avatar className="w-10 h-10 border-2 border-white/20">
+                  <Avatar className={cn("w-10 h-10 border-2 border-white/20", isListCollapsed && "w-12 h-12")}>
                     <AvatarFallback className={cn(
                       "text-[10px] font-black uppercase",
-                      selectedStudentId === student.id ? "bg-card/20 text-white" : "bg-indigo-500/20 text-indigo-600"
+                      selectedStudentId === student.id ? "bg-card/20 text-white" : "bg-indigo-500/20 text-indigo-600",
+                      isListCollapsed && "text-xs"
                     )}>
                       {student.name.substring(0, 2)}
                     </AvatarFallback>
@@ -281,28 +305,32 @@ export default function Progresso() {
                   )} />
                 </div>
                 
-                <div className="flex-1 text-left min-w-0 relative z-10">
-                  <p className="text-xs font-black truncate mb-1 tracking-tight">{student.name}</p>
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md",
-                      selectedStudentId === student.id ? "bg-card/10 text-white/80" : "bg-slate-200/50 text-muted-foreground"
-                    )}>
-                      {student.level || "Iniciante"}
-                    </span>
-                    <span className={cn(
-                      "text-[8px] font-bold",
-                      selectedStudentId === student.id ? "text-white/40" : "text-muted-foreground/40"
-                    )}>
-                      • {student.instrumentName || "Voz"}
-                    </span>
-                  </div>
-                </div>
-                
-                <ChevronRight size={14} className={cn(
-                  "relative z-10 transition-all shrink-0",
-                  selectedStudentId === student.id ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0"
-                )} />
+                {!isListCollapsed && (
+                  <>
+                    <div className="flex-1 text-left min-w-0 relative z-10 animate-in fade-in slide-in-from-left-2 duration-300">
+                      <p className="text-xs font-black truncate mb-1 tracking-tight">{student.name}</p>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md",
+                          selectedStudentId === student.id ? "bg-card/10 text-white/80" : "bg-slate-200/50 text-muted-foreground"
+                        )}>
+                          {student.level || "Iniciante"}
+                        </span>
+                        <span className={cn(
+                          "text-[8px] font-bold",
+                          selectedStudentId === student.id ? "text-white/40" : "text-muted-foreground/40"
+                        )}>
+                          • {student.instrumentName || "Voz"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <ChevronRight size={14} className={cn(
+                      "relative z-10 transition-all shrink-0",
+                      selectedStudentId === student.id ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0"
+                    )} />
+                  </>
+                )}
               </motion.button>
             ))}
           </div>

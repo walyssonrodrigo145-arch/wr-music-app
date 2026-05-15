@@ -101,10 +101,19 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       {/* Toggle button - desktop only */}
       <button
         onClick={onToggle}
-        className="hidden lg:flex absolute -right-3.5 top-10 z-30 w-7 h-7 rounded-full bg-sidebar text-sidebar-foreground items-center justify-center shadow-xl hover:text-white hover:scale-110 transition-all border border-sidebar-border"
-        aria-label="Recolher menu"
+        className={cn(
+          "hidden lg:flex absolute -right-4 top-10 z-[60] w-9 h-9 rounded-xl items-center justify-center shadow-[0_8px_20px_-4px_rgba(37,99,235,0.4)] transition-all duration-300 border border-white/10 group/toggle",
+          collapsed 
+            ? "bg-gradient-to-br from-[#2563EB] to-[#7C3AED] text-white rotate-0" 
+            : "bg-sidebar text-sidebar-foreground rotate-0 hover:bg-sidebar-accent"
+        )}
+        aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
       >
-        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        {collapsed ? (
+          <ChevronRight size={20} className="group-hover/toggle:scale-110 transition-transform" />
+        ) : (
+          <ChevronLeft size={20} className="group-hover/toggle:scale-110 transition-transform" />
+        )}
       </button>
 
       {/* Logo */}
