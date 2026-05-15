@@ -136,15 +136,30 @@ export default function StudentPayments() {
                       <div className="flex items-center gap-2">
                         {payment.status === 'pago' ? (
                           <button 
-                            onClick={() => payment.receiptUrl && window.open(payment.receiptUrl, "_blank")}
-                            disabled={!payment.receiptUrl}
+                            onClick={async () => {
+                              if (!payment.receiptUrl) return;
+                              try {
+                                const response = await fetch(payment.receiptUrl);
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `comprovante-${format(new Date(payment.dueDate), "MM-yyyy")}`;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                              } catch (e) {
+                                window.open(payment.receiptUrl, "_blank");
+                              }
+                            }}
                             className={cn(
                               "w-12 h-12 rounded-2xl transition-all shadow-sm flex items-center justify-center",
                               payment.receiptUrl 
                                 ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-600 hover:text-white" 
                                 : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
                             )}
-                            title={payment.receiptUrl ? "Ver Comprovante" : "Comprovante não disponível"}
+                            title={payment.receiptUrl ? "Baixar Comprovante" : "Comprovante não disponível"}
                           >
                             <Download size={20} />
                           </button>
