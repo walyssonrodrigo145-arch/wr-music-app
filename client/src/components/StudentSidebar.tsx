@@ -55,6 +55,7 @@ interface StudentSidebarProps {
 export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSidebarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { data: messageCount = 0 } = trpc.chat.unreadCount.useQuery();
   
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
@@ -143,7 +144,14 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
                     )}
                   />
                   {!collapsed && (
-                    <span className="truncate tracking-tight animate-in fade-in duration-500">{item.label}</span>
+                    <div className="flex-1 flex items-center justify-between min-w-0">
+                      <span className="truncate tracking-tight animate-in fade-in duration-500">{item.label}</span>
+                      {item.href === "/aluno/mensagens" && messageCount > 0 && (
+                        <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg shadow-rose-500/20">
+                          {messageCount}
+                        </span>
+                      )}
+                    </div>
                   )}
                   
                   {isActive && !collapsed && (

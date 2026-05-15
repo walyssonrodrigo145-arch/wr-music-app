@@ -2871,6 +2871,15 @@ export const appRouter = router({
        });
        return { success: true };
     }),
+    unreadCount: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      const [result] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+        .from(chatMessages)
+        .where(and(eq(chatMessages.organizationId, orgId), eq(chatMessages.receiverId, ctx.user.id), eq(chatMessages.isRead, false)));
+      return result?.count || 0;
+    }),
   }),
 
   reschedule: router({
@@ -2892,6 +2901,16 @@ export const appRouter = router({
       .leftJoin(lessons, eq(rescheduleRequests.lessonId, lessons.id))
       .where(and(eq(rescheduleRequests.organizationId, orgId), eq(students.professorId, ctx.user.id)))
       .orderBy(desc(rescheduleRequests.createdAt));
+    }),
+    pendingCount: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      const [result] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+        .from(rescheduleRequests)
+        .leftJoin(students, eq(rescheduleRequests.studentId, students.id))
+        .where(and(eq(rescheduleRequests.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(rescheduleRequests.status, 'pendente')));
+      return result?.count || 0;
     }),
     respond: protectedProcedure.input(z.object({ id: z.number(), status: z.enum(['aprovada', 'recusada']) })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
