@@ -13,6 +13,7 @@ import {
   Edit2,
   Trash2,
   ChevronRight,
+  ChevronLeft,
   TrendingUp,
   Loader2,
   Image as ImageIcon,
