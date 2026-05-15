@@ -663,6 +663,7 @@ export const appRouter = router({
         dueDay: students.dueDay,
         notes: students.notes,
         startDate: students.startDate,
+        avatar: students.avatar,
         createdAt: students.createdAt,
         instrumentName: instruments.name,
         instrumentColor: instruments.color,
@@ -738,6 +739,21 @@ export const appRouter = router({
         hasPortalAccess: !!studentUser,
         portalEmail: studentUser?.email || null,
       };
+    }),
+
+    updateAvatar: professorProcedure.input(z.object({
+      id: z.number(),
+      avatar: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Banco de dados não disponível" });
+      const orgId = ctx.user.organizationId!;
+      
+      await db.update(students)
+        .set({ avatar: input.avatar })
+        .where(and(eq(students.id, input.id), eq(students.organizationId, orgId)));
+      
+      return { success: true };
     }),
 
     enablePortalAccess: professorProcedure.input(z.object({

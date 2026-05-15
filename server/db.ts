@@ -306,6 +306,7 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     status: students.status,
     monthlyFee: students.monthlyFee,
     startDate: students.startDate,
+    avatar: students.avatar,
     instrumentName: instruments.name,
     instrumentColor: instruments.color,
     instrumentIcon: instruments.icon,

@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -65,6 +65,7 @@ export default function Progresso() {
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"jornada" | "biblioteca" | "observacoes" | "metas" | "desempenho">("jornada");
   const [isListCollapsed, setIsListCollapsed] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
 
@@ -165,6 +166,44 @@ export default function Progresso() {
     },
     onError: (e) => toast.error("Erro ao remover meta: " + e.message)
   });
+  
+  const uploadAvatarMutation = trpc.studentFiles.upload.useMutation();
+  const updateAvatarMutation = trpc.students.updateAvatar.useMutation({
+    onSuccess: () => {
+      utils.students.list.invalidate();
+      utils.students.getDetails.invalidate({ id: selectedStudentId! });
+      toast.success("Foto de perfil atualizada!");
+    },
+    onError: (e) => toast.error("Erro ao atualizar foto: " + e.message)
+  });
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedStudentId) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("A foto deve ter no máximo 2MB");
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      try {
+        const { url } = await uploadAvatarMutation.mutateAsync({
+          fileName: file.name,
+          fileType: file.type,
+          base64Data: base64
+        });
+        await updateAvatarMutation.mutateAsync({
+          id: selectedStudentId,
+          avatar: url
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleEdit = (event: any) => {
     setEditingEvent(event);
@@ -292,6 +331,7 @@ export default function Progresso() {
                 
                 <div className="relative z-10 shrink-0">
                   <Avatar className={cn("w-10 h-10 border-2 border-white/20", isListCollapsed && "w-12 h-12")}>
+                    <AvatarImage src={student.avatar} className="object-cover" />
                     <AvatarFallback className={cn(
                       "text-[10px] font-black uppercase",
                       selectedStudentId === student.id ? "bg-card/20 text-white" : "bg-indigo-500/20 text-indigo-600",
@@ -368,16 +408,28 @@ export default function Progresso() {
                   <div className="flex items-center gap-6">
                     <div className="relative group">
                       <Avatar className="w-16 h-16 border-4 border-slate-50 shadow-xl shadow-indigo-500/10">
+                        <AvatarImage src={selectedStudent?.avatar} className="object-cover" />
                         <AvatarFallback className="bg-indigo-600 text-white text-xl font-black uppercase">
                           {selectedStudent?.name.substring(0, 2)}
                         </AvatarFallback>
                       </Avatar>
+                      <input 
+                        type="file" 
+                        ref={avatarInputRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleAvatarChange} 
+                      />
                       <motion.div 
                         whileHover={{ scale: 1.1 }}
-                        onClick={() => toast.info("Funcionalidade de troca de foto em breve!")}
-                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-card border border-slate-100 shadow-md flex items-center justify-center text-indigo-600 cursor-pointer z-10"
+                        onClick={() => avatarInputRef.current?.click()}
+                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-card border border-slate-100 shadow-md flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
                       >
-                        <Edit2 size={12} />
+                        {uploadAvatarMutation.isPending ? (
+                          <Loader2 size={10} className="animate-spin" />
+                        ) : (
+                          <Edit2 size={12} />
+                        )}
                       </motion.div>
                     </div>
                     
