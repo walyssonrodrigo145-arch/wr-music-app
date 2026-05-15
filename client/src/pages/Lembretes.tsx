@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   BellRing, Plus, Loader2,
@@ -125,7 +125,6 @@ export default function Lembretes() {
   }, [automationData]);
 
   const handleGenerateAll = () => {
-    if (!autoEnabled) { toast.error("Ative os lembretes automáticos primeiro"); return; }
     generateLessons.mutate();
     generatePayments.mutate();
   };
@@ -218,7 +217,7 @@ export default function Lembretes() {
             <Button variant="outline" className="h-11 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest gap-2 bg-card border-border shrink-0" onClick={() => setModalOpen(true)}>
               <Plus size={16} /> <span className="hidden xs:inline">Manual</span>
             </Button>
-            <Button className="h-11 rounded-xl px-5 text-[10px] font-black uppercase tracking-widest gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 shrink-0" onClick={handleGenerateAll} disabled={isGenerating || !autoEnabled}>
+            <Button className="h-11 rounded-xl px-5 text-[10px] font-black uppercase tracking-widest gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 shrink-0" onClick={handleGenerateAll} disabled={isGenerating}>
               {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
               Gerar
             </Button>

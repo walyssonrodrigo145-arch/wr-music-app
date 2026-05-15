@@ -4,25 +4,31 @@
  * que tenham automationEnabled = 1 nas configurações.
  *
  * Regras:
- * - Aulas: somente da semana atual, exatamente 24h antes
- * - Mensalidades FUTURAS: lembrete 1 dia antes do vencimento
+ * - Aulas: todas as aulas futuras da semana atual (lembrete agendado 24h antes)
+ * - Mensalidades FUTURAS: lembrete 3 dias antes do vencimento
  * - Mensalidades VENCIDAS e não pagas: gera lembrete de inadimplência imediatamente
  * - Nunca gera duplicados (usa refId único)
  * - Ignora aulas canceladas e mensalidades pagas
  */
 
-import { eq, and, gte, lte, lt, sql } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { getDb } from "./db";
-import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues } from "../drizzle/schema";
+import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
 
 async function runAutomation() {
   const db = await getDb();
   if (!db) return;
 
-  // Buscar todos os usuários com automação ativada
+  // Buscar todos os usuários com automação ativada, junto com o organizationId
   const activeSettings = await db
-    .select()
+    .select({
+      id: settings.id,
+      userId: settings.userId,
+      organizationId: settings.organizationId,
+      automationEnabled: settings.automationEnabled,
+      automationLastRun: settings.automationLastRun,
+    })
     .from(settings)
     .where(eq(settings.automationEnabled, 1));
 
@@ -32,20 +38,30 @@ async function runAutomation() {
 
   for (const userSettings of activeSettings) {
     const userId = userSettings.userId;
+    const orgId = userSettings.organizationId;
+
+    // Sem organizationId não conseguimos isolar os dados — pula
+    if (!orgId) {
+      console.warn(`[Automation] Skipping userId=${userId}: no organizationId found.`);
+      continue;
+    }
+
     let remindersCreated = 0;
 
     try {
       // ─── LIMPEZA SEMANAL (Domingo) ──────────────────────────────────────────
-      // Se for domingo e a última execução não foi hoje, limpamos os lembretes
       const lastRunDate = userSettings.automationLastRun ? new Date(userSettings.automationLastRun) : null;
       const isSunday = now.getDay() === 0;
       const isNewDay = !lastRunDate || lastRunDate.toDateString() !== now.toDateString();
 
       if (isSunday && isNewDay) {
-        console.log(`[Automation] Sunday cleanup for userId=${userId}: Clearing reminders for the new week.`);
-        await db.delete(reminders).where(eq(reminders.userId, userId));
+        console.log(`[Automation] Sunday cleanup for userId=${userId} orgId=${orgId}`);
+        await db.delete(reminders).where(
+          and(eq(reminders.userId, userId), eq(reminders.organizationId, orgId))
+        );
       }
-      // ─── LEMBRETES DE AULA (24h antes, semana atual) ───────────────────────
+
+      // ─── LEMBRETES DE AULA (todas as futuras da semana) ────────────────────
       const dayOfWeek = now.getDay();
       const monday = new Date(now);
       monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
@@ -67,10 +83,11 @@ async function runAutomation() {
           instrumentName: instruments.name,
         })
         .from(lessons)
-        .leftJoin(students, eq(lessons.studentId, students.id))
-        .leftJoin(instruments, eq(students.instrumentId, instruments.id))
+        .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
+        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
         .where(
           and(
+            eq(lessons.organizationId, orgId),
             eq(lessons.userId, userId),
             gte(lessons.scheduledAt, monday),
             lte(lessons.scheduledAt, sunday)
@@ -83,10 +100,8 @@ async function runAutomation() {
         const lessonDate = new Date(lesson.scheduledAt);
         if (lessonDate <= now) continue; // aula já passou
 
-        // Lembrete = exatamente 24h antes
+        // Lembrete agendado para 24h antes da aula
         const reminderTime = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
-        if (reminderTime > now) continue; // Ainda falta mais de 24h para a aula
-        if (reminderTime.getTime() < now.getTime() - 24 * 60 * 60 * 1000) continue; // Evitar retornar para janelas muito antigas
 
         const refId = `lesson-${lesson.id}-${lessonDate.toISOString().slice(0, 10)}`;
 
@@ -94,7 +109,7 @@ async function runAutomation() {
         const existing = await db
           .select({ id: reminders.id })
           .from(reminders)
-          .where(eq(reminders.refId, refId))
+          .where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId)))
           .limit(1);
         if (existing.length > 0) continue;
 
@@ -104,6 +119,7 @@ async function runAutomation() {
           .from(reminderTemplates)
           .where(
             and(
+              eq(reminderTemplates.organizationId, orgId),
               eq(reminderTemplates.userId, userId),
               eq(reminderTemplates.type, "aula"),
               eq(reminderTemplates.isDefault, 1)
@@ -122,6 +138,7 @@ async function runAutomation() {
           .replace(/\{titulo\}/g, lesson.title);
 
         await db.insert(reminders).values({
+          organizationId: orgId,
           userId,
           studentId: lesson.studentId,
           lessonId: lesson.id,
@@ -153,10 +170,11 @@ async function runAutomation() {
           instrumentName: instruments.name,
         })
         .from(paymentDues)
-        .leftJoin(students, eq(paymentDues.studentId, students.id))
-        .leftJoin(instruments, eq(students.instrumentId, instruments.id))
+        .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
+        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
         .where(
           and(
+            eq(paymentDues.organizationId, orgId),
             eq(paymentDues.userId, userId),
             eq(paymentDues.status, "pendente")
           )
@@ -182,7 +200,6 @@ async function runAutomation() {
           type = "cobranca";
           const reminderDate = new Date(dueDate);
           reminderDate.setDate(dueDate.getDate() - 3);
-          // Removida a restrição das 9h para permitir disparo em qualquer horário
 
           if (reminderDate > now) continue;
 
@@ -195,7 +212,7 @@ async function runAutomation() {
         const existing = await db
           .select({ id: reminders.id })
           .from(reminders)
-          .where(and(eq(reminders.userId, userId), eq(reminders.refId, refId)))
+          .where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId)))
           .limit(1);
         if (existing.length > 0) continue;
 
@@ -205,6 +222,7 @@ async function runAutomation() {
           .from(reminderTemplates)
           .where(
             and(
+              eq(reminderTemplates.organizationId, orgId),
               eq(reminderTemplates.userId, userId),
               eq(reminderTemplates.type, type),
               eq(reminderTemplates.isDefault, 1)
@@ -222,6 +240,7 @@ async function runAutomation() {
           .replace(/\{instrumento\}/g, due.instrumentName ?? "música");
 
         await db.insert(reminders).values({
+          organizationId: orgId,
           userId,
           studentId: due.studentId,
           paymentDueId: due.id,
@@ -251,7 +270,7 @@ async function runAutomation() {
       }
 
     } catch (err) {
-      console.error(`[Automation] Error processing userId=${userId}:`, err);
+      console.error(`[Automation] Error processing userId=${userId} orgId=${orgId}:`, err);
     }
   }
 
@@ -260,7 +279,7 @@ async function runAutomation() {
 
 /**
  * Inicia o job de automação.
- * Roda imediatamente e depois a cada 1 hora.
+ * Roda imediatamente e depois a cada 10 minutos.
  */
 export function startAutomationJob() {
   // Primeira execução após 1 minuto do boot (evitar conflito na inicialização)

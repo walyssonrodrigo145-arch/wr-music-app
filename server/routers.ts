@@ -1887,14 +1887,14 @@ export const appRouter = router({
         instrumentName: instruments.name,
       })
         .from(lessons)
-        .leftJoin(students, and(eq(lessons.studentId, students.id), eq(lessons.organizationId, orgId)))
-        .leftJoin(instruments, and(eq(lessons.instrumentId, instruments.id), eq(lessons.organizationId, orgId)))
+        .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
+        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
         .where(
           and(
             eq(lessons.organizationId, orgId),
             eq(lessons.userId, ctx.user.id),
             gte(lessons.scheduledAt, monday),
-            lt(lessons.scheduledAt, sunday)
+            lte(lessons.scheduledAt, sunday)
           )
         );
 
@@ -1909,16 +1909,8 @@ export const appRouter = router({
         // Não gerar se a aula já passou
         if (lessonDate <= now) { skipped++; continue; }
 
-        // Lembrete = exatamente 24h antes
+        // Lembrete programado para 24h antes da aula
         const reminderTime = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
-        
-        // Só gera se o momento do lembrete já chegou (ou está nos próximos 5 minutos)
-        // E se o lembrete ainda é relevante (aula não passou)
-        if (reminderTime > new Date(now.getTime() + 5 * 60 * 1000)) { skipped++; continue; }
-        if (lessonDate <= now) { skipped++; continue; }
-        
-        // Não gerar se o lembrete já "caducou" (ex: a aula é amanhã mas o lembrete deveria ter sido enviado há mais de 12h)
-        if (reminderTime.getTime() < now.getTime() - 12 * 60 * 60 * 1000) { skipped++; continue; }
 
         // Chave de deduplicação
         const refId = `lesson-${lesson.id}-${lessonDate.toISOString().slice(0, 10)}`;
