@@ -753,7 +753,7 @@ export const appRouter = router({
       
       await db.update(students)
         .set({ avatar: input.avatar })
-        .where(and(eq(students.id, input.id), eq(students.organizationId, orgId)));
+        .where(and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(students.userId, ctx.user.id)));
       
       return { success: true };
     }),
@@ -964,7 +964,7 @@ export const appRouter = router({
           updateData.monthlyFee = String(updateData.monthlyFee);
         }
         
-        await db.update(students).set(updateData).where(and(eq(students.id, id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)));
+        await db.update(students).set(updateData).where(and(eq(students.id, id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(students.userId, ctx.user.id)));
 
         // Sincronizar vencimentos futuros se solicitado
         if (updateFutureDues && data.dueDay) {
@@ -1009,7 +1009,7 @@ export const appRouter = router({
         await db.update(students).set({
           status: input.status,
           updatedAt: new Date(),
-        }).where(and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)));
+        }).where(and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(students.userId, ctx.user.id)));
         return { success: true };
       } catch (error) {
         return handleDbError(error, "atualizar o status do aluno");
@@ -1025,7 +1025,7 @@ export const appRouter = router({
         const orgId = ctx.user.organizationId!;
         // Deletar aulas relacionadas primeiro para evitar erro de FK (garantindo que sejam aulas do próprio professor)
         await db.delete(lessons).where(and(eq(lessons.organizationId, orgId), eq(lessons.studentId, input.id), eq(lessons.userId, ctx.user.id)));
-        await db.delete(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)));
+        await db.delete(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(students.userId, ctx.user.id)));
         
         return { success: true };
       } catch (error) {
