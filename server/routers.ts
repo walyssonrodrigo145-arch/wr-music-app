@@ -838,7 +838,7 @@ export const appRouter = router({
       instrumentId: z.number().optional(),
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
       monthlyFee: z.number().default(0),
-      dueDay: z.number().default(10),
+      dueDay: z.number().default(15),
       notes: z.string().optional(),
       status: z.enum(['ativo','inativo','pausado']).default('ativo'),
       temporaryPassword: z.string().min(6, "A senha temporária deve ter pelo menos 6 caracteres").optional(),
@@ -2382,6 +2382,8 @@ export const appRouter = router({
           if (data.dueDate) updateData.dueDate = data.dueDate.slice(0, 10);
           if (data.paidAt !== undefined) {
              updateData.paidAt = data.paidAt ? new Date(data.paidAt) : null;
+          } else if (data.status === 'pago' && !currentPayment.paidAt) {
+             updateData.paidAt = new Date();
           }
           if (data.amount !== undefined) updateData.amount = data.amount.toFixed(2);
 

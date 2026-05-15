@@ -25,7 +25,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -119,9 +119,9 @@ export default function StudentPayments() {
                       </div>
 
                       <div className="flex-1 text-center sm:text-left space-y-1 min-w-0">
-                        <p className="text-lg font-black text-foreground truncate">Mensalidade • {format(new Date(payment.dueDate), "MMMM yyyy", { locale: ptBR })}</p>
+                        <p className="text-lg font-black text-foreground truncate">Mensalidade • {format(parseISO(payment.dueDate as string), "MMMM yyyy", { locale: ptBR })}</p>
                         <div className="flex items-center justify-center sm:justify-start gap-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                          <span className="flex items-center gap-1.5"><Calendar size={12} className="text-primary" /> Vencimento: {format(new Date(payment.dueDate), "dd/MM/yyyy")}</span>
+                          <span className="flex items-center gap-1.5"><Calendar size={12} className="text-primary" /> Vencimento: {format(parseISO(payment.dueDate as string), "dd/MM/yyyy")}</span>
                           {payment.paidAt && (
                              <span className="flex items-center gap-1.5 text-green-500"><CheckCircle2 size={12} /> Pago em: {format(new Date(payment.paidAt), "dd/MM/yyyy")}</span>
                           )}
