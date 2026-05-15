@@ -77,8 +77,9 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
     });
 
     // Formatação do contexto
+    const tz = "America/Sao_Paulo";
     let context = `Escola: ${userSettings?.schoolName || "Minha Escola de Música"}\n`;
-    context += `Data Atual: ${now.toLocaleDateString("pt-BR")} - ${now.toLocaleTimeString("pt-BR")}\n`;
+    context += `Data Atual: ${now.toLocaleDateString("pt-BR", { timeZone: tz })} - ${now.toLocaleTimeString("pt-BR", { timeZone: tz, hour: '2-digit', minute: '2-digit' })}\n`;
     context += `Alunos ativos: ${activeStudents.length}\n\n`;
 
     context += `FINANCEIRO DESTE MÊS (${currentMonth}/${currentYear}):\n`;
@@ -99,7 +100,9 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
       context += `PRÓXIMAS AULAS (próximos 7 dias):\n`;
       upcomingLessons.forEach((l: any) => {
         const d = new Date(l.scheduledAt);
-        context += `- ${d.toLocaleDateString("pt-BR")} às ${d.toLocaleTimeString("pt-BR")} | Aluno: ${l.studentName || 'Sem nome'} | Aula: ${l.title}\n`;
+        const dateStr = d.toLocaleDateString("pt-BR", { timeZone: tz });
+        const timeStr = d.toLocaleTimeString("pt-BR", { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+        context += `- ${dateStr} às ${timeStr} | Aluno: ${l.studentName || 'Sem nome'} | Aula: ${l.title}\n`;
       });
       context += `\n`;
     }
