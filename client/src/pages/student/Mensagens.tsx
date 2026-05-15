@@ -9,7 +9,9 @@ import {
   Circle,
   Phone,
   Video,
-  Info
+  Info,
+  MessageSquare,
+  ShieldCheck
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
