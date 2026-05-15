@@ -2323,6 +2323,7 @@ export const appRouter = router({
           studentPhone: students.phone,
           email: students.email,
           lessonType: students.lessonType,
+          studentStatus: students.status,
         })
           .from(paymentDues)
           .leftJoin(students, eq(paymentDues.studentId, students.id))

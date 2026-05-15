@@ -37,6 +37,7 @@ type PaymentRow = {
   asaasPaymentLink?: string | null;
   asaasBillingType?: string | null;
   receiptUrl?: string | null;
+  studentStatus?: string | null;
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -460,11 +461,14 @@ export default function Mensalidades() {
 
   const stats = useMemo(() => {
     const sum = (arr: any[]) => arr.reduce((acc, p) => acc + Number(p.amount), 0);
+    const validPaymentsForForecast = payments.filter(p => 
+      p.status === "pago" || p.studentStatus === "ativo"
+    );
     return {
       recebido: sum(payments.filter(p => p.status === "pago")),
-      pendente: sum(payments.filter(p => p.status === "pendente")),
-      atrasado: sum(payments.filter(p => p.status === "atrasado")),
-      total: sum(payments)
+      pendente: sum(validPaymentsForForecast.filter(p => p.status === "pendente")),
+      atrasado: sum(validPaymentsForForecast.filter(p => p.status === "atrasado")),
+      total: sum(validPaymentsForForecast)
     };
   }, [payments]);
 
@@ -557,7 +561,10 @@ export default function Mensalidades() {
               {useMemo(() => {
                 const days = [5, 10, 15, 20, 25];
                 const dayMap: Record<number, number> = { 5: 0, 10: 0, 15: 0, 20: 0, 25: 0 };
-                payments.forEach(p => {
+                const validPayments = payments.filter(p => 
+                  p.status === "pago" || p.studentStatus === "ativo"
+                );
+                validPayments.forEach(p => {
                   const day = Number(p.dueDate.toString().split('-')[2]);
                   if (dayMap[day] !== undefined) dayMap[day] += Number(p.amount);
                 });

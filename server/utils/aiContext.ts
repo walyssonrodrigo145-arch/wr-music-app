@@ -1,4 +1,4 @@
-import { and, eq, lte, asc, desc, sql } from "drizzle-orm";
+import { and, eq, lte, asc, desc, sql, inArray } from "drizzle-orm";
 import { students, lessons, paymentDues, reminders, settings } from "../../drizzle/schema";
 
 export async function buildUserContext(db: any, userId: number, orgId: number): Promise<string> {
@@ -28,7 +28,7 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
         and(
           eq(lessons.userId, userId),
           eq(lessons.organizationId, orgId),
-          eq(lessons.status, "agendada"),
+          inArray(lessons.status, ["agendada", "remarcada"]),
           lte(lessons.scheduledAt, nextWeek)
         )
       )
