@@ -876,24 +876,24 @@ export const appRouter = router({
           organizationId: orgId,
           professorId: ctx.user.id,
           name: input.name,
-          socialName: input.socialName,
+          socialName: input.socialName || null,
           email: input.email || null,
           phone: input.phone,
-          birthDate: input.birthDate,
-          gender: input.gender,
-          cpf: input.cpf,
-          rg: input.rg,
-          address: input.address,
-          guardianName: input.guardianName,
-          guardianPhone: input.guardianPhone,
-          guardianEmail: input.guardianEmail,
-          instrumentId: input.instrumentId,
+          birthDate: input.birthDate || null,
+          gender: input.gender || null,
+          cpf: input.cpf || null,
+          rg: input.rg || null,
+          address: input.address || null,
+          guardianName: input.guardianName || null,
+          guardianPhone: input.guardianPhone || null,
+          guardianEmail: input.guardianEmail || null,
+          instrumentId: input.instrumentId || null,
           level: input.level,
           monthlyFee: String(input.monthlyFee),
           dueDay: input.dueDay,
           lessonType: input.lessonType,
           startDate: input.startDate || new Date().toISOString().slice(0, 10),
-          notes: input.notes,
+          notes: input.notes || null,
           status: input.status,
           userId: ctx.user.id,
           createdAt: new Date(),
@@ -962,8 +962,14 @@ export const appRouter = router({
         
         const orgId = ctx.user.organizationId!;
         const { id, updateFutureDues, ...data } = input;
-        const updateData: any = { ...data, updatedAt: new Date() };
-        if (updateData.monthlyFee !== undefined) {
+        
+        // Converte strings vazias para null para evitar erros do Postgres (como em datas ou email)
+        const cleanData = Object.fromEntries(
+          Object.entries(data).map(([k, v]) => [k, v === "" ? null : v])
+        );
+
+        const updateData: any = { ...cleanData, updatedAt: new Date() };
+        if (updateData.monthlyFee !== undefined && updateData.monthlyFee !== null) {
           updateData.monthlyFee = String(updateData.monthlyFee);
         }
         
