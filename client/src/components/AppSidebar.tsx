@@ -67,13 +67,18 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   const { data: reminderCount = 0 } = trpc.reminders.pendingCount.useQuery();
   const { data: messageCount = 0 } = trpc.chat.unreadCount.useQuery();
   const { data: requestCount = 0 } = trpc.reschedule.pendingCount.useQuery();
+  const { data: settings } = trpc.settings.get.useQuery();
 
-  const navItems: NavItem[] = staticNavItems.map(item => {
-    if (item.href === "/lembretes") return { ...item, badge: reminderCount > 0 ? reminderCount : undefined };
-    if (item.href === "/mensagens") return { ...item, badge: messageCount > 0 ? messageCount : undefined };
-    if (item.href === "/solicitacoes") return { ...item, badge: requestCount > 0 ? requestCount : undefined };
-    return item;
-  });
+  const hiddenTabs = settings?.hiddenTabs ? settings.hiddenTabs.split(",") : [];
+  
+  const navItems: NavItem[] = staticNavItems
+    .filter(item => !hiddenTabs.includes(item.href))
+    .map(item => {
+      if (item.href === "/lembretes") return { ...item, badge: reminderCount > 0 ? reminderCount : undefined };
+      if (item.href === "/mensagens") return { ...item, badge: messageCount > 0 ? messageCount : undefined };
+      if (item.href === "/solicitacoes") return { ...item, badge: requestCount > 0 ? requestCount : undefined };
+      return item;
+    });
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
   });

@@ -1737,6 +1737,13 @@ export const appRouter = router({
       return { success: true };
     }),
 
+    updateHiddenTabs: protectedProcedure.input(z.object({
+      hiddenTabs: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, { hiddenTabs: input.hiddenTabs });
+      return { success: true };
+    }),
+
     getAutomation: protectedProcedure.query(async ({ ctx }) => {
       const s = await getSettingsByUserId(ctx.user.organizationId!, ctx.user.id);
       return {

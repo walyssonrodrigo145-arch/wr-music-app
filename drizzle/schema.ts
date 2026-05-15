@@ -165,6 +165,7 @@ export const settings = pgTable("settings", {
   automationLastRun: timestamp("automationLastRun"),
   theme: varchar("theme", { length: 20 }).default("light"),
   pixKey: text("pixKey"),
+  hiddenTabs: text("hiddenTabs").default("").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

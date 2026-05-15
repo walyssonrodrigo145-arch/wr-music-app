@@ -19,8 +19,9 @@ async function ensureSchemaConsistency(db: any) {
     // lessons.studentId (nullable)
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
     
-    // settings.pixKey
+    // settings.pixKey and settings.hiddenTabs
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "pixKey" text`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hiddenTabs" text DEFAULT '' NOT NULL`);
     
     // students.studentUserId
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "studentUserId" integer`);

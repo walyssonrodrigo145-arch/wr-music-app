@@ -335,8 +335,26 @@ export default function Configuracoes() {
       setNotifyAbsence(settings.notifyStudentAbsence === 1);
       setNotifyNewStudent(settings.notifyNewStudent === 1);
       setNotifyWeekly(settings.notifyWeeklyReport === 1);
+      setHiddenTabs(settings.hiddenTabs ? settings.hiddenTabs.split(",") : []);
     }
   }, [settings]);
+
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
+  
+  const availableSidebarTabs = [
+    { label: "Dashboard", href: "/dashboard", desc: "Visão geral" },
+    { label: "Alunos", href: "/alunos", desc: "Gestão de estudantes" },
+    { label: "Aulas", href: "/aulas", desc: "Calendário e agenda" },
+    { label: "Instrumentos", href: "/instrumentos", desc: "Gestão de cursos/instrumentos" },
+    { label: "Relatórios", href: "/relatorios", desc: "Métricas e gráficos" },
+    { label: "Lembretes", href: "/lembretes", desc: "Alertas automáticos" },
+    { label: "Comunicados", href: "/comunicados", desc: "Mural de avisos" },
+    { label: "Mensagens", href: "/mensagens", desc: "Chat com alunos" },
+    { label: "Solicitações", href: "/solicitacoes", desc: "Reposições e faltas" },
+    { label: "IA Assistente", href: "/ia", desc: "Chat inteligente (Gemini)" },
+    { label: "Progresso", href: "/progresso", desc: "Evolução dos alunos" },
+    { label: "Mensalidades", href: "/mensalidades", desc: "Financeiro" },
+  ];
 
   // ── Mutations ──
   const updateProfile = trpc.settings.updateProfile.useMutation({
@@ -366,6 +384,14 @@ export default function Configuracoes() {
 
   const updateTheme = trpc.settings.updateTheme.useMutation({
     onError: (e) => toast.error("Erro ao salvar tema: " + e.message),
+  });
+
+  const updateHiddenTabs = trpc.settings.updateHiddenTabs.useMutation({
+    onSuccess: () => {
+      toast.success("Menu atualizado!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao atualizar menu: " + e.message),
   });
 
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) ?? "P";
@@ -722,6 +748,48 @@ export default function Configuracoes() {
                     </div>
                   </button>
                 </div>
+
+                <div className="pt-6 border-t border-border">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Menu Lateral</h3>
+                      <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Escolha quais abas aparecem no menu</p>
+                    </div>
+                    <Button
+                      className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
+                      disabled={updateHiddenTabs.isPending}
+                      onClick={() => updateHiddenTabs.mutate({ hiddenTabs: hiddenTabs.join(",") })}
+                    >
+                      {updateHiddenTabs.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {availableSidebarTabs.map(tab => {
+                      const isVisible = !hiddenTabs.includes(tab.href);
+                      return (
+                        <div key={tab.href} className="flex items-center justify-between p-4 bg-muted rounded-2xl border border-border group hover:border-indigo-100 transition-colors">
+                          <div className="pr-4">
+                            <p className="text-xs font-black text-foreground uppercase tracking-widest mb-1">{tab.label}</p>
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate max-w-[120px]">{tab.desc}</p>
+                          </div>
+                          <Toggle 
+                            checked={isVisible} 
+                            onChange={(show) => {
+                              if (show) {
+                                setHiddenTabs(hiddenTabs.filter(h => h !== tab.href));
+                              } else {
+                                setHiddenTabs([...hiddenTabs, tab.href]);
+                              }
+                            }} 
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
             )}
 
