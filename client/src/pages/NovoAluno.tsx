@@ -219,6 +219,7 @@ export default function NovoAluno() {
       monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
       dueDay: Number(form.dueDay),
       lessonType: form.lessonType as any,
+      startDate: form.startDate,
       notes: form.notes,
       temporaryPassword: form.temporaryPassword || undefined,
     };

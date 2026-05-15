@@ -860,6 +860,7 @@ export const appRouter = router({
       lessonType: z.enum(['individual','turma']).default('individual'),
       notes: z.string().optional(),
       status: z.enum(['ativo','inativo','pausado']).default('ativo'),
+      startDate: z.string().optional().nullable(),
       temporaryPassword: z.string().min(6, "A senha temporária deve ter pelo menos 6 caracteres").optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
@@ -888,8 +889,10 @@ export const appRouter = router({
           monthlyFee: String(input.monthlyFee),
           dueDay: input.dueDay,
           lessonType: input.lessonType,
+          startDate: input.startDate || new Date().toISOString().slice(0, 10),
           notes: input.notes,
           status: input.status,
+          userId: ctx.user.id,
           createdAt: new Date(),
           updatedAt: new Date(),
         }).returning({ id: students.id });
@@ -947,6 +950,7 @@ export const appRouter = router({
       status: z.enum(['ativo', 'inativo', 'pausado']).optional(),
       lessonType: z.enum(['individual', 'turma']).optional(),
       notes: z.string().optional(),
+      startDate: z.string().optional().nullable(),
       updateFutureDues: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
