@@ -16,7 +16,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -2788,6 +2788,86 @@ export const appRouter = router({
           .where(eq(paymentDues.id, input.paymentDueId));
 
         return { success: true };
+      }),
+    
+    getFrequencyDetails: protectedProcedure
+      .input(z.object({ month: z.number(), year: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        const userId = (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : ctx.user.id;
+
+        const startOfMonth = new Date(input.year, input.month - 1, 1);
+        const endOfMonth = new Date(input.year, input.month, 0, 23, 59, 59, 999);
+
+        return db.select({
+          id: lessons.id,
+          date: lessons.scheduledAt,
+          studentName: students.name,
+          professorName: users.name,
+          status: lessons.status,
+          observation: lessons.title,
+        })
+        .from(lessons)
+        .leftJoin(students, eq(lessons.studentId, students.id))
+        .leftJoin(users, eq(lessons.userId, users.id))
+        .where(and(
+          eq(lessons.organizationId, orgId),
+          userId ? eq(lessons.userId, userId) : undefined,
+          gte(lessons.scheduledAt, startOfMonth),
+          lte(lessons.scheduledAt, endOfMonth)
+        ))
+        .orderBy(desc(lessons.scheduledAt));
+      }),
+
+    getEvolutionDetails: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        const userId = (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : ctx.user.id;
+
+        return db.select({
+          studentName: students.name,
+          technical: studentEvolution.technical,
+          rhythm: studentEvolution.rhythm,
+          harmony: studentEvolution.harmony,
+          reading: studentEvolution.reading,
+          recordedAt: studentEvolution.recordedAt,
+        })
+        .from(studentEvolution)
+        .leftJoin(students, eq(studentEvolution.studentId, students.id))
+        .where(and(
+          eq(studentEvolution.organizationId, orgId),
+          userId ? eq(students.professorId, userId) : undefined
+        ))
+        .orderBy(desc(studentEvolution.recordedAt));
+      }),
+
+    getAlunosReport: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        const userId = (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : ctx.user.id;
+
+        return db.select({
+          id: students.id,
+          name: students.name,
+          professorName: users.name,
+          instrumentName: instruments.name,
+          monthlyFee: students.monthlyFee,
+          status: students.status,
+        })
+        .from(students)
+        .leftJoin(users, eq(students.professorId, users.id))
+        .leftJoin(instruments, eq(students.instrumentId, instruments.id))
+        .where(and(
+          eq(students.organizationId, orgId),
+          userId ? eq(students.professorId, userId) : undefined
+        ))
+        .orderBy(students.name);
       }),
   }),
 

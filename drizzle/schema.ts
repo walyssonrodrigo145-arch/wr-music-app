@@ -302,6 +302,17 @@ export const rescheduleRequests = pgTable("reschedule_requests", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const studentEvolution = pgTable("student_evolution", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  studentId: integer("studentId").notNull(),
+  technical: integer("technical").default(0).notNull(),
+  rhythm: integer("rhythm").default(0).notNull(),
+  harmony: integer("harmony").default(0).notNull(),
+  reading: integer("reading").default(0).notNull(),
+  recordedAt: timestamp("recordedAt").defaultNow().notNull(),
+});
+
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = typeof reminders.$inferInsert;
 export type ReminderTemplate = typeof reminderTemplates.$inferSelect;

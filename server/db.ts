@@ -31,6 +31,20 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "asaasBillingType" varchar(30)`);
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "receiptUrl" text`);
     
+    // student_evolution table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "student_evolution" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer,
+        "studentId" integer NOT NULL,
+        "technical" integer DEFAULT 0 NOT NULL,
+        "rhythm" integer DEFAULT 0 NOT NULL,
+        "harmony" integer DEFAULT 0 NOT NULL,
+        "reading" integer DEFAULT 0 NOT NULL,
+        "recordedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+    
     console.log("[Database] Schema consistency check passed.");
   } catch (error: any) {
     console.warn(`[Database] Schema consistency check failed. Code: ${error.code}. Message: ${error.message}`);
