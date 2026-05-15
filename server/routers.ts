@@ -3261,19 +3261,29 @@ export const appRouter = router({
       
       if (!student) throw new Error("Dados do aluno não encontrados.");
       
-      const [teacher] = await db.select({ 
-        name: users.name,
-        pixKey: settings.pixKey
-      })
-      .from(users)
-      .leftJoin(settings, eq(users.id, settings.userId))
-      .where(eq(users.id, student.teacherId))
-      .limit(1);
+      const [[teacher], [instrument]] = await Promise.all([
+        db.select({ 
+          name: users.name,
+          pixKey: settings.pixKey
+        })
+        .from(users)
+        .leftJoin(settings, eq(users.id, settings.userId))
+        .where(eq(users.id, student.teacherId))
+        .limit(1),
+        
+        student.instrumentId 
+          ? db.select({ name: instruments.name })
+              .from(instruments)
+              .where(eq(instruments.id, student.instrumentId))
+              .limit(1)
+          : Promise.resolve([{ name: null }])
+      ]);
       
       return { 
         ...student, 
         teacherName: teacher?.name || 'Professor',
-        teacherPixKey: teacher?.pixKey 
+        teacherPixKey: teacher?.pixKey,
+        instrumentName: instrument?.name || 'Não definido'
       };
     }),
     getSchedule: studentProcedure.query(async ({ ctx }) => {

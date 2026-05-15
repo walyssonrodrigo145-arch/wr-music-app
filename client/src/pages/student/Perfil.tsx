@@ -158,7 +158,7 @@ export default function StudentProfile() {
                    </div>
                    <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Instrumento Principal</p>
-                      <p className="text-xl font-black text-foreground">Violão Erudito</p>
+                      <p className="text-xl font-black text-foreground">{(profile as any)?.instrumentName || "Não definido"}</p>
                    </div>
                 </div>
               </CardContent>
@@ -215,10 +215,10 @@ export default function StudentProfile() {
 
                <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6">
                   {[
-                     { icon: Trophy, label: "Técnica", value: "Avançada" },
-                     { icon: Clock, label: "Prática Total", value: "128h" },
-                     { icon: Music, label: "Repertório", value: "15 Peças" },
-                     { icon: Trophy, label: "Nível Atual", value: profile?.level },
+                     { icon: Trophy, label: "Técnica", value: profile?.level || "Iniciante" },
+                     { icon: Clock, label: "Prática Total", value: "---" },
+                     { icon: Music, label: "Repertório", value: "---" },
+                     { icon: Trophy, label: "Nível Atual", value: profile?.level || "Iniciante" },
                   ].map((item, i) => (
                      <div key={i} className="text-center p-6 rounded-3xl bg-muted/30 border border-border group hover:border-primary/40 hover:bg-card transition-all cursor-default">
                         <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-transform">
@@ -240,8 +240,8 @@ export default function StudentProfile() {
                    </div>
                    <div className="space-y-1">
                       <p className="text-xs font-black text-primary uppercase tracking-widest">Próxima Meta</p>
-                      <p className="text-sm font-bold text-foreground">Dominar Campo Harmônico Maior</p>
-                      <p className="text-[10px] text-muted-foreground font-medium">Prazo estimado: 15 de Junho</p>
+                      <p className="text-sm font-bold text-foreground">Defina sua meta com o professor</p>
+                      <p className="text-[10px] text-muted-foreground font-medium">Foco no progresso contínuo</p>
                    </div>
                 </CardContent>
              </Card>
