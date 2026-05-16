@@ -2775,7 +2775,9 @@ export const appRouter = router({
         const payments = await db.select({
           status: paymentDues.status,
           amount: paymentDues.amount,
+          studentStatus: students.status,
         }).from(paymentDues)
+          .leftJoin(students, eq(paymentDues.studentId, students.id))
           .where(and(
             eq(paymentDues.organizationId, orgId),
             userId ? eq(paymentDues.userId, userId) : undefined,
@@ -2792,10 +2794,14 @@ export const appRouter = router({
 
         payments.forEach(p => {
           const amt = Number(p.amount);
-          if (p.status === 'pago') summary.pago += amt;
-          else if (p.status === 'pendente') summary.pendente += amt;
-          else if (p.status === 'atrasado') summary.atrasado += amt;
-          summary.total += amt;
+          if (p.status === 'pago') {
+            summary.pago += amt;
+            summary.total += amt;
+          } else if (p.studentStatus === 'ativo') {
+            if (p.status === 'pendente') summary.pendente += amt;
+            else if (p.status === 'atrasado') summary.atrasado += amt;
+            summary.total += amt;
+          }
         });
 
         return summary;
