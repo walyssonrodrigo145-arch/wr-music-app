@@ -16,7 +16,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, expenses } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -3794,6 +3794,125 @@ export const appRouter = router({
         await db.delete(aiConversations).where(eq(aiConversations.id, input.id));
 
         return { success: true };
+      }),
+  }),
+  expenses: router({
+    list: protectedProcedure
+      .input(z.object({
+        month: z.number().optional(),
+        year: z.number().optional()
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const orgId = ctx.user.organizationId!;
+        const m = input?.month ?? new Date().getMonth() + 1;
+        const y = input?.year ?? new Date().getFullYear();
+        
+        // As expenses are date-based, we extract month and year from the date
+        const query = sql`EXTRACT(MONTH FROM ${expenses.date}) = ${m} AND EXTRACT(YEAR FROM ${expenses.date}) = ${y}`;
+        
+        return db.select()
+          .from(expenses)
+          .where(and(
+            eq(expenses.organizationId, orgId),
+            (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : eq(expenses.userId, ctx.user.id),
+            query
+          ))
+          .orderBy(desc(expenses.date));
+      }),
+      
+    create: protectedProcedure
+      .input(z.object({
+        description: z.string(),
+        amount: z.number(),
+        date: z.string(),
+        category: z.string(),
+        status: z.enum(["pendente", "pago", "atrasado"]).optional(),
+        notes: z.string().optional()
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+          
+          await db.insert(expenses).values({
+            organizationId: orgId,
+            userId: ctx.user.id,
+            description: input.description,
+            amount: input.amount.toFixed(2),
+            date: input.date.slice(0, 10),
+            category: input.category,
+            status: input.status || "pendente",
+            notes: input.notes,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          return { success: true };
+        } catch (error) {
+          return handleDbError(error, "criar despesa");
+        }
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        description: z.string().optional(),
+        amount: z.number().optional(),
+        date: z.string().optional(),
+        category: z.string().optional(),
+        status: z.enum(["pendente", "pago", "atrasado"]).optional(),
+        notes: z.string().nullable().optional()
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+          const { id, ...data } = input;
+          
+          const updateData: any = { ...data, updatedAt: new Date() };
+          if (data.date) updateData.date = data.date.slice(0, 10);
+          if (data.amount !== undefined) updateData.amount = data.amount.toFixed(2);
+          
+          await db.update(expenses)
+            .set(updateData)
+            .where(and(eq(expenses.id, id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id)));
+          return { success: true };
+        } catch (error) {
+          return handleDbError(error, "atualizar despesa");
+        }
+      }),
+      
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+          await db.delete(expenses).where(and(eq(expenses.id, input.id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id)));
+          return { success: true };
+        } catch (error) {
+          return handleDbError(error, "remover despesa");
+        }
+      }),
+      
+    markPaid: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+          await db.update(expenses)
+            .set({ status: "pago", updatedAt: new Date() })
+            .where(and(eq(expenses.id, input.id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id)));
+          return { success: true };
+        } catch (error) {
+          return handleDbError(error, "marcar despesa como paga");
+        }
       }),
   }),
 });

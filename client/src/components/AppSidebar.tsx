@@ -48,7 +48,7 @@ const staticNavItems = [
   { label: "Solicitações", href: "/solicitacoes", icon: Inbox },
   { label: "IA Assistente", href: "/ia", icon: Sparkles },
   { label: "Progresso", href: "/progresso", icon: Activity },
-  { label: "Mensalidades", href: "/mensalidades", icon: DollarSign },
+  { label: "Financeiro", href: "/financeiro", icon: DollarSign },
 ];
 
 const bottomItems: NavItem[] = [

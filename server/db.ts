@@ -36,6 +36,24 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "lessonType" text DEFAULT 'individual'`);
     await db.execute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "lessonType" text DEFAULT 'individual'`);
     
+    // expenses table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "expenses" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer,
+        "userId" integer NOT NULL,
+        "description" varchar(255) NOT NULL,
+        "amount" numeric(10, 2) NOT NULL,
+        "date" date NOT NULL,
+        "category" varchar(100) NOT NULL,
+        "status" payment_due_status DEFAULT 'pendente' NOT NULL,
+        "receiptUrl" text,
+        "notes" text,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+    
     // student_evolution table
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "student_evolution" (

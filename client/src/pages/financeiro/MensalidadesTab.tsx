@@ -407,11 +407,9 @@ function NovaModal({ open, onClose, students }: {
   );
 }
 
-export default function Mensalidades() {
+export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoading }: { viewMonth: number, viewYear: number, payments: any[], isLoading: boolean }) {
   const utils = trpc.useUtils();
   const now = new Date();
-  const [viewMonth, setViewMonth] = useState(now.getMonth() + 1);
-  const [viewYear, setViewYear] = useState(now.getFullYear());
   const [filterStatus, setFilterStatus] = useState<string>("todas");
   const [lessonTypeFilter, setLessonTypeFilter] = useState<string>("todos");
   const [search, setSearch] = useState("");
@@ -422,7 +420,6 @@ export default function Mensalidades() {
   const [uploadingFor, setUploadingFor] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: payments = [], isLoading } = trpc.paymentDues.list.useQuery({ month: viewMonth, year: viewYear });
   const { data: students = [] } = trpc.students.list.useQuery();
 
   const updateMutation = trpc.paymentDues.update.useMutation({
@@ -485,14 +482,7 @@ export default function Mensalidades() {
     reader.readAsDataURL(file);
   };
 
-  const prevMonth = () => {
-    if (viewMonth === 1) { setViewMonth(12); setViewYear(y => y - 1); }
-    else setViewMonth(m => m - 1);
-  };
-  const nextMonth = () => {
-    if (viewMonth === 12) { setViewMonth(1); setViewYear(y => y + 1); }
-    else setViewMonth(m => m + 1);
-  };
+
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
@@ -520,7 +510,7 @@ export default function Mensalidades() {
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
+    <div className="space-y-6 lg:space-y-8">
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -528,7 +518,6 @@ export default function Mensalidades() {
         accept="image/*,application/pdf"
         onChange={handleFileChange}
       />
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 lg:gap-6">
           <div className="flex items-center gap-3 lg:gap-4 w-full md:w-auto">
@@ -561,14 +550,7 @@ export default function Mensalidades() {
           </div>
         </div>
 
-        {/* Date Selector */}
-        <div className="flex items-center justify-center gap-4 bg-card p-2 rounded-2xl border border-border shadow-sm w-fit mx-auto lg:mx-0">
-           <Button variant="ghost" size="icon" onClick={prevMonth} className="h-8 w-8 rounded-lg"><ChevronLeft size={16} /></Button>
-           <h3 className="text-xs font-black text-foreground min-w-[120px] text-center uppercase tracking-widest">
-             {MONTHS_FULL[viewMonth-1]} {viewYear}
-           </h3>
-           <Button variant="ghost" size="icon" onClick={nextMonth} className="h-8 w-8 rounded-lg"><ChevronRight size={16} /></Button>
-        </div>
+
 
         {/* METRICS CARDS - Horizontal Scroll on Mobile */}
         <div className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
@@ -891,7 +873,6 @@ export default function Mensalidades() {
                </div>
            </div>
         </div>
-      </div>
       
       {/* MODALS */}
       {novaOpen && (

@@ -231,6 +231,21 @@ export const asaasCustomers = pgTable("asaas_customers", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  date: date("date").notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  status: paymentDueStatusEnum("status").default("pendente").notNull(),
+  receiptUrl: text("receiptUrl"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
 
 export const studentGoals = pgTable("student_goals", {
   id: serial("id").primaryKey(),
