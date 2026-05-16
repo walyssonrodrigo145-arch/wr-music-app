@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { AIChatBox, Message } from "@/components/AIChatBox";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, MessageSquare, Plus, Trash2, Loader2, BrainCircuit, FileText, Users, DollarSign, Calendar } from "lucide-react";
+import { Sparkles, MessageSquare, Plus, Trash2, Loader2, BrainCircuit, FileText, Users, DollarSign, Calendar, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -102,7 +102,10 @@ export default function IAAssistente() {
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
       
       {/* Sidebar de Conversas */}
-      <div className="w-full md:w-72 lg:w-80 border-r border-border bg-card/50 flex flex-col shrink-0 transition-all">
+      <div className={cn(
+        "w-full md:w-72 lg:w-80 border-r border-border bg-card/50 flex flex-col shrink-0 transition-all h-full md:h-auto",
+        activeConversationId ? "hidden md:flex" : "flex"
+      )}>
         <div className="p-4 sm:p-6 border-b border-border flex flex-col gap-4 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
@@ -125,6 +128,30 @@ export default function IAAssistente() {
         </div>
 
         <ScrollArea className="flex-1 p-3">
+          {/* Sugestões Rápidas no Mobile (Android) */}
+          <div className="block md:hidden mb-6 p-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">Sugestões Rápidas</p>
+            <div className="grid grid-cols-1 gap-2.5">
+              {suggestions.map((sug, i) => {
+                const Icon = sug.icon;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleCreateConversation(sug.text)}
+                    className="flex items-center gap-3 p-3.5 rounded-2xl border border-border bg-card active:bg-indigo-500/10 transition-all text-left group shadow-sm"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
+                      <Icon className="text-indigo-600 dark:text-indigo-400" size={16} />
+                    </div>
+                    <span className="text-xs font-bold text-foreground leading-tight">{sug.text}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-3 block md:hidden">Suas Conversas</p>
+
           {isLoadingConversations ? (
             <div className="flex justify-center p-8 text-muted-foreground">
               <Loader2 className="animate-spin" size={20} />
@@ -170,21 +197,37 @@ export default function IAAssistente() {
       </div>
 
       {/* Área Principal - Chat */}
-      <div className="flex-1 flex flex-col bg-background min-w-0 h-full relative">
+      <div className={cn(
+        "flex-1 flex flex-col bg-background min-w-0 h-full relative",
+        !activeConversationId && "hidden md:flex"
+      )}>
         {activeConversationId ? (
-          <>
-            <div className="absolute inset-0 p-4 sm:p-6 lg:p-8 overflow-hidden flex flex-col">
-              <AIChatBox
-                messages={messages}
-                onSendMessage={handleSendMessage}
-                isLoading={chatMutation.isPending || isLoadingMessages}
-                placeholder="Pergunte algo ao Assistente..."
-                className="flex-1 h-full shadow-2xl shadow-indigo-500/5 border-indigo-500/10"
-                height="100%"
-                emptyStateMessage="Como posso ajudar com sua escola de música hoje?"
-              />
+          <div className="absolute inset-0 p-3 sm:p-6 lg:p-8 overflow-hidden flex flex-col bg-background">
+            {/* Mobile Header Bar (Android) */}
+            <div className="flex md:hidden items-center justify-between pb-3 px-1 border-b border-border/50 mb-3 shrink-0">
+              <button 
+                onClick={() => setActiveConversationId(null)}
+                className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 py-1.5 px-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl active:scale-95 transition-all shadow-sm"
+              >
+                <ArrowLeft size={16} />
+                <span>Conversas</span>
+              </button>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">
+                <BrainCircuit size={16} className="text-indigo-500 shrink-0" />
+                <span className="truncate max-w-[140px]">{conversations.find((c: any) => c.id === activeConversationId)?.title || "Chat"}</span>
+              </div>
             </div>
-          </>
+
+            <AIChatBox
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isLoading={chatMutation.isPending || isLoadingMessages}
+              placeholder="Pergunte algo ao Assistente..."
+              className="flex-1 h-full shadow-2xl shadow-indigo-500/5 border-indigo-500/10"
+              height="100%"
+              emptyStateMessage="Como posso ajudar com sua escola de música hoje?"
+            />
+          </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8">
             <div className="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center mb-6 shadow-inner relative">
