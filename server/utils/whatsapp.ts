@@ -37,6 +37,7 @@ export async function sendWhatsAppMessage({ url, token, phone, message }: SendWh
 
     // Payload flexível que atende aos contratos das principais APIs de WhatsApp
     const payload = {
+      apiKey: token,
       number: finalPhone,
       phone: finalPhone,
       message: message,
