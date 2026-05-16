@@ -101,6 +101,17 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
       if (e.status === "pago") totalDespesasPagas += Number(e.amount);
     });
 
+    // 7. Busca receita base recorrente e despesa base recorrente para projeções
+    const activeStudentsList = await db.select({ monthlyFee: students.monthlyFee }).from(students).where(
+      and(eq(students.status, "ativo"), eq(students.professorId, userId), eq(students.organizationId, orgId))
+    );
+    const receitaRecorrente = activeStudentsList.reduce((acc: number, s: any) => acc + Number(s.monthlyFee || 0), 0);
+
+    const recurringExpensesList = await db.select({ amount: expenses.amount }).from(expenses).where(
+      and(eq(expenses.userId, userId), eq(expenses.organizationId, orgId), eq(expenses.recurrence, "mensal"))
+    );
+    const despesaRecorrente = recurringExpensesList.reduce((acc: number, e: any) => acc + Number(e.amount || 0), 0);
+
     // Formatação do contexto
     const tz = "America/Sao_Paulo";
     let context = `Escola: ${userSettings?.schoolName || "Minha Escola de Música"}\n`;
@@ -112,6 +123,18 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
     context += `- Receita já paga: R$ ${totalPago.toFixed(2)}\n`;
     context += `- Despesas pagas: R$ ${totalDespesasPagas.toFixed(2)}\n`;
     context += `- Saldo Líquido atual: R$ ${(totalPago - totalDespesasPagas).toFixed(2)}\n\n`;
+
+    context += `PROJEÇÃO FINANCEIRA FUTURA (BASE RECORRENTE MENSAL):\n`;
+    context += `- Receita Mensal Recorrente (soma das mensalidades de alunos ativos): R$ ${receitaRecorrente.toFixed(2)}\n`;
+    context += `- Despesa Mensal Recorrente (soma das despesas fixas mensais): R$ ${despesaRecorrente.toFixed(2)}\n`;
+    context += `- Lucro Mensal Recorrente Projetado: R$ ${(receitaRecorrente - despesaRecorrente).toFixed(2)}\n\n`;
+    context += `REGRA DE CÁLCULO PARA PROJEÇÕES DE GANHOS FUTUROS (MUITO IMPORTANTE):\n`;
+    context += `Quando o usuário perguntar sobre projeção de ganhos, lucro ou faturamento para daqui a N meses (ex: "quanto posso ter de lucro daqui 3 meses?", "projeção para 6 meses"), você DEVE calcular da seguinte forma:\n`;
+    context += `1. Identifique a quantidade N de meses solicitada no prompt do usuário.\n`;
+    context += `2. Multiplique a Receita Mensal Recorrente (R$ ${receitaRecorrente.toFixed(2)}) por N para obter a Receita Acumulada de N meses.\n`;
+    context += `3. Multiplique a Despesa Mensal Recorrente (R$ ${despesaRecorrente.toFixed(2)}) por N para obter a Despesa Acumulada de N meses.\n`;
+    context += `4. O Lucro Total Projetado em N meses será (Receita Mensal Recorrente - Despesa Mensal Recorrente) * N.\n`;
+    context += `5. Apresente ao usuário um resumo claro com o valor total acumulado e o detalhamento mensal, explicando de onde vêm os valores (alunos ativos e despesas fixas).\n\n`;
 
     if (overduePayments.length > 0) {
       context += `ATENÇÃO - MENSALIDADES ATRASADAS (${overduePayments.length} registros mais antigos):\n`;

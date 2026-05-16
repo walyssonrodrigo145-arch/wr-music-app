@@ -2801,6 +2801,100 @@ export const appRouter = router({
         return summary;
       }),
 
+    getDespesasDetails: protectedProcedure
+      .input(z.object({ month: z.number(), year: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        const userId = (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : ctx.user.id;
+
+        const expensesList = await db.select({
+          amount: expenses.amount,
+          category: expenses.category,
+          status: expenses.status,
+        }).from(expenses)
+          .where(and(
+            eq(expenses.organizationId, orgId),
+            userId ? eq(expenses.userId, userId) : undefined,
+            sql`EXTRACT(MONTH FROM ${expenses.date}) = ${input.month}`,
+            sql`EXTRACT(YEAR FROM ${expenses.date}) = ${input.year}`
+          ));
+
+        let total = 0;
+        let pago = 0;
+        let pendente = 0;
+        const byCategory: Record<string, number> = {};
+
+        expensesList.forEach(e => {
+          const amt = Number(e.amount);
+          total += amt;
+          if (e.status === 'pago') pago += amt;
+          else pendente += amt;
+          byCategory[e.category] = (byCategory[e.category] || 0) + amt;
+        });
+
+        const categories = Object.keys(byCategory).map(k => ({
+          name: k,
+          value: byCategory[k]
+        }));
+
+        return { total, pago, pendente, categories };
+      }),
+
+    getProjecao6Meses: protectedProcedure
+      .input(z.object({ month: z.number(), year: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        const userId = (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : ctx.user.id;
+
+        const activeStudents = await db.select({ monthlyFee: students.monthlyFee }).from(students)
+          .where(and(
+            eq(students.organizationId, orgId),
+            userId ? eq(students.professorId, userId) : undefined,
+            eq(students.status, 'ativo')
+          ));
+        const receitaBase = activeStudents.reduce((acc, s) => acc + Number(s.monthlyFee || 0), 0);
+
+        const recurringExpenses = await db.select({ amount: expenses.amount }).from(expenses)
+          .where(and(
+            eq(expenses.organizationId, orgId),
+            userId ? eq(expenses.userId, userId) : undefined,
+            eq(expenses.recurrence, 'mensal')
+          ));
+        const despesaBase = recurringExpenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+        const MONTHS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+        const projection = [];
+
+        let currentM = input.month;
+        let currentY = input.year;
+
+        for (let i = 0; i < 6; i++) {
+          let m = currentM + i;
+          let y = currentY;
+          while (m > 12) { m -= 12; y += 1; }
+
+          projection.push({
+            monthName: `${MONTHS_PT[m - 1]}/${y}`,
+            month: m,
+            year: y,
+            receita: receitaBase,
+            despesa: despesaBase,
+            lucro: receitaBase - despesaBase
+          });
+        }
+
+        return {
+          receitaBase,
+          despesaBase,
+          lucroBase: receitaBase - despesaBase,
+          projection
+        };
+      }),
+
     generateAsaasCharge: protectedProcedure
       .input(z.object({
         paymentDueId: z.number(),

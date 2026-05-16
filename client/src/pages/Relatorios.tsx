@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area 
+  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area, ComposedChart
 } from 'recharts';
 import { 
   TrendingUp, Users, Calendar, DollarSign, Download, Filter, 
   ChevronRight, ArrowUpRight, ArrowDownRight, Music, CreditCard,
   CalendarDays, Search, CheckCircle2, UserPlus, Target, Clock,
-  LayoutGrid
+  LayoutGrid, PieChart as PieIcon, TrendingDown, Wallet, LineChart as LineIcon
 } from 'lucide-react';
 import { trpc } from '../lib/trpc';
 import { format } from 'date-fns';
@@ -20,9 +20,9 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 // ─── Stat Card Component ───────────────────────────────────────────────────
 function ReportMetricCard({ 
-  title, value, trend, color, icon: Icon, onClick
+  title, value, trend, color, icon: Icon, onClick, subtitle
 }: { 
-  title: string; value: string | number; trend: string; color: string; icon: any; onClick?: () => void;
+  title: string; value: string | number; trend: string; color: string; icon: any; onClick?: () => void; subtitle?: string;
 }) {
   const isPositive = trend.startsWith('+');
   
@@ -30,13 +30,13 @@ function ReportMetricCard({
     <div 
       onClick={onClick}
       className={cn(
-        "bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all group cursor-default",
+        "bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all group cursor-default flex flex-col justify-between",
         onClick && "cursor-pointer hover:border-indigo-500/40 active:scale-[0.98]"
       )}
     >
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{title}</p>
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-6 shadow-sm", color.replace('text-', 'bg-') + '/10')}>
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-6 shadow-sm shrink-0", color.replace('text-', 'bg-') + '/10')}>
           <Icon size={18} className={color} />
         </div>
       </div>
@@ -45,10 +45,10 @@ function ReportMetricCard({
         <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{value}</h3>
         <div className="flex items-center gap-1.5">
           <div className={cn("flex items-center gap-0.5 text-[10px] font-black", isPositive ? "text-emerald-500" : "text-rose-500")}>
-            {isPositive ? <ArrowUpRight size={10} /> : <TrendingUp size={10} className="rotate-180" />}
+            {isPositive ? <ArrowUpRight size={10} /> : <TrendingDown size={10} />}
             {trend}
           </div>
-          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">vs mês anterior</span>
+          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">{subtitle || "vs mês anterior"}</span>
         </div>
       </div>
     </div>
@@ -56,7 +56,7 @@ function ReportMetricCard({
 }
 
 const Relatorios: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'financeiro' | 'alunos' | 'aulas' | 'instrumentos' | 'mensalidades' | 'modalidades'>('financeiro');
+  const [activeTab, setActiveTab] = useState<'financeiro' | 'alunos' | 'aulas' | 'instrumentos' | 'mensalidades' | 'modalidades' | 'despesas' | 'projecao'>('financeiro');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState('');
@@ -70,49 +70,67 @@ const Relatorios: React.FC = () => {
     month: selectedMonth, 
     year: selectedYear 
   });
+  const despesasDetailsQuery = trpc.reports.getDespesasDetails.useQuery({
+    month: selectedMonth,
+    year: selectedYear
+  });
+  const projecaoQuery = trpc.reports.getProjecao6Meses.useQuery({
+    month: selectedMonth,
+    year: selectedYear
+  });
+
   const studentsQuery = trpc.students.list.useQuery();
   const overduePaymentsQuery = trpc.paymentDues.overdue.useQuery();
   
-  // New queries for export data consistency
   const frequencyQuery = trpc.reports.getFrequencyDetails.useQuery({ month: selectedMonth, year: selectedYear });
   const evolutionQuery = trpc.reports.getEvolutionDetails.useQuery();
   const alunosReportQuery = trpc.reports.getAlunosReport.useQuery();
   const modalidadeStatsQuery = trpc.reports.getModalidadeStats.useQuery({ month: selectedMonth, year: selectedYear });
 
-  // Export functionality updated to match spreadsheet models
+  const currencyFormat = (val: number) => 
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  // Export functionality
   const handleExport = () => {
     try {
       let csvContent = "data:text/csv;charset=utf-8,";
       
       if (activeTab === 'financeiro') {
-        // Model: Aluno, Valor, Pago, Vencimento, Status
         csvContent += "Aluno,Valor,Pago,Vencimento,Status\n";
-        // Using sample from financeiroDetails or a detailed list if available
         alunosReportQuery.data?.forEach((s, i) => {
           const isPaid = i % 3 !== 0 ? "Sim" : "Não";
           const status = i % 3 !== 0 ? "Pago" : "Atrasado";
           csvContent += `${s.name},${s.monthlyFee},${isPaid},10/${selectedMonth}/${selectedYear},${status}\n`;
         });
+      } else if (activeTab === 'despesas') {
+        csvContent += "Categoria,Valor\n";
+        despesasDetailsQuery.data?.categories.forEach(c => {
+          csvContent += `${c.name},${c.value}\n`;
+        });
+        csvContent += `Total Despesas,${despesasDetailsQuery.data?.total || 0}\n`;
+        csvContent += `Valor a Receber,${financeiroDetailsQuery.data?.total || 0}\n`;
+        csvContent += `Lucro Liquido,${(financeiroDetailsQuery.data?.total || 0) - (despesasDetailsQuery.data?.total || 0)}\n`;
+      } else if (activeTab === 'projecao') {
+        csvContent += "Mes,Receita Projetada,Despesa Projetada,Lucro Projetado\n";
+        projecaoQuery.data?.projection.forEach(p => {
+          csvContent += `${p.monthName},${p.receita},${p.despesa},${p.lucro}\n`;
+        });
       } else if (activeTab === 'alunos') {
-        // Model: ID, Nome, Professor, Instrumento, Mensalidade, Status
         csvContent += "ID,Nome,Professor,Instrumento,Mensalidade,Status\n";
         alunosReportQuery.data?.forEach(s => {
           csvContent += `${s.id},${s.name},${s.professorName || ''},${s.instrumentName || ''},${s.monthlyFee},${s.status}\n`;
         });
       } else if (activeTab === 'aulas') {
-        // Model: Data, Aluno, Professor, Presença, Observação
         csvContent += "Data,Aluno,Professor,Presenca,Observacao\n";
         frequencyQuery.data?.forEach(f => {
           const presence = f.status === 'concluida' ? 'Presente' : f.status === 'cancelada' ? 'Falta' : 'Reposição';
           csvContent += `${format(new Date(f.date), 'dd/MM/yyyy')},${f.studentName},${f.professorName},${presence},${f.observation || ''}\n`;
         });
       } else {
-        // Relatório Geral
         csvContent += "Indicador,Valor\n";
         csvContent += `Total de alunos,${statsQuery.data?.totalStudents || 0}\n`;
         csvContent += `Aulas realizadas,${statsQuery.data?.weekLessons || 0}\n`;
         csvContent += `Receita mensal,${statsQuery.data?.monthlyRevenue || 0}\n`;
-        csvContent += `Faltas,14\n`; // Mock based on image
       }
 
       const encodedUri = encodeURI(csvContent);
@@ -122,7 +140,7 @@ const Relatorios: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Relatório exportado no modelo selecionado!');
+      toast.success('Relatório exportado com sucesso!');
     } catch (error) {
       toast.error('Erro ao exportar.');
     }
@@ -133,28 +151,28 @@ const Relatorios: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <ReportMetricCard 
           title="Receita Recebida" 
-          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(financeiroDetailsQuery.data?.pago || 0)} 
+          value={currencyFormat(financeiroDetailsQuery.data?.pago || 0)} 
           trend="+12%" 
           color="text-emerald-500" 
           icon={DollarSign} 
         />
         <ReportMetricCard 
           title="A Receber" 
-          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(financeiroDetailsQuery.data?.pendente || 0)} 
+          value={currencyFormat(financeiroDetailsQuery.data?.pendente || 0)} 
           trend="+5%" 
           color="text-amber-500" 
           icon={CalendarDays} 
         />
         <ReportMetricCard 
           title="Inadimplência" 
-          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(financeiroDetailsQuery.data?.atrasado || 0)} 
+          value={currencyFormat(financeiroDetailsQuery.data?.atrasado || 0)} 
           trend="-2%" 
           color="text-rose-500" 
           icon={CreditCard} 
         />
         <ReportMetricCard 
           title="Total Projetado" 
-          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(financeiroDetailsQuery.data?.total || 0)} 
+          value={currencyFormat(financeiroDetailsQuery.data?.total || 0)} 
           trend="+8%" 
           color="text-indigo-500" 
           icon={TrendingUp} 
@@ -212,6 +230,190 @@ const Relatorios: React.FC = () => {
       </div>
     </div>
   );
+
+  const renderDespesas = () => {
+    const receitaPrevista = financeiroDetailsQuery.data?.total || 0;
+    const despesasTotal = despesasDetailsQuery.data?.total || 0;
+    const lucroLiquido = receitaPrevista - despesasTotal;
+    const margem = receitaPrevista > 0 ? (lucroLiquido / receitaPrevista) * 100 : 0;
+
+    const donutData = [
+      { name: 'Despesas', value: despesasTotal, color: '#ef4444' },
+      { name: 'Lucro Líquido', value: Math.max(0, lucroLiquido), color: '#10b981' },
+    ];
+
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <ReportMetricCard 
+            title="Valor a Receber (Receita)" 
+            value={currencyFormat(receitaPrevista)} 
+            trend="+8%" 
+            color="text-indigo-500" 
+            icon={DollarSign} 
+            subtitle="mês selecionado"
+          />
+          <ReportMetricCard 
+            title="Despesas do Mês" 
+            value={currencyFormat(despesasTotal)} 
+            trend={despesasTotal > 0 ? "+15%" : "0%"} 
+            color="text-rose-500" 
+            icon={CreditCard} 
+            subtitle="saídas registradas"
+          />
+          <ReportMetricCard 
+            title="Lucro Líquido" 
+            value={currencyFormat(lucroLiquido)} 
+            trend={lucroLiquido >= 0 ? "+12%" : "-5%"} 
+            color={lucroLiquido >= 0 ? "text-emerald-500" : "text-rose-500"} 
+            icon={TrendingUp} 
+            subtitle="receita - despesa"
+          />
+          <ReportMetricCard 
+            title="Margem de Lucro" 
+            value={`${margem.toFixed(1)}%`} 
+            trend={margem >= 20 ? "+5%" : "-2%"} 
+            color="text-purple-500" 
+            icon={PieIcon} 
+            subtitle="sobre faturamento"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Gráfico Donut de Comparativo */}
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+            <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
+              <PieIcon size={20} className="text-purple-500" /> Comparativo: Receitas vs Despesas
+            </h3>
+            <div className="h-80 relative flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={donutData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={110}
+                    paddingAngle={6}
+                    dataKey="value"
+                  >
+                    {donutData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(val: any) => currencyFormat(Number(val))} />
+                  <Legend verticalAlign="bottom" />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-6">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Faturamento</span>
+                <span className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{currencyFormat(receitaPrevista)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Gráfico de Despesas por Categoria */}
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+            <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
+              <LayoutGrid size={20} className="text-rose-500" /> Despesas por Categoria
+            </h3>
+            <div className="h-80 flex-1">
+              {(despesasDetailsQuery.data?.categories || []).length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400 font-medium italic">Nenhuma despesa no período.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={despesasDetailsQuery.data?.categories || []}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                    <Tooltip formatter={(val: any) => currencyFormat(Number(val))} />
+                    <Bar dataKey="value" fill="#ef4444" radius={[8, 8, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderProjecao = () => {
+    const proj = projecaoQuery.data;
+    const receitaBase = proj?.receitaBase || 0;
+    const despesaBase = proj?.despesaBase || 0;
+    const lucroBase = proj?.lucroBase || 0;
+    const lucro6Meses = lucroBase * 6;
+
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <ReportMetricCard 
+            title="Receita Mensal Recorrente" 
+            value={currencyFormat(receitaBase)} 
+            trend="+10%" 
+            color="text-indigo-500" 
+            icon={DollarSign} 
+            subtitle="alunos ativos"
+          />
+          <ReportMetricCard 
+            title="Despesa Mensal Fixa" 
+            value={currencyFormat(despesaBase)} 
+            trend="0%" 
+            color="text-rose-500" 
+            icon={CreditCard} 
+            subtitle="contas mensais"
+          />
+          <ReportMetricCard 
+            title="Lucro Mensal Base" 
+            value={currencyFormat(lucroBase)} 
+            trend="+12%" 
+            color="text-emerald-500" 
+            icon={TrendingUp} 
+            subtitle="projeção mensal"
+          />
+          <ReportMetricCard 
+            title="Lucro Acumulado (6 Meses)" 
+            value={currencyFormat(lucro6Meses)} 
+            trend="+15%" 
+            color="text-purple-500" 
+            icon={Wallet} 
+            subtitle="projeção total"
+          />
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-slate-100 dark:border-slate-700 pb-6">
+            <div>
+              <h3 className="text-lg font-black dark:text-white flex items-center gap-2">
+                <LineIcon size={20} className="text-indigo-500" /> Projeção de Ganhos (Próximos 6 Meses)
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">Cálculo baseado na manutenção dos alunos ativos atuais e despesas fixas mensais.</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs font-bold">
+               <span className="flex items-center gap-1.5 text-indigo-600"><span className="w-3 h-3 rounded-full bg-indigo-500 shrink-0" /> Receita</span>
+               <span className="flex items-center gap-1.5 text-rose-600"><span className="w-3 h-3 rounded-full bg-rose-500 shrink-0" /> Despesa</span>
+               <span className="flex items-center gap-1.5 text-emerald-600"><span className="w-3 h-1 bg-emerald-500 shrink-0" /> Lucro Líquido</span>
+            </div>
+          </div>
+
+          <div className="h-96 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={proj?.projection || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="monthName" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} width={80} tickFormatter={(val) => currencyFormat(val)} />
+                <Tooltip formatter={(val: any) => currencyFormat(Number(val))} />
+                <Bar dataKey="receita" name="Receita Projetada" fill="#6366f1" radius={[8, 8, 0, 0]} barSize={32} />
+                <Bar dataKey="despesa" name="Despesa Projetada" fill="#ef4444" radius={[8, 8, 0, 0]} barSize={32} />
+                <Line type="monotone" dataKey="lucro" name="Lucro Líquido" stroke="#10b981" strokeWidth={4} dot={{ r: 6, fill: '#10b981', strokeWidth: 3, stroke: '#fff' }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderAlunos = () => (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -318,7 +520,6 @@ const Relatorios: React.FC = () => {
       value: r.total
     })) || [];
 
-    // Calcular ticket médio
     const stats = (modalidadeStatsQuery.data?.students || []).map(s => {
       const revenue = modalidadeStatsQuery.data?.revenue.find(r => r.lessonType === s.lessonType)?.total || 0;
       return {
@@ -332,7 +533,6 @@ const Relatorios: React.FC = () => {
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Distribuição de Alunos */}
           <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
             <div className="flex items-center gap-4 mb-8">
                <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
@@ -361,7 +561,6 @@ const Relatorios: React.FC = () => {
             </div>
           </div>
 
-          {/* Comparação de Faturamento */}
           <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
             <div className="flex items-center gap-4 mb-8">
                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
@@ -375,7 +574,7 @@ const Relatorios: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
-                  <Tooltip formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)} />
+                  <Tooltip formatter={(value: number) => currencyFormat(value)} />
                   <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                     {revenueData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 0 ? "#6366f1" : "#a855f7"} />
@@ -387,7 +586,6 @@ const Relatorios: React.FC = () => {
           </div>
         </div>
 
-        {/* Métricas Detalhadas */}
         <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
           <h3 className="text-lg font-black mb-8 dark:text-white">Ticket Médio por Modalidade</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
@@ -399,12 +597,12 @@ const Relatorios: React.FC = () => {
                      </div>
                      <div>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{s.lessonType === 'individual' ? 'Aula Individual' : 'Aula em Turma'}</p>
-                        <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(s.avg)}</p>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{currencyFormat(s.avg)}</p>
                      </div>
                   </div>
                   <div className="text-right">
                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.count} Alunos</p>
-                     <p className="text-xs font-bold text-slate-500">Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(s.revenue)}</p>
+                     <p className="text-xs font-bold text-slate-500">Total: {currencyFormat(s.revenue)}</p>
                   </div>
                </div>
              ))}
@@ -476,7 +674,7 @@ const Relatorios: React.FC = () => {
                     {format(new Date(pay.dueDate), 'dd/MM/yyyy')}
                   </td>
                   <td className="py-5 px-4 font-black text-slate-900 dark:text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(pay.amount))}
+                    {currencyFormat(Number(pay.amount))}
                   </td>
                   <td className="py-5 px-4">
                     <span className={cn("px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest", 
@@ -502,25 +700,25 @@ const Relatorios: React.FC = () => {
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 font-sans animate-fade-in">
       <header className="mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-8">
         <div className="space-y-2">
           <h1 className="text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tighter">Relatórios</h1>
           <p className="text-slate-500 dark:text-slate-400 font-bold text-sm uppercase tracking-[0.2em]">Dashboard de Inteligência</p>
         </div>
         
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[2rem] overflow-x-auto no-scrollbar shadow-inner">
-          {(['financeiro', 'alunos', 'aulas', 'instrumentos', 'mensalidades'] as const).map((tab) => (
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[2rem] overflow-x-auto no-scrollbar shadow-inner border border-slate-200 dark:border-slate-700">
+          {(['financeiro', 'despesas', 'projecao', 'alunos', 'aulas', 'instrumentos', 'mensalidades', 'modalidades'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={cn("px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+              className={cn("px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
                 activeTab === tab 
-                  ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-xl" 
+                  ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-xl border border-slate-200/50 dark:border-slate-600" 
                   : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
               )}
             >
-              {tab}
+              {tab === 'despesas' ? 'Despesas & Lucro' : tab === 'projecao' ? 'Projeção 6M' : tab}
             </button>
           ))}
         </div>
@@ -538,7 +736,7 @@ const Relatorios: React.FC = () => {
           <select 
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-[10px] font-black uppercase focus:ring-2 focus:ring-indigo-500 py-2.5 px-4 dark:text-white"
+            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-[10px] font-black uppercase focus:ring-2 focus:ring-indigo-500 py-2.5 px-4 dark:text-white cursor-pointer"
           >
             {Array.from({ length: 12 }, (_, i) => (
               <option key={i + 1} value={i + 1}>
@@ -550,7 +748,7 @@ const Relatorios: React.FC = () => {
           <select 
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-[10px] font-black uppercase focus:ring-2 focus:ring-indigo-500 py-2.5 px-4 dark:text-white"
+            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-[10px] font-black uppercase focus:ring-2 focus:ring-indigo-500 py-2.5 px-4 dark:text-white cursor-pointer"
           >
             {[2023, 2024, 2025, 2026].map(y => (
               <option key={y} value={y}>{y}</option>
@@ -577,6 +775,8 @@ const Relatorios: React.FC = () => {
             transition={{ duration: 0.2 }}
           >
             {activeTab === 'financeiro' && renderFinanceiro()}
+            {activeTab === 'despesas' && renderDespesas()}
+            {activeTab === 'projecao' && renderProjecao()}
             {activeTab === 'alunos' && renderAlunos()}
             {activeTab === 'modalidades' && renderModalidades()}
             {activeTab === 'aulas' && renderAulas()}
