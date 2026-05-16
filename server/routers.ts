@@ -3809,15 +3809,14 @@ export const appRouter = router({
         const m = input?.month ?? new Date().getMonth() + 1;
         const y = input?.year ?? new Date().getFullYear();
         
-        // As expenses are date-based, we extract month and year from the date
-        const query = sql`EXTRACT(MONTH FROM ${expenses.date}) = ${m} AND EXTRACT(YEAR FROM ${expenses.date}) = ${y}`;
+        const dateFilter = input?.month === -1 ? undefined : sql`EXTRACT(MONTH FROM ${expenses.date}) = ${m} AND EXTRACT(YEAR FROM ${expenses.date}) = ${y}`;
         
         return db.select()
           .from(expenses)
           .where(and(
             eq(expenses.organizationId, orgId),
             (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : eq(expenses.userId, ctx.user.id),
-            query
+            dateFilter
           ))
           .orderBy(desc(expenses.date));
       }),
@@ -3825,6 +3824,9 @@ export const appRouter = router({
     create: protectedProcedure
       .input(z.object({
         description: z.string(),
+        supplier: z.string().optional(),
+        account: z.string().optional(),
+        recurrence: z.string().optional(),
         amount: z.number(),
         date: z.string(),
         category: z.string(),
@@ -3841,6 +3843,9 @@ export const appRouter = router({
             organizationId: orgId,
             userId: ctx.user.id,
             description: input.description,
+            supplier: input.supplier || null,
+            account: input.account || null,
+            recurrence: input.recurrence || "unica",
             amount: input.amount.toFixed(2),
             date: input.date.slice(0, 10),
             category: input.category,
@@ -3859,6 +3864,9 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         description: z.string().optional(),
+        supplier: z.string().nullable().optional(),
+        account: z.string().nullable().optional(),
+        recurrence: z.string().optional(),
         amount: z.number().optional(),
         date: z.string().optional(),
         category: z.string().optional(),
@@ -3912,6 +3920,115 @@ export const appRouter = router({
           return { success: true };
         } catch (error) {
           return handleDbError(error, "marcar despesa como paga");
+        }
+      }),
+
+    generateRecurring: protectedProcedure
+      .input(z.object({
+        startMonth: z.number(),
+        startYear: z.number(),
+        monthsCount: z.number().default(1)
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+          
+          const recurringList = await db.select()
+            .from(expenses)
+            .where(and(
+              eq(expenses.organizationId, orgId),
+              eq(expenses.userId, ctx.user.id),
+              eq(expenses.recurrence, "mensal")
+            ));
+
+          const templatesMap = new Map<string, typeof recurringList[0]>();
+          recurringList.forEach(e => {
+            const existing = templatesMap.get(e.description.toLowerCase());
+            if (!existing || new Date(e.date) > new Date(existing.date)) {
+              templatesMap.set(e.description.toLowerCase(), e);
+            }
+          });
+
+          const templates = Array.from(templatesMap.values());
+          if (templates.length === 0) return { success: true, count: 0 };
+
+          let count = 0;
+          for (let i = 0; i < input.monthsCount; i++) {
+            let m = input.startMonth + i;
+            let y = input.startYear;
+            while (m > 12) { m -= 12; y += 1; }
+
+            const existingThisMonth = await db.select({ description: expenses.description })
+              .from(expenses)
+              .where(and(
+                eq(expenses.organizationId, orgId),
+                eq(expenses.userId, ctx.user.id),
+                sql`EXTRACT(MONTH FROM ${expenses.date}) = ${m}`,
+                sql`EXTRACT(YEAR FROM ${expenses.date}) = ${y}`
+              ));
+            const existingSet = new Set(existingThisMonth.map(e => e.description.toLowerCase()));
+
+            for (const t of templates) {
+              if (!existingSet.has(t.description.toLowerCase())) {
+                const oldDate = new Date(t.date + "T12:00:00");
+                const day = oldDate.getDate();
+                const newDateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                await db.insert(expenses).values({
+                  organizationId: orgId,
+                  userId: ctx.user.id,
+                  description: t.description,
+                  supplier: t.supplier,
+                  account: t.account,
+                  recurrence: t.recurrence,
+                  amount: t.amount,
+                  date: newDateStr,
+                  category: t.category,
+                  status: "pendente",
+                  notes: t.notes,
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                });
+                count++;
+              }
+            }
+          }
+
+          return { success: true, count };
+        } catch (error) {
+          return handleDbError(error, "gerar despesas recorrentes");
+        }
+      }),
+
+    uploadReceipt: protectedProcedure
+      .input(z.object({
+        expenseId: z.number(),
+        fileData: z.string(),
+        fileName: z.string(),
+        fileType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+
+          const base64Content = input.fileData.split(';base64,').pop() || input.fileData;
+          const buffer = Buffer.from(base64Content, 'base64');
+          const fileExt = input.fileName.split(".").pop() || 'dat';
+          const storageKey = `receipts/exp_${orgId}_${input.expenseId}_${nanoid(6)}.${fileExt}`;
+
+          const { url } = await storagePut(storageKey, buffer, input.fileType);
+
+          await db.update(expenses)
+            .set({ receiptUrl: url, updatedAt: new Date() })
+            .where(and(eq(expenses.id, input.expenseId), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id)));
+
+          return { success: true, receiptUrl: url };
+        } catch (error) {
+          return handleDbError(error, "enviar comprovante de despesa");
         }
       }),
   }),

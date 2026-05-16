@@ -53,6 +53,10 @@ async function ensureSchemaConsistency(db: any) {
         "updatedAt" timestamp DEFAULT now() NOT NULL
       )
     `);
+    await db.execute(sql`ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "supplier" varchar(255)`);
+    await db.execute(sql`ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "account" varchar(255)`);
+    await db.execute(sql`ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "recurrence" varchar(50) DEFAULT 'unica' NOT NULL`);
+    
     
     // student_evolution table
     await db.execute(sql`
