@@ -28,6 +28,14 @@ export function ReminderCard({ reminder, onDelete }: Props) {
     onSuccess: () => { utils.reminders.list.invalidate(); utils.reminders.pendingCount.invalidate(); toast.success("Lembrete cancelado"); },
     onError: (e) => toast.error("Erro: " + e.message),
   });
+  const sendViaBot = trpc.reminders.sendViaBot.useMutation({
+    onSuccess: () => {
+      utils.reminders.list.invalidate();
+      utils.reminders.pendingCount.invalidate();
+      toast.success("Enviado via Robô com sucesso!");
+    },
+    onError: (e) => toast.error("Erro ao enviar via robô: " + e.message),
+  });
 
   const copyMsg = () => { navigator.clipboard.writeText(reminder.message); toast.success("Mensagem copiada!"); };
 
@@ -92,6 +100,15 @@ export function ReminderCard({ reminder, onDelete }: Props) {
         <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed mt-1 bg-muted/30 p-2.5 rounded-xl border border-transparent group-hover:border-border transition-colors">
           {reminder.message}
         </p>
+        {reminder.errorMessage && (
+          <div className="mt-2 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-start gap-2">
+            <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />
+            <div className="text-[11px] text-red-600 dark:text-red-400">
+              <span className="font-bold uppercase tracking-wider block mb-0.5">Falha no Robô:</span>
+              <span className="line-clamp-2">{reminder.errorMessage}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Actions section */}
@@ -102,6 +119,12 @@ export function ReminderCard({ reminder, onDelete }: Props) {
               onClick={() => openWhatsApp(reminder.studentPhone, reminder.message, toast.error)}
               className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02]">
               <MessageCircle size={14} /> Enviar WhatsApp
+            </button>
+            <button
+              onClick={() => sendViaBot.mutate({ id: reminder.id })}
+              disabled={sendViaBot.isPending}
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-500/20 transition-all hover:scale-[1.02] disabled:opacity-50">
+              {sendViaBot.isPending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Enviar via Robô
             </button>
             <button onClick={() => markSent.mutate({ id: reminder.id })} disabled={markSent.isPending}
               className="px-3 py-2 flex items-center gap-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 rounded-xl transition-colors">

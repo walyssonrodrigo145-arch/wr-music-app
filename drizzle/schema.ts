@@ -166,6 +166,10 @@ export const settings = pgTable("settings", {
   theme: varchar("theme", { length: 20 }).default("light"),
   pixKey: text("pixKey"),
   hiddenTabs: text("hiddenTabs").default("").notNull(),
+  // WhatsApp Bot integration (Fly.io)
+  whatsappBotUrl: varchar("whatsappBotUrl", { length: 255 }),
+  whatsappBotToken: text("whatsappBotToken"),
+  whatsappAutoSend: integer("whatsappAutoSend").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -186,6 +190,9 @@ export const reminders = pgTable("reminders", {
   sentAt: timestamp("sentAt"),
   cancelledAt: timestamp("cancelledAt"),
   refId: varchar("refId", { length: 100 }),
+  // WhatsApp Bot tracking
+  externalMessageId: varchar("externalMessageId", { length: 255 }),
+  errorMessage: text("errorMessage"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

@@ -27,6 +27,7 @@ import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQ
 import { buildUserContext } from "./utils/aiContext";
 import { getSystemPrompt } from "./utils/aiPrompts";
 import { callGemini } from "./utils/gemini";
+import { sendWhatsAppMessage } from "./utils/whatsapp";
 import { nanoid } from "nanoid";
 import { sdk } from "./_core/sdk";
 import { sendVerificationEmail } from "./_core/email";
@@ -1761,6 +1762,19 @@ export const appRouter = router({
       return { success: true, enabled: input.enabled };
     }),
 
+    updateWhatsAppBot: protectedProcedure.input(z.object({
+      whatsappBotUrl: z.string().optional(),
+      whatsappBotToken: z.string().optional(),
+      whatsappAutoSend: z.boolean().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
+        whatsappBotUrl: input.whatsappBotUrl ?? null,
+        whatsappBotToken: input.whatsappBotToken ?? null,
+        whatsappAutoSend: input.whatsappAutoSend !== undefined ? (input.whatsappAutoSend ? 1 : 0) : undefined,
+      });
+      return { success: true };
+    }),
+
     exportData: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -1849,6 +1863,8 @@ export const appRouter = router({
             createdAt: reminders.createdAt,
             studentName: students.name,
             studentPhone: students.phone,
+            externalMessageId: reminders.externalMessageId,
+            errorMessage: reminders.errorMessage,
           })
           .from(reminders)
           .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
@@ -2116,6 +2132,51 @@ export const appRouter = router({
           .set({ status: "enviado", sentAt: new Date() })
           .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id)));
         return { success: true };
+      }),
+
+    // ─ Disparar via Robô Fly.io ─────────────────────────────────────────────────────
+    sendViaBot: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        
+        const [rem] = await db.select({
+          id: reminders.id,
+          message: reminders.message,
+          studentPhone: students.phone,
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+        })
+        .from(reminders)
+        .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
+        .leftJoin(settings, eq(settings.userId, ctx.user.id))
+        .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id)))
+        .limit(1);
+
+        if (!rem) throw new Error("Lembrete não encontrado.");
+        if (!rem.whatsappBotUrl) throw new Error("URL do robô do WhatsApp não configurada nas Configurações.");
+        if (!rem.studentPhone) throw new Error("Aluno sem telefone cadastrado.");
+
+        const sendRes = await sendWhatsAppMessage({
+          url: rem.whatsappBotUrl,
+          token: rem.whatsappBotToken,
+          phone: rem.studentPhone,
+          message: rem.message,
+        });
+
+        if (sendRes.success) {
+          await db.update(reminders)
+            .set({ status: "enviado", sentAt: new Date(), externalMessageId: sendRes.messageId, errorMessage: null })
+            .where(eq(reminders.id, input.id));
+          return { success: true, messageId: sendRes.messageId };
+        } else {
+          await db.update(reminders)
+            .set({ errorMessage: sendRes.error })
+            .where(eq(reminders.id, input.id));
+          throw new Error(sendRes.error);
+        }
       }),
 
     // ─ Cancelar lembrete ────────────────────────────────────────────────────────────

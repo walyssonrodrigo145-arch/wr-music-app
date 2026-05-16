@@ -16,6 +16,12 @@ import { sql } from 'drizzle-orm';
     
     await db.execute(sql`CREATE TABLE IF NOT EXISTS asaas_customers (id serial PRIMARY KEY, "organizationId" integer, "studentId" integer NOT NULL, "asaasCustomerId" text NOT NULL, "createdAt" timestamp DEFAULT now() NOT NULL);`);
     console.log('Created asaas_customers.');
+
+    await db.execute(sql`ALTER TABLE settings ADD COLUMN IF NOT EXISTS "whatsappBotUrl" varchar(255), ADD COLUMN IF NOT EXISTS "whatsappBotToken" text, ADD COLUMN IF NOT EXISTS "whatsappAutoSend" integer DEFAULT 0 NOT NULL;`);
+    console.log('Altered settings for WhatsApp Bot.');
+
+    await db.execute(sql`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS "externalMessageId" varchar(255), ADD COLUMN IF NOT EXISTS "errorMessage" text;`);
+    console.log('Altered reminders for WhatsApp Bot.');
   } catch (e) {
     console.error('Migration error:', e);
   }

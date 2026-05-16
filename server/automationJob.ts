@@ -15,12 +15,13 @@ import { eq, and, gte, lte } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
+import { sendWhatsAppMessage } from "./utils/whatsapp";
 
 async function runAutomation() {
   const db = await getDb();
   if (!db) return;
 
-  // Buscar todos os usuários com automação ativada, junto com o organizationId
+  // Buscar todos os usuários com automação ativada, junto com o organizationId e configs do WhatsApp
   const activeSettings = await db
     .select({
       id: settings.id,
@@ -28,6 +29,9 @@ async function runAutomation() {
       organizationId: settings.organizationId,
       automationEnabled: settings.automationEnabled,
       automationLastRun: settings.automationLastRun,
+      whatsappBotUrl: settings.whatsappBotUrl,
+      whatsappBotToken: settings.whatsappBotToken,
+      whatsappAutoSend: settings.whatsappAutoSend,
     })
     .from(settings)
     .where(eq(settings.automationEnabled, 1));
@@ -269,6 +273,66 @@ async function runAutomation() {
           title: "🔔 Novos Lembretes Disponíveis",
           content: `O robô gerou ${remindersCreated} novos lembretes para você revisar e enviar aos alunos.`
         });
+      }
+
+      // ─── DISPARO AUTOMÁTICO VIA ROBÔ FLY.IO ─────────────────────────────────
+      if (userSettings.whatsappAutoSend === 1 && userSettings.whatsappBotUrl) {
+        console.log(`[Automation] Processing auto-send for userId=${userId} orgId=${orgId}`);
+        const pendingReminders = await db
+          .select({
+            id: reminders.id,
+            message: reminders.message,
+            scheduledAt: reminders.scheduledAt,
+            studentPhone: students.phone,
+            studentName: students.name,
+          })
+          .from(reminders)
+          .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
+          .where(
+            and(
+              eq(reminders.organizationId, orgId),
+              eq(reminders.userId, userId),
+              eq(reminders.status, "pendente"),
+              lte(reminders.scheduledAt, now)
+            )
+          );
+
+        for (const rem of pendingReminders) {
+          if (!rem.studentPhone) {
+            await db.update(reminders)
+              .set({ errorMessage: "Aluno sem telefone cadastrado.", updatedAt: new Date() })
+              .where(eq(reminders.id, rem.id));
+            continue;
+          }
+
+          const sendRes = await sendWhatsAppMessage({
+            url: userSettings.whatsappBotUrl,
+            token: userSettings.whatsappBotToken,
+            phone: rem.studentPhone,
+            message: rem.message,
+          });
+
+          if (sendRes.success) {
+            await db.update(reminders)
+              .set({
+                status: "enviado",
+                sentAt: new Date(),
+                externalMessageId: sendRes.messageId,
+                errorMessage: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(reminders.id, rem.id));
+            console.log(`[Automation] Auto-sent reminder id=${rem.id} via Fly.io bot`);
+          } else {
+            await db.update(reminders)
+              .set({
+                errorMessage: sendRes.error,
+                updatedAt: new Date(),
+              })
+              .where(eq(reminders.id, rem.id));
+            console.warn(`[Automation] Failed to auto-send reminder id=${rem.id}:`, sendRes.error);
+          }
+        }
       }
 
     } catch (err) {

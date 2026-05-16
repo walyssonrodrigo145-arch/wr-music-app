@@ -17,6 +17,8 @@ export type Reminder = {
   studentPhone?: string | null;
   lessonId?: number | null;
   paymentDueId?: number | null;
+  externalMessageId?: string | null;
+  errorMessage?: string | null;
 };
 
 export type Template = {
