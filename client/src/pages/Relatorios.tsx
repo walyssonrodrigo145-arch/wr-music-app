@@ -40,8 +40,8 @@ function ReportMetricCard({
 
       <div className="flex items-center justify-between mb-6 z-10">
         <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{title}</p>
-        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-500 group-hover:rotate-6 shadow-md shrink-0", color.replace('text-', 'bg-') + '/10')}>
-          <Icon size={22} className={color} />
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-500 group-hover:rotate-6 shadow-md shrink-0", color.replace('text-', 'bg-') + '/10')}>
+          <Icon size={18} className={color} />
         </div>
       </div>
       
@@ -205,7 +205,7 @@ const Relatorios: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                <Sparkles className="text-indigo-500 w-6 h-6" /> Evolução da Receita
+                <Sparkles className="text-indigo-500 w-5 h-5 shrink-0" /> Evolução da Receita
               </h3>
               <span className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider">Anual</span>
             </div>
@@ -235,7 +235,7 @@ const Relatorios: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                <PieIcon className="text-emerald-500 w-6 h-6" /> Composição Financeira
+                <PieIcon className="text-emerald-500 w-5 h-5 shrink-0" /> Composição Financeira
               </h3>
               <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">Maio</span>
             </div>
@@ -346,7 +346,7 @@ const Relatorios: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                  <PieIcon className="text-purple-500 w-6 h-6" /> Comparativo: Receitas vs Despesas
+                  <PieIcon className="text-purple-500 w-5 h-5 shrink-0" /> Comparativo: Receitas vs Despesas
                 </h3>
                 <span className="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-black uppercase tracking-wider">Maio</span>
               </div>
@@ -395,7 +395,7 @@ const Relatorios: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                  <LayoutGrid className="text-rose-500 w-6 h-6" /> Despesas por Categoria
+                  <LayoutGrid className="text-rose-500 w-5 h-5 shrink-0" /> Despesas por Categoria
                 </h3>
                 <span className="px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-black uppercase tracking-wider">Maio</span>
               </div>
@@ -471,7 +471,7 @@ const Relatorios: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-slate-100 dark:border-slate-700 pb-6">
             <div>
               <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                <LineIcon className="text-indigo-500 w-6 h-6" /> Projeção de Ganhos (Próximos 6 Meses)
+                <LineIcon className="text-indigo-500 w-5 h-5 shrink-0" /> Projeção de Ganhos (Próximos 6 Meses)
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-1">Cálculo preditivo inteligente baseado na recorrência atual de alunos e despesas fixas.</p>
             </div>
@@ -505,7 +505,7 @@ const Relatorios: React.FC = () => {
       <div className="bg-white dark:bg-slate-800/90 p-8 lg:p-10 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all duration-500">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-            <TrendingUp className="text-emerald-500 w-6 h-6" /> Crescimento de Matrículas
+            <TrendingUp className="text-emerald-500 w-5 h-5 shrink-0" /> Crescimento de Matrículas
           </h3>
           <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">Anual</span>
         </div>
@@ -528,7 +528,7 @@ const Relatorios: React.FC = () => {
         <div className="bg-white dark:bg-slate-800/90 p-8 lg:p-10 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col justify-between">
           <div>
             <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2.5">
-              <Users className="text-indigo-500 w-6 h-6" /> Status dos Alunos
+              <Users className="text-indigo-500 w-5 h-5 shrink-0" /> Status dos Alunos
             </h3>
             <p className="text-xs text-slate-500 mb-8 font-medium">Proporção atual entre alunos ativos, inativos e pausados.</p>
           </div>
@@ -561,8 +561,8 @@ const Relatorios: React.FC = () => {
         <div className="bg-white dark:bg-slate-800/90 p-8 lg:p-10 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col items-center justify-center text-center relative overflow-hidden group">
           <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
           
-          <div className="w-24 h-24 rounded-[2rem] bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-6 shadow-md group-hover:rotate-6 transition-transform duration-500">
-             <UserPlus size={44} />
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-6 shadow-md group-hover:rotate-6 transition-transform duration-500">
+             <UserPlus size={32} />
           </div>
           <h4 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Conversão</h4>
           <p className="text-slate-400 dark:text-slate-500 font-black text-xs uppercase tracking-[0.2em] mt-2">Experimental para Matrícula</p>
@@ -584,15 +584,15 @@ const Relatorios: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {instrumentStatsQuery.data?.map((instr) => (
             <div key={instr.id} className="bg-white dark:bg-slate-800/90 p-7 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-5 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-500/40 transition-all duration-500 group">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-500 shrink-0" style={{ backgroundColor: `${instr.color || '#6366f1'}15` }}>
-                <Music className="w-8 h-8" style={{ color: instr.color || '#6366f1' }} />
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-500 shrink-0" style={{ backgroundColor: `${instr.color || '#6366f1'}15` }}>
+                <Music className="w-6 h-6" style={{ color: instr.color || '#6366f1' }} />
               </div>
               <div className="flex-1">
                 <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{instr.name}</h4>
                 <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">{instr.studentCount} Alunos</p>
               </div>
-              <div className="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 w-10 h-10 rounded-2xl flex items-center justify-center group-hover:translate-x-1 transition-transform duration-500 shadow-sm shrink-0">
-                <ChevronRight size={20} />
+              <div className="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 w-8 h-8 rounded-xl flex items-center justify-center group-hover:translate-x-1 transition-transform duration-500 shadow-sm shrink-0">
+                <ChevronRight size={16} />
               </div>
             </div>
           ))}
@@ -604,7 +604,7 @@ const Relatorios: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                   <LayoutGrid className="text-indigo-500 w-6 h-6" /> Alunos por Instrumento (Barras)
+                   <LayoutGrid className="text-indigo-500 w-5 h-5 shrink-0" /> Alunos por Instrumento (Barras)
                 </h3>
                 <span className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider">Geral</span>
               </div>
@@ -629,7 +629,7 @@ const Relatorios: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                   <PieIcon className="text-purple-500 w-6 h-6" /> Distribuição por Instrumento (Pizza)
+                   <PieIcon className="text-purple-500 w-5 h-5 shrink-0" /> Distribuição por Instrumento (Pizza)
                 </h3>
                 <span className="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-black uppercase tracking-wider">Fatias</span>
               </div>
@@ -702,7 +702,7 @@ const Relatorios: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                   <Users className="text-purple-500 w-6 h-6" /> Distribuição de Alunos
+                   <Users className="text-purple-500 w-5 h-5 shrink-0" /> Distribuição de Alunos
                 </h3>
                 <span className="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-black uppercase tracking-wider">Modalidade</span>
               </div>
@@ -743,7 +743,7 @@ const Relatorios: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                   <DollarSign className="text-emerald-500 w-6 h-6" /> Faturamento por Modalidade
+                   <DollarSign className="text-emerald-500 w-5 h-5 shrink-0" /> Faturamento por Modalidade
                 </h3>
                 <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">Receita</span>
               </div>
@@ -771,7 +771,7 @@ const Relatorios: React.FC = () => {
         <div className="bg-white dark:bg-slate-800/90 p-8 lg:p-10 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all duration-500">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-              <Layers className="text-indigo-500 w-6 h-6" /> Ticket Médio por Modalidade
+              <Layers className="text-indigo-500 w-5 h-5 shrink-0" /> Ticket Médio por Modalidade
             </h3>
             <span className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider">Média</span>
           </div>
@@ -781,8 +781,8 @@ const Relatorios: React.FC = () => {
              {stats.map((s, i) => (
                <div key={i} className="p-7 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between group hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-500/40 transition-all duration-500">
                   <div className="flex items-center gap-5">
-                     <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-500", s.lessonType === 'individual' ? "bg-blue-500/10 text-blue-600" : "bg-purple-500/10 text-purple-600")}>
-                        {s.lessonType === 'individual' ? <Target size={28} /> : <Users size={28} />}
+                     <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-500", s.lessonType === 'individual' ? "bg-blue-500/10 text-blue-600" : "bg-purple-500/10 text-purple-600")}>
+                        {s.lessonType === 'individual' ? <Target size={22} /> : <Users size={22} />}
                      </div>
                      <div>
                         <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">{s.lessonType === 'individual' ? 'Aula Individual' : 'Aula em Turma'}</p>
@@ -806,7 +806,7 @@ const Relatorios: React.FC = () => {
       <div className="bg-white dark:bg-slate-800/90 p-8 lg:p-10 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all duration-500">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-            <Clock className="text-purple-500 w-6 h-6" /> Distribuição de Aulas (Semana)
+            <Clock className="text-purple-500 w-5 h-5 shrink-0" /> Distribuição de Aulas (Semana)
           </h3>
           <span className="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-black uppercase tracking-wider">Semanal</span>
         </div>
@@ -833,7 +833,7 @@ const Relatorios: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
             <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5 mb-2">
-              <CalendarDays className="text-amber-500 w-6 h-6" /> Mensalidades em Aberto
+              <CalendarDays className="text-amber-500 w-5 h-5 shrink-0" /> Mensalidades em Aberto
             </h3>
             <p className="text-xs text-slate-500 font-medium">Acompanhamento e gestão de faturas pendentes ou em atraso.</p>
           </div>
@@ -866,7 +866,7 @@ const Relatorios: React.FC = () => {
                 <tr key={pay.id} className="group hover:bg-slate-50 dark:hover:bg-indigo-900/10 transition-colors">
                   <td className="py-6 px-5">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-base shadow-sm group-hover:scale-110 transition-transform">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-sm shadow-sm group-hover:scale-110 transition-transform shrink-0">
                         {pay.studentName?.charAt(0)}
                       </div>
                       <span className="font-black text-slate-900 dark:text-white text-base tracking-tight">{pay.studentName}</span>
