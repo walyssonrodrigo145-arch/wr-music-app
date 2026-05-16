@@ -506,18 +506,63 @@ const Relatorios: React.FC = () => {
         ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm">
-        <h3 className="text-lg font-black mb-8 dark:text-white">Alunos por Instrumento</h3>
-        <div className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={instrumentStatsQuery.data || []}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
-              <Tooltip />
-              <Bar dataKey="studentCount" fill="#6366f1" radius={[10, 10, 0, 0]} barSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Gráfico de Barras */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+          <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
+             <LayoutGrid size={20} className="text-indigo-500" /> Alunos por Instrumento (Barras)
+          </h3>
+          <div className="h-80 flex-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={instrumentStatsQuery.data || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                <Tooltip />
+                <Bar dataKey="studentCount" fill="#6366f1" radius={[8, 8, 0, 0]} barSize={32} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Gráfico de Pizza (Donut) */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+          <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
+             <PieIcon size={20} className="text-purple-500" /> Distribuição por Instrumento (Pizza)
+          </h3>
+          
+          <div className="h-72 w-full relative flex items-center justify-center my-auto">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={instrumentStatsQuery.data || []}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={70}
+                  outerRadius={105}
+                  paddingAngle={6}
+                  dataKey="studentCount"
+                  nameKey="name"
+                  label={({ name, percent }) => percent > 0 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''}
+                >
+                  {(instrumentStatsQuery.data || []).map((instr, index) => (
+                    <Cell key={`cell-${index}`} fill={instr.color || COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-6 pt-6 border-t border-slate-100 dark:border-slate-700 mt-6">
+            {(instrumentStatsQuery.data || []).map((instr, index) => (
+              <div key={instr.id || instr.name} className="flex items-center gap-2">
+                <span className="w-3.5 h-3.5 rounded-lg shrink-0 shadow-sm" style={{ backgroundColor: instr.color || COLORS[index % COLORS.length] }} />
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{instr.name}</span>
+                <span className="text-xs font-black text-slate-900 dark:text-white ml-1">({instr.studentCount})</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
