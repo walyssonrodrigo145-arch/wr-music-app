@@ -485,88 +485,96 @@ const Relatorios: React.FC = () => {
     </div>
   );
 
-  const renderInstrumentos = () => (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {instrumentStatsQuery.data?.map((instr) => (
-          <div key={instr.id} className="bg-white dark:bg-slate-800 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center gap-4 hover:shadow-md transition-shadow">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${instr.color || '#6366f1'}15` }}>
-              <Music className="w-7 h-7" style={{ color: instr.color || '#6366f1' }} />
-            </div>
-            <div>
-              <h4 className="font-black text-slate-900 dark:text-white">{instr.name}</h4>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{instr.studentCount} Alunos</p>
-            </div>
-            <div className="ml-auto">
-              <div className="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 w-8 h-8 rounded-lg flex items-center justify-center">
-                <ChevronRight size={18} />
+  const renderInstrumentos = () => {
+    const pieData = (instrumentStatsQuery.data || []).map((instr, index) => ({
+      ...instr,
+      studentCountNum: Number(instr.studentCount || 0),
+      fillColor: instr.color || COLORS[index % COLORS.length]
+    }));
+
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {instrumentStatsQuery.data?.map((instr) => (
+            <div key={instr.id} className="bg-white dark:bg-slate-800 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center gap-4 hover:shadow-md transition-shadow">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${instr.color || '#6366f1'}15` }}>
+                <Music className="w-7 h-7" style={{ color: instr.color || '#6366f1' }} />
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 dark:text-white">{instr.name}</h4>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{instr.studentCount} Alunos</p>
+              </div>
+              <div className="ml-auto">
+                <div className="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 w-8 h-8 rounded-lg flex items-center justify-center">
+                  <ChevronRight size={18} />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Gráfico de Barras */}
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
-          <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
-             <LayoutGrid size={20} className="text-indigo-500" /> Alunos por Instrumento (Barras)
-          </h3>
-          <div className="h-80 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={instrumentStatsQuery.data || []}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
-                <Tooltip />
-                <Bar dataKey="studentCount" fill="#6366f1" radius={[8, 8, 0, 0]} barSize={32} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          ))}
         </div>
 
-        {/* Gráfico de Pizza (Donut) */}
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
-          <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
-             <PieIcon size={20} className="text-purple-500" /> Distribuição por Instrumento (Pizza)
-          </h3>
-          
-          <div className="h-72 w-full relative flex items-center justify-center my-auto">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={instrumentStatsQuery.data || []}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={105}
-                  paddingAngle={6}
-                  dataKey="studentCount"
-                  nameKey="name"
-                  label={({ name, percent }) => percent > 0 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''}
-                >
-                  {(instrumentStatsQuery.data || []).map((instr, index) => (
-                    <Cell key={`cell-${index}`} fill={instr.color || COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Gráfico de Barras */}
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+            <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
+               <LayoutGrid size={20} className="text-indigo-500" /> Alunos por Instrumento (Barras)
+            </h3>
+            <div className="h-80 flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={pieData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                  <Tooltip />
+                  <Bar dataKey="studentCountNum" fill="#6366f1" radius={[8, 8, 0, 0]} barSize={32} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-6 pt-6 border-t border-slate-100 dark:border-slate-700 mt-6">
-            {(instrumentStatsQuery.data || []).map((instr, index) => (
-              <div key={instr.id || instr.name} className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded-lg shrink-0 shadow-sm" style={{ backgroundColor: instr.color || COLORS[index % COLORS.length] }} />
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{instr.name}</span>
-                <span className="text-xs font-black text-slate-900 dark:text-white ml-1">({instr.studentCount})</span>
-              </div>
-            ))}
+          {/* Gráfico de Pizza (Donut) */}
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+            <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
+               <PieIcon size={20} className="text-purple-500" /> Distribuição por Instrumento (Pizza)
+            </h3>
+            
+            <div className="h-72 w-full relative flex items-center justify-center my-auto">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={105}
+                    paddingAngle={6}
+                    dataKey="studentCountNum"
+                    nameKey="name"
+                    label={({ name, percent }) => percent > 0 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''}
+                  >
+                    {pieData.map((instr, index) => (
+                      <Cell key={`cell-${index}`} fill={instr.fillColor} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-6 pt-6 border-t border-slate-100 dark:border-slate-700 mt-6">
+              {pieData.map((instr) => (
+                <div key={instr.id || instr.name} className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-lg shrink-0 shadow-sm" style={{ backgroundColor: instr.fillColor }} />
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{instr.name}</span>
+                  <span className="text-xs font-black text-slate-900 dark:text-white ml-1">({instr.studentCount})</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderModalidades = () => {
     const studentData = modalidadeStatsQuery.data?.students.map(s => ({
