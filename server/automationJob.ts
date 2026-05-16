@@ -345,17 +345,17 @@ async function runAutomation() {
 
 /**
  * Inicia o job de automação.
- * Roda imediatamente e depois a cada 10 minutos.
+ * Roda 1 minuto após o boot e depois a cada 1 minuto.
  */
 export function startAutomationJob() {
   // Primeira execução após 1 minuto do boot (evitar conflito na inicialização)
   setTimeout(() => {
     runAutomation().catch(err => console.error("[Automation] Initial run error:", err));
-    // Repetir a cada 10 minutos
+    // Repetir a cada 1 minuto
     setInterval(() => {
       runAutomation().catch(err => console.error("[Automation] Scheduled run error:", err));
-    }, 10 * 60 * 1000); // 10 minutos
+    }, 60 * 1000); // 1 minuto
   }, 60 * 1000); // 1 minuto após boot
 
-  console.log("[Automation] Job scheduler started — runs every 10 minutes");
+  console.log("[Automation] Job scheduler started — runs every 1 minute");
 }
