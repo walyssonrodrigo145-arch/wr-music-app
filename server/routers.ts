@@ -2593,7 +2593,7 @@ export const appRouter = router({
         dueDay: z.number().min(1).max(28), // dia do vencimento
         startMonth: z.number().min(1).max(12),
         startYear: z.number(),
-        monthsCount: z.number().min(1).max(3), // travado em 3 meses
+        monthsCount: z.number().min(1).max(12),
         notes: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -2637,6 +2637,73 @@ export const appRouter = router({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (db.insert(paymentDues) as any).values(rows);
         }
+        return { success: true, count: rows.length };
+      }),
+
+    generateBulkAll: protectedProcedure
+      .input(z.object({
+        startMonth: z.number().min(1).max(12),
+        startYear: z.number(),
+        monthsCount: z.number().min(1).max(12),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        const activeStudents = await db.select({
+          id: students.id,
+          monthlyFee: students.monthlyFee,
+          dueDay: students.dueDay
+        }).from(students).where(and(
+          eq(students.organizationId, orgId),
+          eq(students.professorId, ctx.user.id),
+          eq(students.status, 'ativo')
+        ));
+
+        const rows: any[] = [];
+        
+        for (const student of activeStudents) {
+          const fee = Number(student.monthlyFee);
+          if (fee <= 0) continue;
+
+          for (let i = 0; i < input.monthsCount; i++) {
+            let m = input.startMonth - 1 + i;
+            const y = input.startYear + Math.floor(m / 12);
+            m = m % 12;
+            const dueDate = new Date(y, m, student.dueDay);
+            const month = m + 1;
+
+            const existing = await db.select({ id: paymentDues.id }).from(paymentDues)
+              .where(and(
+                eq(paymentDues.organizationId, orgId),
+                eq(paymentDues.studentId, student.id),
+                eq(paymentDues.month, month),
+                eq(paymentDues.year, y),
+                eq(paymentDues.userId, ctx.user.id),
+              )).limit(1);
+            
+            if (existing.length > 0) continue;
+
+            rows.push({
+              organizationId: orgId,
+              userId: ctx.user.id,
+              studentId: student.id,
+              amount: fee.toFixed(2),
+              dueDate: dueDate.toISOString().slice(0, 10),
+              month,
+              year: y,
+              status: 'pendente' as const,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+        }
+
+        if (rows.length > 0) {
+          await (db.insert(paymentDues) as any).values(rows);
+        }
+        
         return { success: true, count: rows.length };
       }),
 

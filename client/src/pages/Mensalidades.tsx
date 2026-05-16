@@ -236,12 +236,20 @@ function NovaModal({ open, onClose, students }: {
     notes: "",
   });
   const [monthsCount, setMonthsCount] = useState(1);
+  const [generationMode, setGenerationMode] = useState<"individual" | "bulk">("individual");
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const handleStudentChange = (id: string) => {
     const s = students.find(s => String(s.id) === id);
     set("studentId", id);
     if (s?.monthlyFee) set("amount", String(s.monthlyFee));
+    if (s?.dueDay) set("dueDay", String(s.dueDay));
+    if (s?.startDate) {
+      const d = new Date(s.startDate);
+      // Ensure we use the date components correctly
+      set("startMonth", String(d.getUTCMonth() + 1));
+      set("startYear", String(d.getUTCFullYear()));
+    }
   };
 
   const generateMutation = trpc.paymentDues.generateMonthly.useMutation({
@@ -253,20 +261,37 @@ function NovaModal({ open, onClose, students }: {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
+  const generateBulkMutation = trpc.paymentDues.generateBulkAll.useMutation({
+    onSuccess: (data) => {
+      toast.success(`${data.count} mensalidade(s) gerada(s)!`);
+      utils.paymentDues.invalidate();
+      onClose();
+    },
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+
   const handleSubmit = () => {
-    if (!form.studentId || !form.amount || !form.dueDay) {
-      toast.error("Preencha todos os campos obrigatórios");
-      return;
+    if (generationMode === "individual") {
+      if (!form.studentId || !form.amount || !form.dueDay) {
+        toast.error("Preencha todos os campos obrigatórios");
+        return;
+      }
+      generateMutation.mutate({
+        studentId: Number(form.studentId),
+        amount: Number(form.amount),
+        dueDay: Number(form.dueDay),
+        startMonth: Number(form.startMonth),
+        startYear: Number(form.startYear),
+        monthsCount,
+        notes: form.notes.trim() || undefined,
+      });
+    } else {
+      generateBulkMutation.mutate({
+        startMonth: Number(form.startMonth),
+        startYear: Number(form.startYear),
+        monthsCount,
+      });
     }
-    generateMutation.mutate({
-      studentId: Number(form.studentId),
-      amount: Number(form.amount),
-      dueDay: Number(form.dueDay),
-      startMonth: Number(form.startMonth),
-      startYear: Number(form.startYear),
-      monthsCount,
-      notes: form.notes.trim() || undefined,
-    });
   };
 
   if (!open) return null;
@@ -291,29 +316,48 @@ function NovaModal({ open, onClose, students }: {
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto scrollbar-none">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Selecione o Aluno</label>
-            <select value={form.studentId} onChange={e => handleStudentChange(e.target.value)}
-              className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-foreground transition-all cursor-pointer">
-              <option value="">Selecionar aluno...</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+          <div className="flex bg-muted p-1 rounded-xl">
+             <button
+                onClick={() => setGenerationMode("individual")}
+                className={cn("flex-1 h-9 rounded-lg text-[10px] font-bold uppercase transition-all", generationMode === "individual" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+             >
+                Individual
+             </button>
+             <button
+                onClick={() => setGenerationMode("bulk")}
+                className={cn("flex-1 h-9 rounded-lg text-[10px] font-bold uppercase transition-all", generationMode === "bulk" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+             >
+                Para Todos
+             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-2">
-               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Valor (R$)</label>
-               <Input value={form.amount} onChange={e => set("amount", e.target.value)}
-                 type="number" className="h-12 text-sm font-bold rounded-xl border-border bg-muted/50" />
-             </div>
-             <div className="space-y-2">
-               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Dia Vencimento</label>
-               <select value={form.dueDay} onChange={e => set("dueDay", e.target.value)}
-                 className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-foreground cursor-pointer">
-                 {[5,10,15,20,25].map(d => <option key={d} value={String(d)}>{d}</option>)}
-               </select>
-             </div>
-          </div>
+          {generationMode === "individual" && (
+            <>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Selecione o Aluno</label>
+                <select value={form.studentId} onChange={e => handleStudentChange(e.target.value)}
+                  className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-foreground transition-all cursor-pointer">
+                  <option value="">Selecionar aluno...</option>
+                  {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Valor (R$)</label>
+                   <Input value={form.amount} onChange={e => set("amount", e.target.value)}
+                     type="number" className="h-12 text-sm font-bold rounded-xl border-border bg-muted/50" />
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Dia Vencimento</label>
+                   <select value={form.dueDay} onChange={e => set("dueDay", e.target.value)}
+                     className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-foreground cursor-pointer">
+                     {[5,10,15,20,25].map(d => <option key={d} value={String(d)}>{d}</option>)}
+                   </select>
+                 </div>
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -334,8 +378,8 @@ function NovaModal({ open, onClose, students }: {
 
           <div className="p-5 rounded-2xl bg-blue-500/10/50 border border-blue-500/20 space-y-4">
             <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest text-center">Geração em Lote</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[1, 2, 3].map(n => (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {[1, 2, 3, 6, 12].map(n => (
                 <button key={n} onClick={() => setMonthsCount(n)}
                   className={cn(
                     "h-10 rounded-xl text-[10px] font-bold uppercase transition-all shadow-sm",
@@ -353,9 +397,9 @@ function NovaModal({ open, onClose, students }: {
         <div className="p-6 border-t border-border bg-muted/30 flex gap-4">
           <Button variant="ghost" className="flex-1 h-12 rounded-xl text-[10px] font-bold uppercase tracking-widest" onClick={onClose}>Cancelar</Button>
           <Button className="flex-1 h-12 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-blue-500/10 gap-3 bg-blue-600 hover:bg-blue-700"
-            onClick={handleSubmit} disabled={generateMutation.isPending}>
-            {generateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            Gerar
+            onClick={handleSubmit} disabled={generateMutation.isPending || generateBulkMutation.isPending}>
+            {(generateMutation.isPending || generateBulkMutation.isPending) ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+            {generationMode === "individual" ? "Gerar" : "Gerar para Todos"}
           </Button>
         </div>
       </motion.div>
