@@ -1,5 +1,5 @@
 import { and, eq, lte, asc, desc, sql, inArray } from "drizzle-orm";
-import { students, lessons, paymentDues, reminders, settings } from "../../drizzle/schema";
+import { students, lessons, paymentDues, reminders, settings, expenses } from "../../drizzle/schema";
 
 export async function buildUserContext(db: any, userId: number, orgId: number): Promise<string> {
   const now = new Date();
@@ -82,6 +82,25 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
       if (p.status === "pago") totalPago += amt;
     });
 
+    // 6. Busca despesas do mês atual
+    const expensesThisMonth = await db.select({
+      amount: expenses.amount,
+      status: expenses.status
+    }).from(expenses)
+      .where(
+        and(
+          eq(expenses.userId, userId),
+          eq(expenses.organizationId, orgId),
+          sql`EXTRACT(MONTH FROM ${expenses.date}) = ${currentMonth}`,
+          sql`EXTRACT(YEAR FROM ${expenses.date}) = ${currentYear}`
+        )
+      );
+
+    let totalDespesasPagas = 0;
+    expensesThisMonth.forEach((e: any) => {
+      if (e.status === "pago") totalDespesasPagas += Number(e.amount);
+    });
+
     // Formatação do contexto
     const tz = "America/Sao_Paulo";
     let context = `Escola: ${userSettings?.schoolName || "Minha Escola de Música"}\n`;
@@ -90,7 +109,9 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
 
     context += `FINANCEIRO DESTE MÊS (${currentMonth}/${currentYear}):\n`;
     context += `- Receita total prevista: R$ ${totalPrevisto.toFixed(2)}\n`;
-    context += `- Receita já paga: R$ ${totalPago.toFixed(2)}\n\n`;
+    context += `- Receita já paga: R$ ${totalPago.toFixed(2)}\n`;
+    context += `- Despesas pagas: R$ ${totalDespesasPagas.toFixed(2)}\n`;
+    context += `- Saldo Líquido atual: R$ ${(totalPago - totalDespesasPagas).toFixed(2)}\n\n`;
 
     if (overduePayments.length > 0) {
       context += `ATENÇÃO - MENSALIDADES ATRASADAS (${overduePayments.length} registros mais antigos):\n`;
