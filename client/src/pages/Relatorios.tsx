@@ -281,19 +281,21 @@ const Relatorios: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Gráfico Donut de Comparativo */}
-          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
             <h3 className="text-lg font-black mb-6 dark:text-white flex items-center gap-2">
               <PieIcon size={20} className="text-purple-500" /> Comparativo: Receitas vs Despesas
             </h3>
-            <div className="h-80 relative flex-1">
+            
+            {/* Container do Gráfico e Texto Central */}
+            <div className="h-72 w-full relative flex items-center justify-center my-auto">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={donutData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={70}
-                    outerRadius={110}
+                    innerRadius={75}
+                    outerRadius={105}
                     paddingAngle={6}
                     dataKey="value"
                   >
@@ -302,13 +304,25 @@ const Relatorios: React.FC = () => {
                     ))}
                   </Pie>
                   <Tooltip formatter={(val: any) => currencyFormat(Number(val))} />
-                  <Legend verticalAlign="bottom" />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-6">
+              
+              {/* Texto Centralizado Perfeitamente */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Faturamento</span>
                 <span className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{currencyFormat(receitaPrevista)}</span>
               </div>
+            </div>
+
+            {/* Legenda HTML Customizada Elegante */}
+            <div className="flex flex-wrap items-center justify-center gap-6 pt-6 border-t border-slate-100 dark:border-slate-700 mt-6">
+              {donutData.map((d) => (
+                <div key={d.name} className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-lg shrink-0 shadow-sm" style={{ backgroundColor: d.color }} />
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{d.name}</span>
+                  <span className="text-xs font-black text-slate-900 dark:text-white ml-1">({currencyFormat(d.value)})</span>
+                </div>
+              ))}
             </div>
           </div>
 
