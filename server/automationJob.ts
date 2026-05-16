@@ -90,7 +90,8 @@ async function runAutomation() {
             eq(lessons.organizationId, orgId),
             eq(lessons.userId, userId),
             gte(lessons.scheduledAt, monday),
-            lte(lessons.scheduledAt, sunday)
+            lte(lessons.scheduledAt, sunday),
+            eq(students.status, "ativo")
           )
         );
 
@@ -176,7 +177,8 @@ async function runAutomation() {
           and(
             eq(paymentDues.organizationId, orgId),
             eq(paymentDues.userId, userId),
-            eq(paymentDues.status, "pendente")
+            eq(paymentDues.status, "pendente"),
+            eq(students.status, "ativo")
           )
         );
 
