@@ -319,6 +319,16 @@ function WhatsAppSessionManager() {
     }
   };
 
+  // Garante a formatação exata de 4 em 4 (Ex: YVOA - 252N)
+  const formattedPairingCode = (() => {
+    if (!pairingCode) return "";
+    const cleanCode = pairingCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    if (cleanCode.length >= 8) {
+      return `${cleanCode.slice(0, 4)} - ${cleanCode.slice(4)}`;
+    }
+    return pairingCode;
+  })();
+
   return (
     <div className="bg-card rounded-[2rem] border border-border shadow-xl p-6 lg:p-8 transition-all duration-500 overflow-hidden relative mb-8">
       {/* Decoração de fundo */}
@@ -386,8 +396,16 @@ function WhatsAppSessionManager() {
           <div className="bg-muted p-8 rounded-3xl border border-border text-center relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-pulse" />
             <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Código de Pareamento</p>
-            <div className="text-3xl lg:text-4xl font-mono font-black tracking-[0.3em] text-indigo-600 dark:text-indigo-400 select-all bg-background py-4 px-6 rounded-2xl border border-border inline-block shadow-inner">
-              {pairingCode}
+            <div
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                fontWeight: 700,
+                letterSpacing: "0.15em",
+                textTransform: "uppercase"
+              }}
+              className="text-3xl lg:text-4xl text-indigo-600 dark:text-indigo-400 select-all bg-background py-4 px-6 rounded-2xl border border-border inline-block shadow-inner"
+            >
+              {formattedPairingCode}
             </div>
             <div className="mt-6 flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground">
               <Loader2 size={14} className="animate-spin text-indigo-500" />
