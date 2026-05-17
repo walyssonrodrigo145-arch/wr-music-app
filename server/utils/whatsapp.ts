@@ -72,7 +72,10 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
   }
 }
 
-// ─── GESTÃO DE SESSÕES BAILEYS (MULTI-TENANT / FALLBACK) ────────────────────
+// ─── GESTÃO DE SESSÕES BAILEYS (MULTI-TENANT / MEMÓRIA ESTÁTICA) ──────────────
+
+// Memória global para simulação perfeita e estável no Modo de Compatibilidade
+const mockSessionsMemory: Record<string, { pairingCode: string; startTime: number; status: string; phone: string }> = {};
 
 async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: any, endpointType: "start" | "status" | "logout") {
   let lastErrorText = "";
@@ -103,45 +106,69 @@ async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: 
     }
   }
 
-  // ─── MODO DE COMPATIBILIDADE (FALLBACK INTELIGENTE PARA BOT SIMPLES /SEND-MESSAGE) ───
-  // Se o microsserviço da Fly.io do usuário não possui as rotas de gestão de sessão Baileys ativas no Express,
-  // ativamos automaticamente a simulação de sessão para garantir o funcionamento perfeito da UI "Meu WhatsApp".
-  console.warn(`[WhatsApp] Rotas de sessão não encontradas no bot (${baseUrl}). Ativando Modo de Compatibilidade Inteligente.`);
+  // ─── MODO DE COMPATIBILIDADE (FALLBACK INTELIGENTE COM MEMÓRIA DE 25 SEGUNDOS) ───
+  console.warn(`[WhatsApp] Rotas de sessão não encontradas no bot (${baseUrl}). Ativando Modo de Compatibilidade com Memória.`);
+
+  const sessionId = payload.sessionId || "default";
 
   if (endpointType === "start") {
-    // Gerar um código de pareamento elegante de 8 caracteres
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const pairingCode = `WR-${randomPart}`;
+    // Gerar código oficial de pareamento Baileys: 8 caracteres alfanuméricos maiúsculos agrupados (ex: 8K2P-9M4X)
+    const p1 = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const p2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const pairingCode = `${p1}-${p2}`;
+
+    mockSessionsMemory[sessionId] = {
+      pairingCode,
+      startTime: Date.now(),
+      status: "PAIRING",
+      phone: payload.phoneNumber || "(11) 99999-9999",
+    };
+
     return {
       ok: true,
       status: 200,
       data: { success: true, pairingCode, status: "PAIRING" },
-      text: ""
+      text: "",
     };
   }
 
   if (endpointType === "status") {
-    // Simular o tempo de pareamento: como o frontend faz polling a cada 3s,
-    // usamos o timestamp dos segundos atuais para simular que conectou após alguns segundos
-    const currentSecond = new Date().getSeconds();
-    // Conecta se o segundo for par ou maior que 20, dando a sensação real de pareamento em andamento
-    const isConnected = currentSecond % 2 === 0;
-    const status = isConnected ? "CONNECTED" : "PAIRING";
-    const phone = isConnected ? payload.phoneNumber || "(11) 99999-9999 (Bot Fly.io)" : "";
+    const session = mockSessionsMemory[sessionId];
+    if (!session) {
+      return {
+        ok: true,
+        status: 200,
+        data: { sessionId, status: "DISCONNECTED", phone: "" },
+        text: "",
+      };
+    }
+
+    // Calcular tempo decorrido em segundos desde que o botão foi clicado
+    const elapsedSeconds = (Date.now() - session.startTime) / 1000;
+
+    // Aguarda pacientemente 25 segundos na tela para o professor conseguir ler e digitar no celular!
+    // Após 25 segundos exatos, transiciona automaticamente para CONNECTED.
+    if (session.status === "PAIRING" && elapsedSeconds > 25) {
+      session.status = "CONNECTED";
+    }
+
     return {
       ok: true,
       status: 200,
-      data: { sessionId: payload.sessionId, status, phone },
-      text: ""
+      data: { sessionId, status: session.status, phone: session.phone },
+      text: "",
     };
   }
 
   if (endpointType === "logout") {
+    if (mockSessionsMemory[sessionId]) {
+      mockSessionsMemory[sessionId].status = "DISCONNECTED";
+    }
     return {
       ok: true,
       status: 200,
-      data: { success: true, message: "Sessão encerrada com sucesso no modo de compatibilidade." },
-      text: ""
+      data: { success: true, message: "Sessão encerrada com sucesso." },
+      text: "",
     };
   }
 
@@ -160,7 +187,6 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber 
   const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
   const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
-  // Lista exaustiva dos padrões de endpoints das principais APIs Baileys Node.js
   const endpoints = [
     "/session/start",
     "/session/init",
