@@ -72,7 +72,39 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
   }
 }
 
-// ─── GESTÃO DE SESSÕES BAILEYS (MULTI-TENANT) ──────────────────────────────
+// ─── GESTÃO DE SESSÕES BAILEYS (MULTI-TENANT / FALLBACK) ────────────────────
+
+async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: any) {
+  let lastErrorText = "";
+  let lastStatus = 500;
+
+  for (const endpoint of endpoints) {
+    const fullUrl = `${baseUrl}${endpoint}`;
+    try {
+      const res = await fetch(fullUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+
+      // Se não for 404 (Cannot POST), significa que a rota existe no microsserviço!
+      if (res.status !== 404 && !text.includes("Cannot POST")) {
+        let data: any = {};
+        try { data = JSON.parse(text); } catch (_) {}
+        return { ok: res.ok, status: res.status, data, text };
+      }
+
+      lastStatus = res.status;
+      lastErrorText = text;
+    } catch (err: any) {
+      lastErrorText = err.message;
+    }
+  }
+
+  throw new Error(`Nenhuma rota compatível encontrada no robô do WhatsApp. Verifique se o seu bot possui rotas de sessão ativas. Último erro (${lastStatus}): ${lastErrorText}`);
+}
 
 interface StartSessionParams {
   url: string;
@@ -84,23 +116,38 @@ interface StartSessionParams {
 export async function startWhatsAppSession({ url, token, sessionId, phoneNumber }: StartSessionParams) {
   const cleanPhone = phoneNumber.replace(/\D/g, "");
   const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
-  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "");
+  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
-  const res = await fetch(`${baseUrl}/sessions/start`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey: token, sessionId, phoneNumber: finalPhone }),
-  });
+  // Lista exaustiva dos padrões de endpoints das principais APIs Baileys Node.js
+  const endpoints = [
+    "/session/start",
+    "/session/init",
+    "/session/create",
+    "/session/add",
+    "/sessions/start",
+    "/sessions/create",
+    "/start-session",
+    "/create-session",
+    "/start",
+    "/instance/create",
+    "/instance/init"
+  ];
 
-  const text = await res.text();
-  let data: any = {};
-  try { data = JSON.parse(text); } catch (_) {}
+  const payload = {
+    apiKey: token,
+    sessionId,
+    phoneNumber: finalPhone,
+    phone: finalPhone,
+    number: finalPhone
+  };
 
-  if (!res.ok || data.success === false) {
-    throw new Error(data?.message || data?.error || text || `HTTP Error ${res.status}`);
+  const res = await fetchWithFallback(baseUrl, endpoints, payload);
+
+  if (!res.ok || res.data?.success === false) {
+    throw new Error(res.data?.message || res.data?.error || res.text || `HTTP Error ${res.status}`);
   }
 
-  return { success: true, pairingCode: data.pairingCode, status: data.status };
+  return { success: true, pairingCode: res.data?.pairingCode || res.data?.code, status: res.data?.status || "PAIRING" };
 }
 
 interface SessionStatusParams {
@@ -110,45 +157,49 @@ interface SessionStatusParams {
 }
 
 export async function getWhatsAppSessionStatus({ url, token, sessionId }: SessionStatusParams) {
-  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "");
+  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
-  const res = await fetch(`${baseUrl}/sessions/status`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey: token, sessionId }),
-  });
+  const endpoints = [
+    "/session/status",
+    "/sessions/status",
+    "/status",
+    "/instance/status"
+  ];
 
-  const text = await res.text();
-  let data: any = {};
-  try { data = JSON.parse(text); } catch (_) {}
+  const payload = { apiKey: token, sessionId };
+
+  const res = await fetchWithFallback(baseUrl, endpoints, payload);
 
   if (!res.ok) {
-    throw new Error(data?.message || data?.error || text || `HTTP Error ${res.status}`);
+    throw new Error(res.data?.message || res.data?.error || res.text || `HTTP Error ${res.status}`);
   }
 
   return {
-    sessionId: data.sessionId,
-    status: data.status || "DISCONNECTED",
-    phone: data.phone || data.phoneNumber || "",
+    sessionId: res.data?.sessionId || sessionId,
+    status: res.data?.status || res.data?.state || "DISCONNECTED",
+    phone: res.data?.phone || res.data?.phoneNumber || res.data?.number || "",
   };
 }
 
 export async function logoutWhatsAppSession({ url, token, sessionId }: SessionStatusParams) {
-  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "");
+  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
-  const res = await fetch(`${baseUrl}/sessions/logout`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey: token, sessionId }),
-  });
+  const endpoints = [
+    "/session/logout",
+    "/session/delete",
+    "/session/remove",
+    "/sessions/logout",
+    "/logout",
+    "/instance/logout"
+  ];
 
-  const text = await res.text();
-  let data: any = {};
-  try { data = JSON.parse(text); } catch (_) {}
+  const payload = { apiKey: token, sessionId };
+
+  const res = await fetchWithFallback(baseUrl, endpoints, payload);
 
   if (!res.ok) {
-    throw new Error(data?.message || data?.error || text || `HTTP Error ${res.status}`);
+    throw new Error(res.data?.message || res.data?.error || res.text || `HTTP Error ${res.status}`);
   }
 
-  return { success: true, message: data.message || "Sessão encerrada com sucesso." };
+  return { success: true, message: res.data?.message || "Sessão encerrada com sucesso." };
 }
