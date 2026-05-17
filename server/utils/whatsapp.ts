@@ -8,9 +8,10 @@ interface SendWhatsAppParams {
   token?: string | null;
   phone: string;
   message: string;
+  sessionId?: string;
 }
 
-export async function sendWhatsAppMessage({ url, token, phone, message }: SendWhatsAppParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function sendWhatsAppMessage({ url, token, phone, message, sessionId }: SendWhatsAppParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     if (!url) {
       return { success: false, error: "URL do robô não configurada." };
@@ -36,8 +37,9 @@ export async function sendWhatsAppMessage({ url, token, phone, message }: SendWh
     }
 
     // Payload flexível que atende aos contratos das principais APIs de WhatsApp
-    const payload = {
+    const payload: any = {
       apiKey: token,
+      sessionId: sessionId || "escola_principal",
       number: finalPhone,
       phone: finalPhone,
       message: message,
@@ -68,4 +70,85 @@ export async function sendWhatsAppMessage({ url, token, phone, message }: SendWh
   } catch (error: any) {
     return { success: false, error: `Erro de conexão com o robô: ${error.message}` };
   }
+}
+
+// ─── GESTÃO DE SESSÕES BAILEYS (MULTI-TENANT) ──────────────────────────────
+
+interface StartSessionParams {
+  url: string;
+  token: string;
+  sessionId: string;
+  phoneNumber: string;
+}
+
+export async function startWhatsAppSession({ url, token, sessionId, phoneNumber }: StartSessionParams) {
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "");
+
+  const res = await fetch(`${baseUrl}/sessions/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey: token, sessionId, phoneNumber: finalPhone }),
+  });
+
+  const text = await res.text();
+  let data: any = {};
+  try { data = JSON.parse(text); } catch (_) {}
+
+  if (!res.ok || data.success === false) {
+    throw new Error(data?.message || data?.error || text || `HTTP Error ${res.status}`);
+  }
+
+  return { success: true, pairingCode: data.pairingCode, status: data.status };
+}
+
+interface SessionStatusParams {
+  url: string;
+  token: string;
+  sessionId: string;
+}
+
+export async function getWhatsAppSessionStatus({ url, token, sessionId }: SessionStatusParams) {
+  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "");
+
+  const res = await fetch(`${baseUrl}/sessions/status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey: token, sessionId }),
+  });
+
+  const text = await res.text();
+  let data: any = {};
+  try { data = JSON.parse(text); } catch (_) {}
+
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || text || `HTTP Error ${res.status}`);
+  }
+
+  return {
+    sessionId: data.sessionId,
+    status: data.status || "DISCONNECTED",
+    phone: data.phone || data.phoneNumber || "",
+  };
+}
+
+export async function logoutWhatsAppSession({ url, token, sessionId }: SessionStatusParams) {
+  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "");
+
+  const res = await fetch(`${baseUrl}/sessions/logout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey: token, sessionId }),
+  });
+
+  const text = await res.text();
+  let data: any = {};
+  try { data = JSON.parse(text); } catch (_) {}
+
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || text || `HTTP Error ${res.status}`);
+  }
+
+  return { success: true, message: data.message || "Sessão encerrada com sucesso." };
 }

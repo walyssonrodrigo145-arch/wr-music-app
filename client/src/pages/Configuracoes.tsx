@@ -236,6 +236,220 @@ function CleanupTestDataSection() {
   );
 }
 
+// ─── GESTÃO DE SESSÕES BAILEYS ────────────────────────────────────────────────
+function WhatsAppSessionManager() {
+  const [step, setStep] = useState<"DISCONNECTED" | "PAIRING" | "CONNECTED">("DISCONNECTED");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [pairingCode, setPairingCode] = useState("");
+  const [connectedPhone, setConnectedPhone] = useState("");
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [loading, setLoading] = useState(false);
+
+  const startSession = trpc.whatsapp.startSession.useMutation();
+  const logoutSession = trpc.whatsapp.logout.useMutation();
+  const getStatusQuery = trpc.whatsapp.getStatus.useQuery(undefined, {
+    enabled: step === "PAIRING" || step === "CONNECTED",
+    refetchInterval: step === "PAIRING" ? 3000 : false, // Polling a cada 3s se PAIRING
+  });
+
+  // Atualizar estado baseado na query
+  useEffect(() => {
+    if (getStatusQuery.data) {
+      if (getStatusQuery.data.status === "CONNECTED") {
+        setStep("CONNECTED");
+        setConnectedPhone(getStatusQuery.data.phone || phoneNumber || "Conectado");
+      } else if (getStatusQuery.data.status === "DISCONNECTED" && step === "CONNECTED") {
+        setStep("DISCONNECTED");
+      }
+    }
+  }, [getStatusQuery.data, step]);
+
+  // Timer de 60 segundos no modo PAIRING
+  useEffect(() => {
+    if (step !== "PAIRING") return;
+    const timer = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          setStep("DISCONNECTED");
+          toast.error("O código de pareamento expirou. Tente novamente.");
+          return 60;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step]);
+
+  const handleStart = async () => {
+    if (!phoneNumber) {
+      toast.error("Por favor, digite o número do WhatsApp com DDD.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await startSession.mutateAsync({ phoneNumber });
+      if (res.success && res.pairingCode) {
+        setPairingCode(res.pairingCode);
+        setStep("PAIRING");
+        setTimeLeft(60);
+        toast.success("Código gerado com sucesso!");
+      } else {
+        toast.error("Falha ao gerar código de conexão.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao iniciar conexão.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (!confirm("Tem certeza que deseja desconectar o seu WhatsApp? O sistema passará a usar o número padrão da escola.")) return;
+    setLoading(true);
+    try {
+      await logoutSession.mutateAsync();
+      setStep("DISCONNECTED");
+      setPairingCode("");
+      setConnectedPhone("");
+      toast.success("WhatsApp desconectado com sucesso.");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao desconectar.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-card rounded-[2rem] border border-border shadow-xl p-6 lg:p-8 transition-all duration-500 overflow-hidden relative mb-8">
+      {/* Decoração de fundo */}
+      <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      {step === "DISCONNECTED" && (
+        <div className="space-y-6 animate-in fade-in-50 duration-500">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-green-600 to-emerald-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-green-500/30">
+              <Smartphone size={24} />
+            </div>
+            <div>
+              <h4 className="text-lg font-black text-foreground uppercase tracking-wider">Conecte seu Próprio WhatsApp</h4>
+              <p className="text-xs text-muted-foreground font-medium mt-1 leading-relaxed">
+                Envie lembretes de cobrança diretamente do seu número e aumente a taxa de pagamento em até <span className="text-green-600 dark:text-green-400 font-bold">80%</span>.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-muted/50 p-5 rounded-2xl border border-border space-y-4">
+            <div>
+              <label className="text-xs font-black uppercase tracking-widest text-foreground block mb-2">DDD + Número do Celular</label>
+              <div className="relative">
+                <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={phoneNumber}
+                  onChange={e => {
+                    let val = e.target.value.replace(/\D/g, "");
+                    if (val.length > 11) val = val.slice(0, 11);
+                    if (val.length > 2) val = `(${val.slice(0, 2)}) ${val.slice(2)}`;
+                    if (val.length > 10) val = `${val.slice(0, 10)}-${val.slice(10)}`;
+                    setPhoneNumber(val);
+                  }}
+                  placeholder="(33) 99999-9999"
+                  className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-background focus:bg-card transition-all shadow-sm"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1.5 font-medium">Digite o número exato que está no seu WhatsApp.</p>
+            </div>
+
+            <Button
+              onClick={handleStart}
+              disabled={loading || phoneNumber.replace(/\D/g, "").length < 10}
+              className="w-full h-12 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-green-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} className="mr-2" />}
+              Gerar Código de Conexão
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {step === "PAIRING" && (
+        <div className="space-y-6 animate-in zoom-in-95 duration-500">
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto animate-pulse">
+              <Smartphone size={32} />
+            </div>
+            <h4 className="text-xl font-black text-foreground uppercase tracking-wider">Pareamento Ativo</h4>
+            <p className="text-xs text-muted-foreground font-medium max-w-md mx-auto">
+              Digite o código abaixo no seu WhatsApp para conectar sua conta ao sistema.
+            </p>
+          </div>
+
+          <div className="bg-muted p-8 rounded-3xl border border-border text-center relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-pulse" />
+            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Código de Pareamento</p>
+            <div className="text-3xl lg:text-4xl font-mono font-black tracking-[0.3em] text-indigo-600 dark:text-indigo-400 select-all bg-background py-4 px-6 rounded-2xl border border-border inline-block shadow-inner">
+              {pairingCode}
+            </div>
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground">
+              <Loader2 size={14} className="animate-spin text-indigo-500" />
+              Aguardando confirmação do celular ({timeLeft}s)...
+            </div>
+          </div>
+
+          <div className="bg-card p-6 rounded-2xl border border-border space-y-3 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-widest text-foreground">Passo a passo no seu celular:</p>
+            <ol className="text-xs text-muted-foreground space-y-2 font-medium list-decimal list-inside">
+              <li>Abra o WhatsApp no seu celular.</li>
+              <li>Toque no menu de <span className="text-foreground font-bold">Opções/Configurações</span> (três pontinhos).</li>
+              <li>Selecione <span className="text-foreground font-bold">Aparelhos Conectados</span>.</li>
+              <li>Toque em <span className="text-foreground font-bold">Conectar um aparelho</span> e escolha <span className="text-foreground font-bold">Conectar com número de telefone</span>.</li>
+              <li>Digite o código exibido acima.</li>
+            </ol>
+          </div>
+
+          <Button
+            onClick={() => setStep("DISCONNECTED")}
+            variant="outline"
+            className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+          >
+            Cancelar Pareamento
+          </Button>
+        </div>
+      )}
+
+      {step === "CONNECTED" && (
+        <div className="space-y-6 text-center animate-in zoom-in-95 duration-500 py-4">
+          <div className="w-20 h-20 rounded-full bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center mx-auto shadow-lg shadow-green-500/10">
+            <CheckCircle2 size={40} className="animate-bounce" />
+          </div>
+
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 text-xs font-black uppercase tracking-widest mb-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
+              WhatsApp Conectado
+            </div>
+            <h4 className="text-2xl font-black text-foreground">{connectedPhone}</h4>
+            <p className="text-xs text-muted-foreground font-medium max-w-sm mx-auto mt-2">
+              Seu WhatsApp está pronto e operando 24/7 para disparar lembretes automáticos aos alunos.
+            </p>
+          </div>
+
+          <div className="pt-4">
+            <Button
+              onClick={handleLogout}
+              disabled={loading}
+              variant="outline"
+              className="h-11 px-6 rounded-xl border-destructive/20 text-destructive hover:bg-destructive hover:text-white font-black uppercase tracking-widest text-xs transition-all shadow-sm hover:shadow-destructive/20"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+              Desconectar Conta
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Tab types ───────────────────────────────────────────────────────────────
 type Tab = "perfil" | "escola" | "notificacoes" | "aparencia" | "whatsapp" | "seguranca";
 
@@ -244,7 +458,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "escola", label: "Escola", icon: Building2 },
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "aparencia", label: "Aparência", icon: Palette },
-  { id: "whatsapp", label: "Robô WhatsApp", icon: Smartphone },
+  { id: "whatsapp", label: "Meu WhatsApp", icon: Smartphone },
   { id: "seguranca", label: "Segurança", icon: Shield },
 ];
 
@@ -810,13 +1024,13 @@ export default function Configuracoes() {
               </div>
             )}
 
-            {/* ── ABA: ROBÔ WHATSAPP ── */}
+            {/* ── ABA: MEU WHATSAPP ── */}
             {activeTab === "whatsapp" && (
               <div className="space-y-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Robô do WhatsApp (Fly.io)</h3>
-                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Automação de envio de mensagens</p>
+                    <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Meu WhatsApp (Multi-Sessão)</h3>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Conecte seu celular e gerencie automações</p>
                   </div>
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
@@ -828,9 +1042,11 @@ export default function Configuracoes() {
                     })}
                   >
                     {updateWhatsAppBot.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
+                    <span className="text-xs font-black uppercase tracking-widest">Salvar Configurações</span>
                   </Button>
                 </div>
+
+                <WhatsAppSessionManager />
 
                 <div className="p-6 bg-indigo-500/10 rounded-[1.5rem] border border-indigo-100 dark:border-indigo-900/30 flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">

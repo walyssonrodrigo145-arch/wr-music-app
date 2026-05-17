@@ -310,6 +310,7 @@ async function runAutomation() {
             token: userSettings.whatsappBotToken,
             phone: rem.studentPhone,
             message: rem.message,
+            sessionId: `prof_${userId}`,
           });
 
           if (sendRes.success) {

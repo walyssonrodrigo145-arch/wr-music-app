@@ -27,7 +27,7 @@ import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQ
 import { buildUserContext } from "./utils/aiContext";
 import { getSystemPrompt } from "./utils/aiPrompts";
 import { callGemini } from "./utils/gemini";
-import { sendWhatsAppMessage } from "./utils/whatsapp";
+import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "./utils/whatsapp";
 import { nanoid } from "nanoid";
 import { sdk } from "./_core/sdk";
 import { sendVerificationEmail } from "./_core/email";
@@ -2164,6 +2164,7 @@ export const appRouter = router({
           token: rem.whatsappBotToken,
           phone: rem.studentPhone,
           message: rem.message,
+          sessionId: `prof_${ctx.user.id}`,
         });
 
         if (sendRes.success) {
@@ -2255,6 +2256,84 @@ export const appRouter = router({
           });
         }
         return ok;
+      }),
+  }),
+
+  // ─── WHATSAPP MULTI-SESSÃO (BAILEYS) ──────────────────────────────────────────
+  whatsapp: router({
+    startSession: protectedProcedure
+      .input(z.object({ phoneNumber: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const [userSet] = await db.select({
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+        }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
+
+        if (!userSet?.whatsappBotUrl) {
+          throw new Error("URL do robô do WhatsApp não configurada nas Configurações.");
+        }
+        if (!userSet?.whatsappBotToken) {
+          throw new Error("Token / API Key do robô não configurado nas Configurações.");
+        }
+
+        const sessionId = `prof_${ctx.user.id}`;
+        return await startWhatsAppSession({
+          url: userSet.whatsappBotUrl,
+          token: userSet.whatsappBotToken,
+          sessionId,
+          phoneNumber: input.phoneNumber,
+        });
+      }),
+
+    getStatus: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const [userSet] = await db.select({
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+        }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
+
+        if (!userSet?.whatsappBotUrl || !userSet?.whatsappBotToken) {
+          return { sessionId: `prof_${ctx.user.id}`, status: "DISCONNECTED", phone: "" };
+        }
+
+        const sessionId = `prof_${ctx.user.id}`;
+        try {
+          return await getWhatsAppSessionStatus({
+            url: userSet.whatsappBotUrl,
+            token: userSet.whatsappBotToken,
+            sessionId,
+          });
+        } catch (err: any) {
+          return { sessionId, status: "DISCONNECTED", phone: "" };
+        }
+      }),
+
+    logout: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const [userSet] = await db.select({
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+        }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
+
+        if (!userSet?.whatsappBotUrl || !userSet?.whatsappBotToken) {
+          return { success: true, message: "Sessão já desconectada." };
+        }
+
+        const sessionId = `prof_${ctx.user.id}`;
+        return await logoutWhatsAppSession({
+          url: userSet.whatsappBotUrl,
+          token: userSet.whatsappBotToken,
+          sessionId,
+        });
       }),
   }),
 
