@@ -4,16 +4,23 @@
  */
 
 interface SendWhatsAppParams {
-  url: string;
+  url?: string;
   token?: string | null;
   phone: string;
   message: string;
   sessionId?: string;
 }
 
+// Credenciais fixas e invioláveis setadas no código conforme solicitação de segurança
+const FLY_BOT_URL = "https://meu-bot-whatsapp.fly.dev";
+const FLY_BOT_API_KEY = "minha_chave_secreta_123";
+
 export async function sendWhatsAppMessage({ url, token, phone, message, sessionId }: SendWhatsAppParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    if (!url) {
+    const activeUrl = url || FLY_BOT_URL;
+    const activeToken = token || FLY_BOT_API_KEY;
+
+    if (!activeUrl) {
       return { success: false, error: "URL do robô não configurada." };
     }
 
@@ -31,14 +38,14 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
       "Content-Type": "application/json",
     };
 
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-      headers["apikey"] = token; // Compatibilidade com Evolution API / Z-API / Baileys
+    if (activeToken) {
+      headers["Authorization"] = `Bearer ${activeToken}`;
+      headers["apikey"] = activeToken; // Compatibilidade com Evolution API / Z-API / Baileys
     }
 
     // Payload flexível que atende aos contratos das principais APIs de WhatsApp
     const payload: any = {
-      apiKey: token,
+      apiKey: activeToken,
       sessionId: sessionId || "escola_principal",
       number: finalPhone,
       phone: finalPhone,
@@ -46,7 +53,7 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
       text: message,
     };
 
-    const res = await fetch(url, {
+    const res = await fetch(activeUrl, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
@@ -176,16 +183,19 @@ async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: 
 }
 
 interface StartSessionParams {
-  url: string;
-  token: string;
+  url?: string;
+  token?: string;
   sessionId: string;
   phoneNumber: string;
 }
 
 export async function startWhatsAppSession({ url, token, sessionId, phoneNumber }: StartSessionParams) {
+  const activeUrl = url || FLY_BOT_URL;
+  const activeToken = token || FLY_BOT_API_KEY;
+
   const cleanPhone = phoneNumber.replace(/\D/g, "");
   const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
-  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
+  const baseUrl = activeUrl.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
   // Lista exaustiva cobrindo 100% dos padrões de rotas de pareamento Baileys na comunidade
   const endpoints = [
@@ -244,7 +254,7 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber 
 
   // Enviar telefone em todos os formatos conhecidos pelas APIs Baileys
   const payload = {
-    apiKey: token,
+    apiKey: activeToken,
     sessionId,
     phoneNumber: finalPhone,
     phone: finalPhone,
@@ -264,13 +274,15 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber 
 }
 
 interface SessionStatusParams {
-  url: string;
-  token: string;
+  url?: string;
+  token?: string;
   sessionId: string;
 }
 
 export async function getWhatsAppSessionStatus({ url, token, sessionId }: SessionStatusParams) {
-  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
+  const activeUrl = url || FLY_BOT_URL;
+  const activeToken = token || FLY_BOT_API_KEY;
+  const baseUrl = activeUrl.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
   const endpoints = [
     "/session/status",
@@ -289,7 +301,7 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
     "/whatsapp/session/status"
   ];
 
-  const payload = { apiKey: token, sessionId };
+  const payload = { apiKey: activeToken, sessionId };
 
   const res = await fetchWithFallback(baseUrl, endpoints, payload, "status");
 
@@ -305,7 +317,9 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
 }
 
 export async function logoutWhatsAppSession({ url, token, sessionId }: SessionStatusParams) {
-  const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
+  const activeUrl = url || FLY_BOT_URL;
+  const activeToken = token || FLY_BOT_API_KEY;
+  const baseUrl = activeUrl.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
   const endpoints = [
     "/session/logout",
@@ -332,7 +346,7 @@ export async function logoutWhatsAppSession({ url, token, sessionId }: SessionSt
     "/whatsapp/session/logout"
   ];
 
-  const payload = { apiKey: token, sessionId };
+  const payload = { apiKey: activeToken, sessionId };
 
   const res = await fetchWithFallback(baseUrl, endpoints, payload, "logout");
 

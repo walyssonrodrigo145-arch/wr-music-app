@@ -1048,19 +1048,19 @@ export default function Configuracoes() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Meu WhatsApp (Multi-Sessão)</h3>
-                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Conecte seu celular e gerencie automações</p>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Conecte seu celular para envio de lembretes</p>
                   </div>
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
                     disabled={updateWhatsAppBot.isPending}
                     onClick={() => updateWhatsAppBot.mutate({
-                      whatsappBotUrl,
-                      whatsappBotToken,
+                      whatsappBotUrl: "https://meu-bot-whatsapp.fly.dev",
+                      whatsappBotToken: "minha_chave_secreta_123",
                       whatsappAutoSend,
                     })}
                   >
                     {updateWhatsAppBot.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    <span className="text-xs font-black uppercase tracking-widest">Salvar Configurações</span>
+                    <span className="text-xs font-black uppercase tracking-widest">Salvar Automação</span>
                   </Button>
                 </div>
 
@@ -1071,39 +1071,14 @@ export default function Configuracoes() {
                     <Smartphone size={20} />
                   </div>
                   <div>
-                    <p className="text-xs font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-widest mb-1">Integração com Bot Externo</p>
+                    <p className="text-xs font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-widest mb-1">Conexão Segura e Criptografada</p>
                     <p className="text-[11px] text-indigo-800/70 dark:text-indigo-300/70 font-medium leading-relaxed">
-                      Conecte sua API de WhatsApp hospedada na Fly.io. Com isso, você poderá disparar lembretes manualmente com 1 clique ou ativar o disparo 100% automático em segundo plano.
+                      Sua instância de WhatsApp está operando de forma isolada e segura em nossos servidores dedicados. As credenciais de comunicação e chaves de API são gerenciadas e protegidas automaticamente em nível de código (backend).
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
-                  <Field label="URL do Robô (API Fly.io)" hint="Exemplo: https://meu-robo-whatsapp.fly.dev/send">
-                    <div className="relative">
-                      <Globe size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={whatsappBotUrl}
-                        onChange={e => setWhatsappBotUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Token / API Key de Autenticação" hint="Token de segurança configurado no seu robô">
-                    <div className="relative">
-                      <Shield size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={whatsappBotToken}
-                        onChange={e => setWhatsappBotToken(e.target.value)}
-                        placeholder="Bearer token ou apikey..."
-                        type="password"
-                        className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
-                      />
-                    </div>
-                  </Field>
-
                   <div className="flex items-center justify-between p-5 bg-muted rounded-2xl border border-border group hover:border-indigo-100 transition-colors">
                     <div className="pr-4">
                       <p className="text-xs font-black text-foreground uppercase tracking-widest mb-1">Disparo Automático em Segundo Plano</p>

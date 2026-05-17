@@ -2272,17 +2272,10 @@ export const appRouter = router({
           whatsappBotToken: settings.whatsappBotToken,
         }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
 
-        if (!userSet?.whatsappBotUrl) {
-          throw new Error("URL do robô do WhatsApp não configurada nas Configurações.");
-        }
-        if (!userSet?.whatsappBotToken) {
-          throw new Error("Token / API Key do robô não configurado nas Configurações.");
-        }
-
         const sessionId = `prof_${ctx.user.id}`;
         return await startWhatsAppSession({
-          url: userSet.whatsappBotUrl,
-          token: userSet.whatsappBotToken,
+          url: userSet?.whatsappBotUrl || "",
+          token: userSet?.whatsappBotToken || "",
           sessionId,
           phoneNumber: input.phoneNumber,
         });
@@ -2298,15 +2291,11 @@ export const appRouter = router({
           whatsappBotToken: settings.whatsappBotToken,
         }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
 
-        if (!userSet?.whatsappBotUrl || !userSet?.whatsappBotToken) {
-          return { sessionId: `prof_${ctx.user.id}`, status: "DISCONNECTED", phone: "" };
-        }
-
         const sessionId = `prof_${ctx.user.id}`;
         try {
           return await getWhatsAppSessionStatus({
-            url: userSet.whatsappBotUrl,
-            token: userSet.whatsappBotToken,
+            url: userSet?.whatsappBotUrl || "",
+            token: userSet?.whatsappBotToken || "",
             sessionId,
           });
         } catch (err: any) {
@@ -2324,14 +2313,10 @@ export const appRouter = router({
           whatsappBotToken: settings.whatsappBotToken,
         }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
 
-        if (!userSet?.whatsappBotUrl || !userSet?.whatsappBotToken) {
-          return { success: true, message: "Sessão já desconectada." };
-        }
-
         const sessionId = `prof_${ctx.user.id}`;
         return await logoutWhatsAppSession({
-          url: userSet.whatsappBotUrl,
-          token: userSet.whatsappBotToken,
+          url: userSet?.whatsappBotUrl || "",
+          token: userSet?.whatsappBotToken || "",
           sessionId,
         });
       }),
