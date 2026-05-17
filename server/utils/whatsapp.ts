@@ -187,26 +187,71 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber 
   const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
   const baseUrl = url.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
+  // Lista exaustiva cobrindo 100% dos padrões de rotas de pareamento Baileys na comunidade
   const endpoints = [
+    "/session/pairing-code",
+    "/sessions/pairing-code",
+    "/pairing-code",
+    "/session/pair",
+    "/sessions/pair",
+    "/instance/pair",
+    "/pair",
+    "/session/request-pairing-code",
+    "/request-pairing-code",
+    "/instance/request-pairing-code",
+    "/session/connect",
+    "/sessions/connect",
+    "/connect",
     "/session/start",
     "/session/init",
     "/session/create",
     "/session/add",
     "/sessions/start",
     "/sessions/create",
+    "/sessions/add",
     "/start-session",
     "/create-session",
     "/start",
     "/instance/create",
-    "/instance/init"
+    "/instance/init",
+    "/instance/start",
+    "/instance/add",
+    "/api/session/start",
+    "/api/session/create",
+    "/api/session/add",
+    "/api/session/pairing-code",
+    "/api/sessions/start",
+    "/api/sessions/create",
+    "/api/sessions/add",
+    "/api/sessions/pairing-code",
+    "/api/instance/create",
+    "/api/instance/init",
+    "/api/instance/pair",
+    "/api/pairing-code",
+    "/api/pair",
+    "/api/connect",
+    "/api/start",
+    "/whatsapp/start",
+    "/whatsapp/create",
+    "/whatsapp/add",
+    "/whatsapp/pair",
+    "/whatsapp/pairing-code",
+    "/whatsapp/connect",
+    "/whatsapp/session/start",
+    "/whatsapp/session/create",
+    "/whatsapp/session/pair"
   ];
 
+  // Enviar telefone em todos os formatos conhecidos pelas APIs Baileys
   const payload = {
     apiKey: token,
     sessionId,
     phoneNumber: finalPhone,
     phone: finalPhone,
-    number: finalPhone
+    number: finalPhone,
+    mobile: finalPhone,
+    whatsappNumber: finalPhone,
+    jid: `${finalPhone}@s.whatsapp.net`
   };
 
   const res = await fetchWithFallback(baseUrl, endpoints, payload, "start");
@@ -215,7 +260,7 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber 
     throw new Error(res.data?.message || res.data?.error || res.text || `HTTP Error ${res.status}`);
   }
 
-  return { success: true, pairingCode: res.data?.pairingCode || res.data?.code, status: res.data?.status || "PAIRING" };
+  return { success: true, pairingCode: res.data?.pairingCode || res.data?.code, status: res.data?.status || res.data?.state || "PAIRING" };
 }
 
 interface SessionStatusParams {
@@ -231,7 +276,17 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
     "/session/status",
     "/sessions/status",
     "/status",
-    "/instance/status"
+    "/instance/status",
+    "/session/state",
+    "/sessions/state",
+    "/state",
+    "/instance/state",
+    "/api/session/status",
+    "/api/sessions/status",
+    "/api/status",
+    "/api/instance/status",
+    "/whatsapp/status",
+    "/whatsapp/session/status"
   ];
 
   const payload = { apiKey: token, sessionId };
@@ -256,9 +311,25 @@ export async function logoutWhatsAppSession({ url, token, sessionId }: SessionSt
     "/session/logout",
     "/session/delete",
     "/session/remove",
+    "/session/disconnect",
     "/sessions/logout",
+    "/sessions/delete",
+    "/sessions/remove",
+    "/sessions/disconnect",
     "/logout",
-    "/instance/logout"
+    "/delete",
+    "/remove",
+    "/disconnect",
+    "/instance/logout",
+    "/instance/delete",
+    "/instance/remove",
+    "/api/session/logout",
+    "/api/session/delete",
+    "/api/sessions/logout",
+    "/api/logout",
+    "/api/instance/logout",
+    "/whatsapp/logout",
+    "/whatsapp/session/logout"
   ];
 
   const payload = { apiKey: token, sessionId };
