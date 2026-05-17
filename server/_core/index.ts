@@ -44,9 +44,9 @@ async function startServer() {
   const app = express();
   app.set("trust proxy", 1); // Obrigatório para a Render enviar cookies "Secure"
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Configure body parser with larger size limit for file uploads (up to 500MB)
+  app.use(express.json({ limit: "500mb" }));
+  app.use(express.urlencoded({ limit: "500mb", extended: true }));
   
   registerOAuthRoutes(app);
   registerGoogleAuthRoutes(app);
