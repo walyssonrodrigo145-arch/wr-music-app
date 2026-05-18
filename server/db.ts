@@ -116,13 +116,29 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
 
       const [existing] = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
 
+      // Garante que todo usuário tenha uma organização válida
+      let targetOrgId = user.organizationId || existing?.organizationId;
+      if (!targetOrgId) {
+        const [firstOrg] = await db.select().from(organizations).orderBy(organizations.id).limit(1);
+        if (firstOrg) {
+          targetOrgId = firstOrg.id;
+        } else {
+          const [newOrg] = await db.insert(organizations).values({
+            name: "Escola de Música",
+            slug: `escola-${Date.now()}`,
+            createdAt: new Date(),
+          }).returning();
+          targetOrgId = newOrg.id;
+        }
+      }
+
       const data = {
         name: user.name,
         email: user.email,
         loginMethod: user.loginMethod,
         isEmailVerified: user.isEmailVerified ?? true,
         role: user.role || (user.openId === ENV.ownerOpenId ? 'admin' : undefined),
-        organizationId: user.organizationId,
+        organizationId: targetOrgId,
         updatedAt: new Date(),
         lastSignedIn: new Date(),
       };
@@ -138,7 +154,7 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
         if (user.loginMethod !== undefined) updateData.loginMethod = user.loginMethod;
         if (user.isEmailVerified !== undefined) updateData.isEmailVerified = user.isEmailVerified;
         if (user.role !== undefined) updateData.role = user.role;
-        if (user.organizationId !== undefined) updateData.organizationId = user.organizationId;
+        if (targetOrgId !== undefined) updateData.organizationId = targetOrgId;
         if ((user as any).studentId !== undefined) updateData.studentId = (user as any).studentId;
 
         await db.update(users).set(updateData).where(eq(users.openId, user.openId));
@@ -150,7 +166,7 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
           loginMethod: user.loginMethod,
           isEmailVerified: user.isEmailVerified ?? true,
           role: user.role || (user.openId === ENV.ownerOpenId ? 'admin' : 'professor'),
-          organizationId: user.organizationId,
+          organizationId: targetOrgId,
           studentId: (user as any).studentId,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -170,7 +186,29 @@ export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  const user = result.length > 0 ? result[0] : undefined;
+
+  // Se o usuário existir mas não tiver organizationId (ex: professor convidado ou inserido manualmente),
+  // atribui automaticamente a organização principal do sistema para evitar falhas de foreign key/not null nas configurações.
+  if (user && !user.organizationId) {
+    const [firstOrg] = await db.select().from(organizations).orderBy(organizations.id).limit(1);
+    let orgId = firstOrg?.id;
+
+    if (!orgId) {
+      const [newOrg] = await db.insert(organizations).values({
+        name: "Escola de Música",
+        slug: `escola-${Date.now()}`,
+        createdAt: new Date(),
+      }).returning();
+      orgId = newOrg.id;
+    }
+
+    await db.update(users).set({ organizationId: orgId }).where(eq(users.id, user.id));
+    user.organizationId = orgId;
+    console.log(`[DB] Auto-assigned organization ${orgId} to user ${user.id} (${user.email || user.openId})`);
+  }
+
+  return user;
 }
 
 // Dashboard stats
