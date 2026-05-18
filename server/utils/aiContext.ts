@@ -16,7 +16,8 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
       and(eq(students.status, "ativo"), eq(students.professorId, userId), eq(students.organizationId, orgId))
     );
 
-    // 3. Busca aulas agendadas para os próximos 7 dias
+    // 3. Busca aulas agendadas para os próximos 7 dias a partir do início de hoje
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const upcomingLessons = await db.select({
       title: lessons.title,
@@ -29,11 +30,13 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
           eq(lessons.userId, userId),
           eq(lessons.organizationId, orgId),
           inArray(lessons.status, ["agendada", "remarcada"]),
-          lte(lessons.scheduledAt, nextWeek)
+          gte(lessons.scheduledAt, startOfDay),
+          lte(lessons.scheduledAt, nextWeek),
+          eq(students.status, "ativo")
         )
       )
       .orderBy(asc(lessons.scheduledAt))
-      .limit(10);
+      .limit(20);
 
     // 4. Busca mensalidades atrasadas
     const overduePayments = await db.select({
@@ -52,7 +55,7 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
         )
       )
       .orderBy(asc(paymentDues.dueDate))
-      .limit(10);
+      .limit(20);
 
     // 5. Busca receita mensal prevista e realizada (mês atual)
     const currentMonth = now.getMonth() + 1;
