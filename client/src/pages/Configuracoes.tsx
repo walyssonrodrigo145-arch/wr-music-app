@@ -229,21 +229,17 @@ function CleanupTestDataSection() {
         disabled={cleaning}
         onClick={handleCleanup}
       >
-        {cleaning ? <Loader2 size={12} className="animate-spin" /> : <Shield size={12} />}
-        Limpar Dados de Teste
-      </Button>
-    </div>
-  );
-}
-
-// ─── GESTÃO DE SESSÕES BAILEYS ────────────────────────────────────────────────
+    // ─── GESTÃO DE SESSÕES BAILEYS ────────────────────────────────────────────────
 function WhatsAppSessionManager() {
   const [step, setStep] = useState<"DISCONNECTED" | "PAIRING" | "CONNECTED">("DISCONNECTED");
+  const [modeTab, setModeTab] = useState<"QR_CODE" | "PAIRING_CODE">("QR_CODE");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [pairingCode, setPairingCode] = useState("");
+  const [qrString, setQrString] = useState("");
   const [connectedPhone, setConnectedPhone] = useState("");
   const [timeLeft, setTimeLeft] = useState(60);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const startSession = trpc.whatsapp.startSession.useMutation();
   const logoutSession = trpc.whatsapp.logout.useMutation();
@@ -260,6 +256,9 @@ function WhatsAppSessionManager() {
         setConnectedPhone(getStatusQuery.data.phone || phoneNumber || "Conectado");
       } else if (getStatusQuery.data.status === "DISCONNECTED" && step === "CONNECTED") {
         setStep("DISCONNECTED");
+      } else if (getStatusQuery.data.status === "PAIRING") {
+        if (getStatusQuery.data.qr && !qrString) setQrString(getStatusQuery.data.qr);
+        if (getStatusQuery.data.pairingCode && !pairingCode) setPairingCode(getStatusQuery.data.pairingCode);
       }
     }
   }, [getStatusQuery.data, step]);
@@ -271,7 +270,7 @@ function WhatsAppSessionManager() {
       setTimeLeft(t => {
         if (t <= 1) {
           setStep("DISCONNECTED");
-          toast.error("O código de pareamento expirou. Tente novamente.");
+          toast.error("O tempo de pareamento expirou. Tente novamente.");
           return 60;
         }
         return t - 1;
@@ -281,20 +280,24 @@ function WhatsAppSessionManager() {
   }, [step]);
 
   const handleStart = async () => {
-    if (!phoneNumber) {
+    if (modeTab === "PAIRING_CODE" && !phoneNumber) {
       toast.error("Por favor, digite o número do WhatsApp com DDD.");
       return;
     }
     setLoading(true);
     try {
-      const res = await startSession.mutateAsync({ phoneNumber });
-      if (res.success && res.pairingCode) {
-        setPairingCode(res.pairingCode);
+      const res = await startSession.mutateAsync({ 
+        phoneNumber: modeTab === "PAIRING_CODE" ? phoneNumber : undefined,
+        mode: modeTab,
+      });
+      if (res.success) {
+        if (res.qr) setQrString(res.qr);
+        if (res.pairingCode) setPairingCode(res.pairingCode);
         setStep("PAIRING");
         setTimeLeft(60);
-        toast.success("Código gerado com sucesso!");
+        toast.success(modeTab === "QR_CODE" ? "QR Code gerado com sucesso!" : "Código gerado com sucesso!");
       } else {
-        toast.error("Falha ao gerar código de conexão.");
+        toast.error("Falha ao iniciar pareamento.");
       }
     } catch (err: any) {
       toast.error(err.message || "Erro ao iniciar conexão.");
@@ -310,6 +313,7 @@ function WhatsAppSessionManager() {
       await logoutSession.mutateAsync();
       setStep("DISCONNECTED");
       setPairingCode("");
+      setQrString("");
       setConnectedPhone("");
       toast.success("WhatsApp desconectado com sucesso.");
     } catch (err: any) {
@@ -329,105 +333,203 @@ function WhatsAppSessionManager() {
     return pairingCode;
   })();
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(pairingCode);
+    setCopied(true);
+    toast.success("Código copiado para a área de transferência!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="bg-card rounded-[2rem] border border-border shadow-xl p-6 lg:p-8 transition-all duration-500 overflow-hidden relative mb-8">
+    <div className="bg-card/80 backdrop-blur-xl rounded-[2.5rem] border border-border shadow-2xl p-6 lg:p-10 transition-all duration-500 overflow-hidden relative mb-8">
       {/* Decoração de fundo */}
       <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {step === "DISCONNECTED" && (
-        <div className="space-y-6 animate-in fade-in-50 duration-500">
+        <div className="space-y-8 animate-in fade-in-50 duration-500">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-green-600 to-emerald-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-green-500/30">
-              <Smartphone size={24} />
+            <div className="w-14 h-14 rounded-3xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-xl shadow-indigo-500/30">
+              <Smartphone size={28} />
             </div>
             <div>
-              <h4 className="text-lg font-black text-foreground uppercase tracking-wider">Conecte seu Próprio WhatsApp</h4>
-              <p className="text-xs text-muted-foreground font-medium mt-1 leading-relaxed">
-                Envie lembretes de cobrança diretamente do seu número e aumente a taxa de pagamento em até <span className="text-green-600 dark:text-green-400 font-bold">80%</span>.
+              <h4 className="text-xl font-black text-foreground uppercase tracking-wider">Conexão Multi-Sessão WhatsApp</h4>
+              <p className="text-xs text-muted-foreground font-medium mt-1 leading-relaxed max-w-xl">
+                Escolha o método de pareamento de sua preferência para vincular seu celular ao sistema e realizar disparos automáticos de lembretes.
               </p>
             </div>
           </div>
 
-          <div className="bg-muted/50 p-5 rounded-2xl border border-border space-y-4">
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-foreground block mb-2">DDD + Número do Celular</label>
-              <div className="relative">
-                <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={phoneNumber}
-                  onChange={e => {
-                    let val = e.target.value.replace(/\D/g, "");
-                    if (val.length > 11) val = val.slice(0, 11);
-                    if (val.length > 2) val = `(${val.slice(0, 2)}) ${val.slice(2)}`;
-                    if (val.length > 10) val = `${val.slice(0, 10)}-${val.slice(10)}`;
-                    setPhoneNumber(val);
-                  }}
-                  placeholder="(33) 99999-9999"
-                  className="pl-11 h-12 text-sm font-bold rounded-xl border-border bg-background focus:bg-card transition-all shadow-sm"
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1.5 font-medium">Digite o número exato que está no seu WhatsApp.</p>
-            </div>
-
-            <Button
-              onClick={handleStart}
-              disabled={loading || phoneNumber.replace(/\D/g, "").length < 10}
-              className="w-full h-12 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-green-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+          {/* Abas de Seleção (Tabs) */}
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-muted/60 backdrop-blur-md rounded-2xl border border-border/80 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setModeTab("QR_CODE")}
+              className={cn(
+                "py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                modeTab === "QR_CODE"
+                  ? "bg-background text-foreground shadow-lg shadow-black/5 border border-border/50 scale-[1.02]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+              )}
             >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} className="mr-2" />}
-              Gerar Código de Conexão
-            </Button>
+              <span>📱 Conectar com QR Code</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setModeTab("PAIRING_CODE")}
+              className={cn(
+                "py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                modeTab === "PAIRING_CODE"
+                  ? "bg-background text-foreground shadow-lg shadow-black/5 border border-border/50 scale-[1.02]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+              )}
+            >
+              <span>☎️ Conectar com Telefone</span>
+            </button>
+          </div>
+
+          <div className="bg-muted/30 backdrop-blur-md p-6 rounded-3xl border border-border/80 space-y-6 shadow-sm">
+            {modeTab === "QR_CODE" ? (
+              <div className="text-center space-y-4 py-4">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto">
+                  <Smartphone size={32} />
+                </div>
+                <h5 className="text-sm font-black uppercase tracking-widest text-foreground">Escaneamento Instantâneo</h5>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  O sistema gerará um QR Code seguro na tela. Basta abrir o WhatsApp no seu celular e apontar a câmera para conectar instantaneamente.
+                </p>
+                <Button
+                  onClick={handleStart}
+                  disabled={loading}
+                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  {loading ? <Loader2 size={20} className="animate-spin" /> : <Smartphone size={20} className="mr-2" />}
+                  Gerar QR Code
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6 py-2">
+                <div>
+                  <label className="text-xs font-black uppercase tracking-widest text-foreground block mb-2.5">DDD + Número do Celular</label>
+                  <div className="relative">
+                    <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={phoneNumber}
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, "");
+                        if (val.length > 11) val = val.slice(0, 11);
+                        if (val.length > 2) val = `(${val.slice(0, 2)}) ${val.slice(2)}`;
+                        if (val.length > 10) val = `${val.slice(0, 10)}-${val.slice(10)}`;
+                        setPhoneNumber(val);
+                      }}
+                      placeholder="(33) 99999-9999"
+                      className="pl-12 h-14 text-base font-bold rounded-2xl border-border bg-background focus:bg-card transition-all shadow-sm"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 font-medium">Digite o número exato que está no seu WhatsApp.</p>
+                </div>
+
+                <Button
+                  onClick={handleStart}
+                  disabled={loading || phoneNumber.replace(/\D/g, "").length < 10}
+                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  {loading ? <Loader2 size={20} className="animate-spin" /> : <Smartphone size={20} className="mr-2" />}
+                  Gerar Código de Conexão
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {step === "PAIRING" && (
-        <div className="space-y-6 animate-in zoom-in-95 duration-500">
+        <div className="space-y-8 animate-in zoom-in-95 duration-500">
           <div className="text-center space-y-2">
             <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto animate-pulse">
               <Smartphone size={32} />
             </div>
             <h4 className="text-xl font-black text-foreground uppercase tracking-wider">Pareamento Ativo</h4>
             <p className="text-xs text-muted-foreground font-medium max-w-md mx-auto">
-              Digite o código abaixo no seu WhatsApp para conectar sua conta ao sistema.
+              {modeTab === "QR_CODE" 
+                ? "Abra o WhatsApp no celular e escaneie o QR Code abaixo." 
+                : "Digite o código abaixo no seu WhatsApp para conectar sua conta ao sistema."}
             </p>
           </div>
 
-          <div className="bg-muted p-8 rounded-3xl border border-border text-center relative overflow-hidden group">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-pulse" />
-            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Código de Pareamento</p>
-            <div
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                fontWeight: 700,
-                letterSpacing: "0.15em",
-                textTransform: "uppercase"
-              }}
-              className="text-3xl lg:text-4xl text-indigo-600 dark:text-indigo-400 select-all bg-background py-4 px-6 rounded-2xl border border-border inline-block shadow-inner"
-            >
-              {formattedPairingCode}
-            </div>
-            <div className="mt-6 flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground">
-              <Loader2 size={14} className="animate-spin text-indigo-500" />
+          <div className="bg-muted/50 backdrop-blur-md p-8 rounded-3xl border border-border text-center relative overflow-hidden group shadow-inner">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-pulse" />
+            
+            {modeTab === "QR_CODE" ? (
+              <div className="flex flex-col items-center justify-center py-4 space-y-6">
+                {qrString ? (
+                  <div className="p-4 bg-white rounded-3xl border-4 border-indigo-500/20 shadow-2xl animate-in zoom-in duration-500">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrString)}`} 
+                      alt="WhatsApp QR Code"
+                      className="w-60 h-60 object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-60 h-60 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-3xl bg-background/50 space-y-3">
+                    <Loader2 size={32} className="animate-spin text-indigo-500" />
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Gerando QR Code...</span>
+                  </div>
+                )}
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Aponte a câmera do WhatsApp</p>
+              </div>
+            ) : (
+              <div className="space-y-6 py-2">
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Código de Pareamento</p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <div
+                    style={{
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      fontWeight: 700,
+                      letterSpacing: "0.15em",
+                      textTransform: "uppercase"
+                    }}
+                    className="text-3xl lg:text-4xl text-indigo-600 dark:text-indigo-400 select-all bg-background py-5 px-8 rounded-2xl border border-border inline-block shadow-inner"
+                  >
+                    {formattedPairingCode || "GERANDO..."}
+                  </div>
+                  <Button
+                    onClick={handleCopy}
+                    disabled={!pairingCode}
+                    className="h-16 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition-all active:scale-95"
+                  >
+                    {copied ? <CheckCircle2 size={20} className="text-green-400" /> : <Smartphone size={20} />}
+                    {copied ? "Copiado!" : "Copiar"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-8 flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground">
+              <Loader2 size={16} className="animate-spin text-indigo-500" />
               Aguardando confirmação do celular ({timeLeft}s)...
             </div>
           </div>
 
-          <div className="bg-card p-6 rounded-2xl border border-border space-y-3 shadow-sm">
+          <div className="bg-card/90 backdrop-blur-md p-6 rounded-2xl border border-border space-y-3 shadow-sm">
             <p className="text-xs font-black uppercase tracking-widest text-foreground">Passo a passo no seu celular:</p>
             <ol className="text-xs text-muted-foreground space-y-2 font-medium list-decimal list-inside">
               <li>Abra o WhatsApp no seu celular.</li>
               <li>Toque no menu de <span className="text-foreground font-bold">Opções/Configurações</span> (três pontinhos).</li>
               <li>Selecione <span className="text-foreground font-bold">Aparelhos Conectados</span>.</li>
-              <li>Toque em <span className="text-foreground font-bold">Conectar um aparelho</span> e escolha <span className="text-foreground font-bold">Conectar com número de telefone</span>.</li>
-              <li>Digite o código exibido acima.</li>
+              <li>Toque em <span className="text-foreground font-bold">Conectar um aparelho</span>.</li>
+              {modeTab === "QR_CODE" ? (
+                <li>Aponte a câmera para o QR Code exibido na tela.</li>
+              ) : (
+                <li>Escolha <span className="text-foreground font-bold">Conectar com número de telefone</span> e digite o código acima.</li>
+              )}
             </ol>
           </div>
 
           <Button
             onClick={() => setStep("DISCONNECTED")}
             variant="outline"
-            className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+            className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all shadow-sm"
           >
             Cancelar Pareamento
           </Button>
@@ -435,30 +537,30 @@ function WhatsAppSessionManager() {
       )}
 
       {step === "CONNECTED" && (
-        <div className="space-y-6 text-center animate-in zoom-in-95 duration-500 py-4">
-          <div className="w-20 h-20 rounded-full bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center mx-auto shadow-lg shadow-green-500/10">
-            <CheckCircle2 size={40} className="animate-bounce" />
+        <div className="space-y-8 text-center animate-in zoom-in-95 duration-500 py-6">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-green-600 to-emerald-500 text-white flex items-center justify-center mx-auto shadow-2xl shadow-green-500/30 border-4 border-green-400/20">
+            <CheckCircle2 size={48} className="animate-bounce" />
           </div>
 
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 text-xs font-black uppercase tracking-widest mb-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
-              WhatsApp Conectado
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 text-xs font-black uppercase tracking-widest mb-2 shadow-sm">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping" />
+              ✅ WhatsApp Conectado com Sucesso!
             </div>
-            <h4 className="text-2xl font-black text-foreground">{connectedPhone}</h4>
-            <p className="text-xs text-muted-foreground font-medium max-w-sm mx-auto mt-2">
-              Seu WhatsApp está pronto e operando 24/7 para disparar lembretes automáticos aos alunos.
+            <h4 className="text-3xl font-black text-foreground">{connectedPhone}</h4>
+            <p className="text-xs text-muted-foreground font-medium max-w-md mx-auto mt-3 leading-relaxed">
+              Seu WhatsApp está perfeitamente vinculado e operando 24/7 em segundo plano para disparar lembretes automáticos aos alunos.
             </p>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-6">
             <Button
               onClick={handleLogout}
               disabled={loading}
               variant="outline"
-              className="h-11 px-6 rounded-xl border-destructive/20 text-destructive hover:bg-destructive hover:text-white font-black uppercase tracking-widest text-xs transition-all shadow-sm hover:shadow-destructive/20"
+              className="h-14 px-8 rounded-2xl border-destructive/20 text-destructive hover:bg-destructive hover:text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg hover:shadow-destructive/25"
             >
-              {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+              {loading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
               Desconectar Conta
             </Button>
           </div>

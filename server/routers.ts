@@ -2262,7 +2262,10 @@ export const appRouter = router({
   // ─── WHATSAPP MULTI-SESSÃO (BAILEYS) ──────────────────────────────────────────
   whatsapp: router({
     startSession: protectedProcedure
-      .input(z.object({ phoneNumber: z.string() }))
+      .input(z.object({ 
+        phoneNumber: z.string().optional(),
+        mode: z.enum(["QR_CODE", "PAIRING_CODE"]).optional(),
+      }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -2277,7 +2280,8 @@ export const appRouter = router({
           url: userSet?.whatsappBotUrl || "",
           token: userSet?.whatsappBotToken || "",
           sessionId,
-          phoneNumber: input.phoneNumber,
+          phoneNumber: input.phoneNumber || "",
+          mode: input.mode,
         });
       }),
 

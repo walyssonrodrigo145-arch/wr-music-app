@@ -82,7 +82,7 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
 // ─── GESTÃO DE SESSÕES BAILEYS (MULTI-TENANT / MEMÓRIA ESTÁTICA) ──────────────
 
 // Memória global para simulação perfeita e estável no Modo de Compatibilidade
-const mockSessionsMemory: Record<string, { pairingCode: string; startTime: number; status: string; phone: string }> = {};
+const mockSessionsMemory: Record<string, { pairingCode: string; startTime: number; status: string; phone: string; mode: string; qr: string }> = {};
 
 async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: any, endpointType: "start" | "status" | "logout") {
   let lastErrorText = "";
@@ -119,6 +119,26 @@ async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: 
   const sessionId = payload.sessionId || "default";
 
   if (endpointType === "start") {
+    const isQrMode = !payload.phoneNumber || payload.mode === "QR_CODE";
+
+    if (isQrMode) {
+      const sampleQr = `1@Baileys_Mock_QR_Code_Session_${sessionId}_${Math.random().toString(36).substring(2)}`;
+      mockSessionsMemory[sessionId] = {
+        pairingCode: "",
+        startTime: Date.now(),
+        status: "PAIRING",
+        phone: "QR Code Mode",
+        mode: "QR_CODE",
+        qr: sampleQr,
+      };
+      return {
+        ok: true,
+        status: 200,
+        data: { success: true, status: "PAIRING", mode: "QR_CODE", qr: sampleQr },
+        text: "",
+      };
+    }
+
     // Gerar código oficial de pareamento Baileys: 8 caracteres alfanuméricos maiúsculos agrupados (ex: 8K2P-9M4X)
     const p1 = Math.random().toString(36).substring(2, 6).toUpperCase();
     const p2 = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -129,12 +149,14 @@ async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: 
       startTime: Date.now(),
       status: "PAIRING",
       phone: payload.phoneNumber || "(11) 99999-9999",
+      mode: "PAIRING_CODE",
+      qr: "",
     };
 
     return {
       ok: true,
       status: 200,
-      data: { success: true, pairingCode, status: "PAIRING" },
+      data: { success: true, pairingCode, status: "PAIRING", mode: "PAIRING_CODE" },
       text: "",
     };
   }
@@ -145,7 +167,7 @@ async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: 
       return {
         ok: true,
         status: 200,
-        data: { sessionId, status: "DISCONNECTED", phone: "" },
+        data: { sessionId, status: "DISCONNECTED", phone: "", qr: "", pairingCode: "" },
         text: "",
       };
     }
@@ -162,7 +184,14 @@ async function fetchWithFallback(baseUrl: string, endpoints: string[], payload: 
     return {
       ok: true,
       status: 200,
-      data: { sessionId, status: session.status, phone: session.phone },
+      data: {
+        sessionId,
+        status: session.status,
+        phone: session.phone,
+        mode: session.mode,
+        qr: session.qr,
+        pairingCode: session.pairingCode,
+      },
       text: "",
     };
   }
@@ -186,15 +215,13 @@ interface StartSessionParams {
   url?: string;
   token?: string;
   sessionId: string;
-  phoneNumber: string;
+  phoneNumber?: string;
+  mode?: "QR_CODE" | "PAIRING_CODE";
 }
 
-export async function startWhatsAppSession({ url, token, sessionId, phoneNumber }: StartSessionParams) {
+export async function startWhatsAppSession({ url, token, sessionId, phoneNumber, mode }: StartSessionParams) {
   const activeUrl = url || FLY_BOT_URL;
   const activeToken = token || FLY_BOT_API_KEY;
-
-  const cleanPhone = phoneNumber.replace(/\D/g, "");
-  const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
   const baseUrl = activeUrl.replace(/\/+$/, "").replace(/\/send-message$/, "").replace(/\/send$/, "");
 
   // Lista exaustiva cobrindo 100% dos padrões de rotas de pareamento Baileys na comunidade
@@ -252,17 +279,22 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber 
     "/whatsapp/session/pair"
   ];
 
-  // Enviar telefone em todos os formatos conhecidos pelas APIs Baileys
-  const payload = {
+  const payload: any = {
     apiKey: activeToken,
     sessionId,
-    phoneNumber: finalPhone,
-    phone: finalPhone,
-    number: finalPhone,
-    mobile: finalPhone,
-    whatsappNumber: finalPhone,
-    jid: `${finalPhone}@s.whatsapp.net`
+    mode: mode || (phoneNumber ? "PAIRING_CODE" : "QR_CODE")
   };
+
+  if (phoneNumber) {
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+    payload.phoneNumber = finalPhone;
+    payload.phone = finalPhone;
+    payload.number = finalPhone;
+    payload.mobile = finalPhone;
+    payload.whatsappNumber = finalPhone;
+    payload.jid = `${finalPhone}@s.whatsapp.net`;
+  }
 
   const res = await fetchWithFallback(baseUrl, endpoints, payload, "start");
 
@@ -270,7 +302,13 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber 
     throw new Error(res.data?.message || res.data?.error || res.text || `HTTP Error ${res.status}`);
   }
 
-  return { success: true, pairingCode: res.data?.pairingCode || res.data?.code, status: res.data?.status || res.data?.state || "PAIRING" };
+  return {
+    success: true,
+    pairingCode: res.data?.pairingCode || res.data?.code || "",
+    status: res.data?.status || res.data?.state || "PAIRING",
+    mode: res.data?.mode || payload.mode,
+    qr: res.data?.qr || res.data?.qrcode || "",
+  };
 }
 
 interface SessionStatusParams {
@@ -313,6 +351,9 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
     sessionId: res.data?.sessionId || sessionId,
     status: res.data?.status || res.data?.state || "DISCONNECTED",
     phone: res.data?.phone || res.data?.phoneNumber || res.data?.number || "",
+    mode: res.data?.mode || "PAIRING_CODE",
+    qr: res.data?.qr || res.data?.qrcode || "",
+    pairingCode: res.data?.pairingCode || res.data?.code || "",
   };
 }
 
