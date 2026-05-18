@@ -1,11 +1,11 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   DollarSign, CheckCircle2, Plus, X,
   Loader2, Trash2, ChevronLeft, ChevronRight, Pencil,
   Search, MoreVertical, CreditCard,
   ChevronDown, TrendingUp, Zap, Link2, Copy, QrCode, Ban,
-  FileUp, FileCheck
+  FileUp, FileCheck, FileText, Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -221,6 +221,109 @@ function AsaasChargeModal({ open, onClose, payment }: {
   );
 }
 
+// ─── Modal: Observação / Justificativa ────────────────────────────────────────
+function ObservacaoModal({ open, onClose, payment }: {
+  open: boolean;
+  onClose: () => void;
+  payment: PaymentRow | null;
+}) {
+  const utils = trpc.useUtils();
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (payment) {
+      setNotes(payment.notes || "");
+    }
+  }, [payment]);
+
+  const updateMutation = trpc.paymentDues.update.useMutation({
+    onSuccess: () => {
+      utils.paymentDues.invalidate();
+      toast.success("Observação salva com sucesso!");
+      onClose();
+    },
+    onError: (e: any) => toast.error("Erro ao salvar observação: " + e.message),
+  });
+
+  const handleSave = () => {
+    if (!payment) return;
+    updateMutation.mutate({
+      id: payment.id,
+      notes: notes.trim() || null,
+    });
+  };
+
+  if (!open || !payment) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-md" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="relative bg-card rounded-[2rem] border border-border shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-border bg-gradient-to-b from-amber-500/5 to-transparent">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shadow-sm">
+              <FileText size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground tracking-tight">Observação / Justificativa</h3>
+              <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{payment.studentName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Caixa de Alerta Explicativa SaaS Premium */}
+          <div className="p-4 rounded-2xl bg-amber-500/[0.05] border border-amber-500/20 space-y-2">
+            <div className="flex items-center gap-2 text-amber-600">
+              <Info size={16} className="shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider">Regra de Automação do Robô</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              O robô continuará enviando os lembretes de <strong className="text-foreground">3 dias antes</strong> e do <strong className="text-foreground">dia do vencimento</strong> normalmente. No entanto, se este campo estiver preenchido com qualquer justificativa de atraso ou acordo, o aviso de <strong className="text-rose-500">inadimplência</strong> será suspenso automaticamente.
+            </p>
+          </div>
+
+          {/* Campo de Texto */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">
+              Observação da Mensalidade
+            </label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Digite o motivo do atraso, acordo realizado ou observação interna..."
+              rows={4}
+              className="w-full p-4 text-xs font-medium rounded-2xl border border-border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none text-foreground placeholder:text-muted-foreground/50 transition-all"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" onClick={onClose} className="flex-1 h-11 rounded-xl text-xs font-bold border-border hover:bg-muted/50">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={updateMutation.isPending}
+              className="flex-1 h-11 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs gap-2 shadow-lg shadow-amber-500/20"
+            >
+              {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+              Salvar Observação
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function NovaModal({ open, onClose, students }: {
   open: boolean; onClose: () => void;
   students: any[];
@@ -415,6 +518,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
   const [search, setSearch] = useState("");
   const [novaOpen, setNovaOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentRow | null>(null);
+  const [notesPayment, setNotesPayment] = useState<PaymentRow | null>(null);
   const [detailsPaymentId, setDetailsPaymentId] = useState<number | null>(null);
   const [asaasPayment, setAsaasPayment] = useState<PaymentRow | null>(null);
   const [uploadingFor, setUploadingFor] = useState<number | null>(null);
@@ -665,7 +769,14 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
-                              <p className="text-sm font-bold text-foreground truncate">{payment.studentName}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-bold text-foreground truncate">{payment.studentName}</p>
+                                {payment.notes && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/20" title={payment.notes}>
+                                    <FileText size={10} /> Obs
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-muted-foreground font-medium truncate mt-0.5">{payment.email}</p>
                             </div>
                           </div>
@@ -705,7 +816,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                     <MoreVertical size={16} />
                                  </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-52 rounded-xl p-2 border-border">
+                              <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 border-border">
                                  {payment.receiptUrl ? (
                                    <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => window.open(payment.receiptUrl!, "_blank")}>
                                       <FileCheck className="w-4 h-4 text-emerald-500" />
@@ -727,6 +838,10 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                       <span className="text-xs font-bold text-muted-foreground">Marcar como Pago</span>
                                    </DropdownMenuItem>
                                  )}
+                                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setNotesPayment(payment)}>
+                                    <FileText className="w-4 h-4 text-amber-500" />
+                                    <span className="text-xs font-bold text-muted-foreground">Observação / Justificativa</span>
+                                 </DropdownMenuItem>
                                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setEditPayment(payment)}>
                                     <Pencil className="w-4 h-4 text-blue-500" />
                                     <span className="text-xs font-bold text-muted-foreground">Editar Registro</span>
@@ -793,7 +908,14 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-foreground truncate">{payment.studentName}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-bold text-foreground truncate">{payment.studentName}</p>
+                            {payment.notes && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/20" title={payment.notes}>
+                                <FileText size={10} /> Obs
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{MONTHS_PT[payment.month-1]} {payment.year}</p>
                         </div>
                       </div>
@@ -833,6 +955,11 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                            <FileUp size={12} className="mr-1" /> Anexar
                          </Button>
                        )}
+
+                      <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10"
+                        onClick={(e) => { e.stopPropagation(); setNotesPayment(payment); }}>
+                        <FileText size={12} className="mr-1" /> Obs
+                      </Button>
 
                       {!payment.asaasId ? (
                          <Button
@@ -881,6 +1008,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
       {editPayment && (
         <EditMensalidadeModal open={!!editPayment} onClose={() => setEditPayment(null)} payment={editPayment} />
       )}
+      <ObservacaoModal open={!!notesPayment} onClose={() => setNotesPayment(null)} payment={notesPayment} />
       <AsaasChargeModal
         open={!!asaasPayment}
         onClose={() => setAsaasPayment(null)}

@@ -345,7 +345,7 @@ async function runAutomation() {
 
           const remKey = `${rem.studentId}-${rem.type}`;
           if (sentMap.has(remKey)) {
-            await db.update(reminders).set({ errorMessage: "Bloqueio Anti-Spam: Lembrete do mesmo tipo já enviado hoje.", updatedAt: new Date() }).where(eq(reminders.id, rem.id));
+            await db.update(reminders).set({ status: "enviado", sentAt: new Date(), errorMessage: "Bloqueio Anti-Spam: Lembrete do mesmo tipo já enviado hoje.", updatedAt: new Date() }).where(eq(reminders.id, rem.id));
             continue;
           }
 

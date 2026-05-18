@@ -1943,6 +1943,8 @@ export const appRouter = router({
 
         // Lembrete programado para 24h antes da aula
         const reminderTime = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
+        // Só gera se a janela de 24h já chegou (1 dia antes da aula)
+        if (reminderTime > now) { skipped++; continue; }
 
         // Chave de deduplicação
         const refId = `lesson-${lesson.id}-${lessonDate.toISOString().slice(0, 10)}`;
