@@ -229,7 +229,14 @@ function CleanupTestDataSection() {
         disabled={cleaning}
         onClick={handleCleanup}
       >
-    // ─── GESTÃO DE SESSÕES BAILEYS ────────────────────────────────────────────────
+        {cleaning ? <Loader2 size={12} className="animate-spin" /> : <Shield size={12} />}
+        Limpar Dados de Teste
+      </Button>
+    </div>
+  );
+}
+
+// ─── GESTÃO DE SESSÕES BAILEYS ────────────────────────────────────────────────
 function WhatsAppSessionManager() {
   const [step, setStep] = useState<"DISCONNECTED" | "PAIRING" | "CONNECTED">("DISCONNECTED");
   const [modeTab, setModeTab] = useState<"QR_CODE" | "PAIRING_CODE">("QR_CODE");
