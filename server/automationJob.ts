@@ -1,17 +1,10 @@
 /**
- * Job de automação de lembretes
- * Roda a cada hora e gera lembretes automaticamente para usuários
- * que tenham automationEnabled = 1 nas configurações.
- *
- * Regras:
- * - Aulas: todas as aulas futuras da semana atual (lembrete agendado 24h antes)
- * - Mensalidades FUTURAS: lembrete 3 dias antes do vencimento
- * - Mensalidades VENCIDAS e não pagas: gera lembrete de inadimplência imediatamente
- * - Nunca gera duplicados (usa refId único)
- * - Ignora aulas canceladas e mensalidades pagas
+ * Job de automação de lembretes e notificações do WhatsApp
+ * Roda periodicamente (a cada 1 minuto) e gerencia o ciclo completo de cobranças e aulas
+ * de acordo com as regras de negócio de automação avançada.
  */
 
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
@@ -21,7 +14,6 @@ async function runAutomation() {
   const db = await getDb();
   if (!db) return;
 
-  // Buscar todos os usuários com automação ativada, junto com o organizationId e configs do WhatsApp
   const activeSettings = await db
     .select({
       id: settings.id,
@@ -39,6 +31,8 @@ async function runAutomation() {
   if (activeSettings.length === 0) return;
 
   const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 
   for (const userSettings of activeSettings) {
     const userId = userSettings.userId;
@@ -53,26 +47,27 @@ async function runAutomation() {
     let remindersCreated = 0;
 
     try {
-      // ─── LIMPEZA SEMANAL (Domingo) ──────────────────────────────────────────
-      const lastRunDate = userSettings.automationLastRun ? new Date(userSettings.automationLastRun) : null;
-      const isSunday = now.getDay() === 0;
-      const isNewDay = !lastRunDate || lastRunDate.toDateString() !== now.toDateString();
+      // ─── CANCELAMENTO AUTOMÁTICO DE LEMBRETES OBSOLETOS ─────────────────────
+      // Cancela lembretes pendentes de alunos inativos/pausados/cancelados, mensalidades pagas ou aulas canceladas
+      await db.execute(sql`
+        UPDATE reminders 
+        SET status = 'cancelado', "updatedAt" = now()
+        WHERE "organizationId" = ${orgId} 
+          AND "userId" = ${userId}
+          AND status = 'pendente'
+          AND (
+            ("studentId" IN (SELECT id FROM students WHERE "organizationId" = ${orgId} AND status IN ('inativo', 'pausado')))
+            OR ("paymentDueId" IN (SELECT id FROM payment_dues WHERE "organizationId" = ${orgId} AND status = 'pago'))
+            OR ("lessonId" IN (SELECT id FROM lessons WHERE "organizationId" = ${orgId} AND status IN ('cancelada', 'remarcada', 'falta')))
+          )
+      `);
 
-      if (isSunday && isNewDay) {
-        console.log(`[Automation] Sunday cleanup for userId=${userId} orgId=${orgId}`);
-        await db.delete(reminders).where(
-          and(eq(reminders.userId, userId), eq(reminders.organizationId, orgId))
-        );
-      }
-
-      // ─── LEMBRETES DE AULA (todas as futuras da semana) ────────────────────
-      const dayOfWeek = now.getDay();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-      monday.setHours(0, 0, 0, 0);
+      // ─── 1. BUSCA E GERAÇÃO DE LEMBRETES DE AULA ────────────────────────────
+      // Busca todas as aulas agendadas da semana atual para alunos ativos
+      const monday = new Date(startOfDay);
+      monday.setDate(monday.getDate() - monday.getDay());
       const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      sunday.setHours(23, 59, 59, 999);
+      sunday.setDate(monday.getDate() + 7);
 
       const weekLessons = await db
         .select({
@@ -80,7 +75,6 @@ async function runAutomation() {
           studentId: lessons.studentId,
           title: lessons.title,
           scheduledAt: lessons.scheduledAt,
-          duration: lessons.duration,
           status: lessons.status,
           studentName: students.name,
           studentPhone: students.phone,
@@ -100,23 +94,13 @@ async function runAutomation() {
         );
 
       for (const lesson of weekLessons) {
-        if (lesson.status === "cancelada") continue;
+        if (lesson.status !== "agendada") continue;
 
         const lessonDate = new Date(lesson.scheduledAt);
-        if (lessonDate <= now) continue; // aula já passou
+        if (lessonDate <= now) continue; // Aula já passou
 
-        // Lembrete agendado para 24h antes da aula
-        const reminderTime = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
-
-        const refId = `lesson-${lesson.id}-${lessonDate.toISOString().slice(0, 10)}`;
-
-        // Verificar duplicidade
-        const existing = await db
-          .select({ id: reminders.id })
-          .from(reminders)
-          .where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId)))
-          .limit(1);
-        if (existing.length > 0) continue;
+        const dataAula = lessonDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
+        const horaAula = lessonDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
         // Buscar template padrão de aula do usuário
         const [tpl] = await db
@@ -132,35 +116,54 @@ async function runAutomation() {
           )
           .limit(1);
 
-        const dataAula = lessonDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
-        const horaAula = lessonDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-        const bodyTemplate = tpl?.body ?? "Olá {nome}, lembrete: sua aula de {instrumento} é amanhã, {data_aula} às {hora_aula}. Até lá!";
-        const message = bodyTemplate
-          .replace(/\{nome\}/g, lesson.studentName ?? "Aluno")
-          .replace(/\{instrumento\}/g, lesson.instrumentName ?? "música")
-          .replace(/\{data_aula\}/g, dataAula)
-          .replace(/\{hora_aula\}/g, horaAula)
-          .replace(/\{titulo\}/g, lesson.title);
+        const baseBody = tpl?.body ?? "Olá {nome}, lembrete: sua aula de {instrumento} é {quando}, {data_aula} às {hora_aula}. Até lá!";
 
-        await db.insert(reminders).values({
-          organizationId: orgId,
-          userId,
-          studentId: lesson.studentId,
-          lessonId: lesson.id,
-          type: "aula",
-          message,
-          scheduledAt: reminderTime,
-          status: "pendente",
-          autoGenerated: 1,
-          refId,
-        });
+        // A) Lembrete 24 horas antes
+        const time24h = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
+        const ref24h = `lesson-24h-${lesson.id}`;
+        if (time24h <= now) {
+          const existing24 = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, ref24h), eq(reminders.organizationId, orgId))).limit(1);
+          if (existing24.length === 0) {
+            const msg24 = baseBody
+              .replace(/\{quando\}/g, "amanhã")
+              .replace(/\{nome\}/g, lesson.studentName ?? "Aluno")
+              .replace(/\{instrumento\}/g, lesson.instrumentName ?? "música")
+              .replace(/\{data_aula\}/g, dataAula)
+              .replace(/\{hora_aula\}/g, horaAula)
+              .replace(/\{titulo\}/g, lesson.title);
 
-        remindersCreated++;
+            await db.insert(reminders).values({
+              organizationId: orgId, userId, studentId: lesson.studentId, lessonId: lesson.id,
+              type: "aula", message: msg24, scheduledAt: time24h, status: "pendente", autoGenerated: 1, refId: ref24h,
+            });
+            remindersCreated++;
+          }
+        }
+
+        // B) Lembrete 1 hora antes
+        const time1h = new Date(lessonDate.getTime() - 1 * 60 * 60 * 1000);
+        const ref1h = `lesson-1h-${lesson.id}`;
+        if (time1h <= now) {
+          const existing1 = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, ref1h), eq(reminders.organizationId, orgId))).limit(1);
+          if (existing1.length === 0) {
+            const msg1 = baseBody
+              .replace(/\{quando\}/g, "hoje")
+              .replace(/\{nome\}/g, lesson.studentName ?? "Aluno")
+              .replace(/\{instrumento\}/g, lesson.instrumentName ?? "música")
+              .replace(/\{data_aula\}/g, dataAula)
+              .replace(/\{hora_aula\}/g, horaAula)
+              .replace(/\{titulo\}/g, lesson.title);
+
+            await db.insert(reminders).values({
+              organizationId: orgId, userId, studentId: lesson.studentId, lessonId: lesson.id,
+              type: "aula", message: msg1, scheduledAt: time1h, status: "pendente", autoGenerated: 1, refId: ref1h,
+            });
+            remindersCreated++;
+          }
+        }
       }
 
-      // ─── LEMBRETES DE MENSALIDADE ──────────────────────────────────────────
-      const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
-
+      // ─── 2. BUSCA E GERAÇÃO DE LEMBRETES DE MENSALIDADE ─────────────────────
       const dues = await db
         .select({
           id: paymentDues.id,
@@ -170,13 +173,15 @@ async function runAutomation() {
           status: paymentDues.status,
           month: paymentDues.month,
           year: paymentDues.year,
+          notes: paymentDues.notes,
           studentName: students.name,
           studentPhone: students.phone,
+          studentNotes: students.notes,
           instrumentName: instruments.name,
         })
         .from(paymentDues)
         .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
-        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+        .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(students.organizationId, orgId)))
         .where(
           and(
             eq(paymentDues.organizationId, orgId),
@@ -189,85 +194,91 @@ async function runAutomation() {
       for (const due of dues) {
         const dueDate = new Date(due.dueDate + "T12:00:00");
         const dueDateStr = String(due.dueDate).slice(0, 10);
-        const isOverdue = dueDateStr < today;
-
-        let reminderTime: Date;
-        let type: "cobranca" | "inadimplencia";
-        let refId: string;
-        let bodyTemplate: string;
-
-        if (isOverdue) {
-          type = "inadimplencia";
-          refId = `overdue-${due.id}-${today}`;
-          reminderTime = new Date(now);
-          bodyTemplate = "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e ainda não foi paga. Por favor, entre em contato para regularizar.";
-        } else {
-          // Mensalidade futura → lembrete 3 dias antes
-          type = "cobranca";
-          const reminderDate = new Date(dueDate);
-          reminderDate.setDate(dueDate.getDate() - 3);
-
-          if (reminderDate > now) continue;
-
-          reminderTime = reminderDate;
-          refId = `payment-${due.id}-${due.year}-${due.month}`;
-          bodyTemplate = "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, efetue o pagamento.";
-        }
-
-        // Verificar duplicidade
-        const existing = await db
-          .select({ id: reminders.id })
-          .from(reminders)
-          .where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId)))
-          .limit(1);
-        if (existing.length > 0) continue;
-
-        // Buscar template padrão
-        const [tpl] = await db
-          .select()
-          .from(reminderTemplates)
-          .where(
-            and(
-              eq(reminderTemplates.organizationId, orgId),
-              eq(reminderTemplates.userId, userId),
-              eq(reminderTemplates.type, type),
-              eq(reminderTemplates.isDefault, 1)
-            )
-          )
-          .limit(1);
+        const isOverdue = dueDateStr < todayStr;
+        const isToday = dueDateStr === todayStr;
 
         const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
         const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        const finalTemplate = tpl?.body ?? bodyTemplate;
-        const message = finalTemplate
-          .replace(/\{nome\}/g, due.studentName ?? "Aluno")
-          .replace(/\{valor\}/g, valor)
-          .replace(/\{vencimento\}/g, vencimento)
-          .replace(/\{instrumento\}/g, due.instrumentName ?? "música");
 
-        await db.insert(reminders).values({
-          organizationId: orgId,
-          userId,
-          studentId: due.studentId,
-          paymentDueId: due.id,
-          type,
-          message,
-          scheduledAt: reminderTime,
-          status: "pendente",
-          autoGenerated: 1,
-          refId,
-        });
+        // A) Lembrete de Inadimplência (após o vencimento, a cada 2 dias)
+        if (isOverdue) {
+          const hasJustification = (due.notes && due.notes.trim().length > 0) || (due.studentNotes && due.studentNotes.trim().length > 0);
+          if (hasJustification) {
+            console.log(`[Automation] Skipping overdue dueId=${due.id} for student ${due.studentName}: justification found.`);
+            continue;
+          }
 
-        remindersCreated++;
+          const lastInad = await db
+            .select({ scheduledAt: reminders.scheduledAt, sentAt: reminders.sentAt })
+            .from(reminders)
+            .where(and(eq(reminders.paymentDueId, due.id), eq(reminders.type, "inadimplencia"), eq(reminders.organizationId, orgId)))
+            .orderBy(desc(reminders.scheduledAt))
+            .limit(1);
+
+          let shouldSend = false;
+          if (lastInad.length === 0) {
+            shouldSend = true;
+          } else {
+            const lastTime = lastInad[0].sentAt || lastInad[0].scheduledAt;
+            const diffDays = (now.getTime() - lastTime.getTime()) / (1000 * 60 * 60 * 24);
+            if (diffDays >= 2) shouldSend = true;
+          }
+
+          if (shouldSend) {
+            const refId = `overdue-${due.id}-${todayStr}`;
+            const existing = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
+            if (existing.length === 0) {
+              const [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"), eq(reminderTemplates.isDefault, 1))).limit(1);
+              const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e consta como pendente. Por favor, entre em contato para regularizar ou nos informar caso já tenha efetuado o pagamento.";
+              const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+
+              await db.insert(reminders).values({
+                organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
+                type: "inadimplencia", message, scheduledAt: now, status: "pendente", autoGenerated: 1, refId,
+              });
+              remindersCreated++;
+            }
+          }
+        } 
+        else if (isToday) {
+          const refId = `pay-hoje-${due.id}`;
+          const existing = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
+          if (existing.length === 0) {
+            const [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
+            const body = tpl?.body ?? "Olá {nome}, lembramos que sua mensalidade de {valor} vence hoje, {vencimento}. Agradecemos o pagamento no prazo!";
+            const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+
+            await db.insert(reminders).values({
+              organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
+              type: "cobranca", message, scheduledAt: now, status: "pendente", autoGenerated: 1, refId,
+            });
+            remindersCreated++;
+          }
+        }
+        else {
+          const reminderDate = new Date(dueDate);
+          reminderDate.setDate(dueDate.getDate() - 3);
+
+          if (reminderDate <= now) {
+            const refId = `pay-prev-${due.id}`;
+            const existing = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
+            if (existing.length === 0) {
+              const [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
+              const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, programe o pagamento.";
+              const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+
+              await db.insert(reminders).values({
+                organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
+                type: "cobranca", message, scheduledAt: reminderDate, status: "pendente", autoGenerated: 1, refId,
+              });
+              remindersCreated++;
+            }
+          }
+        }
       }
 
-      // Atualizar lastRun
-      await db
-        .update(settings)
-        .set({ automationLastRun: now })
-        .where(eq(settings.userId, userId));
+      await db.update(settings).set({ automationLastRun: now }).where(eq(settings.userId, userId));
 
-      // Disparar notificação externa se houver novos lembretes
       if (remindersCreated > 0) {
         await notifyOwner({
           title: "🔔 Novos Lembretes Disponíveis",
@@ -275,19 +286,21 @@ async function runAutomation() {
         });
       }
 
-      // ─── DISPARO AUTOMÁTICO VIA ROBÔ FLY.IO ─────────────────────────────────
+      // ─── 3. DISPARO AUTOMÁTICO COM CONTROLE DE FILA E PRIORIDADE ────────────
       if (userSettings.whatsappAutoSend === 1 && userSettings.whatsappBotUrl) {
-        console.log(`[Automation] Processing auto-send for userId=${userId} orgId=${orgId}`);
         const pendingReminders = await db
           .select({
             id: reminders.id,
+            studentId: reminders.studentId,
+            type: reminders.type,
             message: reminders.message,
             scheduledAt: reminders.scheduledAt,
+            refId: reminders.refId,
             studentPhone: students.phone,
             studentName: students.name,
           })
           .from(reminders)
-          .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
+          .leftJoin(students, and(eq(reminders.studentId, students.id), eq(reminders.organizationId, orgId)))
           .where(
             and(
               eq(reminders.organizationId, orgId),
@@ -297,11 +310,42 @@ async function runAutomation() {
             )
           );
 
+        if (pendingReminders.length === 0) continue;
+
+        const getPriorityWeight = (rem: typeof pendingReminders[0]) => {
+          if (rem.refId?.startsWith("lesson-1h-")) return 1;
+          if (rem.refId?.startsWith("lesson-24h-")) return 2;
+          if (rem.refId?.startsWith("pay-prev-")) return 3;
+          if (rem.refId?.startsWith("pay-hoje-")) return 4;
+          if (rem.type === "inadimplencia") return 5;
+          return 6;
+        };
+
+        pendingReminders.sort((a, b) => getPriorityWeight(a) - getPriorityWeight(b));
+
+        const sentToday = await db
+          .select({ studentId: reminders.studentId, type: reminders.type })
+          .from(reminders)
+          .where(
+            and(
+              eq(reminders.organizationId, orgId),
+              eq(reminders.userId, userId),
+              eq(reminders.status, "enviado"),
+              gte(reminders.sentAt, startOfDay)
+            )
+          );
+
+        const sentMap = new Set(sentToday.map(s => `${s.studentId}-${s.type}`));
+
         for (const rem of pendingReminders) {
           if (!rem.studentPhone) {
-            await db.update(reminders)
-              .set({ errorMessage: "Aluno sem telefone cadastrado.", updatedAt: new Date() })
-              .where(eq(reminders.id, rem.id));
+            await db.update(reminders).set({ errorMessage: "Aluno sem telefone cadastrado.", updatedAt: new Date() }).where(eq(reminders.id, rem.id));
+            continue;
+          }
+
+          const remKey = `${rem.studentId}-${rem.type}`;
+          if (sentMap.has(remKey)) {
+            await db.update(reminders).set({ errorMessage: "Bloqueio Anti-Spam: Lembrete do mesmo tipo já enviado hoje.", updatedAt: new Date() }).where(eq(reminders.id, rem.id));
             continue;
           }
 
@@ -323,7 +367,7 @@ async function runAutomation() {
                 updatedAt: new Date(),
               })
               .where(eq(reminders.id, rem.id));
-            console.log(`[Automation] Auto-sent reminder id=${rem.id} via Fly.io bot`);
+            sentMap.add(remKey);
           } else {
             await db.update(reminders)
               .set({
@@ -331,32 +375,22 @@ async function runAutomation() {
                 updatedAt: new Date(),
               })
               .where(eq(reminders.id, rem.id));
-            console.warn(`[Automation] Failed to auto-send reminder id=${rem.id}:`, sendRes.error);
           }
         }
       }
-
     } catch (err) {
       console.error(`[Automation] Error processing userId=${userId} orgId=${orgId}:`, err);
     }
   }
-
-  console.log(`[Automation] Job completed at ${now.toISOString()} for ${activeSettings.length} user(s)`);
 }
 
-/**
- * Inicia o job de automação.
- * Roda 1 minuto após o boot e depois a cada 1 minuto.
- */
 export function startAutomationJob() {
-  // Primeira execução após 1 minuto do boot (evitar conflito na inicialização)
   setTimeout(() => {
     runAutomation().catch(err => console.error("[Automation] Initial run error:", err));
-    // Repetir a cada 1 minuto
     setInterval(() => {
       runAutomation().catch(err => console.error("[Automation] Scheduled run error:", err));
-    }, 60 * 1000); // 1 minuto
-  }, 60 * 1000); // 1 minuto após boot
+    }, 60 * 1000); 
+  }, 60 * 1000); 
 
   console.log("[Automation] Job scheduler started — runs every 1 minute");
 }
