@@ -1,4 +1,4 @@
-import { and, eq, lte, asc, desc, sql, inArray } from "drizzle-orm";
+import { and, eq, lte, gte, asc, desc, sql, inArray } from "drizzle-orm";
 import { students, lessons, paymentDues, reminders, settings, expenses } from "../../drizzle/schema";
 
 export async function buildUserContext(db: any, userId: number, orgId: number): Promise<string> {
