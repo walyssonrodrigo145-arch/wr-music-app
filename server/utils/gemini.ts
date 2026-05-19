@@ -15,7 +15,7 @@ export async function callGemini(messages: { role: string; content: string }[], 
 
   try {
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       systemInstruction: systemPrompt,
     });
 
