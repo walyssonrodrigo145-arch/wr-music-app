@@ -20,6 +20,8 @@ import {
   CheckCircle2,
   XCircle,
   Calendar,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -104,6 +106,7 @@ export default function Aulas() {
   const [instrumentFilter, setInstrumentFilter] = useState("todos");
   const [statusFilterDesktop, setStatusFilterDesktop] = useState("geral");
   const [lessonTypeFilter, setLessonTypeFilter] = useState("todos");
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Mobile specific states
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -167,36 +170,7 @@ export default function Aulas() {
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, [selectedDate]);
 
-  const dailyStats = useMemo(() => {
-    const date = isDesktop ? currentDate : selectedDate;
-    const todays = lessons.filter(l => isSameDay(new Date(l.scheduledAt), date));
-    return {
-      agendadas: todays.filter(l => l.status === "agendada").length,
-      concluidas: todays.filter(l => l.status === "concluida").length,
-      faltas: todays.filter(l => l.status === "falta").length,
-      canceladas: todays.filter(l => l.status === "cancelada").length,
-      remarcadas: todays.filter(l => l.status === "remarcada").length,
-    };
-  }, [lessons, currentDate, selectedDate, isDesktop]);
-
-  const nextLesson = useMemo(() => {
-    const now = new Date();
-    return lessons
-      .filter(l => l.status === "agendada" && new Date(l.scheduledAt) >= now)
-      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
-  }, [lessons]);
-
-  const dynamicAlerts = useMemo(() => {
-    const now = new Date();
-    const list = [];
-    if (pendingReminders.length > 0) {
-      list.push({ label: "Lembrete pendente", sub: pendingReminders[0].studentName || "Geral", icon: Bell, color: "text-orange-500", bg: "bg-orange-500/10" });
-    }
-    if (list.length === 0) {
-      list.push({ label: "Sem alertas críticos", sub: "Tudo em ordem", icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-500/10" });
-    }
-    return list;
-  }, [pendingReminders]);
+  // Unused stats removed for expanded calendar layout
 
   const handleStatusChange = (id: number, status: string, newDate?: string) => {
     updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
@@ -208,9 +182,14 @@ export default function Aulas() {
   if (isDesktop) {
 
     return (
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] -m-4 sm:-m-6 bg-background overflow-hidden">
+      <div className={cn(
+        "flex flex-col bg-background overflow-hidden transition-all duration-300",
+        isExpanded 
+          ? "fixed inset-0 z-[45] p-6 lg:p-10 overflow-y-auto m-0 h-screen max-w-none animate-in fade-in zoom-in-95 duration-300" 
+          : "h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] -m-4 sm:-m-6"
+      )}>
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto lg:overflow-hidden no-scrollbar">
-          <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+          <div className={cn("flex-1 overflow-y-auto space-y-8 no-scrollbar", isExpanded ? "p-0" : "p-8")}>
             {/* Desktop Filters */}
             <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
                <div className="space-y-4">
@@ -314,6 +293,29 @@ export default function Aulas() {
                     }}
                   >
                     Hoje
+                  </Button>
+
+                  <Button
+                    variant={isExpanded ? "default" : "outline"}
+                    className={cn(
+                      "h-10 rounded-xl px-4 text-xs font-bold transition-all flex items-center gap-2 shadow-sm",
+                      isExpanded 
+                        ? "bg-blue-600 text-white hover:bg-blue-700" 
+                        : "hover:bg-blue-600 hover:text-white hover:border-blue-600"
+                    )}
+                    onClick={() => setIsExpanded(!isExpanded)}
+                  >
+                    {isExpanded ? (
+                      <>
+                        <Minimize2 size={16} />
+                        Restaurar
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 size={16} />
+                        Expandir
+                      </>
+                    )}
                   </Button>
                </div>
             </div>
@@ -424,50 +426,11 @@ export default function Aulas() {
           </div>
         </div>
 
-        {/* Desktop Sidebar */}
-        <div className="w-[360px] bg-card border-l border-border p-8 space-y-12 overflow-y-auto no-scrollbar">
-           <div className="space-y-8">
-              <div className="flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center shadow-sm"><Calendar size={20} /></div>
-                 <div><h3 className="text-sm font-black text-foreground tracking-tight">Estatísticas</h3><p className="text-[9px] text-muted-foreground font-bold uppercase mt-1">{format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}</p></div>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                 {[
-                   { label: "Agendadas", count: dailyStats.agendadas, color: "bg-blue-500/10 text-blue-600", icon: Calendar },
-                   { label: "Concluídas", count: dailyStats.concluidas, color: "bg-emerald-500/10 text-emerald-600", icon: CheckCircle2 },
-                   { label: "Faltas", count: dailyStats.faltas, color: "bg-orange-500/10 text-orange-600", icon: AlertCircle }
-                 ].map((stat, i) => (
-                   <div key={i} className="p-6 bg-card rounded-[2.5rem] border border-border flex items-center justify-between group hover:shadow-xl transition-all cursor-default">
-                      <div className="flex items-center gap-5">
-                         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", stat.color)}><stat.icon size={20} /></div>
-                         <div><p className="text-xl font-black text-foreground leading-none mb-1">{stat.count}</p><p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p></div>
-                      </div>
-                      <ChevronRight size={20} className="text-slate-200 group-hover:text-blue-500 transition-colors" />
-                   </div>
-                 ))}
-              </div>
-           </div>
-
-           <div className="space-y-6">
-               <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center shadow-sm"><Clock size={20} /></div><h3 className="text-sm font-black text-foreground tracking-tight">Próxima Aula</h3></div>
-              {nextLesson ? (
-                <div className="p-6 bg-card rounded-[2.5rem] border border-border shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all">
-                   <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 bg-blue-500/10 px-3 py-1 rounded-full w-fit">{format(new Date(nextLesson.scheduledAt), "HH:mm")}</p>
-                   <div className="flex items-center gap-5 mb-8">
-                      <Avatar className="w-16 h-16 border-4 border-background shadow-xl"><AvatarFallback className="bg-blue-600 text-white font-black">{(nextLesson.studentName || "A")[0]}</AvatarFallback></Avatar>
-                       <div><p className="text-base font-black text-foreground truncate">{nextLesson.studentName || nextLesson.experimentalName}</p><p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">{nextLesson.instrumentName}</p></div>
-                   </div>
-                   <Button className="w-full h-12 rounded-2xl bg-card border border-border text-blue-600 font-black hover:bg-blue-600 hover:text-white transition-all" onClick={() => setDetailLessonId(nextLesson.id)}>Ver Detalhes</Button>
-                </div>
-              ) : <div className="py-10 text-center opacity-30 text-xs font-black uppercase">Nenhuma aula próxima</div>}
-           </div>
-
-           <div className="fixed bottom-12 right-12 z-50">
-             <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setAgendarOpen(true)} className="w-20 h-20 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl relative overflow-hidden group">
-               <Plus size={36} strokeWidth={3} />
-               <div className="absolute inset-0 rounded-full border-4 border-blue-400/30 animate-ping opacity-75" />
-             </motion.button>
-           </div>
+        <div className="fixed bottom-12 right-12 z-[48]">
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setAgendarOpen(true)} className="w-20 h-20 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl relative overflow-hidden group">
+            <Plus size={36} strokeWidth={3} />
+            <div className="absolute inset-0 rounded-full border-4 border-blue-400/30 animate-ping opacity-75" />
+          </motion.button>
         </div>
 
         <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} />
