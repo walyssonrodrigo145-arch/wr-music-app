@@ -324,7 +324,7 @@ async function runAutomation() {
         pendingReminders.sort((a, b) => getPriorityWeight(a) - getPriorityWeight(b));
 
         const sentToday = await db
-          .select({ studentId: reminders.studentId, type: reminders.type })
+          .select({ studentId: reminders.studentId, type: reminders.type, refId: reminders.refId })
           .from(reminders)
           .where(
             and(
@@ -335,7 +335,16 @@ async function runAutomation() {
             )
           );
 
-        const sentMap = new Set(sentToday.map(s => `${s.studentId}-${s.type}`));
+        const getRemKey = (studentId: number | null, type: string, refId: string | null) => {
+          let subType = type;
+          if (type === "aula") {
+            if (refId?.startsWith("lesson-24h-")) subType = "aula-24h";
+            else if (refId?.startsWith("lesson-1h-")) subType = "aula-1h";
+          }
+          return `${studentId}-${subType}`;
+        };
+
+        const sentMap = new Set(sentToday.map(s => getRemKey(s.studentId, s.type, s.refId)));
 
         for (const rem of pendingReminders) {
           if (!rem.studentPhone) {
@@ -343,7 +352,7 @@ async function runAutomation() {
             continue;
           }
 
-          const remKey = `${rem.studentId}-${rem.type}`;
+          const remKey = getRemKey(rem.studentId, rem.type, rem.refId);
           if (sentMap.has(remKey)) {
             await db.update(reminders).set({ status: "enviado", sentAt: new Date(), errorMessage: "Bloqueio Anti-Spam: Lembrete do mesmo tipo já enviado hoje.", updatedAt: new Date() }).where(eq(reminders.id, rem.id));
             continue;
