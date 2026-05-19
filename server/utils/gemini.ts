@@ -38,6 +38,28 @@ export async function callGemini(messages: { role: string; content: string }[], 
     return result.response.text();
   } catch (error: any) {
     console.error("[Gemini API Error]:", error);
+    
+    // Identificar erro de limite de quota/faturamento
+    if (
+      error.status === 429 || 
+      error.message?.includes("429") || 
+      error.message?.toLowerCase().includes("quota") ||
+      error.message?.toLowerCase().includes("limit")
+    ) {
+      throw new Error(
+        "A chave da API do Gemini excedeu o limite de uso (Quota Exceeded / Limite Excedido). " +
+        "Verifique se você atingiu o limite de uso gratuito ou se precisa vincular uma conta de faturamento (billing) ao seu projeto no Google AI Studio."
+      );
+    }
+    
+    // Identificar erro de chave inválida ou não autorizada
+    if (error.status === 403 || error.status === 400 || error.message?.includes("API key")) {
+      throw new Error(
+        "A chave da API do Gemini está incorreta ou é inválida. " +
+        "Verifique a variável GEMINI_API_KEY no arquivo .env."
+      );
+    }
+
     throw new Error("Falha ao comunicar com a inteligência artificial. Tente novamente em instantes.");
   }
 }
