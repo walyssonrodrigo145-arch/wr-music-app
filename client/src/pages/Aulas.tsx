@@ -62,7 +62,7 @@ const statusConfig = {
   falta: { label: "Falta", color: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-500/20" },
 };
 
-const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: () => void }) => {
+const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: React.MouseEvent) => void }) => {
     const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
     return (
       <motion.div
@@ -337,7 +337,7 @@ export default function Aulas() {
                                  key={idx} 
                                  onClick={() => {
                                    setCurrentDate(day);
-                                   setView("dia");
+                                   setAgendarOpen(true);
                                  }}
                                  className={cn(
                                    "p-2 border-r border-b border-border min-h-[140px] relative cursor-pointer hover:bg-muted transition-colors", 
@@ -356,7 +356,7 @@ export default function Aulas() {
                                    {format(day, "d")}
                                  </motion.span>
                                 <div className="space-y-1">
-                                   {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={() => setDetailLessonId(l.id)} />)}
+                                   {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
                                   {lessonsInDay.length > 3 && <p className="text-[9px] font-black text-blue-600 text-center">+ {lessonsInDay.length - 3} aulas</p>}
                                 </div>
                               </div>
@@ -374,7 +374,7 @@ export default function Aulas() {
                               <p className="text-2xl font-black">{format(day, "d")}</p>
                            </div>
                            <div className="space-y-3">
-                              {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={() => setDetailLessonId(l.id)} />)}
+                              {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
                            </div>
                         </div>
                       ))}
@@ -400,7 +400,7 @@ export default function Aulas() {
                           {filteredLessons
                             .filter(l => isSameDay(new Date(l.scheduledAt), currentDate))
                             .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-                            .map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={() => setDetailLessonId(l.id)} />)}
+                            .map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
                        </div>
                     </motion.div>
                   )}
@@ -415,7 +415,7 @@ export default function Aulas() {
                                 <div className="absolute -top-3 left-6 z-10 px-3 py-1 bg-blue-600 text-white text-[9px] font-black rounded-full uppercase tracking-widest shadow-lg">
                                    {format(new Date(l.scheduledAt), "dd/MM")}
                                 </div>
-                                <LessonCardDesktop lesson={l} onClick={() => setDetailLessonId(l.id)} />
+                                <LessonCardDesktop lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
                               </div>
                             ))}
                        </div>
@@ -433,7 +433,7 @@ export default function Aulas() {
           </motion.button>
         </div>
 
-        <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} />
+        <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={currentDate} />
         <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => { if (detailLessonId) deleteMutation.mutate({ id: detailLessonId }); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
       </div>
     );
@@ -530,7 +530,7 @@ export default function Aulas() {
         </motion.button>
       </div>
 
-      <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} />
+      <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={selectedDate} />
       <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => { if (detailLessonId) deleteMutation.mutate({ id: detailLessonId }); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
     </div>
   );
