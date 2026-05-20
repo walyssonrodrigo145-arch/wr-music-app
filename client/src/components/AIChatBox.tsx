@@ -1,8 +1,8 @@
-﻿import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Loader2, Send, User, Sparkles } from "lucide-react";
+import { Loader2, Send, User, Sparkles, AlertCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Streamdown } from "streamdown";
 
@@ -33,6 +33,21 @@ export type AIChatBoxProps = {
   isLoading?: boolean;
 
   /**
+   * Whether the user is blocked (daily limit reached)
+   */
+  isBlocked?: boolean;
+
+  /**
+   * Whether the user is in cooldown (must wait between queries)
+   */
+  isCooldown?: boolean;
+
+  /**
+   * Seconds remaining in cooldown
+   */
+  cooldownSeconds?: number;
+
+  /**
    * Placeholder text for the input field
    */
   placeholder?: string;
@@ -59,6 +74,54 @@ export type AIChatBoxProps = {
   suggestedPrompts?: string[];
 };
 
+// ── Validação de mensagem no frontend (espelha o backend) ─────────────────────
+
+function validateMessage(msg: string): string | null {
+  const raw = msg.trim();
+
+  if (!raw) return null; // Vazio — tratado pelo disabled do botão
+
+  // Só números
+  if (/^\d+$/.test(raw)) {
+    return "Não envie somente números. Faça uma consulta real.";
+  }
+
+  // Muito curta (menos de 5 chars sem espaço)
+  const charsOnly = raw.replace(/\s/g, "");
+  if (charsOnly.length < 5) {
+    return "Muito curta. Elabore sua consulta com mais detalhes.";
+  }
+
+  // Só caracteres repetidos
+  if (/^(.)\1{4,}$/.test(charsOnly)) {
+    return "Caracteres repetidos não são aceitos.";
+  }
+
+  // Sem vogais nas palavras longas (lixo aleatório)
+  const words = raw.split(/\s+/).filter((w) => w.length > 3);
+  const hasVowels = words.every((w) =>
+    /[aeiouáéíóúâêîôûãõàèìòùAEIOUÁÉÍÓÚÂÊÎÔÛÃÕÀÈÌÒÙ]/i.test(w)
+  );
+  if (words.length > 0 && !hasVowels) {
+    return "Parece ser texto aleatório sem sentido.";
+  }
+
+  // Palavras irrelevantes
+  const irrelevant =
+    /^(oi|olá|ola|opa|ei|hi|hello|hey|ok|okay|sim|não|nao|obrigado|obrigada|valeu|tchau|bye|certo|entendi|blz|beleza|hmm+|ah+|uh+|hm+|rs+|kk+|haha+|lol|test(e|ing)?|abc|asd|qwerty)$/i;
+  if (irrelevant.test(raw)) {
+    return "A IA é para consultas sobre sua escola de música. Envie uma pergunta relevante.";
+  }
+
+  // Menos de 2 palavras
+  const wordCount = raw.split(/\s+/).filter((w) => w.length > 0).length;
+  if (wordCount < 2) {
+    return "Mensagem muito vaga. Elabore sua pergunta ou pedido.";
+  }
+
+  return null; // Válida ✓
+}
+
 /**
  * A ready-to-use AI chat box component that integrates with the LLM system.
  *
@@ -67,6 +130,7 @@ export type AIChatBoxProps = {
  * - Markdown rendering with Streamdown
  * - Auto-scrolls to latest message
  * - Loading states
+ * - Frontend validation mirroring backend rules
  * - Uses global theme colors from index.css
  *
  * @example
@@ -78,16 +142,11 @@ export type AIChatBoxProps = {
  *
  *   const chatMutation = trpc.ai.chat.useMutation({
  *     onSuccess: (response) => {
- *       // Assuming your tRPC endpoint returns the AI response as a string
  *       setMessages(prev => [...prev, {
  *         role: "assistant",
  *         content: response
  *       }]);
  *     },
- *     onError: (error) => {
- *       console.error("Chat error:", error);
- *       // Optionally show error message to user
- *     }
  *   });
  *
  *   const handleSend = (content: string) => {
@@ -114,6 +173,9 @@ export function AIChatBox({
   messages,
   onSendMessage,
   isLoading = false,
+  isBlocked = false,
+  isCooldown = false,
+  cooldownSeconds = 0,
   placeholder = "Type your message...",
   className,
   height = "600px",
@@ -121,6 +183,7 @@ export function AIChatBox({
   suggestedPrompts,
 }: AIChatBoxProps) {
   const [input, setInput] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputAreaRef = useRef<HTMLFormElement>(null);
@@ -138,10 +201,6 @@ export function AIChatBox({
       const inputHeight = inputAreaRef.current.offsetHeight;
       const scrollAreaHeight = containerHeight - inputHeight;
 
-      // Reserve space for:
-      // - padding (p-4 = 32px top+bottom)
-      // - user message: 40px (item height) + 16px (margin-top from space-y-4) = 56px
-      // Note: margin-bottom is not counted because it naturally pushes the assistant message down
       const userMessageReservedHeight = 56;
       const calculatedHeight = scrollAreaHeight - 32 - userMessageReservedHeight;
 
@@ -165,13 +224,33 @@ export function AIChatBox({
     }
   };
 
+  // Validação ao digitar (debounced — só mostra erro se o campo não estiver vazio)
+  useEffect(() => {
+    if (!input.trim()) {
+      setValidationError(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setValidationError(validateMessage(input));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [input]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = input.trim();
-    if (!trimmedInput || isLoading) return;
+    if (!trimmedInput || isLoading || isBlocked || isCooldown) return;
+
+    // Validação frontend
+    const error = validateMessage(trimmedInput);
+    if (error) {
+      setValidationError(error);
+      return;
+    }
 
     onSendMessage(trimmedInput);
     setInput("");
+    setValidationError(null);
 
     // Scroll immediately after sending
     scrollToBottom();
@@ -186,6 +265,8 @@ export function AIChatBox({
       handleSubmit(e);
     }
   };
+
+  const isDisabled = isLoading || isBlocked || isCooldown;
 
   return (
     <div
@@ -212,7 +293,7 @@ export function AIChatBox({
                     <button
                       key={index}
                       onClick={() => onSendMessage(prompt)}
-                      disabled={isLoading}
+                      disabled={isDisabled}
                       className="rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {prompt}
@@ -226,7 +307,6 @@ export function AIChatBox({
           <ScrollArea className="h-full">
             <div className="flex flex-col space-y-4 p-4">
               {displayMessages.map((message, index) => {
-                // Apply min-height to last message only if NOT loading (when loading, the loading indicator gets it)
                 const isLastMessage = index === displayMessages.length - 1;
                 const shouldApplyMinHeight =
                   isLastMessage && !isLoading && minHeightForLastMessage > 0;
@@ -303,34 +383,52 @@ export function AIChatBox({
       </div>
 
       {/* Input Area */}
-      <form
-        ref={inputAreaRef}
-        onSubmit={handleSubmit}
-        className="flex gap-2 p-4 border-t bg-background/50 items-end"
-      >
-        <Textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className="flex-1 max-h-32 resize-none min-h-9"
-          rows={1}
-        />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!input.trim() || isLoading}
-          className="shrink-0 h-[38px] w-[38px]"
+      <div className="border-t bg-background/50">
+        {/* Erro de validação inline */}
+        {validationError && (
+          <div className="flex items-center gap-2 px-4 pt-3 pb-0">
+            <AlertCircle size={13} className="text-rose-500 shrink-0" />
+            <p className="text-xs text-rose-600 font-medium">{validationError}</p>
+          </div>
+        )}
+
+        <form
+          ref={inputAreaRef}
+          onSubmit={handleSubmit}
+          className="flex gap-2 p-4 items-end"
         >
-          {isLoading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Send className="size-4" />
-          )}
-        </Button>
-      </form>
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={isDisabled}
+            className={cn(
+              "flex-1 max-h-32 resize-none min-h-9",
+              validationError && "border-rose-400 focus-visible:ring-rose-400"
+            )}
+            rows={1}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!input.trim() || isDisabled || !!validationError}
+            className="shrink-0 h-[38px] w-[38px]"
+          >
+            {isLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
+          </Button>
+        </form>
+
+        {/* Hint de regras */}
+        <p className="text-[10px] text-muted-foreground text-center pb-2 px-4">
+          Somente consultas válidas sobre sua escola · Máx. 10 por dia · Intervalo mínimo 10s entre envios
+        </p>
+      </div>
     </div>
   );
 }
-

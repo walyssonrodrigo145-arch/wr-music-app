@@ -264,8 +264,9 @@ function WhatsAppSessionManager() {
       } else if (getStatusQuery.data.status === "DISCONNECTED" && step === "CONNECTED") {
         setStep("DISCONNECTED");
       } else if (getStatusQuery.data.status === "PAIRING") {
-        if (getStatusQuery.data.qr && !qrString) setQrString(getStatusQuery.data.qr);
-        if (getStatusQuery.data.pairingCode && !pairingCode) setPairingCode(getStatusQuery.data.pairingCode);
+        const pairingData = getStatusQuery.data as any;
+        if (pairingData.qr && !qrString) setQrString(pairingData.qr);
+        if (pairingData.pairingCode && !pairingCode) setPairingCode(pairingData.pairingCode);
       }
     }
   }, [getStatusQuery.data, step]);

@@ -3884,6 +3884,15 @@ export const appRouter = router({
   }),
 
   // ─── AI ASSISTANT (Gemini) ──────────────────────────────────────────────────────────
+
+  // ─── Helpers de validação de mensagens da IA ───────────────────────────────────────
+  // Verificações feitas ANTES de enviar ao Gemini, no endpoint ai.chat
+
+  /**
+   * Verifica se a mensagem é válida para ser enviada à IA.
+   * Retorna null se válida, ou uma string de erro se inválida.
+   */
+  // (helpers são funções inline no closure do endpoint, não são exportadas)
   ai: router({
     newConversation: protectedProcedure
       .input(z.object({ title: z.string().optional() }))
@@ -3936,6 +3945,77 @@ export const appRouter = router({
           .orderBy(asc(aiMessages.createdAt));
       }),
 
+    getUsageStats: protectedProcedure.query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const DAILY_LIMIT = 10;
+
+        // Início do dia atual em UTC
+        const now = new Date();
+        const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+        // Buscar todas as conversas do usuário
+        const userConversations = await db
+          .select({ id: aiConversations.id })
+          .from(aiConversations)
+          .where(eq(aiConversations.userId, ctx.user.id));
+
+        const convIds = userConversations.map((c) => c.id);
+
+        if (convIds.length === 0) {
+          return { usedToday: 0, limit: DAILY_LIMIT, canQuery: true, resetsAt: null, cooldownUntil: null };
+        }
+
+        // Contar mensagens do usuário nas últimas 24h
+        const todayMsgs = await db
+          .select({ createdAt: aiMessages.createdAt })
+          .from(aiMessages)
+          .where(
+            and(
+              sql`${aiMessages.conversationId} = ANY(ARRAY[${sql.join(convIds.map(id => sql`${id}`), sql`, `)}]::int[])`,
+              eq(aiMessages.role, "user"),
+              gte(aiMessages.createdAt, startOfDay)
+            )
+          )
+          .orderBy(asc(aiMessages.createdAt));
+
+        const usedToday = todayMsgs.length;
+        const canQuery = usedToday < DAILY_LIMIT;
+
+        // Calcular quando o bloqueio termina: 24h após a PRIMEIRA mensagem do dia
+        let resetsAt: string | null = null;
+        if (!canQuery && todayMsgs.length > 0) {
+          const firstMsgAt = new Date(todayMsgs[0].createdAt);
+          const resetTime = new Date(firstMsgAt.getTime() + 24 * 60 * 60 * 1000);
+          resetsAt = resetTime.toISOString();
+        }
+
+        // Calcular cooldown (última mensagem do usuário)
+        const lastMsg = await db
+          .select({ createdAt: aiMessages.createdAt })
+          .from(aiMessages)
+          .where(
+            and(
+              sql`${aiMessages.conversationId} = ANY(ARRAY[${sql.join(convIds.map(id => sql`${id}`), sql`, `)}]::int[])`,
+              eq(aiMessages.role, "user")
+            )
+          )
+          .orderBy(desc(aiMessages.createdAt))
+          .limit(1);
+
+        let cooldownUntil: string | null = null;
+        if (lastMsg.length > 0) {
+          const lastAt = new Date(lastMsg[0].createdAt);
+          const cooldownEnd = new Date(lastAt.getTime() + 10 * 1000); // 10 segundos
+          if (cooldownEnd > now) {
+            cooldownUntil = cooldownEnd.toISOString();
+          }
+        }
+
+        return { usedToday, limit: DAILY_LIMIT, canQuery, resetsAt, cooldownUntil };
+      }),
+
     chat: protectedProcedure
       .input(z.object({
         conversationId: z.number(),
@@ -3943,10 +4023,68 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
-        if (!db) throw new Error("Database not available");
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
         const orgId = ctx.user.organizationId!;
 
-        // Verificar acesso
+        // ── VALIDAÇÃO DA MENSAGEM ──────────────────────────────────────────────────
+        const rawMsg = input.message.trim();
+
+        // 1. Somente dígitos
+        if (/^\d+$/.test(rawMsg)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Mensagem inválida: não envie somente números. Faça uma consulta real.",
+          });
+        }
+
+        // 2. Muito curta (menos de 5 caracteres efetivos sem espaços)
+        const charsOnly = rawMsg.replace(/\s/g, "");
+        if (charsOnly.length < 5) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Mensagem inválida: muito curta. Elabore sua consulta com mais detalhes.",
+          });
+        }
+
+        // 3. Somente um caractere repetido (ex: 'aaaaaaa', '!!!!!!')
+        if (/^(.)\1{4,}$/.test(charsOnly)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Mensagem inválida: caracteres repetidos não são aceitos.",
+          });
+        }
+
+        // 4. Sem vogais (provavelmente lixo aleatório, ex: 'zxcvbnm')
+        const words = rawMsg.split(/\s+/).filter(w => w.length > 3);
+        const hasVowels = words.every(w => /[aeiouáéíóúâêîôûãõàèìòùAEIOUÁÉÍÓÚÂÊÎÔÛÃÕÀÈÌÒÙ]/i.test(w));
+        if (words.length > 0 && !hasVowels) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Mensagem inválida: parece ser texto aleatório sem sentido.",
+          });
+        }
+
+        // 5. Filtro de relevância heurístico — mensagens sem sentido de consulta
+        const irrelevantPatterns = [
+          /^(oi|olá|ola|opa|ei|hi|hello|hey|ok|okay|sim|não|nao|obrigado|obrigada|valeu|tchaul|tchau|bye|certo|entendi|blz|beleza|hmm+|ah+|uh+|hm+|rs+|kk+|haha+|lol|test(e|ing)?|abc|asd|qwerty)$/i,
+        ];
+        if (irrelevantPatterns.some(p => p.test(rawMsg))) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Consulta inválida: a IA é para consultas sobre sua escola de música. Envie uma pergunta ou pedido relevante.",
+          });
+        }
+
+        // 6. Deve ter pelo menos 2 palavras (não uma única palavra genérica)
+        const wordCount = rawMsg.split(/\s+/).filter(w => w.length > 0).length;
+        if (wordCount < 2) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Mensagem muito vaga. Elabore sua pergunta ou pedido.",
+          });
+        }
+
+        // ── VERIFICAR ACESSO À CONVERSA ──────────────────────────────────────────
         const [conv] = await db.select({ id: aiConversations.id, title: aiConversations.title }).from(aiConversations)
           .where(and(
             eq(aiConversations.id, input.conversationId),
@@ -3954,9 +4092,72 @@ export const appRouter = router({
             eq(aiConversations.organizationId, orgId)
           )).limit(1);
 
-        if (!conv) throw new Error("Conversa não encontrada ou acesso negado");
+        if (!conv) throw new TRPCError({ code: "NOT_FOUND", message: "Conversa não encontrada ou acesso negado" });
 
-        // 1. Salva a mensagem do usuário
+        // ── BUSCAR CONVERSAS DO USUÁRIO PARA RATE LIMITING ───────────────────────
+        const userConversations = await db
+          .select({ id: aiConversations.id })
+          .from(aiConversations)
+          .where(eq(aiConversations.userId, ctx.user.id));
+        const convIds = userConversations.map((c) => c.id);
+
+        // ── RATE LIMITING: 10 SEGUNDOS ENTRE CONSULTAS ───────────────────────────
+        if (convIds.length > 0) {
+          const lastUserMsg = await db
+            .select({ createdAt: aiMessages.createdAt })
+            .from(aiMessages)
+            .where(
+              and(
+                sql`${aiMessages.conversationId} = ANY(ARRAY[${sql.join(convIds.map(id => sql`${id}`), sql`, `)}]::int[])`,
+                eq(aiMessages.role, "user")
+              )
+            )
+            .orderBy(desc(aiMessages.createdAt))
+            .limit(1);
+
+          if (lastUserMsg.length > 0) {
+            const lastAt = new Date(lastUserMsg[0].createdAt);
+            const secondsElapsed = (Date.now() - lastAt.getTime()) / 1000;
+            if (secondsElapsed < 10) {
+              const waitSeconds = Math.ceil(10 - secondsElapsed);
+              throw new TRPCError({
+                code: "TOO_MANY_REQUESTS",
+                message: `Aguarde ${waitSeconds} segundo(s) antes de enviar outra consulta.`,
+              });
+            }
+          }
+        }
+
+        // ── LIMITE DIÁRIO DE 10 CONSULTAS ────────────────────────────────────────
+        const DAILY_LIMIT = 10;
+        const now = new Date();
+        const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+        if (convIds.length > 0) {
+          const todayMsgs = await db
+            .select({ createdAt: aiMessages.createdAt })
+            .from(aiMessages)
+            .where(
+              and(
+                sql`${aiMessages.conversationId} = ANY(ARRAY[${sql.join(convIds.map(id => sql`${id}`), sql`, `)}]::int[])`,
+                eq(aiMessages.role, "user"),
+                gte(aiMessages.createdAt, startOfDay)
+              )
+            )
+            .orderBy(asc(aiMessages.createdAt));
+
+          if (todayMsgs.length >= DAILY_LIMIT) {
+            const firstMsgAt = new Date(todayMsgs[0].createdAt);
+            const resetsAt = new Date(firstMsgAt.getTime() + 24 * 60 * 60 * 1000);
+            const hoursLeft = Math.ceil((resetsAt.getTime() - now.getTime()) / (1000 * 60 * 60));
+            throw new TRPCError({
+              code: "TOO_MANY_REQUESTS",
+              message: `Limite diário de ${DAILY_LIMIT} consultas atingido. Suas consultas serão liberadas em aproximadamente ${hoursLeft}h. Liberação: ${resetsAt.toISOString()}`,
+            });
+          }
+        }
+
+        // ── SALVAR A MENSAGEM DO USUÁRIO ─────────────────────────────────────────
         await db.insert(aiMessages).values({
           conversationId: input.conversationId,
           role: "user",
@@ -3964,36 +4165,34 @@ export const appRouter = router({
           createdAt: new Date(),
         });
 
-        // 2. Se for a primeira mensagem e o título for "Nova Conversa", atualiza o título baseado na mensagem
+        // Atualiza título da conversa se for a primeira mensagem
         if (conv.title === "Nova Conversa") {
           const newTitle = input.message.length > 30 ? input.message.substring(0, 30) + "..." : input.message;
           await db.update(aiConversations)
             .set({ title: newTitle, updatedAt: new Date() })
             .where(eq(aiConversations.id, input.conversationId));
         } else {
-           await db.update(aiConversations)
+          await db.update(aiConversations)
             .set({ updatedAt: new Date() })
             .where(eq(aiConversations.id, input.conversationId));
         }
 
-        // 3. Busca histórico (últimas 20 mensagens)
+        // Busca histórico (últimas 20 mensagens)
         const history = await db.select({ role: aiMessages.role, content: aiMessages.content })
           .from(aiMessages)
           .where(eq(aiMessages.conversationId, input.conversationId))
           .orderBy(desc(aiMessages.createdAt))
           .limit(20);
-        
-        // Inverte para ficar cronológico
         const formattedHistory = history.reverse();
 
-        // 4. Constrói o contexto em tempo real do banco de dados
+        // Constrói contexto e prompt do sistema
         const userDataContext = await buildUserContext(db, ctx.user.id, orgId);
         const systemPrompt = getSystemPrompt(userDataContext);
 
-        // 5. Chama a IA
+        // Chama a IA
         const aiResponseContent = await callGemini(formattedHistory, systemPrompt);
 
-        // 6. Salva a resposta da IA
+        // Salva a resposta da IA
         const [aiMsg] = await db.insert(aiMessages).values({
           conversationId: input.conversationId,
           role: "assistant",
