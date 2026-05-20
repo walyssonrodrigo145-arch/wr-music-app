@@ -447,11 +447,37 @@ export async function getSettingsByUserId(organizationId: number, userId: number
 export async function upsertSettings(organizationId: number, userId: number, data: Partial<InsertSettings>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  // Sanitize hiddenTabs: se vier como array, converte para string CSV; se vier como outro tipo, força string vazia
+  const sanitized: Partial<InsertSettings> = { ...data };
+  if ('hiddenTabs' in sanitized) {
+    if (Array.isArray(sanitized.hiddenTabs)) {
+      sanitized.hiddenTabs = (sanitized.hiddenTabs as unknown as string[]).join(',');
+    } else if (sanitized.hiddenTabs == null) {
+      sanitized.hiddenTabs = '';
+    } else {
+      sanitized.hiddenTabs = String(sanitized.hiddenTabs);
+    }
+  }
+
   const existing = await getSettingsByUserId(organizationId, userId);
   if (existing) {
-    await db.update(settings).set({ ...data, updatedAt: new Date() }).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId)));
+    await db.update(settings).set({ ...sanitized, updatedAt: new Date() }).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId)));
   } else {
-    await db.insert(settings).values({ organizationId, userId, ...data });
+    // Fornece defaults seguros para colunas NOT NULL ao criar o primeiro registro
+    await db.insert(settings).values({
+      organizationId,
+      userId,
+      hiddenTabs: '',
+      notifyLessonReminder: 1,
+      notifyPaymentDue: 1,
+      notifyStudentAbsence: 1,
+      notifyNewStudent: 1,
+      notifyWeeklyReport: 0,
+      automationEnabled: 0,
+      whatsappAutoSend: 0,
+      ...sanitized,
+    });
   }
   return getSettingsByUserId(organizationId, userId);
 }
