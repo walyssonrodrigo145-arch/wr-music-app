@@ -28,34 +28,24 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
     const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
     const activeToken = token || EVOLUTION_API_KEY;
 
-    // Nome da instância a usar
-    const instanceName = sessionId || DEFAULT_INSTANCE;
-
     // Higienização do telefone: manter apenas dígitos
     const cleanPhone = phone.replace(/\D/g, "");
     if (!cleanPhone) {
       return { success: false, error: "Telefone inválido para envio." };
     }
 
-    // Garantir que comece com 55 (DDI do Brasil)
-    const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "apikey": activeToken,
-    };
-
-    // Payload no formato nativo da Evolution API v2
     const payload = {
-      number: finalPhone,
-      text: message,
+      sessionId: sessionId || DEFAULT_INSTANCE,
+      number: cleanPhone,
+      message: message,
+      apiKey: activeToken,
     };
 
-    const endpoint = `${baseUrl}/message/sendText/${instanceName}`;
+    const endpoint = `${baseUrl}/send-message`;
 
     const res = await fetch(endpoint, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
@@ -65,13 +55,12 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
       responseData = JSON.parse(responseText);
     } catch (_) {}
 
-    if (!res.ok) {
-      const errorMsg = responseData?.message || responseData?.error || responseText || `HTTP Error ${res.status}`;
-      return { success: false, error: `Falha na Evolution API (${res.status}): ${errorMsg}` };
+    if (!res.ok || !responseData.success) {
+      const errorMsg = responseData?.error || responseData?.details || responseText || `HTTP Error ${res.status}`;
+      return { success: false, error: `Falha na API (${res.status}): ${errorMsg}` };
     }
 
-    const messageId = responseData?.key?.id || responseData?.id || `msg-${Date.now()}`;
-    return { success: true, messageId };
+    return { success: true, messageId: responseData?.messageId || `msg-${Date.now()}` };
   } catch (error: any) {
     return { success: false, error: `Erro de conexão com o robô: ${error.message}` };
   }
@@ -96,66 +85,30 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
   const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
   const activeToken = token || EVOLUTION_API_KEY;
 
-  const headers = {
-    "Content-Type": "application/json",
-    "apikey": activeToken,
-  };
-
-  // Passo 1: Criar a instância (idempotente — se já existir, retorna a existente)
   try {
-    await fetch(`${baseUrl}/instance/create`, {
+    const res = await fetch(`${baseUrl}/sessions/start`, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        instanceName: sessionId,
-        qrcode: true,
-        integration: "WHATSAPP-BAILEYS",
+        sessionId,
+        phoneNumber: phoneNumber || undefined,
+        apiKey: activeToken,
       }),
     });
-  } catch (_) {
-    // Ignora erro de criação — pode já existir
-  }
 
-  // Passo 2: Obter o QR Code / Pairing Code para conexão
-  if (mode === "PAIRING_CODE" && phoneNumber) {
-    // Solicitar código de pareamento via telefone
-    const cleanPhone = phoneNumber.replace(/\D/g, "");
-    const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
-
-    const pairRes = await fetch(`${baseUrl}/instance/pairingCode/${sessionId}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ phoneNumber: finalPhone }),
-    });
-
-    const pairData = await pairRes.json().catch(() => ({})) as any;
-    const code = pairData?.code || pairData?.pairingCode || "";
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Erro ao iniciar sessão");
 
     return {
       success: true,
-      pairingCode: code,
-      status: "PAIRING",
-      mode: "PAIRING_CODE",
-      qr: "",
+      status: data.status || "PAIRING",
+      mode: data.mode || (phoneNumber ? "PAIRING_CODE" : "QR_CODE"),
+      pairingCode: data.pairingCode || "",
+      qr: data.qr || "",
     };
+  } catch (err: any) {
+    return { success: false, status: "DISCONNECTED", mode: "NONE", pairingCode: "", qr: "", error: err.message };
   }
-
-  // Modo QR Code: buscar o QR Code gerado
-  const connectRes = await fetch(`${baseUrl}/instance/connect/${sessionId}`, {
-    method: "GET",
-    headers,
-  });
-
-  const connectData = await connectRes.json().catch(() => ({})) as any;
-  const qrCode = connectData?.base64 || connectData?.qrcode?.base64 || connectData?.qr || "";
-
-  return {
-    success: true,
-    pairingCode: "",
-    status: "PAIRING",
-    mode: "QR_CODE",
-    qr: qrCode,
-  };
 }
 
 interface SessionStatusParams {
@@ -172,25 +125,33 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
   const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
   const activeToken = token || EVOLUTION_API_KEY;
 
-  const res = await fetch(`${baseUrl}/instance/connectionState/${sessionId}`, {
-    method: "GET",
-    headers: { "apikey": activeToken },
-  });
+  try {
+    const res = await fetch(`${baseUrl}/sessions/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, apiKey: activeToken }),
+    });
 
-  const data = await res.json().catch(() => ({})) as any;
+    const data = await res.json().catch(() => ({})) as any;
 
-  // Estado da instância: open = conectado, close/connecting = desconectado
-  const rawState: string = data?.instance?.state || data?.state || "close";
-  const isConnected = rawState === "open";
-
-  return {
-    sessionId,
-    status: isConnected ? "CONNECTED" : rawState === "connecting" ? "PAIRING" : "DISCONNECTED",
-    phone: data?.instance?.profileName || "",
-    mode: "QR_CODE" as "QR_CODE",
-    qr: "",
-    pairingCode: "",
-  };
+    return {
+      sessionId,
+      status: data.status || "DISCONNECTED",
+      phone: data.phone || "",
+      mode: data.mode || "QR_CODE",
+      qr: data.qr || "",
+      pairingCode: data.pairingCode || "",
+    };
+  } catch (err: any) {
+    return {
+      sessionId,
+      status: "DISCONNECTED",
+      phone: "",
+      mode: "QR_CODE" as "QR_CODE",
+      qr: "",
+      pairingCode: "",
+    };
+  }
 }
 
 /**
@@ -201,10 +162,13 @@ export async function logoutWhatsAppSession({ url, token, sessionId }: SessionSt
   const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
   const activeToken = token || EVOLUTION_API_KEY;
 
-  await fetch(`${baseUrl}/instance/logout/${sessionId}`, {
-    method: "DELETE",
-    headers: { "apikey": activeToken },
-  });
+  try {
+    await fetch(`${baseUrl}/sessions/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, apiKey: activeToken }),
+    });
+  } catch (err) {}
 
   return { success: true, message: "Sessão encerrada com sucesso." };
 }
