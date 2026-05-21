@@ -723,7 +723,10 @@ export default function Alunos() {
                   <h3 className="text-sm font-bold text-foreground">Alertas</h3>
                 </div>
                 <div className="space-y-3">
-                   <div className="p-3 bg-rose-500/100/10 border border-rose-500/20 rounded-2xl group cursor-pointer hover:bg-rose-500/10 transition-colors">
+                   <div 
+                     onClick={() => setLocation("/financeiro")}
+                     className="p-3 bg-rose-500/100/10 border border-rose-500/20 rounded-2xl group cursor-pointer hover:bg-rose-500/10 transition-colors"
+                   >
                       <div className="flex gap-3">
                          <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center text-rose-500 shrink-0">
                             <Plus size={16} />
@@ -737,7 +740,10 @@ export default function Alunos() {
                       </div>
                    </div>
                    
-                   <div className="p-3 bg-blue-500/100/10 border border-blue-500/20 rounded-2xl group cursor-pointer hover:bg-blue-500/10 transition-colors">
+                   <div 
+                     onClick={() => setLocation("/aulas")}
+                     className="p-3 bg-blue-500/100/10 border border-blue-500/20 rounded-2xl group cursor-pointer hover:bg-blue-500/10 transition-colors"
+                   >
                       <div className="flex gap-3">
                          <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center text-blue-500 shrink-0">
                             <Users size={16} />
