@@ -677,6 +677,7 @@ export const appRouter = router({
         instrumentColor: instruments.color,
         instrumentIcon: instruments.icon,
         professorId: students.professorId,
+        permissions: students.permissions,
       }).from(students)
         .leftJoin(instruments, eq(students.instrumentId, instruments.id))
         .where(and(eq(students.id, input.id), eq(students.organizationId, orgId)))
@@ -3547,6 +3548,7 @@ export const appRouter = router({
         canSeeProgress: true,
         canSeeFiles: true,
         canSeeSchedule: true,
+        canSeeMessages: true,
       };
 
       if (student.permissions) {
@@ -3635,20 +3637,23 @@ export const appRouter = router({
               .limit(3)
           : Promise.resolve([]),
 
-        db.select({
-          id: chatMessages.id,
-          content: chatMessages.content,
-          createdAt: chatMessages.createdAt,
-          senderName: users.name,
-          isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
-        }).from(chatMessages)
-          .leftJoin(users, eq(chatMessages.senderId, users.id))
-          .where(and(
-            eq(chatMessages.organizationId, orgId),
-            sql`(${chatMessages.senderId} = ${ctx.user.id} OR ${chatMessages.receiverId} = ${ctx.user.id})`
-          ))
-          .orderBy(desc(chatMessages.createdAt))
-          .limit(3),
+        // Latest Messages
+        permissions.canSeeMessages !== false
+          ? db.select({
+              id: chatMessages.id,
+              content: chatMessages.content,
+              createdAt: chatMessages.createdAt,
+              senderName: users.name,
+              isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
+            }).from(chatMessages)
+              .leftJoin(users, eq(chatMessages.senderId, users.id))
+              .where(and(
+                eq(chatMessages.organizationId, orgId),
+                sql`(${chatMessages.senderId} = ${ctx.user.id} OR ${chatMessages.receiverId} = ${ctx.user.id})`
+              ))
+              .orderBy(desc(chatMessages.createdAt))
+              .limit(3)
+          : Promise.resolve([]),
           
         // Pending Exercises (Goals)
         db.select({
@@ -3792,6 +3797,22 @@ export const appRouter = router({
     getMessages: studentProcedure.input(z.object({ withUserId: z.number() })).query(async ({ ctx, input }) => {
        const db = await getDb();
        if (!db) throw new Error("Database not available");
+
+       let studentId = ctx.user.studentId;
+       let [student] = studentId ? await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
+       if (!student) {
+         [student] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+       }
+
+       if (student?.permissions) {
+         try {
+           const parsed = JSON.parse(student.permissions);
+           if (parsed.canSeeMessages === false) return [];
+         } catch (e) {
+           console.error("Error parsing student permissions in getMessages:", e);
+         }
+       }
+
        const orgId = ctx.user.organizationId!;
        return db.select({
          id: chatMessages.id,
@@ -3812,6 +3833,28 @@ export const appRouter = router({
     sendMessage: studentProcedure.input(z.object({ receiverId: z.number(), content: z.string() })).mutation(async ({ ctx, input }) => {
        const db = await getDb();
        if (!db) throw new Error("Database not available");
+
+       let studentId = ctx.user.studentId;
+       let [student] = studentId ? await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
+       if (!student) {
+         [student] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+       }
+
+       if (student?.permissions) {
+         try {
+           const parsed = JSON.parse(student.permissions);
+           if (parsed.canSeeMessages === false) {
+             throw new TRPCError({
+               code: 'FORBIDDEN',
+               message: 'Você não tem permissão para enviar mensagens.'
+             });
+           }
+         } catch (e) {
+           console.error("Error parsing student permissions in sendMessage:", e);
+           if (e instanceof TRPCError) throw e;
+         }
+       }
+
        const orgId = ctx.user.organizationId!;
        await db.insert(chatMessages).values({
          organizationId: orgId,
@@ -3839,6 +3882,7 @@ export const appRouter = router({
         address: students.address,
         guardianName: students.guardianName,
         guardianPhone: students.guardianPhone,
+        permissions: students.permissions,
       }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
 
       if (!student) {
@@ -3855,6 +3899,7 @@ export const appRouter = router({
           address: students.address,
           guardianName: students.guardianName,
           guardianPhone: students.guardianPhone,
+          permissions: students.permissions,
         }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
       }
       
@@ -3878,8 +3923,26 @@ export const appRouter = router({
           : Promise.resolve([{ name: null }])
       ]);
       
+      let parsedPermissions = {
+        canSeeFinanceiro: true,
+        canSeeProgress: true,
+        canSeeFiles: true,
+        canSeeSchedule: true,
+        canSeeMessages: true,
+      };
+
+      if (student.permissions) {
+        try {
+          const parsed = JSON.parse(student.permissions);
+          parsedPermissions = { ...parsedPermissions, ...parsed };
+        } catch (e) {
+          console.error("[studentPortal] Error parsing permissions for student profile", student.id, e);
+        }
+      }
+      
       return { 
         ...student, 
+        permissions: parsedPermissions,
         teacherName: teacher?.name || 'Professor',
         teacherPixKey: teacher?.pixKey,
         instrumentName: instrument?.name || 'Não definido'

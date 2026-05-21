@@ -74,6 +74,24 @@ export default function StudentMessages() {
     );
   }
 
+  const isMessagesDisabled = (profile as any)?.permissions?.canSeeMessages === false;
+
+  if (isMessagesDisabled) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] max-w-md mx-auto px-4 text-center">
+        <div className="bg-card border border-border/40 p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/5">
+            <MessageSquare size={32} />
+          </div>
+          <h2 className="text-xl font-black text-foreground uppercase tracking-tighter">Acesso Restrito</h2>
+          <p className="text-xs font-medium text-muted-foreground mt-3 mb-6 leading-relaxed">
+            O chat de mensagens não está habilitado para o seu perfil. Por favor, entre em contato com o seu professor para solicitar o acesso.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col max-w-[1600px] mx-auto">
       <div className="flex-1 flex gap-8 overflow-hidden">

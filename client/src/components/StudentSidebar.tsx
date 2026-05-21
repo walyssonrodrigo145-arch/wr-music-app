@@ -56,6 +56,9 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
   const [location] = useLocation();
   const { user } = useAuth();
   const { data: messageCount = 0 } = trpc.chat.unreadCount.useQuery();
+  const { data: profile } = trpc.studentPortal.getProfile.useQuery(undefined, {
+    enabled: user?.role === 'aluno',
+  });
   
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
@@ -64,6 +67,24 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "AL";
+
+  const filteredNavItems = mainNavItems.filter(item => {
+    if (!profile?.permissions) return true;
+    const perms = profile.permissions as Record<string, boolean>;
+    if (item.href === "/aluno/pagamentos" && perms.canSeeFinanceiro === false) return false;
+    if (item.href === "/aluno/aulas" && perms.canSeeSchedule === false) return false;
+    if (item.href === "/aluno/materiais" && perms.canSeeFiles === false) return false;
+    if (item.href === "/aluno/exercicios" && perms.canSeeProgress === false) return false;
+    if (item.href === "/aluno/mensagens" && perms.canSeeMessages === false) return false;
+    return true;
+  });
+
+  const filteredRequestItems = requestItems.filter(item => {
+    if (!profile?.permissions) return true;
+    const perms = profile.permissions as Record<string, boolean>;
+    if ((item.href === "/aluno/solicitar-reposicao" || item.href === "/aluno/solicitar-remarcacao") && perms.canSeeSchedule === false) return false;
+    return true;
+  });
 
   return (
     <aside
@@ -119,7 +140,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
         )}
         
         <div className="space-y-1.5">
-          {mainNavItems.map((item, idx) => {
+          {filteredNavItems.map((item, idx) => {
             const Icon = item.icon;
             const isActive = location === item.href || (item.href !== "/aluno" && location.startsWith(item.href));
             return (
@@ -172,7 +193,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
             </div>
           )}
           <div className="space-y-1.5">
-            {requestItems.map((item, idx) => {
+            {filteredRequestItems.map((item, idx) => {
               const Icon = item.icon;
               const isActive = location === item.href;
               return (

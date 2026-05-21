@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   X, CheckCircle2, Mail, RefreshCw, AlertCircle,
   Copy, ChevronRight, Calendar, User, ShieldCheck,
-  Phone, ChevronLeft, DollarSign, FileText, BarChart3, Clock
+  Phone, ChevronLeft, DollarSign, FileText, BarChart3, Clock, MessageSquare
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
     canSeeProgress: true,
     canSeeFiles: true,
     canSeeSchedule: true,
+    canSeeMessages: true,
   });
 
   const utils = trpc.useUtils();
@@ -47,6 +48,30 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
     if (open && student) {
       generatePassword();
       setStep(1);
+
+      if (student.permissions) {
+        try {
+          const parsed = JSON.parse(student.permissions);
+          setPermissions({
+            canSeeFinanceiro: true,
+            canSeeProgress: true,
+            canSeeFiles: true,
+            canSeeSchedule: true,
+            canSeeMessages: true,
+            ...parsed
+          });
+        } catch (e) {
+          console.error("Error parsing student permissions in modal:", e);
+        }
+      } else {
+        setPermissions({
+          canSeeFinanceiro: true,
+          canSeeProgress: true,
+          canSeeFiles: true,
+          canSeeSchedule: true,
+          canSeeMessages: true,
+        });
+      }
     }
   }, [open, student]);
 
@@ -91,6 +116,7 @@ export function GenerateAccessModal({ open, onOpenChange, studentId }: GenerateA
     { id: "canSeeProgress", label: "Progresso", desc: "Diário de classe e avaliações", icon: BarChart3, color: "text-blue-600", bg: "bg-blue-50" },
     { id: "canSeeFiles", label: "Arquivos", desc: "Partituras, PDFs e materiais", icon: FileText, color: "text-amber-600", bg: "bg-amber-50" },
     { id: "canSeeSchedule", label: "Agenda", desc: "Calendário de aulas", icon: Clock, color: "text-purple-600", bg: "bg-purple-50" },
+    { id: "canSeeMessages", label: "Mensagens", desc: "Chat e mensagens com o professor", icon: MessageSquare, color: "text-indigo-600", bg: "bg-indigo-50" },
   ];
 
   const initials = student?.name
