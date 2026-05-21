@@ -4155,35 +4155,7 @@ export const appRouter = router({
           });
         }
 
-        // 4. Sem vogais (provavelmente lixo aleatório, ex: 'zxcvbnm')
-        const words = rawMsg.split(/\s+/).filter(w => w.length > 3);
-        const hasVowels = words.every(w => /[aeiouáéíóúâêîôûãõàèìòùAEIOUÁÉÍÓÚÂÊÎÔÛÃÕÀÈÌÒÙ]/i.test(w));
-        if (words.length > 0 && !hasVowels) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Mensagem inválida: parece ser texto aleatório sem sentido.",
-          });
-        }
 
-        // 5. Filtro de relevância heurístico — mensagens sem sentido de consulta
-        const irrelevantPatterns = [
-          /^(oi|olá|ola|opa|ei|hi|hello|hey|ok|okay|sim|não|nao|obrigado|obrigada|valeu|tchaul|tchau|bye|certo|entendi|blz|beleza|hmm+|ah+|uh+|hm+|rs+|kk+|haha+|lol|test(e|ing)?|abc|asd|qwerty)$/i,
-        ];
-        if (irrelevantPatterns.some(p => p.test(rawMsg))) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Consulta inválida: a IA é para consultas sobre sua escola de música. Envie uma pergunta ou pedido relevante.",
-          });
-        }
-
-        // 6. Deve ter pelo menos 2 palavras (não uma única palavra genérica)
-        const wordCount = rawMsg.split(/\s+/).filter(w => w.length > 0).length;
-        if (wordCount < 2) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Mensagem muito vaga. Elabore sua pergunta ou pedido.",
-          });
-        }
 
         // ── VERIFICAR ACESSO À CONVERSA ──────────────────────────────────────────
         const [conv] = await db.select({ id: aiConversations.id, title: aiConversations.title }).from(aiConversations)
