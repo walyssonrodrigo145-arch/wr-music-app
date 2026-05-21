@@ -148,6 +148,7 @@ export default function IAAssistente() {
   };
 
   const suggestions = [
+    { icon: Plus, text: "Cadastrar novo aluno" },
     { icon: DollarSign, text: "Gerar relatório financeiro do mês" },
     { icon: Users, text: "Resumo dos meus alunos ativos" },
     { icon: Calendar, text: "Analisar minha agenda desta semana" },

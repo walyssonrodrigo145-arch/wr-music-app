@@ -4291,13 +4291,76 @@ export const appRouter = router({
         const systemPrompt = getSystemPrompt(userDataContext);
 
         // Chama a IA
-        const aiResponseContent = await callGemini(formattedHistory, systemPrompt);
+        const aiResponseRaw = await callGemini(formattedHistory, systemPrompt);
 
-        // Salva a resposta da IA
+        // ── PROCESSAR ACTIONS DE CADASTRO DE ALUNO (Múltiplos permitidos) ────────
+        const ACTION_REGEX = /<!--ACTION:CREATE_STUDENT\s+(\{[\s\S]*?\})-->/g;
+        let finalResponseContent = aiResponseRaw;
+        
+        let match;
+        let foundAny = false;
+        
+        while ((match = ACTION_REGEX.exec(aiResponseRaw)) !== null) {
+          foundAny = true;
+          const blockStr = match[0];
+          const jsonStr = match[1];
+            
+            try {
+              const actionData = JSON.parse(jsonStr);
+
+              // Validar campos obrigatórios estendidos
+              if (!actionData.name || !actionData.phone || !actionData.birthDate || actionData.monthlyFee === undefined || actionData.dueDay === undefined) {
+                finalResponseContent = finalResponseContent.replace(blockStr,
+                  `\n\n⚠️ Não foi possível cadastrar **${actionData.name || 'Aluno'}**: nome, telefone, nascimento, mensalidade e vencimento são obrigatórios.`
+                );
+                continue;
+              }
+
+              // Executar o cadastro do aluno
+              const [newStudent] = await db.insert(students).values({
+                organizationId: orgId,
+                professorId: ctx.user.id,
+                userId: ctx.user.id,
+                name: actionData.name,
+                phone: actionData.phone,
+                email: actionData.email || null,
+                birthDate: actionData.birthDate,
+                guardianName: actionData.guardianName || null,
+                guardianPhone: actionData.guardianPhone || null,
+                guardianEmail: null,
+                level: actionData.level || "iniciante",
+                monthlyFee: String(actionData.monthlyFee),
+                dueDay: actionData.dueDay,
+                lessonType: "individual",
+                status: "ativo",
+                startDate: new Date().toISOString().slice(0, 10),
+                notes: actionData.notes || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              }).returning({ id: students.id });
+
+              const confirmMsg = [
+                `\n\n✅ **Aluno cadastrado com sucesso:** ${actionData.name}`,
+                `- **Telefone:** ${actionData.phone}`,
+                `- **Nascimento:** ${actionData.birthDate}`,
+                `- **Mensalidade:** R$ ${Number(actionData.monthlyFee).toFixed(2)} (Venc: dia ${actionData.dueDay})`,
+                actionData.guardianName ? `- **Responsável:** ${actionData.guardianName} (${actionData.guardianPhone})` : null,
+              ].filter(Boolean).join("\n");
+
+              finalResponseContent = finalResponseContent.replace(blockStr, confirmMsg);
+            } catch (parseErr) {
+              console.error("[AI ACTION:CREATE_STUDENT] Erro ao processar:", parseErr);
+              finalResponseContent = finalResponseContent.replace(blockStr,
+                "\n\n⚠️ Ocorreu um erro interno ao tentar cadastrar o aluno."
+              );
+            }
+          }
+        
+        // Salva a resposta da IA (já processada)
         const [aiMsg] = await db.insert(aiMessages).values({
           conversationId: input.conversationId,
           role: "assistant",
-          content: aiResponseContent,
+          content: finalResponseContent,
           createdAt: new Date(),
         }).returning();
 
