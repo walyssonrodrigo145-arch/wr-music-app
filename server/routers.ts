@@ -4321,7 +4321,7 @@ export const appRouter = router({
                 professorId: ctx.user.id,
                 userId: ctx.user.id,
                 name: actionData.name,
-                phone: actionData.phone,
+                phone: actionData.phone || "",
                 email: actionData.email || null,
                 birthDate: actionData.birthDate,
                 guardianName: actionData.guardianName || null,
