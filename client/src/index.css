@@ -233,3 +233,17 @@
     scrollbar-width: none;
   }
 }
+
+@layer utilities {
+  .animate-scan {
+    animation: scan 2.5s ease-in-out infinite alternate;
+  }
+  .animate-spin-slow {
+    animation: spin 4s linear infinite;
+  }
+}
+
+@keyframes scan {
+  0% { transform: translateY(-10px); }
+  100% { transform: translateY(200px); }
+}

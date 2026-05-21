@@ -14,7 +14,11 @@ import {
   ChevronRight,
   Copy,
   Smartphone,
-  QrCode
+  QrCode,
+  UploadCloud,
+  Sparkles,
+  Loader2,
+  XCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -45,9 +49,53 @@ const item = {
 };
 
 export default function StudentPayments() {
+  const utils = trpc.useContext();
   const { data: payments, isLoading } = trpc.studentPortal.getPayments.useQuery();
   const { data: profile } = trpc.studentPortal.getProfile.useQuery();
+  const verifyMutation = trpc.studentPortal.verifyAndConfirmPayment.useMutation();
+
   const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<{ success: boolean; reason: string; amountPaid?: number } | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedPayment) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      setUploadedImageUrl(base64);
+      setIsAnalyzing(true);
+      setAnalysisResult(null);
+
+      try {
+        const res = await verifyMutation.mutateAsync({
+          paymentDueId: selectedPayment.id,
+          fileData: base64,
+          fileName: file.name,
+          fileType: file.type
+        });
+
+        setAnalysisResult({
+          success: res.success,
+          reason: res.reason,
+          amountPaid: res.amountPaid
+        });
+
+        if (res.success) {
+          utils.studentPortal.getPayments.invalidate();
+        }
+      } catch (err: any) {
+        setAnalysisResult({ success: false, reason: err.message || "Erro ao analisar o comprovante." });
+      } finally {
+        setIsAnalyzing(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (isLoading) return (
     <div className="flex items-center justify-center min-h-[40vh]">
@@ -164,7 +212,19 @@ export default function StudentPayments() {
                             <Download size={20} />
                           </button>
                         ) : (
-                          <button className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                          <button 
+                            onClick={() => {
+                              if (profile?.teacherPixKey) {
+                                setSelectedPayment(payment);
+                                setIsPixModalOpen(true);
+                                setAnalysisResult(null);
+                                setUploadedImageUrl(null);
+                              } else {
+                                toast.info("Aguardando configuração de pagamento do professor.");
+                              }
+                            }}
+                            className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                          >
                              Pagar
                              <ChevronRight size={14} />
                           </button>
@@ -212,7 +272,10 @@ export default function StudentPayments() {
                    <button 
                      onClick={() => {
                        if (profile?.teacherPixKey) {
+                         setSelectedPayment(nextPayment);
                          setIsPixModalOpen(true);
+                         setAnalysisResult(null);
+                         setUploadedImageUrl(null);
                        } else {
                          toast.info("Aguardando configuração de pagamento do professor.");
                        }
@@ -259,50 +322,131 @@ export default function StudentPayments() {
                 <QrCode size={120} />
              </div>
              <DialogHeader>
-                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
-                   <Smartphone size={28} />
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+                     <Smartphone size={28} />
+                  </div>
+                  {selectedPayment && (
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">
+                        {format(parseISO(selectedPayment.dueDate as string), "MMMM yyyy", { locale: ptBR })}
+                      </p>
+                      <p className="text-xl font-black">R$ {Number(selectedPayment.amount).toFixed(2)}</p>
+                    </div>
+                  )}
                 </div>
                 <DialogTitle className="text-2xl font-black uppercase tracking-tight">Pagamento via PIX</DialogTitle>
                 <DialogDescription className="text-white/70 font-medium">
-                  Copie a chave PIX abaixo para realizar o pagamento para <strong>{profile?.teacherName}</strong>.
+                  Transfira para <strong>{profile?.teacherName}</strong> e valide o comprovante com nossa Inteligência Artificial.
                 </DialogDescription>
              </DialogHeader>
           </div>
 
-          <div className="p-8 space-y-6">
-             <div className="p-6 bg-muted/50 rounded-3xl border-2 border-dashed border-primary/20 space-y-3">
-                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] text-center">Chave PIX do Professor</p>
-                <div className="bg-card border border-border p-4 rounded-2xl flex items-center justify-between gap-4 group">
-                   <p className="text-sm font-bold text-foreground truncate flex-1">{profile?.teacherPixKey || "Chave não cadastrada"}</p>
-                   <button 
+          <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+             {!uploadedImageUrl ? (
+               <>
+                 <div className="p-6 bg-muted/50 rounded-3xl border-2 border-dashed border-primary/20 space-y-3">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] text-center">Chave PIX do Professor</p>
+                    <div className="bg-card border border-border p-4 rounded-2xl flex items-center justify-between gap-4 group">
+                       <p className="text-sm font-bold text-foreground truncate flex-1">{profile?.teacherPixKey || "Chave não cadastrada"}</p>
+                       <button 
+                         onClick={() => {
+                           if (profile?.teacherPixKey) {
+                             navigator.clipboard.writeText(profile.teacherPixKey);
+                             toast.success("Chave PIX copiada!");
+                           }
+                         }}
+                         className="p-3 bg-primary text-white rounded-xl hover:scale-110 active:scale-90 transition-all shadow-lg shadow-primary/20"
+                       >
+                          <Copy size={16} />
+                       </button>
+                    </div>
+                 </div>
+
+                 <div className="relative group cursor-pointer">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="flex flex-col items-center justify-center p-8 bg-primary/5 hover:bg-primary/10 border-2 border-dashed border-primary/30 rounded-3xl transition-all group-hover:border-primary/60">
+                       <div className="w-16 h-16 bg-white dark:bg-black rounded-full flex items-center justify-center shadow-lg mb-4 text-primary group-hover:scale-110 transition-transform">
+                          <UploadCloud size={28} />
+                       </div>
+                       <p className="text-sm font-black text-foreground text-center">Arraste seu comprovante aqui</p>
+                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2 text-center">Ou clique para fazer upload</p>
+                    </div>
+                 </div>
+               </>
+             ) : (
+               <div className="space-y-6">
+                 {/* Uploaded Image Preview & Scanning UI */}
+                 <div className="relative rounded-3xl overflow-hidden border-4 border-primary/20 bg-black/5 aspect-[4/3] flex items-center justify-center">
+                    <img src={uploadedImageUrl} alt="Comprovante" className="object-cover w-full h-full opacity-70" />
+                    
+                    {isAnalyzing && (
+                      <div className="absolute inset-0 z-10 overflow-hidden">
+                         <div className="w-full h-1 bg-primary shadow-[0_0_20px_4px_rgba(var(--primary),0.8)] absolute top-0 animate-scan"></div>
+                         <div className="absolute inset-0 bg-primary/10 backdrop-blur-[2px] flex flex-col items-center justify-center text-white">
+                            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-4 animate-pulse shadow-2xl">
+                               <Sparkles size={28} className="animate-spin-slow" />
+                            </div>
+                            <p className="font-black text-lg text-primary tracking-tight bg-white/80 dark:bg-black/80 px-4 py-1 rounded-full backdrop-blur-md">Analisando comprovante...</p>
+                         </div>
+                      </div>
+                    )}
+                 </div>
+
+                 {/* Analysis Results */}
+                 {!isAnalyzing && analysisResult && (
+                   <div className={cn(
+                     "p-6 rounded-3xl border-2 space-y-3",
+                     analysisResult.success ? "bg-green-500/10 border-green-500/30" : "bg-red-500/10 border-red-500/30"
+                   )}>
+                      <div className="flex items-start gap-4">
+                         <div className={cn(
+                           "p-3 rounded-2xl flex items-center justify-center shrink-0",
+                           analysisResult.success ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                         )}>
+                            {analysisResult.success ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
+                         </div>
+                         <div className="space-y-1 flex-1">
+                            <h3 className={cn(
+                              "text-sm font-black uppercase tracking-widest",
+                              analysisResult.success ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                            )}>
+                              {analysisResult.success ? "Pagamento Confirmado!" : "Validação Falhou"}
+                            </h3>
+                            <p className="text-xs font-bold text-muted-foreground leading-relaxed">{analysisResult.reason}</p>
+                         </div>
+                      </div>
+                   </div>
+                 )}
+
+                 {(!isAnalyzing && (!analysisResult || !analysisResult.success)) && (
+                   <Button 
                      onClick={() => {
-                       if (profile?.teacherPixKey) {
-                         navigator.clipboard.writeText(profile.teacherPixKey);
-                         toast.success("Chave PIX copiada!");
-                       }
+                       setUploadedImageUrl(null);
+                       setAnalysisResult(null);
                      }}
-                     className="p-3 bg-primary text-white rounded-xl hover:scale-110 active:scale-90 transition-all shadow-lg shadow-primary/20"
+                     variant="outline"
+                     className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs border-2 hover:bg-muted"
                    >
-                      <Copy size={16} />
-                   </button>
-                </div>
-             </div>
+                      Tentar Novamente
+                   </Button>
+                 )}
 
-             <div className="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-900/30">
-                <div className="w-10 h-10 bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0 rounded-xl">
-                   <AlertCircle size={20} />
-                </div>
-                <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase leading-relaxed tracking-wider">
-                  Após realizar o pagamento, envie o comprovante para o professor através do chat de mensagens.
-                </p>
-             </div>
-
-             <Button 
-               onClick={() => setIsPixModalOpen(false)}
-               className="w-full h-14 rounded-2xl bg-primary text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
-             >
-                Entendido
-             </Button>
+                 {(!isAnalyzing && analysisResult?.success) && (
+                   <Button 
+                     onClick={() => setIsPixModalOpen(false)}
+                     className="w-full h-14 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-green-500/20"
+                   >
+                      Concluir
+                   </Button>
+                 )}
+               </div>
+             )}
           </div>
         </DialogContent>
       </Dialog>

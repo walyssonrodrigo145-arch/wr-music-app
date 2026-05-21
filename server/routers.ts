@@ -26,7 +26,7 @@ import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
 import { buildUserContext } from "./utils/aiContext";
 import { getSystemPrompt } from "./utils/aiPrompts";
-import { callGemini } from "./utils/gemini";
+import { callGemini, genAI } from "./utils/gemini";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "./utils/whatsapp";
 import { nanoid } from "nanoid";
 import { sdk } from "./_core/sdk";
@@ -4044,6 +4044,136 @@ export const appRouter = router({
         });
 
       return { success: true, message: "Solicitação enviada ao professor." };
+      }),
+    verifyAndConfirmPayment: studentProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+        fileData: z.string(),
+        fileName: z.string(),
+        fileType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        const orgId = ctx.user.organizationId!;
+
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        const [payment] = await db.select()
+          .from(paymentDues)
+          .where(and(
+            eq(paymentDues.id, input.paymentDueId),
+            eq(paymentDues.studentId, studentId),
+            eq(paymentDues.organizationId, orgId)
+          ))
+          .limit(1);
+
+        if (!payment) throw new Error("Mensalidade não encontrada.");
+        if (payment.status === 'pago') throw new Error("Esta mensalidade já está paga.");
+
+        const [student] = await db.select()
+          .from(students)
+          .where(eq(students.id, studentId))
+          .limit(1);
+
+        const [teacher] = await db.select({
+          name: users.name,
+          pixKey: settings.pixKey
+        })
+        .from(users)
+        .leftJoin(settings, eq(users.id, settings.userId))
+        .where(eq(users.id, student.professorId))
+        .limit(1);
+
+        // Upload receipt to local storage
+        const base64Content = input.fileData.includes(',') ? input.fileData.split(',')[1] : input.fileData;
+        const buffer = Buffer.from(base64Content, 'base64');
+        const ext = input.fileName.split('.').pop() || 'dat';
+        const storageKey = `receipts/org_${orgId}/user_${ctx.user.id}/pay_${input.paymentDueId}_${nanoid(6)}.${ext}`;
+        
+        const { url: receiptUrl } = await storagePut(storageKey, buffer, input.fileType);
+
+        // AI Validation
+        try {
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+          const systemPrompt = `Você é um robô de inteligência artificial especializado em análise de comprovantes de pagamento (principalmente PIX) para uma escola de música.
+Sua tarefa é analisar a imagem do comprovante enviada pelo aluno e verificar se ela é válida para a mensalidade esperada.
+
+Dados da mensalidade esperada:
+- Nome do Aluno: ${student?.name || 'Não especificado'}
+- Valor Esperado: R$ ${Number(payment.amount).toFixed(2)}
+- Mês de Referência: ${payment.month}/${payment.year}
+- Chave PIX / Nome do Recebedor (Professor): ${teacher?.pixKey || 'Não especificada'} / ${teacher?.name || 'Não especificado'}
+
+Instruções de análise:
+1. Verifique se a imagem é realmente um comprovante de pagamento válido (PIX, transferência bancária ou boleto pago). Se for uma imagem irrelevante ou inválida, marque "isValidReceipt" como false.
+2. Extraia o valor pago encontrado no comprovante.
+3. Extraia a data do pagamento.
+4. Verifique se o valor pago é compatível com o valor esperado (permita variações muito pequenas, mas idealmente deve bater).
+5. Retorne estritamente um objeto JSON com o seguinte formato exato (sem formatação markdown):
+{
+  "isValidReceipt": true/false,
+  "amountPaid": 200.00,
+  "paymentDate": "YYYY-MM-DD",
+  "confidenceScore": 0.95,
+  "reason": "Motivo resumido em português explicando a validação ou recusa"
+}`;
+
+          const result = await model.generateContent({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: systemPrompt },
+                  { inlineData: { data: base64Content, mimeType: input.fileType } }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          });
+
+          let aiResponseText = result.response.text();
+          if (aiResponseText.includes("\`\`\`")) {
+            aiResponseText = aiResponseText.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
+          }
+
+          const analysis = JSON.parse(aiResponseText);
+
+          if (!analysis.isValidReceipt) {
+            return {
+              success: false,
+              verified: false,
+              reason: analysis.reason || "O comprovante não pôde ser validado."
+            };
+          }
+
+          // Confirma o pagamento no banco de dados
+          await db.update(paymentDues)
+            .set({ 
+              status: 'pago',
+              paidAt: new Date(),
+              receiptUrl: receiptUrl,
+              updatedAt: new Date()
+            })
+            .where(eq(paymentDues.id, payment.id));
+
+          return {
+            success: true,
+            verified: true,
+            amountPaid: analysis.amountPaid,
+            reason: analysis.reason || "Comprovante validado com sucesso!"
+          };
+        } catch (error: any) {
+          console.error("[verifyAndConfirmPayment] Erro na análise do Gemini:", error);
+          throw new Error("Ocorreu um erro ao analisar o comprovante com a IA. Tente novamente mais tarde.");
+        }
       }),
   }),
 
