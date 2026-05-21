@@ -156,9 +156,11 @@ export const appRouter = router({
         const openId = crypto.randomUUID();
 
         // Create default organization for new admin
+        const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
+        const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         const org = await db.insert(organizations).values({
           name: `${input.name}'s School`,
-          slug: input.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          slug: uniqueSlug,
           createdAt: new Date(),
         }).returning().then(res => res[0]);
 
@@ -725,7 +727,7 @@ export const appRouter = router({
           .where(and(
              eq(paymentDues.organizationId, orgId),
              eq(paymentDues.studentId, input.id),
-             eq(paymentDues.status, 'pendente')
+             or(eq(paymentDues.status, 'pendente'), eq(paymentDues.status, 'atrasado'))
           ))
           .orderBy(asc(paymentDues.dueDate))
           .limit(1),
@@ -1949,15 +1951,38 @@ export const appRouter = router({
         // Chave de deduplicação
         const refId = `lesson-${lesson.id}-${lessonDate.toISOString().slice(0, 10)}`;
 
-        // Verificar duplicidade
+        // Verificar duplicidade (tanto o manual refId quanto o automático lesson-24h-${lesson.id})
         const existing = await db.select({ id: reminders.id }).from(reminders)
-          .where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
+          .where(
+            and(
+              eq(reminders.organizationId, orgId),
+              or(
+                eq(reminders.refId, refId),
+                eq(reminders.refId, `lesson-24h-${lesson.id}`)
+              )
+            )
+          ).limit(1);
         if (existing.length > 0) { skipped++; continue; }
 
-        // Buscar template padrão de aula
-        const [tpl] = await db.select().from(reminderTemplates)
+        // Buscar template de aula (prioriza padrão, depois qualquer um do tipo aula cadastrado)
+        let [tpl] = await db.select().from(reminderTemplates)
           .where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, ctx.user.id), eq(reminderTemplates.type, "aula"), eq(reminderTemplates.isDefault, 1)))
           .limit(1);
+
+        if (!tpl) {
+          const anyTpl = await db.select().from(reminderTemplates)
+            .where(
+              and(
+                eq(reminderTemplates.organizationId, orgId),
+                eq(reminderTemplates.userId, ctx.user.id),
+                eq(reminderTemplates.type, "aula")
+              )
+            )
+            .limit(1);
+          if (anyTpl.length > 0) {
+            tpl = anyTpl[0];
+          }
+        }
 
         const dataAula = lessonDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
         const horaAula = lessonDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -2018,7 +2043,11 @@ export const appRouter = router({
         .from(paymentDues)
         .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
         .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(students.organizationId, orgId)))
-        .where(and(eq(paymentDues.organizationId, orgId), eq(paymentDues.status, "pendente"), eq(paymentDues.userId, ctx.user.id)));
+        .where(and(
+          eq(paymentDues.organizationId, orgId),
+          or(eq(paymentDues.status, "pendente"), eq(paymentDues.status, "atrasado")),
+          eq(paymentDues.userId, ctx.user.id)
+        ));
 
       let created = 0;
       let skipped = 0;
@@ -2054,13 +2083,39 @@ export const appRouter = router({
 
         // Verificar duplicidade
         const existing = await db.select({ id: reminders.id }).from(reminders)
-          .where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
+          .where(
+            and(
+              eq(reminders.organizationId, orgId),
+              isOverdue
+                ? eq(reminders.refId, refId)
+                : or(
+                    eq(reminders.refId, refId),
+                    eq(reminders.refId, `pay-prev-${due.id}`),
+                    eq(reminders.refId, `pay-hoje-${due.id}`)
+                  )
+            )
+          ).limit(1);
         if (existing.length > 0) { skipped++; continue; }
 
-        // Buscar template padrão do tipo
-        const [tpl] = await db.select().from(reminderTemplates)
+        // Buscar template do tipo (prioriza padrão, depois qualquer um do tipo cadastrado)
+        let [tpl] = await db.select().from(reminderTemplates)
           .where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, ctx.user.id), eq(reminderTemplates.type, type), eq(reminderTemplates.isDefault, 1)))
           .limit(1);
+
+        if (!tpl) {
+          const anyTpl = await db.select().from(reminderTemplates)
+            .where(
+              and(
+                eq(reminderTemplates.organizationId, orgId),
+                eq(reminderTemplates.userId, ctx.user.id),
+                eq(reminderTemplates.type, type)
+              )
+            )
+            .limit(1);
+          if (anyTpl.length > 0) {
+            tpl = anyTpl[0];
+          }
+        }
 
         const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
         const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -2465,8 +2520,17 @@ export const appRouter = router({
             (ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId) ? undefined : eq(paymentDues.userId, ctx.user.id)
           ))
           .orderBy(asc(paymentDues.dueDate));
-        if (input?.status) return rows.filter(r => r.status === input.status);
-        return rows;
+
+        const today = new Date().toISOString().slice(0, 10);
+        const mappedRows = rows.map(r => {
+          if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
+            return { ...r, status: 'atrasado' as const };
+          }
+          return r;
+        });
+
+        if (input?.status) return mappedRows.filter(r => r.status === input.status);
+        return mappedRows;
       }),
 
     create: protectedProcedure
@@ -2864,7 +2928,14 @@ export const appRouter = router({
           sql`${paymentDues.status} != 'pago'`
         ))
         .orderBy(asc(paymentDues.dueDate));
-      return rows;
+
+      const mappedRows = rows.map(r => {
+        if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
+          return { ...r, status: 'atrasado' as const };
+        }
+        return r;
+      });
+      return mappedRows;
     }),
 
     // ─ Listar mensalidades por aluno (todos os meses) ──────────────
@@ -2874,7 +2945,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) return [];
         const orgId = ctx.user.organizationId!;
-        return db.select({
+        const rows = await db.select({
           id: paymentDues.id,
           amount: paymentDues.amount,
           dueDate: paymentDues.dueDate,
@@ -2886,6 +2957,15 @@ export const appRouter = router({
         }).from(paymentDues)
           .where(and(eq(paymentDues.studentId, input.studentId), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id)))
           .orderBy(asc(paymentDues.year), asc(paymentDues.month));
+
+        const today = new Date().toISOString().slice(0, 10);
+        const mappedRows = rows.map(r => {
+          if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
+            return { ...r, status: 'atrasado' as const };
+          }
+          return r;
+        });
+        return mappedRows;
       }),
   }),
 
@@ -2907,6 +2987,7 @@ export const appRouter = router({
           status: paymentDues.status,
           amount: paymentDues.amount,
           studentStatus: students.status,
+          dueDate: paymentDues.dueDate,
         }).from(paymentDues)
           .leftJoin(students, eq(paymentDues.studentId, students.id))
           .where(and(
@@ -2923,14 +3004,17 @@ export const appRouter = router({
           total: 0
         };
 
+        const today = new Date().toISOString().slice(0, 10);
+
         payments.forEach(p => {
           const amt = Number(p.amount);
+          const isAtrasado = p.status === 'atrasado' || (p.status === 'pendente' && String(p.dueDate).slice(0, 10) < today);
           if (p.status === 'pago') {
             summary.pago += amt;
             summary.total += amt;
           } else if (p.studentStatus === 'ativo') {
-            if (p.status === 'pendente') summary.pendente += amt;
-            else if (p.status === 'atrasado') summary.atrasado += amt;
+            if (isAtrasado) summary.atrasado += amt;
+            else summary.pendente += amt;
             summary.total += amt;
           }
         });

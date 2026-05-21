@@ -43,6 +43,32 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-outfit: "Outfit", sans-serif;
+  
+  /* Stitch Design System Colors */
+  --color-surface-container: #eceef0;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  --color-surface-dim: #d8dadc;
+  --color-surface: #f7f9fb;
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #45464d;
+  --color-secondary-container: #6063ee;
+  --color-on-secondary-container: #fffbff;
+  --color-primary-fixed: #dae2fd;
+  --color-on-primary-fixed: #131b2e;
+  --color-outline-variant: #c6c6cd;
+  --color-secondary-fixed: #e1e0ff;
+  --color-on-secondary-fixed: #07006c;
+  --color-tertiary-container: #29074a;
+  --color-on-tertiary-container: #9676bb;
+  --color-tertiary-fixed: #efdbff;
+  
+  --spacing-margin-desktop: 40px;
+  --spacing-margin-mobile: 16px;
+  --spacing-gutter: 24px;
+  --spacing-card-gap: 24px;
 }
 
 :root {

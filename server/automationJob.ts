@@ -4,7 +4,7 @@
  * de acordo com as regras de negócio de automação avançada.
  */
 
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, or, like } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
@@ -103,7 +103,7 @@ async function runAutomation() {
         const horaAula = lessonDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
         // Buscar template padrão de aula do usuário
-        const [tpl] = await db
+        let [tpl] = await db
           .select()
           .from(reminderTemplates)
           .where(
@@ -116,13 +116,42 @@ async function runAutomation() {
           )
           .limit(1);
 
+        if (!tpl) {
+          // Se não houver template padrão, tenta pegar qualquer um de aula criado
+          const anyTpl = await db
+            .select()
+            .from(reminderTemplates)
+            .where(
+              and(
+                eq(reminderTemplates.organizationId, orgId),
+                eq(reminderTemplates.userId, userId),
+                eq(reminderTemplates.type, "aula")
+              )
+            )
+            .limit(1);
+          if (anyTpl.length > 0) {
+            tpl = anyTpl[0];
+          }
+        }
+
         const baseBody = tpl?.body ?? "Olá {nome}, lembrete: sua aula de {instrumento} é {quando}, {data_aula} às {hora_aula}. Até lá!";
 
         // A) Lembrete 24 horas antes
         const time24h = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
         const ref24h = `lesson-24h-${lesson.id}`;
         if (time24h <= now) {
-          const existing24 = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, ref24h), eq(reminders.organizationId, orgId))).limit(1);
+          const existing24 = await db.select({ id: reminders.id })
+            .from(reminders)
+            .where(
+              and(
+                eq(reminders.organizationId, orgId),
+                or(
+                  eq(reminders.refId, ref24h),
+                  like(reminders.refId, `lesson-${lesson.id}-%`)
+                )
+              )
+            )
+            .limit(1);
           if (existing24.length === 0) {
             const msg24 = baseBody
               .replace(/\{quando\}/g, "amanhã")
@@ -186,7 +215,7 @@ async function runAutomation() {
           and(
             eq(paymentDues.organizationId, orgId),
             eq(paymentDues.userId, userId),
-            eq(paymentDues.status, "pendente"),
+            or(eq(paymentDues.status, "pendente"), eq(paymentDues.status, "atrasado")),
             eq(students.status, "ativo")
           )
         );
@@ -228,7 +257,11 @@ async function runAutomation() {
             const refId = `overdue-${due.id}-${todayStr}`;
             const existing = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
             if (existing.length === 0) {
-              const [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"), eq(reminderTemplates.isDefault, 1))).limit(1);
+              let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"), eq(reminderTemplates.isDefault, 1))).limit(1);
+              if (!tpl) {
+                const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"))).limit(1);
+                if (anyTpl.length > 0) tpl = anyTpl[0];
+              }
               const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e consta como pendente. Por favor, entre em contato para regularizar ou nos informar caso já tenha efetuado o pagamento.";
               const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
 
@@ -244,7 +277,11 @@ async function runAutomation() {
           const refId = `pay-hoje-${due.id}`;
           const existing = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
           if (existing.length === 0) {
-            const [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
+            let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
+            if (!tpl) {
+              const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"))).limit(1);
+              if (anyTpl.length > 0) tpl = anyTpl[0];
+            }
             const body = tpl?.body ?? "Olá {nome}, lembramos que sua mensalidade de {valor} vence hoje, {vencimento}. Agradecemos o pagamento no prazo!";
             const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
 
@@ -261,9 +298,22 @@ async function runAutomation() {
 
           if (reminderDate <= now) {
             const refId = `pay-prev-${due.id}`;
-            const existing = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
+            const existing = await db.select({ id: reminders.id }).from(reminders)
+              .where(
+                and(
+                  eq(reminders.organizationId, orgId),
+                  or(
+                    eq(reminders.refId, refId),
+                    eq(reminders.refId, `payment-${due.id}-${due.year}-${due.month}`)
+                  )
+                )
+              ).limit(1);
             if (existing.length === 0) {
-              const [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
+              let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
+              if (!tpl) {
+                const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"))).limit(1);
+                if (anyTpl.length > 0) tpl = anyTpl[0];
+              }
               const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, programe o pagamento.";
               const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
 

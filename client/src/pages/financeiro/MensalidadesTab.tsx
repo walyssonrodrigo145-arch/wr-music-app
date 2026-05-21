@@ -44,7 +44,7 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     pago:     { label: "Paga",     cls: "bg-emerald-500/10 text-emerald-600" },
     pendente: { label: "A vencer", cls: "bg-amber-500/10 text-amber-600" },
-    atrasado: { label: "Em atraso", cls: "bg-rose-500/10 text-rose-600" },
+    atrasado: { label: "Vencida", cls: "bg-rose-500/10 text-rose-600" },
     agendada: { label: "Agendada", cls: "bg-blue-500/100/10 text-blue-600" },
   };
   const c = map[status] ?? map.pendente;

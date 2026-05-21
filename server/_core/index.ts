@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import whatsappWebhookRouter from "../webhooks/whatsapp";
 import { serveStatic, setupVite } from "./vite";
 import { startAutomationJob } from "../automationJob";
 import { createRateLimiter } from "./rateLimiter";
@@ -15,6 +16,7 @@ import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
 import { paymentDues } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { setupEvolutionWebhook } from "../utils/whatsapp";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -101,6 +103,8 @@ async function startServer() {
   });
   // ─────────────────────────────────────────────────────────────────────────
 
+  app.use("/api/webhooks/whatsapp", whatsappWebhookRouter);
+
   app.use("/uploads", express.static("uploads"));
 
   // Rate Limiting para a API
@@ -135,6 +139,8 @@ async function startServer() {
     console.log(`Server running on http://localhost:${port}/`);
     // Iniciar job de automação de lembretes
     startAutomationJob();
+    // Configura o webhook do WhatsApp
+    setupEvolutionWebhook();
   });
 }
 

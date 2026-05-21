@@ -394,7 +394,19 @@ export const aiMessages = pgTable("ai_messages", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const chatbotSessions = pgTable("chatbot_sessions", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"), // to link it if needed
+  phone: varchar("phone", { length: 30 }).notNull().unique(),
+  state: varchar("state", { length: 50 }).default("START").notNull(),
+  data: text("data"), // JSON payload to store temporary information (e.g. chosen date)
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type AiConversation = typeof aiConversations.$inferSelect;
 export type InsertAiConversation = typeof aiConversations.$inferInsert;
 export type AiMessage = typeof aiMessages.$inferSelect;
 export type InsertAiMessage = typeof aiMessages.$inferInsert;
+export type ChatbotSession = typeof chatbotSessions.$inferSelect;
+export type InsertChatbotSession = typeof chatbotSessions.$inferInsert;

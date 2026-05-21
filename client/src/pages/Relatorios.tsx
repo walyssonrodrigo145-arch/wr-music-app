@@ -19,11 +19,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
-// ─── Stat Card Component Premium ───────────────────────────────────────────
+// ─── Stat Card Component (Stitch Design) ───────────────────────────────────────────
 function ReportMetricCard({ 
-  title, value, trend, color, icon: Icon, onClick, subtitle
+  title, value, trend, color, icon, onClick, subtitle
 }: { 
-  title: string; value: string | number; trend: string; color: string; icon: any; onClick?: () => void; subtitle?: string;
+  title: string; value: string | number; trend: string; color: string; icon: string; onClick?: () => void; subtitle?: string;
 }) {
   const isPositive = trend.startsWith('+');
   
@@ -31,30 +31,25 @@ function ReportMetricCard({
     <div 
       onClick={onClick}
       className={cn(
-        "bg-white dark:bg-slate-800/90 rounded-[2.5rem] p-7 border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-500/40 transition-all duration-500 relative overflow-hidden group cursor-default flex flex-col justify-between",
+        "bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/30 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-[0_8px_30px_rgba(0,0,0,0.05)] transition-shadow",
         onClick && "cursor-pointer active:scale-[0.98]"
       )}
     >
-      {/* Background Glow Premium */}
-      <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
-
-      <div className="flex items-center justify-between mb-6 z-10">
-        <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{title}</p>
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-500 group-hover:rotate-6 shadow-md shrink-0", color.replace('text-', 'bg-') + '/10')}>
-          <Icon size={18} className={color} />
+      <div className="flex justify-between items-start mb-4">
+        <h3 className="font-semibold text-xs text-on-surface-variant uppercase tracking-wider">{title}</h3>
+        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center", color)}>
+          <span className="material-symbols-outlined">{icon}</span>
         </div>
       </div>
-      
-      <div className="space-y-2 z-10">
-        <h3 className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight">{value}</h3>
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <div className={cn("flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black shadow-sm", 
-            isPositive ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400"
+      <div>
+        <div className="text-3xl font-bold text-on-surface mb-2">{value}</div>
+        <div className="flex items-center gap-2">
+          <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold", 
+            isPositive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
           )}>
-            {isPositive ? <ArrowUpRight size={14} /> : <TrendingDown size={14} />}
-            {trend}
-          </div>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider">{subtitle || "vs mês anterior"}</span>
+            <span className="material-symbols-outlined text-[12px]">{isPositive ? 'trending_up' : 'trending_down'}</span> {trend}
+          </span>
+          <span className="text-[10px] text-on-surface-variant uppercase font-semibold">{subtitle || "vs mês anterior"}</span>
         </div>
       </div>
     </div>
@@ -169,124 +164,120 @@ const Relatorios: React.FC = () => {
 
   const renderFinanceiro = () => (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-card-gap">
         <ReportMetricCard 
           title="Receita Recebida" 
           value={currencyFormat(financeiroDetailsQuery.data?.pago || 0)} 
           trend="+12%" 
-          color="text-emerald-500" 
-          icon={DollarSign} 
+          color="bg-emerald-100 text-emerald-600" 
+          icon="attach_money" 
         />
         <ReportMetricCard 
           title="A Receber" 
           value={currencyFormat(financeiroDetailsQuery.data?.pendente || 0)} 
           trend="+5%" 
-          color="text-amber-500" 
-          icon={CalendarDays} 
+          color="bg-amber-100 text-amber-600" 
+          icon="pending_actions" 
         />
         <ReportMetricCard 
           title="Inadimplência" 
           value={currencyFormat(financeiroDetailsQuery.data?.atrasado || 0)} 
           trend="-2%" 
-          color="text-rose-500" 
-          icon={CreditCard} 
+          color="bg-rose-100 text-rose-600" 
+          icon="credit_card_off" 
         />
         <ReportMetricCard 
           title="Total Projetado" 
           value={currencyFormat(financeiroDetailsQuery.data?.total || 0)} 
           trend="+8%" 
-          color="text-indigo-500" 
-          icon={TrendingUp} 
+          color="bg-secondary-fixed text-on-secondary-fixed" 
+          icon="monitoring" 
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-slate-800/90 p-8 lg:p-10 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                <Sparkles className="text-indigo-500 w-5 h-5 shrink-0" /> Evolução da Receita
-              </h3>
-              <span className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider">Anual</span>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-card-gap">
+        {/* Main Chart Card (Spans 2 columns on large screens) */}
+        <div className="xl:col-span-2 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/30 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-on-surface">Projeção Financeira</h2>
+              <p className="text-sm font-medium text-on-surface-variant">Evolução Anual (Receita vs Meta)</p>
             </div>
-            <p className="text-xs text-slate-500 mb-8 font-medium">Acompanhamento do crescimento de faturamento ao longo dos últimos meses.</p>
+            <button className="p-2 text-on-surface-variant hover:bg-surface-container-highest/50 rounded-full transition-all">
+              <span className="material-symbols-outlined">more_vert</span>
+            </button>
           </div>
-
-          <div className="h-80 w-full">
+          
+          <div className="flex-1 min-h-[300px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyStatsQuery.data || []}>
+              <AreaChart data={monthlyStatsQuery.data || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#6063ee" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#6063ee" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 700}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 700}} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#c6c6cd" strokeOpacity={0.3} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#45464d', fontSize: 11, fontWeight: 600}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#45464d', fontSize: 11, fontWeight: 600}} />
                 <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} />
-                <Area type="monotone" dataKey="receita" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorReceita)" />
+                <Area type="monotone" dataKey="receita" stroke="#6063ee" strokeWidth={3} fillOpacity={1} fill="url(#colorReceita)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800/90 p-8 lg:p-10 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col justify-between">
+        {/* Side Info / List Card */}
+        <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/30 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex flex-col gap-6">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-                <PieIcon className="text-emerald-500 w-5 h-5 shrink-0" /> Composição Financeira
-              </h3>
-              <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">Maio</span>
-            </div>
-            <p className="text-xs text-slate-500 mb-8 font-medium">Divisão entre pagamentos efetuados, pendentes e em atraso.</p>
+            <h2 className="text-xl font-bold text-on-surface mb-1">Métricas Operacionais</h2>
+            <p className="text-sm font-medium text-on-surface-variant">Visão geral da estrutura atual</p>
           </div>
-
-          <div className="h-72 w-full relative flex items-center justify-center my-auto">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Pago', value: financeiroDetailsQuery.data?.pago || 0, color: '#10b981' },
-                    { name: 'Pendente', value: financeiroDetailsQuery.data?.pendente || 0, color: '#f59e0b' },
-                    { name: 'Atrasado', value: financeiroDetailsQuery.data?.atrasado || 0, color: '#ef4444' },
-                  ]}
-                  innerRadius={75}
-                  outerRadius={105}
-                  paddingAngle={6}
-                  dataKey="value"
-                >
-                  {[
-                    { color: '#10b981' },
-                    { color: '#f59e0b' },
-                    { color: '#ef4444' },
-                  ].map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} formatter={(val: any) => currencyFormat(Number(val))} />
-              </PieChart>
-            </ResponsiveContainer>
-            
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Projetado</span>
-              <span className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{currencyFormat(financeiroDetailsQuery.data?.total || 0)}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-6 pt-6 border-t border-slate-100 dark:border-slate-700 mt-6">
-            {[
-              { name: 'Pago', value: financeiroDetailsQuery.data?.pago || 0, color: '#10b981' },
-              { name: 'Pendente', value: financeiroDetailsQuery.data?.pendente || 0, color: '#f59e0b' },
-              { name: 'Atrasado', value: financeiroDetailsQuery.data?.atrasado || 0, color: '#ef4444' },
-            ].map((d) => (
-              <div key={d.name} className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded-lg shrink-0 shadow-sm" style={{ backgroundColor: d.color }} />
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{d.name}</span>
-                <span className="text-xs font-black text-slate-900 dark:text-white ml-1">({currencyFormat(d.value)})</span>
+          
+          <div className="flex flex-col gap-4 flex-1">
+            <div className="flex items-center justify-between p-4 bg-surface rounded-xl border border-outline-variant/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary-fixed/50 flex items-center justify-center text-on-primary-container">
+                  <span className="material-symbols-outlined">group</span>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-on-surface-variant uppercase">Alunos Ativos</p>
+                  <p className="text-xl font-bold text-on-surface">{statsQuery.data?.totalStudents || 0}</p>
+                </div>
               </div>
-            ))}
+              <span className="text-emerald-600 font-bold text-sm bg-emerald-50 px-2 py-1 rounded">+3 novos</span>
+            </div>
+            
+            <div className="flex items-center justify-between p-4 bg-surface rounded-xl border border-outline-variant/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary-fixed/50 flex items-center justify-center text-on-primary-container">
+                  <span className="material-symbols-outlined">school</span>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-on-surface-variant uppercase">Aulas Semanais</p>
+                  <p className="text-xl font-bold text-on-surface">{statsQuery.data?.weekLessons || 0}</p>
+                </div>
+              </div>
+              <span className="text-on-surface-variant font-medium text-sm">~85% cap.</span>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-surface rounded-xl border border-outline-variant/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary-fixed/50 flex items-center justify-center text-on-primary-container">
+                  <span className="material-symbols-outlined">music_note</span>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-on-surface-variant uppercase">Instrumentos</p>
+                  <p className="text-xl font-bold text-on-surface">{instrumentStatsQuery.data?.length || 0}</p>
+                </div>
+              </div>
+              <span className="text-rose-600 font-bold text-sm bg-rose-50 px-2 py-1 rounded">2 em manu.</span>
+            </div>
           </div>
+          
+          <button className="w-full py-3 rounded-lg border border-secondary text-secondary text-xs font-bold hover:bg-secondary hover:text-on-secondary transition-colors uppercase tracking-wider">
+            VER DETALHES COMPLETOS
+          </button>
         </div>
       </div>
     </div>
@@ -305,37 +296,37 @@ const Relatorios: React.FC = () => {
 
     return (
       <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-card-gap">
           <ReportMetricCard 
             title="Valor a Receber (Receita)" 
             value={currencyFormat(receitaPrevista)} 
             trend="+8%" 
-            color="text-indigo-500" 
-            icon={DollarSign} 
+            color="bg-indigo-100 text-indigo-600" 
+            icon="attach_money" 
             subtitle="mês selecionado"
           />
           <ReportMetricCard 
             title="Despesas do Mês" 
             value={currencyFormat(despesasTotal)} 
             trend={despesasTotal > 0 ? "+15%" : "0%"} 
-            color="text-rose-500" 
-            icon={CreditCard} 
+            color="bg-rose-100 text-rose-600" 
+            icon="credit_card" 
             subtitle="saídas registradas"
           />
           <ReportMetricCard 
             title="Lucro Líquido" 
             value={currencyFormat(lucroLiquido)} 
             trend={lucroLiquido >= 0 ? "+12%" : "-5%"} 
-            color={lucroLiquido >= 0 ? "text-emerald-500" : "text-rose-500"} 
-            icon={TrendingUp} 
+            color={lucroLiquido >= 0 ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"} 
+            icon="trending_up" 
             subtitle="receita - despesa"
           />
           <ReportMetricCard 
             title="Margem de Lucro" 
             value={`${margem.toFixed(1)}%`} 
             trend={margem >= 20 ? "+5%" : "-2%"} 
-            color="text-purple-500" 
-            icon={PieIcon} 
+            color="bg-purple-100 text-purple-600" 
+            icon="pie_chart" 
             subtitle="sobre faturamento"
           />
         </div>
@@ -432,37 +423,37 @@ const Relatorios: React.FC = () => {
 
     return (
       <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-card-gap">
           <ReportMetricCard 
             title="Receita Mensal Recorrente" 
             value={currencyFormat(receitaBase)} 
             trend="+10%" 
-            color="text-indigo-500" 
-            icon={DollarSign} 
+            color="bg-indigo-100 text-indigo-600" 
+            icon="attach_money" 
             subtitle="alunos ativos"
           />
           <ReportMetricCard 
             title="Despesa Mensal Fixa" 
             value={currencyFormat(despesaBase)} 
             trend="0%" 
-            color="text-rose-500" 
-            icon={CreditCard} 
+            color="bg-rose-100 text-rose-600" 
+            icon="credit_card" 
             subtitle="contas mensais"
           />
           <ReportMetricCard 
             title="Lucro Mensal Base" 
             value={currencyFormat(lucroBase)} 
             trend="+12%" 
-            color="text-emerald-500" 
-            icon={TrendingUp} 
+            color="bg-emerald-100 text-emerald-600" 
+            icon="trending_up" 
             subtitle="projeção mensal"
           />
           <ReportMetricCard 
             title="Lucro Acumulado (6 Meses)" 
             value={currencyFormat(lucro6Meses)} 
             trend="+15%" 
-            color="text-purple-500" 
-            icon={Wallet} 
+            color="bg-purple-100 text-purple-600" 
+            icon="wallet" 
             subtitle="projeção total"
           />
         </div>
@@ -880,11 +871,11 @@ const Relatorios: React.FC = () => {
                   </td>
                   <td className="py-6 px-5">
                     <span className={cn("px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm", 
-                      new Date(pay.dueDate) < new Date() 
+                      pay.status === 'atrasado'
                         ? "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400" 
                         : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
                     )}>
-                      {new Date(pay.dueDate) < new Date() ? 'Atrasado' : 'Pendente'}
+                      {pay.status === 'atrasado' ? 'Vencida' : 'Pendente'}
                     </span>
                   </td>
                   <td className="py-6 px-5 text-right">
@@ -902,33 +893,33 @@ const Relatorios: React.FC = () => {
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 font-sans animate-fade-in">
-      <header className="mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-widest shadow-sm">
-            <Sparkles size={14} /> ERP SaaS Premium Preditivo
-          </div>
-          <h1 className="text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight">Relatórios Preditivos</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-bold text-sm uppercase tracking-[0.2em]">Dashboard de Inteligência Financeira e Operacional</p>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 font-sans animate-fade-in bg-surface min-h-screen text-on-surface">
+      <header className="mb-10 animate-fade-in-up">
+        <div className="inline-flex items-center gap-2 px-3 py-1 bg-secondary-fixed text-on-secondary-fixed rounded-full text-xs font-bold tracking-wider uppercase mb-4">
+          <span className="material-symbols-outlined text-[16px]">insights</span>
+          ERP SaaS Premium Preditivo
         </div>
-        
-        {/* Segmented Control Premium */}
-        <div className="flex flex-wrap bg-slate-100/90 dark:bg-slate-800/90 p-2 rounded-[2.5rem] backdrop-blur-md border border-slate-200/80 dark:border-slate-700/80 shadow-inner gap-1.5 items-center justify-center">
+        <h1 className="text-4xl lg:text-5xl font-bold text-primary mb-2 tracking-tight">Relatórios<br className="hidden md:block"/> Preditivos</h1>
+        <p className="text-xl font-semibold text-on-surface-variant/80 uppercase tracking-wide">Dashboard de inteligência financeira e operacional</p>
+      </header>
+
+      <div className="mb-8 border-b border-outline-variant/30 overflow-x-auto">
+        <nav className="flex gap-8 min-w-max pb-px">
           {(['financeiro', 'despesas', 'projecao', 'alunos', 'aulas', 'instrumentos', 'mensalidades', 'modalidades'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={cn("px-7 py-3.5 rounded-[2rem] text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap duration-300",
+              className={cn("pb-4 text-sm whitespace-nowrap px-1 transition-colors",
                 activeTab === tab 
-                  ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-xl shadow-indigo-500/10 border border-slate-200/80 dark:border-slate-600 scale-[1.02]" 
-                  : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
+                  ? "font-bold text-secondary border-b-2 border-secondary" 
+                  : "font-semibold text-on-surface-variant hover:text-on-surface"
               )}
             >
-              {tab === 'despesas' ? 'Despesas & Lucro' : tab === 'projecao' ? 'Projeção 6M' : tab}
+              {tab === 'despesas' ? 'Despesas & Lucro' : tab === 'projecao' ? 'Projeção 6M' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
-        </div>
-      </header>
+        </nav>
+      </div>
 
       {/* Floating Filter & Action Bar Premium */}
       <div className="flex flex-wrap items-center justify-between gap-6 mb-12 p-6 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-[2.5rem] shadow-xl shadow-slate-500/5 dark:shadow-none border border-slate-200/80 dark:border-slate-700/80">
