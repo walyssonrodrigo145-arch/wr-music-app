@@ -79,7 +79,7 @@ export default function StudentMessages() {
       <div className="flex-1 flex gap-8 overflow-hidden">
         
         {/* Sidebar - Contacts (Refined) */}
-        <div className="hidden lg:flex w-96 flex-col gap-6">
+        <div className="hidden md:flex w-80 lg:w-96 flex-col gap-6">
            <div className="relative group">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
               <input 
@@ -126,7 +126,7 @@ export default function StudentMessages() {
            {/* Chat Header - Premium Glassmorphism */}
            <div className="p-6 px-10 border-b border-border/30 bg-card/40 backdrop-blur-xl flex items-center justify-between relative z-10">
               <div className="flex items-center gap-5">
-                 <button className="lg:hidden p-3 hover:bg-muted rounded-2xl transition-all">
+                 <button className="md:hidden p-3 hover:bg-muted rounded-2xl transition-all">
                     <ChevronLeft size={24} />
                  </button>
                  <div className="relative">

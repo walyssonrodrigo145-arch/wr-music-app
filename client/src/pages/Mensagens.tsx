@@ -92,7 +92,7 @@ export default function Mensagens() {
         {/* Student List */}
         <div className={cn(
           "flex flex-col gap-4 transition-all duration-300",
-          selectedStudent ? "hidden lg:flex lg:w-80" : "flex-1 lg:w-80"
+          selectedStudent ? "hidden md:flex md:w-80" : "flex-1 md:w-80"
         )}>
            <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={16} />
@@ -156,7 +156,7 @@ export default function Mensagens() {
         {/* Chat Area */}
         <div className={cn(
           "flex-1 flex flex-col transition-all duration-300",
-          !selectedStudent ? "hidden lg:flex" : "flex"
+          !selectedStudent ? "hidden md:flex" : "flex"
         )}>
           {selectedStudent ? (
             <Card className="flex-1 border-none shadow-2xl bg-card/80 backdrop-blur-3xl flex flex-col overflow-hidden relative">
@@ -165,7 +165,7 @@ export default function Mensagens() {
                   <div className="flex items-center gap-4">
                      <button 
                        onClick={() => setSelectedStudent(null)}
-                       className="lg:hidden p-2 hover:bg-muted rounded-xl transition-all"
+                       className="md:hidden p-2 hover:bg-muted rounded-xl transition-all"
                      >
                         <ChevronLeft size={20} />
                      </button>

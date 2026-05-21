@@ -657,7 +657,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
 
 
         {/* METRICS CARDS - Horizontal Scroll on Mobile */}
-        <div className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
+        <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
            {[
              { label: "Recebido", amount: stats.recebido, color: "text-emerald-600", bg: "from-emerald-500/10 to-background", border: "border-emerald-100/50" },
              { label: "Pendente", amount: stats.pendente, color: "text-amber-600", bg: "from-amber-500/10 to-background", border: "border-amber-100/50" },
@@ -740,9 +740,9 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
         </div>
 
         {/* MAIN CONTENT SECTION */}
-        <div className="bg-card lg:rounded-[2rem] border-0 lg:border border-border lg:shadow-sm overflow-hidden flex flex-col -mx-4 lg:mx-0">
+        <div className="bg-card md:rounded-[2rem] border-0 md:border border-border md:shadow-sm overflow-hidden flex flex-col -mx-4 md:mx-0">
            {/* Desktop Table View */}
-           <div className="hidden lg:block overflow-x-auto no-scrollbar">
+           <div className="hidden md:block overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-border">
@@ -888,7 +888,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
            </div>
 
            {/* Mobile Card View */}
-           <div className="lg:hidden grid grid-cols-1 gap-4 p-4">
+           <div className="md:hidden grid grid-cols-1 gap-4 p-4">
               {isLoading ? (
                 <div className="py-10 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></div>
               ) : filtered.length === 0 ? (

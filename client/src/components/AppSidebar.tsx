@@ -109,7 +109,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       <button
         onClick={onToggle}
         className={cn(
-          "hidden lg:flex absolute -right-4 top-10 z-[60] w-9 h-9 rounded-xl items-center justify-center shadow-[0_8px_20px_-4px_rgba(37,99,235,0.4)] transition-all duration-300 border border-white/10 group/toggle",
+          "hidden md:flex absolute -right-4 top-10 z-[60] w-9 h-9 rounded-xl items-center justify-center shadow-[0_8px_20px_-4px_rgba(37,99,235,0.4)] transition-all duration-300 border border-white/10 group/toggle",
           collapsed 
             ? "bg-gradient-to-br from-[#2563EB] to-[#7C3AED] text-white rotate-0" 
             : "bg-sidebar text-sidebar-foreground rotate-0 hover:bg-sidebar-accent"

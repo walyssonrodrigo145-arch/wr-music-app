@@ -130,8 +130,8 @@ export default function StudentMaterials() {
       </div>
 
       {/* Filters and Search - Premium Bar */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center bg-card/40 p-4 rounded-[2rem] border border-border/50 backdrop-blur-sm shadow-xl shadow-black/5">
-        <div className="lg:col-span-5 relative group">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-card/40 p-4 rounded-[2rem] border border-border/50 backdrop-blur-sm shadow-xl shadow-black/5">
+        <div className="md:col-span-5 relative group">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
           <input 
             type="text" 
@@ -142,8 +142,8 @@ export default function StudentMaterials() {
           />
         </div>
 
-        <div className="lg:col-span-7 flex items-center gap-2 overflow-x-auto no-scrollbar py-2">
-          <div className="w-px h-10 bg-border/50 mx-2 hidden lg:block" />
+        <div className="md:col-span-7 flex items-center gap-2 overflow-x-auto no-scrollbar py-2">
+          <div className="w-px h-10 bg-border/50 mx-2 hidden md:block" />
           {categories.map(cat => (
             <button
               key={cat.id}

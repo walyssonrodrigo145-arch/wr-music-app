@@ -85,7 +85,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
       {/* Toggle button - desktop only - Refined Style */}
       <button
         onClick={onToggle}
-        className="hidden lg:flex absolute -right-4 top-12 z-30 w-8 h-8 rounded-full bg-sidebar text-sidebar-foreground/70 items-center justify-center shadow-[0_4px_10px_rgba(0,0,0,0.3)] hover:text-white hover:scale-110 active:scale-95 transition-all border border-sidebar-border/50 group"
+        className="hidden md:flex absolute -right-4 top-12 z-30 w-8 h-8 rounded-full bg-sidebar text-sidebar-foreground/70 items-center justify-center shadow-[0_4px_10px_rgba(0,0,0,0.3)] hover:text-white hover:scale-110 active:scale-95 transition-all border border-sidebar-border/50 group"
         aria-label="Recolher menu"
       >
         <div className="transition-transform duration-500 group-hover:rotate-12">

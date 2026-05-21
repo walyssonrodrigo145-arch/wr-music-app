@@ -260,8 +260,8 @@ export default function Progresso() {
         {/* COLUNA 1: TIMELINE ALUNOS */}
         <div className={cn(
           "flex flex-col bg-card border-r border-border z-20 transition-all duration-500 ease-in-out relative group/sidebar",
-          isListCollapsed ? "w-[84px]" : "w-full lg:w-[22%]",
-          selectedStudentId && "hidden lg:flex"
+          isListCollapsed ? "w-[84px]" : "w-full md:w-[35%] lg:w-[22%]",
+          selectedStudentId && "hidden md:flex"
         )}>
           {/* Toggle Button for Column */}
           <button 
@@ -380,7 +380,7 @@ export default function Progresso() {
         {/* COLUNA 2: CONTEÚDO PRINCIPAL (53%) */}
         <div className={cn(
           "flex-1 flex flex-col min-w-0 bg-muted/30 overflow-hidden relative",
-          !selectedStudentId && "hidden lg:flex"
+          !selectedStudentId && "hidden md:flex"
         )}>
           {!selectedStudentId ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
@@ -406,6 +406,12 @@ export default function Progresso() {
                 
                 <div className="flex items-center justify-between relative z-10">
                   <div className="flex items-center gap-6">
+                    <button 
+                      onClick={() => setSelectedStudentId(null)}
+                      className="md:hidden p-2 -ml-2 hover:bg-muted rounded-xl transition-all"
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
                     <div className="relative group">
                       <Avatar className="w-16 h-16 border-4 border-slate-50 shadow-xl shadow-indigo-500/10">
                         <AvatarImage src={selectedStudent?.avatar} className="object-cover" />

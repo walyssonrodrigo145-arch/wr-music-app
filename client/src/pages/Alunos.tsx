@@ -503,7 +503,7 @@ export default function Alunos() {
         </div>
 
         {/* METRICS CARDS - Horizontal Scroll on Mobile */}
-        <div className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
+        <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
           {[
             { label: "Total", count: stats.total, sub: "Matrículas", icon: Users, color: "text-blue-600", bg: "from-blue-500/10 to-background", border: "border-blue-500/20" },
             { label: "Ativos", count: stats.ativos, sub: "Regulares", icon: CheckCircle2, color: "text-purple-600", bg: "from-purple-500/10 to-background", border: "border-purple-100/50" },
@@ -528,11 +528,11 @@ export default function Alunos() {
         </div>
 
         {/* MAIN CONTENT GRID */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* TABLE / CARD SECTION */}
-          <div className="xl:col-span-9 bg-card lg:rounded-[2rem] border-0 lg:border border-border lg:shadow-sm overflow-hidden flex flex-col -mx-4 lg:mx-0">
+          <div className="lg:col-span-9 bg-card md:rounded-[2rem] border-0 md:border border-border md:shadow-sm overflow-hidden flex flex-col -mx-4 md:mx-0">
             {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto no-scrollbar">
+            <div className="hidden md:block overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-border">
@@ -622,7 +622,7 @@ export default function Alunos() {
             </div>
 
             {/* Mobile Card View */}
-            <div className="lg:hidden grid grid-cols-1 gap-4 p-4">
+            <div className="md:hidden grid grid-cols-1 gap-4 p-4">
               {isLoading ? (
                 <div className="py-10 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></div>
               ) : filtered.length === 0 ? (
@@ -701,7 +701,7 @@ export default function Alunos() {
           </div>
 
           {/* RIGHT SIDEBAR Area - Adjusted for mobile (stacks at bottom) */}
-          <div className="xl:col-span-3 space-y-6 lg:sticky lg:top-8">
+          <div className="lg:col-span-3 space-y-6 lg:sticky lg:top-8">
              {/* Resumo Rápido Card */}
              <div className="bg-card rounded-[2rem] border border-border p-6 shadow-sm overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-8 translate-x-8 blur-2xl" />

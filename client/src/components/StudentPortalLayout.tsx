@@ -74,14 +74,14 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile drawer overlay */}
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${
           mobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setMobileOpen(false)}
       />
 
       {/* Sidebar - Desktop & Tablet */}
-      <div className="hidden lg:flex flex-shrink-0 transition-all duration-300">
+      <div className="hidden md:flex flex-shrink-0 transition-all duration-300">
         <StudentSidebar 
           collapsed={collapsed} 
           onToggle={() => setCollapsed(!collapsed)} 
@@ -90,7 +90,7 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
 
       {/* Sidebar - Mobile Drawer */}
       <div 
-        className={`fixed inset-y-0 left-0 z-50 lg:hidden transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${
+        className={`fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -108,7 +108,7 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
           <div className="max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
             {children}
           </div>
-          <div className="h-20 lg:hidden" />
+          <div className="h-20 md:hidden" />
         </main>
       </div>
     </div>

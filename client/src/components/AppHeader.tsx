@@ -71,7 +71,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
     <header className="h-20 lg:h-24 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-6 lg:px-10 gap-6 lg:gap-10 flex-shrink-0 z-40 sticky top-0 transition-all duration-500">
       {/* Mobile menu button - Refined */}
       <button
-        className="lg:hidden w-12 h-12 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40"
+        className="md:hidden w-12 h-12 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40"
         onClick={onMobileMenuOpen}
         aria-label="Abrir menu"
       >
@@ -84,7 +84,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
           {pageInfo.title}
         </h1>
         {location !== "/dashboard" && (
-          <div className="hidden lg:flex items-center gap-2 mt-2.5">
+          <div className="hidden md:flex items-center gap-2 mt-2.5">
              <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
              <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-60">{pageInfo.subtitle}</p>
           </div>
@@ -171,7 +171,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
            </button>
         </div>
 
-        <div className="h-10 w-px bg-border/40 mx-1 hidden lg:block" />
+        <div className="h-10 w-px bg-border/40 mx-1 hidden md:block" />
         
         {/* User Profile Dropdown - Premium Style */}
         <DropdownMenu>
@@ -185,13 +185,13 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
                  </Avatar>
                  <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-card" />
               </div>
-              <div className="hidden lg:block text-left">
+              <div className="hidden md:block text-left">
                 <p className="text-sm font-black text-foreground leading-tight tracking-tight drop-shadow-sm">{user?.name?.split(" ")[0] ?? "WR"}</p>
                 <p className="text-[10px] text-primary font-black uppercase tracking-[0.1em] mt-1">
                   Membro Premium
                 </p>
               </div>
-              <ChevronDown size={16} className="text-muted-foreground/50 hidden lg:block group-hover:text-primary transition-all duration-300 group-hover:translate-y-0.5" />
+              <ChevronDown size={16} className="text-muted-foreground/50 hidden md:block group-hover:text-primary transition-all duration-300 group-hover:translate-y-0.5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64 rounded-[2rem] p-3 border-border/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] bg-card/80 backdrop-blur-2xl animate-in zoom-in-95 duration-300">

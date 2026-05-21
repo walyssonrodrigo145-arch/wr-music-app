@@ -244,7 +244,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Secondary Widgets Row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
         {/* Upcoming Lessons */}
         <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
