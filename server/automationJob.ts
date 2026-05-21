@@ -347,6 +347,8 @@ async function runAutomation() {
             scheduledAt: reminders.scheduledAt,
             refId: reminders.refId,
             studentPhone: students.phone,
+            guardianPhone: students.guardianPhone,
+            birthDate: students.birthDate,
             studentName: students.name,
           })
           .from(reminders)
@@ -397,8 +399,22 @@ async function runAutomation() {
         const sentMap = new Set(sentToday.map(s => getRemKey(s.studentId, s.type, s.refId)));
 
         for (const rem of pendingReminders) {
-          if (!rem.studentPhone) {
-            await db.update(reminders).set({ errorMessage: "Aluno sem telefone cadastrado.", updatedAt: new Date() }).where(eq(reminders.id, rem.id));
+          let targetPhone = rem.studentPhone;
+          if (rem.birthDate) {
+            const birthDate = new Date(rem.birthDate);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+              age--;
+            }
+            if (age < 18 && rem.guardianPhone && rem.guardianPhone.trim()) {
+              targetPhone = rem.guardianPhone;
+            }
+          }
+
+          if (!targetPhone) {
+            await db.update(reminders).set({ errorMessage: "Aluno/Responsável sem telefone cadastrado.", updatedAt: new Date() }).where(eq(reminders.id, rem.id));
             continue;
           }
 
@@ -411,7 +427,7 @@ async function runAutomation() {
           const sendRes = await sendWhatsAppMessage({
             url: userSettings.whatsappBotUrl,
             token: userSettings.whatsappBotToken,
-            phone: rem.studentPhone,
+            phone: targetPhone,
             message: rem.message,
             sessionId: `prof_${userId}`,
           });

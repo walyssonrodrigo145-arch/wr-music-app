@@ -2203,6 +2203,8 @@ export const appRouter = router({
           id: reminders.id,
           message: reminders.message,
           studentPhone: students.phone,
+          guardianPhone: students.guardianPhone,
+          birthDate: students.birthDate,
           whatsappBotUrl: settings.whatsappBotUrl,
           whatsappBotToken: settings.whatsappBotToken,
         })
@@ -2214,12 +2216,27 @@ export const appRouter = router({
 
         if (!rem) throw new Error("Lembrete não encontrado.");
         if (!rem.whatsappBotUrl) throw new Error("URL do robô do WhatsApp não configurada nas Configurações.");
-        if (!rem.studentPhone) throw new Error("Aluno sem telefone cadastrado.");
+
+        let targetPhone = rem.studentPhone;
+        if (rem.birthDate) {
+          const birthDate = new Date(rem.birthDate);
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const m = today.getMonth() - birthDate.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+          if (age < 18 && rem.guardianPhone && rem.guardianPhone.trim()) {
+            targetPhone = rem.guardianPhone;
+          }
+        }
+
+        if (!targetPhone) throw new Error("Aluno/Responsável sem telefone cadastrado.");
 
         const sendRes = await sendWhatsAppMessage({
           url: rem.whatsappBotUrl,
           token: rem.whatsappBotToken,
-          phone: rem.studentPhone,
+          phone: targetPhone,
           message: rem.message,
           sessionId: `prof_${ctx.user.id}`,
         });
