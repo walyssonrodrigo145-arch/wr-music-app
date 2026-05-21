@@ -81,44 +81,6 @@ function validateMessage(msg: string): string | null {
 
   if (!raw) return null; // Vazio — tratado pelo disabled do botão
 
-  // Só números
-  if (/^\d+$/.test(raw)) {
-    return "Não envie somente números. Faça uma consulta real.";
-  }
-
-  // Muito curta (menos de 5 chars sem espaço)
-  const charsOnly = raw.replace(/\s/g, "");
-  if (charsOnly.length < 5) {
-    return "Muito curta. Elabore sua consulta com mais detalhes.";
-  }
-
-  // Só caracteres repetidos
-  if (/^(.)\1{4,}$/.test(charsOnly)) {
-    return "Caracteres repetidos não são aceitos.";
-  }
-
-  // Sem vogais nas palavras longas (lixo aleatório)
-  const words = raw.split(/\s+/).filter((w) => w.length > 3);
-  const hasVowels = words.every((w) =>
-    /[aeiouáéíóúâêîôûãõàèìòùAEIOUÁÉÍÓÚÂÊÎÔÛÃÕÀÈÌÒÙ]/i.test(w)
-  );
-  if (words.length > 0 && !hasVowels) {
-    return "Parece ser texto aleatório sem sentido.";
-  }
-
-  // Palavras irrelevantes
-  const irrelevant =
-    /^(oi|olá|ola|opa|ei|hi|hello|hey|ok|okay|sim|não|nao|obrigado|obrigada|valeu|tchau|bye|certo|entendi|blz|beleza|hmm+|ah+|uh+|hm+|rs+|kk+|haha+|lol|test(e|ing)?|abc|asd|qwerty)$/i;
-  if (irrelevant.test(raw)) {
-    return "A IA é para consultas sobre sua escola de música. Envie uma pergunta relevante.";
-  }
-
-  // Menos de 2 palavras
-  const wordCount = raw.split(/\s+/).filter((w) => w.length > 0).length;
-  if (wordCount < 2) {
-    return "Mensagem muito vaga. Elabore sua pergunta ou pedido.";
-  }
-
   return null; // Válida ✓
 }
 
