@@ -165,7 +165,15 @@ export default function NovoAluno() {
       setLocation("/alunos");
     },
     onError: (e) => {
-      toast.error("Erro ao cadastrar aluno: " + e.message);
+      // Extract friendly message instead of raw Zod JSON
+      let msg = e.message;
+      try {
+        const parsed = JSON.parse(msg);
+        if (Array.isArray(parsed) && parsed[0]?.message) {
+          msg = parsed.map((err: any) => err.message).join(", ");
+        }
+      } catch {}
+      toast.error("Erro ao cadastrar aluno: " + msg);
       setIsSaving(false);
     }
   });
@@ -178,7 +186,14 @@ export default function NovoAluno() {
       setLocation("/alunos");
     },
     onError: (e) => {
-      toast.error("Erro ao atualizar aluno: " + e.message);
+      let msg = e.message;
+      try {
+        const parsed = JSON.parse(msg);
+        if (Array.isArray(parsed) && parsed[0]?.message) {
+          msg = parsed.map((err: any) => err.message).join(", ");
+        }
+      } catch {}
+      toast.error("Erro ao atualizar aluno: " + msg);
       setIsSaving(false);
     }
   });
@@ -201,6 +216,13 @@ export default function NovoAluno() {
     }
 
     setIsSaving(true);
+    const parseFee = (val: string) => {
+      // Support both "150,00" (BR) and "150.00" (EN) formats
+      const normalized = val.replace(',', '.');
+      const num = parseFloat(normalized);
+      return isNaN(num) ? 0 : num;
+    };
+
     const payload = {
       name: form.name,
       socialName: form.socialName,
@@ -216,8 +238,8 @@ export default function NovoAluno() {
       guardianEmail: form.guardianEmail,
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
       level: form.level as any,
-      monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
-      dueDay: Number(form.dueDay),
+      monthlyFee: parseFee(form.monthlyFee),
+      dueDay: Number(form.dueDay) || 10,
       lessonType: form.lessonType as any,
       startDate: form.startDate,
       notes: form.notes,

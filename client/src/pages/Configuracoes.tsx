@@ -714,7 +714,11 @@ export default function Configuracoes() {
       utils.auth.me.invalidate();
       utils.settings.get.invalidate();
     },
-    onError: (e) => toast.error("Erro ao salvar perfil: " + e.message),
+    onError: (e) => {
+      let msg = e.message;
+      try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
+      toast.error("Erro ao salvar perfil: " + msg);
+    },
   });
 
   const updateSchool = trpc.settings.updateSchool.useMutation({
@@ -722,7 +726,11 @@ export default function Configuracoes() {
       toast.success("Dados da escola atualizados!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
     utils.settings.get.invalidate();
     },
-    onError: (e) => toast.error("Erro ao salvar escola: " + e.message),
+    onError: (e) => {
+      let msg = e.message;
+      try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
+      toast.error("Erro ao salvar escola: " + msg);
+    },
   });
 
   const updateNotifications = trpc.settings.updateNotifications.useMutation({
@@ -730,11 +738,19 @@ export default function Configuracoes() {
       toast.success("Preferências de notificação salvas!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
       utils.settings.get.invalidate();
     },
-    onError: (e) => toast.error("Erro: " + e.message),
+    onError: (e) => {
+      let msg = e.message;
+      try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
+      toast.error("Erro ao salvar notificações: " + msg);
+    },
   });
 
   const updateTheme = trpc.settings.updateTheme.useMutation({
-    onError: (e) => toast.error("Erro ao salvar tema: " + e.message),
+    onError: (e) => {
+      let msg = e.message;
+      try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
+      toast.error("Erro ao salvar tema: " + msg);
+    },
   });
 
   const updateHiddenTabs = trpc.settings.updateHiddenTabs.useMutation({
@@ -742,7 +758,11 @@ export default function Configuracoes() {
       toast.success("Menu atualizado!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
       utils.settings.get.invalidate();
     },
-    onError: (e) => toast.error("Erro ao atualizar menu: " + e.message),
+    onError: (e) => {
+      let msg = e.message;
+      try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
+      toast.error("Erro ao atualizar menu: " + msg);
+    },
   });
 
   const updateWhatsAppBot = trpc.settings.updateWhatsAppBot.useMutation({
@@ -750,7 +770,11 @@ export default function Configuracoes() {
       toast.success("Configurações do robô de WhatsApp salvas!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
       utils.settings.get.invalidate();
     },
-    onError: (e) => toast.error("Erro ao salvar robô: " + e.message),
+    onError: (e) => {
+      let msg = e.message;
+      try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
+      toast.error("Erro ao salvar robô: " + msg);
+    },
   });
 
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) ?? "P";

@@ -8,7 +8,7 @@ import {
   ChevronRight, ArrowUpRight, ArrowDownRight, Music, CreditCard,
   CalendarDays, Search, CheckCircle2, UserPlus, Target, Clock,
   LayoutGrid, PieChart as PieIcon, TrendingDown, Wallet, LineChart as LineIcon,
-  Sparkles, Layers
+  Sparkles, Layers, MoreVertical, GraduationCap, Activity
 } from 'lucide-react';
 import { trpc } from '../lib/trpc';
 import { format } from 'date-fns';
@@ -23,9 +23,10 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 function ReportMetricCard({ 
   title, value, trend, color, icon, onClick, subtitle
 }: { 
-  title: string; value: string | number; trend: string; color: string; icon: string; onClick?: () => void; subtitle?: string;
+  title: string; value: string | number; trend: string; color: string; icon: React.ReactNode; onClick?: () => void; subtitle?: string;
 }) {
   const isPositive = trend.startsWith('+');
+  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
   
   return (
     <div 
@@ -38,7 +39,7 @@ function ReportMetricCard({
       <div className="flex justify-between items-start mb-4">
         <h3 className="font-semibold text-xs text-on-surface-variant uppercase tracking-wider">{title}</h3>
         <div className={cn("w-10 h-10 rounded-full flex items-center justify-center", color)}>
-          <span className="material-symbols-outlined">{icon}</span>
+          {icon}
         </div>
       </div>
       <div>
@@ -47,7 +48,7 @@ function ReportMetricCard({
           <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold", 
             isPositive ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
           )}>
-            <span className="material-symbols-outlined text-[12px]">{isPositive ? 'trending_up' : 'trending_down'}</span> {trend}
+            <TrendIcon className="w-3 h-3" /> {trend}
           </span>
           <span className="text-[10px] text-on-surface-variant uppercase font-semibold">{subtitle || "vs mês anterior"}</span>
         </div>
@@ -170,28 +171,28 @@ const Relatorios: React.FC = () => {
           value={currencyFormat(financeiroDetailsQuery.data?.pago || 0)} 
           trend="+12%" 
           color="bg-emerald-100 text-emerald-600" 
-          icon="attach_money" 
+          icon={<DollarSign className="w-5 h-5" />} 
         />
         <ReportMetricCard 
           title="A Receber" 
           value={currencyFormat(financeiroDetailsQuery.data?.pendente || 0)} 
           trend="+5%" 
           color="bg-amber-100 text-amber-600" 
-          icon="pending_actions" 
+          icon={<Clock className="w-5 h-5" />} 
         />
         <ReportMetricCard 
           title="Inadimplência" 
           value={currencyFormat(financeiroDetailsQuery.data?.atrasado || 0)} 
           trend="-2%" 
           color="bg-rose-100 text-rose-600" 
-          icon="credit_card_off" 
+          icon={<CreditCard className="w-5 h-5" />} 
         />
         <ReportMetricCard 
           title="Total Projetado" 
           value={currencyFormat(financeiroDetailsQuery.data?.total || 0)} 
           trend="+8%" 
           color="bg-secondary-fixed text-on-secondary-fixed" 
-          icon="monitoring" 
+          icon={<Activity className="w-5 h-5" />} 
         />
       </div>
 
@@ -204,7 +205,7 @@ const Relatorios: React.FC = () => {
               <p className="text-sm font-medium text-on-surface-variant">Evolução Anual (Receita vs Meta)</p>
             </div>
             <button className="p-2 text-on-surface-variant hover:bg-surface-container-highest/50 rounded-full transition-all">
-              <span className="material-symbols-outlined">more_vert</span>
+              <MoreVertical className="w-5 h-5" />
             </button>
           </div>
           
@@ -238,7 +239,7 @@ const Relatorios: React.FC = () => {
             <div className="flex items-center justify-between p-4 bg-surface rounded-xl border border-outline-variant/20">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary-fixed/50 flex items-center justify-center text-on-primary-container">
-                  <span className="material-symbols-outlined">group</span>
+                  <Users className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-on-surface-variant uppercase">Alunos Ativos</p>
@@ -251,7 +252,7 @@ const Relatorios: React.FC = () => {
             <div className="flex items-center justify-between p-4 bg-surface rounded-xl border border-outline-variant/20">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary-fixed/50 flex items-center justify-center text-on-primary-container">
-                  <span className="material-symbols-outlined">school</span>
+                  <GraduationCap className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-on-surface-variant uppercase">Aulas Semanais</p>
@@ -264,7 +265,7 @@ const Relatorios: React.FC = () => {
             <div className="flex items-center justify-between p-4 bg-surface rounded-xl border border-outline-variant/20">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary-fixed/50 flex items-center justify-center text-on-primary-container">
-                  <span className="material-symbols-outlined">music_note</span>
+                  <Music className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-on-surface-variant uppercase">Instrumentos</p>
@@ -896,7 +897,7 @@ const Relatorios: React.FC = () => {
     <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 font-sans animate-fade-in bg-surface min-h-screen text-on-surface">
       <header className="mb-10 animate-fade-in-up">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-secondary-fixed text-on-secondary-fixed rounded-full text-xs font-bold tracking-wider uppercase mb-4">
-          <span className="material-symbols-outlined text-[16px]">insights</span>
+          <LineIcon className="w-4 h-4" />
           ERP SaaS Premium Preditivo
         </div>
         <h1 className="text-4xl lg:text-5xl font-bold text-primary mb-2 tracking-tight">Relatórios<br className="hidden md:block"/> Preditivos</h1>

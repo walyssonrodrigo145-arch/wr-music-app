@@ -160,7 +160,16 @@ function StudentModal({
         onClose();
       }
     },
-    onError: (e) => toast.error("Erro: " + e.message),
+    onError: (e) => {
+      let msg = e.message;
+      try {
+        const parsed = JSON.parse(msg);
+        if (Array.isArray(parsed) && parsed[0]?.message) {
+          msg = parsed.map((err: any) => err.message).join(", ");
+        }
+      } catch {}
+      toast.error("Erro: " + msg);
+    },
   });
 
   const updateMutation = trpc.students.update.useMutation({
@@ -169,7 +178,16 @@ function StudentModal({
       utils.students.list.invalidate();
       onClose();
     },
-    onError: (e) => toast.error("Erro: " + e.message),
+    onError: (e) => {
+      let msg = e.message;
+      try {
+        const parsed = JSON.parse(msg);
+        if (Array.isArray(parsed) && parsed[0]?.message) {
+          msg = parsed.map((err: any) => err.message).join(", ");
+        }
+      } catch {}
+      toast.error("Erro: " + msg);
+    },
   });
 
   const handleSubmit = () => {
@@ -177,14 +195,19 @@ function StudentModal({
       toast.error("Nome e telefone são obrigatórios");
       return;
     }
+    const parseFee = (val: string) => {
+      const normalized = String(val).replace(',', '.');
+      const num = parseFloat(normalized);
+      return isNaN(num) ? 0 : num;
+    };
     const payload = {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
       phone: form.phone.trim(),
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
       level: form.level,
-      monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
-      dueDay: Number(form.dueDay),
+      monthlyFee: parseFee(form.monthlyFee),
+      dueDay: Number(form.dueDay) || 10,
       notes: form.notes.trim() || undefined,
       status: form.status,
       lessonType: form.lessonType,
