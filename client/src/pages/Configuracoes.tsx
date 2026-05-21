@@ -265,7 +265,15 @@ function WhatsAppSessionManager() {
         setStep("DISCONNECTED");
       } else if (getStatusQuery.data.status === "PAIRING") {
         const pairingData = getStatusQuery.data as any;
-        if (pairingData.qr && !qrString) setQrString(pairingData.qr);
+        if (pairingData.qr && !qrString) {
+          // O Baileys v7 agora retorna uma URL (https://wa.me/settings/linked_devices#...)
+          // Precisamos limpar isso para o gerador de QR Code não quebrar e o WhatsApp conseguir ler.
+          let rawQr = pairingData.qr;
+          if (rawQr.includes("#")) {
+            rawQr = rawQr.split("#")[1];
+          }
+          setQrString(rawQr);
+        }
         if (pairingData.pairingCode && !pairingCode) setPairingCode(pairingData.pairingCode);
       }
     }
@@ -434,7 +442,10 @@ function WhatsAppSessionManager() {
                       className="pl-12 h-14 text-base font-bold rounded-2xl border-border bg-background focus:bg-card transition-all shadow-sm"
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-2 font-medium">Digite o número exato que está no seu WhatsApp.</p>
+                  <p className="text-[11px] text-muted-foreground mt-2 font-medium">
+                    Digite o número exato que está no seu WhatsApp. 
+                    <strong className="text-orange-500 block mt-1">⚠️ Se o código for gerado mas não conectar no celular, tente solicitar novamente tirando ou colocando o "9" após o DDD.</strong>
+                  </p>
                 </div>
 
                 <Button
