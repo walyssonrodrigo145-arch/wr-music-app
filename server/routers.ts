@@ -4280,12 +4280,39 @@ export const appRouter = router({
             try {
               const actionData = JSON.parse(jsonStr);
 
-              // Validar campos obrigatórios estendidos
-              if (!actionData.name || !actionData.phone || !actionData.birthDate || actionData.monthlyFee === undefined || actionData.dueDay === undefined) {
+              // Validar campos obrigatórios base
+              if (!actionData.name || !actionData.birthDate || actionData.monthlyFee === undefined || actionData.dueDay === undefined) {
                 finalResponseContent = finalResponseContent.replace(blockStr,
-                  `\n\n⚠️ Não foi possível cadastrar **${actionData.name || 'Aluno'}**: nome, telefone, nascimento, mensalidade e vencimento são obrigatórios.`
+                  `\n\n⚠️ Não foi possível cadastrar **${actionData.name || 'Aluno'}**: nome, nascimento, mensalidade e vencimento são obrigatórios.`
                 );
                 continue;
+              }
+
+              // Calcular idade para validar telefone e responsável
+              const birth = new Date(actionData.birthDate);
+              const today = new Date();
+              let age = today.getFullYear() - birth.getFullYear();
+              const m = today.getMonth() - birth.getMonth();
+              if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+                age--;
+              }
+
+              const isMinor = age < 18;
+
+              if (isMinor) {
+                if (!actionData.guardianName || !actionData.guardianPhone) {
+                  finalResponseContent = finalResponseContent.replace(blockStr,
+                    `\n\n⚠️ Não foi possível cadastrar **${actionData.name}**: por ser menor de idade (${age} anos), o nome e telefone do responsável são obrigatórios.`
+                  );
+                  continue;
+                }
+              } else {
+                if (!actionData.phone) {
+                  finalResponseContent = finalResponseContent.replace(blockStr,
+                    `\n\n⚠️ Não foi possível cadastrar **${actionData.name}**: o telefone do aluno é obrigatório para maiores de idade.`
+                  );
+                  continue;
+                }
               }
 
               // Executar o cadastro do aluno
