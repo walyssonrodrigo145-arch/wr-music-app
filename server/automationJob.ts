@@ -102,39 +102,26 @@ async function runAutomation() {
         const dataAula = lessonDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
         const horaAula = lessonDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
-        // Buscar template padrão de aula do usuário
-        let [tpl] = await db
+        // Buscar templates de aula criados pelo usuário
+        const aulaTemplates = await db
           .select()
           .from(reminderTemplates)
           .where(
             and(
               eq(reminderTemplates.organizationId, orgId),
               eq(reminderTemplates.userId, userId),
-              eq(reminderTemplates.type, "aula"),
-              eq(reminderTemplates.isDefault, 1)
+              eq(reminderTemplates.type, "aula")
             )
-          )
-          .limit(1);
+          );
 
-        if (!tpl) {
-          // Se não houver template padrão, tenta pegar qualquer um de aula criado
-          const anyTpl = await db
-            .select()
-            .from(reminderTemplates)
-            .where(
-              and(
-                eq(reminderTemplates.organizationId, orgId),
-                eq(reminderTemplates.userId, userId),
-                eq(reminderTemplates.type, "aula")
-              )
-            )
-            .limit(1);
-          if (anyTpl.length > 0) {
-            tpl = anyTpl[0];
-          }
-        }
+        let tpl24h = aulaTemplates.find(t => t.name.toLowerCase().includes("24"));
+        if (!tpl24h) tpl24h = aulaTemplates.find(t => t.isDefault === 1) || aulaTemplates[0];
 
-        const baseBody = tpl?.body ?? "Olá {nome}, lembrete: sua aula de {instrumento} é {quando}, {data_aula} às {hora_aula}. Até lá!";
+        let tpl1h = aulaTemplates.find(t => t.name.toLowerCase().includes("1") && (t.name.toLowerCase().includes("h") || t.name.toLowerCase().includes("hora")));
+        if (!tpl1h) tpl1h = aulaTemplates.find(t => t.isDefault === 1) || aulaTemplates[0];
+
+        const baseBody24h = tpl24h?.body ?? "Olá {nome}, lembrete: sua aula de {instrumento} é {quando}, {data_aula} às {hora_aula}. Até lá!";
+        const baseBody1h = tpl1h?.body ?? "Olá {nome}, lembrete: sua aula de {instrumento} é {quando}, {data_aula} às {hora_aula}. Até lá!";
 
         // A) Lembrete 24 horas antes
         const time24h = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
@@ -153,7 +140,7 @@ async function runAutomation() {
             )
             .limit(1);
           if (existing24.length === 0) {
-            const msg24 = baseBody
+            const msg24 = baseBody24h
               .replace(/\{quando\}/g, "amanhã")
               .replace(/\{nome\}/g, lesson.studentName ?? "Aluno")
               .replace(/\{instrumento\}/g, lesson.instrumentName ?? "música")
@@ -175,7 +162,7 @@ async function runAutomation() {
         if (time1h <= now) {
           const existing1 = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, ref1h), eq(reminders.organizationId, orgId))).limit(1);
           if (existing1.length === 0) {
-            const msg1 = baseBody
+            const msg1 = baseBody1h
               .replace(/\{quando\}/g, "hoje")
               .replace(/\{nome\}/g, lesson.studentName ?? "Aluno")
               .replace(/\{instrumento\}/g, lesson.instrumentName ?? "música")
