@@ -2607,7 +2607,7 @@ export const appRouter = router({
                 email: ownedStudent.email ?? undefined,
                 phone: ownedStudent.phone ?? undefined,
                 cpfCnpj: ownedStudent.cpf ?? undefined,
-              }).catch(() => null);
+              });
               
               if (asaasCustomerId) {
                 await db.insert(asaasCustomers).values({
@@ -2630,7 +2630,7 @@ export const appRouter = router({
                 value: Number(input.amount.toFixed(2)),
                 dueDate: finalDueDate,
                 description: `Mensalidade ${input.month}/${input.year} - ${ownedStudent.name}`,
-              }).catch(() => null);
+              });
 
               if (charge) {
                 paymentData.asaasId = charge.id;
