@@ -214,7 +214,9 @@ export default function StudentPayments() {
                         ) : (
                           <button 
                             onClick={() => {
-                              if (profile?.teacherPixKey) {
+                              if (payment.asaasPaymentLink) {
+                                window.open(payment.asaasPaymentLink, "_blank");
+                              } else if (profile?.teacherPixKey) {
                                 setSelectedPayment(payment);
                                 setIsPixModalOpen(true);
                                 setAnalysisResult(null);
