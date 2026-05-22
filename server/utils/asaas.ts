@@ -10,6 +10,14 @@ const headers = () => ({
   access_token: ENV.asaasApiKey,
 });
 
+// ─── Security Lock ────────────────────────────────────────────────────────────
+
+export const ASAAS_ENABLED_EMAIL = 'wrmusic762@gmail.com';
+
+export function isAsaasEnabled(email?: string | null): boolean {
+  return email === ASAAS_ENABLED_EMAIL;
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type AsaasBillingType = "PIX" | "CREDIT_CARD";

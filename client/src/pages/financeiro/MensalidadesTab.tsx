@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { EditMensalidadeModal } from "@/components/modals/EditMensalidadeModal";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -511,6 +512,8 @@ function NovaModal({ open, onClose, students }: {
 }
 
 export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoading }: { viewMonth: number, viewYear: number, payments: any[], isLoading: boolean }) {
+  const { user } = useAuth();
+  const isAsaasEnabled = user?.email === 'wrmusic762@gmail.com';
   const utils = trpc.useUtils();
   const now = new Date();
   const [filterStatus, setFilterStatus] = useState<string>("todas");
@@ -848,10 +851,12 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                  </DropdownMenuItem>
                                  <DropdownMenuSeparator className="bg-muted" />
                                  {!payment.asaasId ? (
-                                   <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setAsaasPayment(payment)}>
-                                      <Zap className="w-4 h-4 text-violet-500" />
-                                      <span className="text-xs font-bold text-muted-foreground">Gerar Cobrança Asaas</span>
-                                   </DropdownMenuItem>
+                                   isAsaasEnabled && (
+                                     <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setAsaasPayment(payment)}>
+                                        <Zap className="w-4 h-4 text-violet-500" />
+                                        <span className="text-xs font-bold text-muted-foreground">Gerar Cobrança Asaas</span>
+                                     </DropdownMenuItem>
+                                   )
                                  ) : (
                                    <>
                                      <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {

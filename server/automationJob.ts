@@ -190,6 +190,7 @@ async function runAutomation() {
           month: paymentDues.month,
           year: paymentDues.year,
           notes: paymentDues.notes,
+          asaasPaymentLink: paymentDues.asaasPaymentLink,
           studentName: students.name,
           studentPhone: students.phone,
           studentNotes: students.notes,
@@ -250,7 +251,10 @@ async function runAutomation() {
                 if (anyTpl.length > 0) tpl = anyTpl[0];
               }
               const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e consta como pendente. Por favor, entre em contato para regularizar ou nos informar caso já tenha efetuado o pagamento.";
-              const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+              let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+              if (due.asaasPaymentLink) {
+                message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
+              }
 
               await db.insert(reminders).values({
                 organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
@@ -270,7 +274,10 @@ async function runAutomation() {
               if (anyTpl.length > 0) tpl = anyTpl[0];
             }
             const body = tpl?.body ?? "Olá {nome}, lembramos que sua mensalidade de {valor} vence hoje, {vencimento}. Agradecemos o pagamento no prazo!";
-            const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+            let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+            if (due.asaasPaymentLink) {
+              message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
+            }
 
             await db.insert(reminders).values({
               organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
@@ -302,7 +309,10 @@ async function runAutomation() {
                 if (anyTpl.length > 0) tpl = anyTpl[0];
               }
               const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, programe o pagamento.";
-              const message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+              let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+              if (due.asaasPaymentLink) {
+                message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
+              }
 
               await db.insert(reminders).values({
                 organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,

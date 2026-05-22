@@ -2567,7 +2567,7 @@ export const appRouter = router({
           const orgId = ctx.user.organizationId!;
    
           // Security: verify student ownership
-          const [ownedStudent] = await db.select({ id: students.id }).from(students)
+          const [ownedStudent] = await db.select({ id: students.id, name: students.name, email: students.email, phone: students.phone }).from(students)
               .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
               .limit(1);
           
@@ -2575,7 +2575,7 @@ export const appRouter = router({
               throw new TRPCError({ code: "FORBIDDEN", message: "O aluno selecionado não existe ou não pertence ao seu perfil." });
           }
 
-          await db.insert(paymentDues).values({
+          const paymentData: any = {
             organizationId: orgId,
             userId: ctx.user.id,
             studentId: input.studentId,
@@ -2587,7 +2587,54 @@ export const appRouter = router({
             notes: input.notes ?? null,
             createdAt: new Date(),
             updatedAt: new Date(),
-          });
+          };
+
+          const { isAsaasEnabled, createAsaasCustomer, createAsaasCharge } = await import('./utils/asaas');
+          const [profData] = await db.select({ email: users.email }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+          
+          if (profData && isAsaasEnabled(profData.email)) {
+            // Get or create Asaas customer
+            let asaasCustomerId: string | null = null;
+            const [existingCustomer] = await db.select().from(asaasCustomers)
+              .where(and(eq(asaasCustomers.studentId, input.studentId), eq(asaasCustomers.organizationId, orgId)))
+              .limit(1);
+
+            if (existingCustomer) {
+              asaasCustomerId = existingCustomer.asaasCustomerId;
+            } else {
+              asaasCustomerId = await createAsaasCustomer({
+                name: ownedStudent.name || 'Aluno',
+                email: ownedStudent.email ?? undefined,
+                phone: ownedStudent.phone ?? undefined,
+              }).catch(() => null);
+              
+              if (asaasCustomerId) {
+                await db.insert(asaasCustomers).values({
+                  organizationId: orgId,
+                  studentId: input.studentId,
+                  asaasCustomerId,
+                });
+              }
+            }
+
+            if (asaasCustomerId) {
+              const charge = await createAsaasCharge({
+                asaasCustomerId,
+                billingType: 'UNDEFINED', // Let Asaas decide/offer multiple
+                value: Number(input.amount.toFixed(2)),
+                dueDate: input.dueDate.slice(0, 10),
+                description: `Mensalidade ${input.month}/${input.year} - ${ownedStudent.name}`,
+              }).catch(() => null);
+
+              if (charge) {
+                paymentData.asaasId = charge.id;
+                paymentData.asaasPaymentLink = charge.invoiceUrl;
+                paymentData.asaasBillingType = charge.billingType;
+              }
+            }
+          }
+
+          await db.insert(paymentDues).values(paymentData);
           return { success: true };
         } catch (error) {
           return handleDbError(error, "gerar a cobrança");
@@ -3145,6 +3192,13 @@ export const appRouter = router({
 
         const orgId = ctx.user.organizationId!;
         const professorId = ctx.user.id;
+
+        // Security Lock
+        const { isAsaasEnabled } = await import('./utils/asaas');
+        const [profData] = await db.select({ email: users.email }).from(users).where(eq(users.id, professorId)).limit(1);
+        if (!profData || !isAsaasEnabled(profData.email)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Asaas não está disponível para esta conta." });
+        }
 
         // Fetch payment due
         const [due] = await db.select().from(paymentDues)
