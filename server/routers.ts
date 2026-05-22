@@ -3234,6 +3234,7 @@ export const appRouter = router({
             name: student.name,
             email: student.email ?? undefined,
             phone: student.phone ?? undefined,
+            cpfCnpj: student.cpf ?? undefined,
           });
           await db.insert(asaasCustomers).values({
             organizationId: orgId,
@@ -3242,12 +3243,17 @@ export const appRouter = router({
           });
         }
 
+        const dueDateObj = new Date(due.dueDate);
+        const todayObj = new Date();
+        todayObj.setHours(0, 0, 0, 0);
+        const finalDueDate = dueDateObj < todayObj ? new Date().toISOString().slice(0, 10) : due.dueDate;
+
         // Create charge on Asaas
         const charge = await createAsaasCharge({
           asaasCustomerId,
           billingType: input.billingType,
           value: Number(due.amount),
-          dueDate: due.dueDate,
+          dueDate: finalDueDate,
           description: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
         });
 
