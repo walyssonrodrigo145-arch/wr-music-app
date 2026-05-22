@@ -57,6 +57,14 @@ async function startServer() {
   // Recebe notificações do Asaas e atualiza o status das mensalidades automaticamente.
   app.post("/api/webhooks/asaas", async (req, res) => {
     try {
+      // Opcional: validação do token do webhook para maior segurança
+      const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
+      const requestToken = req.headers["asaas-access-token"];
+      if (webhookToken && requestToken !== webhookToken) {
+        console.warn("[Asaas Webhook] Token de autenticação inválido ou não fornecido.");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       const { event, payment } = req.body as {
         event: string;
         payment?: { id: string; status: string; value: number };
