@@ -2567,7 +2567,7 @@ export const appRouter = router({
           const orgId = ctx.user.organizationId!;
    
           // Security: verify student ownership
-          const [ownedStudent] = await db.select({ id: students.id, name: students.name, email: students.email, phone: students.phone }).from(students)
+          const [ownedStudent] = await db.select({ id: students.id, name: students.name, email: students.email, phone: students.phone, cpf: students.cpf }).from(students)
               .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
               .limit(1);
           
@@ -2606,6 +2606,7 @@ export const appRouter = router({
                 name: ownedStudent.name || 'Aluno',
                 email: ownedStudent.email ?? undefined,
                 phone: ownedStudent.phone ?? undefined,
+                cpfCnpj: ownedStudent.cpf ?? undefined,
               }).catch(() => null);
               
               if (asaasCustomerId) {
@@ -2618,11 +2619,16 @@ export const appRouter = router({
             }
 
             if (asaasCustomerId) {
+              const dueDateObj = new Date(input.dueDate);
+              const todayObj = new Date();
+              todayObj.setHours(0, 0, 0, 0);
+              const finalDueDate = dueDateObj < todayObj ? new Date().toISOString().slice(0, 10) : input.dueDate.slice(0, 10);
+
               const charge = await createAsaasCharge({
                 asaasCustomerId,
                 billingType: 'UNDEFINED', // Let Asaas decide/offer multiple
                 value: Number(input.amount.toFixed(2)),
-                dueDate: input.dueDate.slice(0, 10),
+                dueDate: finalDueDate,
                 description: `Mensalidade ${input.month}/${input.year} - ${ownedStudent.name}`,
               }).catch(() => null);
 
