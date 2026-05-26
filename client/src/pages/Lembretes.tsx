@@ -118,6 +118,11 @@ export default function Lembretes() {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
+  const testPush = trpc.fcm.testNotification.useMutation({
+    onSuccess: (r) => toast.success(`Notificação enviada para ${r.sentCount} dispositivo(s)!`),
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+
   useEffect(() => {
     if (automationData !== undefined) {
       setAutoEnabled(automationData.enabled);
@@ -298,6 +303,22 @@ export default function Lembretes() {
               if (result === 'granted') toast.success('Notificações ativadas!');
             }}>
               Ativar
+            </Button>
+          </div>
+        )}
+
+        {isSupported && permission === "granted" && (
+          <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-100 shadow-sm shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+              <BellRing size={20} />
+            </div>
+            <p className="text-[11px] lg:text-xs text-emerald-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">
+              Notificações Ativadas! Você pode fechar a aba que continuará sendo avisado.
+            </p>
+            <Button size="sm" variant="outline" className="w-full sm:w-auto h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" 
+              onClick={() => testPush.mutate()} disabled={testPush.isPending}>
+              {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
+              Disparar Teste
             </Button>
           </div>
         )}
