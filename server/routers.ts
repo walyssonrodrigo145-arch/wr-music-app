@@ -2407,6 +2407,41 @@ export const appRouter = router({
           sessionId,
         });
       }),
+
+    testConnection: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const [userSet] = await db.select({
+          phone: settings.phone,
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+        }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
+
+        if (!userSet?.whatsappBotUrl) {
+          throw new Error("URL do robô do WhatsApp não configurada.");
+        }
+
+        if (!userSet?.phone) {
+          throw new Error("Você precisa cadastrar o seu número de celular nas configurações do Perfil para realizar o teste.");
+        }
+
+        const sessionId = `prof_${ctx.user.id}`;
+        const sendRes = await sendWhatsAppMessage({
+          url: userSet.whatsappBotUrl,
+          token: userSet.whatsappBotToken,
+          phone: userSet.phone,
+          message: "🤖 Teste de Conexão: O robô de mensagens do seu MusicPro está funcionando perfeitamente!",
+          sessionId,
+        });
+
+        if (!sendRes.success) {
+          throw new Error(sendRes.error || "Falha ao enviar mensagem de teste.");
+        }
+
+        return { success: true };
+      }),
   }),
 
   // ─── TEMPLATES DE LEMBRETE ──────────────────────────────────────────────────────────

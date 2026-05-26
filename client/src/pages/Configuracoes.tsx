@@ -250,10 +250,13 @@ function WhatsAppSessionManager() {
 
   const startSession = trpc.whatsapp.startSession.useMutation();
   const logoutSession = trpc.whatsapp.logout.useMutation();
+  const testConnection = trpc.whatsapp.testConnection.useMutation();
   const getStatusQuery = trpc.whatsapp.getStatus.useQuery(undefined, {
     enabled: step === "PAIRING" || step === "CONNECTED",
     refetchInterval: step === "PAIRING" ? 3000 : false, // Polling a cada 3s se PAIRING
   });
+
+  const [testingConnection, setTestingConnection] = useState(false);
 
   // Atualizar estado baseado na query
   useEffect(() => {
@@ -336,6 +339,18 @@ function WhatsAppSessionManager() {
       toast.error(err.message || "Erro ao desconectar.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    try {
+      await testConnection.mutateAsync();
+      toast.success("Sessão ativa! Mensagem de teste enviada com sucesso para o seu celular.");
+    } catch (err: any) {
+      toast.error("Conexão inativa ou falhou: " + (err.message || "Erro desconhecido"));
+    } finally {
+      setTestingConnection(false);
     }
   };
 
@@ -572,12 +587,20 @@ function WhatsAppSessionManager() {
             </p>
           </div>
 
-          <div className="pt-6">
+          <div className="pt-6 flex flex-wrap justify-center gap-4">
+            <Button
+              onClick={handleTestConnection}
+              disabled={testingConnection || loading}
+              className="h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+            >
+              {testingConnection ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
+              Testar Conexão
+            </Button>
             <Button
               onClick={handleLogout}
-              disabled={loading}
+              disabled={loading || testingConnection}
               variant="outline"
-              className="h-14 px-8 rounded-2xl border-destructive/20 text-destructive hover:bg-destructive hover:text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg hover:shadow-destructive/25"
+              className="h-14 px-8 rounded-2xl border-destructive/20 text-destructive hover:bg-destructive hover:text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg hover:shadow-destructive/25 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
             >
               {loading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
               Desconectar Conta
