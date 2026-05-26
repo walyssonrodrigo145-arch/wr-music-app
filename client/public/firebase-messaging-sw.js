@@ -3,7 +3,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-comp
 
 // Configuração do Firebase no Service Worker
 const firebaseConfig = {
-  apiKey: "pHfLribl0Y1d4SJU0FG8HfA7PBtcI8y62xNAS0ubp4I",
+  apiKey: "AIzaSyDhgSbEbtUmXMmgn0dnLoODM0sGS35-fzI",
   authDomain: "wr-music.firebaseapp.com",
   projectId: "wr-music",
   storageBucket: "wr-music.appspot.com",
