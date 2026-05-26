@@ -14,7 +14,8 @@ export function usePushNotifications() {
   const isSupported = typeof Notification !== "undefined";
 
   /** Solicita permissão ao usuário e cadastra o Token no backend FCM */
-  const requestPermission = useCallback(async () => {
+  const requestPermission = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
     if (!isSupported) return "denied" as NotificationPermission;
     const result = await Notification.requestPermission();
     setPermission(result);
@@ -28,13 +29,19 @@ export function usePushNotifications() {
             token,
             deviceInfo: navigator.userAgent
           });
-          toast.success("Dispositivo sincronizado para notificações!");
+          if (!silent) {
+            toast.success("Dispositivo sincronizado para notificações!");
+          }
         } else {
-          toast.error("Não foi possível gerar o token FCM. Verifique o console.");
+          if (!silent) {
+            toast.error("Não foi possível gerar o token FCM. Verifique o console.");
+          }
         }
       } catch (err: any) {
         console.error("Erro ao registrar FCM token:", err);
-        toast.error("Erro ao registrar FCM: " + err.message);
+        if (!silent) {
+          toast.error("Erro ao registrar FCM: " + err.message);
+        }
       }
     }
     return result;
@@ -76,7 +83,7 @@ export function usePushNotifications() {
   /** Se a permissão já foi concedida antes, garante que o token seja registrado silenciosamente */
   useEffect(() => {
     if (isSupported && Notification.permission === "granted") {
-      requestPermission();
+      requestPermission({ silent: true });
     }
   }, [isSupported, requestPermission]);
 
