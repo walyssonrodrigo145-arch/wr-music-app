@@ -28,9 +28,13 @@ export function usePushNotifications() {
             token,
             deviceInfo: navigator.userAgent
           });
+          toast.success("Dispositivo sincronizado para notificações!");
+        } else {
+          toast.error("Não foi possível gerar o token FCM. Verifique o console.");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Erro ao registrar FCM token:", err);
+        toast.error("Erro ao registrar FCM: " + err.message);
       }
     }
     return result;

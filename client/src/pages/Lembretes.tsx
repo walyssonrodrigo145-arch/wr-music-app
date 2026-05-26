@@ -315,11 +315,17 @@ export default function Lembretes() {
             <p className="text-[11px] lg:text-xs text-emerald-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">
               Notificações Ativadas! Você pode fechar a aba que continuará sendo avisado.
             </p>
-            <Button size="sm" variant="outline" className="w-full sm:w-auto h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" 
-              onClick={() => testPush.mutate()} disabled={testPush.isPending}>
-              {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
-              Disparar Teste
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" 
+                onClick={() => requestPermission()}>
+                Sincronizar
+              </Button>
+              <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" 
+                onClick={() => testPush.mutate()} disabled={testPush.isPending}>
+                {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
+                Disparar Teste
+              </Button>
+            </div>
           </div>
         )}
 
