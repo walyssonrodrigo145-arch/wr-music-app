@@ -1310,6 +1310,7 @@ export const appRouter = router({
       status: z.enum(['agendada','concluida','cancelada','remarcada','falta']),
       scheduledAt: z.string().optional(), // Nova data opcional para remarcação
       rating: z.number().min(1).max(5).optional(),
+      updateSeries: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -1325,7 +1326,7 @@ export const appRouter = router({
         // Se estiver remarcando com uma nova data, validar conflitos
         if (input.scheduledAt) {
           const newDate = new Date(input.scheduledAt);
-          const [current] = await db.select({ duration: lessons.duration }).from(lessons).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))).limit(1);
+          const [current] = await db.select({ duration: lessons.duration, scheduledAt: lessons.scheduledAt, recurringGroupId: lessons.recurringGroupId }).from(lessons).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))).limit(1);
           const duration = current?.duration || 60;
           const endsAt = new Date(newDate.getTime() + duration * 60000);
 
@@ -1342,6 +1343,29 @@ export const appRouter = router({
             throw new Error("Conflito: Já existe uma aula agendada para este novo horário.");
           }
           updateData.scheduledAt = newDate;
+
+          // Se for para atualizar a série toda
+          if (input.updateSeries && current?.recurringGroupId) {
+            const timeOffset = newDate.getTime() - new Date(current.scheduledAt).getTime();
+            
+            // Buscar aulas futuras da série
+            const futureLessons = await db.select().from(lessons).where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.recurringGroupId, current.recurringGroupId),
+              eq(lessons.userId, ctx.user.id),
+              gte(lessons.scheduledAt, current.scheduledAt),
+              sql`id != ${input.id}`
+            ));
+
+            // Atualizar cada aula futura deslocando a data
+            for (const future of futureLessons) {
+              const nextDate = new Date(new Date(future.scheduledAt).getTime() + timeOffset);
+              await db.update(lessons).set({
+                scheduledAt: nextDate,
+                updatedAt: new Date()
+              }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+            }
+          }
         }
 
         // Correção preventiva para o enum no PostgreSQL
@@ -1365,11 +1389,30 @@ export const appRouter = router({
     }),
     delete: protectedProcedure.input(z.object({
       id: z.number(),
+      deleteSeries: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
+        const deleteSeries = input.deleteSeries === true;
+
+        if (deleteSeries) {
+          const [currentLesson] = await db.select({ recurringGroupId: lessons.recurringGroupId, scheduledAt: lessons.scheduledAt }).from(lessons)
+            .where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)))
+            .limit(1);
+
+          if (currentLesson && currentLesson.recurringGroupId) {
+            await db.delete(lessons).where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.userId, ctx.user.id),
+              eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
+              gte(lessons.scheduledAt, currentLesson.scheduledAt)
+            ));
+            return { success: true };
+          }
+        }
+
         await db.delete(lessons).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
         return { success: true };
       } catch (error) {

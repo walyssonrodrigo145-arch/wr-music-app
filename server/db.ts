@@ -411,6 +411,7 @@ export async function getRecentLessons(organizationId: number, userId?: number, 
     studentName: students.name,
     studentId: students.id,
     lessonType: lessons.lessonType,
+    recurringGroupId: lessons.recurringGroupId,
   }).from(lessons)
     .leftJoin(students, eq(lessons.studentId, students.id))
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))

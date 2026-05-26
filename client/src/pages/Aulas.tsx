@@ -116,6 +116,11 @@ export default function Aulas() {
   const [agendarOpen, setAgendarOpen] = useState(false);
   const [detailLessonId, setDetailLessonId] = useState<number | null>(null);
   const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [recurringAction, setRecurringAction] = useState<{
+    type: 'delete' | 'reschedule';
+    id: number;
+    newDate?: string;
+  } | null>(null);
 
   const utils = trpc.useUtils();
   const { data: lessons = [], isLoading } = trpc.lessons.list.useQuery();
@@ -172,8 +177,24 @@ export default function Aulas() {
 
   // Unused stats removed for expanded calendar layout
 
+  const handleDeleteRequest = (id: number) => {
+    const lesson = lessons.find(l => l.id === id);
+    if (lesson?.recurringGroupId) {
+      setRecurringAction({ type: 'delete', id });
+    } else {
+      if (confirm("Deseja realmente excluir este agendamento?")) {
+        deleteMutation.mutate({ id });
+      }
+    }
+  };
+
   const handleStatusChange = (id: number, status: string, newDate?: string) => {
-    updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
+    const lesson = lessons.find(l => l.id === id);
+    if (status === 'remarcada' && lesson?.recurringGroupId && newDate) {
+      setRecurringAction({ type: 'reschedule', id, newDate });
+    } else {
+      updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
+    }
   };
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -434,7 +455,7 @@ export default function Aulas() {
         </div>
 
         <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={currentDate} />
-        <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => { if (detailLessonId) deleteMutation.mutate({ id: detailLessonId }); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
+        <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={handleDeleteRequest} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
       </div>
     );
   }
@@ -531,7 +552,61 @@ export default function Aulas() {
       </div>
 
       <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={selectedDate} />
-      <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={() => { if (detailLessonId) deleteMutation.mutate({ id: detailLessonId }); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
+      <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={handleDeleteRequest} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
+
+      {recurringAction && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100] animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-md rounded-[2rem] border border-border p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="space-y-2">
+              <h4 className="text-lg font-black uppercase tracking-tight text-foreground">
+                {recurringAction.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente'}
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={async () => {
+                  try {
+                    if (recurringAction.type === 'delete') {
+                      await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: false });
+                    } else {
+                      await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: false });
+                    }
+                  } catch (err) {}
+                  setRecurringAction(null);
+                }}
+                className="w-full h-12 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+              >
+                {recurringAction.type === 'delete' ? 'Excluir apenas esta aula' : 'Remarcar apenas esta aula'}
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    if (recurringAction.type === 'delete') {
+                      await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: true });
+                    } else {
+                      await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: true });
+                    }
+                  } catch (err) {}
+                  setRecurringAction(null);
+                }}
+                className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
+              >
+                {recurringAction.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
+              </button>
+              <button
+                onClick={() => setRecurringAction(null)}
+                className="w-full h-12 rounded-xl border border-border text-muted-foreground hover:bg-muted/10 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
