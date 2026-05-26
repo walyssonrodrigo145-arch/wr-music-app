@@ -264,7 +264,9 @@ function WhatsAppSessionManager() {
         setStep("CONNECTED");
         setConnectedPhone(getStatusQuery.data.phone || phoneNumber || "Conectado");
       } else if (getStatusQuery.data.status === "DISCONNECTED") {
-        if (step !== "DISCONNECTED") {
+        // Se o status da query for DISCONNECTED, só voltamos para o passo DISCONNECTED
+        // se não estivermos no meio de um pareamento ativo (evita race condition ao gerar QR Code).
+        if (step !== "DISCONNECTED" && step !== "PAIRING") {
           setStep("DISCONNECTED");
         }
       } else if (getStatusQuery.data.status === "PAIRING") {
@@ -319,6 +321,7 @@ function WhatsAppSessionManager() {
         setStep("PAIRING");
         setTimeLeft(60);
         toast.success(modeTab === "QR_CODE" ? "QR Code gerado com sucesso!" : "Código gerado com sucesso!");
+        getStatusQuery.refetch();
       } else {
         toast.error("Falha ao iniciar pareamento.");
       }
