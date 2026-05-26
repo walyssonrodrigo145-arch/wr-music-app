@@ -4,6 +4,13 @@ import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import MensalidadesTab from "./financeiro/MensalidadesTab";
 import { DespesasTab } from "./financeiro/DespesasTab";
@@ -40,13 +47,28 @@ export default function Financeiro() {
     <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
         
-        {/* Date Selector */}
-        <div className="flex items-center justify-center gap-4 bg-card p-2 rounded-2xl border border-border shadow-sm w-fit mx-auto lg:mx-0">
-           <Button variant="ghost" size="icon" onClick={prevMonth} className="h-8 w-8 rounded-lg"><ChevronLeft size={16} /></Button>
-           <h3 className="text-xs font-black text-foreground min-w-[120px] text-center uppercase tracking-widest">
-             {MONTHS_FULL[viewMonth-1]} {viewYear}
-           </h3>
-           <Button variant="ghost" size="icon" onClick={nextMonth} className="h-8 w-8 rounded-lg"><ChevronRight size={16} /></Button>
+        {/* Date Selector & Year Filter */}
+        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4">
+          <div className="flex items-center justify-center gap-4 bg-card p-2 rounded-2xl border border-border shadow-sm w-fit">
+             <Button variant="ghost" size="icon" onClick={prevMonth} className="h-8 w-8 rounded-lg"><ChevronLeft size={16} /></Button>
+             <h3 className="text-xs font-black text-foreground min-w-[120px] text-center uppercase tracking-widest">
+               {MONTHS_FULL[viewMonth-1]} {viewYear}
+             </h3>
+             <Button variant="ghost" size="icon" onClick={nextMonth} className="h-8 w-8 rounded-lg"><ChevronRight size={16} /></Button>
+          </div>
+
+          <Select value={String(viewYear)} onValueChange={(val) => setViewYear(Number(val))}>
+            <SelectTrigger className="h-12 px-4 rounded-2xl bg-card border-border shadow-sm text-xs font-black uppercase tracking-widest text-foreground min-w-[100px] flex items-center justify-between gap-2 cursor-pointer focus:ring-0 focus-visible:ring-0 focus-visible:border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-2xl border-border bg-card">
+              {Array.from({ length: 11 }, (_, i) => now.getFullYear() - 5 + i).map((y) => (
+                <SelectItem key={y} value={String(y)} className="text-xs font-black uppercase tracking-widest">
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Saldo Geral Líquido */}
