@@ -36,6 +36,10 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "lessonType" text DEFAULT 'individual'`);
     await db.execute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "lessonType" text DEFAULT 'individual'`);
     
+    // alertSent1h and alertSent30m columns
+    await db.execute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "alertSent1h" boolean DEFAULT false NOT NULL`);
+    await db.execute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "alertSent30m" boolean DEFAULT false NOT NULL`);
+    
     // expenses table
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "expenses" (

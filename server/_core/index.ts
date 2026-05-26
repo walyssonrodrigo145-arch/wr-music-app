@@ -14,9 +14,10 @@ import { createRateLimiter } from "./rateLimiter";
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
-import { paymentDues } from "../../drizzle/schema";
+import { paymentDues, students } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { setupEvolutionWebhook } from "../utils/whatsapp";
+import { notifyUser } from "./notification";
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -80,11 +81,31 @@ async function startServer() {
       if (!db) return res.status(500).json({ error: "DB unavailable" });
 
       if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
+        // Fetch payment details and student name before updating
+        const [paymentDetails] = await db
+          .select({
+            userId: paymentDues.userId,
+            amount: paymentDues.amount,
+            studentName: students.name,
+          })
+          .from(paymentDues)
+          .leftJoin(students, eq(paymentDues.studentId, students.id))
+          .where(eq(paymentDues.asaasId, payment.id))
+          .limit(1);
+
         await db
           .update(paymentDues)
           .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
           .where(eq(paymentDues.asaasId, payment.id));
         console.log(`[Asaas Webhook] Mensalidade marcada como PAGA (${payment.id})`);
+
+        if (paymentDetails) {
+          const valor = Number(paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          await notifyUser(paymentDetails.userId, {
+            title: "Pagamento Confirmado",
+            content: `O aluno ${paymentDetails.studentName || "Aluno"} pagou a mensalidade no valor de ${valor}.`,
+          });
+        }
       }
 
       if (event === "PAYMENT_OVERDUE") {

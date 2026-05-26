@@ -19,7 +19,7 @@ import {
 } from "./db";
 import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, expenses } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or } from "drizzle-orm";
-import { notifyOwner } from "./_core/notification";
+import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
 import { TRPCError } from "@trpc/server";
 
@@ -2011,8 +2011,8 @@ export const appRouter = router({
       }
 
       if (created > 0) {
-        await notifyOwner({
-          title: "🔔 Novos Lembretes (Aula)",
+        await notifyUser(ctx.user.id, {
+          title: "Lembretes Gerados",
           content: `Foram gerados ${created} novos lembretes de aula manualmente.`
         });
       }
@@ -2144,8 +2144,8 @@ export const appRouter = router({
       }
 
       if (created > 0) {
-        await notifyOwner({
-          title: "🔔 Novos Lembretes (Cobrança)",
+        await notifyUser(ctx.user.id, {
+          title: "Lembretes Gerados",
           content: `Foram gerados ${created} novos lembretes de cobrança manualmente.`
         });
       }
@@ -2204,6 +2204,7 @@ export const appRouter = router({
         const [rem] = await db.select({
           id: reminders.id,
           message: reminders.message,
+          studentName: students.name,
           studentPhone: students.phone,
           guardianPhone: students.guardianPhone,
           birthDate: students.birthDate,
@@ -2247,6 +2248,12 @@ export const appRouter = router({
           await db.update(reminders)
             .set({ status: "enviado", sentAt: new Date(), externalMessageId: sendRes.messageId, errorMessage: null })
             .where(eq(reminders.id, input.id));
+          
+          await notifyUser(ctx.user.id, {
+            title: "Mensagem Enviada",
+            content: `Mensagem enviada com sucesso para ${rem.studentName || "Aluno"} (${targetPhone}).`,
+          });
+
           return { success: true, messageId: sendRes.messageId };
         } else {
           await db.update(reminders)
@@ -2655,13 +2662,34 @@ export const appRouter = router({
           const db = await getDb();
           if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
+          
+          const [paymentDetails] = await db
+            .select({
+              studentName: students.name,
+              amount: paymentDues.amount,
+            })
+            .from(paymentDues)
+            .leftJoin(students, eq(paymentDues.studentId, students.id))
+            .where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId)))
+            .limit(1);
+
           await db.update(paymentDues)
             .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
             .where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id)));
+          
           // Cancelar lembretes pendentes desta mensalidade
           await db.update(reminders)
             .set({ status: "cancelado", cancelledAt: new Date(), updatedAt: new Date() })
             .where(and(eq(reminders.paymentDueId, input.id), eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id), eq(reminders.status, "pendente")));
+          
+          if (paymentDetails) {
+            const valor = Number(paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            await notifyUser(ctx.user.id, {
+              title: "Pagamento Confirmado",
+              content: `O aluno ${paymentDetails.studentName || "Aluno"} teve o pagamento confirmado no valor de ${valor}.`,
+            });
+          }
+
           return { success: true };
         } catch (error) {
           return handleDbError(error, "marcar mensalidade como paga");
@@ -4231,6 +4259,12 @@ Instruções de análise:
             })
             .where(eq(paymentDues.id, payment.id));
 
+          const valor = Number(payment.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          await notifyUser(student.professorId, {
+            title: "Pagamento Confirmado",
+            content: `O aluno ${student.name || "Aluno"} pagou a mensalidade de ${valor} via PIX (validado por IA).`,
+          });
+
           return {
             success: true,
             verified: true,
@@ -4241,6 +4275,45 @@ Instruções de análise:
           console.error("[verifyAndConfirmPayment] Erro na análise do Gemini:", error);
           throw new Error("Ocorreu um erro ao analisar o comprovante com a IA. Tente novamente mais tarde.");
         }
+      }),
+    completeExercise: studentProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        const [exercise] = await db.select({
+          id: studentGoals.id,
+          title: studentGoals.title,
+          userId: studentGoals.userId,
+          studentName: students.name,
+        })
+        .from(studentGoals)
+        .leftJoin(students, eq(studentGoals.studentId, students.id))
+        .where(and(eq(studentGoals.id, input.id), eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId)))
+        .limit(1);
+
+        if (!exercise) throw new Error("Exercício não encontrado.");
+
+        await db.update(studentGoals)
+          .set({ status: "concluida", completedAt: new Date(), updatedAt: new Date() })
+          .where(eq(studentGoals.id, input.id));
+
+        // Notify the professor (exercise.userId)
+        await notifyUser(exercise.userId, {
+          title: "Exercício Concluído",
+          content: `O aluno ${exercise.studentName || "Aluno"} concluiu a atividade "${exercise.title}".`
+        });
+
+        return { success: true };
       }),
   }),
 

@@ -1,5 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import { ENV } from "./env";
+import { sendPushNotification } from "../firebaseAdmin";
+import { getDb } from "../db";
+import { fcmTokens } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 export type NotificationPayload = {
   title: string;
@@ -103,3 +107,46 @@ export async function notifyOwner(
     return false;
   }
 }
+
+/**
+ * Sends a notification to a specific user via FCM Push Notifications and also
+ * sends it to the developer/owner via notifyOwner for visibility.
+ */
+export async function notifyUser(
+  userId: number,
+  payload: NotificationPayload
+): Promise<boolean> {
+  const { title, content } = validatePayload(payload);
+
+  // Send push notification via FCM to the user
+  try {
+    const db = await getDb();
+    if (!db) {
+      console.warn("[Notification] Database not available for notifyUser");
+    } else {
+      const tokens = await db.select().from(fcmTokens).where(eq(fcmTokens.userId, userId));
+      if (tokens.length === 0) {
+        console.log(`[Push] No FCM tokens registered for userId ${userId}`);
+      } else {
+        let sentCount = 0;
+        for (const device of tokens) {
+          const success = await sendPushNotification(device.token, title, content);
+          if (success) sentCount++;
+        }
+        console.log(`[Push] Sent ${sentCount} notifications to userId ${userId}`);
+      }
+    }
+  } catch (error) {
+    console.error(`[Push] Error fetching tokens or sending notification to userId ${userId}:`, error);
+  }
+
+  // Also notify developer/owner as fallback/system log
+  try {
+    await notifyOwner({ title, content });
+  } catch (error) {
+    console.error("[Notification] Error calling notifyOwner inside notifyUser:", error);
+  }
+
+  return true;
+}
+

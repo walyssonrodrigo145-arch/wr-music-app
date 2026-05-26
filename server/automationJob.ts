@@ -5,7 +5,7 @@
  */
 
 import { eq, and, gte, lte, desc, sql, or, like } from "drizzle-orm";
-import { notifyOwner } from "./_core/notification";
+import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
 import { sendWhatsAppMessage } from "./utils/whatsapp";
@@ -324,12 +324,66 @@ async function runAutomation() {
         }
       }
 
+      // ─── 4. ALERTA DE AULA (1 HORA OU 30 MINUTOS ANTES) ─────────────────────
+      // Busca aulas agendadas nas próximas 1h15m (75 minutos)
+      const maxAlertTime = new Date(now.getTime() + 75 * 60 * 1000);
+      const upcomingLessons = await db
+        .select({
+          id: lessons.id,
+          title: lessons.title,
+          scheduledAt: lessons.scheduledAt,
+          alertSent1h: lessons.alertSent1h,
+          alertSent30m: lessons.alertSent30m,
+          studentName: students.name,
+        })
+        .from(lessons)
+        .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
+        .where(
+          and(
+            eq(lessons.organizationId, orgId),
+            eq(lessons.userId, userId),
+            eq(lessons.status, "agendada"),
+            gte(lessons.scheduledAt, now),
+            lte(lessons.scheduledAt, maxAlertTime)
+          )
+        );
+
+      for (const lesson of upcomingLessons) {
+        const diffMinutes = Math.round((new Date(lesson.scheduledAt).getTime() - now.getTime()) / (60 * 1000));
+        
+        // Alerta de 1 hora (entre 50 e 70 minutos para tolerância)
+        if (diffMinutes >= 50 && diffMinutes <= 70 && !lesson.alertSent1h) {
+          await notifyUser(userId, {
+            title: "Alerta de Aula",
+            content: `Sua aula "${lesson.title}" com ${lesson.studentName || "Aluno"} começa em 1 hora (${new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}).`
+          });
+          
+          await db
+            .update(lessons)
+            .set({ alertSent1h: true, updatedAt: new Date() })
+            .where(eq(lessons.id, lesson.id));
+        }
+        
+        // Alerta de 30 minutos (entre 20 e 40 minutos para tolerância)
+        if (diffMinutes >= 20 && diffMinutes <= 40 && !lesson.alertSent30m) {
+          await notifyUser(userId, {
+            title: "Alerta de Aula",
+            content: `Sua aula "${lesson.title}" com ${lesson.studentName || "Aluno"} começa em 30 minutos (${new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}).`
+          });
+          
+          await db
+            .update(lessons)
+            .set({ alertSent30m: true, updatedAt: new Date() })
+            .where(eq(lessons.id, lesson.id));
+        }
+      }
+
       await db.update(settings).set({ automationLastRun: now }).where(eq(settings.userId, userId));
 
       if (remindersCreated > 0) {
-        await notifyOwner({
-          title: "🔔 Novos Lembretes Disponíveis",
-          content: `O robô gerou ${remindersCreated} novos lembretes para você revisar e enviar aos alunos.`
+        await notifyUser(userId, {
+          title: "Lembretes Gerados",
+          content: `O robô gerou ${remindersCreated} novos lembretes de aula e/ou cobrança do dia.`
         });
       }
 
@@ -440,6 +494,11 @@ async function runAutomation() {
               })
               .where(eq(reminders.id, rem.id));
             sentMap.add(remKey);
+
+            await notifyUser(userId, {
+              title: "Mensagem Enviada",
+              content: `Lembrete enviado com sucesso para ${rem.studentName || "Aluno"} (${targetPhone}).`,
+            });
           } else {
             await db.update(reminders)
               .set({

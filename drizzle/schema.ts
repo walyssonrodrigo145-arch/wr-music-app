@@ -126,6 +126,8 @@ export const lessons = pgTable("lessons", {
   rating: integer("rating"),
   instrumentId: integer("instrumentId"),
   recurringGroupId: varchar("recurringGroupId", { length: 100 }),
+  alertSent1h: boolean("alertSent1h").default(false).notNull(),
+  alertSent30m: boolean("alertSent30m").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
