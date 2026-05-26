@@ -252,7 +252,6 @@ function WhatsAppSessionManager() {
   const logoutSession = trpc.whatsapp.logout.useMutation();
   const testConnection = trpc.whatsapp.testConnection.useMutation();
   const getStatusQuery = trpc.whatsapp.getStatus.useQuery(undefined, {
-    enabled: step === "PAIRING" || step === "CONNECTED",
     refetchInterval: step === "PAIRING" ? 3000 : false, // Polling a cada 3s se PAIRING
   });
 
@@ -264,8 +263,10 @@ function WhatsAppSessionManager() {
       if (getStatusQuery.data.status === "CONNECTED") {
         setStep("CONNECTED");
         setConnectedPhone(getStatusQuery.data.phone || phoneNumber || "Conectado");
-      } else if (getStatusQuery.data.status === "DISCONNECTED" && step === "CONNECTED") {
-        setStep("DISCONNECTED");
+      } else if (getStatusQuery.data.status === "DISCONNECTED") {
+        if (step !== "DISCONNECTED") {
+          setStep("DISCONNECTED");
+        }
       } else if (getStatusQuery.data.status === "PAIRING") {
         const pairingData = getStatusQuery.data as any;
         if (pairingData.qr && !qrString) {
@@ -278,6 +279,9 @@ function WhatsAppSessionManager() {
           setQrString(rawQr);
         }
         if (pairingData.pairingCode && !pairingCode) setPairingCode(pairingData.pairingCode);
+        if (step !== "PAIRING") {
+          setStep("PAIRING");
+        }
       }
     }
   }, [getStatusQuery.data, step]);
@@ -370,6 +374,15 @@ function WhatsAppSessionManager() {
     toast.success("Código copiado para a área de transferência!");
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (getStatusQuery.isLoading) {
+    return (
+      <div className="bg-card/80 backdrop-blur-xl rounded-[2.5rem] border border-border shadow-2xl p-6 lg:p-10 flex flex-col items-center justify-center min-h-[300px]">
+        <Loader2 size={36} className="animate-spin text-indigo-500 mb-4" />
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Verificando status de conexão...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card/80 backdrop-blur-xl rounded-[2.5rem] border border-border shadow-2xl p-6 lg:p-10 transition-all duration-500 overflow-hidden relative mb-8">
