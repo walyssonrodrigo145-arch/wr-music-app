@@ -73,22 +73,22 @@ export default function StudentExercises() {
                   {exercise.targetDate ? `Entrega até ${format(new Date(exercise.targetDate), "dd 'de' MMMM", { locale: ptBR })}` : "Sem prazo"}
                 </div>
               </div>
-              <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors truncate">{exercise.title}</h3>
-              <p className="text-sm font-medium text-muted-foreground line-clamp-1">{exercise.description || "Nenhuma instrução adicional informada pelo professor."}</p>
+              <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors line-clamp-2">{exercise.title}</h3>
+              <p className="text-sm font-medium text-muted-foreground line-clamp-2">{exercise.description || "Nenhuma instrução adicional informada pelo professor."}</p>
             </div>
 
-            <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
               {isCompleted ? (
                 <div className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-green-50 dark:bg-green-500/5 text-green-600 font-black text-[10px] uppercase tracking-widest border border-green-100 dark:border-green-500/10">
                    <Trophy size={14} /> Nota: 9.5
                 </div>
               ) : (
-                <button className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
-                  <Send size={16} />
-                  Enviar Atividade
+                <button className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-2 sm:px-8 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all overflow-hidden">
+                  <Send size={16} className="shrink-0" />
+                  <span className="truncate">Enviar Atividade</span>
                 </button>
               )}
-              <button className="w-12 h-12 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center">
+              <button className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center">
                 <ChevronRight size={20} />
               </button>
             </div>
@@ -117,11 +117,11 @@ export default function StudentExercises() {
       </div>
 
       <Tabs defaultValue="pendentes" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="bg-muted/50 p-1 rounded-2xl border border-border mb-8 max-w-md">
-          <TabsTrigger value="pendentes" className="rounded-xl font-black text-[10px] uppercase tracking-widest px-8 data-[state=active]:bg-card data-[state=active]:shadow-md transition-all h-10">
+        <TabsList className="bg-muted/50 p-1 rounded-2xl border border-border mb-8 w-full max-w-md grid grid-cols-2">
+          <TabsTrigger value="pendentes" className="rounded-xl font-black text-[10px] uppercase tracking-wider sm:tracking-widest px-2 sm:px-8 data-[state=active]:bg-card data-[state=active]:shadow-md transition-all h-10">
             Pendentes ({pending.length})
           </TabsTrigger>
-          <TabsTrigger value="corrigidos" className="rounded-xl font-black text-[10px] uppercase tracking-widest px-8 data-[state=active]:bg-card data-[state=active]:shadow-md transition-all h-10">
+          <TabsTrigger value="corrigidos" className="rounded-xl font-black text-[10px] uppercase tracking-wider sm:tracking-widest px-2 sm:px-8 data-[state=active]:bg-card data-[state=active]:shadow-md transition-all h-10">
             Histórico ({completed.length})
           </TabsTrigger>
         </TabsList>
@@ -163,13 +163,13 @@ export default function StudentExercises() {
       </Tabs>
 
       <Card className="border-none shadow-md bg-secondary/30 rounded-2xl overflow-hidden">
-        <CardContent className="p-5 flex items-center gap-4">
-           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+        <CardContent className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4">
+           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
              <Info size={20} />
            </div>
-           <div className="flex-1">
-             <p className="text-xs font-black text-primary uppercase tracking-widest">Dica do Professor</p>
-             <p className="text-xs text-muted-foreground font-medium mt-0.5">A prática diária de 15 minutos é mais eficaz que 2 horas em um único dia. Mantenha o ritmo!</p>
+           <div className="flex-1 min-w-0">
+             <p className="text-[10px] sm:text-xs font-black text-primary uppercase tracking-wider sm:tracking-widest leading-tight">Dica do Professor</p>
+             <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mt-1">A prática diária de 15 minutos é mais eficaz que 2 horas em um único dia. Mantenha o ritmo!</p>
            </div>
         </CardContent>
       </Card>
