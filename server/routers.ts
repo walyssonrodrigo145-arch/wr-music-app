@@ -2,6 +2,7 @@ import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
+import { fcmRouter } from "./fcmRouter";
 import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, router } from "./_core/trpc";
 import {
   getDashboardStats,
@@ -4884,6 +4885,7 @@ Instruções de análise:
         }
       }),
   }),
+  fcm: fcmRouter,
 });
 
 export type AppRouter = typeof appRouter;

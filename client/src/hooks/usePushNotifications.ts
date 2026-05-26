@@ -1,9 +1,7 @@
-/**
- * Hook para gerenciar notificações do navegador (Web Notifications API).
- * Solicita permissão ao usuário e expõe função para exibir notificações.
- */
-
 import { useCallback, useEffect, useState } from "react";
+import { requestForToken, onMessageListener } from "../lib/firebaseConfig";
+import { trpc } from "../lib/trpc";
+import { toast } from "sonner";
 
 export type NotificationPermission = "default" | "granted" | "denied";
 
@@ -11,18 +9,34 @@ export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof Notification !== "undefined" ? Notification.permission : "default"
   );
-
+  
+  const registerToken = trpc.fcm.registerToken.useMutation();
   const isSupported = typeof Notification !== "undefined";
 
-  /** Solicita permissão ao usuário */
+  /** Solicita permissão ao usuário e cadastra o Token no backend FCM */
   const requestPermission = useCallback(async () => {
     if (!isSupported) return "denied" as NotificationPermission;
     const result = await Notification.requestPermission();
     setPermission(result);
+    
+    if (result === "granted") {
+      try {
+        const token = await requestForToken();
+        if (token) {
+          console.log("Registrando token no backend...");
+          await registerToken.mutateAsync({
+            token,
+            deviceInfo: navigator.userAgent
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao registrar FCM token:", err);
+      }
+    }
     return result;
-  }, [isSupported]);
+  }, [isSupported, registerToken]);
 
-  /** Exibe uma notificação do navegador */
+  /** Exibe uma notificação local do navegador (Fallback) */
   const showNotification = useCallback(
     (title: string, options?: NotificationOptions & { onClick?: (e: Event) => void }) => {
       if (!isSupported || Notification.permission !== "granted") return null;
@@ -51,10 +65,38 @@ export function usePushNotifications() {
   useEffect(() => {
     if (!isSupported) return;
     const check = () => setPermission(Notification.permission);
-    // Verificar a cada vez que a janela ganha foco (usuário pode ter mudado nas configs)
     window.addEventListener("focus", check);
     return () => window.removeEventListener("focus", check);
   }, [isSupported]);
+
+  /** Se a permissão já foi concedida antes, garante que o token seja registrado silenciosamente */
+  useEffect(() => {
+    if (isSupported && Notification.permission === "granted") {
+      requestPermission();
+    }
+  }, [isSupported, requestPermission]);
+
+  /** Escuta notificações FCM no Foreground (Aba aberta) */
+
+  useEffect(() => {
+    let mounted = true;
+    const listenToMessages = async () => {
+      try {
+        const payload: any = await onMessageListener();
+        if (mounted && payload?.notification) {
+          toast(payload.notification.title, {
+            description: payload.notification.body,
+          });
+          listenToMessages(); // Escuta a próxima mensagem
+        }
+      } catch (err) {
+         console.error('Falha ao escutar mensagens do FCM:', err);
+      }
+    };
+    
+    listenToMessages();
+    return () => { mounted = false; };
+  }, []);
 
   return { permission, isSupported, requestPermission, showNotification };
 }

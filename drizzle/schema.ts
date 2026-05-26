@@ -410,3 +410,16 @@ export type AiMessage = typeof aiMessages.$inferSelect;
 export type InsertAiMessage = typeof aiMessages.$inferInsert;
 export type ChatbotSession = typeof chatbotSessions.$inferSelect;
 export type InsertChatbotSession = typeof chatbotSessions.$inferInsert;
+
+export const fcmTokens = pgTable("fcm_tokens", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(),
+  token: text("token").notNull().unique(),
+  deviceInfo: text("deviceInfo"), // e.g., "Chrome on Windows", "iPhone", etc.
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type FcmToken = typeof fcmTokens.$inferSelect;
+export type InsertFcmToken = typeof fcmTokens.$inferInsert;

@@ -159,7 +159,6 @@ export default function StudentDashboard() {
               <Card className="border border-border/40 shadow-xl bg-card/40 backdrop-blur-md h-full rounded-[2rem] overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/30 mx-6 px-0">
                   <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/10 text-primary">
                       <Bell size={18} />
                     </div>
@@ -194,7 +193,6 @@ export default function StudentDashboard() {
             <motion.div variants={item}>
               <Card className="border border-border/40 shadow-xl bg-card/40 backdrop-blur-md h-full rounded-[2rem] overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/30 mx-6 px-0">
-                  <div className="flex items-center gap-3">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/10 text-primary">
                       <BookOpen size={18} />
