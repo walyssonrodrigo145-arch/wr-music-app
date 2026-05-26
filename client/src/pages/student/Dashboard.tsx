@@ -26,7 +26,7 @@ import {
   ClipboardCheck,
   Circle
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -50,6 +50,7 @@ const item = {
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const { data: dashboard, isLoading } = trpc.studentPortal.getDashboard.useQuery();
 
   if (isLoading) {
@@ -158,14 +159,13 @@ export default function StudentDashboard() {
               <Card className="border border-border/40 shadow-xl bg-card/40 backdrop-blur-md h-full rounded-[2rem] overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/30 mx-6 px-0">
                   <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/10 text-primary">
                       <Bell size={18} />
                     </div>
                     <CardTitle className="text-lg font-bold tracking-tight">Últimos Avisos</CardTitle>
                   </div>
-                  <Link href="/aluno/avisos">
-                    <button className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline px-3 py-1 bg-primary/5 rounded-full border border-primary/10">Ver todos</button>
-                  </Link>
+                  <button onClick={() => navigate('/aluno/avisos')} className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline px-3 py-1 bg-primary/5 rounded-full border border-primary/10">Ver todos</button>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
                   {dashboard?.announcements?.map((aviso: any) => (
@@ -195,14 +195,13 @@ export default function StudentDashboard() {
               <Card className="border border-border/40 shadow-xl bg-card/40 backdrop-blur-md h-full rounded-[2rem] overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/30 mx-6 px-0">
                   <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/10 text-primary">
                       <BookOpen size={18} />
                     </div>
                     <CardTitle className="text-lg font-bold tracking-tight">Materiais Recentes</CardTitle>
                   </div>
-                  <Link href="/aluno/materiais">
-                    <button className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline px-3 py-1 bg-primary/5 rounded-full border border-primary/10">Explorar</button>
-                  </Link>
+                  <button onClick={() => navigate('/aluno/materiais')} className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline px-3 py-1 bg-primary/5 rounded-full border border-primary/10">Explorar</button>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
                   {dashboard?.materials?.map((mat: any) => (
@@ -279,11 +278,9 @@ export default function StudentDashboard() {
                           </div>
                         </div>
                       ))}
-                      <Link href="/aluno/pagamentos">
-                         <button className="w-full mt-4 py-4 rounded-2xl bg-primary text-white text-xs font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
-                            Gerenciar Financeiro
-                         </button>
-                      </Link>
+                      <button onClick={() => navigate('/aluno/pagamentos')} className="w-full mt-4 py-4 rounded-2xl bg-primary text-white text-xs font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                         Gerenciar Financeiro
+                      </button>
                     </TabsContent>
                   </Tabs>
                 </CardContent>
@@ -318,11 +315,9 @@ export default function StudentDashboard() {
                       </div>
                     </Link>
                   ))}
-                  <Link href="/aluno/mensagens">
-                     <button className="w-full mt-4 py-4 rounded-2xl border-2 border-dashed border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/5 transition-all">
-                        Nova Mensagem
-                     </button>
-                  </Link>
+                  <button onClick={() => navigate('/aluno/mensagens')} className="w-full mt-4 py-4 rounded-2xl border-2 border-dashed border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/5 transition-all">
+                     Nova Mensagem
+                  </button>
                 </CardContent>
               </Card>
             </motion.div>
@@ -359,7 +354,7 @@ export default function StudentDashboard() {
                           <p className="text-xl font-black">{dashboard.teacherName.split(' ')[0]}</p>
                        </div>
                     </div>
-                    <button className="w-full mt-10 py-5 bg-white text-primary rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-black/20 hover:scale-[1.05] active:scale-95 transition-all">
+                    <button onClick={() => navigate('/aluno/aulas')} className="w-full mt-10 py-5 bg-white text-primary rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-black/20 hover:scale-[1.05] active:scale-95 transition-all">
                        Ver Conteúdo da Aula
                     </button>
                  </CardContent>
@@ -408,7 +403,7 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                     ))}
-                    <button className="w-full mt-4 py-4 text-xs font-black text-primary hover:bg-primary/5 rounded-2xl transition-colors uppercase tracking-[0.1em]">
+                    <button onClick={() => navigate('/aluno/exercicios')} className="w-full mt-4 py-4 text-xs font-black text-primary hover:bg-primary/5 rounded-2xl transition-colors uppercase tracking-[0.1em]">
                       Abrir Área de Treino
                     </button>
                   </TabsContent>
@@ -429,7 +424,7 @@ export default function StudentDashboard() {
                 </div>
               </CardHeader>
               <CardContent className="p-8 pt-2 space-y-4">
-                <button onClick={() => window.location.href = '/aluno/solicitar-reposicao'} className="w-full flex items-center justify-between p-5 rounded-2xl bg-background/40 border border-border/40 hover:bg-primary/5 hover:border-primary/20 transition-all group shadow-sm">
+                <button onClick={() => navigate('/aluno/solicitar-reposicao')} className="w-full flex items-center justify-between p-5 rounded-2xl bg-background/40 border border-border/40 hover:bg-primary/5 hover:border-primary/20 transition-all group shadow-sm">
                    <div className="flex items-center gap-4">
                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                        <PlusCircle size={20} />
@@ -439,7 +434,7 @@ export default function StudentDashboard() {
                    <ChevronRight size={16} className="text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                 </button>
 
-                <button onClick={() => window.location.href = '/aluno/solicitar-remarcacao'} className="w-full flex items-center justify-between p-5 rounded-2xl bg-background/40 border border-border/40 hover:bg-primary/5 hover:border-primary/20 transition-all group shadow-sm">
+                <button onClick={() => navigate('/aluno/solicitar-remarcacao')} className="w-full flex items-center justify-between p-5 rounded-2xl bg-background/40 border border-border/40 hover:bg-primary/5 hover:border-primary/20 transition-all group shadow-sm">
                    <div className="flex items-center gap-4">
                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                        <Clock size={20} />
