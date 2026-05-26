@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { toast } from "sonner";
 
 const container = {
   hidden: { opacity: 0 },
@@ -33,8 +34,20 @@ const item = {
 };
 
 export default function StudentExercises() {
+  const utils = trpc.useContext();
   const { data: exercises, isLoading } = trpc.studentPortal.getExercises.useQuery();
   const [activeTab, setActiveTab] = useState("pendentes");
+
+  const completeMutation = trpc.studentPortal.completeExercise.useMutation({
+    onSuccess: () => {
+      utils.studentPortal.getExercises.invalidate();
+      utils.studentPortal.getDashboard.invalidate();
+      toast.success("Atividade enviada com sucesso! O professor será notificado.");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao enviar atividade. Tente novamente.");
+    }
+  });
 
   if (isLoading) return (
     <div className="flex items-center justify-center min-h-[40vh]">
@@ -83,9 +96,13 @@ export default function StudentExercises() {
                    <Trophy size={14} /> Nota: 9.5
                 </div>
               ) : (
-                <button className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-2 sm:px-8 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all overflow-hidden">
-                  <Send size={16} className="shrink-0" />
-                  <span className="truncate">Enviar Atividade</span>
+                <button 
+                  onClick={() => completeMutation.mutate({ id: exercise.id })}
+                  disabled={completeMutation.isLoading}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-2 sm:px-8 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all overflow-hidden disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  <Send size={16} className={cn("shrink-0", completeMutation.isLoading && "animate-pulse")} />
+                  <span className="truncate">{completeMutation.isLoading ? "Enviando..." : "Enviar Atividade"}</span>
                 </button>
               )}
               <button className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center">
