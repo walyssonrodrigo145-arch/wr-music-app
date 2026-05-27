@@ -227,13 +227,12 @@ export default function LessonDetailModal({
                       onClick={() => {
                         const fullDate = new Date(`${newDate}T${newTime}:00`);
                         onStatusChange(lesson.id, "remarcada", fullDate.toISOString());
-                        onOpenChange(false);
                       }}
                       className="flex-1 h-14 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     >
                        <Save size={16} /> Confirmar Novo Horário
                     </button>
-                 </div>
+                  </div>
                )}
 
                <div className="flex gap-2">
@@ -245,7 +244,7 @@ export default function LessonDetailModal({
                      Editar Completo
                   </button>
                   <button 
-                    onClick={() => { onDelete(lesson.id); onOpenChange(false); }}
+                    onClick={() => onDelete(lesson.id)}
                     className="w-14 h-14 flex items-center justify-center bg-muted/20 hover:bg-rose-500/10 text-muted-foreground/30 hover:text-rose-500 rounded-2xl transition-all"
                   >
                      <Trash2 size={20} />
@@ -257,4 +256,3 @@ export default function LessonDetailModal({
     </ResponsiveDialog>
   );
 }
-
