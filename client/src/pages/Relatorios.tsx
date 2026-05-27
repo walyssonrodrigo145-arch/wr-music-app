@@ -895,25 +895,16 @@ const Relatorios: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 font-sans animate-fade-in bg-surface min-h-screen text-on-surface">
-      <header className="mb-10 animate-fade-in-up">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-secondary-fixed text-on-secondary-fixed rounded-full text-xs font-bold tracking-wider uppercase mb-4">
-          <LineIcon className="w-4 h-4" />
-          ERP SaaS Premium Preditivo
-        </div>
-        <h1 className="text-4xl lg:text-5xl font-bold text-primary mb-2 tracking-tight">Relatórios<br className="hidden md:block"/> Preditivos</h1>
-        <p className="text-xl font-semibold text-on-surface-variant/80 uppercase tracking-wide">Dashboard de inteligência financeira e operacional</p>
-      </header>
-
-      <div className="mb-8 border-b border-outline-variant/30 overflow-x-auto">
+      <div className="mb-8 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
         <nav className="flex gap-8 min-w-max pb-px">
           {(['financeiro', 'despesas', 'projecao', 'alunos', 'aulas', 'instrumentos', 'mensalidades', 'modalidades'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={cn("pb-4 text-sm whitespace-nowrap px-1 transition-colors",
+              className={cn("pb-4 text-sm whitespace-nowrap px-1 transition-all duration-200 relative",
                 activeTab === tab 
-                  ? "font-bold text-secondary border-b-2 border-secondary" 
-                  : "font-semibold text-on-surface-variant hover:text-on-surface"
+                  ? "font-black text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400" 
+                  : "font-bold text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
               )}
             >
               {tab === 'despesas' ? 'Despesas & Lucro' : tab === 'projecao' ? 'Projeção 6M' : tab.charAt(0).toUpperCase() + tab.slice(1)}
