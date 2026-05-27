@@ -35,6 +35,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { differenceInYears, parseISO, isValid } from "date-fns";
 
+const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
+
 export default function NovoAluno() {
   const [location, setLocation] = useLocation();
 
@@ -165,14 +167,22 @@ export default function NovoAluno() {
       setLocation("/alunos");
     },
     onError: (e) => {
-      // Extract friendly message instead of raw Zod JSON
       let msg = e.message;
       try {
-        const parsed = JSON.parse(msg);
-        if (Array.isArray(parsed) && parsed[0]?.message) {
-          msg = parsed.map((err: any) => err.message).join(", ");
+        if (msg.startsWith('[') && msg.endsWith(']')) {
+          const parsed = JSON.parse(msg);
+          if (Array.isArray(parsed)) {
+            msg = parsed.map((err: any) => err.message).join(", ");
+          }
         }
       } catch {}
+      
+      if (msg.includes("unique constraint") || msg.includes("duplicate key")) {
+        msg = "Este registro já existe (e-mail ou CPF duplicado).";
+      } else if (msg.includes("foreign key constraint")) {
+        msg = "Não foi possível realizar esta ação devido a dependências de outros registros.";
+      }
+      
       toast.error("Erro ao cadastrar aluno: " + msg);
       setIsSaving(false);
     }
@@ -188,11 +198,20 @@ export default function NovoAluno() {
     onError: (e) => {
       let msg = e.message;
       try {
-        const parsed = JSON.parse(msg);
-        if (Array.isArray(parsed) && parsed[0]?.message) {
-          msg = parsed.map((err: any) => err.message).join(", ");
+        if (msg.startsWith('[') && msg.endsWith(']')) {
+          const parsed = JSON.parse(msg);
+          if (Array.isArray(parsed)) {
+            msg = parsed.map((err: any) => err.message).join(", ");
+          }
         }
       } catch {}
+      
+      if (msg.includes("unique constraint") || msg.includes("duplicate key")) {
+        msg = "Este registro já existe (e-mail ou CPF duplicado).";
+      } else if (msg.includes("foreign key constraint")) {
+        msg = "Não foi possível realizar esta ação devido a dependências de outros registros.";
+      }
+      
       toast.error("Erro ao atualizar aluno: " + msg);
       setIsSaving(false);
     }
@@ -201,17 +220,95 @@ export default function NovoAluno() {
   const handleSave = async () => {
     // Basic validation
     const newErrors: Record<string, string> = {};
-    if (!form.name.trim()) newErrors.name = "Nome é obrigatório";
-    if (!form.phone.trim()) newErrors.phone = "Telefone é obrigatório";
     
+    // Name validation
+    if (!form.name.trim()) {
+      newErrors.name = "Nome é obrigatório";
+    } else if (!nameRegex.test(form.name.trim())) {
+      newErrors.name = "O nome deve conter apenas letras";
+    }
+
+    // Phone validation
+    const cleanPhone = form.phone.replace(/\D/g, "");
+    if (!form.phone.trim()) {
+      newErrors.phone = "Telefone é obrigatório";
+    } else if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+      newErrors.phone = "Telefone deve ter 10 ou 11 dígitos";
+    } else if (/^0+$/.test(cleanPhone)) {
+      newErrors.phone = "Telefone inválido (não pode conter apenas zeros)";
+    }
+
+    // CPF validation
+    const cleanCPF = form.cpf.replace(/\D/g, "");
+    if (cleanCPF) {
+      if (cleanCPF.length !== 11) {
+        newErrors.cpf = "CPF deve ter 11 dígitos";
+      } else if (/^(\d)\1{10}$/.test(cleanCPF)) {
+        newErrors.cpf = "CPF inválido (não pode conter apenas dígitos repetidos)";
+      } else {
+        // CPF Checksum validation
+        let sum = 0;
+        for (let i = 0; i < 9; i++) sum += parseInt(cleanCPF.charAt(i)) * (10 - i);
+        let rev = 11 - (sum % 11);
+        if (rev === 10 || rev === 11) rev = 0;
+        if (rev !== parseInt(cleanCPF.charAt(9))) {
+          newErrors.cpf = "CPF inválido";
+        } else {
+          sum = 0;
+          for (let i = 0; i < 10; i++) sum += parseInt(cleanCPF.charAt(i)) * (11 - i);
+          rev = 11 - (sum % 11);
+          if (rev === 10 || rev === 11) rev = 0;
+          if (rev !== parseInt(cleanCPF.charAt(10))) {
+            newErrors.cpf = "CPF inválido";
+          }
+        }
+      }
+    }
+
+    // RG validation
+    const cleanRG = form.rg.replace(/[^a-zA-Z0-9]/g, "");
+    if (cleanRG) {
+      if (cleanRG.length < 5) {
+        newErrors.rg = "RG deve ter pelo menos 5 caracteres";
+      } else if (/^0+$/.test(cleanRG)) {
+        newErrors.rg = "RG inválido (não pode conter apenas zeros)";
+      }
+    }
+
+    // Guardian validations (if minor)
     if (isMinor) {
-      if (!form.guardianName.trim()) newErrors.guardianName = "Nome do responsável é obrigatório";
-      if (!form.guardianPhone.trim()) newErrors.guardianPhone = "Telefone do responsável é obrigatório";
+      if (!form.guardianName.trim()) {
+        newErrors.guardianName = "Nome do responsável é obrigatório";
+      } else if (!nameRegex.test(form.guardianName.trim())) {
+        newErrors.guardianName = "O nome do responsável deve conter apenas letras";
+      }
+
+      const cleanGuardianPhone = form.guardianPhone.replace(/\D/g, "");
+      if (!form.guardianPhone.trim()) {
+        newErrors.guardianPhone = "Telefone do responsável é obrigatório";
+      } else if (cleanGuardianPhone.length < 10 || cleanGuardianPhone.length > 11) {
+        newErrors.guardianPhone = "Telefone do responsável deve ter 10 ou 11 dígitos";
+      } else if (/^0+$/.test(cleanGuardianPhone)) {
+        newErrors.guardianPhone = "Telefone do responsável inválido (não pode conter apenas zeros)";
+      }
+    } else {
+      // If not minor, but guardianPhone is filled, validate it
+      const cleanGuardianPhone = form.guardianPhone.replace(/\D/g, "");
+      if (cleanGuardianPhone) {
+        if (cleanGuardianPhone.length < 10 || cleanGuardianPhone.length > 11) {
+          newErrors.guardianPhone = "Telefone do responsável deve ter 10 ou 11 dígitos";
+        } else if (/^0+$/.test(cleanGuardianPhone)) {
+          newErrors.guardianPhone = "Telefone do responsável inválido (não pode conter apenas zeros)";
+        }
+      }
+      if (form.guardianName.trim() && !nameRegex.test(form.guardianName.trim())) {
+        newErrors.guardianName = "O nome do responsável deve conter apenas letras";
+      }
     }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      toast.error("Por favor, preencha os campos obrigatórios");
+      toast.error("Por favor, verifique os campos destacados em vermelho.");
       return;
     }
 
@@ -453,10 +550,14 @@ export default function NovoAluno() {
                         placeholder="000.000.000-00" 
                         value={form.cpf}
                         onChange={(e) => handleInputChange('cpf', e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11"
+                        className={cn(
+                          "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11",
+                          errors.cpf && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                        )}
                       />
                       <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
                     </div>
+                    {errors.cpf && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.cpf}</p>}
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">RG</label>
@@ -465,10 +566,14 @@ export default function NovoAluno() {
                         placeholder="00.000.000-0" 
                         value={form.rg}
                         onChange={(e) => handleInputChange('rg', e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11"
+                        className={cn(
+                          "h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-semibold pl-11",
+                          errors.rg && "border-rose-300 bg-rose-50/30 focus:ring-rose-500/10 focus:border-rose-500"
+                        )}
                       />
                       <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-indigo-500 transition-colors" size={18} />
                     </div>
+                    {errors.rg && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 ml-1"><AlertCircle size={10} /> {errors.rg}</p>}
                   </div>
                 </div>
               </div>

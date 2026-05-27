@@ -849,17 +849,53 @@ export const appRouter = router({
       return { success: true, email, password };
     }),
     create: protectedProcedure.input(z.object({
-      name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres"),
+      name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres").regex(/^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/, "O nome deve conter apenas letras"),
       socialName: z.string().optional().nullable(),
       email: z.string().email("E-mail inválido").or(z.literal("")).optional().nullable(),
-      phone: z.string().min(8, "Telefone é obrigatório"),
+      phone: z.string().min(8, "Telefone é obrigatório").refine((val) => {
+        const clean = val.replace(/\D/g, "");
+        return (clean.length === 10 || clean.length === 11) && !/^0+$/.test(clean);
+      }, "Telefone deve ter 10 ou 11 dígitos e não conter apenas zeros"),
       birthDate: z.string().optional().nullable(),
       gender: z.string().optional().nullable(),
-      cpf: z.string().optional().nullable(),
-      rg: z.string().optional().nullable(),
+      cpf: z.string().optional().nullable().refine((val) => {
+        if (!val) return true;
+        const clean = val.replace(/\D/g, "");
+        if (clean === "") return true;
+        if (clean.length !== 11) return false;
+        if (/^(\d)\1{10}$/.test(clean)) return false;
+        
+        let sum = 0;
+        for (let i = 0; i < 9; i++) sum += parseInt(clean.charAt(i)) * (10 - i);
+        let rev = 11 - (sum % 11);
+        if (rev === 10 || rev === 11) rev = 0;
+        if (rev !== parseInt(clean.charAt(9))) return false;
+        
+        sum = 0;
+        for (let i = 0; i < 10; i++) sum += parseInt(clean.charAt(i)) * (11 - i);
+        rev = 11 - (sum % 11);
+        if (rev === 10 || rev === 11) rev = 0;
+        if (rev !== parseInt(clean.charAt(10))) return false;
+        
+        return true;
+      }, "CPF inválido"),
+      rg: z.string().optional().nullable().refine((val) => {
+        if (!val) return true;
+        const clean = val.replace(/[^a-zA-Z0-9]/g, "");
+        if (clean === "") return true;
+        return clean.length >= 5 && !/^0+$/.test(clean);
+      }, "RG deve ter pelo menos 5 caracteres e não conter apenas zeros"),
       address: z.string().optional().nullable(),
-      guardianName: z.string().optional().nullable(),
-      guardianPhone: z.string().optional().nullable(),
+      guardianName: z.string().optional().nullable().refine((val) => {
+        if (!val) return true;
+        return /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]*$/.test(val);
+      }, "O nome do responsável deve conter apenas letras"),
+      guardianPhone: z.string().optional().nullable().refine((val) => {
+        if (!val) return true;
+        const clean = val.replace(/\D/g, "");
+        if (clean === "") return true;
+        return (clean.length === 10 || clean.length === 11) && !/^0+$/.test(clean);
+      }, "Telefone do responsável deve ter 10 ou 11 dígitos e não conter apenas zeros"),
       guardianEmail: z.string().email("E-mail do responsável inválido").or(z.literal("")).optional().nullable(),
       instrumentId: z.number().optional(),
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
@@ -939,18 +975,58 @@ export const appRouter = router({
 
     update: protectedProcedure.input(z.object({
       id: z.number(),
-      name: z.string().optional(),
+      name: z.string().optional().refine((val) => {
+        if (val === undefined) return true;
+        return val.trim().length >= 2 && /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/.test(val);
+      }, "O nome deve conter apenas letras e pelo menos 2 caracteres"),
       socialName: z.string().optional().nullable(),
       birthDate: z.string().optional().nullable(),
       gender: z.string().optional().nullable(),
-      cpf: z.string().optional().nullable(),
-      rg: z.string().optional().nullable(),
+      cpf: z.string().optional().nullable().refine((val) => {
+        if (!val) return true;
+        const clean = val.replace(/\D/g, "");
+        if (clean === "") return true;
+        if (clean.length !== 11) return false;
+        if (/^(\d)\1{10}$/.test(clean)) return false;
+        
+        let sum = 0;
+        for (let i = 0; i < 9; i++) sum += parseInt(clean.charAt(i)) * (10 - i);
+        let rev = 11 - (sum % 11);
+        if (rev === 10 || rev === 11) rev = 0;
+        if (rev !== parseInt(clean.charAt(9))) return false;
+        
+        sum = 0;
+        for (let i = 0; i < 10; i++) sum += parseInt(clean.charAt(i)) * (11 - i);
+        rev = 11 - (sum % 11);
+        if (rev === 10 || rev === 11) rev = 0;
+        if (rev !== parseInt(clean.charAt(10))) return false;
+        
+        return true;
+      }, "CPF inválido"),
+      rg: z.string().optional().nullable().refine((val) => {
+        if (!val) return true;
+        const clean = val.replace(/[^a-zA-Z0-9]/g, "");
+        if (clean === "") return true;
+        return clean.length >= 5 && !/^0+$/.test(clean);
+      }, "RG deve ter pelo menos 5 caracteres e não conter apenas zeros"),
       address: z.string().optional().nullable(),
-      guardianName: z.string().optional().nullable(),
-      guardianPhone: z.string().optional().nullable(),
+      guardianName: z.string().optional().nullable().refine((val) => {
+        if (!val) return true;
+        return /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]*$/.test(val);
+      }, "O nome do responsável deve conter apenas letras"),
+      guardianPhone: z.string().optional().nullable().refine((val) => {
+        if (!val) return true;
+        const clean = val.replace(/\D/g, "");
+        if (clean === "") return true;
+        return (clean.length === 10 || clean.length === 11) && !/^0+$/.test(clean);
+      }, "Telefone do responsável deve ter 10 ou 11 dígitos e não conter apenas zeros"),
       guardianEmail: z.string().email("E-mail do responsável inválido").or(z.literal("")).optional().nullable(),
       email: z.string().email("E-mail inválido").or(z.literal("")).optional().nullable(),
-      phone: z.string().min(8, "Telefone é obrigatório").optional(),
+      phone: z.string().min(8, "Telefone é obrigatório").optional().refine((val) => {
+        if (val === undefined) return true;
+        const clean = val.replace(/\D/g, "");
+        return (clean.length === 10 || clean.length === 11) && !/^0+$/.test(clean);
+      }, "Telefone deve ter 10 ou 11 dígitos e não conter apenas zeros"),
       instrumentId: z.number().optional().nullable(),
       level: z.enum(['iniciante', 'intermediario', 'avancado']).optional(),
       monthlyFee: z.number().optional(),
