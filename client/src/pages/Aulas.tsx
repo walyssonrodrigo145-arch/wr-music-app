@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import AgendarModal from "@/components/modals/AgendarModal";
 import LessonDetailModal from "@/components/modals/LessonDetailModal";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -554,59 +555,55 @@ export default function Aulas() {
       <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={selectedDate} />
       <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={handleDeleteRequest} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
 
-      {recurringAction && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100] animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-[2rem] border border-border p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="space-y-2">
-              <h4 className="text-lg font-black uppercase tracking-tight text-foreground">
-                {recurringAction.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente'}
-              </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={async () => {
-                  try {
-                    if (recurringAction.type === 'delete') {
-                      await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: false });
-                    } else {
-                      await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: false });
-                    }
-                  } catch (err) {}
-                  setRecurringAction(null);
-                }}
-                className="w-full h-12 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
-              >
-                {recurringAction.type === 'delete' ? 'Excluir apenas esta aula' : 'Remarcar apenas esta aula'}
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    if (recurringAction.type === 'delete') {
-                      await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: true });
-                    } else {
-                      await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: true });
-                    }
-                  } catch (err) {}
-                  setRecurringAction(null);
-                }}
-                className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
-              >
-                {recurringAction.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
-              </button>
-              <button
-                onClick={() => setRecurringAction(null)}
-                className="w-full h-12 rounded-xl border border-border text-muted-foreground hover:bg-muted/10 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
+      <ResponsiveDialog
+        open={!!recurringAction}
+        onOpenChange={(open) => {
+          if (!open) setRecurringAction(null);
+        }}
+        title={recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente'}
+        description="Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?"
+      >
+        <div className="flex flex-col gap-3 pb-8 md:pb-0">
+          <button
+            onClick={async () => {
+              if (!recurringAction) return;
+              try {
+                if (recurringAction.type === 'delete') {
+                  await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: false });
+                } else {
+                  await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: false });
+                }
+              } catch (err) {}
+              setRecurringAction(null);
+            }}
+            className="w-full h-12 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+          >
+            {recurringAction?.type === 'delete' ? 'Excluir apenas esta aula' : 'Remarcar apenas esta aula'}
+          </button>
+          <button
+            onClick={async () => {
+              if (!recurringAction) return;
+              try {
+                if (recurringAction.type === 'delete') {
+                  await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: true });
+                } else {
+                  await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: true });
+                }
+              } catch (err) {}
+              setRecurringAction(null);
+            }}
+            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
+          >
+            {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
+          </button>
+          <button
+            onClick={() => setRecurringAction(null)}
+            className="w-full h-12 rounded-xl border border-border text-muted-foreground hover:bg-muted/10 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+          >
+            Cancelar
+          </button>
         </div>
-      )}
+      </ResponsiveDialog>
     </div>
   );
 }
