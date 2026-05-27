@@ -44,26 +44,26 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --font-outfit: "Outfit", sans-serif;
   
-  /* Stitch Design System Colors */
-  --color-surface-container: #eceef0;
-  --color-surface-container-low: #f2f4f6;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-high: #e6e8ea;
-  --color-surface-container-highest: #e0e3e5;
-  --color-surface-dim: #d8dadc;
-  --color-surface: #f7f9fb;
-  --color-on-surface: #191c1e;
-  --color-on-surface-variant: #45464d;
-  --color-secondary-container: #6063ee;
-  --color-on-secondary-container: #fffbff;
-  --color-primary-fixed: #dae2fd;
-  --color-on-primary-fixed: #131b2e;
-  --color-outline-variant: #c6c6cd;
-  --color-secondary-fixed: #e1e0ff;
-  --color-on-secondary-fixed: #07006c;
-  --color-tertiary-container: #29074a;
-  --color-on-tertiary-container: #9676bb;
-  --color-tertiary-fixed: #efdbff;
+  /* Stitch Design System Colors mapped to CSS variables for Dark Mode compatibility */
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface: var(--surface);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-outline-variant: var(--outline-variant);
+  --color-secondary-fixed: var(--secondary-fixed);
+  --color-on-secondary-fixed: var(--on-secondary-fixed);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-tertiary-fixed: var(--tertiary-fixed);
   
   --spacing-margin-desktop: 40px;
   --spacing-margin-mobile: 16px;
@@ -112,6 +112,27 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
+
+  /* Stitch Design System Custom Light Values */
+  --surface-container: #eceef0;
+  --surface-container-low: #f2f4f6;
+  --surface-container-lowest: #ffffff;
+  --surface-container-high: #e6e8ea;
+  --surface-container-highest: #e0e3e5;
+  --surface-dim: #d8dadc;
+  --surface: #f7f9fb;
+  --on-surface: #191c1e;
+  --on-surface-variant: #45464d;
+  --secondary-container: #6063ee;
+  --on-secondary-container: #fffbff;
+  --primary-fixed: #dae2fd;
+  --on-primary-fixed: #131b2e;
+  --outline-variant: #c6c6cd;
+  --secondary-fixed: #e1e0ff;
+  --on-secondary-fixed: #07006c;
+  --tertiary-container: #29074a;
+  --on-tertiary-container: #9676bb;
+  --tertiary-fixed: #efdbff;
 }
 
 .dark {
@@ -148,6 +169,27 @@
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: oklch(0.18 0.03 265);
   --sidebar-ring: oklch(0.62 0.22 264);
+
+  /* Stitch Design System Custom Dark Values */
+  --surface-container: oklch(0.15 0.02 265);
+  --surface-container-low: oklch(0.14 0.02 265);
+  --surface-container-lowest: oklch(0.18 0.03 265);
+  --surface-container-high: oklch(0.22 0.03 265);
+  --surface-container-highest: oklch(0.26 0.03 265);
+  --surface-dim: oklch(0.12 0.02 265);
+  --surface: oklch(0.13 0.02 265);
+  --on-surface: oklch(0.93 0.01 260);
+  --on-surface-variant: oklch(0.70 0.02 260);
+  --secondary-container: oklch(0.24 0.08 265);
+  --on-secondary-container: oklch(0.90 0.01 260);
+  --primary-fixed: oklch(0.22 0.03 265);
+  --on-primary-fixed: oklch(0.93 0.01 260);
+  --outline-variant: oklch(0.25 0.03 265);
+  --secondary-fixed: oklch(0.22 0.03 265);
+  --on-secondary-fixed: oklch(0.93 0.01 260);
+  --tertiary-container: oklch(0.20 0.03 265);
+  --on-tertiary-container: oklch(0.90 0.01 260);
+  --tertiary-fixed: oklch(0.20 0.03 265);
 }
 
 @layer base {
