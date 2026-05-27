@@ -303,7 +303,7 @@ const Relatorios: React.FC = () => {
             value={currencyFormat(receitaPrevista)} 
             trend="+8%" 
             color="bg-indigo-100 text-indigo-600" 
-            icon="attach_money" 
+            icon={<DollarSign className="w-5 h-5" />} 
             subtitle="mês selecionado"
           />
           <ReportMetricCard 
@@ -311,7 +311,7 @@ const Relatorios: React.FC = () => {
             value={currencyFormat(despesasTotal)} 
             trend={despesasTotal > 0 ? "+15%" : "0%"} 
             color="bg-rose-100 text-rose-600" 
-            icon="credit_card" 
+            icon={<CreditCard className="w-5 h-5" />} 
             subtitle="saídas registradas"
           />
           <ReportMetricCard 
@@ -319,7 +319,7 @@ const Relatorios: React.FC = () => {
             value={currencyFormat(lucroLiquido)} 
             trend={lucroLiquido >= 0 ? "+12%" : "-5%"} 
             color={lucroLiquido >= 0 ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"} 
-            icon="trending_up" 
+            icon={<TrendingUp className="w-5 h-5" />} 
             subtitle="receita - despesa"
           />
           <ReportMetricCard 
@@ -327,7 +327,7 @@ const Relatorios: React.FC = () => {
             value={`${margem.toFixed(1)}%`} 
             trend={margem >= 20 ? "+5%" : "-2%"} 
             color="bg-purple-100 text-purple-600" 
-            icon="pie_chart" 
+            icon={<PieIcon className="w-5 h-5" />} 
             subtitle="sobre faturamento"
           />
         </div>
@@ -430,7 +430,7 @@ const Relatorios: React.FC = () => {
             value={currencyFormat(receitaBase)} 
             trend="+10%" 
             color="bg-indigo-100 text-indigo-600" 
-            icon="attach_money" 
+            icon={<DollarSign className="w-5 h-5" />} 
             subtitle="alunos ativos"
           />
           <ReportMetricCard 
@@ -438,7 +438,7 @@ const Relatorios: React.FC = () => {
             value={currencyFormat(despesaBase)} 
             trend="0%" 
             color="bg-rose-100 text-rose-600" 
-            icon="credit_card" 
+            icon={<CreditCard className="w-5 h-5" />} 
             subtitle="contas mensais"
           />
           <ReportMetricCard 
@@ -446,7 +446,7 @@ const Relatorios: React.FC = () => {
             value={currencyFormat(lucroBase)} 
             trend="+12%" 
             color="bg-emerald-100 text-emerald-600" 
-            icon="trending_up" 
+            icon={<TrendingUp className="w-5 h-5" />} 
             subtitle="projeção mensal"
           />
           <ReportMetricCard 
@@ -454,7 +454,7 @@ const Relatorios: React.FC = () => {
             value={currencyFormat(lucro6Meses)} 
             trend="+15%" 
             color="bg-purple-100 text-purple-600" 
-            icon="wallet" 
+            icon={<Wallet className="w-5 h-5" />} 
             subtitle="projeção total"
           />
         </div>
