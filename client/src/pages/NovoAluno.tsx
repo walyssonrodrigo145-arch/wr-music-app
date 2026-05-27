@@ -351,7 +351,7 @@ export default function NovoAluno() {
   };
 
   // UI section for Portal Access
-  const PortalAccessCard = () => (
+  const renderPortalAccessCard = () => (
     <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-emerald-500/20 bg-emerald-500/5 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-500 relative overflow-hidden group">
       <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
       
@@ -870,7 +870,7 @@ export default function NovoAluno() {
             </motion.div>
 
             {/* CARD 6 — Portal do Aluno (Novo) */}
-            {!isEditMode && <PortalAccessCard />}
+            {!isEditMode && renderPortalAccessCard()}
           </div>
         </motion.div>
 
