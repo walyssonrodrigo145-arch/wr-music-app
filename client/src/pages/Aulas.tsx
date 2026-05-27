@@ -552,7 +552,24 @@ export default function Aulas() {
       </div>
 
       <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={selectedDate} />
-      <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={handleDeleteRequest} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
+      <LessonDetailModal 
+        open={!!detailLessonId} 
+        lesson={lessons.find(l => l.id === detailLessonId)} 
+        onOpenChange={(open) => !open && setDetailLessonId(null)} 
+        onStatusChange={(id, status, date) => {
+          setDetailLessonId(null);
+          setTimeout(() => handleStatusChange(id, status, date), 150);
+        }} 
+        onDelete={(id) => {
+          setDetailLessonId(null);
+          setTimeout(() => handleDeleteRequest(id), 150);
+        }} 
+        onEdit={() => { 
+          setEditingLesson(lessons.find(l => l.id === detailLessonId)); 
+          setAgendarOpen(true); 
+          setDetailLessonId(null); 
+        }} 
+      />
 
       <ResponsiveDialog
         open={!!recurringAction}
