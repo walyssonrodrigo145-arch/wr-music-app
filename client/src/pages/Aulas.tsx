@@ -128,6 +128,13 @@ export default function Aulas() {
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
   const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
 
+  const targetLessonForAction = useMemo(() => {
+    if (!recurringAction) return null;
+    return lessons.find(l => l.id === recurringAction.id);
+  }, [recurringAction, lessons]);
+
+  const hasRecurrence = !!targetLessonForAction?.recurringGroupId;
+
   const updateStatusMutation = trpc.lessons.updateStatus.useMutation({
     onSuccess: () => {
       toast.success("Status atualizado!");
@@ -179,19 +186,11 @@ export default function Aulas() {
   // Unused stats removed for expanded calendar layout
 
   const handleDeleteRequest = (id: number) => {
-    const lesson = lessons.find(l => l.id === id);
-    if (lesson?.recurringGroupId) {
-      setRecurringAction({ type: 'delete', id });
-    } else {
-      if (confirm("Deseja realmente excluir este agendamento?")) {
-        deleteMutation.mutate({ id });
-      }
-    }
+    setRecurringAction({ type: 'delete', id });
   };
 
   const handleStatusChange = (id: number, status: string, newDate?: string) => {
-    const lesson = lessons.find(l => l.id === id);
-    if (status === 'remarcada' && lesson?.recurringGroupId && newDate) {
+    if (status === 'remarcada' && newDate) {
       setRecurringAction({ type: 'reschedule', id, newDate });
     } else {
       updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
@@ -560,42 +559,74 @@ export default function Aulas() {
         onOpenChange={(open) => {
           if (!open) setRecurringAction(null);
         }}
-        title={recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente'}
-        description="Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?"
+        title={
+          hasRecurrence
+            ? (recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente')
+            : (recurringAction?.type === 'delete' ? 'Confirmar Exclusão' : 'Confirmar Remarcação')
+        }
+        description={
+          hasRecurrence
+            ? "Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?"
+            : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.' : 'Deseja confirmar a remarcação desta aula?')
+        }
       >
         <div className="flex flex-col gap-3 pb-8 md:pb-0">
-          <button
-            onClick={async () => {
-              if (!recurringAction) return;
-              try {
-                if (recurringAction.type === 'delete') {
-                  await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: false });
-                } else {
-                  await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: false });
-                }
-              } catch (err) {}
-              setRecurringAction(null);
-            }}
-            className="w-full h-12 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
-          >
-            {recurringAction?.type === 'delete' ? 'Excluir apenas esta aula' : 'Remarcar apenas esta aula'}
-          </button>
-          <button
-            onClick={async () => {
-              if (!recurringAction) return;
-              try {
-                if (recurringAction.type === 'delete') {
-                  await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: true });
-                } else {
-                  await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: true });
-                }
-              } catch (err) {}
-              setRecurringAction(null);
-            }}
-            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
-          >
-            {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
-          </button>
+          {hasRecurrence ? (
+            <>
+              <button
+                onClick={async () => {
+                  if (!recurringAction) return;
+                  try {
+                    if (recurringAction.type === 'delete') {
+                      await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: false });
+                    } else {
+                      await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: false });
+                    }
+                  } catch (err) {}
+                  setRecurringAction(null);
+                }}
+                className="w-full h-12 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+              >
+                {recurringAction?.type === 'delete' ? 'Excluir apenas esta aula' : 'Remarcar apenas esta aula'}
+              </button>
+              <button
+                onClick={async () => {
+                  if (!recurringAction) return;
+                  try {
+                    if (recurringAction.type === 'delete') {
+                      await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: true });
+                    } else {
+                      await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: true });
+                    }
+                  } catch (err) {}
+                  setRecurringAction(null);
+                }}
+                className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
+              >
+                {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={async () => {
+                if (!recurringAction) return;
+                try {
+                  if (recurringAction.type === 'delete') {
+                    await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: false });
+                  } else {
+                    await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: false });
+                  }
+                } catch (err) {}
+                setRecurringAction(null);
+              }}
+              className={cn(
+                "w-full h-12 rounded-xl text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg cursor-pointer",
+                recurringAction?.type === 'delete' ? "bg-rose-600 hover:bg-rose-700 shadow-rose-500/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+              )}
+            >
+              {recurringAction?.type === 'delete' ? 'Sim, excluir' : 'Sim, remarcar'}
+            </button>
+          )}
           <button
             onClick={() => setRecurringAction(null)}
             className="w-full h-12 rounded-xl border border-border text-muted-foreground hover:bg-muted/10 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
