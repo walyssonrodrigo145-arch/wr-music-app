@@ -1417,6 +1417,13 @@ export const appRouter = router({
           updatedAt: new Date(),
         };
 
+        // Se a aula foi remarcada com nova data, ela deve voltar ao status 'agendada'
+        // para que o job de automação possa gerar lembretes normalmente.
+        // O status 'remarcada' sem nova data fica apenas como marcação histórica.
+        if (input.status === 'remarcada' && input.scheduledAt) {
+          updateData.status = 'agendada';
+        }
+
         // Se estiver remarcando com uma nova data, validar conflitos
         if (input.scheduledAt) {
           const newDate = new Date(input.scheduledAt);
@@ -1466,6 +1473,8 @@ export const appRouter = router({
               const nextDate = new Date(new Date(future.scheduledAt).getTime() + timeOffset);
               await db.update(lessons).set({
                 scheduledAt: nextDate,
+                // Se a aula estava remarcada, volta para agendada para que a automação processe
+                status: future.status === 'remarcada' || input.status === 'remarcada' ? 'agendada' : future.status,
                 updatedAt: new Date()
               }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
 
