@@ -123,9 +123,12 @@ async function runAutomation() {
         const baseBody24h = tpl24h?.body ?? "Olá {nome}, lembrete: sua aula de {instrumento} é {quando}, {data_aula} às {hora_aula}. Até lá!";
         const baseBody1h = tpl1h?.body ?? "Olá {nome}, lembrete: sua aula de {instrumento} é {quando}, {data_aula} às {hora_aula}. Até lá!";
 
+        const dateStr = lessonDate.toISOString().slice(0, 10);
+
         // A) Lembrete 24 horas antes
         const time24h = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
-        const ref24h = `lesson-24h-${lesson.id}`;
+        const ref24h = `lesson-24h-${lesson.id}-${dateStr}`;
+        const refManual = `lesson-${lesson.id}-${dateStr}`;
         if (time24h <= now) {
           const existing24 = await db.select({ id: reminders.id })
             .from(reminders)
@@ -134,7 +137,11 @@ async function runAutomation() {
                 eq(reminders.organizationId, orgId),
                 or(
                   eq(reminders.refId, ref24h),
-                  like(reminders.refId, `lesson-${lesson.id}-%`)
+                  eq(reminders.refId, refManual),
+                  and(
+                    eq(reminders.refId, `lesson-24h-${lesson.id}`),
+                    sql`abs(extract(epoch from (${reminders.scheduledAt} - ${time24h.toISOString()}::timestamp))) < 43200`
+                  )
                 )
               )
             )
@@ -158,9 +165,23 @@ async function runAutomation() {
 
         // B) Lembrete 1 hora antes
         const time1h = new Date(lessonDate.getTime() - 1 * 60 * 60 * 1000);
-        const ref1h = `lesson-1h-${lesson.id}`;
+        const ref1h = `lesson-1h-${lesson.id}-${lessonDate.getTime()}`;
         if (time1h <= now) {
-          const existing1 = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, ref1h), eq(reminders.organizationId, orgId))).limit(1);
+          const existing1 = await db.select({ id: reminders.id })
+            .from(reminders)
+            .where(
+              and(
+                eq(reminders.organizationId, orgId),
+                or(
+                  eq(reminders.refId, ref1h),
+                  and(
+                    eq(reminders.refId, `lesson-1h-${lesson.id}`),
+                    sql`abs(extract(epoch from (${reminders.scheduledAt} - ${time1h.toISOString()}::timestamp))) < 3600`
+                  )
+                )
+              )
+            )
+            .limit(1);
           if (existing1.length === 0) {
             const msg1 = baseBody1h
               .replace(/\{quando\}/g, "hoje")

@@ -1335,6 +1335,16 @@ export const appRouter = router({
           }
           updateData.scheduledAt = scheduledAt;
 
+          // Cancelar lembretes pendentes da aula pois a data/hora mudou
+          if (currentLesson && new Date(currentLesson.scheduledAt).getTime() !== scheduledAt.getTime()) {
+            await db.update(reminders)
+              .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
+              .where(and(
+                eq(reminders.lessonId, id),
+                eq(reminders.status, 'pendente')
+              ));
+          }
+
           // Se for para atualizar a série toda
           if (updateSeries && currentLesson.recurringGroupId) {
             const timeOffset = scheduledAt.getTime() - new Date(currentLesson.scheduledAt).getTime();
@@ -1358,6 +1368,14 @@ export const appRouter = router({
                 scheduledAt: nextDate,
                 updatedAt: new Date()
               }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+
+              // Cancelar lembretes pendentes da aula futura da série pois a data mudou
+              await db.update(reminders)
+                .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
+                .where(and(
+                  eq(reminders.lessonId, future.id),
+                  eq(reminders.status, 'pendente')
+                ));
             }
           }
         } else if (updateSeries && currentLesson.recurringGroupId) {
@@ -1420,6 +1438,16 @@ export const appRouter = router({
           }
           updateData.scheduledAt = newDate;
 
+          // Cancelar lembretes pendentes da aula pois a data/hora mudou
+          if (current && new Date(current.scheduledAt).getTime() !== newDate.getTime()) {
+            await db.update(reminders)
+              .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
+              .where(and(
+                eq(reminders.lessonId, input.id),
+                eq(reminders.status, 'pendente')
+              ));
+          }
+
           // Se for para atualizar a série toda
           if (input.updateSeries && current?.recurringGroupId) {
             const timeOffset = newDate.getTime() - new Date(current.scheduledAt).getTime();
@@ -1440,6 +1468,14 @@ export const appRouter = router({
                 scheduledAt: nextDate,
                 updatedAt: new Date()
               }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+
+              // Cancelar lembretes pendentes da aula futura da série pois a data mudou
+              await db.update(reminders)
+                .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
+                .where(and(
+                  eq(reminders.lessonId, future.id),
+                  eq(reminders.status, 'pendente')
+                ));
             }
           }
         }
@@ -2070,7 +2106,8 @@ export const appRouter = router({
         if (reminderTime > now) { skipped++; continue; }
 
         // Chave de deduplicação
-        const refId = `lesson-${lesson.id}-${lessonDate.toISOString().slice(0, 10)}`;
+        const dateStr = lessonDate.toISOString().slice(0, 10);
+        const refId = `lesson-${lesson.id}-${dateStr}`;
 
         // Verificar duplicidade (tanto o manual refId quanto o automático lesson-24h-${lesson.id})
         const existing = await db.select({ id: reminders.id }).from(reminders)
@@ -2079,7 +2116,11 @@ export const appRouter = router({
               eq(reminders.organizationId, orgId),
               or(
                 eq(reminders.refId, refId),
-                eq(reminders.refId, `lesson-24h-${lesson.id}`)
+                eq(reminders.refId, `lesson-24h-${lesson.id}-${dateStr}`),
+                and(
+                  eq(reminders.refId, `lesson-24h-${lesson.id}`),
+                  sql`abs(extract(epoch from (${reminders.scheduledAt} - ${reminderTime.toISOString()}::timestamp))) < 43200`
+                )
               )
             )
           ).limit(1);
