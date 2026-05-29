@@ -136,11 +136,12 @@ export default function Aulas() {
   const hasRecurrence = !!targetLessonForAction?.recurringGroupId;
 
   const updateStatusMutation = trpc.lessons.updateStatus.useMutation({
-    onSuccess: () => {
-      toast.success("Status atualizado!");
+    onSuccess: (_, vars) => {
+      const msg = vars.status === 'remarcada' ? 'Aula remarcada com sucesso!' : 'Status atualizado!';
+      toast.success(msg);
       utils.lessons.list.invalidate();
     },
-    onError: (e) => toast.error("Erro ao atualizar status: " + e.message)
+    onError: (e) => toast.error('Erro ao atualizar status: ' + e.message)
   });
 
   const deleteMutation = trpc.lessons.delete.useMutation({
@@ -191,7 +192,9 @@ export default function Aulas() {
 
   const handleStatusChange = (id: number, status: string, newDate?: string) => {
     if (status === 'remarcada' && newDate) {
-      setRecurringAction({ type: 'reschedule', id, newDate });
+      // Fecha modal de detalhes primeiro (evita conflito de overlay Radix)
+      setDetailLessonId(null);
+      setTimeout(() => setRecurringAction({ type: 'reschedule', id, newDate }), 150);
     } else {
       updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
     }
@@ -556,10 +559,7 @@ export default function Aulas() {
         open={!!detailLessonId} 
         lesson={lessons.find(l => l.id === detailLessonId)} 
         onOpenChange={(open) => !open && setDetailLessonId(null)} 
-        onStatusChange={(id, status, date) => {
-          setDetailLessonId(null);
-          setTimeout(() => handleStatusChange(id, status, date), 150);
-        }} 
+        onStatusChange={handleStatusChange} 
         onDelete={(id) => {
           setDetailLessonId(null);
           setTimeout(() => handleDeleteRequest(id), 150);
