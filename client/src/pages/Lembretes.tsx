@@ -27,7 +27,7 @@ export default function Lembretes() {
 
   const { data: allReminders = [], isLoading } = trpc.reminders.list.useQuery(
     undefined,
-    { refetchInterval: autoEnabled ? 60_000 : false }
+    { refetchInterval: 10_000 }
   );
   const { data: students = [] } = trpc.students.list.useQuery();
   const { data: templates = [] } = trpc.reminderTemplates.list.useQuery();
@@ -129,9 +129,13 @@ export default function Lembretes() {
     }
   }, [automationData]);
 
-  const handleGenerateAll = () => {
-    generateLessons.mutate();
-    generatePayments.mutate();
+  const handleGenerateAll = async () => {
+    try {
+      await generateLessons.mutateAsync();
+      await generatePayments.mutateAsync();
+    } catch (e) {
+      // Erros já são capturados e tratados pelo callback onError de cada mutação
+    }
   };
 
   const handleToggleAutomation = () => {

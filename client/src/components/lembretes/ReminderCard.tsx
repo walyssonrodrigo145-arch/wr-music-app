@@ -116,7 +116,10 @@ export function ReminderCard({ reminder, onDelete }: Props) {
         {reminder.status === "pendente" && (
           <>
             <button
-              onClick={() => openWhatsApp(reminder.studentPhone, reminder.message, toast.error)}
+              onClick={() => {
+                openWhatsApp(reminder.studentPhone, reminder.message, toast.error);
+                markSent.mutate({ id: reminder.id });
+              }}
               className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02]">
               <MessageCircle size={14} /> Enviar WhatsApp
             </button>
