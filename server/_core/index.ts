@@ -8,6 +8,7 @@ import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import whatsappWebhookRouter from "../webhooks/whatsapp";
+import botStatusWebhookRouter from "../webhooks/botStatus";
 import { serveStatic, setupVite } from "./vite";
 import { startAutomationJob } from "../automationJob";
 import { createRateLimiter } from "./rateLimiter";
@@ -133,6 +134,12 @@ async function startServer() {
   // ─────────────────────────────────────────────────────────────────────────
 
   app.use("/api/webhooks/whatsapp", whatsappWebhookRouter);
+
+  // ─── Bot Status Webhook ───────────────────────────────────────────────────
+  // POST /api/webhooks/bot-status  → recebe aviso do bot quando cair
+  // GET  /api/webhooks/bot-status/sse → SSE para o frontend escutar
+  app.use("/api/webhooks/bot-status", botStatusWebhookRouter);
+  // ─────────────────────────────────────────────────────────────────────────
 
   app.use("/uploads", express.static("uploads"));
 

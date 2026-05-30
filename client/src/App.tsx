@@ -8,6 +8,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { MusicLayout } from "./components/MusicLayout";
 import { StudentPortalLayout } from "./components/StudentPortalLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useBotStatusSSE } from "@/hooks/useBotStatusSSE";
 
 // Lazy loading the pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -126,6 +127,9 @@ function Router() {
 }
 
 function App() {
+  // Escuta eventos SSE do bot e exibe toast quando a sessão WhatsApp cair
+  useBotStatusSSE();
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" switchable>
