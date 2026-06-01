@@ -458,7 +458,7 @@ export default function Aulas() {
         </div>
 
         <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={currentDate} />
-        <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={handleDeleteRequest} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
+        <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={(id) => { setDetailLessonId(null); setTimeout(() => handleDeleteRequest(id), 150); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
       </div>
     );
   }
@@ -506,7 +506,7 @@ export default function Aulas() {
         ))}
       </section>
 
-      {/* Lesson Grid (1 col mobile, 2 cols tablet) */}
+      {/* Lesson Grid */}
       <section className="space-y-6">
         <div className="flex items-center justify-between px-2">
            <h3 className="text-[11px] font-black text-foreground uppercase tracking-widest">Aulas de {isToday(selectedDate) ? "hoje" : format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}</h3>
@@ -571,11 +571,10 @@ export default function Aulas() {
         }} 
       />
 
+      {/* ── Dialog de confirmação compartilhado desktop+mobile ──────────────── */}
       <ResponsiveDialog
         open={!!recurringAction}
-        onOpenChange={(open) => {
-          if (!open) setRecurringAction(null);
-        }}
+        onOpenChange={(open) => { if (!open) setRecurringAction(null); }}
         title={
           hasRecurrence
             ? (recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente')
@@ -639,6 +638,25 @@ export default function Aulas() {
               className={cn(
                 "w-full h-12 rounded-xl text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg cursor-pointer",
                 recurringAction?.type === 'delete' ? "bg-rose-600 hover:bg-rose-700 shadow-rose-500/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+              )}
+            >
+              {recurringAction?.type === 'delete' ? 'Sim, excluir' : 'Sim, remarcar'}
+            </button>
+          )}
+          <button
+            onClick={() => setRecurringAction(null)}
+            className="w-full h-12 rounded-xl border border-border text-muted-foreground hover:bg-muted/10 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+          >
+            Cancelar
+          </button>
+        </div>
+      </ResponsiveDialog>
+    </div>
+  );
+}
+
+
+se-600 hover:bg-rose-700 shadow-rose-500/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
               )}
             >
               {recurringAction?.type === 'delete' ? 'Sim, excluir' : 'Sim, remarcar'}

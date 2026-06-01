@@ -226,7 +226,12 @@ export default function LessonDetailModal({
                     <button 
                       onClick={() => {
                         const fullDate = new Date(`${newDate}T${newTime}:00`);
-                        onStatusChange(lesson.id, "remarcada", fullDate.toISOString());
+                        // Fecha o modal ANTES de chamar onStatusChange
+                        // para evitar conflito de dois dialogs Radix abertos ao mesmo tempo
+                        onOpenChange(false);
+                        setTimeout(() => {
+                          onStatusChange(lesson.id, "remarcada", fullDate.toISOString());
+                        }, 150);
                       }}
                       className="flex-1 h-14 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     >
