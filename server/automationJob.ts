@@ -62,6 +62,17 @@ async function runAutomation() {
           )
       `);
 
+      // ─── EXCLUSÃO AUTOMÁTICA DE LEMBRETES ANTIGOS DA SEMANA ─────────────────────
+      // Limpa os lembretes do banco de dados (enviados, pendentes ou cancelados)
+      // que já passaram de 2 dias. Isso mantém a interface de "Lembretes da Semana" limpa
+      // e evita o acúmulo de centenas de registros obsoletos de semanas anteriores.
+      await db.execute(sql`
+        DELETE FROM reminders 
+        WHERE "organizationId" = ${orgId} 
+          AND "userId" = ${userId}
+          AND "scheduledAt" < now() - interval '2 days'
+      `);
+
       // ─── 1. BUSCA E GERAÇÃO DE LEMBRETES DE AULA ────────────────────────────
       // Busca todas as aulas agendadas da semana atual para alunos ativos
       const monday = new Date(startOfDay);
