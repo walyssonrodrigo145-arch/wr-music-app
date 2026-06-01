@@ -187,14 +187,23 @@ export default function Aulas() {
   // Unused stats removed for expanded calendar layout
 
   const handleDeleteRequest = (id: number) => {
-    setRecurringAction({ type: 'delete', id });
+    const target = lessons.find(l => l.id === id);
+    if (target?.recurringGroupId) {
+      setRecurringAction({ type: 'delete', id });
+    } else {
+      deleteMutation.mutate({ id, deleteSeries: false });
+    }
   };
 
   const handleStatusChange = (id: number, status: string, newDate?: string) => {
     if (status === 'remarcada' && newDate) {
-      // Fecha modal de detalhes primeiro (evita conflito de overlay Radix)
+      const target = lessons.find(l => l.id === id);
       setDetailLessonId(null);
-      setTimeout(() => setRecurringAction({ type: 'reschedule', id, newDate }), 150);
+      if (target?.recurringGroupId) {
+        setTimeout(() => setRecurringAction({ type: 'reschedule', id, newDate }), 150);
+      } else {
+        updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
+      }
     } else {
       updateStatusMutation.mutate({ id, status: status as any, scheduledAt: newDate });
     }
