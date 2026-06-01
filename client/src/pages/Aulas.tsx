@@ -654,24 +654,3 @@ export default function Aulas() {
     </div>
   );
 }
-
-
-se-600 hover:bg-rose-700 shadow-rose-500/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
-              )}
-            >
-              {recurringAction?.type === 'delete' ? 'Sim, excluir' : 'Sim, remarcar'}
-            </button>
-          )}
-          <button
-            onClick={() => setRecurringAction(null)}
-            className="w-full h-12 rounded-xl border border-border text-muted-foreground hover:bg-muted/10 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
-          >
-            Cancelar
-          </button>
-        </div>
-      </ResponsiveDialog>
-    </div>
-  );
-}
-
-

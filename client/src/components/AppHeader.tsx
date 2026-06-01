@@ -84,9 +84,9 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
           {pageInfo.title}
         </h1>
         {location !== "/dashboard" && (
-          <div className="hidden md:flex items-center gap-2 mt-2.5">
-             <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-             <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-60">{pageInfo.subtitle}</p>
+          <div className="hidden md:flex items-center gap-2 mt-2.5 min-w-0">
+             <div className="w-1.5 h-1.5 rounded-full bg-primary/40 flex-shrink-0" />
+             <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-60 truncate">{pageInfo.subtitle}</p>
           </div>
         )}
       </div>
