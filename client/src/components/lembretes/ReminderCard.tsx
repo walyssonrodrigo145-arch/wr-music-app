@@ -20,21 +20,98 @@ export function ReminderCard({ reminder, onDelete }: Props) {
   
   const isDelayed = isPast && reminder.status === "pendente";
 
+  // ─── Atualização otimista do cache de lembretes ───────────────────────────
+  const applyOptimisticStatus = (id: number, status: Reminder["status"], extra?: Partial<Reminder>) => {
+    utils.reminders.list.setData(undefined, (old) =>
+      old?.map((r: any) => r.id === id ? { ...r, status, sentAt: status === "enviado" ? new Date() : r.sentAt, cancelledAt: status === "cancelado" ? new Date() : r.cancelledAt, ...extra } : r) ?? []
+    );
+    utils.reminders.pendingCount.setData(undefined, (old) => {
+      if (old == null) return old;
+      return status !== "pendente" ? Math.max(0, old - 1) : old;
+    });
+  };
+
+  const revertOptimistic = (previous: any) => {
+    utils.reminders.list.setData(undefined, previous);
+    utils.reminders.pendingCount.invalidate();
+  };
+
+  // ─── Marcar como enviado (Concluir) ──────────────────────────────────────
   const markSent = trpc.reminders.markSent.useMutation({
-    onSuccess: () => { utils.reminders.list.invalidate(); utils.reminders.pendingCount.invalidate(); toast.success("Marcado como enviado!"); },
-    onError: (e) => toast.error("Erro: " + e.message),
-  });
-  const cancel = trpc.reminders.cancel.useMutation({
-    onSuccess: () => { utils.reminders.list.invalidate(); utils.reminders.pendingCount.invalidate(); toast.success("Lembrete cancelado"); },
-    onError: (e) => toast.error("Erro: " + e.message),
-  });
-  const sendViaBot = trpc.reminders.sendViaBot.useMutation({
-    onSuccess: () => {
+    onMutate: async ({ id }) => {
+      await utils.reminders.list.cancel();
+      const previous = utils.reminders.list.getData();
+      applyOptimisticStatus(id, "enviado");
+      toast.success("Marcado como enviado!");
+      return { previous };
+    },
+    onError: (e, _, context) => {
+      if (context?.previous) revertOptimistic(context.previous);
+      const msg = e.message.includes("transform") || e.message.includes("parse")
+        ? "Erro de conexão com o servidor. Tente novamente."
+        : "Erro: " + e.message;
+      toast.error(msg);
+    },
+    onSettled: () => {
       utils.reminders.list.invalidate();
       utils.reminders.pendingCount.invalidate();
-      toast.success("Enviado via Robô com sucesso!");
     },
-    onError: (e) => toast.error("Erro ao enviar via robô: " + e.message),
+  });
+
+  // ─── Cancelar lembrete ────────────────────────────────────────────────────
+  const cancel = trpc.reminders.cancel.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.reminders.list.cancel();
+      const previous = utils.reminders.list.getData();
+      applyOptimisticStatus(id, "cancelado");
+      toast.success("Lembrete cancelado");
+      return { previous };
+    },
+    onError: (e, _, context) => {
+      if (context?.previous) revertOptimistic(context.previous);
+      const msg = e.message.includes("transform") || e.message.includes("parse")
+        ? "Erro de conexão com o servidor. Tente novamente."
+        : "Erro: " + e.message;
+      toast.error(msg);
+    },
+    onSettled: () => {
+      utils.reminders.list.invalidate();
+      utils.reminders.pendingCount.invalidate();
+    },
+  });
+
+  // ─── Enviar via Robô ─────────────────────────────────────────────────────
+  const sendViaBot = trpc.reminders.sendViaBot.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.reminders.list.cancel();
+      const previous = utils.reminders.list.getData();
+      // Mostra o card como "enviado" optimisticamente
+      applyOptimisticStatus(id, "enviado", { errorMessage: null });
+      return { previous };
+    },
+    onSuccess: () => {
+      toast.success("Enviado via Robô com sucesso!");
+      utils.reminders.list.invalidate();
+      utils.reminders.pendingCount.invalidate();
+    },
+    onError: (e, variables, context) => {
+      // Reverte o status para pendente com a mensagem de erro
+      utils.reminders.list.setData(undefined, (old) =>
+        old?.map((r: any) => r.id === variables.id
+          ? { ...r, status: "pendente", errorMessage: e.message.includes("transform") ? "Falha de conexão com o servidor. Tente novamente." : e.message }
+          : r
+        ) ?? []
+      );
+      utils.reminders.pendingCount.setData(undefined, (old) => (old != null ? old + 1 : old));
+      const msg = e.message.includes("transform") || e.message.includes("parse")
+        ? "Falha de conexão com o servidor do robô. Tente novamente em alguns segundos."
+        : "Erro ao enviar via robô: " + e.message;
+      toast.error(msg);
+    },
+    onSettled: () => {
+      utils.reminders.list.invalidate();
+      utils.reminders.pendingCount.invalidate();
+    },
   });
 
   const copyMsg = () => { navigator.clipboard.writeText(reminder.message); toast.success("Mensagem copiada!"); };
@@ -120,21 +197,26 @@ export function ReminderCard({ reminder, onDelete }: Props) {
                 openWhatsApp(reminder.studentPhone, reminder.message, toast.error);
                 markSent.mutate({ id: reminder.id });
               }}
-              className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02]">
+              disabled={markSent.isPending || cancel.isPending}
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:scale-100">
               <MessageCircle size={14} /> Enviar WhatsApp
             </button>
             <button
               onClick={() => sendViaBot.mutate({ id: reminder.id })}
-              disabled={sendViaBot.isPending}
-              className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-500/20 transition-all hover:scale-[1.02] disabled:opacity-50">
+              disabled={sendViaBot.isPending || markSent.isPending || cancel.isPending}
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-500/20 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:scale-100">
               {sendViaBot.isPending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Enviar via Robô
             </button>
-            <button onClick={() => markSent.mutate({ id: reminder.id })} disabled={markSent.isPending}
-              className="px-3 py-2 flex items-center gap-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 rounded-xl transition-colors">
-              {markSent.isPending ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Concluir
+            <button
+              onClick={() => markSent.mutate({ id: reminder.id })}
+              disabled={markSent.isPending || cancel.isPending || sendViaBot.isPending}
+              className="px-3 py-2 flex items-center gap-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 rounded-xl transition-colors disabled:opacity-50">
+              <CheckCircle2 size={13} /> Concluir
             </button>
-            <button onClick={() => cancel.mutate({ id: reminder.id })} disabled={cancel.isPending}
-              className="px-3 py-2 flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950/50 rounded-xl transition-colors">
+            <button
+              onClick={() => cancel.mutate({ id: reminder.id })}
+              disabled={cancel.isPending || markSent.isPending || sendViaBot.isPending}
+              className="px-3 py-2 flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950/50 rounded-xl transition-colors disabled:opacity-50">
               <BellOff size={13} /> Cancelar
             </button>
           </>
