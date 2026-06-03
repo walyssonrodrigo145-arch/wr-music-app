@@ -10,9 +10,18 @@ import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
 import { sendWhatsAppMessage } from "./utils/whatsapp";
 
+// Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
+let isAutomationRunning = false;
+
 async function runAutomation() {
+  if (isAutomationRunning) {
+    console.log("[Automation] Skipping — execução anterior ainda em andamento.");
+    return;
+  }
+  isAutomationRunning = true;
+
   const db = await getDb();
-  if (!db) return;
+  if (!db) { isAutomationRunning = false; return; }
 
   const activeSettings = await db
     .select({
@@ -274,59 +283,48 @@ async function runAutomation() {
         const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
         const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-        // A) Lembrete de Inadimplência (após o vencimento, a cada 2 dias)
+        // A) Lembrete de Inadimplência — criado apenas UMA VEZ por mensalidade inadimplente
+        // Não importa o status (pendente/enviado/cancelado): se já existir qualquer registro
+        // deste tipo para esta mensalidade, o robô não cria outro.
         if (isOverdue) {
           const hasJustification = (due.notes && due.notes.trim().length > 0) || (due.studentNotes && due.studentNotes.trim().length > 0);
           if (hasJustification) {
-            console.log(`[Automation] Skipping overdue dueId=${due.id} for student ${due.studentName}: justification found.`);
+            console.log(`[Automation] Skipping overdue dueId=${due.id}: justification found.`);
             continue;
           }
 
-          // Busca o lembrete de inadimplência mais recente para esta mensalidade (qualquer status)
-          const lastInad = await db
-            .select({ scheduledAt: reminders.scheduledAt, sentAt: reminders.sentAt, status: reminders.status })
+          // Verifica se já existe QUALQUER lembrete de inadimplência para esta mensalidade
+          const existing = await db
+            .select({ id: reminders.id })
             .from(reminders)
             .where(and(
               eq(reminders.paymentDueId, due.id),
               eq(reminders.type, "inadimplencia"),
               eq(reminders.organizationId, orgId)
             ))
-            .orderBy(desc(reminders.scheduledAt))
             .limit(1);
 
-          let shouldSend = false;
-          if (lastInad.length === 0) {
-            // Nunca foi criado lembrete de inadimplência para esta mensalidade
-            shouldSend = true;
-          } else {
-            const lastRecord = lastInad[0];
-            // Só considera o tempo desde o ENVIO (se enviado) ou desde a criação (se ainda pendente)
-            const lastTime = lastRecord.sentAt || lastRecord.scheduledAt;
-            const diffDays = (now.getTime() - new Date(lastTime).getTime()) / (1000 * 60 * 60 * 24);
-            // Gera novo apenas após 2 dias E somente se o último já foi enviado (não se ainda está pendente)
-            if (diffDays >= 2 && lastRecord.status === "enviado") shouldSend = true;
-            // Se está pendente há mais de 2 dias sem ser enviado, não cria duplicata
+          if (existing.length > 0) continue; // Já foi notificado sobre esta inadimplência
+
+          // Primeira vez: cria o lembrete de inadimplência
+          let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"), eq(reminderTemplates.isDefault, 1))).limit(1);
+          if (!tpl) {
+            const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"))).limit(1);
+            if (anyTpl.length > 0) tpl = anyTpl[0];
+          }
+          const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e consta como pendente. Por favor, entre em contato para regularizar.";
+          let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+          if (due.asaasPaymentLink) {
+            message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
           }
 
-          if (shouldSend) {
-            let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"), eq(reminderTemplates.isDefault, 1))).limit(1);
-            if (!tpl) {
-              const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"))).limit(1);
-              if (anyTpl.length > 0) tpl = anyTpl[0];
-            }
-            const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e consta como pendente. Por favor, entre em contato para regularizar ou nos informar caso já tenha efetuado o pagamento.";
-            let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
-            if (due.asaasPaymentLink) {
-              message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
-            }
-
-            const refId = `overdue-${due.id}-${todayStr}`;
-            await db.insert(reminders).values({
-              organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
-              type: "inadimplencia", message, scheduledAt: now, status: "pendente", autoGenerated: 1, refId,
-            });
-            remindersCreated++;
-          }
+          const refId = `overdue-${due.id}`;
+          await db.insert(reminders).values({
+            organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
+            type: "inadimplencia", message, scheduledAt: now, status: "pendente", autoGenerated: 1, refId,
+          });
+          remindersCreated++;
+          console.log(`[Automation] Inadimplência criada pela 1ª vez: dueId=${due.id} aluno=${due.studentName}`);
         } 
         else if (isToday) {
           const refId = `pay-hoje-${due.id}`;
@@ -596,6 +594,8 @@ async function runAutomation() {
       console.error(`[Automation] Error processing userId=${userId} orgId=${orgId}:`, err);
     }
   }
+
+  isAutomationRunning = false;
 }
 
 export function startAutomationJob() {

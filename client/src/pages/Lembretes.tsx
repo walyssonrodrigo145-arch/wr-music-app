@@ -27,7 +27,7 @@ export default function Lembretes() {
 
   const { data: allReminders = [], isLoading } = trpc.reminders.list.useQuery(
     undefined,
-    { refetchInterval: 10_000 }
+    { refetchInterval: 30_000 } // 30s — reduz condição de corrida com markSent no servidor lento
   );
   const { data: students = [] } = trpc.students.list.useQuery();
   const { data: templates = [] } = trpc.reminderTemplates.list.useQuery();
@@ -37,19 +37,20 @@ export default function Lembretes() {
   );
 
   const { permission, isSupported, requestPermission, showNotification } = usePushNotifications();
-  const prevRemindersRef = useRef<Reminder[]>([]);
+  // seenPendingIds: conjunto de IDs já vistos como pendentes.
+  // Previne falsos alertas "novo lembrete" quando o mesmo lembrete reaparece
+  // temporariamente como "pendente" por causa de race condition entre
+  // markSent (servidor lento) e o refetchInterval do React Query.
+  const seenPendingIds = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     const currentPendings = (allReminders as Reminder[]).filter(r => r.status === "pendente");
-    
-    if (prevRemindersRef.current.length === 0) {
-      prevRemindersRef.current = currentPendings;
-      return;
-    }
 
-    const newItems = currentPendings.filter(curr => 
-      !prevRemindersRef.current.some(prev => prev.id === curr.id)
-    );
+    // Detecta apenas lembretes verdadeiramente NOVOS (ID nunca visto antes)
+    const newItems = currentPendings.filter(r => !seenPendingIds.current.has(r.id));
+
+    // Registra todos os IDs atuais como "vistos" para não notificar novamente
+    currentPendings.forEach(r => seenPendingIds.current.add(r.id));
 
     if (newItems.length > 0 && autoEnabled) {
       newItems.slice(0, 3).forEach(item => {
@@ -70,8 +71,6 @@ export default function Lembretes() {
         toast.info(`${newItems.length} novos lembretes gerados no total.`);
       }
     }
-
-    prevRemindersRef.current = currentPendings;
   }, [allReminders, autoEnabled, showNotification]);
 
   const generateLessons = trpc.reminders.generateLessonReminders.useMutation({
