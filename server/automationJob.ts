@@ -63,14 +63,25 @@ async function runAutomation() {
       `);
 
       // ─── EXCLUSÃO AUTOMÁTICA DE LEMBRETES ANTIGOS DA SEMANA ─────────────────────
-      // Limpa os lembretes do banco de dados (enviados, pendentes ou cancelados)
-      // que já passaram de 2 dias. Isso mantém a interface de "Lembretes da Semana" limpa
-      // e evita o acúmulo de centenas de registros obsoletos de semanas anteriores.
+      // IMPORTANTE: Só apaga lembretes JÁ ENVIADOS ou CANCELADOS com mais de 7 dias.
+      // Lembretes PENDENTES NUNCA são apagados automaticamente para que o sistema
+      // consiga detectar duplicatas e evitar recriar o mesmo lembrete.
       await db.execute(sql`
         DELETE FROM reminders 
         WHERE "organizationId" = ${orgId} 
           AND "userId" = ${userId}
-          AND "scheduledAt" < now() - interval '2 days'
+          AND status IN ('enviado', 'cancelado')
+          AND "scheduledAt" < now() - interval '7 days'
+      `);
+
+      // Limpa lembretes PENDENTES muito antigos (30+ dias) que nunca foram enviados
+      // para evitar acúmulo excessivo no banco de dados
+      await db.execute(sql`
+        DELETE FROM reminders 
+        WHERE "organizationId" = ${orgId} 
+          AND "userId" = ${userId}
+          AND status = 'pendente'
+          AND "scheduledAt" < now() - interval '30 days'
       `);
 
       // ─── 1. BUSCA E GERAÇÃO DE LEMBRETES DE AULA ────────────────────────────
@@ -141,6 +152,7 @@ async function runAutomation() {
         const ref24h = `lesson-24h-${lesson.id}-${dateStr}`;
         const refManual = `lesson-${lesson.id}-${dateStr}`;
         if (time24h <= now) {
+          // Verifica se já existe lembrete para esta aula (qualquer status: pendente, enviado ou cancelado)
           const existing24 = await db.select({ id: reminders.id })
             .from(reminders)
             .where(
@@ -151,6 +163,12 @@ async function runAutomation() {
                   eq(reminders.refId, refManual),
                   and(
                     eq(reminders.refId, `lesson-24h-${lesson.id}`),
+                    sql`abs(extract(epoch from (${reminders.scheduledAt} - ${time24h.toISOString()}::timestamp))) < 43200`
+                  ),
+                  // Também verifica por lessonId+tipo para não duplicar independente do refId
+                  and(
+                    eq(reminders.lessonId, lesson.id),
+                    eq(reminders.type, "aula"),
                     sql`abs(extract(epoch from (${reminders.scheduledAt} - ${time24h.toISOString()}::timestamp))) < 43200`
                   )
                 )
@@ -178,6 +196,7 @@ async function runAutomation() {
         const time1h = new Date(lessonDate.getTime() - 1 * 60 * 60 * 1000);
         const ref1h = `lesson-1h-${lesson.id}-${lessonDate.getTime()}`;
         if (time1h <= now) {
+          // Verifica se já existe lembrete 1h para esta aula (qualquer status: pendente, enviado ou cancelado)
           const existing1 = await db.select({ id: reminders.id })
             .from(reminders)
             .where(
@@ -187,6 +206,12 @@ async function runAutomation() {
                   eq(reminders.refId, ref1h),
                   and(
                     eq(reminders.refId, `lesson-1h-${lesson.id}`),
+                    sql`abs(extract(epoch from (${reminders.scheduledAt} - ${time1h.toISOString()}::timestamp))) < 3600`
+                  ),
+                  // Também verifica por lessonId+tipo 1h para não duplicar independente do refId
+                  and(
+                    eq(reminders.lessonId, lesson.id),
+                    eq(reminders.type, "aula"),
                     sql`abs(extract(epoch from (${reminders.scheduledAt} - ${time1h.toISOString()}::timestamp))) < 3600`
                   )
                 )
@@ -257,48 +282,67 @@ async function runAutomation() {
             continue;
           }
 
+          // Busca o lembrete de inadimplência mais recente para esta mensalidade (qualquer status)
           const lastInad = await db
-            .select({ scheduledAt: reminders.scheduledAt, sentAt: reminders.sentAt })
+            .select({ scheduledAt: reminders.scheduledAt, sentAt: reminders.sentAt, status: reminders.status })
             .from(reminders)
-            .where(and(eq(reminders.paymentDueId, due.id), eq(reminders.type, "inadimplencia"), eq(reminders.organizationId, orgId)))
+            .where(and(
+              eq(reminders.paymentDueId, due.id),
+              eq(reminders.type, "inadimplencia"),
+              eq(reminders.organizationId, orgId)
+            ))
             .orderBy(desc(reminders.scheduledAt))
             .limit(1);
 
           let shouldSend = false;
           if (lastInad.length === 0) {
+            // Nunca foi criado lembrete de inadimplência para esta mensalidade
             shouldSend = true;
           } else {
-            const lastTime = lastInad[0].sentAt || lastInad[0].scheduledAt;
-            const diffDays = (now.getTime() - lastTime.getTime()) / (1000 * 60 * 60 * 24);
-            if (diffDays >= 2) shouldSend = true;
+            const lastRecord = lastInad[0];
+            // Só considera o tempo desde o ENVIO (se enviado) ou desde a criação (se ainda pendente)
+            const lastTime = lastRecord.sentAt || lastRecord.scheduledAt;
+            const diffDays = (now.getTime() - new Date(lastTime).getTime()) / (1000 * 60 * 60 * 24);
+            // Gera novo apenas após 2 dias E somente se o último já foi enviado (não se ainda está pendente)
+            if (diffDays >= 2 && lastRecord.status === "enviado") shouldSend = true;
+            // Se está pendente há mais de 2 dias sem ser enviado, não cria duplicata
           }
 
           if (shouldSend) {
-            const refId = `overdue-${due.id}-${todayStr}`;
-            const existing = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
-            if (existing.length === 0) {
-              let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"), eq(reminderTemplates.isDefault, 1))).limit(1);
-              if (!tpl) {
-                const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"))).limit(1);
-                if (anyTpl.length > 0) tpl = anyTpl[0];
-              }
-              const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e consta como pendente. Por favor, entre em contato para regularizar ou nos informar caso já tenha efetuado o pagamento.";
-              let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
-              if (due.asaasPaymentLink) {
-                message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
-              }
-
-              await db.insert(reminders).values({
-                organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
-                type: "inadimplencia", message, scheduledAt: now, status: "pendente", autoGenerated: 1, refId,
-              });
-              remindersCreated++;
+            let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"), eq(reminderTemplates.isDefault, 1))).limit(1);
+            if (!tpl) {
+              const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"))).limit(1);
+              if (anyTpl.length > 0) tpl = anyTpl[0];
             }
+            const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e consta como pendente. Por favor, entre em contato para regularizar ou nos informar caso já tenha efetuado o pagamento.";
+            let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+            if (due.asaasPaymentLink) {
+              message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
+            }
+
+            const refId = `overdue-${due.id}-${todayStr}`;
+            await db.insert(reminders).values({
+              organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
+              type: "inadimplencia", message, scheduledAt: now, status: "pendente", autoGenerated: 1, refId,
+            });
+            remindersCreated++;
           }
         } 
         else if (isToday) {
           const refId = `pay-hoje-${due.id}`;
-          const existing = await db.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.refId, refId), eq(reminders.organizationId, orgId))).limit(1);
+          // Verifica se já existe lembrete de hoje (qualquer status: pendente, enviado ou cancelado)
+          const existing = await db.select({ id: reminders.id }).from(reminders)
+            .where(and(
+              eq(reminders.organizationId, orgId),
+              or(
+                eq(reminders.refId, refId),
+                and(
+                  eq(reminders.paymentDueId, due.id),
+                  eq(reminders.type, "cobranca"),
+                  gte(reminders.scheduledAt, new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0))
+                )
+              )
+            )).limit(1);
           if (existing.length === 0) {
             let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
             if (!tpl) {
@@ -324,13 +368,20 @@ async function runAutomation() {
 
           if (reminderDate <= now) {
             const refId = `pay-prev-${due.id}`;
+            // Verifica se já existe lembrete para esta mensalidade (qualquer status: pendente, enviado ou cancelado)
             const existing = await db.select({ id: reminders.id }).from(reminders)
               .where(
                 and(
                   eq(reminders.organizationId, orgId),
                   or(
                     eq(reminders.refId, refId),
-                    eq(reminders.refId, `payment-${due.id}-${due.year}-${due.month}`)
+                    eq(reminders.refId, `payment-${due.id}-${due.year}-${due.month}`),
+                    eq(reminders.refId, `pay-hoje-${due.id}`),
+                    // Também verifica por paymentDueId+tipo para não duplicar independente do refId
+                    and(
+                      eq(reminders.paymentDueId, due.id),
+                      eq(reminders.type, "cobranca")
+                    )
                   )
                 )
               ).limit(1);
