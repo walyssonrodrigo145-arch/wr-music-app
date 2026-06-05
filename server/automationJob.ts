@@ -13,6 +13,11 @@ import { sendWhatsAppMessage } from "./utils/whatsapp";
 // Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
 let isAutomationRunning = false;
 
+// Rastreia a data do último cleanup semanal por usuário.
+// Evita que o cleanup rode múltiplas vezes no mesmo domingo (o robô roda todo minuto).
+// Chave: "orgId-userId", Valor: "YYYY-MM-DD" em horário de Brasília.
+const lastCleanupByUser = new Map<string, string>();
+
 async function runAutomation() {
   if (isAutomationRunning) {
     console.log("[Automation] Skipping — execução anterior ainda em andamento.");
@@ -71,27 +76,22 @@ async function runAutomation() {
           )
       `);
 
-      // ─── EXCLUSÃO AUTOMÁTICA DE LEMBRETES ANTIGOS DA SEMANA ─────────────────────
-      // IMPORTANTE: Só apaga lembretes JÁ ENVIADOS ou CANCELADOS com mais de 7 dias.
-      // Lembretes PENDENTES NUNCA são apagados automaticamente para que o sistema
-      // consiga detectar duplicatas e evitar recriar o mesmo lembrete.
-      await db.execute(sql`
-        DELETE FROM reminders 
-        WHERE "organizationId" = ${orgId} 
-          AND "userId" = ${userId}
-          AND status IN ('enviado', 'cancelado')
-          AND "scheduledAt" < now() - interval '7 days'
-      `);
+      // ─── LIMPEZA SEMANAL AUTOMÁTICA (Domingo 00:00 Horário de Brasília) ───────────────
+      // Regra oficial: TODOS os lembretes são excluídos todo domingo à meia-noite,
+      // independentemente do status. Isso garante uma base de dados limpa a cada semana
+      // e que novos lembretes sejam gerados conforme o ciclo semanal seguinte.
+      const brazilDateStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      const brazilDay = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay(); // 0 = domingo
+      const cleanupKey = `${orgId}-${userId}`;
 
-      // Limpa lembretes PENDENTES muito antigos (30+ dias) que nunca foram enviados
-      // para evitar acúmulo excessivo no banco de dados
-      await db.execute(sql`
-        DELETE FROM reminders 
-        WHERE "organizationId" = ${orgId} 
-          AND "userId" = ${userId}
-          AND status = 'pendente'
-          AND "scheduledAt" < now() - interval '30 days'
-      `);
+      if (brazilDay === 0 && lastCleanupByUser.get(cleanupKey) !== brazilDateStr) {
+        await db.execute(sql`
+          DELETE FROM reminders
+          WHERE "organizationId" = ${orgId} AND "userId" = ${userId}
+        `);
+        lastCleanupByUser.set(cleanupKey, brazilDateStr);
+        console.log(`[Automation] ✅ Limpeza semanal concluída — domingo ${brazilDateStr} (userId=${userId})`);
+      }
 
       // ─── 1. BUSCA E GERAÇÃO DE LEMBRETES DE AULA ────────────────────────────
       // Busca todas as aulas agendadas da semana atual para alunos ativos
@@ -280,66 +280,24 @@ async function runAutomation() {
         const isOverdue = dueDateStr < todayStr;
         const isToday = dueDateStr === todayStr;
 
+        // ── Regra oficial: o Aviso de Vencimento (Dia D) é o ÚLTIMO lembrete automático ──
+        // Mensalidades já vencidas (atrasadas) NÃO recebem mais lembretes do robô.
+        // Para re-notificar manualmente, use o botão "Gerar" na tela de Lembretes.
+        if (isOverdue) continue;
+
         const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
         const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-        // A) Lembrete de Inadimplência — criado apenas UMA VEZ por mensalidade inadimplente
-        // Não importa o status (pendente/enviado/cancelado): se já existir qualquer registro
-        // deste tipo para esta mensalidade, o robô não cria outro.
-        if (isOverdue) {
-          const hasJustification = (due.notes && due.notes.trim().length > 0) || (due.studentNotes && due.studentNotes.trim().length > 0);
-          if (hasJustification) {
-            console.log(`[Automation] Skipping overdue dueId=${due.id}: justification found.`);
-            continue;
-          }
-
-          // Verifica se já existe QUALQUER lembrete de inadimplência para esta mensalidade
-          const existing = await db
-            .select({ id: reminders.id })
-            .from(reminders)
-            .where(and(
-              eq(reminders.paymentDueId, due.id),
-              eq(reminders.type, "inadimplencia"),
-              eq(reminders.organizationId, orgId)
-            ))
-            .limit(1);
-
-          if (existing.length > 0) continue; // Já foi notificado sobre esta inadimplência
-
-          // Primeira vez: cria o lembrete de inadimplência
-          let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"), eq(reminderTemplates.isDefault, 1))).limit(1);
-          if (!tpl) {
-            const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "inadimplencia"))).limit(1);
-            if (anyTpl.length > 0) tpl = anyTpl[0];
-          }
-          const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} venceu em {vencimento} e consta como pendente. Por favor, entre em contato para regularizar.";
-          let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
-          if (due.asaasPaymentLink) {
-            message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
-          }
-
-          const refId = `overdue-${due.id}`;
-          await db.insert(reminders).values({
-            organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
-            type: "inadimplencia", message, scheduledAt: now, status: "pendente", autoGenerated: 1, refId,
-          });
-          remindersCreated++;
-          console.log(`[Automation] Inadimplência criada pela 1ª vez: dueId=${due.id} aluno=${due.studentName}`);
-        } 
-        else if (isToday) {
+        // B) Aviso de Vencimento — Dia D (último lembrete automático)
+        if (isToday) {
           const refId = `pay-hoje-${due.id}`;
           // Verifica se já existe lembrete de hoje (qualquer status: pendente, enviado ou cancelado)
+          // Trava de Duplicidade — Dia D: cada etapa tem refId próprio e independente.
+          // O aviso prévio (pay-prev-X) NÃO impede a criação do Dia D (pay-hoje-X).
           const existing = await db.select({ id: reminders.id }).from(reminders)
             .where(and(
               eq(reminders.organizationId, orgId),
-              or(
-                eq(reminders.refId, refId),
-                and(
-                  eq(reminders.paymentDueId, due.id),
-                  eq(reminders.type, "cobranca"),
-                  gte(reminders.scheduledAt, new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0))
-                )
-              )
+              eq(reminders.refId, refId)
             )).limit(1);
           if (existing.length === 0) {
             let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
@@ -367,22 +325,14 @@ async function runAutomation() {
           if (reminderDate <= now) {
             const refId = `pay-prev-${due.id}`;
             // Verifica se já existe lembrete para esta mensalidade (qualquer status: pendente, enviado ou cancelado)
+            // Trava de Duplicidade — Aviso Prévio (3 dias): cada etapa tem refId próprio.
+            // O Aviso do Dia D (pay-hoje-X) NÃO impede a criação do aviso prévio (pay-prev-X)
+            // e vice-versa. As duas etapas são completamente independentes.
             const existing = await db.select({ id: reminders.id }).from(reminders)
-              .where(
-                and(
-                  eq(reminders.organizationId, orgId),
-                  or(
-                    eq(reminders.refId, refId),
-                    eq(reminders.refId, `payment-${due.id}-${due.year}-${due.month}`),
-                    eq(reminders.refId, `pay-hoje-${due.id}`),
-                    // Também verifica por paymentDueId+tipo para não duplicar independente do refId
-                    and(
-                      eq(reminders.paymentDueId, due.id),
-                      eq(reminders.type, "cobranca")
-                    )
-                  )
-                )
-              ).limit(1);
+              .where(and(
+                eq(reminders.organizationId, orgId),
+                eq(reminders.refId, refId)
+              )).limit(1);
             if (existing.length === 0) {
               let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
               if (!tpl) {
