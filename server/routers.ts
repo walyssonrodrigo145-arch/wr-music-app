@@ -1145,7 +1145,7 @@ export const appRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;
-      return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 50);
+      return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 500);
     }),
     upcoming: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();

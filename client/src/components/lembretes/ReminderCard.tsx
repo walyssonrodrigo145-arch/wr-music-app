@@ -46,11 +46,18 @@ export function ReminderCard({ reminder, onDelete }: Props) {
       return { previous };
     },
     onError: (e, _, context) => {
+      // Erros de rede/parsing (e.data é null): o servidor provavelmente processou
+      // com sucesso, mas a resposta chegou malformada (problema comum no Render free tier).
+      // Nesse caso, NÃO revertemos o estado otímista nem mostramos erro —
+      // o onSettled vai buscar o estado real via invalidate().
+      const isParsingOrNetworkError = !e.data;
+      if (isParsingOrNetworkError) {
+        console.warn("[markSent] Erro de parsing/rede ignorado (servidor processou):", e.message);
+        return;
+      }
+      // Erro real de servidor (4xx: auth, validação etc) — reverte e mostra mensagem
       if (context?.previous) revertOptimistic(context.previous);
-      const msg = e.message.includes("transform") || e.message.includes("parse")
-        ? "Erro de conexão com o servidor. Tente novamente."
-        : "Erro: " + e.message;
-      toast.error(msg);
+      toast.error("Erro ao marcar como enviado: " + e.message);
     },
     onSettled: () => {
       utils.reminders.list.invalidate();
@@ -68,11 +75,14 @@ export function ReminderCard({ reminder, onDelete }: Props) {
       return { previous };
     },
     onError: (e, _, context) => {
+      // Mesma lógica do markSent: erros de parsing/rede não revertem o estado
+      const isParsingOrNetworkError = !e.data;
+      if (isParsingOrNetworkError) {
+        console.warn("[cancel] Erro de parsing/rede ignorado:", e.message);
+        return;
+      }
       if (context?.previous) revertOptimistic(context.previous);
-      const msg = e.message.includes("transform") || e.message.includes("parse")
-        ? "Erro de conexão com o servidor. Tente novamente."
-        : "Erro: " + e.message;
-      toast.error(msg);
+      toast.error("Erro ao cancelar: " + e.message);
     },
     onSettled: () => {
       utils.reminders.list.invalidate();

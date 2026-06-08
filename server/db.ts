@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, gte, lte, lt } from "drizzle-orm";
+import { eq, desc, asc, sql, and, gte, lte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -393,10 +393,20 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
   return query;
 }
 
-// Recent lessons with student info
-export async function getRecentLessons(organizationId: number, userId?: number, limit = 10) {
+// Recent lessons with student info — fetches a date range suitable for the full calendar
+export async function getRecentLessons(organizationId: number, userId?: number, limit = 500) {
   const db = await getDb();
   if (!db) return [];
+
+  // Fetch from 3 months ago up to 12 months ahead so the calendar covers all views
+  const rangeStart = new Date();
+  rangeStart.setMonth(rangeStart.getMonth() - 3);
+  rangeStart.setHours(0, 0, 0, 0);
+
+  const rangeEnd = new Date();
+  rangeEnd.setMonth(rangeEnd.getMonth() + 12);
+  rangeEnd.setHours(23, 59, 59, 999);
+
   return db.select({
     id: lessons.id,
     title: lessons.title,
@@ -417,9 +427,11 @@ export async function getRecentLessons(organizationId: number, userId?: number, 
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
     .where(and(
         eq(lessons.organizationId, organizationId),
-        userId ? eq(lessons.userId, userId) : undefined
+        userId ? eq(lessons.userId, userId) : undefined,
+        gte(lessons.scheduledAt, rangeStart),
+        lte(lessons.scheduledAt, rangeEnd)
     ))
-    .orderBy(desc(lessons.scheduledAt)).limit(limit);
+    .orderBy(asc(lessons.scheduledAt)).limit(limit);
 }
 
 // Instruments with student count

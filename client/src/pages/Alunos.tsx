@@ -405,6 +405,7 @@ export default function Alunos() {
   const [search, setSearch] = useState("");
 
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [lessonTypeFilter, setLessonTypeFilter] = useState<string>("todos");
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsStudentId, setDetailsStudentId] = useState<number | null>(null);
   const [generateAccessStudentId, setGenerateAccessStudentId] = useState<number | null>(null);
@@ -439,10 +440,11 @@ export default function Alunos() {
       .filter((s: StudentRow) => {
         const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || (s.instrumentName ?? "").toLowerCase().includes(search.toLowerCase());
         const matchStatus = statusFilter === "todos" || s.status === statusFilter;
-        return matchSearch && matchStatus;
+        const matchLessonType = lessonTypeFilter === "todos" || s.lessonType === lessonTypeFilter;
+        return matchSearch && matchStatus && matchLessonType;
       })
-      .sort((a: StudentRow, b: StudentRow) => a.name.localeCompare(b.name));
-  }, [students, search, statusFilter]);
+      .sort((a: StudentRow, b: StudentRow) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [students, search, statusFilter, lessonTypeFilter]);
 
   const stats = {
     total: students.length,
@@ -502,15 +504,103 @@ export default function Alunos() {
           </div>
         </div>
 
+        {/* ── FILTER BAR ─────────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          {/* Status filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] shrink-0">Status</span>
+            <div className="flex bg-muted/40 rounded-xl p-1 gap-1 border border-border/30 shadow-sm flex-wrap">
+              {([
+                { value: "todos",   label: "Todos",   count: students.length },
+                { value: "ativo",   label: "Ativos",  count: stats.ativos },
+                { value: "pausado", label: "Pausados",count: stats.pausados },
+                { value: "inativo", label: "Inativos",count: stats.inativos },
+              ] as const).map(({ value, label, count }) => (
+                <button
+                  key={value}
+                  onClick={() => setStatusFilter(value)}
+                  className={cn(
+                    "relative px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
+                    statusFilter === value
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {label}
+                  <span className={cn(
+                    "text-[8px] font-black px-1 py-0.5 rounded-md min-w-[16px] text-center leading-none",
+                    statusFilter === value ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                  )}>
+                    {count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="hidden sm:block h-6 w-px bg-border" />
+
+          {/* Lesson type filters */}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] shrink-0">Modalidade</span>
+            <div className="flex bg-muted/40 rounded-xl p-1 gap-1 border border-border/30 shadow-sm">
+              {([
+                { value: "todos",      label: "Todas",      count: students.length },
+                { value: "individual", label: "Individual",  count: students.filter((s: any) => s.lessonType === 'individual' || !s.lessonType).length },
+                { value: "turma",      label: "Turma",       count: students.filter((s: any) => s.lessonType === 'turma').length },
+              ] as const).map(({ value, label, count }) => (
+                <button
+                  key={value}
+                  onClick={() => setLessonTypeFilter(value)}
+                  className={cn(
+                    "relative px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
+                    lessonTypeFilter === value
+                      ? "bg-purple-600 text-white shadow-md shadow-purple-500/25"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {label}
+                  <span className={cn(
+                    "text-[8px] font-black px-1 py-0.5 rounded-md min-w-[16px] text-center leading-none",
+                    lessonTypeFilter === value ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                  )}>
+                    {count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Active filter indicator */}
+          {(statusFilter !== "todos" || lessonTypeFilter !== "todos") && (
+            <button
+              onClick={() => { setStatusFilter("todos"); setLessonTypeFilter("todos"); }}
+              className="ml-auto flex items-center gap-1.5 text-[10px] font-black text-muted-foreground hover:text-rose-500 transition-colors uppercase tracking-widest px-3 py-1.5 rounded-xl border border-border hover:border-rose-500/30 hover:bg-rose-500/5"
+            >
+              <X size={10} />
+              Limpar filtros
+            </button>
+          )}
+        </div>
+
         {/* METRICS CARDS - Horizontal Scroll on Mobile */}
         <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
           {[
-            { label: "Total", count: stats.total, sub: "Matrículas", icon: Users, color: "text-blue-600", bg: "from-blue-500/10 to-background", border: "border-blue-500/20" },
-            { label: "Ativos", count: stats.ativos, sub: "Regulares", icon: CheckCircle2, color: "text-purple-600", bg: "from-purple-500/10 to-background", border: "border-purple-100/50" },
-            { label: "Pausados", count: stats.pausados, sub: "Em pausa", icon: Clock, color: "text-red-600", bg: "from-red-500/10 to-background", border: "border-red-100/50" },
-            { label: "Inativos", count: stats.inativos, sub: "Desligados", icon: X, color: "text-emerald-600", bg: "from-emerald-500/10 to-background", border: "border-emerald-100/50" },
+            { label: "Total",    filterVal: "todos",   count: stats.total,    sub: "Matrículas", icon: Users,        color: "text-blue-600",   bg: "from-blue-500/10 to-background",   border: "border-blue-500/20" },
+            { label: "Ativos",   filterVal: "ativo",   count: stats.ativos,   sub: "Regulares",  icon: CheckCircle2, color: "text-purple-600", bg: "from-purple-500/10 to-background", border: "border-purple-100/50" },
+            { label: "Pausados", filterVal: "pausado", count: stats.pausados, sub: "Em pausa",   icon: Clock,        color: "text-red-600",    bg: "from-red-500/10 to-background",    border: "border-red-100/50" },
+            { label: "Inativos", filterVal: "inativo", count: stats.inativos, sub: "Desligados", icon: X,            color: "text-emerald-600",bg: "from-emerald-500/10 to-background", border: "border-emerald-100/50" },
           ].map((item, i) => (
-            <div key={i} className={cn("relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden group shrink-0", item.bg, item.border)}>
+            <div
+              key={i}
+              onClick={() => setStatusFilter(item.filterVal)}
+              className={cn(
+                "relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden group shrink-0 cursor-pointer transition-all active:scale-[0.97] hover:shadow-md",
+                item.bg,
+                statusFilter === item.filterVal ? "ring-2 ring-primary/40 border-primary/30" : item.border
+              )}
+            >
               <div className="relative z-10">
                 <div className="flex items-center gap-2 lg:gap-3 mb-2 lg:mb-4">
                   <div className={cn("w-8 h-8 lg:w-9 lg:h-9 rounded-xl flex items-center justify-center bg-card shadow-sm shrink-0", item.color)}>
@@ -526,6 +616,7 @@ export default function Alunos() {
             </div>
           ))}
         </div>
+
 
         {/* MAIN CONTENT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">

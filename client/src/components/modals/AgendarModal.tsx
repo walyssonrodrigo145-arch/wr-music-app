@@ -112,6 +112,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const createBatchMutation = trpc.lessons.createBatch.useMutation({
     onSuccess: (data) => {
       toast.success(`${data.count} aula(s) agendada(s) com sucesso!`);
+      utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
@@ -143,6 +144,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const createMutation = trpc.lessons.create.useMutation({
     onSuccess: () => {
       toast.success("Aula agendada com sucesso!");
+      utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
@@ -161,6 +163,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const updateMutation = trpc.lessons.update.useMutation({
     onSuccess: () => {
       toast.success("Aula atualizada com sucesso!");
+      utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);

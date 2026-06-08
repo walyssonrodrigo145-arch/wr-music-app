@@ -72,7 +72,7 @@ export default function LessonDetailModal({
       open={open} 
       onOpenChange={onOpenChange}
       title="Detalhes da Aula"
-      description={`Visualizando aula de ${lesson.studentName}`}
+      description={`Visualizando aula de ${lesson.studentName || lesson.experimentalName || 'Aluno'}`}
     >
         <div className="p-0 overflow-hidden">
           <div className="p-8 pb-4 bg-gradient-to-b from-primary/5 to-transparent">

@@ -55,6 +55,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 type CalendarView = "mes" | "semana" | "dia" | "eventos";
 const DAYS_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
+// Map from mobile filter chip label to DB status value
+const STATUS_CHIP_MAP: Record<string, string> = {
+  "Agendadas": "agendada",
+  "Concluídas": "concluida",
+  "Canceladas": "cancelada",
+  "Remarcadas": "remarcada",
+  "Faltas": "falta",
+};
+
 const statusConfig = {
   agendada: { label: "Agendada", color: "bg-blue-600", text: "text-blue-600", bg: "bg-blue-500/100/10", border: "border-blue-500/20" },
   concluida: { label: "Concluída", color: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
@@ -153,6 +162,7 @@ export default function Aulas() {
     onError: (e) => toast.error("Erro ao remover: " + e.message)
   });
 
+
   const filteredLessons = useMemo(() => {
     return lessons.filter(l => {
       if (isDesktop) {
@@ -164,13 +174,20 @@ export default function Aulas() {
       } else {
         const isDayMatch = isSameDay(new Date(l.scheduledAt), selectedDate);
         const matchesSearch = (l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
-        const matchesStatus = statusFilterMobile === "Todas" || 
-                             (statusFilterMobile === "Hoje" && isToday(new Date(l.scheduledAt))) ||
-                             l.status.toLowerCase() === statusFilterMobile.toLowerCase().replace("í", "i");
+        let matchesStatus = false;
+        if (statusFilterMobile === "Todas") {
+          matchesStatus = true;
+        } else if (statusFilterMobile === "Hoje") {
+          matchesStatus = isToday(new Date(l.scheduledAt));
+        } else {
+          const mappedStatus = STATUS_CHIP_MAP[statusFilterMobile];
+          matchesStatus = mappedStatus ? l.status === mappedStatus : true;
+        }
         const matchesLessonType = lessonTypeFilter === "todos" || l.lessonType === lessonTypeFilter;
         return isDayMatch && matchesSearch && matchesStatus && matchesLessonType;
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessons, isDesktop, search, instrumentFilter, statusFilterDesktop, selectedDate, statusFilterMobile, lessonTypeFilter]);
 
   const monthDays = useMemo(() => {
@@ -469,7 +486,86 @@ export default function Aulas() {
         <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={currentDate} />
         <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={(id) => { setDetailLessonId(null); setTimeout(() => handleDeleteRequest(id), 150); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
 
-
+        {/* ── Dialog de confirmação para ações recorrentes (desktop) ──────────── */}
+        <ResponsiveDialog
+          open={!!recurringAction}
+          onOpenChange={(open) => { if (!open) setRecurringAction(null); }}
+          title={
+            hasRecurrence
+              ? (recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente')
+              : (recurringAction?.type === 'delete' ? 'Confirmar Exclusão' : 'Confirmar Remarcação')
+          }
+          description={
+            hasRecurrence
+              ? "Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?"
+              : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.' : 'Deseja confirmar a remarcação desta aula?')
+          }
+        >
+          <div className="flex flex-col gap-3 pb-8 md:pb-0">
+            {hasRecurrence ? (
+              <>
+                <button
+                  onClick={async () => {
+                    if (!recurringAction) return;
+                    try {
+                      if (recurringAction.type === 'delete') {
+                        await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: false });
+                      } else {
+                        await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: false });
+                      }
+                    } catch (err) {}
+                    setRecurringAction(null);
+                  }}
+                  className="w-full h-12 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+                >
+                  {recurringAction?.type === 'delete' ? 'Excluir apenas esta aula' : 'Remarcar apenas esta aula'}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!recurringAction) return;
+                    try {
+                      if (recurringAction.type === 'delete') {
+                        await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: true });
+                      } else {
+                        await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: true });
+                      }
+                    } catch (err) {}
+                    setRecurringAction(null);
+                  }}
+                  className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
+                >
+                  {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={async () => {
+                  if (!recurringAction) return;
+                  try {
+                    if (recurringAction.type === 'delete') {
+                      await deleteMutation.mutateAsync({ id: recurringAction.id, deleteSeries: false });
+                    } else {
+                      await updateStatusMutation.mutateAsync({ id: recurringAction.id, status: 'remarcada', scheduledAt: recurringAction.newDate, updateSeries: false });
+                    }
+                  } catch (err) {}
+                  setRecurringAction(null);
+                }}
+                className={cn(
+                  "w-full h-12 rounded-xl text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg cursor-pointer",
+                  recurringAction?.type === 'delete' ? "bg-rose-600 hover:bg-rose-700 shadow-rose-500/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+                )}
+              >
+                {recurringAction?.type === 'delete' ? 'Sim, excluir' : 'Sim, remarcar'}
+              </button>
+            )}
+            <button
+              onClick={() => setRecurringAction(null)}
+              className="w-full h-12 rounded-xl border border-border text-muted-foreground hover:bg-muted/10 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              Cancelar
+            </button>
+          </div>
+        </ResponsiveDialog>
 
       </div>
     );
