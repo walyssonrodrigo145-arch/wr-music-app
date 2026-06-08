@@ -67,7 +67,9 @@ export function ResponsiveDialog({
             <DialogDescription>{description}</DialogDescription>
           )}
         </DialogHeader>
-        {children}
+        <div className="overflow-y-auto max-h-[70vh] pr-1 -mr-1">
+          {children}
+        </div>
       </DialogContent>
     </Dialog>
   );
