@@ -267,7 +267,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         if (conflicts.data) {
           const hasAnyConflict = conflicts.data.some((c: any) => c.hasConflict);
           if (hasAnyConflict) {
-            setBatchItems(conflicts.data.map((c: any) => ({ ...c, force: false })));
+            setBatchItems(conflicts.data.map((c: any) => ({ scheduledAt: c.date, hasConflict: c.hasConflict, conflictingWith: c.conflictingWith, force: false })));
             setStep("conflicts");
           } else {
             createBatchMutation.mutate({
