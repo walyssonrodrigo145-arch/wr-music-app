@@ -1657,7 +1657,7 @@ export const appRouter = router({
     checkConflicts: protectedProcedure.input(z.object({
       firstDate: z.string(),
       duration: z.number(),
-      weeksCount: z.number().min(1).max(13),
+      weeksCount: z.number().min(1).max(104),
     })).query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) return [];

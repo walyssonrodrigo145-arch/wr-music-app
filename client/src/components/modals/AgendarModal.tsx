@@ -554,9 +554,14 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                     className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
                   >
                     <option value={1}>Apenas hoje</option>
-                    {[2,4,8,12,13].map(w => (
-                      <option key={w} value={w}>{w} semanas</option>
-                    ))}
+                    <option value={2}>2 semanas</option>
+                    <option value={4}>4 semanas (~1 mês)</option>
+                    <option value={8}>8 semanas (~2 meses)</option>
+                    <option value={12}>12 semanas (~3 meses)</option>
+                    <option value={13}>13 semanas (~3 meses)</option>
+                    <option value={26}>26 semanas (~6 meses)</option>
+                    <option value={52}>52 semanas (~1 ano)</option>
+                    <option value={104}>104 semanas (~2 anos)</option>
                   </select>
                 </>
               ) : (
