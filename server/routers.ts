@@ -18,7 +18,7 @@ import {
   getExperimentalStats,
 } from "./db";
 import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, expenses } from "../drizzle/schema";
-import { eq, desc, sql, and, gte, lt, lte, asc, ne, or } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
 import { TRPCError } from "@trpc/server";
@@ -1763,6 +1763,89 @@ export const appRouter = router({
         return { success: true, count: rowsToInsert.length };
       } catch (error) {
         return handleDbError(error, "realizar agendamentos em lote");
+      }
+    }),
+
+    // ─ Criar aulas em turma (mesmo horário, vários alunos) ───────────────
+    createTurma: protectedProcedure.input(z.object({
+      studentIds: z.array(z.number()).min(1),
+      title: z.string().min(2),
+      scheduledAt: z.string(),
+      duration: z.number().default(60),
+      notes: z.string().optional(),
+      instrumentId: z.number().nullable().optional(),
+      weeksCount: z.number().default(1),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+
+        const orgId = ctx.user.organizationId!;
+        
+        // Segurança: Verificar se todos os alunos pertencem ao usuário logado
+        const ownedStudents = await db.select({ id: students.id, name: students.name }).from(students)
+          .where(and(
+            inArray(students.id, input.studentIds),
+            eq(students.organizationId, orgId),
+            eq(students.professorId, ctx.user.id)
+          ));
+
+        if (ownedStudents.length !== input.studentIds.length) {
+          throw new Error("Um ou mais alunos selecionados não existem ou não pertencem ao seu perfil.");
+        }
+        
+        const rowsToInsert = [];
+        const baseDate = new Date(input.scheduledAt);
+        
+        for (let w = 0; w < input.weeksCount; w++) {
+          const d = new Date(baseDate);
+          d.setDate(baseDate.getDate() + w * 7);
+          const endsAt = new Date(d.getTime() + input.duration * 60000);
+          
+          const groupId = nanoid(); // Cada sessão/data de turma ganha um groupId unificado
+
+          for (const studentId of input.studentIds) {
+            // Verificar se o aluno específico tem conflito de horário.
+            // Para turmas, só nos importamos se *este* aluno tem outra aula na mesma hora.
+            const [conflict] = await db.select({ id: lessons.id }).from(lessons)
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.studentId, studentId),
+                eq(lessons.status, 'agendada'),
+                sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${d.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
+              )).limit(1);
+              
+            if (conflict) {
+              const studentName = ownedStudents.find(s => s.id === studentId)?.name || 'Aluno';
+              throw new Error(`Conflito: ${studentName} já possui aula agendada neste horário.`);
+            }
+
+            rowsToInsert.push({
+              organizationId: orgId,
+              userId: ctx.user.id,
+              studentId: studentId,
+              title: input.title,
+              scheduledAt: d,
+              duration: input.duration,
+              notes: input.notes || null,
+              instrumentId: input.instrumentId || null,
+              rating: null,
+              recurringGroupId: groupId, // Todas as linhas desta turma terão o mesmo groupId
+              status: 'agendada' as const,
+              lessonType: 'turma' as const,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+        }
+        
+        if (rowsToInsert.length > 0) {
+          await db.insert(lessons).values(rowsToInsert);
+        }
+        
+        return { success: true, count: rowsToInsert.length };
+      } catch (error) {
+        return handleDbError(error, "agendar turma");
       }
     }),
   }),

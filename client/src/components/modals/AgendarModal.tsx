@@ -49,7 +49,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     date: format(new Date(), "yyyy-MM-dd"),
     isExperimental: false,
     experimentalName: "",
-    lessonType: "individual" as "individual" | "turma"
+    lessonType: "individual" as "individual" | "turma",
+    turmaStudentIds: [] as number[],
   });
 
   const [conflictError, setConflictError] = useState<string | null>(null);
@@ -71,7 +72,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           updateSeries: false,
           isExperimental: !!editingLesson.isExperimental,
           experimentalName: editingLesson.experimentalName || "",
-          lessonType: editingLesson.lessonType || "individual"
+          lessonType: editingLesson.lessonType || "individual",
+          turmaStudentIds: []
         });
       } else {
         setFormData({
@@ -86,7 +88,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           updateSeries: false,
           isExperimental: false,
           experimentalName: "",
-          lessonType: "individual"
+          lessonType: "individual",
+          turmaStudentIds: []
         });
       }
       setConflictError(null);
@@ -121,6 +124,18 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     onError: (e) => toast.error("Erro no agendamento em lote: " + e.message)
   });
 
+  const createTurmaMutation = trpc.lessons.createTurma.useMutation({
+    onSuccess: (data) => {
+      toast.success(`${data.count} aula(s) de turma agendada(s)!`);
+      utils.lessons.list.invalidate();
+      utils.lessons.listRange.invalidate();
+      utils.dashboard.stats.invalidate();
+      onOpenChange(false);
+      resetForm();
+    },
+    onError: (e) => toast.error("Erro no agendamento em turma: " + e.message)
+  });
+
   const resetForm = () => {
     setFormData({
       studentId: "",
@@ -134,7 +149,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       updateSeries: false,
       isExperimental: false,
       experimentalName: "",
-      lessonType: "individual"
+      lessonType: "individual",
+      turmaStudentIds: []
     });
     setStep("form");
     setBatchItems([]);
@@ -182,6 +198,32 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     e.preventDefault();
     setConflictError(null);
     
+    if (formData.lessonType === "turma") {
+      if (!formData.title) {
+        toast.error("Por favor, defina o Nome da Turma.");
+        return;
+      }
+      if (formData.turmaStudentIds.length === 0) {
+        toast.error("Por favor, selecione pelo menos um aluno para a turma.");
+        return;
+      }
+      
+      const [y, M, d] = formData.date.split("-").map(Number);
+      const [hours, minutes] = formData.time.split(":").map(Number);
+      const scheduledDate = new Date(y, M - 1, d, hours, minutes, 0, 0);
+      
+      createTurmaMutation.mutate({
+        studentIds: formData.turmaStudentIds,
+        title: formData.title,
+        scheduledAt: scheduledDate.toISOString(),
+        duration: formData.duration,
+        notes: formData.notes,
+        instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+        weeksCount: formData.weeksCount,
+      });
+      return;
+    }
+
     if (!formData.isExperimental && !formData.studentId) {
       toast.error("Por favor, selecione um aluno.");
       return;
@@ -283,105 +325,173 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       {step === "form" ? (
         <form onSubmit={handleProcessSubmission} className="space-y-6 pt-2 pb-10 md:pb-0">
           
-          {/* Toggle Aula Experimental */}
-          <div className="flex items-center gap-3 p-1">
+          {/* Toggle de Modos */}
+          <div className="flex items-center gap-2 p-1 overflow-x-auto scrollbar-none">
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, isExperimental: false })}
+              onClick={() => setFormData({ ...formData, isExperimental: false, lessonType: "individual" })}
               className={cn(
-                "flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border",
-                !formData.isExperimental 
+                "flex-[1_0_auto] min-w-[110px] h-12 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border",
+                !formData.isExperimental && formData.lessonType === "individual"
                   ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20" 
                   : "bg-muted/5 text-muted-foreground border-border/10 hover:bg-muted/10"
               )}
             >
-              <User size={14} /> Aula Comum
+              <User size={14} /> Individual
             </button>
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, isExperimental: true })}
+              onClick={() => setFormData({ ...formData, isExperimental: true, lessonType: "individual" })}
               className={cn(
-                "flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border",
+                "flex-[1_0_auto] min-w-[110px] h-12 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border",
                 formData.isExperimental 
                   ? "bg-yellow-500 text-yellow-950 border-yellow-500 shadow-lg shadow-yellow-500/20" 
                   : "bg-muted/5 text-muted-foreground border-border/10 hover:bg-muted/10"
               )}
             >
-              <Beaker size={14} /> Aula Experimental
+              <Beaker size={14} /> Experimental
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, isExperimental: false, lessonType: "turma" })}
+              className={cn(
+                "flex-[1_0_auto] min-w-[110px] h-12 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border",
+                !formData.isExperimental && formData.lessonType === "turma"
+                  ? "bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20" 
+                  : "bg-muted/5 text-muted-foreground border-border/10 hover:bg-muted/10"
+              )}
+            >
+              <Users size={14} /> Turma
             </button>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            {/* Aluno ou Nome Experimental */}
-            <div className="space-y-2">
-               <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
-                 <User size={12} className={cn("text-primary/40", formData.isExperimental && "text-yellow-600/40")} /> {formData.isExperimental ? "Nome do Aluno (Experimental)" : "Aluno"}
-               </label>
-               {formData.isExperimental ? (
-                 <input 
-                   type="text"
-                   placeholder="Digite o nome..."
-                   value={formData.experimentalName}
-                   onChange={(e) => setFormData({ ...formData, experimentalName: e.target.value })}
-                   className="w-full h-14 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-yellow-500/5 outline-none transition-all"
-                 />
-               ) : (
+          {formData.lessonType === "turma" ? (
+            <div className="space-y-4 bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/20">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500/60 px-2">
+                  <Users size={12} /> Nome da Turma
+                </label>
+                <input 
+                  type="text"
+                  placeholder="Ex: Turma de Violão - Sábados..."
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full h-14 bg-background border border-indigo-500/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500/60 px-2">
+                  <UserPlus size={12} /> Alunos da Turma
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 scrollbar-thin">
+                  {students?.filter((s: any) => s.lessonType === "turma").length === 0 ? (
+                    <p className="text-xs text-muted-foreground col-span-2 py-4 text-center font-bold">Nenhum aluno marcado como "turma" no sistema.</p>
+                  ) : (
+                    students?.filter((s: any) => s.lessonType === "turma").map((student: any) => (
+                      <label 
+                        key={student.id} 
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer",
+                          formData.turmaStudentIds.includes(student.id) 
+                            ? "bg-indigo-500/10 border-indigo-500/30 ring-1 ring-indigo-500/20" 
+                            : "bg-background border-border/20 hover:bg-muted/10"
+                        )}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setFormData(prev => {
+                            const ids = prev.turmaStudentIds;
+                            if (ids.includes(student.id)) {
+                              return { ...prev, turmaStudentIds: ids.filter(id => id !== student.id) };
+                            } else {
+                              return { ...prev, turmaStudentIds: [...ids, student.id] };
+                            }
+                          });
+                        }}
+                      >
+                        <div className={cn(
+                          "w-5 h-5 rounded-md flex items-center justify-center border transition-all shrink-0",
+                          formData.turmaStudentIds.includes(student.id) ? "bg-indigo-500 border-indigo-500 text-white" : "border-border/40"
+                        )}>
+                          {formData.turmaStudentIds.includes(student.id) && <CheckCircle2 size={12} strokeWidth={4} />}
+                        </div>
+                        <span className="text-xs font-bold truncate">{student.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Instrumento */}
+              <div className="space-y-2">
+                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500/60 px-2">
+                   <Music size={12} /> Instrumento Opcional
+                 </label>
                  <select
-                   value={formData.studentId}
-                   onChange={(e) => {
-                     const sid = e.target.value;
-                     const s = students?.find((st: any) => st.id.toString() === sid);
-                     setFormData(prev => ({ 
-                       ...prev, 
-                       studentId: sid,
-                       lessonType: s?.lessonType || prev.lessonType
-                     }));
-                   }}
-                   className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
+                   value={formData.instrumentId}
+                   onChange={(e) => setFormData({...formData, instrumentId: e.target.value})}
+                   className="w-full h-14 bg-background border border-indigo-500/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all appearance-none cursor-pointer"
                  >
-                   <option value="">Selecione o aluno...</option>
-                   {students?.map((s: any) => (
-                     <option key={s.id} value={s.id.toString()}>{s.name}</option>
+                   <option value="">Nenhum...</option>
+                   {instruments?.map(inst => (
+                     <option key={inst.id} value={inst.id.toString()}>{inst.name}</option>
                    ))}
                  </select>
-               )}
+              </div>
             </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Aluno ou Nome Experimental */}
+              <div className="space-y-2">
+                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
+                   <User size={12} className={cn("text-primary/40", formData.isExperimental && "text-yellow-600/40")} /> {formData.isExperimental ? "Nome do Aluno (Experimental)" : "Aluno"}
+                 </label>
+                 {formData.isExperimental ? (
+                   <input 
+                     type="text"
+                     placeholder="Digite o nome..."
+                     value={formData.experimentalName}
+                     onChange={(e) => setFormData({ ...formData, experimentalName: e.target.value })}
+                     className="w-full h-14 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-yellow-500/5 outline-none transition-all"
+                   />
+                 ) : (
+                   <select
+                     value={formData.studentId}
+                     onChange={(e) => {
+                       const sid = e.target.value;
+                       setFormData(prev => ({ 
+                         ...prev, 
+                         studentId: sid
+                       }));
+                     }}
+                     className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
+                   >
+                     <option value="">Selecione o aluno...</option>
+                     {students?.filter((s: any) => s.lessonType !== "turma").map((s: any) => (
+                       <option key={s.id} value={s.id.toString()}>{s.name}</option>
+                     ))}
+                   </select>
+                 )}
+              </div>
 
-            {/* Instrumento */}
-            <div className="space-y-2">
-               <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
-                 <Music size={12} className="text-primary/40" /> Instrumento
-               </label>
-               <select
-                 value={formData.instrumentId}
-                 onChange={(e) => setFormData({...formData, instrumentId: e.target.value})}
-                 className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
-               >
-                 <option value="">Opcional...</option>
-                 {instruments?.map(inst => (
-                   <option key={inst.id} value={inst.id.toString()}>{inst.name}</option>
-                 ))}
-               </select>
+              {/* Instrumento */}
+              <div className="space-y-2">
+                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
+                   <Music size={12} className="text-primary/40" /> Instrumento
+                 </label>
+                 <select
+                   value={formData.instrumentId}
+                   onChange={(e) => setFormData({...formData, instrumentId: e.target.value})}
+                   className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
+                 >
+                   <option value="">Opcional...</option>
+                   {instruments?.map(inst => (
+                     <option key={inst.id} value={inst.id.toString()}>{inst.name}</option>
+                   ))}
+                 </select>
+              </div>
             </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            {/* Tipo de Aula */}
-            <div className="space-y-2">
-               <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
-                 <Users size={12} className="text-primary/40" /> Tipo de Aula
-               </label>
-               <select
-                 value={formData.lessonType}
-                 onChange={(e) => setFormData({...formData, lessonType: e.target.value as any})}
-                 className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
-               >
-                 <option value="individual">Individual</option>
-                 <option value="turma">Turma / Coletiva</option>
-               </select>
-            </div>
-            <div className="hidden md:block" />
-          </div>
+          )}
 
           <div className="grid md:grid-cols-2 gap-4">
             {/* Data */}
