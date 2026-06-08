@@ -2335,6 +2335,16 @@ export const appRouter = router({
           defaultBody = "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, efetue o pagamento.";
         }
 
+        // --- TRAVA MANUAL ---
+        // Se o usuário já concluiu um lembrete para esta cobrança, não gera mais.
+        const userConcludedPayment = await db.select({ id: reminders.id }).from(reminders)
+          .where(and(
+            eq(reminders.organizationId, orgId),
+            eq(reminders.paymentDueId, due.id),
+            eq(reminders.status, "concluido")
+          )).limit(1);
+        if (userConcludedPayment.length > 0) { skipped++; continue; }
+
         // Verificar duplicidade
         const existing = await db.select({ id: reminders.id }).from(reminders)
           .where(

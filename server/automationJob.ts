@@ -156,6 +156,17 @@ async function runAutomation() {
 
         const dateStr = lessonDate.toISOString().slice(0, 10);
 
+        // --- TRAVA MANUAL ---
+        // Se o usuário já marcou qualquer lembrete desta aula como 'concluído', 
+        // o robô não deve gerar novos lembretes (nem de 24h, nem de 1h).
+        const userConcludedAula = await db.select({ id: reminders.id }).from(reminders)
+          .where(and(
+            eq(reminders.organizationId, orgId),
+            eq(reminders.lessonId, lesson.id),
+            eq(reminders.status, "concluido")
+          )).limit(1);
+        if (userConcludedAula.length > 0) continue;
+
         // A) Lembrete 24 horas antes
         const time24h = new Date(lessonDate.getTime() - 24 * 60 * 60 * 1000);
         const ref24h = `lesson-24h-${lesson.id}-${dateStr}`;
@@ -285,6 +296,17 @@ async function runAutomation() {
         // Para re-notificar manualmente, use o botão "Gerar" na tela de Lembretes.
         if (isOverdue) continue;
 
+        // --- TRAVA MANUAL ---
+        // Se o usuário já marcou qualquer lembrete desta cobrança como 'concluído', 
+        // o robô não deve gerar novos lembretes (nem prévio, nem Dia D).
+        const userConcludedPayment = await db.select({ id: reminders.id }).from(reminders)
+          .where(and(
+            eq(reminders.organizationId, orgId),
+            eq(reminders.paymentDueId, due.id),
+            eq(reminders.status, "concluido")
+          )).limit(1);
+        if (userConcludedPayment.length > 0) continue;
+
         const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
         const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -294,10 +316,14 @@ async function runAutomation() {
           // Verifica se já existe lembrete de hoje (qualquer status: pendente, enviado ou cancelado)
           // Trava de Duplicidade — Dia D: cada etapa tem refId próprio e independente.
           // O aviso prévio (pay-prev-X) NÃO impede a criação do Dia D (pay-hoje-X).
+          const manualRefId = `payment-${due.id}-${due.year}-${due.month}`;
           const existing = await db.select({ id: reminders.id }).from(reminders)
             .where(and(
               eq(reminders.organizationId, orgId),
-              eq(reminders.refId, refId)
+              or(
+                eq(reminders.refId, refId),
+                eq(reminders.refId, manualRefId)
+              )
             )).limit(1);
           if (existing.length === 0) {
             let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
@@ -328,10 +354,14 @@ async function runAutomation() {
             // Trava de Duplicidade — Aviso Prévio (3 dias): cada etapa tem refId próprio.
             // O Aviso do Dia D (pay-hoje-X) NÃO impede a criação do aviso prévio (pay-prev-X)
             // e vice-versa. As duas etapas são completamente independentes.
+            const manualRefId = `payment-${due.id}-${due.year}-${due.month}`;
             const existing = await db.select({ id: reminders.id }).from(reminders)
               .where(and(
                 eq(reminders.organizationId, orgId),
-                eq(reminders.refId, refId)
+                or(
+                  eq(reminders.refId, refId),
+                  eq(reminders.refId, manualRefId)
+                )
               )).limit(1);
             if (existing.length === 0) {
               let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);

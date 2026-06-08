@@ -55,7 +55,17 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
 
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "conflicts">("form");
-  const [batchItems, setBatchItems] = useState<{ scheduledAt: string, hasConflict: boolean, conflictingWith: string | null, force: boolean }[]>([]);
+  const [batchItems, setBatchItems] = useState<any[]>([]);
+
+  const safeFormat = (date: any, formatStr: string) => {
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return "Inválida";
+      return format(d, formatStr);
+    } catch {
+      return "Inválida";
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -674,7 +684,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                          <CalendarRange size={18} />
                       </div>
                       <div>
-                        <p className="text-xs font-black text-foreground/80">{format(new Date(item.scheduledAt), "dd/MM/yyyy")}</p>
+                        <p className="text-xs font-black text-foreground/80">{safeFormat(item.scheduledAt, "dd/MM/yyyy")}</p>
                         <p className="text-[10px] font-bold text-muted-foreground">
                           {item.hasConflict ? `Conflito com ${item.conflictingWith}` : "Horário disponível"}
                         </p>

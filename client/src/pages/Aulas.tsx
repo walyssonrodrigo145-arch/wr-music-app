@@ -26,6 +26,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   format, 
+  isValid,
   addDays, 
   isSameDay, 
   startOfMonth, 
@@ -64,6 +65,17 @@ const STATUS_CHIP_MAP: Record<string, string> = {
   "Faltas": "falta",
 };
 
+// --- FUNÇÃO DE FORMAT SEGURO ---
+const safeFormat = (date: any, formatStr: string, options?: any) => {
+  try {
+    const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+    if (!isValid(d)) return "Inválido";
+    return format(d, formatStr, options);
+  } catch {
+    return "Inválido";
+  }
+};
+
 const statusConfig = {
   agendada: { label: "Agendada", color: "bg-blue-600", text: "text-blue-600", bg: "bg-blue-500/100/10", border: "border-blue-500/20" },
   concluida: { label: "Concluída", color: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
@@ -86,7 +98,7 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
       >
         <div className="flex items-center justify-between mb-1.5">
           <span className={cn("text-[10px] font-black uppercase tracking-widest", config.text)}>
-            {format(new Date(lesson.scheduledAt), "HH:mm")}
+            {safeFormat(lesson.scheduledAt, "HH:mm")}
           </span>
           <div className={cn("w-2 h-2 rounded-full", config.color)} />
         </div>
@@ -463,7 +475,7 @@ export default function Aulas() {
                             .map(l => (
                               <div key={l.id} className="relative">
                                 <div className="absolute -top-3 left-6 z-10 px-3 py-1 bg-blue-600 text-white text-[9px] font-black rounded-full uppercase tracking-widest shadow-lg">
-                                   {format(new Date(l.scheduledAt), "dd/MM")}
+                                   {safeFormat(l.scheduledAt, "dd/MM")}
                                 </div>
                                 <LessonCardDesktop lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
                               </div>
@@ -631,7 +643,7 @@ export default function Aulas() {
                 return (
                   <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-card rounded-[2.5rem] p-6 lg:p-8 border border-border shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[180px]" onClick={() => setDetailLessonId(lesson.id)}>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3"><div className={cn("w-1.5 h-6 rounded-full", config.color)} /><span className="text-lg font-black text-foreground tracking-tighter">{format(new Date(lesson.scheduledAt), "HH:mm")}</span></div>
+                      <div className="flex items-center gap-3"><div className={cn("w-1.5 h-6 rounded-full", config.color)} /><span className="text-lg font-black text-foreground tracking-tighter">{safeFormat(lesson.scheduledAt, "HH:mm")}</span></div>
                       <span className={cn("px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm", config.bg, config.text, config.border)}>{config.label}</span>
                     </div>
                     <div className="space-y-1.5">

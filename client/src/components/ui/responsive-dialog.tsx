@@ -49,7 +49,7 @@ export function ResponsiveDialog({
               <DrawerDescription>{description}</DrawerDescription>
             )}
           </DrawerHeader>
-          <div className="py-4 overflow-y-auto max-h-[70vh]">
+          <div className="py-4 overflow-y-auto max-h-[85vh] scrollbar-none">
             {children}
           </div>
         </DrawerContent>
