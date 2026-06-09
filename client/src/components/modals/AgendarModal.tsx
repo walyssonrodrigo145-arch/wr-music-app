@@ -54,7 +54,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   });
 
   const [conflictError, setConflictError] = useState<string | null>(null);
-  const [step, setStep] = useState<"form" | "conflicts">("form");
+  const [step, setStep] = useState<"form" | "conflicts" | "ask_series">("form");
   const [batchItems, setBatchItems] = useState<any[]>([]);
 
   const safeFormat = (date: any, formatStr: string) => {
@@ -254,7 +254,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     const [hours, minutes] = formData.time.split(":").map(Number);
     const scheduledDate = new Date(y, M - 1, d, hours, minutes, 0, 0);
 
-    if (editingLesson) {
+    const doEdit = (updateSeriesFlag: boolean) => {
       updateMutation.mutate({
         id: editingLesson.id,
         studentId: formData.isExperimental ? null : (formData.studentId ? Number(formData.studentId) : null),
@@ -266,8 +266,16 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
         scheduledAt: scheduledDate.toISOString(),
         lessonType: formData.lessonType,
-        updateSeries: formData.updateSeries
+        updateSeries: updateSeriesFlag
       });
+    };
+
+    if (editingLesson) {
+      if (editingLesson.recurringGroupId && step !== "ask_series") {
+        setStep("ask_series");
+        return;
+      }
+      doEdit(formData.updateSeries);
       return;
     }
 
@@ -575,33 +583,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                   </select>
                 </>
               ) : (
-                editingLesson.recurringGroupId && (
-                  <div className="pt-6">
-                    <div 
-                      onClick={() => setFormData(prev => ({ ...prev, updateSeries: !prev.updateSeries }))}
-                      className={cn(
-                        "flex items-center justify-between h-14 px-4 rounded-2xl border transition-all cursor-pointer",
-                        formData.updateSeries ? "bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20" : "bg-muted/5 border-border/10"
-                      )}
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60 leading-none mb-0.5">Série</span>
-                        <span className={cn("text-[10px] font-bold uppercase tracking-tight", formData.updateSeries ? "text-amber-600" : "text-muted-foreground/40")}>
-                          {formData.updateSeries ? "Remarcar Tudo" : "Só esta aula"}
-                        </span>
-                      </div>
-                      <div className={cn(
-                        "w-8 h-4 rounded-full p-0.5 transition-all",
-                        formData.updateSeries ? "bg-amber-500" : "bg-muted-foreground/20"
-                      )}>
-                        <div className={cn(
-                          "w-3 h-3 bg-card rounded-full shadow-sm transition-all transform",
-                          formData.updateSeries ? "translate-x-4" : "translate-x-0"
-                        )} />
-                      </div>
-                    </div>
-                  </div>
-                )
+                null
               )}
             </div>
           </div>
@@ -668,6 +650,76 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
             )}
           </button>
         </form>
+      ) : step === "ask_series" ? (
+        <div className="space-y-6 pt-2 pb-10 md:pb-0">
+          <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-[2rem] text-center space-y-4">
+             <CalendarDays size={48} className="mx-auto text-primary" />
+             <h3 className="text-lg font-black tracking-tight text-foreground">Série Recorrente</h3>
+             <p className="text-sm font-bold text-muted-foreground">Esta aula faz parte de uma série. Deseja aplicar as alterações apenas para esta aula ou para todas as aulas seguintes?</p>
+          </div>
+          
+          <div className="flex flex-col gap-3">
+             <button
+               type="button"
+               onClick={() => {
+                 setFormData(prev => ({ ...prev, updateSeries: false }));
+                 updateMutation.mutate({
+                   id: editingLesson.id,
+                   studentId: formData.isExperimental ? null : (formData.studentId ? Number(formData.studentId) : null),
+                   isExperimental: formData.isExperimental,
+                   experimentalName: formData.experimentalName,
+                   title: formData.title || "Aula de Música",
+                   duration: formData.duration,
+                   notes: formData.notes,
+                   instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+                   scheduledAt: (() => {
+                     const [y, M, d] = formData.date.split("-").map(Number);
+                     const [hours, minutes] = formData.time.split(":").map(Number);
+                     return new Date(y, M - 1, d, hours, minutes, 0, 0).toISOString();
+                   })(),
+                   lessonType: formData.lessonType,
+                   updateSeries: false
+                 });
+               }}
+               className="w-full h-14 bg-muted/10 hover:bg-muted/20 text-muted-foreground rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all"
+             >
+               Alterar apenas esta aula
+             </button>
+             <button
+               type="button"
+               onClick={() => {
+                 setFormData(prev => ({ ...prev, updateSeries: true }));
+                 updateMutation.mutate({
+                   id: editingLesson.id,
+                   studentId: formData.isExperimental ? null : (formData.studentId ? Number(formData.studentId) : null),
+                   isExperimental: formData.isExperimental,
+                   experimentalName: formData.experimentalName,
+                   title: formData.title || "Aula de Música",
+                   duration: formData.duration,
+                   notes: formData.notes,
+                   instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+                   scheduledAt: (() => {
+                     const [y, M, d] = formData.date.split("-").map(Number);
+                     const [hours, minutes] = formData.time.split(":").map(Number);
+                     return new Date(y, M - 1, d, hours, minutes, 0, 0).toISOString();
+                   })(),
+                   lessonType: formData.lessonType,
+                   updateSeries: true
+                 });
+               }}
+               className="w-full h-14 bg-primary text-primary-foreground rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+             >
+               Alterar todas as seguintes
+             </button>
+          </div>
+          <button
+             type="button"
+             onClick={() => setStep("form")}
+             className="w-full h-12 text-muted-foreground/50 hover:text-muted-foreground text-[10px] font-black uppercase tracking-widest transition-all mt-2"
+          >
+             Voltar
+          </button>
+        </div>
       ) : (
         <div className="space-y-6 pt-2 pb-10 md:pb-0">
            <div className="max-h-[400px] overflow-y-auto scrollbar-none space-y-3 px-1">
