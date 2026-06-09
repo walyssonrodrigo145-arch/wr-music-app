@@ -3738,10 +3738,12 @@ export const appRouter = router({
         ))
         .groupBy(students.lessonType);
 
-        // 2. Faturamento por modalidade (mensalidades pagas)
+        // 2. Faturamento por modalidade (recebido e a receber)
         const revenueStats = await db.select({
           lessonType: students.lessonType,
-          total: sql<number>`CAST(sum(CAST(${paymentDues.amount} AS DECIMAL)) AS FLOAT)`,
+          recebido: sql<number>`CAST(sum(CASE WHEN ${paymentDues.status} = 'pago' THEN CAST(${paymentDues.amount} AS DECIMAL) ELSE 0 END) AS FLOAT)`,
+          aReceber: sql<number>`CAST(sum(CASE WHEN ${paymentDues.status} IN ('pendente', 'atrasado') THEN CAST(${paymentDues.amount} AS DECIMAL) ELSE 0 END) AS FLOAT)`,
+          total: sql<number>`CAST(sum(CASE WHEN ${paymentDues.status} = 'pago' THEN CAST(${paymentDues.amount} AS DECIMAL) ELSE 0 END) AS FLOAT)`, // Mantendo 'total' igual a 'recebido' para compatibilidade caso outro lugar use, ou podemos deixar como a soma de tudo. Como antes filtrava apenas por 'pago', o 'total' de antes era apenas o pago.
         })
         .from(paymentDues)
         .leftJoin(students, eq(paymentDues.studentId, students.id))
@@ -3749,8 +3751,7 @@ export const appRouter = router({
           eq(paymentDues.organizationId, orgId),
           userId ? eq(paymentDues.userId, userId) : undefined,
           eq(paymentDues.month, input.month),
-          eq(paymentDues.year, input.year),
-          eq(paymentDues.status, 'pago')
+          eq(paymentDues.year, input.year)
         ))
         .groupBy(students.lessonType);
 

@@ -674,6 +674,8 @@ const Relatorios: React.FC = () => {
 
     const revenueData = modalidadeStatsQuery.data?.revenue.map(r => ({
       name: r.lessonType === 'individual' ? 'Individual' : 'Turma',
+      Recebido: r.recebido || 0,
+      'A Receber': r.aReceber || 0,
       value: r.total
     })) || [];
 
@@ -739,7 +741,7 @@ const Relatorios: React.FC = () => {
                 </h3>
                 <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">Receita</span>
               </div>
-              <p className="text-xs text-slate-500 mb-8 font-medium">Volume total de receita gerado por cada formato de aula.</p>
+              <p className="text-xs text-slate-500 mb-8 font-medium">Volume de receita (Recebido vs A Receber) gerado por formato de aula.</p>
             </div>
 
             <div className="h-80 w-full my-auto">
@@ -749,11 +751,9 @@ const Relatorios: React.FC = () => {
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 700}} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 700}} />
                   <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} formatter={(value: number) => currencyFormat(value)} />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={40}>
-                    {revenueData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? "#6366f1" : "#a855f7"} />
-                    ))}
-                  </Bar>
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 700 }} />
+                  <Bar dataKey="Recebido" fill="#10b981" radius={[8, 8, 0, 0]} barSize={24} />
+                  <Bar dataKey="A Receber" fill="#f59e0b" radius={[8, 8, 0, 0]} barSize={24} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
