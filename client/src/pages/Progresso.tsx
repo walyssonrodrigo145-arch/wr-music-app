@@ -2,6 +2,8 @@ import { useState, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Search,
   Star,
@@ -966,11 +968,13 @@ export default function Progresso() {
                {generateNextLessonMutation.isPending ? (
                  <div className="flex flex-col items-center justify-center py-16 space-y-4">
                     <Loader2 size={40} className="animate-spin text-indigo-500/50" />
-                    <p className="text-sm font-bold text-muted-foreground animate-pulse">Lendo arquivos e analisando histórico do aluno...</p>
+                    <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico e metas do aluno...</p>
                  </div>
                ) : lessonPlanContent ? (
                  <div className="prose prose-sm dark:prose-invert max-w-none prose-h1:text-xl prose-h1:font-black prose-h2:text-lg prose-h2:text-indigo-600 prose-h2:font-black prose-h3:text-base prose-strong:text-indigo-500">
-                    <div dangerouslySetInnerHTML={{ __html: lessonPlanContent.replace(/\\n/g, '<br/>').replace(/\\*(.*?)\\*/g, '<strong>$1</strong>') }} />
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                       {lessonPlanContent}
+                    </ReactMarkdown>
                  </div>
                ) : (
                  <p className="text-center text-muted-foreground py-8">Nenhum plano gerado ainda.</p>
