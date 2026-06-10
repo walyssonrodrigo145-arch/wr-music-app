@@ -404,16 +404,16 @@ export default function Progresso() {
               <div className="bg-card border-b border-border px-8 py-6 shrink-0 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/100/5 rounded-full blur-3xl -mr-32 -mt-32" />
                 
-                <div className="flex items-center justify-between relative z-10">
-                  <div className="flex items-center gap-6">
+                <div className="flex flex-row items-start justify-between relative z-10 gap-4">
+                  <div className="flex items-start gap-3 sm:gap-6 flex-1 min-w-0">
                     <button 
                       onClick={() => setSelectedStudentId(null)}
-                      className="md:hidden p-2 -ml-2 hover:bg-muted rounded-xl transition-all"
+                      className="md:hidden p-2 -ml-2 hover:bg-muted rounded-xl transition-all shrink-0 mt-1 sm:mt-2"
                     >
                       <ChevronLeft size={24} />
                     </button>
-                    <div className="relative group">
-                      <Avatar className="w-16 h-16 border-4 border-slate-50 shadow-xl shadow-indigo-500/10">
+                    <div className="relative group shrink-0 mt-1 sm:mt-0">
+                      <Avatar className="w-14 h-14 sm:w-16 sm:h-16 border-4 border-slate-50 shadow-xl shadow-indigo-500/10">
                         <AvatarImage src={selectedStudent?.avatar} className="object-cover" />
                         <AvatarFallback className="bg-indigo-600 text-white text-xl font-black uppercase">
                           {selectedStudent?.name.substring(0, 2)}
@@ -439,31 +439,31 @@ export default function Progresso() {
                       </motion.div>
                     </div>
                     
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-black text-foreground tracking-tighter uppercase">{selectedStudent?.name}</h2>
-                        <span className="px-3 py-1 rounded-xl bg-indigo-500/10 text-[9px] font-black text-indigo-600 uppercase tracking-[0.2em] border border-indigo-100">
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tighter uppercase break-words leading-tight">{selectedStudent?.name}</h2>
+                        <span className="w-fit px-2 sm:px-3 py-1 rounded-xl bg-indigo-500/10 text-[9px] font-black text-indigo-600 uppercase tracking-[0.2em] border border-indigo-100">
                           {selectedStudent?.level || "Nível Iniciante"}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3">
-                           <div className="w-32 lg:w-48 h-2 bg-muted rounded-full overflow-hidden border border-border/50">
+                      <div className="flex items-center gap-2 sm:gap-4 w-full">
+                        <div className="flex items-center gap-2 sm:gap-3 w-full">
+                           <div className="flex-1 max-w-[8rem] sm:max-w-none sm:w-32 lg:w-48 h-2 bg-muted rounded-full overflow-hidden border border-border/50">
                               <motion.div 
                                 initial={{ width: 0 }}
                                 animate={{ width: `${summary?.frequency || 0}%` }}
                                 className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 shadow-[0_0_12px_rgba(79,70,229,0.4)]" 
                               />
                            </div>
-                           <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">
-                             {summary?.frequency || 0}% Frequência
+                           <span className="text-[9px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-widest shrink-0">
+                             {summary?.frequency || 0}% <span className="hidden sm:inline">Frequência</span><span className="sm:hidden">Freq.</span>
                            </span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 shrink-0 pt-1">
                     <div className="hidden xl:flex flex-col items-end">
                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status de Evolução</span>
                        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/100/5 border border-emerald-500/10 rounded-2xl">
@@ -473,9 +473,10 @@ export default function Progresso() {
                     </div>
                     <Button 
                       onClick={() => { resetForm(); setIsModalOpen(true); }}
-                      className="h-12 w-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/10 transition-all active:scale-95 border-none"
+                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/10 transition-all active:scale-95 border-none"
                     >
-                       <Plus size={24} />
+                       <Plus size={20} className="sm:hidden" />
+                       <Plus size={24} className="hidden sm:block" />
                     </Button>
                   </div>
                 </div>
@@ -497,7 +498,7 @@ export default function Progresso() {
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id as any)}
                           className={cn(
-                            "flex items-center gap-2 px-2 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap",
+                            "flex items-center gap-2 px-2 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap shrink-0",
                             isActive ? "text-indigo-600" : "text-muted-foreground hover:text-slate-600"
                           )}
                         >
@@ -551,14 +552,14 @@ export default function Progresso() {
 
                          {/* LISTA DE REGISTROS (TIMELINE) */}
                          <div className="space-y-6 pt-4">
-                            <div className="flex items-center justify-between mb-8">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                                <div className="flex items-center gap-3">
-                                  <div className="w-2 h-6 bg-indigo-600 rounded-full" />
-                                  <h3 className="text-lg font-black text-foreground uppercase tracking-tighter">Timeline de Evolução</h3>
+                                  <div className="w-2 h-6 bg-indigo-600 rounded-full shrink-0" />
+                                  <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tighter leading-tight">Timeline de Evolução</h3>
                                </div>
                                <Button 
                                  onClick={() => { resetForm(); setIsModalOpen(true); }}
-                                 className="h-10 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2"
+                                 className="w-full sm:w-auto h-10 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2"
                                >
                                  <Plus size={16} /> Novo Registro
                                </Button>
