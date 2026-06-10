@@ -484,7 +484,7 @@ export default function Progresso() {
 
                {/* INTERNAL HEADER - TABS */}
                <div className="mt-8 shrink-0 border-b border-border">
-                  <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto no-scrollbar px-8">
+                  <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto subtle-scrollbar px-8 pb-1">
                     {[
                       { id: "jornada", label: "Jornada Musical", icon: Activity },
                       { id: "biblioteca", label: "Biblioteca Musical", icon: Folder },
