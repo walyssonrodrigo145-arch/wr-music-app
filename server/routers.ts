@@ -378,6 +378,51 @@ export const appRouter = router({
         return { insight: "O aluno tem se saído bem nas últimas aulas. Foco em melhorar a constância na prática diária e avançar nas metas de repertório." }; // Fallback
       }
     }),
+    generateNextLessonPlan: protectedProcedure.input(z.object({ studentId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      
+      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+      if (!student) throw new Error("Aluno não encontrado");
+      
+      const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).limit(5).orderBy(desc(lessons.scheduledAt));
+      const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
+      const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.organizationId, orgId))).limit(10).orderBy(desc(studentTimeline.achievedAt));
+
+      let uploadedFiles: { uri: string; mimeType: string }[] = [];
+      try {
+        const { syncFolderToGemini } = await import("./utils/gemini_files");
+        // We sync C:\Violão before generating the lesson plan
+        uploadedFiles = await syncFolderToGemini("C:\\Violão");
+      } catch (e: any) {
+        console.warn("Could not sync Gemini files:", e.message);
+      }
+
+      const prompt = `Você é um professor experiente elaborando o plano para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}).
+      
+Histórico do Aluno:
+- Últimas ${pastLessons.length} aulas concluídas.
+- Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
+- Timeline recente de evolução: ${timeline.map(t => \`[\${t.category}] \${t.title} - \${t.description}\`).join(" | ") || "Nenhum registro"}
+
+Seu objetivo é gerar um esboço prático e formatado (em markdown) da próxima aula.
+Eu forneci em anexo materiais em PDF. Baseie sua sugestão **fortemente** nos conteúdos (cronogramas, técnicas, dicionários) fornecidos nestes PDFs anexados.
+Estruture a resposta com:
+1. Objetivo da Aula
+2. Aquecimento (10 min)
+3. Técnica e Teoria (20 min)
+4. Repertório / Prática (25 min)
+5. Encerramento e Tarefa de Casa (5 min)`;
+      
+      try {
+        const { callGeminiWithFiles } = await import("./utils/gemini");
+        const response = await callGeminiWithFiles([{ role: 'user', content: prompt }], uploadedFiles);
+        return { plan: response };
+      } catch (e: any) {
+        throw new Error("Erro ao gerar plano de aula com a IA: " + e.message);
+      }
+    }),
   }),
 
   musicLibrary: router({

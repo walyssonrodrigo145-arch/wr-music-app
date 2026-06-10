@@ -63,3 +63,58 @@ export async function callGemini(messages: { role: string; content: string }[], 
     throw new Error("Falha ao comunicar com a inteligência artificial. Tente novamente em instantes.");
   }
 }
+
+export async function callGeminiWithFiles(
+  messages: { role: string; content: string }[], 
+  files: { uri: string; mimeType: string }[],
+  systemPrompt?: string
+): Promise<string> {
+  if (!apiKey) {
+    throw new Error("Chave da API do Gemini não configurada no servidor.");
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3-flash-preview", // Using Flash which is faster for large context
+      systemInstruction: systemPrompt,
+    });
+
+    const formattedMessages = messages.map(msg => ({
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: [{ text: msg.content }],
+    }));
+    
+    // Add files to the last message
+    const lastMessage = formattedMessages[formattedMessages.length - 1];
+    
+    const fileParts = files.map(f => ({
+      fileData: {
+        fileUri: f.uri,
+        mimeType: f.mimeType
+      }
+    }));
+    
+    // Insert files before the text in the parts array
+    lastMessage.parts = [...fileParts, ...lastMessage.parts] as any;
+
+    const chat = model.startChat({
+      history: formattedMessages.slice(0, -1),
+    });
+
+    const result = await chat.sendMessage(lastMessage.parts);
+    return result.response.text();
+  } catch (error: any) {
+    console.error("[Gemini API Error with Files]:", error);
+    
+    if (error.status === 429 || error.message?.includes("429") || error.message?.toLowerCase().includes("quota") || error.message?.toLowerCase().includes("limit")) {
+      throw new Error("Limite de quota excedido no Gemini.");
+    }
+    
+    if (error.status === 403 || error.status === 400 || error.message?.includes("API key")) {
+      throw new Error("A chave da API do Gemini está incorreta ou é inválida.");
+    }
+
+    throw new Error("Falha ao comunicar com a inteligência artificial ao enviar arquivos. Tente novamente.");
+  }
+}
+

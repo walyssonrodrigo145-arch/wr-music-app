@@ -67,6 +67,10 @@ export default function Progresso() {
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  // IA Lesson Plan Modal State
+  const [isAILessonModalOpen, setIsAILessonModalOpen] = useState(false);
+  const [lessonPlanContent, setLessonPlanContent] = useState<string | null>(null);
+
   const utils = trpc.useUtils();
 
   const { data: students = [], isLoading: studentsLoading } = trpc.students.list.useQuery();
@@ -92,6 +96,14 @@ export default function Progresso() {
   const aiInsightMutation = trpc.progress.generateAIInsight.useMutation({
     onSuccess: (data) => setInsight(data.insight),
     onError: (e) => toast.error("Erro ao gerar insight: " + e.message)
+  });
+
+  const generateNextLessonMutation = trpc.progress.generateNextLessonPlan.useMutation({
+    onSuccess: (data) => {
+      setLessonPlanContent(data.plan);
+      toast.success("Plano de aula gerado com sucesso!");
+    },
+    onError: (e) => toast.error("Erro ao gerar plano: " + e.message)
   });
 
   const [formData, setFormData] = useState({
@@ -557,12 +569,26 @@ export default function Progresso() {
                                   <div className="w-2 h-6 bg-indigo-600 rounded-full shrink-0" />
                                   <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tighter leading-tight">Timeline de Evolução</h3>
                                </div>
-                               <Button 
-                                 onClick={() => { resetForm(); setIsModalOpen(true); }}
-                                 className="w-full sm:w-auto h-10 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2"
-                               >
-                                 <Plus size={16} /> Novo Registro
-                               </Button>
+                               <div className="flex flex-col sm:flex-row gap-3">
+                                  <Button 
+                                    onClick={() => {
+                                      setIsAILessonModalOpen(true);
+                                      setLessonPlanContent(null);
+                                      generateNextLessonMutation.mutate({ studentId: selectedStudentId! });
+                                    }}
+                                    className="w-full sm:w-auto h-10 rounded-xl px-5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-violet-500/20"
+                                    disabled={generateNextLessonMutation.isPending}
+                                  >
+                                    {generateNextLessonMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                                    Sugerir Próxima Aula
+                                  </Button>
+                                  <Button 
+                                    onClick={() => { resetForm(); setIsModalOpen(true); }}
+                                    className="w-full sm:w-auto h-10 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2"
+                                  >
+                                    <Plus size={16} /> Novo Registro
+                                  </Button>
+                               </div>
                             </div>
 
                             <div className="space-y-6">
@@ -921,6 +947,54 @@ export default function Progresso() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        {/* MODAL PLANO DE AULA IA */}
+        <Dialog open={isAILessonModalOpen} onOpenChange={setIsAILessonModalOpen}>
+          <DialogContent className="sm:max-w-[700px] bg-card p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
+            <div className="p-8 pb-4 bg-gradient-to-r from-violet-600 to-indigo-600">
+               <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
+                     <Zap size={20} />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">Sua Próxima Aula</DialogTitle>
+                    <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-1">Plano gerado pela Inteligência Artificial</p>
+                  </div>
+               </div>
+            </div>
+            
+            <div className="p-8 max-h-[60vh] overflow-y-auto subtle-scrollbar">
+               {generateNextLessonMutation.isPending ? (
+                 <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                    <Loader2 size={40} className="animate-spin text-indigo-500/50" />
+                    <p className="text-sm font-bold text-muted-foreground animate-pulse">Lendo arquivos e analisando histórico do aluno...</p>
+                 </div>
+               ) : lessonPlanContent ? (
+                 <div className="prose prose-sm dark:prose-invert max-w-none prose-h1:text-xl prose-h1:font-black prose-h2:text-lg prose-h2:text-indigo-600 prose-h2:font-black prose-h3:text-base prose-strong:text-indigo-500">
+                    <div dangerouslySetInnerHTML={{ __html: lessonPlanContent.replace(/\\n/g, '<br/>').replace(/\\*(.*?)\\*/g, '<strong>$1</strong>') }} />
+                 </div>
+               ) : (
+                 <p className="text-center text-muted-foreground py-8">Nenhum plano gerado ainda.</p>
+               )}
+            </div>
+
+            <DialogFooter className="p-6 bg-muted/30 border-t border-border flex gap-3">
+               <Button type="button" variant="ghost" onClick={() => setIsAILessonModalOpen(false)} className="h-11 rounded-xl px-6 text-xs font-black uppercase tracking-widest hover:bg-slate-200">
+                  Fechar
+               </Button>
+               {lessonPlanContent && (
+                 <Button 
+                   onClick={() => {
+                     navigator.clipboard.writeText(lessonPlanContent);
+                     toast.success("Copiado para a área de transferência!");
+                   }}
+                   className="h-11 rounded-xl px-6 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20"
+                 >
+                    Copiar Plano
+                 </Button>
+               )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }
