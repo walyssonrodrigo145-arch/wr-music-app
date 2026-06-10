@@ -390,24 +390,17 @@ export const appRouter = router({
       const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
       const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.organizationId, orgId))).limit(10).orderBy(desc(studentTimeline.achievedAt));
 
-      let uploadedFiles: { uri: string; mimeType: string }[] = [];
-      try {
-        const { syncFolderToGemini } = await import("./utils/gemini_files");
-        // We sync C:\Violão before generating the lesson plan
-        uploadedFiles = await syncFolderToGemini("C:\\Violão");
-      } catch (e: any) {
-        console.warn("Could not sync Gemini files:", e.message);
-      }
+      const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
       const prompt = `Você é um professor experiente elaborando o plano para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}).
       
 Histórico do Aluno:
 - Últimas ${pastLessons.length} aulas concluídas.
 - Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
-- Timeline recente de evolução: ${timeline.map(t => \`[\${t.category}] \${t.title} - \${t.description}\`).join(" | ") || "Nenhum registro"}
+- Timeline recente de evolução: ${timelineText || "Nenhum registro"}
 
 Seu objetivo é gerar um esboço prático e formatado (em markdown) da próxima aula.
-Eu forneci em anexo materiais em PDF. Baseie sua sugestão **fortemente** nos conteúdos (cronogramas, técnicas, dicionários) fornecidos nestes PDFs anexados.
+Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.
 Estruture a resposta com:
 1. Objetivo da Aula
 2. Aquecimento (10 min)
@@ -416,9 +409,10 @@ Estruture a resposta com:
 5. Encerramento e Tarefa de Casa (5 min)`;
       
       try {
-        const { callGeminiWithFiles } = await import("./utils/gemini");
-        const response = await callGeminiWithFiles([{ role: 'user', content: prompt }], uploadedFiles);
-        return { plan: response };
+        const { getLLM } = await import("./_core/llm");
+        const llm = getLLM();
+        const response = await llm.chat({ messages: [{ role: 'user', content: prompt }] });
+        return { plan: response.message.content };
       } catch (e: any) {
         throw new Error("Erro ao gerar plano de aula com a IA: " + e.message);
       }
