@@ -409,10 +409,9 @@ Estruture a resposta com:
 5. Encerramento e Tarefa de Casa (5 min)`;
       
       try {
-        const { getLLM } = await import("./_core/llm");
-        const llm = getLLM();
-        const response = await llm.chat({ messages: [{ role: 'user', content: prompt }] });
-        return { plan: response.message.content };
+        const { callGemini } = await import("./utils/gemini");
+        const responseText = await callGemini([{ role: 'user', content: prompt }]);
+        return { plan: responseText };
       } catch (e: any) {
         throw new Error("Erro ao gerar plano de aula com a IA: " + e.message);
       }
@@ -2380,7 +2379,7 @@ Estruture a resposta com:
           .where(and(
             eq(reminders.organizationId, orgId),
             eq(reminders.paymentDueId, due.id),
-            eq(reminders.status, "concluido")
+            eq(reminders.status, "enviado")
           )).limit(1);
         if (userConcludedPayment.length > 0) { skipped++; continue; }
 
