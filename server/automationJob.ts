@@ -157,13 +157,13 @@ async function runAutomation() {
         const dateStr = lessonDate.toISOString().slice(0, 10);
 
         // --- TRAVA MANUAL ---
-        // Se o usuário já marcou qualquer lembrete desta aula como 'concluído', 
+        // Se o usuário já marcou qualquer lembrete desta aula como 'enviado', 
         // o robô não deve gerar novos lembretes (nem de 24h, nem de 1h).
         const userConcludedAula = await db.select({ id: reminders.id }).from(reminders)
           .where(and(
             eq(reminders.organizationId, orgId),
             eq(reminders.lessonId, lesson.id),
-            eq(reminders.status, "concluido")
+            eq(reminders.status, "enviado")
           )).limit(1);
         if (userConcludedAula.length > 0) continue;
 
@@ -297,13 +297,13 @@ async function runAutomation() {
         if (isOverdue) continue;
 
         // --- TRAVA MANUAL ---
-        // Se o usuário já marcou qualquer lembrete desta cobrança como 'concluído', 
+        // Se o usuário já marcou qualquer lembrete desta cobrança como 'enviado', 
         // o robô não deve gerar novos lembretes (nem prévio, nem Dia D).
         const userConcludedPayment = await db.select({ id: reminders.id }).from(reminders)
           .where(and(
             eq(reminders.organizationId, orgId),
             eq(reminders.paymentDueId, due.id),
-            eq(reminders.status, "concluido")
+            eq(reminders.status, "enviado")
           )).limit(1);
         if (userConcludedPayment.length > 0) continue;
 

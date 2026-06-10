@@ -43,13 +43,13 @@ router.get("/sse", (req, res) => {
  */
 function broadcastSSE(eventName: string, data: object) {
   const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const client of sseClients) {
+  sseClients.forEach(client => {
     try {
       client.write(payload);
     } catch {
       sseClients.delete(client);
     }
-  }
+  });
 }
 
 // ─── Webhook: recebe aviso do bot quando a sessão cair ───────────────────────
