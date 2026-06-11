@@ -52,6 +52,16 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
     { enabled: searchQuery.trim().length >= 2 }
   );
 
+  const { data: notifications = [], refetch: refetchNotifications } = trpc.system.getNotifications.useQuery(undefined, {
+    enabled: !!user,
+    refetchInterval: 60000, // Atualiza a cada 1 min
+  });
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markReadMutation = trpc.system.markNotificationRead.useMutation({
+    onSuccess: () => refetchNotifications()
+  });
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -162,13 +172,44 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full scale-0 group-hover:scale-100 transition-transform" />
            </button>
 
-           <button 
-             className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl text-muted-foreground hover:text-primary hover:bg-card transition-all shadow-sm relative flex items-center justify-center active:scale-90 group" 
-             onClick={() => navigate("/aluno/avisos")}
-           >
-             <Bell size={20} />
-             <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-background animate-bounce group-hover:animate-none" />
-           </button>
+           <DropdownMenu>
+             <DropdownMenuTrigger asChild>
+               <button 
+                 className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl text-muted-foreground hover:text-primary hover:bg-card transition-all shadow-sm relative flex items-center justify-center active:scale-90 group" 
+               >
+                 <Bell size={20} />
+                 {unreadCount > 0 && (
+                   <span className="absolute top-2 right-2 flex items-center justify-center w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full border-2 border-background animate-bounce group-hover:animate-none">
+                     {unreadCount}
+                   </span>
+                 )}
+               </button>
+             </DropdownMenuTrigger>
+             <DropdownMenuContent align="end" className="w-80 rounded-[2rem] p-3 border-border/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] bg-card/90 backdrop-blur-2xl">
+               <div className="px-4 py-3 border-b border-border/20 mb-2">
+                  <p className="text-xs font-black text-foreground uppercase tracking-widest">Notificações</p>
+               </div>
+               <div className="max-h-[60vh] overflow-y-auto subtle-scrollbar">
+                 {notifications.length === 0 ? (
+                   <div className="py-8 text-center text-muted-foreground text-xs font-bold uppercase tracking-widest opacity-60">Nenhuma notificação</div>
+                 ) : (
+                   notifications.map(notif => (
+                     <div 
+                       key={notif.id} 
+                       className={cn("p-3 mb-2 rounded-2xl cursor-pointer hover:bg-muted/50 transition-colors border", notif.read ? "border-transparent opacity-70" : "border-primary/20 bg-primary/5")}
+                       onClick={() => {
+                         if (!notif.read) markReadMutation.mutate({ id: notif.id });
+                         if (notif.actionUrl) navigate(notif.actionUrl);
+                       }}
+                     >
+                       <p className="text-[11px] font-black uppercase tracking-wider mb-1 text-primary">{notif.title}</p>
+                       <p className="text-xs font-medium text-muted-foreground">{notif.message}</p>
+                     </div>
+                   ))
+                 )}
+               </div>
+             </DropdownMenuContent>
+           </DropdownMenu>
         </div>
 
         <div className="h-10 w-px bg-border/40 mx-1 hidden md:block" />

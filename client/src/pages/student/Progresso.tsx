@@ -25,7 +25,9 @@ import {
   Info
 } from "lucide-react";
 import { motion } from "framer-motion";
-
+import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remarkGfm";
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -40,9 +42,22 @@ const item = {
 };
 
 export default function StudentProgress() {
-  const { data: progress, isLoading } = trpc.studentPortal.getProgress.useQuery();
+  const { data: progress, isLoading: isProgressLoading } = trpc.studentPortal.getProgress.useQuery();
+  const { data: activePlan, isLoading: isPlanLoading, refetch: refetchPlan } = trpc.progress.getActiveStudyPlan.useQuery();
 
-  if (isLoading) return (
+  const toggleDayMutation = trpc.progress.toggleStudyPlanDay.useMutation({
+    onSuccess: (data) => {
+      refetchPlan();
+      if (data.allCompleted) {
+        toast.success("Parabéns! Você gabaritou a semana! 🎉 Seu professor foi notificado do seu esforço!");
+      } else {
+        toast.success("Treino do dia marcado como concluído! Continue assim!");
+      }
+    },
+    onError: (e) => toast.error("Erro ao registrar treino: " + e.message)
+  });
+
+  if (isProgressLoading || isPlanLoading) return (
     <div className="flex items-center justify-center min-h-[40vh]">
       <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
     </div>
@@ -107,6 +122,76 @@ export default function StudentProgress() {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* Daily Study Plan Section */}
+      {activePlan && (
+        <Card className="border-none shadow-2xl bg-gradient-to-br from-amber-500 to-orange-500 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+             <Star size={120} />
+          </div>
+          <CardHeader className="pb-4 border-b border-white/20">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
+                <Target size={20} />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-black text-white uppercase tracking-tight">Seu Plano de Treino Diário</CardTitle>
+                <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-1">Sugerido pelo seu professor</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 md:p-8 bg-card text-foreground">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+               <div className="prose prose-sm dark:prose-invert max-w-none max-h-[400px] overflow-y-auto subtle-scrollbar pr-4">
+                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {activePlan.planText}
+                 </ReactMarkdown>
+               </div>
+               
+               <div className="bg-muted/50 rounded-2xl p-6 border border-border flex flex-col justify-center">
+                  <h3 className="text-lg font-black uppercase tracking-tight mb-4 text-center">Dar Baixa no Treino</h3>
+                  <p className="text-xs text-muted-foreground text-center mb-6">Marque os dias que você já treinou essa semana. Seja honesto! 😉</p>
+                  
+                  <div className="flex justify-center gap-3 flex-wrap">
+                    {[1, 2, 3, 4, 5].map((dayNum, index) => {
+                      const daysCompleted = JSON.parse(activePlan.daysCompleted as string);
+                      const isCompleted = daysCompleted[index];
+                      return (
+                        <button
+                          key={dayNum}
+                          onClick={() => toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: index })}
+                          disabled={toggleDayMutation.isPending}
+                          className={cn(
+                            "flex flex-col items-center justify-center w-16 h-20 rounded-2xl border-2 transition-all group shadow-sm",
+                            isCompleted 
+                              ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-600 hover:border-orange-600" 
+                              : "bg-background border-border text-muted-foreground hover:border-orange-300 hover:bg-orange-50"
+                          )}
+                        >
+                          <span className="text-[10px] font-black uppercase tracking-widest mb-2">Dia</span>
+                          <span className="text-2xl font-black leading-none">{dayNum}</span>
+                          {isCompleted && (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white border-2 border-card shadow-sm">
+                               <CheckCircle2 size={14} />
+                            </motion.div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {activePlan.status === 'concluido' && (
+                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-center">
+                        <p className="text-green-600 font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2">
+                           <Award size={16} /> Semana concluída!
+                        </p>
+                     </motion.div>
+                  )}
+               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Evolution Chart */}

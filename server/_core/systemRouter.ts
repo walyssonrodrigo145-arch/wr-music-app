@@ -2,10 +2,23 @@ import { z } from "zod";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import { getDb } from "../db";
-import { users, students, lessons, reminders, paymentDues, instruments } from "../../drizzle/schema";
-import { or, ilike, inArray, and, sql, eq } from "drizzle-orm";
+import { users, students, lessons, reminders, paymentDues, instruments, notifications } from "../../drizzle/schema";
+import { or, ilike, inArray, and, sql, eq, desc } from "drizzle-orm";
 
 export const systemRouter = router({
+  getNotifications: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return [];
+    return await db.select().from(notifications)
+      .where(and(eq(notifications.userId, ctx.user.id), eq(notifications.organizationId, ctx.user.organizationId!)))
+      .orderBy(desc(notifications.createdAt))
+      .limit(10);
+  }),
+  markNotificationRead: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) return;
+    await db.update(notifications).set({ read: true }).where(and(eq(notifications.id, input.id), eq(notifications.userId, ctx.user.id)));
+  }),
   health: publicProcedure
     .input(
       z.object({

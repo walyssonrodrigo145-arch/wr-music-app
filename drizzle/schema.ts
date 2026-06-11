@@ -345,6 +345,30 @@ export const studentEvolution = pgTable("student_evolution", {
   recordedAt: timestamp("recordedAt").defaultNow().notNull(),
 });
 
+export const dailyStudyPlans = pgTable("daily_study_plans", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  studentId: integer("studentId").notNull(),
+  teacherId: integer("teacherId").notNull(),
+  planText: text("planText").notNull(),
+  status: statusEnum("status").default("ativo").notNull(), // 'ativo', 'concluido' (we can reuse statusEnum or just use a boolean)
+  daysCompleted: text("daysCompleted").default("[false,false,false,false,false]").notNull(), // JSON array
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(), // Receiver
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: varchar("type", { length: 50 }).default("info").notNull(), // 'info', 'warning', 'success', 'error'
+  read: boolean("read").default(false).notNull(),
+  actionUrl: text("actionUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = typeof reminders.$inferInsert;
 export type ReminderTemplate = typeof reminderTemplates.$inferSelect;
@@ -375,6 +399,12 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
 export type InsertRescheduleRequest = typeof rescheduleRequests.$inferInsert;
+
+export type DailyStudyPlan = typeof dailyStudyPlans.$inferSelect;
+export type InsertDailyStudyPlan = typeof dailyStudyPlans.$inferInsert;
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
 
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = typeof organizations.$inferInsert;

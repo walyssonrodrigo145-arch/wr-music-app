@@ -17,7 +17,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, expenses } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, expenses, dailyStudyPlans, notifications } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -506,11 +506,83 @@ Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades cu
       try {
         const { callGemini } = await import("./utils/gemini");
         const responseText = await callGemini([{ role: 'user', content: prompt }]);
+
+        // Invalida planos antigos do aluno
+        await db.update(dailyStudyPlans)
+          .set({ status: 'concluido' })
+          .where(and(eq(dailyStudyPlans.studentId, input.studentId), eq(dailyStudyPlans.status, 'ativo')));
+
+        // Salva novo plano no banco
+        await db.insert(dailyStudyPlans).values({
+          organizationId: orgId,
+          studentId: input.studentId,
+          teacherId: ctx.user.id,
+          planText: responseText,
+          status: 'ativo',
+          daysCompleted: JSON.stringify([false, false, false, false, false]),
+        });
+
         return { plan: responseText };
       } catch (e: any) {
         throw new Error("Erro ao gerar plano de estudo com a IA: " + e.message);
       }
     }),
+
+    getActiveStudyPlan: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const [plan] = await db.select()
+        .from(dailyStudyPlans)
+        .where(and(eq(dailyStudyPlans.studentId, ctx.student.id), eq(dailyStudyPlans.status, 'ativo')))
+        .orderBy(desc(dailyStudyPlans.createdAt))
+        .limit(1);
+      return plan || null;
+    }),
+
+    toggleStudyPlanDay: studentProcedure.input(z.object({ planId: z.number(), dayIndex: z.number().min(0).max(4) })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const [plan] = await db.select().from(dailyStudyPlans).where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.studentId, ctx.student.id)));
+      if (!plan) throw new Error("Plano não encontrado");
+
+      const daysCompleted = JSON.parse(plan.daysCompleted as string) as boolean[];
+      daysCompleted[input.dayIndex] = !daysCompleted[input.dayIndex];
+
+      const allCompleted = daysCompleted.every(Boolean);
+
+      await db.update(dailyStudyPlans)
+        .set({ 
+          daysCompleted: JSON.stringify(daysCompleted),
+          ...(allCompleted ? { status: 'concluido', completedAt: new Date() } : {})
+        })
+        .where(eq(dailyStudyPlans.id, plan.id));
+
+      if (allCompleted) {
+        // Envia notificação no painel do professor
+        await db.insert(notifications).values({
+          organizationId: plan.organizationId,
+          userId: plan.teacherId,
+          title: "Semana Gabaritada! 🎸",
+          message: `O aluno ${ctx.student.name} concluiu os 5 dias de treino do plano de estudos!`,
+          type: "success",
+          actionUrl: `/alunos/${ctx.student.id}`,
+        });
+
+        // Envia notificação PUSH para o aparelho do professor
+        try {
+          await notifyUser(plan.teacherId, {
+            title: "Semana Gabaritada! 🎸",
+            content: `O aluno ${ctx.student.name} concluiu os 5 dias de treino do plano de estudos!`,
+          });
+        } catch (e) {
+          console.error("Falha ao enviar push notification:", e);
+        }
+      }
+
+      return { success: true, allCompleted };
+    }),
+
 
     sendPlanViaWhatsApp: protectedProcedure.input(z.object({ 
       studentId: z.number(), 
