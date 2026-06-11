@@ -137,8 +137,31 @@ export default function Progresso() {
       ? `Olá ${selectedStudent.name}! Preparado para a nossa próxima aula? 🎸 Aqui está o que vamos fazer:\n\n`
       : `Olá ${selectedStudent.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`;
     
-    const text = encodeURIComponent(saudacao + content);
-    const url = `https://api.whatsapp.com/send?phone=55${selectedStudent.phone.replace(/\\D/g, '')}&text=${text}`;
+    // Bug fix #6: converter JSON do plano diário para texto legível antes de enviar
+    let finalContent = content;
+    if (type === "diario") {
+      try {
+        const planData = JSON.parse(content);
+        let text = `🎯 *Objetivo da semana*: ${planData.weeklyGoal || "Praticar"}\n\n`;
+        planData.days?.forEach((day: any) => {
+          text += `📅 *${day.dayName}*: ${day.focus?.title}\n`;
+          day.exercises?.forEach((ex: any) => {
+            text += `  🔹 ${ex.title} (${ex.duration})\n`;
+            ex.points?.forEach((p: string) => { text += `    - ${p}\n`; });
+          });
+          text += `\n`;
+        });
+        if (planData.importantMessage) {
+          text += `💡 *Dica*: ${planData.importantMessage}\n`;
+        }
+        finalContent = text;
+      } catch {
+        // Caso não seja JSON (planos antigos), usa o texto original
+      }
+    }
+
+    const text = encodeURIComponent(saudacao + finalContent);
+    const url = `https://api.whatsapp.com/send?phone=55${selectedStudent.phone.replace(/\D/g, '')}&text=${text}`;
     window.open(url, "_blank");
   };
 

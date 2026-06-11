@@ -464,51 +464,60 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
       
       const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
       if (!student) throw new Error("Aluno não encontrado");
-      
-      const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).limit(5).orderBy(desc(lessons.scheduledAt));
+
+      // Busca o instrumento do aluno — essencial para gerar plano 100% correto
+      let instrumentName = "instrumento não especificado";
+      if (student.instrumentId) {
+        const [instrument] = await db.select({ name: instruments.name, category: instruments.category })
+          .from(instruments)
+          .where(eq(instruments.id, student.instrumentId));
+        if (instrument) instrumentName = instrument.name + " (" + instrument.category + ")";
+      }
+
+      const pastLessons = await db.select({ title: lessons.title, notes: lessons.notes })
+        .from(lessons)
+        .where(and(eq(lessons.studentId, input.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')))
+        .limit(5)
+        .orderBy(desc(lessons.scheduledAt));
       const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
       const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.organizationId, orgId))).limit(10).orderBy(desc(studentTimeline.achievedAt));
 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
+      const lessonsText = pastLessons.length > 0
+        ? pastLessons.map(l => "- \"" + l.title + "\"" + (l.notes ? " (notas do professor: " + l.notes + ")" : "")).join("\n")
+        : "Nenhuma aula concluída registrada.";
 
-      const prompt = `Você é um assistente educacional gerando um PLANO DE ESTUDO DIÁRIO para o aluno ${student.name} (Nível: ${student.level}).
+      const jsonTemplate = JSON.stringify({
+        weeklyGoal: "Objetivo em 2-3 linhas especifico para " + instrumentName,
+        importantMessage: "Dica de motivação específica para quem toca " + instrumentName,
+        days: [
+          {
+            dayName: "Dia 1",
+            focus: { title: "Titulo do foco para " + instrumentName, description: "Descrição breve e pratica" },
+            exercises: [
+              { title: "Nome do exercicio", subtitle: "Instrucao especifica para " + instrumentName, duration: "15 min", points: ["Ponto 1", "Ponto 2"], icon: "music" }
+            ]
+          }
+        ]
+      }, null, 2);
 
-Histórico do Aluno:
-- Últimas ${pastLessons.length} aulas concluídas.
-- Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
-- Timeline recente: ${timelineText || "Nenhum registro"}
-
-Gere um cronograma de 5 dias de prática com atividades curtas e focadas.
-Sua resposta DEVE ser estritamente um JSON VÁLIDO contendo a seguinte estrutura exata:
-
-{
-  "weeklyGoal": "Escreva em 2 ou 3 linhas o objetivo dos treinos dessa semana.",
-  "importantMessage": "Uma dica final de motivação ou postura para a semana.",
-  "days": [
-    {
-      "dayName": "Dia 1",
-      "focus": {
-        "title": "Título do Foco (Ex: Técnica & Ritmo)",
-        "description": "Desenvolver precisão rítmica e coordenação técnica na guitarra."
-      },
-      "exercises": [
-        {
-          "title": "Ritmo e Precisão",
-          "subtitle": "Pratique com o metrônomo as figuras rítmicas apresentadas na aula.",
-          "duration": "15 min",
-          "points": [
-            "Metrônomo: 60 BPM",
-            "Exercícios rítmicos"
-          ],
-          "icon": "metronome" 
-        }
-      ]
-    }
-  ]
-}
-
-Regras para os ícones ("icon" nos exercises): Use uma dessas strings: "metronome", "guitar", "music", "pen", "star", "play".
-Retorne APENAS o JSON válido, sem markdown (\`\`\`json) em volta.`;
+      const prompt = "Voce e um professor especialista gerando um PLANO DE ESTUDO DIARIO personalizado.\n\n"
+        + "INFORMACOES DO ALUNO:\n"
+        + "- Nome: " + student.name + "\n"
+        + "- Nivel: " + student.level + "\n"
+        + "- Instrumento: " + instrumentName + "\n\n"
+        + "HISTORICO DE AULAS (mais recentes concluidas):\n"
+        + lessonsText + "\n\n"
+        + "METAS ATIVAS: " + (goals.map(g => g.title).join(", ") || "Nenhuma") + "\n"
+        + "TIMELINE: " + (timelineText || "Nenhum registro") + "\n\n"
+        + "REGRAS OBRIGATORIAS:\n"
+        + "1. O plano DEVE ser 100% especifico para o instrumento: " + instrumentName + ". NAO mencione nenhum outro instrumento.\n"
+        + "2. Todos os exercicios devem ser tecnicos e praticos para quem toca " + instrumentName + ".\n"
+        + "3. Gere exatamente 5 dias de pratica com atividades curtas.\n"
+        + "4. Use linguagem simples, motivadora e didatica.\n\n"
+        + "Retorne APENAS um JSON valido com esta estrutura (sem markdown ao redor):\n\n"
+        + jsonTemplate + "\n\n"
+        + "Regras para o campo icon: use exatamente uma das opcoes: metronome, guitar, music, pen, star, play.";
       
       try {
         const { callGemini } = await import("./utils/gemini");
