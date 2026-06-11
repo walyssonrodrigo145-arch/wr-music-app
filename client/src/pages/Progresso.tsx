@@ -127,7 +127,6 @@ export default function Progresso() {
     onError: (e) => toast.error(e.message)
   });
 
-  const selectedStudent = students.find(s => s.id === selectedStudentId);
 
   const handleSendManualWhatsApp = (content: string, type: "aula" | "diario") => {
     if (!selectedStudent?.phone) {
