@@ -127,6 +127,33 @@ export default function Progresso() {
     onError: (e) => toast.error(e.message)
   });
 
+  // Converte o JSON do plano diário em texto legível para humanos
+  const formatPlanAsText = (content: string): string => {
+    try {
+      const planData = JSON.parse(content);
+      if (!planData?.days) return content; // não é JSON do plano
+      let text = "";
+      if (planData.weeklyGoal) {
+        text += `🎯 *Objetivo da semana*: ${planData.weeklyGoal}\n\n`;
+      }
+      planData.days?.forEach((day: any) => {
+        text += `📅 *${day.dayName}*: ${day.focus?.title}\n`;
+        if (day.focus?.description) text += `   ${day.focus.description}\n`;
+        day.exercises?.forEach((ex: any) => {
+          text += `\n  🔹 *${ex.title}* (${ex.duration})\n`;
+          text += `   ${ex.subtitle}\n`;
+          ex.points?.forEach((p: string) => { text += `   - ${p}\n`; });
+        });
+        text += `\n`;
+      });
+      if (planData.importantMessage) {
+        text += `💡 *Dica*: ${planData.importantMessage}\n`;
+      }
+      return text.trim();
+    } catch {
+      return content; // retorna original se não for JSON válido
+    }
+  };
 
   const handleSendManualWhatsApp = (content: string, type: "aula" | "diario") => {
     if (!selectedStudent?.phone) {
@@ -137,29 +164,7 @@ export default function Progresso() {
       ? `Olá ${selectedStudent.name}! Preparado para a nossa próxima aula? 🎸 Aqui está o que vamos fazer:\n\n`
       : `Olá ${selectedStudent.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`;
     
-    // Bug fix #6: converter JSON do plano diário para texto legível antes de enviar
-    let finalContent = content;
-    if (type === "diario") {
-      try {
-        const planData = JSON.parse(content);
-        let text = `🎯 *Objetivo da semana*: ${planData.weeklyGoal || "Praticar"}\n\n`;
-        planData.days?.forEach((day: any) => {
-          text += `📅 *${day.dayName}*: ${day.focus?.title}\n`;
-          day.exercises?.forEach((ex: any) => {
-            text += `  🔹 ${ex.title} (${ex.duration})\n`;
-            ex.points?.forEach((p: string) => { text += `    - ${p}\n`; });
-          });
-          text += `\n`;
-        });
-        if (planData.importantMessage) {
-          text += `💡 *Dica*: ${planData.importantMessage}\n`;
-        }
-        finalContent = text;
-      } catch {
-        // Caso não seja JSON (planos antigos), usa o texto original
-      }
-    }
-
+    const finalContent = type === "diario" ? formatPlanAsText(content) : content;
     const text = encodeURIComponent(saudacao + finalContent);
     const url = `https://api.whatsapp.com/send?phone=55${selectedStudent.phone.replace(/\D/g, '')}&text=${text}`;
     window.open(url, "_blank");
@@ -1001,24 +1006,7 @@ export default function Progresso() {
                ) : studyPlanContent ? (
                  <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
                     {(() => {
-                      try {
-                        const planData = JSON.parse(studyPlanContent);
-                        let text = `🎯 **Objetivo da semana**: ${planData.weeklyGoal || "Praticar"}\n\n`;
-                        planData.days?.forEach((day: any) => {
-                          text += `📅 **${day.dayName}**: ${day.focus?.title}\n`;
-                          day.exercises?.forEach((ex: any) => {
-                             text += `  🔹 ${ex.title} (${ex.duration})\n`;
-                             ex.points?.forEach((p: string) => { text += `    - ${p}\n` });
-                          });
-                          text += `\n`;
-                        });
-                        if (planData.importantMessage) {
-                          text += `💡 **Dica**: ${planData.importantMessage}\n`;
-                        }
-                        return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
-                      } catch (e) {
-                        return <ReactMarkdown remarkPlugins={[remarkGfm]}>{studyPlanContent}</ReactMarkdown>;
-                      }
+                        return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>;
                     })()}
                  </div>
                ) : (
@@ -1034,8 +1022,9 @@ export default function Progresso() {
                  {studyPlanContent && (
                    <Button 
                      onClick={() => {
-                       navigator.clipboard.writeText(studyPlanContent);
-                       toast.success("Copiado para a área de transferência!");
+                       const textToClip = formatPlanAsText(studyPlanContent);
+                       navigator.clipboard.writeText(textToClip);
+                       toast.success("Plano copiado como texto legível!");
                      }}
                      className="h-11 rounded-xl px-6 bg-orange-600 hover:bg-orange-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-orange-500/20"
                    >
