@@ -392,21 +392,48 @@ export const appRouter = router({
 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
-      const prompt = `Você é um professor experiente elaborando o plano para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}).
-      
+      const prompt = `Você é um assistente educacional gerando planos de aula para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}).
+
 Histórico do Aluno:
 - Últimas ${pastLessons.length} aulas concluídas.
 - Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
 - Timeline recente de evolução: ${timelineText || "Nenhum registro"}
 
-Seu objetivo é gerar um esboço prático e formatado (em markdown) da próxima aula.
+Sua resposta será exibida em uma interface de texto puro. Portanto, NÃO UTILIZE MARKDOWN (como asteriscos **, hashtags # ou traços ---).
+
+Siga EXATAMENTE o template abaixo, usando emojis como âncoras visuais, hífens para listas e pulando uma linha em branco entre cada bloco de conteúdo para garantir a legibilidade.
 Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.
-Estruture a resposta com:
-1. Objetivo da Aula
-2. Aquecimento (10 min)
-3. Técnica e Teoria (20 min)
-4. Repertório / Prática (25 min)
-5. Encerramento e Tarefa de Casa (5 min)`;
+
+[INÍCIO DO TEMPLATE]
+
+🎸 PLANO DE AULA: [Título Curto e Direto]
+
+👤 Aluno: ${student.name} | 📊 Nível: ${student.level}
+
+🎯 OBJETIVO DA AULA
+[Escreva em 2 ou 3 linhas o objetivo principal da aula de forma clara e motivadora].
+
+⏱️ 1. AQUECIMENTO ([X] min)
+
+[Nome do Exercício]: [Instrução breve].
+
+[Foco]: [O que o aluno deve prestar atenção].
+
+🧠 2. TÉCNICA E TEORIA ([X] min)
+
+[Tópico 1]: [Explicação ou exercício prático].
+
+[Tópico 2]: [Explicação ou exercício prático].
+
+🎵 3. PRÁTICA MUSICAL ([X] min)
+
+[Música/Trecho]: [O que tocar e como aplicar o que foi aprendido].
+
+📝 TAREFA DE CASA
+
+[Resumo rápido do que o aluno deve praticar até a próxima aula].
+
+[FIM DO TEMPLATE]`;
       
       try {
         const { callGemini } = await import("./utils/gemini");
