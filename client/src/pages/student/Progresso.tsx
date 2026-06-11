@@ -27,7 +27,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remarkGfm";
+import remarkGfm from "remark-gfm";
 const container = {
   hidden: { opacity: 0 },
   show: {
