@@ -36,6 +36,7 @@ const mainNavItems: NavItem[] = [
   { label: "Aulas / Agenda", href: "/aluno/aulas", icon: CalendarDays },
   { label: "Materiais", href: "/aluno/materiais", icon: Library },
   { label: "Exercícios", href: "/aluno/exercicios", icon: ClipboardCheck },
+  { label: "Meu Progresso", href: "/aluno/progresso", icon: Activity },
   { label: "Financeiro", href: "/aluno/pagamentos", icon: DollarSign },
   { label: "Mensagens", href: "/aluno/mensagens", icon: MessageSquare },
   { label: "Meu Perfil", href: "/aluno/perfil", icon: User },
@@ -75,6 +76,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
     if (item.href === "/aluno/aulas" && perms.canSeeSchedule === false) return false;
     if (item.href === "/aluno/materiais" && perms.canSeeFiles === false) return false;
     if (item.href === "/aluno/exercicios" && perms.canSeeProgress === false) return false;
+    if (item.href === "/aluno/progresso" && perms.canSeeProgress === false) return false;
     if (item.href === "/aluno/mensagens" && perms.canSeeMessages === false) return false;
     return true;
   });
