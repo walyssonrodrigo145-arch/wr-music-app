@@ -4899,6 +4899,68 @@ Instruções de análise:
 
         return { success: true };
       }),
+
+    // Retorna o contato do professor responsável pelo aluno (para o botão "Falar com o professor")
+    getProfessorContact: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Perfil de aluno não encontrado.");
+
+      // Busca o professor do aluno
+      const [student] = await db.select({ professorId: students.professorId })
+        .from(students).where(eq(students.id, studentId)).limit(1);
+      if (!student) throw new Error("Aluno não encontrado.");
+
+      // Busca o nome do professor
+      const [professor] = await db.select({ name: users.name })
+        .from(users).where(eq(users.id, student.professorId)).limit(1);
+
+      // Busca o telefone do professor nas configurações (tabela settings)
+      const [professorSettings] = await db.select({ phone: settings.phone })
+        .from(settings).where(eq(settings.userId, student.professorId)).limit(1);
+
+      return {
+        name: professor?.name || null,
+        phone: professorSettings?.phone || null,
+      };
+    }),
+
+    // Gera uma explicação detalhada de um exercício do plano de estudos via IA
+    getExerciseDetails: studentProcedure.input(z.object({
+      exerciseTitle: z.string(),
+      exerciseSubtitle: z.string().optional(),
+      exercisePoints: z.array(z.string()).optional(),
+      instrument: z.string().optional(),
+      dayFocus: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const prompt = "Você é um professor de música experiente e didático. "
+        + "Um aluno está pedindo uma explicação mais detalhada sobre um exercício do plano de estudos.\n\n"
+        + "EXERCÍCIO: " + input.exerciseTitle + "\n"
+        + (input.exerciseSubtitle ? "INSTRUÇÃO: " + input.exerciseSubtitle + "\n" : "")
+        + (input.exercisePoints && input.exercisePoints.length > 0 ? "PONTOS DE ATENÇÃO: " + input.exercisePoints.join(", ") + "\n" : "")
+        + (input.instrument ? "INSTRUMENTO DO ALUNO: " + input.instrument + "\n" : "")
+        + (input.dayFocus ? "FOCO DO DIA: " + input.dayFocus + "\n" : "")
+        + "\nGere uma explicação detalhada e motivadora deste exercício para o aluno. Inclua:\n"
+        + "1. Por que este exercício é importante para o desenvolvimento musical\n"
+        + "2. Como executá-lo passo a passo de forma correta\n"
+        + "3. Dicas práticas e erros comuns a evitar\n"
+        + "4. Como saber se está fazendo certo\n"
+        + "Responda de forma clara, simples e encorajadora. Máximo de 300 palavras.";
+
+      try {
+        const { callGemini } = await import("./utils/gemini");
+        const explanation = await callGemini([{ role: "user", content: prompt }]);
+        return { explanation };
+      } catch (e: any) {
+        throw new Error("Não foi possível gerar a explicação: " + e.message);
+      }
+    }),
   }),
 
   // ─── AI ASSISTANT (Gemini) ──────────────────────────────────────────────────────────
