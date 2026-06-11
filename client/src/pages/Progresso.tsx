@@ -976,10 +976,27 @@ export default function Progresso() {
                     <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico e criando cronograma diário...</p>
                  </div>
                ) : studyPlanContent ? (
-                 <div className="prose prose-sm dark:prose-invert max-w-none prose-h1:text-xl prose-h1:font-black prose-h2:text-lg prose-h2:text-orange-600 prose-h2:font-black prose-h3:text-base prose-strong:text-orange-500">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                       {studyPlanContent}
-                    </ReactMarkdown>
+                 <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
+                    {(() => {
+                      try {
+                        const planData = JSON.parse(studyPlanContent);
+                        let text = `🎯 **Objetivo da semana**: ${planData.weeklyGoal || "Praticar"}\n\n`;
+                        planData.days?.forEach((day: any) => {
+                          text += `📅 **${day.dayName}**: ${day.focus?.title}\n`;
+                          day.exercises?.forEach((ex: any) => {
+                             text += `  🔹 ${ex.title} (${ex.duration})\n`;
+                             ex.points?.forEach((p: string) => { text += `    - ${p}\n` });
+                          });
+                          text += `\n`;
+                        });
+                        if (planData.importantMessage) {
+                          text += `💡 **Dica**: ${planData.importantMessage}\n`;
+                        }
+                        return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
+                      } catch (e) {
+                        return <ReactMarkdown remarkPlugins={[remarkGfm]}>{studyPlanContent}</ReactMarkdown>;
+                      }
+                    })()}
                  </div>
                ) : (
                  <p className="text-center text-muted-foreground py-8">Nenhum plano gerado ainda.</p>

@@ -1,14 +1,14 @@
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Target, CheckCircle2, Star, Award, Loader2, BookOpen } from "lucide-react";
+import { Target, CheckCircle2, Award, Loader2, BookOpen, ChevronLeft, ChevronRight, CalendarDays, Music, Timer, Guitar, PenTool, Star, Play, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Button } from "@/components/ui/button";
 
 export default function StudentProgress() {
   const { data: activePlan, isLoading: isPlanLoading, refetch: refetchPlan } = trpc.progress.getActiveStudyPlan.useQuery();
+  const [selectedDay, setSelectedDay] = useState(0);
 
   const toggleDayMutation = trpc.progress.toggleStudyPlanDay.useMutation({
     onSuccess: (data) => {
@@ -16,7 +16,7 @@ export default function StudentProgress() {
       if (data.allCompleted) {
         toast.success("Parabéns! Você gabaritou a semana! 🎉 Seu professor foi notificado do seu esforço!");
       } else {
-        toast.success("Treino do dia marcado como concluído! Continue assim!");
+        toast.success("Treino do dia atualizado!");
       }
     },
     onError: (e) => toast.error("Erro ao registrar treino: " + e.message)
@@ -28,15 +28,43 @@ export default function StudentProgress() {
     </div>
   );
 
-  return (
-    <div className="space-y-8 pb-10 max-w-5xl mx-auto">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight text-foreground">Plano de Estudo Diário</h1>
+  let planData = null;
+  if (activePlan?.planText) {
+    try {
+      planData = JSON.parse(activePlan.planText);
+    } catch (e) {
+      console.error("Erro ao fazer parse do plano", e);
+    }
+  }
 
-        <p className="text-muted-foreground font-medium">Acompanhe as instruções do seu professor e registre o seu treino da semana.</p>
-      </div>
+  const handleNextDay = () => {
+    if (planData && selectedDay < planData.days.length - 1) setSelectedDay(selectedDay + 1);
+  };
 
-      {!activePlan ? (
+  const handlePrevDay = () => {
+    if (selectedDay > 0) setSelectedDay(selectedDay - 1);
+  };
+
+  // Ícones mapeados
+  const getIcon = (iconStr: string) => {
+    switch (iconStr) {
+      case "metronome": return <Timer size={24} className="text-indigo-600" />;
+      case "guitar": return <Guitar size={24} className="text-indigo-600" />;
+      case "pen": return <PenTool size={24} className="text-indigo-600" />;
+      case "star": return <Star size={24} className="text-indigo-600" />;
+      case "play": return <Play size={24} className="text-indigo-600" />;
+      case "music":
+      default: return <Music size={24} className="text-indigo-600" />;
+    }
+  };
+
+  if (!activePlan || !planData || !planData.days || planData.days.length === 0) {
+    return (
+      <div className="space-y-8 pb-10 max-w-5xl mx-auto">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-black tracking-tight text-foreground">Plano de Estudo Diário</h1>
+          <p className="text-muted-foreground font-medium">Acompanhe as instruções do seu professor e registre o seu treino da semana.</p>
+        </div>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -47,81 +75,172 @@ export default function StudentProgress() {
            </div>
            <h3 className="text-xl font-black tracking-tight text-foreground mb-2">Nenhum plano ativo</h3>
            <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              O seu professor ainda não gerou o seu plano de estudos para esta semana. Assim que ele criar, as instruções aparecerão aqui para você treinar e marcar a conclusão!
+              O seu professor ainda não gerou o seu plano de estudos para esta semana (ou o formato do plano antigo não é compatível). Aguarde um novo plano!
            </p>
         </motion.div>
-      ) : (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
-          <Card className="border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 overflow-hidden relative rounded-[2.5rem]">
-            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-               <Star size={180} />
-            </div>
-            <CardHeader className="pb-6 border-b border-white/10 px-8 pt-8">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm shadow-inner">
-                  <Target size={24} />
-                </div>
-                <div>
-                  <CardTitle className="text-2xl font-black text-white uppercase tracking-tight">O que treinar essa semana</CardTitle>
-                  <p className="text-[10px] font-black text-white/70 uppercase tracking-[0.2em] mt-1">Plano Estratégico do seu Professor</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0 bg-card text-foreground flex flex-col lg:flex-row">
-               {/* Lado Esquerdo: Conteúdo do Markdown */}
-               <div className="flex-1 p-8 border-b lg:border-b-0 lg:border-r border-border">
-                 <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none max-h-[500px] overflow-y-auto subtle-scrollbar pr-4">
-                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {activePlan.planText}
-                   </ReactMarkdown>
-                 </div>
-               </div>
-               
-               {/* Lado Direito: Ações (Botões de Dias) */}
-               <div className="w-full lg:w-[400px] bg-muted/30 p-8 flex flex-col justify-center items-center">
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/10 mb-6 border border-slate-100">
-                     <CheckCircle2 size={32} className="text-indigo-600" />
-                  </div>
-                  <h3 className="text-xl font-black uppercase tracking-tighter mb-2 text-center text-foreground">Registro de Treino</h3>
-                  <p className="text-xs text-muted-foreground text-center mb-8 font-medium">
-                    Ao finalizar o treino de cada dia, marque abaixo. Seu professor será notificado automaticamente!
-                  </p>
-                  
-                  <div className="flex justify-center gap-3 flex-wrap">
-                    {[1, 2, 3, 4, 5].map((dayNum, index) => {
-                      const daysCompleted = JSON.parse(activePlan.daysCompleted as string);
-                      const isCompleted = daysCompleted[index];
-                      return (
-                        <button
-                          key={dayNum}
-                          onClick={() => toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: index })}
-                          disabled={toggleDayMutation.isPending}
-                          className={cn(
-                            "flex flex-col items-center justify-center w-14 h-20 rounded-2xl border-2 transition-all group shadow-sm relative overflow-hidden",
-                            isCompleted 
-                              ? "bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600" 
-                              : "bg-card border-border text-muted-foreground hover:border-indigo-400 hover:text-indigo-600"
-                          )}
-                        >
-                          <span className="text-[9px] font-black uppercase tracking-widest mb-1 relative z-10">Dia</span>
-                          <span className="text-2xl font-black leading-none relative z-10">{dayNum}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  {activePlan.status === 'inativo' && (
-                     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="mt-8 w-full p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center shadow-sm">
-                        <p className="text-emerald-600 font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2">
-                           <Award size={18} /> Semana Gabaritada!
-                        </p>
-                     </motion.div>
+      </div>
+    );
+  }
+
+  const daysCompleted = JSON.parse(activePlan.daysCompleted as string || "[false,false,false,false,false]");
+  const currentDayData = planData.days[selectedDay];
+  const isCurrentDayCompleted = daysCompleted[selectedDay];
+
+  return (
+    <div className="space-y-8 pb-10 max-w-5xl mx-auto px-4 md:px-0">
+      
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex gap-4 items-center">
+          <div className="w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+            <CalendarDays size={28} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-foreground">Plano de Estudo Diário</h1>
+            <p className="text-sm text-muted-foreground font-medium">Acompanhe as instruções do seu professor e registre o seu treino da semana.</p>
+          </div>
+        </div>
+        
+        {/* Seletor de Dia */}
+        <div className="flex items-center gap-3 bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
+          <div className="flex items-center gap-2 px-3">
+            <CalendarDays size={18} className="text-indigo-600" />
+            <span className="font-bold text-sm text-slate-800">{currentDayData?.dayName || `Dia ${selectedDay + 1}`}</span>
+          </div>
+          <div className="flex gap-1 ml-2">
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={handlePrevDay} disabled={selectedDay === 0}>
+              <ChevronLeft size={16} />
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={handleNextDay} disabled={selectedDay === planData.days.length - 1}>
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Card Principal: Foco do Dia e Botões de Ação */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={`focus-${selectedDay}`}>
+        <div className="bg-indigo-50/50 border border-indigo-100 p-6 md:p-8 rounded-[2rem] flex flex-col md:flex-row justify-between gap-8 items-center shadow-sm">
+          
+          <div className="flex gap-5 items-center flex-1">
+             <div className="w-20 h-20 bg-indigo-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 shrink-0 relative overflow-hidden">
+               <Music size={32} className="relative z-10" />
+               <Star size={14} className="absolute top-3 left-3 opacity-50" />
+               <Star size={10} className="absolute bottom-4 right-4 opacity-50" />
+             </div>
+             <div>
+               <p className="text-sm font-bold text-indigo-600 mb-1">Foco do dia</p>
+               <h2 className="text-2xl font-black text-slate-900 leading-tight mb-2">{currentDayData?.focus?.title || "Treino Prático"}</h2>
+               <p className="text-sm text-slate-600 font-medium leading-relaxed max-w-md">
+                 {currentDayData?.focus?.description || "Siga os exercícios abaixo para concluir sua rotina de hoje."}
+               </p>
+             </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm w-full md:w-auto min-w-[320px]">
+             <h3 className="text-center font-black text-slate-900 mb-1">Treinou hoje?</h3>
+             <p className="text-xs text-center text-slate-500 mb-4 font-medium">Marque abaixo após concluir seu plano de estudo.</p>
+             
+             <div className="flex gap-3">
+                <Button 
+                  className={cn(
+                    "flex-1 h-12 font-bold rounded-xl transition-all border-2",
+                    isCurrentDayCompleted 
+                      ? "bg-emerald-500 border-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20" 
+                      : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300"
                   )}
-               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+                  onClick={() => { if (!isCurrentDayCompleted) toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: selectedDay }) }}
+                  disabled={toggleDayMutation.isPending || isCurrentDayCompleted}
+                >
+                  <CheckCircle2 size={18} className="mr-2" /> SIM, TREINEI
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className={cn(
+                    "h-12 font-bold rounded-xl border-2 px-6",
+                    !isCurrentDayCompleted && toggleDayMutation.isPending ? "opacity-50" : "",
+                    isCurrentDayCompleted ? "border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100" : "border-rose-100 text-rose-500 hover:bg-rose-50 hover:border-rose-200"
+                  )}
+                  onClick={() => { if (isCurrentDayCompleted) toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: selectedDay }) }}
+                  disabled={toggleDayMutation.isPending || !isCurrentDayCompleted}
+                >
+                  NÃO TREINEI
+                </Button>
+             </div>
+             <p className="text-[10px] text-slate-400 mt-4 text-center">
+               ℹ️ Marque até o final do dia para manter seu acompanhamento em dia.
+             </p>
+          </div>
+
+        </div>
+      </motion.div>
+
+      {/* Lista de Exercícios */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={`list-${selectedDay}`} className="pt-4">
+         <div className="flex items-center gap-2 mb-6 px-2">
+            <Music size={18} className="text-indigo-400" />
+            <h3 className="font-bold text-slate-700">Seu plano de estudo</h3>
+         </div>
+
+         <div className="flex flex-col gap-4">
+            {currentDayData?.exercises?.map((exercise: any, idx: number) => (
+              <div key={idx} className="bg-white border border-slate-100 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center gap-6 shadow-sm hover:shadow-md transition-shadow">
+                 <div className="flex items-center gap-5 w-full md:w-auto md:flex-1">
+                    <div className="text-slate-300 font-black text-xl w-8 text-center">
+                      {String(idx + 1).padStart(2, '0')}
+                    </div>
+                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
+                      {getIcon(exercise.icon)}
+                    </div>
+                    <div className="flex-1">
+                       <h4 className="font-black text-slate-900">{exercise.title}</h4>
+                       <p className="text-sm text-slate-500 mt-1 leading-relaxed">{exercise.subtitle}</p>
+                    </div>
+                 </div>
+
+                 <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg text-sm font-bold shrink-0 self-start md:self-auto">
+                    ⏱ {exercise.duration}
+                 </div>
+
+                 <div className="flex-1 text-sm text-slate-600 self-start md:self-auto min-w-[200px]">
+                    <ul className="list-disc pl-4 space-y-1">
+                      {exercise.points?.map((point: string, pIdx: number) => (
+                        <li key={pIdx}>{point}</li>
+                      ))}
+                    </ul>
+                 </div>
+
+                 <div className="shrink-0 self-end md:self-auto mt-4 md:mt-0">
+                    <Button variant="ghost" className="text-indigo-600 hover:text-indigo-700 font-bold hover:bg-indigo-50 rounded-xl">
+                      Ver detalhes &gt;
+                    </Button>
+                 </div>
+              </div>
+            ))}
+         </div>
+      </motion.div>
+
+      {/* Banner Importante */}
+      {planData?.importantMessage && (
+        <div className="mt-12 bg-violet-50 border border-violet-100 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex gap-4 items-start">
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-violet-500 shadow-sm shrink-0">
+               <Award size={20} />
+            </div>
+            <div>
+              <h4 className="font-bold text-violet-900 mb-1">Importante</h4>
+              <p className="text-sm text-violet-700/80 font-medium">
+                {planData.importantMessage}
+              </p>
+            </div>
+          </div>
+          <Button className="bg-white text-violet-700 hover:bg-violet-100 border border-violet-200 shadow-sm font-bold rounded-xl shrink-0">
+             <MessageCircle size={18} className="mr-2" /> Falar com o professor
+          </Button>
+        </div>
       )}
+
     </div>
   );
 }

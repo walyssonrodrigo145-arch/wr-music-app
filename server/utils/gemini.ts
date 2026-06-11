@@ -8,7 +8,7 @@ if (!apiKey) {
 
 export const genAI = new GoogleGenerativeAI(apiKey || "");
 
-export async function callGemini(messages: { role: string; content: string }[], systemPrompt?: string): Promise<string> {
+export async function callGemini(messages: { role: string; content: string }[], systemPrompt?: string, isJson?: boolean): Promise<string> {
   if (!apiKey) {
     throw new Error("Chave da API do Gemini não configurada no servidor.");
   }
@@ -17,6 +17,7 @@ export async function callGemini(messages: { role: string; content: string }[], 
     const model = genAI.getGenerativeModel({
       model: "gemini-3-flash-preview",
       systemInstruction: systemPrompt,
+      generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
     });
 
     const formattedMessages = messages.map(msg => ({

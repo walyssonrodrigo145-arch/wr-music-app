@@ -471,54 +471,48 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
-      const prompt = `Você é um assistente educacional gerando um PLANO DE ESTUDO DIÁRIO para o aluno ${student.name} (Nível: ${student.level}). Utilize uma linguagem muito simples, motivadora, didática e de fácil compreensão, focada em alunos iniciantes.
+      const prompt = `Você é um assistente educacional gerando um PLANO DE ESTUDO DIÁRIO para o aluno ${student.name} (Nível: ${student.level}).
 
 Histórico do Aluno:
 - Últimas ${pastLessons.length} aulas concluídas.
 - Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
-- Timeline recente de evolução: ${timelineText || "Nenhum registro"}
+- Timeline recente: ${timelineText || "Nenhum registro"}
 
-Sua resposta será exibida em uma interface de texto puro. Portanto, NÃO UTILIZE MARKDOWN (como asteriscos **, hashtags # ou traços ---).
+Gere um cronograma de 5 dias de prática com atividades curtas e focadas.
+Sua resposta DEVE ser estritamente um JSON VÁLIDO contendo a seguinte estrutura exata:
 
-Siga EXATAMENTE o template abaixo, usando emojis como âncoras visuais, hífens para listas e pulando uma linha em branco entre cada bloco de conteúdo para garantir a legibilidade.
-Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades curtas e focadas.
+{
+  "weeklyGoal": "Escreva em 2 ou 3 linhas o objetivo dos treinos dessa semana.",
+  "importantMessage": "Uma dica final de motivação ou postura para a semana.",
+  "days": [
+    {
+      "dayName": "Dia 1",
+      "focus": {
+        "title": "Título do Foco (Ex: Técnica & Ritmo)",
+        "description": "Desenvolver precisão rítmica e coordenação técnica na guitarra."
+      },
+      "exercises": [
+        {
+          "title": "Ritmo e Precisão",
+          "subtitle": "Pratique com o metrônomo as figuras rítmicas apresentadas na aula.",
+          "duration": "15 min",
+          "points": [
+            "Metrônomo: 60 BPM",
+            "Exercícios rítmicos"
+          ],
+          "icon": "metronome" 
+        }
+      ]
+    }
+  ]
+}
 
-[INÍCIO DO TEMPLATE]
-
-📅 PLANO DE ESTUDO DIÁRIO: [Foco Principal da Semana]
-
-👤 Aluno: ${student.name} | 📊 Nível: ${student.level}
-
-🎯 OBJETIVO DA SEMANA
-[Escreva em 2 ou 3 linhas o objetivo dos treinos dessa semana].
-
-🗓️ DIA 1: [Foco do Dia] ([X] min)
-- [Exercício 1]: [Instrução breve].
-- [Exercício 2]: [Instrução breve].
-
-🗓️ DIA 2: [Foco do Dia] ([X] min)
-- [Exercício 1]: [Instrução breve].
-- [Exercício 2]: [Instrução breve].
-
-🗓️ DIA 3: [Foco do Dia] ([X] min)
-- [Exercício 1]: [Instrução breve].
-- [Exercício 2]: [Instrução breve].
-
-🗓️ DIA 4: [Foco do Dia] ([X] min)
-- [Exercício 1]: [Instrução breve].
-- [Exercício 2]: [Instrução breve].
-
-🗓️ DIA 5: REVISÃO E PRÁTICA LIVRE ([X] min)
-- [Exercício 1]: [Tocar a música completa ou revisão geral].
-
-💡 DICA DO PROFESSOR
-[Uma dica final de motivação ou postura para a semana].
-
-[FIM DO TEMPLATE]`;
+Regras para os ícones ("icon" nos exercises): Use uma dessas strings: "metronome", "guitar", "music", "pen", "star", "play".
+Retorne APENAS o JSON válido, sem markdown (\`\`\`json) em volta.`;
       
       try {
         const { callGemini } = await import("./utils/gemini");
-        const responseText = await callGemini([{ role: 'user', content: prompt }]);
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, true);
 
         // Invalida planos antigos do aluno
         await db.update(dailyStudyPlans)
@@ -622,7 +616,29 @@ Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades cu
         ? `Olá ${student.name}! Preparado para a nossa próxima aula? 🎸 Aqui está o que vamos fazer:\n\n`
         : `Olá ${student.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`;
 
-      const finalMessage = saudacao + input.planText;
+      let formattedPlanText = input.planText;
+      if (input.type === "diario") {
+        try {
+          const planData = JSON.parse(input.planText);
+          let text = `🎯 *Objetivo da semana*: ${planData.weeklyGoal || "Praticar"}\n\n`;
+          planData.days?.forEach((day: any) => {
+            text += `📅 *${day.dayName}*: ${day.focus?.title}\n`;
+            day.exercises?.forEach((ex: any) => {
+               text += `  🔹 ${ex.title} (${ex.duration})\n`;
+               ex.points?.forEach((p: string) => { text += `    - ${p}\n` });
+            });
+            text += `\n`;
+          });
+          if (planData.importantMessage) {
+            text += `💡 *Dica*: ${planData.importantMessage}\n`;
+          }
+          formattedPlanText = text;
+        } catch (e) {
+          // Caso não seja um JSON (planos antigos), usa o texto original
+        }
+      }
+
+      const finalMessage = saudacao + formattedPlanText;
 
       const { sendWhatsAppMessage } = await import("./utils/whatsapp");
       const result = await sendWhatsAppMessage({
