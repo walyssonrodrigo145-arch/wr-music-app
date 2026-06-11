@@ -533,7 +533,10 @@ Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades cu
       if (!db) throw new Error("Database not available");
       const [plan] = await db.select()
         .from(dailyStudyPlans)
-        .where(and(eq(dailyStudyPlans.studentId, ctx.student.id), eq(dailyStudyPlans.status, 'ativo')))
+        .where(and(
+          eq(dailyStudyPlans.studentId, ctx.user.studentId!), 
+          eq(dailyStudyPlans.status, 'ativo')
+        ))
         .orderBy(desc(dailyStudyPlans.createdAt))
         .limit(1);
       return plan || null;
@@ -543,7 +546,7 @@ Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades cu
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      const [plan] = await db.select().from(dailyStudyPlans).where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.studentId, ctx.student.id)));
+      const [plan] = await db.select().from(dailyStudyPlans).where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.studentId, ctx.user.studentId!)));
       if (!plan) throw new Error("Plano não encontrado");
 
       const daysCompleted = JSON.parse(plan.daysCompleted as string) as boolean[];
@@ -564,16 +567,16 @@ Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades cu
           organizationId: plan.organizationId,
           userId: plan.teacherId,
           title: "Semana Gabaritada! 🎸",
-          message: `O aluno ${ctx.student.name} concluiu os 5 dias de treino do plano de estudos!`,
+          message: `O aluno ${ctx.user.name} concluiu os 5 dias de treino do plano de estudos!`,
           type: "success",
-          actionUrl: `/alunos/${ctx.student.id}`,
+          actionUrl: `/alunos/${ctx.user.studentId}`,
         });
 
         // Envia notificação PUSH para o aparelho do professor
         try {
           await notifyUser(plan.teacherId, {
             title: "Semana Gabaritada! 🎸",
-            content: `O aluno ${ctx.student.name} concluiu os 5 dias de treino do plano de estudos!`,
+            content: `O aluno ${ctx.user.name} concluiu os 5 dias de treino do plano de estudos!`,
           });
         } catch (e) {
           console.error("Falha ao enviar push notification:", e);
