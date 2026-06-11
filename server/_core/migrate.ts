@@ -58,7 +58,33 @@ export async function runAutoMigrations() {
       { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'concluida'" },
       { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'cancelada'" },
       { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'remarcada'" },
-      { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'falta'" }
+      { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'falta'" },
+      { table: 'daily_study_plans', sql: `
+        CREATE TABLE IF NOT EXISTS "daily_study_plans" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "organizationId" integer,
+          "studentId" integer NOT NULL,
+          "teacherId" integer NOT NULL,
+          "planText" text NOT NULL,
+          "status" varchar(50) DEFAULT 'ativo' NOT NULL,
+          "daysCompleted" text DEFAULT '[false,false,false,false,false]' NOT NULL,
+          "createdAt" timestamp DEFAULT now() NOT NULL,
+          "completedAt" timestamp
+        );`
+      },
+      { table: 'notifications', sql: `
+        CREATE TABLE IF NOT EXISTS "notifications" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "organizationId" integer,
+          "userId" integer NOT NULL,
+          "title" varchar(255) NOT NULL,
+          "message" text NOT NULL,
+          "type" varchar(50) DEFAULT 'info' NOT NULL,
+          "read" boolean DEFAULT false NOT NULL,
+          "actionUrl" text,
+          "createdAt" timestamp DEFAULT now() NOT NULL
+        );`
+      }
     ];
 
     for (const m of migrations) {
