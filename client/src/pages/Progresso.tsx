@@ -108,6 +108,50 @@ export default function Progresso() {
     onError: (e) => toast.error("Erro ao gerar plano: " + e.message)
   });
 
+  const [isStudyPlanModalOpen, setIsStudyPlanModalOpen] = useState(false);
+  const [studyPlanContent, setStudyPlanContent] = useState<string | null>(null);
+
+  const generateDailyStudyPlanMutation = trpc.progress.generateDailyStudyPlan.useMutation({
+    onSuccess: (data) => {
+      setStudyPlanContent(data.plan);
+      toast.success("Plano de estudo diário gerado com sucesso!");
+    },
+    onError: (e) => toast.error("Erro ao gerar plano diário: " + e.message)
+  });
+
+  const [isSendingViaBot, setIsSendingViaBot] = useState(false);
+  const sendPlanViaWhatsAppMutation = trpc.progress.sendPlanViaWhatsApp.useMutation({
+    onSuccess: () => {
+      toast.success("Plano enviado para o aluno via WhatsApp com sucesso!");
+    },
+    onError: (e) => toast.error(e.message)
+  });
+
+  const selectedStudent = students.find(s => s.id === selectedStudentId);
+
+  const handleSendManualWhatsApp = (content: string, type: "aula" | "diario") => {
+    if (!selectedStudent?.phone) {
+      toast.error("Este aluno não possui um telefone cadastrado.");
+      return;
+    }
+    const saudacao = type === "aula" 
+      ? `Olá ${selectedStudent.name}! Preparado para a nossa próxima aula? 🎸 Aqui está o que vamos fazer:\n\n`
+      : `Olá ${selectedStudent.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`;
+    
+    const text = encodeURIComponent(saudacao + content);
+    const url = `https://api.whatsapp.com/send?phone=55${selectedStudent.phone.replace(/\\D/g, '')}&text=${text}`;
+    window.open(url, "_blank");
+  };
+
+  const handleSendBotWhatsApp = async (content: string, type: "aula" | "diario") => {
+    setIsSendingViaBot(true);
+    try {
+      await sendPlanViaWhatsAppMutation.mutateAsync({ studentId: selectedStudentId!, planText: content, type });
+    } finally {
+      setIsSendingViaBot(false);
+    }
+  };
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -585,6 +629,18 @@ export default function Progresso() {
                                     Sugerir Próxima Aula
                                   </Button>
                                   <Button 
+                                    onClick={() => {
+                                      setIsStudyPlanModalOpen(true);
+                                      setStudyPlanContent(null);
+                                      generateDailyStudyPlanMutation.mutate({ studentId: selectedStudentId! });
+                                    }}
+                                    className="w-full sm:w-auto h-10 rounded-xl px-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-amber-500/20"
+                                    disabled={generateDailyStudyPlanMutation.isPending}
+                                  >
+                                    {generateDailyStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Calendar size={16} />}
+                                    Sugerir Estudo Diário
+                                  </Button>
+                                  <Button 
                                     onClick={() => { resetForm(); setIsModalOpen(true); }}
                                     className="w-full sm:w-auto h-10 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2"
                                   >
@@ -981,20 +1037,113 @@ export default function Progresso() {
                )}
             </div>
 
-            <DialogFooter className="p-6 bg-muted/30 border-t border-border flex gap-3">
-               <Button type="button" variant="ghost" onClick={() => setIsAILessonModalOpen(false)} className="h-11 rounded-xl px-6 text-xs font-black uppercase tracking-widest hover:bg-slate-200">
-                  Fechar
-               </Button>
-               {lessonPlanContent && (
-                 <Button 
-                   onClick={() => {
-                     navigator.clipboard.writeText(lessonPlanContent);
-                     toast.success("Copiado para a área de transferência!");
-                   }}
-                   className="h-11 rounded-xl px-6 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20"
-                 >
-                    Copiar Plano
+            <DialogFooter className="p-6 bg-muted/30 border-t border-border flex flex-col sm:flex-row justify-between gap-3">
+               <div className="flex gap-2">
+                 <Button type="button" variant="ghost" onClick={() => setIsAILessonModalOpen(false)} className="h-11 rounded-xl px-6 text-xs font-black uppercase tracking-widest hover:bg-slate-200">
+                    Fechar
                  </Button>
+                 {lessonPlanContent && (
+                   <Button 
+                     onClick={() => {
+                       navigator.clipboard.writeText(lessonPlanContent);
+                       toast.success("Copiado para a área de transferência!");
+                     }}
+                     className="h-11 rounded-xl px-6 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20"
+                   >
+                      Copiar Plano
+                   </Button>
+                 )}
+               </div>
+               
+               {lessonPlanContent && (
+                 <div className="flex gap-2">
+                   <Button 
+                     onClick={() => handleSendManualWhatsApp(lessonPlanContent, "aula")}
+                     className="h-11 rounded-xl px-4 bg-green-500 hover:bg-green-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
+                   >
+                      WhatsApp Manual
+                   </Button>
+                   <Button 
+                     onClick={() => handleSendBotWhatsApp(lessonPlanContent, "aula")}
+                     disabled={isSendingViaBot}
+                     className="h-11 rounded-xl px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20"
+                   >
+                      {isSendingViaBot ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
+                      WhatsApp Robô
+                   </Button>
+                 </div>
+               )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL PLANO DE ESTUDO IA */}
+        <Dialog open={isStudyPlanModalOpen} onOpenChange={setIsStudyPlanModalOpen}>
+          <DialogContent className="sm:max-w-[700px] bg-card p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
+            <div className="p-8 pb-4 bg-gradient-to-r from-amber-500 to-orange-500">
+               <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
+                     <Calendar size={20} />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">Plano de Estudo Diário</DialogTitle>
+                    <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-1">Sugerido pela Inteligência Artificial</p>
+                  </div>
+               </div>
+            </div>
+            
+            <div className="p-8 max-h-[60vh] overflow-y-auto subtle-scrollbar">
+               {generateDailyStudyPlanMutation.isPending ? (
+                 <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                    <Loader2 size={40} className="animate-spin text-orange-500/50" />
+                    <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico e criando cronograma diário...</p>
+                 </div>
+               ) : studyPlanContent ? (
+                 <div className="prose prose-sm dark:prose-invert max-w-none prose-h1:text-xl prose-h1:font-black prose-h2:text-lg prose-h2:text-orange-600 prose-h2:font-black prose-h3:text-base prose-strong:text-orange-500">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                       {studyPlanContent}
+                    </ReactMarkdown>
+                 </div>
+               ) : (
+                 <p className="text-center text-muted-foreground py-8">Nenhum plano gerado ainda.</p>
+               )}
+            </div>
+
+            <DialogFooter className="p-6 bg-muted/30 border-t border-border flex flex-col sm:flex-row justify-between gap-3">
+               <div className="flex gap-2">
+                 <Button type="button" variant="ghost" onClick={() => setIsStudyPlanModalOpen(false)} className="h-11 rounded-xl px-6 text-xs font-black uppercase tracking-widest hover:bg-slate-200">
+                    Fechar
+                 </Button>
+                 {studyPlanContent && (
+                   <Button 
+                     onClick={() => {
+                       navigator.clipboard.writeText(studyPlanContent);
+                       toast.success("Copiado para a área de transferência!");
+                     }}
+                     className="h-11 rounded-xl px-6 bg-orange-600 hover:bg-orange-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-orange-500/20"
+                   >
+                      Copiar Plano
+                   </Button>
+                 )}
+               </div>
+               
+               {studyPlanContent && (
+                 <div className="flex gap-2">
+                   <Button 
+                     onClick={() => handleSendManualWhatsApp(studyPlanContent, "diario")}
+                     className="h-11 rounded-xl px-4 bg-green-500 hover:bg-green-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
+                   >
+                      WhatsApp Manual
+                   </Button>
+                   <Button 
+                     onClick={() => handleSendBotWhatsApp(studyPlanContent, "diario")}
+                     disabled={isSendingViaBot}
+                     className="h-11 rounded-xl px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20"
+                   >
+                      {isSendingViaBot ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
+                      WhatsApp Robô
+                   </Button>
+                 </div>
                )}
             </DialogFooter>
           </DialogContent>

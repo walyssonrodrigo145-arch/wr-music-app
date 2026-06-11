@@ -392,7 +392,7 @@ export const appRouter = router({
 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
-      const prompt = `Você é um assistente educacional gerando planos de aula para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}).
+      const prompt = `Você é um assistente educacional gerando planos de aula para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}). Utilize uma linguagem simples, didática e de fácil compreensão, focada em alunos iniciantes, sem jargões complexos.
 
 Histórico do Aluno:
 - Últimas ${pastLessons.length} aulas concluídas.
@@ -442,6 +442,114 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
       } catch (e: any) {
         throw new Error("Erro ao gerar plano de aula com a IA: " + e.message);
       }
+    }),
+
+    generateDailyStudyPlan: protectedProcedure.input(z.object({ studentId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      
+      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+      if (!student) throw new Error("Aluno não encontrado");
+      
+      const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).limit(5).orderBy(desc(lessons.scheduledAt));
+      const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
+      const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.organizationId, orgId))).limit(10).orderBy(desc(studentTimeline.achievedAt));
+
+      const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
+
+      const prompt = `Você é um assistente educacional gerando um PLANO DE ESTUDO DIÁRIO para o aluno ${student.name} (Nível: ${student.level}). Utilize uma linguagem muito simples, motivadora, didática e de fácil compreensão, focada em alunos iniciantes.
+
+Histórico do Aluno:
+- Últimas ${pastLessons.length} aulas concluídas.
+- Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
+- Timeline recente de evolução: ${timelineText || "Nenhum registro"}
+
+Sua resposta será exibida em uma interface de texto puro. Portanto, NÃO UTILIZE MARKDOWN (como asteriscos **, hashtags # ou traços ---).
+
+Siga EXATAMENTE o template abaixo, usando emojis como âncoras visuais, hífens para listas e pulando uma linha em branco entre cada bloco de conteúdo para garantir a legibilidade.
+Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades curtas e focadas.
+
+[INÍCIO DO TEMPLATE]
+
+📅 PLANO DE ESTUDO DIÁRIO: [Foco Principal da Semana]
+
+👤 Aluno: ${student.name} | 📊 Nível: ${student.level}
+
+🎯 OBJETIVO DA SEMANA
+[Escreva em 2 ou 3 linhas o objetivo dos treinos dessa semana].
+
+🗓️ DIA 1: [Foco do Dia] ([X] min)
+- [Exercício 1]: [Instrução breve].
+- [Exercício 2]: [Instrução breve].
+
+🗓️ DIA 2: [Foco do Dia] ([X] min)
+- [Exercício 1]: [Instrução breve].
+- [Exercício 2]: [Instrução breve].
+
+🗓️ DIA 3: [Foco do Dia] ([X] min)
+- [Exercício 1]: [Instrução breve].
+- [Exercício 2]: [Instrução breve].
+
+🗓️ DIA 4: [Foco do Dia] ([X] min)
+- [Exercício 1]: [Instrução breve].
+- [Exercício 2]: [Instrução breve].
+
+🗓️ DIA 5: REVISÃO E PRÁTICA LIVRE ([X] min)
+- [Exercício 1]: [Tocar a música completa ou revisão geral].
+
+💡 DICA DO PROFESSOR
+[Uma dica final de motivação ou postura para a semana].
+
+[FIM DO TEMPLATE]`;
+      
+      try {
+        const { callGemini } = await import("./utils/gemini");
+        const responseText = await callGemini([{ role: 'user', content: prompt }]);
+        return { plan: responseText };
+      } catch (e: any) {
+        throw new Error("Erro ao gerar plano de estudo com a IA: " + e.message);
+      }
+    }),
+
+    sendPlanViaWhatsApp: protectedProcedure.input(z.object({ 
+      studentId: z.number(), 
+      planText: z.string(),
+      type: z.enum(["aula", "diario"])
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      
+      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+      if (!student) throw new Error("Aluno não encontrado");
+      if (!student.phone) throw new Error("Este aluno não tem um telefone cadastrado.");
+      
+      const [userSettings] = await db.select().from(settings).where(eq(settings.userId, ctx.user.id));
+      if (!userSettings || !userSettings.whatsappBotUrl || !userSettings.whatsappBotToken) {
+        throw new Error("O robô do WhatsApp não está configurado. Vá em Configurações > WhatsApp para configurar.");
+      }
+
+      const saudacao = input.type === "aula" 
+        ? `Olá ${student.name}! Preparado para a nossa próxima aula? 🎸 Aqui está o que vamos fazer:\n\n`
+        : `Olá ${student.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`;
+
+      const finalMessage = saudacao + input.planText;
+
+      const { sendWhatsAppMessage } = await import("./utils/whatsapp");
+      const result = await sendWhatsAppMessage({
+        url: userSettings.whatsappBotUrl,
+        token: userSettings.whatsappBotToken,
+        phone: student.phone,
+        message: finalMessage,
+        sessionId: `prof_${ctx.user.id}`
+      });
+
+      if (!result.success) {
+        throw new Error("Falha ao enviar mensagem pelo robô: " + result.error);
+      }
+
+      return { success: true };
     }),
   }),
 
