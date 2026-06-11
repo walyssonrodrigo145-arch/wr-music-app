@@ -85,6 +85,19 @@ export const appRouter = router({
       ));
       return { success: true, studentsRemoved: studentIds.length, lessonsRemoved: 0 };
     }),
+    getNotifications: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(notifications)
+        .where(and(eq(notifications.userId, ctx.user.id), eq(notifications.organizationId, ctx.user.organizationId!)))
+        .orderBy(desc(notifications.createdAt))
+        .limit(10);
+    }),
+    markNotificationRead: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return;
+      await db.update(notifications).set({ read: true }).where(and(eq(notifications.id, input.id), eq(notifications.userId, ctx.user.id)));
+    }),
   }),
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -509,7 +522,7 @@ Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades cu
 
         // Invalida planos antigos do aluno
         await db.update(dailyStudyPlans)
-          .set({ status: 'concluido' })
+          .set({ status: 'inativo' })
           .where(and(eq(dailyStudyPlans.studentId, input.studentId), eq(dailyStudyPlans.status, 'ativo')));
 
         // Salva novo plano no banco
@@ -557,7 +570,7 @@ Crie um cronograma de 5 dias de prática (ex: Segunda a Sexta) com atividades cu
       await db.update(dailyStudyPlans)
         .set({ 
           daysCompleted: JSON.stringify(daysCompleted),
-          ...(allCompleted ? { status: 'concluido', completedAt: new Date() } : {})
+          ...(allCompleted ? { status: 'inativo', completedAt: new Date() } : {})
         })
         .where(eq(dailyStudyPlans.id, plan.id));
 

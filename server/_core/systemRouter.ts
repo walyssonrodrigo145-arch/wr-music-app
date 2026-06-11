@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { notifyOwner } from "./notification";
-import { adminProcedure, publicProcedure, router } from "./trpc";
+import { adminProcedure, publicProcedure, protectedProcedure, router } from "./trpc";
 import { getDb } from "../db";
 import { users, students, lessons, reminders, paymentDues, instruments, notifications } from "../../drizzle/schema";
 import { or, ilike, inArray, and, sql, eq, desc } from "drizzle-orm";

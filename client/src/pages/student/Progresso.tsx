@@ -32,6 +32,7 @@ export default function StudentProgress() {
     <div className="space-y-8 pb-10 max-w-5xl mx-auto">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-black tracking-tight text-foreground">Plano de Estudo Diário</h1>
+
         <p className="text-muted-foreground font-medium">Acompanhe as instruções do seu professor e registre o seu treino da semana.</p>
       </div>
 
@@ -109,7 +110,7 @@ export default function StudentProgress() {
                     })}
                   </div>
                   
-                  {activePlan.status === 'concluido' && (
+                  {activePlan.status === 'inativo' && (
                      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="mt-8 w-full p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center shadow-sm">
                         <p className="text-emerald-600 font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2">
                            <Award size={18} /> Semana Gabaritada!
