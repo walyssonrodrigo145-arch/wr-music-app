@@ -35,6 +35,11 @@ import {
   Zap,
   BarChart3,
   ExternalLink,
+  CalendarDays,
+  Award,
+  AlertTriangle,
+  Play,
+  PenTool,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,6 +117,7 @@ export default function Progresso() {
   const [studyPlanContent, setStudyPlanContent] = useState<string | null>(null);
   const [studyPlanId, setStudyPlanId] = useState<number | null>(null);
   const [studyPlanStatus, setStudyPlanStatus] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState(0);
 
   const { data: planHistory = [], isLoading: historyLoading } = trpc.progress.getStudentPlanHistory.useQuery(
     { studentId: selectedStudentId! },
@@ -163,6 +169,65 @@ export default function Progresso() {
     },
     onError: (e) => toast.error(e.message)
   });
+
+  const isSendingRef = useRef(false);
+
+  // --- Parsing utils para o Plano ---
+  interface Exercise {
+    title: string;
+    subtitle?: string;
+    duration?: string;
+    points?: string[];
+    icon?: string;
+  }
+  interface DayPlan {
+    dayName: string;
+    focus?: { title: string; description: string };
+    exercises?: Exercise[];
+  }
+  interface StudyPlan {
+    weeklyGoal?: string;
+    importantMessage?: string;
+    days: DayPlan[];
+  }
+
+  function parsePlanData(planText: string | null | undefined): StudyPlan | null {
+    if (!planText) return null;
+    try {
+      let cleanText = planText.trim();
+      if (cleanText.startsWith('```')) {
+        cleanText = cleanText.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '').trim();
+      }
+      const parsed = JSON.parse(cleanText);
+      if (!parsed || !Array.isArray(parsed.days) || parsed.days.length === 0) return null;
+      return parsed as StudyPlan;
+    } catch {
+      return null;
+    }
+  }
+
+  function parseDaysCompleted(raw: string | null | undefined): boolean[] {
+    if (!raw) return [false, false, false, false, false];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(Boolean);
+    } catch { /* noop */ }
+    return [false, false, false, false, false];
+  }
+
+  function ExerciseIcon({ icon }: { icon?: string }) {
+    switch (icon) {
+      case "play": return <Play size={20} className="text-indigo-600" />;
+      case "pen": return <PenTool size={20} className="text-indigo-600" />;
+      case "music": return <Music size={20} className="text-indigo-600" />;
+      case "metronome": return <Clock size={20} className="text-indigo-600" />;
+      case "star": return <Star size={20} className="text-indigo-600" />;
+      default: return <BookOpen size={20} className="text-indigo-600" />;
+    }
+  }
+
+  const activePlanData = useMemo(() => parsePlanData(currentTeacherPlan?.planText), [currentTeacherPlan?.planText]);
+  const activeDaysCompleted = useMemo(() => parseDaysCompleted(currentTeacherPlan?.daysCompleted as string | undefined), [currentTeacherPlan?.daysCompleted]);
 
   // Converte o JSON do plano diário em texto legível para humanos
   const formatPlanAsText = (content: string): string => {
@@ -693,35 +758,175 @@ export default function Progresso() {
                               <div className="flex justify-center p-6"><Loader2 className="animate-spin text-orange-500/20" /></div>
                             ) : currentTeacherPlan ? (
                               <div className="bg-card p-6 rounded-[2rem] border border-border shadow-sm">
-                                <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
-                                  {(() => {
-                                      return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(currentTeacherPlan.planText)}</ReactMarkdown>;
-                                  })()}
-                                </div>
-                                {currentTeacherPlan.publishedStatus === 'rascunho' ? (
-                                  <div className="mt-4 pt-4 border-t border-border flex justify-end">
+                                {(() => {
+                                  if (!activePlanData) {
+                                    return (
+                                      <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(currentTeacherPlan.planText)}</ReactMarkdown>
+                                      </div>
+                                    );
+                                  }
+
+                                  const totalDays = activePlanData.days.length;
+                                  const safeDayIndex = Math.min(selectedDay, totalDays - 1);
+                                  const currentDayData = activePlanData.days[safeDayIndex];
+                                  const isCurrentDayCompleted = Boolean(activeDaysCompleted[safeDayIndex]);
+
+                                  return (
+                                    <div className="space-y-6">
+                                      {/* Objetivo Semanal */}
+                                      {activePlanData.weeklyGoal && (
+                                        <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                                          <Target size={20} className="text-indigo-500 shrink-0 mt-0.5" />
+                                          <div>
+                                            <p className="text-xs font-bold text-indigo-600 uppercase mb-1">Objetivo da Semana</p>
+                                            <p className="text-sm text-slate-700 leading-relaxed">{activePlanData.weeklyGoal}</p>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Header + Seletor de dia */}
+                                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3 bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
+                                          <div className="flex items-center gap-2 px-3">
+                                            <CalendarDays size={17} className="text-indigo-600" />
+                                            <span className="font-bold text-sm text-slate-800">
+                                              {currentDayData?.dayName || "Dia " + (safeDayIndex + 1)}
+                                            </span>
+                                          </div>
+                                          <div className="flex gap-1">
+                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg"
+                                              onClick={() => setSelectedDay((d) => Math.max(0, d - 1))} disabled={safeDayIndex === 0}>
+                                              <ChevronLeft size={16} />
+                                            </Button>
+                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg"
+                                              onClick={() => setSelectedDay((d) => Math.min(totalDays - 1, d + 1))} disabled={safeDayIndex === totalDays - 1}>
+                                              <ChevronRight size={16} />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Foco do dia */}
+                                      <AnimatePresence mode="wait">
+                                        <motion.div key={"focus-" + safeDayIndex}
+                                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                                          <div className="bg-indigo-50/30 border border-indigo-100/50 p-6 rounded-2xl flex flex-col md:flex-row justify-between gap-6 items-center shadow-sm">
+                                            <div className="flex gap-4 items-center flex-1">
+                                              <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 shrink-0">
+                                                <Music size={28} />
+                                              </div>
+                                              <div>
+                                                <p className="text-xs font-bold text-indigo-600 mb-1">FOCO DO DIA</p>
+                                                <h2 className="text-lg font-black text-slate-900 leading-tight mb-1">
+                                                  {currentDayData?.focus?.title || "Treino Prático"}
+                                                </h2>
+                                                <p className="text-sm text-slate-600 font-medium leading-relaxed max-w-sm">
+                                                  {currentDayData?.focus?.description || "Siga os exercícios para concluir a rotina de hoje."}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm w-full md:w-auto min-w-[200px] text-center">
+                                              <h3 className="font-bold text-slate-800 mb-1">Status do Aluno</h3>
+                                              {isCurrentDayCompleted ? (
+                                                <div className="flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50 py-2 rounded-lg font-bold text-sm">
+                                                  <CheckCircle2 size={16} /> Treino Concluído
+                                                </div>
+                                              ) : (
+                                                <div className="flex items-center justify-center gap-2 text-amber-600 bg-amber-50 py-2 rounded-lg font-bold text-sm">
+                                                  <AlertTriangle size={16} /> Pendente
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </motion.div>
+                                      </AnimatePresence>
+
+                                      {/* Lista de exercícios */}
+                                      <AnimatePresence mode="wait">
+                                        <motion.div key={"list-" + safeDayIndex}
+                                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                                          {!currentDayData?.exercises || currentDayData.exercises.length === 0 ? (
+                                            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-700">
+                                              <AlertTriangle size={18} className="shrink-0" />
+                                              <p className="text-sm font-medium">Nenhum exercício registrado.</p>
+                                            </div>
+                                          ) : (
+                                            <div className="flex flex-col gap-3">
+                                              {currentDayData.exercises.map((exercise, idx) => (
+                                                <div key={idx} className="bg-white border border-slate-100 p-4 rounded-xl flex flex-col md:flex-row items-start md:items-center gap-4 shadow-sm">
+                                                  <div className="flex items-center gap-3 flex-1">
+                                                    <span className="text-slate-300 font-black text-lg w-6 text-center shrink-0">
+                                                      {String(idx + 1).padStart(2, "0")}
+                                                    </span>
+                                                    <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0">
+                                                      <ExerciseIcon icon={exercise.icon} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                      <h4 className="font-bold text-slate-900 text-sm">{exercise.title}</h4>
+                                                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{exercise.subtitle}</p>
+                                                    </div>
+                                                  </div>
+                                                  {exercise.duration && (
+                                                    <div className="text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md text-xs font-bold shrink-0">
+                                                      ⏱ {exercise.duration}
+                                                    </div>
+                                                  )}
+                                                  {exercise.points && exercise.points.length > 0 && (
+                                                    <div className="flex-1 text-xs text-slate-600 min-w-[150px]">
+                                                      <ul className="list-disc pl-3 space-y-0.5">
+                                                        {exercise.points.map((point, pIdx) => <li key={pIdx}>{point}</li>)}
+                                                      </ul>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </motion.div>
+                                      </AnimatePresence>
+                                    </div>
+                                  );
+                                })()}
+                                
+                                <div className="mt-6 pt-4 border-t border-border flex flex-wrap justify-end gap-2">
+                                  {currentTeacherPlan.publishedStatus === 'rascunho' ? (
                                     <Button 
                                       onClick={() => publishStudyPlanMutation.mutate({ planId: currentTeacherPlan.id, studentId: selectedStudentId! })}
-                                      className="bg-green-500 hover:bg-green-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
+                                      className="bg-green-500 hover:bg-green-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-500/20 h-8 rounded-lg px-3"
                                       disabled={publishStudyPlanMutation.isPending}
                                     >
                                       {publishStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
                                       Liberar para o Aluno
                                     </Button>
-                                  </div>
-                                ) : (
-                                  <div className="mt-4 pt-4 border-t border-border flex justify-end">
-                                    <Button 
-                                      variant="destructive"
-                                      onClick={() => deleteStudyPlanMutation.mutate({ planId: currentTeacherPlan.id })}
-                                      disabled={deleteStudyPlanMutation.isPending}
-                                      className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest"
-                                    >
-                                      {deleteStudyPlanMutation.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : <Trash2 size={14} className="mr-2" />}
-                                      Excluir Plano
-                                    </Button>
-                                  </div>
-                                )}
+                                  ) : (
+                                    <>
+                                      <Button 
+                                        variant="outline"
+                                        onClick={() => {
+                                          if (!selectedStudent?.phone) {
+                                            toast.error("Este aluno não possui um telefone cadastrado.");
+                                            return;
+                                          }
+                                          const text = encodeURIComponent(`Olá ${selectedStudent.name}! Passando para lembrar você de treinar os exercícios do seu plano de estudo diário hoje! Bora praticar? 🎸🚀`);
+                                          window.open(`https://api.whatsapp.com/send?phone=55${selectedStudent.phone.replace(/\D/g, '')}&text=${text}`, "_blank");
+                                        }}
+                                        className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                                      >
+                                        <Zap size={14} className="mr-2" /> Lembrar de Praticar
+                                      </Button>
+                                      <Button 
+                                        variant="destructive"
+                                        onClick={() => deleteStudyPlanMutation.mutate({ planId: currentTeacherPlan.id })}
+                                        disabled={deleteStudyPlanMutation.isPending}
+                                        className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest"
+                                      >
+                                        {deleteStudyPlanMutation.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : <Trash2 size={14} className="mr-2" />}
+                                        Excluir Plano
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             ) : (
                               <div className="py-8 bg-muted/30 border border-dashed border-border rounded-[2rem] text-center flex flex-col items-center justify-center">
