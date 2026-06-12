@@ -621,6 +621,18 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
       return { success: true };
     }),
 
+    unpublishStudyPlan: protectedProcedure.input(z.object({ planId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      await db.update(dailyStudyPlans)
+        .set({ publishedStatus: 'rascunho' })
+        .where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.organizationId, orgId)));
+
+      return { success: true };
+    }),
+
     deleteStudyPlan: protectedProcedure.input(z.object({ planId: z.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");

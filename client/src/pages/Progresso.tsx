@@ -139,6 +139,16 @@ export default function Progresso() {
     onError: (e) => toast.error("Erro ao liberar plano: " + e.message)
   });
 
+  const unpublishStudyPlanMutation = trpc.progress.unpublishStudyPlan.useMutation({
+    onSuccess: () => {
+      utils.progress.getStudentPlanHistory.invalidate({ studentId: selectedStudentId! });
+      utils.progress.getStudentPlanForTeacher.invalidate({ studentId: selectedStudentId! });
+      setStudyPlanStatus('rascunho');
+      toast.success("Plano despublicado com sucesso! Agora ele voltou a ser um rascunho.");
+    },
+    onError: (e) => toast.error("Erro ao despublicar plano: " + e.message)
+  });
+
   const deleteStudyPlanMutation = trpc.progress.deleteStudyPlan.useMutation({
     onSuccess: () => {
       utils.progress.getStudentPlanHistory.invalidate({ studentId: selectedStudentId! });
@@ -914,6 +924,15 @@ export default function Progresso() {
                                         className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"
                                       >
                                         <Zap size={14} className="mr-2" /> Lembrar de Praticar
+                                      </Button>
+                                      <Button 
+                                        variant="outline"
+                                        onClick={() => unpublishStudyPlanMutation.mutate({ planId: currentTeacherPlan.id })}
+                                        disabled={unpublishStudyPlanMutation.isPending}
+                                        className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest border-amber-200 text-amber-600 hover:bg-amber-50"
+                                      >
+                                        {unpublishStudyPlanMutation.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : <AlertTriangle size={14} className="mr-2" />}
+                                        Despublicar
                                       </Button>
                                       <Button 
                                         variant="destructive"
