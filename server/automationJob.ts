@@ -77,20 +77,24 @@ async function runAutomation() {
       `);
 
       // ─── LIMPEZA SEMANAL AUTOMÁTICA (Domingo 00:00 Horário de Brasília) ───────────────
-      // Regra oficial: TODOS os lembretes são excluídos todo domingo à meia-noite,
-      // independentemente do status. Isso garante uma base de dados limpa a cada semana
-      // e que novos lembretes sejam gerados conforme o ciclo semanal seguinte.
+      // Regra: todo domingo apaga APENAS lembretes com status 'pendente' (nunca 'enviado' ou 'cancelado').
+      // Lembretes 'enviado' são mantidos para servir de histórico e como trava anti-regeneração.
+      // 'cancelado' são mantidos para evitar recreação indevida.
       const brazilDateStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
       const brazilDay = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay(); // 0 = domingo
       const cleanupKey = `${orgId}-${userId}`;
+      let ranCleanupThisCycle = false;
 
       if (brazilDay === 0 && lastCleanupByUser.get(cleanupKey) !== brazilDateStr) {
+        // ✅ Bug fix #1: apaga SOMENTE 'pendente' — preserva 'enviado' e 'cancelado'
         await db.execute(sql`
           DELETE FROM reminders
           WHERE "organizationId" = ${orgId} AND "userId" = ${userId}
+            AND status = 'pendente'
         `);
         lastCleanupByUser.set(cleanupKey, brazilDateStr);
-        console.log(`[Automation] ✅ Limpeza semanal concluída — domingo ${brazilDateStr} (userId=${userId})`);
+        ranCleanupThisCycle = true;
+        console.log(`[Automation] ✅ Limpeza semanal (só pendentes) — domingo ${brazilDateStr} (userId=${userId})`);
       }
 
       // ─── 1. BUSCA E GERAÇÃO DE LEMBRETES DE AULA ────────────────────────────
@@ -156,9 +160,8 @@ async function runAutomation() {
 
         const dateStr = lessonDate.toISOString().slice(0, 10);
 
-        // --- TRAVA MANUAL ---
-        // Se o usuário já marcou qualquer lembrete desta aula como 'enviado', 
-        // o robô não deve gerar novos lembretes (nem de 24h, nem de 1h).
+        // --- TRAVA GLOBAL: qualquer lembrete 'enviado' para esta aula impede novos ---
+        // ✅ Bug fix #2: verifica 'enviado' — este registro sobrevive ao cleanup do domingo
         const userConcludedAula = await db.select({ id: reminders.id }).from(reminders)
           .where(and(
             eq(reminders.organizationId, orgId),
@@ -172,8 +175,8 @@ async function runAutomation() {
         const ref24h = `lesson-24h-${lesson.id}-${dateStr}`;
         const refManual = `lesson-${lesson.id}-${dateStr}`;
         if (time24h <= now) {
-          // Verifica se já existe lembrete para esta aula (qualquer status: pendente, enviado ou cancelado)
-          const existing24 = await db.select({ id: reminders.id })
+          // ✅ Bug fix #3: verifica QUALQUER status existente (pendente, enviado ou cancelado) para não duplicar
+          const existing24 = await db.select({ id: reminders.id, status: reminders.status })
             .from(reminders)
             .where(
               and(
@@ -185,7 +188,6 @@ async function runAutomation() {
                     eq(reminders.refId, `lesson-24h-${lesson.id}`),
                     sql`abs(extract(epoch from (${reminders.scheduledAt} - ${time24h.toISOString()}::timestamp))) < 43200`
                   ),
-                  // Também verifica por lessonId+tipo para não duplicar independente do refId
                   and(
                     eq(reminders.lessonId, lesson.id),
                     eq(reminders.type, "aula"),
@@ -195,7 +197,10 @@ async function runAutomation() {
               )
             )
             .limit(1);
-          if (existing24.length === 0) {
+
+          // Só cria se não existir NENHUM registro (qualquer status) e não rodamos cleanup agora
+          // ✅ Bug fix #4: se o cleanup rodou neste ciclo E não existe registro 'enviado', aguarda o próximo ciclo
+          if (existing24.length === 0 && !ranCleanupThisCycle) {
             const msg24 = baseBody24h
               .replace(/\{quando\}/g, "amanhã")
               .replace(/\{nome\}/g, lesson.studentName ?? "Aluno")
@@ -216,8 +221,8 @@ async function runAutomation() {
         const time1h = new Date(lessonDate.getTime() - 1 * 60 * 60 * 1000);
         const ref1h = `lesson-1h-${lesson.id}-${lessonDate.getTime()}`;
         if (time1h <= now) {
-          // Verifica se já existe lembrete 1h para esta aula (qualquer status: pendente, enviado ou cancelado)
-          const existing1 = await db.select({ id: reminders.id })
+          // ✅ Bug fix #3 aplicado também ao lembrete de 1h
+          const existing1 = await db.select({ id: reminders.id, status: reminders.status })
             .from(reminders)
             .where(
               and(
@@ -228,7 +233,6 @@ async function runAutomation() {
                     eq(reminders.refId, `lesson-1h-${lesson.id}`),
                     sql`abs(extract(epoch from (${reminders.scheduledAt} - ${time1h.toISOString()}::timestamp))) < 3600`
                   ),
-                  // Também verifica por lessonId+tipo 1h para não duplicar independente do refId
                   and(
                     eq(reminders.lessonId, lesson.id),
                     eq(reminders.type, "aula"),
@@ -238,7 +242,9 @@ async function runAutomation() {
               )
             )
             .limit(1);
-          if (existing1.length === 0) {
+
+          // ✅ Bug fix #4: não cria logo após o cleanup do domingo
+          if (existing1.length === 0 && !ranCleanupThisCycle) {
             const msg1 = baseBody1h
               .replace(/\{quando\}/g, "hoje")
               .replace(/\{nome\}/g, lesson.studentName ?? "Aluno")
@@ -325,7 +331,8 @@ async function runAutomation() {
                 eq(reminders.refId, manualRefId)
               )
             )).limit(1);
-          if (existing.length === 0) {
+          // ✅ Bug fix #4: não recria imediatamente após o cleanup do domingo
+          if (existing.length === 0 && !ranCleanupThisCycle) {
             let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
             if (!tpl) {
               const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"))).limit(1);
@@ -363,7 +370,8 @@ async function runAutomation() {
                   eq(reminders.refId, manualRefId)
                 )
               )).limit(1);
-            if (existing.length === 0) {
+            // ✅ Bug fix #4: não recria imediatamente após o cleanup do domingo
+            if (existing.length === 0 && !ranCleanupThisCycle) {
               let [tpl] = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"), eq(reminderTemplates.isDefault, 1))).limit(1);
               if (!tpl) {
                 const anyTpl = await db.select().from(reminderTemplates).where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, userId), eq(reminderTemplates.type, "cobranca"))).limit(1);
