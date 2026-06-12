@@ -44,24 +44,13 @@ export default function Lembretes() {
   const { permission, isSupported, requestPermission, showNotification } = usePushNotifications();
   const seenPendingIds = useRef<Set<number>>(new Set());
 
+  // REMOVIDO: useEffect que disparava showNotification local.
+  // O backend (automationJob.ts e routers.ts) já dispara push notifications globais via FCM
+  // usando a função notifyUser(). Manter esse useEffect causava notificações duplicadas.
   useEffect(() => {
     const currentPendings = (allReminders as Reminder[]).filter(r => r.status === "pendente");
-    const newItems = currentPendings.filter(r => !seenPendingIds.current.has(r.id));
     currentPendings.forEach(r => seenPendingIds.current.add(r.id));
-    if (newItems.length > 0 && autoEnabled) {
-      newItems.slice(0, 3).forEach(item => {
-        let title = "Novo Lembrete";
-        if (item.type === "aula") title = "Lembrete de Aula";
-        else if (item.type === "cobranca" || item.type === "inadimplencia") title = "Cobranca Pendente";
-        showNotification(title, {
-          body: item.message,
-          tag: `reminder-${item.id}`,
-          onClick: () => openWhatsApp(item.studentPhone, item.message, (err) => toast.error(err))
-        });
-      });
-      if (newItems.length > 3) toast.info(`${newItems.length} novos lembretes gerados no total.`);
-    }
-  }, [allReminders, autoEnabled, showNotification]);
+  }, [allReminders]);
 
   const invalidate = useCallback(() => {
     utils.reminders.list.invalidate();
@@ -167,7 +156,6 @@ export default function Lembretes() {
     onSuccess: (r) => {
       toast.success(`${r.created} lembrete(s) de aula gerado(s)! ${r.skipped} ignorado(s).`);
       invalidate();
-      if (r.created > 0) showNotification("Novos Lembretes de Aula", { body: `O sistema gerou ${r.created} novos lembretes de aula.`, tag: "reminders-aula" });
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
@@ -176,7 +164,6 @@ export default function Lembretes() {
     onSuccess: (r) => {
       toast.success(`${r.created} lembrete(s) de cobranca gerado(s)! ${r.skipped} ignorado(s).`);
       invalidate();
-      if (r.created > 0) showNotification("Novos Lembretes de Cobranca", { body: `O sistema gerou ${r.created} novos lembretes de cobranca.`, tag: "reminders-cobranca" });
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
