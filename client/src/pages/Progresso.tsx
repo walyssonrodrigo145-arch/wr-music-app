@@ -272,8 +272,20 @@ export default function Progresso() {
       toast.error("Este aluno não possui um telefone cadastrado.");
       return;
     }
+    const getEmoji = (inst?: string) => {
+      if (!inst) return "🎸";
+      const n = inst.toLowerCase();
+      if (n.includes("teclado") || n.includes("piano")) return "🎹";
+      if (n.includes("bateria")) return "🥁";
+      if (n.includes("voz") || n.includes("canto")) return "🎤";
+      if (n.includes("violino")) return "🎻";
+      if (n.includes("sax")) return "🎷";
+      if (n.includes("trompete")) return "🎺";
+      return "🎸";
+    };
+    const emoji = getEmoji(selectedStudent.instrumentName);
     const saudacao = type === "aula" 
-      ? `Olá ${selectedStudent.name}! Preparado para a nossa próxima aula? 🎸 Aqui está o que vamos fazer:\n\n`
+      ? `Olá ${selectedStudent.name}! Preparado para a nossa próxima aula? ${emoji} Aqui está o que vamos fazer:\n\n`
       : `Olá ${selectedStudent.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`;
     
     const finalContent = type === "diario" ? formatPlanAsText(content) : content;
@@ -918,7 +930,19 @@ export default function Progresso() {
                                             toast.error("Este aluno não possui um telefone cadastrado.");
                                             return;
                                           }
-                                          const text = encodeURIComponent(`Olá ${selectedStudent.name}! Passando para lembrar você de treinar os exercícios do seu plano de estudo diário hoje! Bora praticar? 🎸🚀`);
+                                          const getEmoji = (inst?: string) => {
+                                            if (!inst) return "🎸";
+                                            const n = inst.toLowerCase();
+                                            if (n.includes("teclado") || n.includes("piano")) return "🎹";
+                                            if (n.includes("bateria")) return "🥁";
+                                            if (n.includes("voz") || n.includes("canto")) return "🎤";
+                                            if (n.includes("violino")) return "🎻";
+                                            if (n.includes("sax")) return "🎷";
+                                            if (n.includes("trompete")) return "🎺";
+                                            return "🎸";
+                                          };
+                                          const emoji = getEmoji(selectedStudent.instrumentName);
+                                          const text = encodeURIComponent(`Olá ${selectedStudent.name}! Passando para lembrar você de treinar os exercícios do seu plano de estudo diário hoje! Bora praticar? ${emoji}🚀`);
                                           window.open(`https://api.whatsapp.com/send?phone=55${selectedStudent.phone.replace(/\D/g, '')}&text=${text}`, "_blank");
                                         }}
                                         className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"
