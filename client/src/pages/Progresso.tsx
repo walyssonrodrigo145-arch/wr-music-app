@@ -133,15 +133,16 @@ export default function Progresso() {
     onError: (e) => toast.error("Erro ao liberar plano: " + e.message)
   });
 
-  const deleteDraftPlanMutation = trpc.progress.deleteDraftStudyPlan.useMutation({
+  const deleteStudyPlanMutation = trpc.progress.deleteStudyPlan.useMutation({
     onSuccess: () => {
       utils.progress.getStudentPlanHistory.invalidate({ studentId: selectedStudentId! });
+      utils.progress.getStudentPlanForTeacher.invalidate({ studentId: selectedStudentId! });
       setStudyPlanContent(null);
       setStudyPlanId(null);
       setStudyPlanStatus(null);
-      toast.success("Rascunho descartado.");
+      toast.success("Plano excluído com sucesso.");
     },
-    onError: (e) => toast.error("Erro ao descartar: " + e.message)
+    onError: (e) => toast.error("Erro ao excluir: " + e.message)
   });
 
   const generateDailyStudyPlanMutation = trpc.progress.generateDailyStudyPlan.useMutation({
@@ -679,8 +680,11 @@ export default function Progresso() {
                                 <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tighter leading-tight">Plano Diário Ativo</h3>
                               </div>
                               {currentTeacherPlan && (
-                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                                  PUBLICADO
+                                <span className={cn(
+                                  "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                                  currentTeacherPlan.publishedStatus === 'publicado' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                                )}>
+                                  {currentTeacherPlan.publishedStatus === 'publicado' ? 'PUBLICADO' : 'RASCUNHO'}
                                 </span>
                               )}
                             </div>
@@ -694,6 +698,30 @@ export default function Progresso() {
                                       return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(currentTeacherPlan.planText)}</ReactMarkdown>;
                                   })()}
                                 </div>
+                                {currentTeacherPlan.publishedStatus === 'rascunho' ? (
+                                  <div className="mt-4 pt-4 border-t border-border flex justify-end">
+                                    <Button 
+                                      onClick={() => publishStudyPlanMutation.mutate({ planId: currentTeacherPlan.id, studentId: selectedStudentId! })}
+                                      className="bg-green-500 hover:bg-green-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
+                                      disabled={publishStudyPlanMutation.isPending}
+                                    >
+                                      {publishStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
+                                      Liberar para o Aluno
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="mt-4 pt-4 border-t border-border flex justify-end">
+                                    <Button 
+                                      variant="destructive"
+                                      onClick={() => deleteStudyPlanMutation.mutate({ planId: currentTeacherPlan.id })}
+                                      disabled={deleteStudyPlanMutation.isPending}
+                                      className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest"
+                                    >
+                                      {deleteStudyPlanMutation.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : <Trash2 size={14} className="mr-2" />}
+                                      Excluir Plano
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div className="py-8 bg-muted/30 border border-dashed border-border rounded-[2rem] text-center flex flex-col items-center justify-center">
@@ -1163,26 +1191,24 @@ export default function Progresso() {
                 <DialogFooter className="p-4 bg-muted/30 border-t border-border flex flex-wrap gap-2 justify-between items-center">
                   <div className="flex gap-2">
                     {studyPlanStatus === 'rascunho' && (
-                      <>
-                        <Button 
-                          onClick={() => publishStudyPlanMutation.mutate({ planId: studyPlanId!, studentId: selectedStudentId! })}
-                          disabled={publishStudyPlanMutation.isPending}
-                          className="h-10 rounded-xl px-4 bg-green-500 hover:bg-green-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
-                        >
-                          {publishStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                          Liberar para o Aluno
-                        </Button>
-                        <Button 
-                          variant="destructive"
-                          onClick={() => deleteDraftPlanMutation.mutate({ planId: studyPlanId! })}
-                          disabled={deleteDraftPlanMutation.isPending}
-                          className="h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest"
-                        >
-                          {deleteDraftPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
-                          Descartar
-                        </Button>
-                      </>
+                      <Button 
+                        onClick={() => publishStudyPlanMutation.mutate({ planId: studyPlanId!, studentId: selectedStudentId! })}
+                        disabled={publishStudyPlanMutation.isPending}
+                        className="h-10 rounded-xl px-4 bg-green-500 hover:bg-green-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
+                      >
+                        {publishStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
+                        Liberar para o Aluno
+                      </Button>
                     )}
+                    <Button 
+                      variant="destructive"
+                      onClick={() => deleteStudyPlanMutation.mutate({ planId: studyPlanId! })}
+                      disabled={deleteStudyPlanMutation.isPending}
+                      className="h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest"
+                    >
+                      {deleteStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
+                      Excluir Plano
+                    </Button>
                   </div>
                   
                   <div className="flex gap-2 ml-auto">

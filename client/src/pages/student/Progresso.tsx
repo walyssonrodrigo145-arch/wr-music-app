@@ -40,10 +40,15 @@ interface StudyPlan {
 function parsePlanData(planText: string | null | undefined): StudyPlan | null {
   if (!planText) return null;
   try {
-    const parsed = JSON.parse(planText);
+    let cleanText = planText.trim();
+    if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '').trim();
+    }
+    const parsed = JSON.parse(cleanText);
     if (!parsed || !Array.isArray(parsed.days) || parsed.days.length === 0) return null;
     return parsed as StudyPlan;
-  } catch {
+  } catch (e) {
+    console.error("Erro ao fazer parse do plano:", e);
     return null;
   }
 }

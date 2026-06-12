@@ -621,7 +621,7 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
       return { success: true };
     }),
 
-    deleteDraftStudyPlan: protectedProcedure.input(z.object({ planId: z.number() })).mutation(async ({ ctx, input }) => {
+    deleteStudyPlan: protectedProcedure.input(z.object({ planId: z.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
@@ -629,8 +629,7 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
       await db.delete(dailyStudyPlans)
         .where(and(
           eq(dailyStudyPlans.id, input.planId),
-          eq(dailyStudyPlans.organizationId, orgId),
-          eq(dailyStudyPlans.publishedStatus, 'rascunho')
+          eq(dailyStudyPlans.organizationId, orgId)
         ));
 
       return { success: true };
@@ -662,8 +661,7 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
         .where(and(
           eq(dailyStudyPlans.studentId, input.studentId),
           eq(dailyStudyPlans.organizationId, orgId),
-          eq(dailyStudyPlans.status, 'ativo'),
-          eq(dailyStudyPlans.publishedStatus, 'publicado')
+          eq(dailyStudyPlans.status, 'ativo')
         ))
         .orderBy(desc(dailyStudyPlans.createdAt))
         .limit(1);
