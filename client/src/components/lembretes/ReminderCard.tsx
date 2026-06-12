@@ -1,16 +1,19 @@
-import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, MessageCircle, Copy, Trash2, Zap, AlertTriangle, Clock, User, BellOff } from "lucide-react";
 import { Reminder, TYPE_CONFIG, STATUS_CONFIG, formatScheduled, openWhatsApp } from "./types";
+import { memo } from "react";
 
 interface Props {
   reminder: Reminder;
   onDelete: () => void;
+  onMarkSent: (id: number) => void;
+  onCancel: (id: number) => void;
+  onSendBot: (id: number) => void;
+  pendingAction?: "markSent" | "cancel" | "sendBot" | null;
 }
 
-export function ReminderCard({ reminder, onDelete }: Props) {
-  const utils = trpc.useUtils();
+export const ReminderCard = memo(function ReminderCard({ reminder, onDelete, onMarkSent, onCancel, onSendBot, pendingAction }: Props) {
   const typeConf = TYPE_CONFIG[reminder.type];
   const statusConf = STATUS_CONFIG[reminder.status];
   const TypeIcon = typeConf.icon;
@@ -19,110 +22,7 @@ export function ReminderCard({ reminder, onDelete }: Props) {
   const isPast = scheduled < new Date();
   
   const isDelayed = isPast && reminder.status === "pendente";
-
-  // ─── Atualização otimista do cache de lembretes ───────────────────────────
-  const applyOptimisticStatus = (id: number, status: Reminder["status"], extra?: Partial<Reminder>) => {
-    utils.reminders.list.setData(undefined, (old) =>
-      old?.map((r: any) => r.id === id ? { ...r, status, sentAt: status === "enviado" ? new Date() : r.sentAt, cancelledAt: status === "cancelado" ? new Date() : r.cancelledAt, ...extra } : r) ?? []
-    );
-    utils.reminders.pendingCount.setData(undefined, (old) => {
-      if (old == null) return old;
-      return status !== "pendente" ? Math.max(0, old - 1) : old;
-    });
-  };
-
-  const revertOptimistic = (previous: any) => {
-    utils.reminders.list.setData(undefined, previous);
-    utils.reminders.pendingCount.invalidate();
-  };
-
-  // ─── Marcar como enviado (Concluir) ──────────────────────────────────────
-  const markSent = trpc.reminders.markSent.useMutation({
-    onMutate: async ({ id }) => {
-      await utils.reminders.list.cancel();
-      const previous = utils.reminders.list.getData();
-      applyOptimisticStatus(id, "enviado");
-      toast.success("Marcado como enviado!");
-      return { previous };
-    },
-    onError: (e, _, context) => {
-      // Erros de rede/parsing (e.data é null): o servidor provavelmente processou
-      // com sucesso, mas a resposta chegou malformada (problema comum no Render free tier).
-      // Nesse caso, NÃO revertemos o estado otímista nem mostramos erro —
-      // o onSettled vai buscar o estado real via invalidate().
-      const isParsingOrNetworkError = !e.data;
-      if (isParsingOrNetworkError) {
-        console.warn("[markSent] Erro de parsing/rede ignorado (servidor processou):", e.message);
-        return;
-      }
-      // Erro real de servidor (4xx: auth, validação etc) — reverte e mostra mensagem
-      if (context?.previous) revertOptimistic(context.previous);
-      toast.error("Erro ao marcar como enviado: " + e.message);
-    },
-    onSettled: () => {
-      utils.reminders.list.invalidate();
-      utils.reminders.pendingCount.invalidate();
-    },
-  });
-
-  // ─── Cancelar lembrete ────────────────────────────────────────────────────
-  const cancel = trpc.reminders.cancel.useMutation({
-    onMutate: async ({ id }) => {
-      await utils.reminders.list.cancel();
-      const previous = utils.reminders.list.getData();
-      applyOptimisticStatus(id, "cancelado");
-      toast.success("Lembrete cancelado");
-      return { previous };
-    },
-    onError: (e, _, context) => {
-      // Mesma lógica do markSent: erros de parsing/rede não revertem o estado
-      const isParsingOrNetworkError = !e.data;
-      if (isParsingOrNetworkError) {
-        console.warn("[cancel] Erro de parsing/rede ignorado:", e.message);
-        return;
-      }
-      if (context?.previous) revertOptimistic(context.previous);
-      toast.error("Erro ao cancelar: " + e.message);
-    },
-    onSettled: () => {
-      utils.reminders.list.invalidate();
-      utils.reminders.pendingCount.invalidate();
-    },
-  });
-
-  // ─── Enviar via Robô ─────────────────────────────────────────────────────
-  const sendViaBot = trpc.reminders.sendViaBot.useMutation({
-    onMutate: async ({ id }) => {
-      await utils.reminders.list.cancel();
-      const previous = utils.reminders.list.getData();
-      // Mostra o card como "enviado" optimisticamente
-      applyOptimisticStatus(id, "enviado", { errorMessage: null });
-      return { previous };
-    },
-    onSuccess: () => {
-      toast.success("Enviado via Robô com sucesso!");
-      utils.reminders.list.invalidate();
-      utils.reminders.pendingCount.invalidate();
-    },
-    onError: (e, variables, context) => {
-      // Reverte o status para pendente com a mensagem de erro
-      utils.reminders.list.setData(undefined, (old) =>
-        old?.map((r: any) => r.id === variables.id
-          ? { ...r, status: "pendente", errorMessage: e.message.includes("transform") ? "Falha de conexão com o servidor. Tente novamente." : e.message }
-          : r
-        ) ?? []
-      );
-      utils.reminders.pendingCount.setData(undefined, (old) => (old != null ? old + 1 : old));
-      const msg = e.message.includes("transform") || e.message.includes("parse")
-        ? "Falha de conexão com o servidor do robô. Tente novamente em alguns segundos."
-        : "Erro ao enviar via robô: " + e.message;
-      toast.error(msg);
-    },
-    onSettled: () => {
-      utils.reminders.list.invalidate();
-      utils.reminders.pendingCount.invalidate();
-    },
-  });
+  const isActing = !!pendingAction;
 
   const copyMsg = () => { navigator.clipboard.writeText(reminder.message); toast.success("Mensagem copiada!"); };
 
@@ -205,27 +105,27 @@ export function ReminderCard({ reminder, onDelete }: Props) {
             <button
               onClick={() => {
                 openWhatsApp(reminder.studentPhone, reminder.message, toast.error);
-                markSent.mutate({ id: reminder.id });
+                onMarkSent(reminder.id);
               }}
-              disabled={markSent.isPending || cancel.isPending}
+              disabled={isActing}
               className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:scale-100">
               <MessageCircle size={14} /> Enviar WhatsApp
             </button>
             <button
-              onClick={() => sendViaBot.mutate({ id: reminder.id })}
-              disabled={sendViaBot.isPending || markSent.isPending || cancel.isPending}
+              onClick={() => onSendBot(reminder.id)}
+              disabled={isActing}
               className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-500/20 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:scale-100">
-              {sendViaBot.isPending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Enviar via Robô
+              {pendingAction === "sendBot" ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Enviar via Robô
             </button>
             <button
-              onClick={() => markSent.mutate({ id: reminder.id })}
-              disabled={markSent.isPending || cancel.isPending || sendViaBot.isPending}
+              onClick={() => onMarkSent(reminder.id)}
+              disabled={isActing}
               className="px-3 py-2 flex items-center gap-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 rounded-xl transition-colors disabled:opacity-50">
               <CheckCircle2 size={13} /> Concluir
             </button>
             <button
-              onClick={() => cancel.mutate({ id: reminder.id })}
-              disabled={cancel.isPending || markSent.isPending || sendViaBot.isPending}
+              onClick={() => onCancel(reminder.id)}
+              disabled={isActing}
               className="px-3 py-2 flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950/50 rounded-xl transition-colors disabled:opacity-50">
               <BellOff size={13} /> Cancelar
             </button>
@@ -244,4 +144,4 @@ export function ReminderCard({ reminder, onDelete }: Props) {
       </div>
     </div>
   );
-}
+});

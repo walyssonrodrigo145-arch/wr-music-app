@@ -2462,6 +2462,18 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
         const orgId = ctx.user.organizationId!;
         const db = await getDb();
         if (!db) throw new Error("Database not available");
+
+        // Monta filtros diretamente no SQL para evitar fetch completo
+        const conditions: any[] = [
+          eq(reminders.organizationId, orgId),
+          eq(reminders.userId, ctx.user.id),
+        ];
+        if (input?.studentId) conditions.push(eq(reminders.studentId, input.studentId));
+        if (input?.type)      conditions.push(eq(reminders.type, input.type));
+        if (input?.status)    conditions.push(eq(reminders.status, input.status));
+        if (input?.dateFrom)  conditions.push(gte(reminders.scheduledAt, new Date(input.dateFrom)));
+        if (input?.dateTo)    conditions.push(lte(reminders.scheduledAt, new Date(input.dateTo)));
+
         const rows = await db
           .select({
             id: reminders.id,
@@ -2484,17 +2496,11 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
           })
           .from(reminders)
           .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
-          .where(and(eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id)))
-          .orderBy(desc(reminders.scheduledAt));
+          .where(and(...conditions))
+          .orderBy(desc(reminders.scheduledAt))
+          .limit(200); // máximo de 200 registros por vez
 
-        return rows.filter((r: any) => {
-          if (input?.studentId && r.studentId !== input.studentId) return false;
-          if (input?.type && r.type !== input.type) return false;
-          if (input?.status && r.status !== input.status) return false;
-          if (input?.dateFrom && new Date(r.scheduledAt) < new Date(input.dateFrom)) return false;
-          if (input?.dateTo && new Date(r.scheduledAt) > new Date(input.dateTo)) return false;
-          return true;
-        });
+        return rows;
       }),
 
     // ─ Contadores para dashboard ──────────────────────────────────────────────────

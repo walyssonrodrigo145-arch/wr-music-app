@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   BellRing, Plus, Loader2,
@@ -24,32 +24,29 @@ export default function Lembretes() {
   const [filterType, setFilterType] = useState<ReminderType | "todos">("todos");
   const [filterStatus, setFilterStatus] = useState<ReminderStatus | "todos">("todos");
   const [filterStudent, setFilterStudent] = useState("");
+  const [pendingActionMap, setPendingActionMap] = useState<Record<number, "markSent" | "cancel" | "sendBot">>({});
 
   const { data: allReminders = [], isLoading } = trpc.reminders.list.useQuery(
     undefined,
-    { refetchInterval: 30_000 } // 30s — reduz condição de corrida com markSent no servidor lento
+    {
+      refetchInterval: 60_000, // 60s (era 30s)
+      refetchIntervalInBackground: false, // Não atualiza quando a aba não está em foco
+      staleTime: 30_000, // Considera os dados frescos por 30s
+    }
   );
-  const { data: students = [] } = trpc.students.list.useQuery();
-  const { data: templates = [] } = trpc.reminderTemplates.list.useQuery();
+  const { data: students = [] } = trpc.students.list.useQuery(undefined, { staleTime: 300_000 });
+  const { data: templates = [] } = trpc.reminderTemplates.list.useQuery(undefined, { staleTime: 300_000 });
   const { data: automationData } = trpc.settings.getAutomation.useQuery(
     undefined,
-    { refetchInterval: 60_000 }
+    { refetchInterval: 60_000, staleTime: 30_000 }
   );
 
   const { permission, isSupported, requestPermission, showNotification } = usePushNotifications();
-  // seenPendingIds: conjunto de IDs já vistos como pendentes.
-  // Previne falsos alertas "novo lembrete" quando o mesmo lembrete reaparece
-  // temporariamente como "pendente" por causa de race condition entre
-  // markSent (servidor lento) e o refetchInterval do React Query.
   const seenPendingIds = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     const currentPendings = (allReminders as Reminder[]).filter(r => r.status === "pendente");
-
-    // Detecta apenas lembretes verdadeiramente NOVOS (ID nunca visto antes)
     const newItems = currentPendings.filter(r => !seenPendingIds.current.has(r.id));
-
-    // Registra todos os IDs atuais como "vistos" para não notificar novamente
     currentPendings.forEach(r => seenPendingIds.current.add(r.id));
 
     if (newItems.length > 0 && autoEnabled) {
@@ -57,54 +54,112 @@ export default function Lembretes() {
         let title = "🔔 Novo Lembrete";
         if (item.type === "aula") title = "⏰ Lembrete de Aula";
         else if (item.type === "cobranca" || item.type === "inadimplencia") title = "💰 Cobrança Pendente";
-
         showNotification(title, {
           body: item.message,
           tag: `reminder-${item.id}`,
-          onClick: () => {
-            openWhatsApp(item.studentPhone, item.message, (err) => toast.error(err));
-          }
+          onClick: () => openWhatsApp(item.studentPhone, item.message, (err) => toast.error(err))
         });
       });
-
-      if (newItems.length > 3) {
-        toast.info(`${newItems.length} novos lembretes gerados no total.`);
-      }
+      if (newItems.length > 3) toast.info(`${newItems.length} novos lembretes gerados no total.`);
     }
   }, [allReminders, autoEnabled, showNotification]);
+
+  // ─── Mutations centralizadas (uma instância, não uma por card) ───────────
+  const invalidate = useCallback(() => {
+    utils.reminders.list.invalidate();
+    utils.reminders.pendingCount.invalidate();
+  }, [utils]);
+
+  const applyOptimistic = useCallback((id: number, status: Reminder["status"], extra?: Partial<Reminder>) => {
+    utils.reminders.list.setData(undefined, (old) =>
+      old?.map((r: any) => r.id === id ? { ...r, status, sentAt: status === "enviado" ? new Date() : r.sentAt, cancelledAt: status === "cancelado" ? new Date() : r.cancelledAt, ...extra } : r) ?? []
+    );
+    utils.reminders.pendingCount.setData(undefined, (old) =>
+      old != null && status !== "pendente" ? Math.max(0, old - 1) : old
+    );
+  }, [utils]);
+
+  const markSentMut = trpc.reminders.markSent.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.reminders.list.cancel();
+      const prev = utils.reminders.list.getData();
+      applyOptimistic(id, "enviado");
+      toast.success("Marcado como enviado!");
+      setPendingActionMap(m => ({ ...m, [id]: "markSent" }));
+      return { prev };
+    },
+    onError: (e, _, ctx) => {
+      if (!e.data && ctx?.prev) utils.reminders.list.setData(undefined, ctx.prev);
+      else toast.error("Erro: " + e.message);
+    },
+    onSettled: (_, __, vars) => {
+      setPendingActionMap(m => { const n = { ...m }; delete n[vars.id]; return n; });
+      invalidate();
+    },
+  });
+
+  const cancelMut = trpc.reminders.cancel.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.reminders.list.cancel();
+      const prev = utils.reminders.list.getData();
+      applyOptimistic(id, "cancelado");
+      toast.success("Lembrete cancelado");
+      setPendingActionMap(m => ({ ...m, [id]: "cancel" }));
+      return { prev };
+    },
+    onError: (e, _, ctx) => {
+      if (!e.data && ctx?.prev) utils.reminders.list.setData(undefined, ctx.prev);
+      else toast.error("Erro: " + e.message);
+    },
+    onSettled: (_, __, vars) => {
+      setPendingActionMap(m => { const n = { ...m }; delete n[vars.id]; return n; });
+      invalidate();
+    },
+  });
+
+  const sendBotMut = trpc.reminders.sendViaBot.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.reminders.list.cancel();
+      const prev = utils.reminders.list.getData();
+      applyOptimistic(id, "enviado", { errorMessage: null });
+      setPendingActionMap(m => ({ ...m, [id]: "sendBot" }));
+      return { prev };
+    },
+    onSuccess: () => { toast.success("Enviado via Robô com sucesso!"); invalidate(); },
+    onError: (e, vars, ctx) => {
+      if (ctx?.prev) utils.reminders.list.setData(undefined, ctx.prev);
+      utils.reminders.pendingCount.setData(undefined, (old) => (old != null ? old + 1 : old));
+      const msg = e.message.includes("transform") || e.message.includes("parse")
+        ? "Falha de conexão com o servidor do robô. Tente novamente."
+        : "Erro ao enviar via robô: " + e.message;
+      toast.error(msg);
+    },
+    onSettled: (_, __, vars) => {
+      setPendingActionMap(m => { const n = { ...m }; delete n[vars.id]; return n; });
+      invalidate();
+    },
+  });
 
   const generateLessons = trpc.reminders.generateLessonReminders.useMutation({
     onSuccess: (r) => {
       toast.success(`${r.created} lembrete(s) de aula gerado(s)! ${r.skipped} ignorado(s).`);
-      utils.reminders.list.invalidate();
-      utils.reminders.pendingCount.invalidate();
-      if (r.created > 0) {
-        showNotification("🔔 Novos Lembretes de Aula", {
-          body: `O sistema gerou ${r.created} novos lembretes de aula. Clique para visualizar.`,
-          tag: "reminders-aula"
-        });
-      }
+      invalidate();
+      if (r.created > 0) showNotification("🔔 Novos Lembretes de Aula", { body: `O sistema gerou ${r.created} novos lembretes de aula.`, tag: "reminders-aula" });
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
-  
+
   const generatePayments = trpc.reminders.generatePaymentReminders.useMutation({
     onSuccess: (r) => {
       toast.success(`${r.created} lembrete(s) de cobrança gerado(s)! ${r.skipped} ignorado(s).`);
-      utils.reminders.list.invalidate();
-      utils.reminders.pendingCount.invalidate();
-      if (r.created > 0) {
-        showNotification("🔔 Novos Lembretes de Cobrança", {
-          body: `O sistema gerou ${r.created} novos lembretes de cobrança. Clique para visualizar.`,
-          tag: "reminders-cobranca"
-        });
-      }
+      invalidate();
+      if (r.created > 0) showNotification("🔔 Novos Lembretes de Cobrança", { body: `O sistema gerou ${r.created} novos lembretes de cobrança.`, tag: "reminders-cobranca" });
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
-  
+
   const deleteMut = trpc.reminders.delete.useMutation({
-    onSuccess: () => { toast.success("Excluído!"); utils.reminders.list.invalidate(); utils.reminders.pendingCount.invalidate(); setDeleteId(null); },
+    onSuccess: () => { toast.success("Excluído!"); invalidate(); setDeleteId(null); },
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
@@ -123,22 +178,14 @@ export default function Lembretes() {
   });
 
   useEffect(() => {
-    if (automationData !== undefined) {
-      setAutoEnabled(automationData.enabled);
-    }
+    if (automationData !== undefined) setAutoEnabled(automationData.enabled);
   }, [automationData]);
 
   const handleGenerateAll = async () => {
     try {
       await generateLessons.mutateAsync();
       await generatePayments.mutateAsync();
-    } catch (e) {
-      // Erros já são capturados e tratados pelo callback onError de cada mutação
-    }
-  };
-
-  const handleToggleAutomation = () => {
-    toggleAutomation.mutate({ enabled: !autoEnabled });
+    } catch {}
   };
 
   const filtered = useMemo(() => {
@@ -157,29 +204,18 @@ export default function Lembretes() {
     const aulas: Reminder[] = [];
     const pagamentos: Reminder[] = [];
     const outros: Reminder[] = [];
-
     filtered.forEach(r => {
       const isPast = new Date(r.scheduledAt) < now;
-      if (isPast && r.status === "pendente") {
-        atrasados.push(r);
-        return;
-      }
-      
-      if (r.type === "aula") {
-        aulas.push(r);
-      } else if (r.type === "cobranca" || r.type === "inadimplencia") {
-        pagamentos.push(r);
-      } else {
-        outros.push(r);
-      }
+      if (isPast && r.status === "pendente") { atrasados.push(r); return; }
+      if (r.type === "aula") aulas.push(r);
+      else if (r.type === "cobranca" || r.type === "inadimplencia") pagamentos.push(r);
+      else outros.push(r);
     });
-
     return { atrasados, aulas, pagamentos, outros };
   }, [filtered]);
 
   const rawPendingCount = (allReminders as Reminder[]).filter(r => r.status === "pendente").length;
   const rawDelayedCount = (allReminders as Reminder[]).filter(r => new Date(r.scheduledAt) < new Date() && r.status === "pendente").length;
-
   const isGenerating = generateLessons.isPending || generatePayments.isPending;
   const studentList = (students as { id: number; name: string; phone?: string | null }[]);
 
@@ -197,7 +233,15 @@ export default function Lembretes() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {items.map(r => (
-            <ReminderCard key={r.id} reminder={r} onDelete={() => setDeleteId(r.id)} />
+            <ReminderCard
+              key={r.id}
+              reminder={r}
+              onDelete={() => setDeleteId(r.id)}
+              onMarkSent={(id) => markSentMut.mutate({ id })}
+              onCancel={(id) => cancelMut.mutate({ id })}
+              onSendBot={(id) => sendBotMut.mutate({ id })}
+              pendingAction={pendingActionMap[r.id] ?? null}
+            />
           ))}
         </div>
       </div>
@@ -233,11 +277,7 @@ export default function Lembretes() {
         </div>
 
         <div className="shrink-0">
-          <RemindersSummary 
-            total={allReminders.length} 
-            pending={rawPendingCount} 
-            delayed={rawDelayedCount} 
-          />
+          <RemindersSummary total={allReminders.length} pending={rawPendingCount} delayed={rawDelayedCount} />
         </div>
 
         <div className={cn(
@@ -252,37 +292,22 @@ export default function Lembretes() {
               <div className="absolute -left-10 -bottom-10 w-24 h-24 rounded-full bg-indigo-400/20 blur-xl" />
             </>
           )}
-
           <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
-            <div className={cn(
-              "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg",
-              autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground"
-            )}>
+            <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg", autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground")}>
               <Zap size={28} />
             </div>
-            
             <div className="flex-1 text-center sm:text-left min-w-0">
               <div className="flex items-center justify-center sm:justify-start gap-3 mb-2">
                 <h3 className={cn("text-base font-black uppercase tracking-widest", autoEnabled ? "text-white" : "text-foreground")}>Automação do Robô</h3>
-                <span className={cn(
-                  "text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
-                  autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground"
-                )}>
+                <span className={cn("text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full", autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground")}>
                   {autoEnabled ? "Ativo" : "Inativo"}
                 </span>
               </div>
               <p className={cn("text-xs font-medium leading-relaxed", autoEnabled ? "text-white/80" : "text-muted-foreground")}>
-                {autoEnabled
-                  ? "Varredura automática de aulas e cobranças em execução."
-                  : "A automação está desligada. Apenas lembretes manuais serão processados."}
+                {autoEnabled ? "Varredura automática de aulas e cobranças em execução." : "A automação está desligada. Apenas lembretes manuais serão processados."}
               </p>
             </div>
-
-            <button 
-              onClick={handleToggleAutomation} 
-              disabled={toggleAutomation.isPending} 
-              className="transition-transform hover:scale-110 active:scale-90 disabled:opacity-50"
-            >
+            <button onClick={() => toggleAutomation.mutate({ enabled: !autoEnabled })} disabled={toggleAutomation.isPending} className="transition-transform hover:scale-110 active:scale-90 disabled:opacity-50">
               {toggleAutomation.isPending
                 ? <Loader2 size={48} className="animate-spin opacity-50" />
                 : autoEnabled
@@ -295,38 +320,23 @@ export default function Lembretes() {
 
         {isSupported && permission === "default" && (
           <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-100 shadow-sm shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
-              <BellRing size={20} />
-            </div>
-            <p className="text-[11px] lg:text-xs text-amber-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">
-              Ative os alertas para ser avisado sobre novos lembretes.
-            </p>
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
+            <p className="text-[11px] lg:text-xs text-amber-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Ative os alertas para ser avisado sobre novos lembretes.</p>
             <Button size="sm" className="w-full sm:w-auto h-9 rounded-xl bg-amber-600 text-white font-black uppercase tracking-widest text-[9px] px-4 shadow-lg shadow-amber-500/20" onClick={async () => {
               const result = await requestPermission();
               if (result === 'granted') toast.success('Notificações ativadas!');
-            }}>
-              Ativar
-            </Button>
+            }}>Ativar</Button>
           </div>
         )}
 
         {isSupported && permission === "granted" && (
           <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-100 shadow-sm shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
-              <BellRing size={20} />
-            </div>
-            <p className="text-[11px] lg:text-xs text-emerald-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">
-              Notificações Ativadas! Você pode fechar a aba que continuará sendo avisado.
-            </p>
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
+            <p className="text-[11px] lg:text-xs text-emerald-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Notificações Ativadas! Você pode fechar a aba que continuará sendo avisado.</p>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" 
-                onClick={() => requestPermission()}>
-                Sincronizar
-              </Button>
-              <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" 
-                onClick={() => testPush.mutate()} disabled={testPush.isPending}>
-                {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
-                Disparar Teste
+              <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => requestPermission()}>Sincronizar</Button>
+              <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => testPush.mutate()} disabled={testPush.isPending}>
+                {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Disparar Teste
               </Button>
             </div>
           </div>
@@ -348,9 +358,7 @@ export default function Lembretes() {
                 <Bell size={36} className="text-muted-foreground/30" />
               </div>
               <h3 className="text-lg font-black text-foreground uppercase tracking-widest">Sem lembretes</h3>
-              <p className="text-sm text-muted-foreground font-medium mt-2 mb-8 max-w-xs">
-                Sua caixa está limpa.
-              </p>
+              <p className="text-sm text-muted-foreground font-medium mt-2 mb-8 max-w-xs">Sua caixa está limpa.</p>
             </div>
           ) : (
             <div className="space-y-10 pb-10">
@@ -364,12 +372,7 @@ export default function Lembretes() {
       </div>
 
       {modalOpen && (
-        <ManualReminderModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          students={studentList}
-          templates={templates as Template[]}
-        />
+        <ManualReminderModal open={modalOpen} onClose={() => setModalOpen(false)} students={studentList} templates={templates as Template[]} />
       )}
       {templatesOpen && <TemplatesModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} />}
       {deleteId !== null && (
@@ -382,6 +385,3 @@ export default function Lembretes() {
     </div>
   );
 }
-
-
-
