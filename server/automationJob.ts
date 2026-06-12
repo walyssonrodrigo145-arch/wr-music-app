@@ -121,6 +121,7 @@ async function runAutomation() {
           and(
             eq(lessons.organizationId, orgId),
             eq(lessons.userId, userId),
+            eq(lessons.lessonType, "individual"),
             gte(lessons.scheduledAt, monday),
             lte(lessons.scheduledAt, sunday),
             eq(students.status, "ativo")
