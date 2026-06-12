@@ -1,4 +1,4 @@
-import { BookOpen, CreditCard, AlertTriangle, ListTodo, Clock, CheckCircle2, Ban } from "lucide-react";
+﻿import { BookOpen, CreditCard, AlertTriangle, ListTodo, Clock, CheckCircle2, Ban } from "lucide-react";
 
 export type ReminderType = "aula" | "cobranca" | "inadimplencia" | "manual";
 export type ReminderStatus = "pendente" | "enviado" | "cancelado";
@@ -42,7 +42,7 @@ export const STATUS_CONFIG: Record<ReminderStatus, { label: string; color: strin
   cancelado: { label: "Cancelado", color: "text-slate-500",                       bg: "bg-slate-100 dark:bg-slate-800",     icon: Ban },
 };
 
-export const VARIABLES_HELP = ["{nome}", "{instrumento}", "{data_aula}", "{hora_aula}", "{valor}", "{vencimento}"];
+export const VARIABLES_HELP = ["{nome}", "{instrumento}", "{data_aula}", "{hora_aula}", "{valor}", "{vencimento}", "{chave_pix}"];
 
 export function formatScheduled(date: Date | string) {
   const now = new Date();

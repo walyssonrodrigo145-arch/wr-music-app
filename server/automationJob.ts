@@ -38,6 +38,7 @@ async function runAutomation() {
       whatsappBotUrl: settings.whatsappBotUrl,
       whatsappBotToken: settings.whatsappBotToken,
       whatsappAutoSend: settings.whatsappAutoSend,
+      pixKey: settings.pixKey,
     })
     .from(settings)
     .where(eq(settings.automationEnabled, 1));
@@ -339,9 +340,16 @@ async function runAutomation() {
               if (anyTpl.length > 0) tpl = anyTpl[0];
             }
             const body = tpl?.body ?? "Olá {nome}, lembramos que sua mensalidade de {valor} vence hoje, {vencimento}. Agradecemos o pagamento no prazo!";
-            let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+            let message = body
+              .replace(/\{nome\}/g, due.studentName ?? "Aluno")
+              .replace(/\{valor\}/g, valor)
+              .replace(/\{vencimento\}/g, vencimento)
+              .replace(/\{instrumento\}/g, due.instrumentName ?? "música")
+              .replace(/\{chave_pix\}/g, userSettings.pixKey ?? "");
             if (due.asaasPaymentLink) {
               message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
+            } else if (userSettings.pixKey) {
+              message += `\n\n💳 *Pagamento via PIX:*\n🔑 Chave: ${userSettings.pixKey}`;
             }
 
             await db.insert(reminders).values({
@@ -378,9 +386,16 @@ async function runAutomation() {
                 if (anyTpl.length > 0) tpl = anyTpl[0];
               }
               const body = tpl?.body ?? "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, programe o pagamento.";
-              let message = body.replace(/\{nome\}/g, due.studentName ?? "Aluno").replace(/\{valor\}/g, valor).replace(/\{vencimento\}/g, vencimento).replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+              let message = body
+                .replace(/\{nome\}/g, due.studentName ?? "Aluno")
+                .replace(/\{valor\}/g, valor)
+                .replace(/\{vencimento\}/g, vencimento)
+                .replace(/\{instrumento\}/g, due.instrumentName ?? "música")
+                .replace(/\{chave_pix\}/g, userSettings.pixKey ?? "");
               if (due.asaasPaymentLink) {
                 message += `\n\n💳 *Link oficial para pagamento (PIX/Cartão/Boleto):*\n${due.asaasPaymentLink}`;
+              } else if (userSettings.pixKey) {
+                message += `\n\n💳 *Pagamento via PIX:*\n🔑 Chave: ${userSettings.pixKey}`;
               }
 
               await db.insert(reminders).values({

@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,8 @@ export function ManualReminderModal({ open, onClose, students, templates }: {
       .replace(/\{data_aula\}/g, "[data]")
       .replace(/\{hora_aula\}/g, "[hora]")
       .replace(/\{valor\}/g, "[valor]")
-      .replace(/\{vencimento\}/g, "[vencimento]");
+      .replace(/\{vencimento\}/g, "[vencimento]")
+      .replace(/\{chave_pix\}/g, "[chave_pix]");
     set("message", msg);
     set("templateId", String(tpl.id));
   };

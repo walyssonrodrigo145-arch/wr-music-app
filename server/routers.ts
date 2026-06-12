@@ -2663,6 +2663,13 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
       const now = new Date();
       const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
+      // Buscar chave PIX do professor
+      const [userSettings] = await db.select({ pixKey: settings.pixKey })
+        .from(settings)
+        .where(eq(settings.userId, ctx.user.id))
+        .limit(1);
+      const pixKey = userSettings?.pixKey ?? null;
+
       // Buscar TODAS as mensalidades pendentes (qualquer mês/ano)
       const dues = await db.select({
         id: paymentDues.id,
@@ -2766,11 +2773,16 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
         const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
         const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         const bodyTemplate = tpl?.body ?? defaultBody;
-        const message = bodyTemplate
+        let message = bodyTemplate
           .replace(/\{nome\}/g, due.studentName ?? "Aluno")
           .replace(/\{valor\}/g, valor)
           .replace(/\{vencimento\}/g, vencimento)
-          .replace(/\{instrumento\}/g, due.instrumentName ?? "música");
+          .replace(/\{instrumento\}/g, due.instrumentName ?? "música")
+          .replace(/\{chave_pix\}/g, pixKey ?? "");
+
+        if (pixKey) {
+          message += `\n\n💳 *Pagamento via PIX:*\n🔑 Chave: ${pixKey}`;
+        }
 
         await db.insert(reminders).values({
           organizationId: orgId,
