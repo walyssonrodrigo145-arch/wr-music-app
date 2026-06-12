@@ -2483,11 +2483,21 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
         // Só gera se a janela de 24h já chegou (1 dia antes da aula)
         if (reminderTime > now) { skipped++; continue; }
 
+        // ✅ TRAVA PRINCIPAL: Se já existe QUALQUER lembrete 'enviado' para esta aula
+        // (independente do refId), não criar novo. Isso impede regeneração após "Concluir".
+        const alreadySent = await db.select({ id: reminders.id }).from(reminders)
+          .where(and(
+            eq(reminders.organizationId, orgId),
+            eq(reminders.lessonId, lesson.id),
+            eq(reminders.status, "enviado")
+          )).limit(1);
+        if (alreadySent.length > 0) { skipped++; continue; }
+
         // Chave de deduplicação
         const dateStr = lessonDate.toISOString().slice(0, 10);
         const refId = `lesson-${lesson.id}-${dateStr}`;
 
-        // Verificar duplicidade (tanto o manual refId quanto o automático lesson-24h-${lesson.id})
+        // Verificar duplicidade por refId (qualquer status: pendente, cancelado)
         const existing = await db.select({ id: reminders.id }).from(reminders)
           .where(
             and(
@@ -2621,17 +2631,17 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
           defaultBody = "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, efetue o pagamento.";
         }
 
-        // --- TRAVA MANUAL ---
-        // Se o usuário já concluiu um lembrete para esta cobrança, não gera mais.
-        const userConcludedPayment = await db.select({ id: reminders.id }).from(reminders)
+        // ✅ TRAVA PRINCIPAL: Se já existe QUALQUER lembrete 'enviado' para esta cobrança
+        // (independente do refId), não criar novo. Isso impede regeneração após "Concluir".
+        const alreadySentPayment = await db.select({ id: reminders.id }).from(reminders)
           .where(and(
             eq(reminders.organizationId, orgId),
             eq(reminders.paymentDueId, due.id),
             eq(reminders.status, "enviado")
           )).limit(1);
-        if (userConcludedPayment.length > 0) { skipped++; continue; }
+        if (alreadySentPayment.length > 0) { skipped++; continue; }
 
-        // Verificar duplicidade
+        // Verificar duplicidade por refId (qualquer status: pendente, cancelado)
         const existing = await db.select({ id: reminders.id }).from(reminders)
           .where(
             and(
