@@ -77,24 +77,23 @@ async function runAutomation() {
       `);
 
       // ─── LIMPEZA SEMANAL AUTOMÁTICA (Domingo 00:00 Horário de Brasília) ───────────────
-      // Regra: todo domingo apaga APENAS lembretes com status 'pendente' (nunca 'enviado' ou 'cancelado').
-      // Lembretes 'enviado' são mantidos para servir de histórico e como trava anti-regeneração.
-      // 'cancelado' são mantidos para evitar recreação indevida.
+      // Apaga TODOS os lembretes (incluindo 'enviado' e 'cancelado') para limpar a tela.
+      // Isso é seguro pois: os lembretes 'enviado' da semana passada não precisam mais bloquear nada
+      // (as aulas/pagamentos correspondentes já ocorreram ou foram processados).
+      // O robô vai criar os novos lembretes da semana seguinte normalmente.
       const brazilDateStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
       const brazilDay = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay(); // 0 = domingo
       const cleanupKey = `${orgId}-${userId}`;
       let ranCleanupThisCycle = false;
 
       if (brazilDay === 0 && lastCleanupByUser.get(cleanupKey) !== brazilDateStr) {
-        // ✅ Bug fix #1: apaga SOMENTE 'pendente' — preserva 'enviado' e 'cancelado'
         await db.execute(sql`
           DELETE FROM reminders
           WHERE "organizationId" = ${orgId} AND "userId" = ${userId}
-            AND status = 'pendente'
         `);
         lastCleanupByUser.set(cleanupKey, brazilDateStr);
         ranCleanupThisCycle = true;
-        console.log(`[Automation] ✅ Limpeza semanal (só pendentes) — domingo ${brazilDateStr} (userId=${userId})`);
+        console.log(`[Automation] ✅ Limpeza semanal completa — domingo ${brazilDateStr} (userId=${userId})`);
       }
 
       // ─── 1. BUSCA E GERAÇÃO DE LEMBRETES DE AULA ────────────────────────────
