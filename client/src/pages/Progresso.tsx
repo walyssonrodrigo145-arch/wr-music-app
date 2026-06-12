@@ -110,11 +110,47 @@ export default function Progresso() {
 
   const [isStudyPlanModalOpen, setIsStudyPlanModalOpen] = useState(false);
   const [studyPlanContent, setStudyPlanContent] = useState<string | null>(null);
+  const [studyPlanId, setStudyPlanId] = useState<number | null>(null);
+  const [studyPlanStatus, setStudyPlanStatus] = useState<string | null>(null);
+
+  const { data: planHistory = [], isLoading: historyLoading } = trpc.progress.getStudentPlanHistory.useQuery(
+    { studentId: selectedStudentId! },
+    { enabled: isStudyPlanModalOpen && !!selectedStudentId }
+  );
+
+  const { data: currentTeacherPlan, isLoading: currentPlanLoading } = trpc.progress.getStudentPlanForTeacher.useQuery(
+    { studentId: selectedStudentId! },
+    { enabled: !!selectedStudentId }
+  );
+
+  const publishStudyPlanMutation = trpc.progress.publishStudyPlan.useMutation({
+    onSuccess: () => {
+      utils.progress.getStudentPlanHistory.invalidate({ studentId: selectedStudentId! });
+      utils.progress.getStudentPlanForTeacher.invalidate({ studentId: selectedStudentId! });
+      setStudyPlanStatus('publicado');
+      toast.success("Plano liberado para o aluno com sucesso!");
+    },
+    onError: (e) => toast.error("Erro ao liberar plano: " + e.message)
+  });
+
+  const deleteDraftPlanMutation = trpc.progress.deleteDraftStudyPlan.useMutation({
+    onSuccess: () => {
+      utils.progress.getStudentPlanHistory.invalidate({ studentId: selectedStudentId! });
+      setStudyPlanContent(null);
+      setStudyPlanId(null);
+      setStudyPlanStatus(null);
+      toast.success("Rascunho descartado.");
+    },
+    onError: (e) => toast.error("Erro ao descartar: " + e.message)
+  });
 
   const generateDailyStudyPlanMutation = trpc.progress.generateDailyStudyPlan.useMutation({
     onSuccess: (data) => {
       setStudyPlanContent(data.plan);
-      toast.success("Plano de estudo diário gerado com sucesso!");
+      setStudyPlanId(data.planId);
+      setStudyPlanStatus('rascunho');
+      utils.progress.getStudentPlanHistory.invalidate({ studentId: selectedStudentId! });
+      toast.success("Rascunho de plano diário gerado com sucesso!");
     },
     onError: (e) => toast.error("Erro ao gerar plano diário: " + e.message)
   });
@@ -635,6 +671,39 @@ export default function Progresso() {
                             ))}
                          </div>
 
+                         {/* PLANO DE ESTUDO ATIVO (VISÃO PROFESSOR) */}
+                         <div className="space-y-4 pt-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-6 bg-orange-500 rounded-full shrink-0" />
+                                <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tighter leading-tight">Plano Diário Ativo</h3>
+                              </div>
+                              {currentTeacherPlan && (
+                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                  PUBLICADO
+                                </span>
+                              )}
+                            </div>
+                            
+                            {currentPlanLoading ? (
+                              <div className="flex justify-center p-6"><Loader2 className="animate-spin text-orange-500/20" /></div>
+                            ) : currentTeacherPlan ? (
+                              <div className="bg-card p-6 rounded-[2rem] border border-border shadow-sm">
+                                <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
+                                  {(() => {
+                                      return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(currentTeacherPlan.planText)}</ReactMarkdown>;
+                                  })()}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="py-8 bg-muted/30 border border-dashed border-border rounded-[2rem] text-center flex flex-col items-center justify-center">
+                                <Calendar size={32} className="text-muted-foreground/30 mb-2" />
+                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nenhum plano publicado no momento</p>
+                                <p className="text-[10px] text-muted-foreground mt-1">Gere ou libere um rascunho no botão Plano de Estudo Diário.</p>
+                              </div>
+                            )}
+                         </div>
+
                          {/* LISTA DE REGISTROS (TIMELINE) */}
                          <div className="space-y-6 pt-4">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -658,14 +727,13 @@ export default function Progresso() {
                                   <Button 
                                     onClick={() => {
                                       setIsStudyPlanModalOpen(true);
-                                      setStudyPlanContent(null);
-                                      generateDailyStudyPlanMutation.mutate({ studentId: selectedStudentId! });
+                                      // If there's a draft or published plan, we should show it instead of auto-generating
+                                      // The modal itself will show the history and a 'Gerar Novo' button
                                     }}
                                     className="w-full sm:w-auto h-10 rounded-xl px-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-amber-500/20"
-                                    disabled={generateDailyStudyPlanMutation.isPending}
                                   >
-                                    {generateDailyStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Calendar size={16} />}
-                                    Sugerir Estudo Diário
+                                    <Calendar size={16} />
+                                    Plano de Estudo Diário
                                   </Button>
                                   <Button 
                                     onClick={() => { resetForm(); setIsModalOpen(true); }}
@@ -982,76 +1050,163 @@ export default function Progresso() {
           </DialogContent>
         </Dialog>
 
-        {/* MODAL PLANO DE ESTUDO IA */}
+         {/* MODAL PLANO DE ESTUDO IA */}
         <Dialog open={isStudyPlanModalOpen} onOpenChange={setIsStudyPlanModalOpen}>
-          <DialogContent className="sm:max-w-[700px] bg-card p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
-            <div className="p-8 pb-4 bg-gradient-to-r from-amber-500 to-orange-500">
-               <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
-                     <Calendar size={20} />
-                  </div>
-                  <div>
-                    <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">Plano de Estudo Diário</DialogTitle>
-                    <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-1">Sugerido pela Inteligência Artificial</p>
-                  </div>
-               </div>
-            </div>
+          <DialogContent className="sm:max-w-[800px] bg-card p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col md:flex-row">
             
-            <div className="p-8 max-h-[60vh] overflow-y-auto subtle-scrollbar">
-               {generateDailyStudyPlanMutation.isPending ? (
-                 <div className="flex flex-col items-center justify-center py-16 space-y-4">
-                    <Loader2 size={40} className="animate-spin text-orange-500/50" />
-                    <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico e criando cronograma diário...</p>
-                 </div>
-               ) : studyPlanContent ? (
-                 <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
-                    {(() => {
-                        return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>;
-                    })()}
-                 </div>
-               ) : (
-                 <p className="text-center text-muted-foreground py-8">Nenhum plano gerado ainda.</p>
-               )}
+            {/* Lado Esquerdo: Lista de Histórico */}
+            <div className="w-full md:w-1/3 bg-muted/20 border-r border-border flex flex-col">
+              <div className="p-4 border-b border-border bg-muted/40 flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Histórico de Planos</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[30vh] md:max-h-[70vh] subtle-scrollbar">
+                {historyLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="animate-spin text-orange-500/50" /></div>
+                ) : planHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Nenhum plano gerado.</p>
+                ) : (
+                  planHistory.map((plan: any) => (
+                    <button
+                      key={plan.id}
+                      onClick={() => {
+                        setStudyPlanContent(plan.planText);
+                        setStudyPlanId(plan.id);
+                        setStudyPlanStatus(plan.publishedStatus);
+                      }}
+                      className={cn(
+                        "w-full text-left p-3 rounded-xl border text-sm transition-all",
+                        studyPlanId === plan.id 
+                          ? "border-orange-500 bg-orange-50 dark:bg-orange-900/10 shadow-sm" 
+                          : "border-border bg-card hover:border-orange-200"
+                      )}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-foreground">
+                          {format(new Date(plan.createdAt), "dd MMM, HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                        plan.publishedStatus === 'publicado' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                      )}>
+                        {plan.publishedStatus}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="p-4 border-t border-border">
+                <Button 
+                  onClick={() => {
+                    setStudyPlanContent(null);
+                    setStudyPlanId(null);
+                    setStudyPlanStatus(null);
+                    generateDailyStudyPlanMutation.mutate({ studentId: selectedStudentId! });
+                  }}
+                  disabled={generateDailyStudyPlanMutation.isPending}
+                  className="w-full h-10 rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-700 text-xs font-black uppercase tracking-widest"
+                >
+                  {generateDailyStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
+                  Gerar Novo
+                </Button>
+              </div>
             </div>
 
-            <DialogFooter className="p-6 bg-muted/30 border-t border-border flex flex-col sm:flex-row justify-between gap-3">
-               <div className="flex gap-2">
-                 <Button type="button" variant="ghost" onClick={() => setIsStudyPlanModalOpen(false)} className="h-11 rounded-xl px-6 text-xs font-black uppercase tracking-widest hover:bg-slate-200">
-                    Fechar
-                 </Button>
-                 {studyPlanContent && (
-                   <Button 
-                     onClick={() => {
-                       const textToClip = formatPlanAsText(studyPlanContent);
-                       navigator.clipboard.writeText(textToClip);
-                       toast.success("Plano copiado como texto legível!");
-                     }}
-                     className="h-11 rounded-xl px-6 bg-orange-600 hover:bg-orange-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-orange-500/20"
-                   >
-                      Copiar Plano
-                   </Button>
-                 )}
-               </div>
-               
-               {studyPlanContent && (
-                 <div className="flex gap-2">
-                   <Button 
-                     onClick={() => handleSendManualWhatsApp(studyPlanContent, "diario")}
-                     className="h-11 rounded-xl px-4 bg-green-500 hover:bg-green-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
-                   >
-                      WhatsApp Manual
-                   </Button>
-                   <Button 
-                     onClick={() => handleSendBotWhatsApp(studyPlanContent, "diario")}
-                     disabled={isSendingViaBot}
-                     className="h-11 rounded-xl px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20"
-                   >
-                      {isSendingViaBot ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-                      WhatsApp Robô
-                   </Button>
-                 </div>
-               )}
-            </DialogFooter>
+            {/* Lado Direito: Visualização do Plano */}
+            <div className="w-full md:w-2/3 flex flex-col max-h-[60vh] md:max-h-[70vh]">
+              <div className="p-6 pb-4 bg-gradient-to-r from-amber-500 to-orange-500 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
+                        <Calendar size={20} />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">Plano de Estudo Diário</DialogTitle>
+                      <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-1">Sugerido pela Inteligência Artificial</p>
+                    </div>
+                  </div>
+                  {studyPlanStatus === 'rascunho' && (
+                    <span className="bg-amber-900/50 text-amber-100 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-amber-500/50">
+                      RASCUNHO
+                    </span>
+                  )}
+                  {studyPlanStatus === 'publicado' && (
+                    <span className="bg-green-900/50 text-green-100 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-green-500/50">
+                      PUBLICADO
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-6 flex-1 overflow-y-auto subtle-scrollbar">
+                {generateDailyStudyPlanMutation.isPending ? (
+                  <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                      <Loader2 size={40} className="animate-spin text-orange-500/50" />
+                      <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico e criando cronograma diário...</p>
+                  </div>
+                ) : studyPlanContent ? (
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
+                      {(() => {
+                          return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>;
+                      })()}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Calendar size={48} className="text-muted-foreground/30 mb-4" />
+                    <p className="text-muted-foreground text-sm font-medium">Nenhum plano selecionado.</p>
+                    <p className="text-xs text-muted-foreground mt-2">Selecione um plano no histórico ou gere um novo.</p>
+                  </div>
+                )}
+              </div>
+
+              {studyPlanContent && (
+                <DialogFooter className="p-4 bg-muted/30 border-t border-border flex flex-wrap gap-2 justify-between items-center">
+                  <div className="flex gap-2">
+                    {studyPlanStatus === 'rascunho' && (
+                      <>
+                        <Button 
+                          onClick={() => publishStudyPlanMutation.mutate({ planId: studyPlanId!, studentId: selectedStudentId! })}
+                          disabled={publishStudyPlanMutation.isPending}
+                          className="h-10 rounded-xl px-4 bg-green-500 hover:bg-green-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
+                        >
+                          {publishStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
+                          Liberar para o Aluno
+                        </Button>
+                        <Button 
+                          variant="destructive"
+                          onClick={() => deleteDraftPlanMutation.mutate({ planId: studyPlanId! })}
+                          disabled={deleteDraftPlanMutation.isPending}
+                          className="h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest"
+                        >
+                          {deleteDraftPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
+                          Descartar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2 ml-auto">
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleSendManualWhatsApp(studyPlanContent, "diario")}
+                      className="h-10 rounded-xl px-3 text-xs font-black uppercase tracking-widest"
+                      title="Enviar via WhatsApp Manual"
+                    >
+                      <ExternalLink size={16} />
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleSendBotWhatsApp(studyPlanContent, "diario")}
+                      disabled={isSendingViaBot}
+                      className="h-10 rounded-xl px-3 text-xs font-black uppercase tracking-widest"
+                      title="Enviar via WhatsApp Robô"
+                    >
+                      {isSendingViaBot ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
+                    </Button>
+                  </div>
+                </DialogFooter>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
     </div>

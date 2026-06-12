@@ -523,22 +523,18 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
         const { callGemini } = await import("./utils/gemini");
         const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, true);
 
-        // Invalida planos antigos do aluno
-        await db.update(dailyStudyPlans)
-          .set({ status: 'inativo' })
-          .where(and(eq(dailyStudyPlans.studentId, input.studentId), eq(dailyStudyPlans.status, 'ativo')));
-
-        // Salva novo plano no banco
-        await db.insert(dailyStudyPlans).values({
+        // Salva novo plano no banco como rascunho (não inativa os antigos ainda)
+        const [inserted] = await db.insert(dailyStudyPlans).values({
           organizationId: orgId,
           studentId: input.studentId,
           teacherId: ctx.user.id,
           planText: responseText,
-          status: 'ativo',
+          status: 'ativo', // status continua ativo, publishedStatus diz se aluno vê
+          publishedStatus: 'rascunho',
           daysCompleted: JSON.stringify([false, false, false, false, false]),
-        });
+        }).returning({ id: dailyStudyPlans.id });
 
-        return { plan: responseText };
+        return { plan: responseText, planId: inserted.id };
       } catch (e: any) {
         throw new Error("Erro ao gerar plano de estudo com a IA: " + e.message);
       }
@@ -551,7 +547,8 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
         .from(dailyStudyPlans)
         .where(and(
           eq(dailyStudyPlans.studentId, ctx.user.studentId!), 
-          eq(dailyStudyPlans.status, 'ativo')
+          eq(dailyStudyPlans.status, 'ativo'),
+          eq(dailyStudyPlans.publishedStatus, 'publicado')
         ))
         .orderBy(desc(dailyStudyPlans.createdAt))
         .limit(1);
@@ -600,6 +597,78 @@ Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o 
       }
 
       return { success: true, allCompleted };
+    }),
+
+    publishStudyPlan: protectedProcedure.input(z.object({ planId: z.number(), studentId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      // Invalida planos antigos do aluno (publicados e ativos)
+      await db.update(dailyStudyPlans)
+        .set({ status: 'inativo' })
+        .where(and(
+          eq(dailyStudyPlans.studentId, input.studentId),
+          eq(dailyStudyPlans.status, 'ativo'),
+          eq(dailyStudyPlans.publishedStatus, 'publicado')
+        ));
+
+      // Publica o plano atual
+      await db.update(dailyStudyPlans)
+        .set({ publishedStatus: 'publicado' })
+        .where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.organizationId, orgId)));
+
+      return { success: true };
+    }),
+
+    deleteDraftStudyPlan: protectedProcedure.input(z.object({ planId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      await db.delete(dailyStudyPlans)
+        .where(and(
+          eq(dailyStudyPlans.id, input.planId),
+          eq(dailyStudyPlans.organizationId, orgId),
+          eq(dailyStudyPlans.publishedStatus, 'rascunho')
+        ));
+
+      return { success: true };
+    }),
+
+    getStudentPlanHistory: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      const history = await db.select()
+        .from(dailyStudyPlans)
+        .where(and(
+          eq(dailyStudyPlans.studentId, input.studentId),
+          eq(dailyStudyPlans.organizationId, orgId)
+        ))
+        .orderBy(desc(dailyStudyPlans.createdAt));
+
+      return history;
+    }),
+
+    getStudentPlanForTeacher: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      const [plan] = await db.select()
+        .from(dailyStudyPlans)
+        .where(and(
+          eq(dailyStudyPlans.studentId, input.studentId),
+          eq(dailyStudyPlans.organizationId, orgId),
+          eq(dailyStudyPlans.status, 'ativo'),
+          eq(dailyStudyPlans.publishedStatus, 'publicado')
+        ))
+        .orderBy(desc(dailyStudyPlans.createdAt))
+        .limit(1);
+
+      return plan || null;
     }),
 
 
