@@ -1689,13 +1689,13 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
         <motion.div 
           onClick={() => fileInputRef.current?.click()}
           whileHover={{ borderColor: "#6366F1", backgroundColor: "rgba(99, 102, 241, 0.02)" }}
-          className="relative p-12 border-2 border-dashed border-border rounded-[3rem] bg-card flex flex-col items-center justify-center text-center group cursor-pointer transition-all overflow-hidden"
+          className="relative p-8 md:p-12 border-2 border-dashed border-border rounded-[2rem] md:rounded-[3rem] bg-card flex flex-col items-center justify-center text-center group cursor-pointer transition-all overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="w-20 h-20 rounded-[2rem] bg-indigo-600 text-white flex items-center justify-center mb-6 shadow-2xl shadow-indigo-500/40 relative z-10 group-hover:scale-110 transition-transform">
-             <UploadCloud size={36} />
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-[2rem] bg-indigo-600 text-white flex items-center justify-center mb-4 md:mb-6 shadow-2xl shadow-indigo-500/40 relative z-10 group-hover:scale-110 transition-transform">
+             <UploadCloud className="w-8 h-8 md:w-10 md:h-10" />
           </div>
-          <h4 className="text-lg font-black text-foreground tracking-tight relative z-10 mb-2">Upload de Arquivos</h4>
+          <h4 className="text-base md:text-lg font-black text-foreground tracking-tight relative z-10 mb-2">Upload de Arquivos</h4>
           <p className="text-xs text-muted-foreground font-medium max-w-[240px] relative z-10">
             Arraste seus PDFs, Vídeos ou Áudios aqui ou <span className="text-indigo-600 font-bold underline">clique para selecionar</span>
           </p>
@@ -1710,19 +1710,19 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
        </motion.div>
 
        {/* CATEGORIAS E FILTROS */}
-       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {categories.map((cat) => (
             <motion.div 
               key={cat.id}
               whileHover={{ y: -5 }}
               onClick={() => setCategory(cat.id === category ? 'todos' : cat.id)}
               className={cn(
-                "bg-card p-6 rounded-[2.5rem] border transition-all flex items-center gap-4 group cursor-pointer",
+                "bg-card p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border transition-all flex items-center gap-3 md:gap-4 group cursor-pointer",
                 category === cat.id ? "border-indigo-600 shadow-lg ring-2 ring-indigo-500/10" : "border-border shadow-sm"
               )}
             >
-               <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform group-hover:rotate-12", cat.bg, cat.color)}>
-                  <cat.icon size={24} />
+               <div className={cn("w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center shadow-sm transition-transform group-hover:rotate-12", cat.bg, cat.color)}>
+                  <cat.icon className="w-5 h-5 md:w-6 md:h-6" />
                </div>
                <div>
                   <p className="text-xs font-black text-foreground uppercase tracking-tight">{cat.label}</p>
@@ -1752,27 +1752,27 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
              </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
              {isLoading ? (
                <div className="col-span-full py-20 flex justify-center"><Loader2 className="animate-spin text-indigo-500/20" /></div>
              ) : files.length === 0 ? (
-               <div className="col-span-full py-20 text-center border border-dashed border-border rounded-[3rem]">
+               <div className="col-span-full py-20 text-center border border-dashed border-border rounded-[2rem] md:rounded-[3rem]">
                   <Folder size={40} className="mx-auto text-slate-100 mb-4" />
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Sua biblioteca está vazia</p>
+                  <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">Sua biblioteca está vazia</p>
                </div>
              ) : (
                files.map((file) => (
                  <motion.div 
                    key={file.id}
                    whileHover={{ y: -8 }}
-                   className="bg-card border border-border rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col"
+                   className="bg-card border border-border rounded-[2rem] md:rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col"
                  >
                     <div className="aspect-[4/3] bg-muted/50 relative flex items-center justify-center group-hover:bg-indigo-500/10/50 transition-colors overflow-hidden">
                        <div className="text-slate-200 group-hover:text-indigo-200 transition-colors group-hover:scale-125 transition-transform duration-700">
-                          {file.category === 'imagem' && <ImageIcon size={64} />}
-                          {file.category === 'video' && <Video size={64} />}
-                          {file.category === 'pdf' && <FileText size={64} />}
-                          {file.category === 'audio' && <Music size={64} />}
+                          {file.category === 'imagem' && <ImageIcon className="w-12 h-12 md:w-16 md:h-16" />}
+                          {file.category === 'video' && <Video className="w-12 h-12 md:w-16 md:h-16" />}
+                          {file.category === 'pdf' && <FileText className="w-12 h-12 md:w-16 md:h-16" />}
+                          {file.category === 'audio' && <Music className="w-12 h-12 md:w-16 md:h-16" />}
                        </div>
                        
                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 p-4 text-center">
