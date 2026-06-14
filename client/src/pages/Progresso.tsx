@@ -74,11 +74,6 @@ export default function Progresso() {
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Upload Modal State
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadName, setUploadName] = useState("");
-  const [uploadComments, setUploadComments] = useState("");
 
   // IA Lesson Plan Modal State
   const [isAILessonModalOpen, setIsAILessonModalOpen] = useState(false);
@@ -1557,6 +1552,12 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
   const [category, setCategory] = useState("todos");
   const [previewFile, setPreviewFile] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Upload Modal State
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadComments, setUploadComments] = useState("");
   
   const utils = trpc.useUtils();
   const { data: allFiles = [] } = trpc.musicLibrary.list.useQuery({ studentId, category: 'todos', search: '' });

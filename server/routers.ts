@@ -444,7 +444,7 @@ Histórico do Aluno:
 - Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
 - Timeline recente de evolução: ${timelineText || "Nenhum registro"}
 
-${input.topic ? \`O professor definiu que o TÓPICO PRINCIPAL DESTA AULA DEVE SER: "\${input.topic}". Crie o plano focado neste assunto.\` : 'Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.'}
+${input.topic ? `O professor definiu que o TÓPICO PRINCIPAL DESTA AULA DEVE SER: "${input.topic}". Crie o plano focado neste assunto.` : 'Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.'}
 
 Sua resposta será exibida em uma interface de texto puro. Portanto, NÃO UTILIZE MARKDOWN (como asteriscos **, hashtags # ou traços ---).
 

@@ -15,7 +15,7 @@ async function run() {
     const p = plans[0];
     const res = await db.update(dailyStudyPlans)
       .set({ publishedStatus: 'publicado' })
-      .where(and(eq(dailyStudyPlans.id, p.id), eq(dailyStudyPlans.organizationId, p.organizationId)))
+      .where(and(eq(dailyStudyPlans.id, p.id), eq(dailyStudyPlans.organizationId, p.organizationId!)))
       .returning();
     console.log("Updated:", res);
   }
