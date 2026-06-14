@@ -74,9 +74,16 @@ export default function Progresso() {
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  // Upload Modal State
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadComments, setUploadComments] = useState("");
+
   // IA Lesson Plan Modal State
   const [isAILessonModalOpen, setIsAILessonModalOpen] = useState(false);
   const [lessonPlanContent, setLessonPlanContent] = useState<string | null>(null);
+  const [suggestedTopic, setSuggestedTopic] = useState("");
 
   const utils = trpc.useUtils();
 
@@ -103,6 +110,14 @@ export default function Progresso() {
   const aiInsightMutation = trpc.progress.generateAIInsight.useMutation({
     onSuccess: (data) => setInsight(data.insight),
     onError: (e) => toast.error("Erro ao gerar insight: " + e.message)
+  });
+
+  const suggestNextLessonTopicMutation = trpc.progress.suggestNextLessonTopic.useMutation({
+    onSuccess: (data) => {
+      setSuggestedTopic(data.suggestion);
+      toast.success("Tópico sugerido pela IA! Você pode editá-lo antes de gerar o plano.");
+    },
+    onError: (e) => toast.error("Erro ao sugerir tópico: " + e.message)
   });
 
   const generateNextLessonMutation = trpc.progress.generateNextLessonPlan.useMutation({
@@ -992,12 +1007,13 @@ export default function Progresso() {
                                     onClick={() => {
                                       setIsAILessonModalOpen(true);
                                       setLessonPlanContent(null);
-                                      generateNextLessonMutation.mutate({ studentId: selectedStudentId! });
+                                      setSuggestedTopic("");
+                                      suggestNextLessonTopicMutation.mutate({ studentId: selectedStudentId! });
                                     }}
                                     className="w-full sm:w-auto h-10 rounded-xl px-5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-violet-500/20"
-                                    disabled={generateNextLessonMutation.isPending}
+                                    disabled={suggestNextLessonTopicMutation.isPending || generateNextLessonMutation.isPending}
                                   >
-                                    {generateNextLessonMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                                    {suggestNextLessonTopicMutation.isPending || generateNextLessonMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
                                     Sugerir Próxima Aula
                                   </Button>
                                   <Button 
@@ -1270,16 +1286,45 @@ export default function Progresso() {
             </div>
             
             <div className="p-8 max-h-[60vh] overflow-y-auto subtle-scrollbar">
-               {generateNextLessonMutation.isPending ? (
+               {suggestNextLessonTopicMutation.isPending ? (
                  <div className="flex flex-col items-center justify-center py-16 space-y-4">
                     <Loader2 size={40} className="animate-spin text-indigo-500/50" />
-                    <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico e metas do aluno...</p>
+                    <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico e sugerindo assunto...</p>
+                 </div>
+               ) : generateNextLessonMutation.isPending ? (
+                 <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                    <Loader2 size={40} className="animate-spin text-indigo-500/50" />
+                    <p className="text-sm font-bold text-muted-foreground animate-pulse">Gerando plano de aula completo com base no assunto...</p>
                  </div>
                ) : lessonPlanContent ? (
                  <div className="prose prose-sm dark:prose-invert max-w-none prose-h1:text-xl prose-h1:font-black prose-h2:text-lg prose-h2:text-indigo-600 prose-h2:font-black prose-h3:text-base prose-strong:text-indigo-500">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                        {lessonPlanContent}
                     </ReactMarkdown>
+                 </div>
+               ) : suggestedTopic ? (
+                 <div className="space-y-6">
+                   <div className="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                     <p className="text-sm font-bold text-indigo-800 dark:text-indigo-200 leading-relaxed">{suggestedTopic}</p>
+                   </div>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Defina o Assunto Principal para a IA criar o plano</label>
+                     <Textarea 
+                       value={suggestedTopic} 
+                       onChange={(e) => setSuggestedTopic(e.target.value)}
+                       className="min-h-[100px] resize-none text-sm font-medium rounded-2xl border-border bg-card p-4"
+                       placeholder="Ex: Escala pentatônica e improvisação básica..."
+                     />
+                     <p className="text-xs text-muted-foreground mt-2 ml-1">Você pode modificar o assunto sugerido acima ou aceitá-lo como está.</p>
+                   </div>
+                   <div className="flex justify-end pt-2">
+                     <Button 
+                       onClick={() => generateNextLessonMutation.mutate({ studentId: selectedStudentId!, topic: suggestedTopic })}
+                       className="h-12 rounded-2xl px-8 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20"
+                     >
+                       Gerar Plano de Aula Completo
+                     </Button>
+                   </div>
                  </div>
                ) : (
                  <p className="text-center text-muted-foreground py-8">Nenhum plano gerado ainda.</p>
@@ -1534,12 +1579,23 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
     onError: (e) => toast.error("Erro ao excluir material: " + e.message)
   });
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const toastId = toast.loading(`Enviando ${file.name}...`);
+    setUploadFile(file);
+    setUploadName(file.name);
+    setUploadComments("");
+    setUploadModalOpen(true);
+    
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
+  const handleConfirmUpload = async () => {
+    if (!uploadFile) return;
+    
+    const toastId = toast.loading(`Enviando ${uploadName}...`);
+    
     try {
       const reader = new FileReader();
       reader.onload = async () => {
@@ -1547,38 +1603,43 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
           const base64Data = reader.result as string;
           
           let fileCategory: 'imagem' | 'video' | 'pdf' | 'audio' = 'pdf';
-          if (file.type.startsWith('image/')) fileCategory = 'imagem';
-          else if (file.type.startsWith('video/')) fileCategory = 'video';
-          else if (file.type.startsWith('audio/')) fileCategory = 'audio';
-          else if (file.type === 'application/pdf') fileCategory = 'pdf';
+          if (uploadFile.type.startsWith('image/')) fileCategory = 'imagem';
+          else if (uploadFile.type.startsWith('video/')) fileCategory = 'video';
+          else if (uploadFile.type.startsWith('audio/')) fileCategory = 'audio';
+          else if (uploadFile.type === 'application/pdf') fileCategory = 'pdf';
 
           const { url } = await uploadMutation.mutateAsync({
-            fileName: file.name,
-            fileType: file.type,
+            fileName: uploadName,
+            fileType: uploadFile.type,
             base64Data,
           });
 
           await createMutation.mutateAsync({
             studentId,
-            fileName: file.name,
-            fileType: file.type,
+            fileName: uploadName,
+            fileType: uploadFile.type,
             category: fileCategory,
             fileUrl: url,
-            size: file.size,
+            size: uploadFile.size,
+            comments: uploadComments || undefined,
           });
 
           toast.dismiss(toastId);
-          if (fileInputRef.current) fileInputRef.current.value = '';
+          setUploadModalOpen(false);
+          setUploadFile(null);
+          setUploadName("");
+          setUploadComments("");
         } catch (err: any) {
           toast.error("Erro no processamento: " + err.message, { id: toastId });
         }
       };
       reader.onerror = () => toast.error("Erro ao ler arquivo", { id: toastId });
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(uploadFile);
     } catch (error: any) {
       toast.error("Falha no upload: " + error.message, { id: toastId });
     }
   };
+
 
   const categories = [
     { id: "imagem", label: "Imagens", icon: ImageIcon, color: "text-purple-500", bg: "bg-purple-50" },
@@ -1703,7 +1764,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                  <motion.div 
                    key={file.id}
                    whileHover={{ y: -8 }}
-                   className="bg-card border border-border rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all"
+                   className="bg-card border border-border rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col"
                  >
                     <div className="aspect-[4/3] bg-muted/50 relative flex items-center justify-center group-hover:bg-indigo-500/10/50 transition-colors overflow-hidden">
                        <div className="text-slate-200 group-hover:text-indigo-200 transition-colors group-hover:scale-125 transition-transform duration-700">
@@ -1746,7 +1807,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                        </div>
                     </div>
                     
-                    <div className="p-6">
+                    <div className="p-6 flex-1 flex flex-col">
                        <div className="flex items-start justify-between gap-3 mb-2">
                           <div className="min-w-0 flex-1">
                              <h4 className="text-[11px] font-black text-foreground uppercase tracking-tight truncate">{file.fileName}</h4>
@@ -1763,12 +1824,88 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                              <ExternalLink size={14} />
                           </div>
                        </div>
+                       {file.comments && (
+                         <div className="mt-4 p-3 bg-muted/30 rounded-xl border border-border/50 text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
+                           {file.comments}
+                         </div>
+                       )}
                     </div>
                  </motion.div>
                ))
              )}
           </div>
        </div>
+
+       {/* MODAL DE UPLOAD DE ARQUIVOS */}
+       <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+          <DialogContent className="max-w-md p-0 overflow-hidden bg-card border-none rounded-[2rem] shadow-2xl">
+             <DialogHeader className="p-6 pb-4 border-b border-border bg-muted/20">
+                <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tight flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-2xl bg-indigo-600/10 text-indigo-600 flex items-center justify-center">
+                      <UploadCloud size={20} />
+                   </div>
+                   Novo Material
+                </DialogTitle>
+             </DialogHeader>
+             
+             <div className="p-6 space-y-6">
+                {uploadFile && (
+                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/50 border border-border/50">
+                     <div className="w-12 h-12 rounded-xl bg-indigo-500 text-white flex items-center justify-center shrink-0">
+                        {uploadFile.type.startsWith('image/') ? <ImageIcon size={20} /> :
+                         uploadFile.type.startsWith('video/') ? <Video size={20} /> :
+                         uploadFile.type.startsWith('audio/') ? <Music size={20} /> :
+                         <FileText size={20} />}
+                     </div>
+                     <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-foreground truncate">{uploadFile.name}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mt-1">
+                          {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB
+                        </p>
+                     </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Nome do Arquivo</label>
+                   <Input 
+                      value={uploadName} 
+                      onChange={e => setUploadName(e.target.value)} 
+                      placeholder="Nome para exibição..."
+                      className="h-12 bg-background border-border rounded-xl font-semibold"
+                   />
+                </div>
+
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Observações / Links (Opcional)</label>
+                   <Textarea 
+                      value={uploadComments} 
+                      onChange={e => setUploadComments(e.target.value)} 
+                      placeholder="Adicione instruções, links extras ou detalhes sobre este material..."
+                      className="min-h-[100px] bg-background border-border rounded-xl resize-none font-medium text-sm leading-relaxed"
+                   />
+                </div>
+             </div>
+
+             <DialogFooter className="p-6 pt-4 border-t border-border bg-muted/20 flex gap-3">
+                <Button 
+                   variant="ghost" 
+                   onClick={() => setUploadModalOpen(false)}
+                   className="flex-1 h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-muted"
+                >
+                   Cancelar
+                </Button>
+                <Button 
+                   onClick={handleConfirmUpload}
+                   disabled={uploadMutation.isPending || createMutation.isPending}
+                   className="flex-1 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-500/20"
+                >
+                   {(uploadMutation.isPending || createMutation.isPending) ? <Loader2 size={16} className="animate-spin mr-2" /> : <UploadCloud size={16} className="mr-2" />}
+                   Salvar e Enviar
+                </Button>
+             </DialogFooter>
+          </DialogContent>
+       </Dialog>
 
        {/* MODAL DE PREVIEW DE ARQUIVOS */}
        <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>

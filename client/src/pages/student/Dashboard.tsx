@@ -76,8 +76,8 @@ export default function StudentDashboard() {
       {/* Welcome Section */}
       <motion.div variants={item} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-           <h1 className="text-4xl font-black tracking-tight text-foreground">Olá, {firstName}! 👋</h1>
-           <p className="text-muted-foreground font-medium mt-1">Aqui está um resumo da sua jornada musical hoje.</p>
+           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-foreground">Olá, {firstName}! 👋</h1>
+           <p className="text-muted-foreground text-sm md:text-base font-medium mt-1">Aqui está um resumo da sua jornada musical hoje.</p>
         </div>
         <div className="flex items-center gap-4">
            <div className="text-right hidden sm:block">
@@ -93,18 +93,18 @@ export default function StudentDashboard() {
       {/* Stats Cards Row - Modern & Refined */}
       <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Aulas Realizadas */}
-        <Card className="border-none shadow-xl bg-card/40 backdrop-blur-md overflow-hidden group hover:-translate-y-2 transition-all duration-500 rounded-[2.5rem]">
-          <CardContent className="p-8 flex items-center gap-6">
-            <div className="w-16 h-16 rounded-[1.5rem] bg-purple-500/10 flex items-center justify-center text-purple-600 shadow-inner group-hover:scale-110 transition-transform">
-              <Calendar size={32} />
+        <Card className="border-none shadow-xl bg-card/40 backdrop-blur-md overflow-hidden group hover:-translate-y-2 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
+          <CardContent className="p-5 md:p-8 flex items-center gap-4 md:gap-6">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.5rem] bg-purple-500/10 flex items-center justify-center text-purple-600 shadow-inner group-hover:scale-110 transition-transform">
+              <Calendar className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div className="flex-1">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Aulas Realizadas</p>
+              <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Aulas Realizadas</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-4xl font-black tracking-tight">{dashboard?.stats?.lessonsDone || 0}</h3>
-                <span className="text-xs font-bold text-muted-foreground">no mês</span>
+                <h3 className="text-3xl md:text-4xl font-black tracking-tight">{dashboard?.stats?.lessonsDone || 0}</h3>
+                <span className="text-[10px] md:text-xs font-bold text-muted-foreground">no mês</span>
               </div>
-              <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-emerald-500 uppercase tracking-tight">
+              <div className="mt-2 md:mt-3 flex items-center gap-1.5 text-[9px] md:text-[10px] font-bold text-emerald-500 uppercase tracking-tight">
                 <TrendingUp size={14} /> + 12% vs mês passado
               </div>
             </div>
@@ -112,35 +112,35 @@ export default function StudentDashboard() {
         </Card>
 
         {/* Exercícios Pendentes */}
-        <Card className="border-none shadow-xl bg-card/40 backdrop-blur-md overflow-hidden group hover:-translate-y-2 transition-all duration-500 rounded-[2.5rem]">
-          <CardContent className="p-8 flex items-center gap-6">
-            <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-inner group-hover:scale-110 transition-transform">
-              <ClipboardCheck size={32} />
+        <Card className="border-none shadow-xl bg-card/40 backdrop-blur-md overflow-hidden group hover:-translate-y-2 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
+          <CardContent className="p-5 md:p-8 flex items-center gap-4 md:gap-6">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.5rem] bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-inner group-hover:scale-110 transition-transform">
+              <ClipboardCheck className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div className="flex-1">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Atividades</p>
+              <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Atividades</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-4xl font-black tracking-tight">{dashboard?.stats?.pendingExercises || 0}</h3>
-                <span className="text-xs font-bold text-muted-foreground">pendentes</span>
+                <h3 className="text-3xl md:text-4xl font-black tracking-tight">{dashboard?.stats?.pendingExercises || 0}</h3>
+                <span className="text-[10px] md:text-xs font-bold text-muted-foreground">pendentes</span>
               </div>
-              <p className="mt-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">Pratique hoje mesmo</p>
+              <p className="mt-2 md:mt-3 text-[9px] md:text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">Pratique hoje mesmo</p>
             </div>
           </CardContent>
         </Card>
 
         {/* Avisos */}
-        <Card className="border-none shadow-xl bg-card/40 backdrop-blur-md overflow-hidden group hover:-translate-y-2 transition-all duration-500 rounded-[2.5rem]">
-          <CardContent className="p-8 flex items-center gap-6">
-            <div className="w-16 h-16 rounded-[1.5rem] bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner group-hover:scale-110 transition-transform">
-              <Bell size={32} />
+        <Card className="border-none shadow-xl bg-card/40 backdrop-blur-md overflow-hidden group hover:-translate-y-2 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
+          <CardContent className="p-5 md:p-8 flex items-center gap-4 md:gap-6">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.5rem] bg-orange-500/10 flex items-center justify-center text-orange-600 shadow-inner group-hover:scale-110 transition-transform">
+              <Bell className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div className="flex-1">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Notificações</p>
+              <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Notificações</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-4xl font-black tracking-tight">{dashboard?.stats?.unreadAnnouncements || 0}</h3>
-                <span className="text-xs font-bold text-muted-foreground">não lidas</span>
+                <h3 className="text-3xl md:text-4xl font-black tracking-tight">{dashboard?.stats?.unreadAnnouncements || 0}</h3>
+                <span className="text-[10px] md:text-xs font-bold text-muted-foreground">não lidas</span>
               </div>
-              <p className="mt-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">Fique por dentro</p>
+              <p className="mt-2 md:mt-3 text-[9px] md:text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">Fique por dentro</p>
             </div>
           </CardContent>
         </Card>
@@ -157,16 +157,16 @@ export default function StudentDashboard() {
             {/* Avisos Section */}
             <motion.div variants={item}>
               <Card className="border border-border/40 shadow-xl bg-card/40 backdrop-blur-md h-full rounded-[2rem] overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/30 mx-6 px-0">
+                <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/30 mx-4 md:mx-6 px-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/10 text-primary">
                       <Bell size={18} />
                     </div>
-                    <CardTitle className="text-lg font-bold tracking-tight">Últimos Avisos</CardTitle>
+                    <CardTitle className="text-base md:text-lg font-bold tracking-tight">Últimos Avisos</CardTitle>
                   </div>
-                  <button onClick={() => navigate('/aluno/avisos')} className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline px-3 py-1 bg-primary/5 rounded-full border border-primary/10">Ver todos</button>
+                  <button onClick={() => navigate('/aluno/avisos')} className="text-[9px] md:text-[10px] font-bold text-primary uppercase tracking-widest hover:underline px-3 py-1 bg-primary/5 rounded-full border border-primary/10">Ver todos</button>
                 </CardHeader>
-                <CardContent className="p-6 space-y-4">
+                <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
                   {dashboard?.announcements?.map((aviso: any) => (
                     <div key={aviso.id} className="flex items-start gap-4 p-4 rounded-2xl hover:bg-primary/5 transition-all cursor-pointer group border border-transparent hover:border-primary/10">
                       <div className={cn(
@@ -328,31 +328,31 @@ export default function StudentDashboard() {
           {/* Próxima Aula Card - Premium Highlight */}
           <motion.div variants={item}>
              {dashboard?.upcomingLessons[0] && (
-               <Card className="border-none shadow-2xl bg-gradient-to-br from-[#7C3AED] to-[#4F46E5] text-white overflow-hidden relative group rounded-[2.5rem]">
-                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-all duration-700 group-hover:scale-125">
-                    <Music size={200} strokeWidth={1} />
+               <Card className="border-none shadow-2xl bg-gradient-to-br from-[#7C3AED] to-[#4F46E5] text-white overflow-hidden relative group rounded-[2rem] md:rounded-[2.5rem]">
+                 <div className="absolute top-0 right-0 p-6 md:p-8 opacity-10 group-hover:opacity-20 transition-all duration-700 group-hover:scale-125">
+                    <Music className="w-32 h-32 md:w-48 md:h-48" strokeWidth={1} />
                  </div>
-                 <CardContent className="p-10 relative z-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white/90 text-[10px] font-black uppercase tracking-[0.2em] border border-white/20 mb-6">
+                 <CardContent className="p-6 md:p-10 relative z-10">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white/90 text-[10px] font-black uppercase tracking-[0.2em] border border-white/20 mb-4 md:mb-6">
                        <Clock size={12} className="animate-pulse" />
                        Falta Pouco!
                     </div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">Sua Próxima Aula</p>
-                    <h3 className="text-3xl font-black mt-3 leading-tight tracking-tight">
+                    <h3 className="text-2xl md:text-3xl font-black mt-2 md:mt-3 leading-tight tracking-tight">
                        {format(new Date(dashboard.upcomingLessons[0].scheduledAt), "EEEE, dd 'de' MMMM", { locale: ptBR })}
                     </h3>
-                    <div className="mt-8 flex items-center gap-10">
+                    <div className="mt-6 md:mt-8 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-10">
                        <div>
                           <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Horário</p>
-                          <p className="text-xl font-black">{format(new Date(dashboard.upcomingLessons[0].scheduledAt), "HH:mm")}h</p>
+                          <p className="text-lg md:text-xl font-black">{format(new Date(dashboard.upcomingLessons[0].scheduledAt), "HH:mm")}h</p>
                        </div>
-                       <div className="w-px h-10 bg-white/20" />
+                       <div className="hidden sm:block w-px h-10 bg-white/20" />
                        <div>
                           <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Professor</p>
-                          <p className="text-xl font-black">{dashboard.teacherName.split(' ')[0]}</p>
+                          <p className="text-lg md:text-xl font-black">{dashboard.teacherName.split(' ')[0]}</p>
                        </div>
                     </div>
-                    <button onClick={() => navigate('/aluno/aulas')} className="w-full mt-10 py-5 bg-white text-primary rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-black/20 hover:scale-[1.05] active:scale-95 transition-all">
+                    <button onClick={() => navigate('/aluno/aulas')} className="w-full mt-8 md:mt-10 py-4 md:py-5 bg-white text-primary rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-black/20 hover:scale-[1.05] active:scale-95 transition-all">
                        Ver Conteúdo da Aula
                     </button>
                  </CardContent>

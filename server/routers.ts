@@ -391,7 +391,39 @@ export const appRouter = router({
         return { insight: "O aluno tem se saído bem nas últimas aulas. Foco em melhorar a constância na prática diária e avançar nas metas de repertório." }; // Fallback
       }
     }),
-    generateNextLessonPlan: protectedProcedure.input(z.object({ studentId: z.number() })).mutation(async ({ ctx, input }) => {
+    suggestNextLessonTopic: protectedProcedure.input(z.object({ studentId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      
+      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+      if (!student) throw new Error("Aluno não encontrado");
+      
+      const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).limit(5).orderBy(desc(lessons.scheduledAt));
+      const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
+      const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.organizationId, orgId))).limit(10).orderBy(desc(studentTimeline.achievedAt));
+
+      const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
+
+      const prompt = `Atue como um professor mentor. Analise o histórico do aluno ${student.name} (Nível: ${student.level}) e sugira qual deve ser o ASSUNTO PRINCIPAL da próxima aula.
+
+Histórico do Aluno:
+- Últimas ${pastLessons.length} aulas concluídas.
+- Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
+- Timeline recente de evolução: ${timelineText || "Nenhum registro"}
+
+Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual o melhor assunto/foco para a próxima aula e por que. Não use saudações, vá direto ao ponto.`;
+      
+      try {
+        const { callGemini } = await import("./utils/gemini");
+        const responseText = await callGemini([{ role: 'user', content: prompt }]);
+        return { suggestion: responseText.trim() };
+      } catch (e: any) {
+        throw new Error("Erro ao sugerir tópico com a IA: " + e.message);
+      }
+    }),
+
+    generateNextLessonPlan: protectedProcedure.input(z.object({ studentId: z.number(), topic: z.string().optional() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
@@ -412,10 +444,12 @@ Histórico do Aluno:
 - Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
 - Timeline recente de evolução: ${timelineText || "Nenhum registro"}
 
+${input.topic ? \`O professor definiu que o TÓPICO PRINCIPAL DESTA AULA DEVE SER: "\${input.topic}". Crie o plano focado neste assunto.\` : 'Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.'}
+
 Sua resposta será exibida em uma interface de texto puro. Portanto, NÃO UTILIZE MARKDOWN (como asteriscos **, hashtags # ou traços ---).
 
 Siga EXATAMENTE o template abaixo, usando emojis como âncoras visuais, hífens para listas e pulando uma linha em branco entre cada bloco de conteúdo para garantir a legibilidade.
-Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.
+${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.' : ''}
 
 [INÍCIO DO TEMPLATE]
 
