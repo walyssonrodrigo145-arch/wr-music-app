@@ -2879,7 +2879,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const orgId = ctx.user.organizationId!;
         await db.update(reminders)
           .set({ status: "enviado", sentAt: new Date() })
-          .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id)));
+          .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId)));
         return { success: true };
       }),
 
@@ -2904,7 +2904,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         .from(reminders)
         .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
         .leftJoin(settings, eq(settings.userId, ctx.user.id))
-        .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id)))
+        .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId)))
         .limit(1);
 
         if (!rem) throw new Error("Lembrete não encontrado.");
@@ -2975,7 +2975,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const orgId = ctx.user.organizationId!;
 
         await db.delete(reminders)
-          .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id)));
+          .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId)));
 
         return { success: true };
       }),
