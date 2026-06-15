@@ -1,0 +1,3 @@
+wrmusicpro.com.br, www.wrmusicpro.com.br {
+    reverse_proxy app:3000
+}
