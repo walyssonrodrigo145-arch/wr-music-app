@@ -23,5 +23,5 @@ RUN pnpm run build
 # Expor a porta que a aplicação usa (geralmente 5000)
 EXPOSE 5000
 
-# Script de inicialização (Roda migrações do banco e inicia a API)
-CMD ["sh", "-c", "pnpm run db:push && pnpm start"]
+# Script de inicialização
+CMD ["pnpm", "start"]
