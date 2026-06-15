@@ -8,6 +8,18 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password_seguro_db_local
+      POSTGRES_DB: wrmusic
+    volumes:
+      - db_data:/var/lib/postgresql/data
 
   caddy:
     image: caddy:2-alpine
@@ -25,4 +37,5 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  db_data:
 
