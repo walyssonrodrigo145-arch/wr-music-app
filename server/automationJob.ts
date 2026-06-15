@@ -63,7 +63,7 @@ async function runAutomation() {
 
     try {
       // ─── CANCELAMENTO AUTOMÁTICO DE LEMBRETES OBSOLETOS ─────────────────────
-      // Cancela lembretes pendentes de alunos inativos/pausados/cancelados, mensalidades pagas ou aulas canceladas
+      // Cancela lembretes pendentes de alunos inativos/pausados/cancelados, mensalidades pagas ou aulas canceladas/concluídas
       await db.execute(sql`
         UPDATE reminders 
         SET status = 'cancelado', "updatedAt" = now()
@@ -73,15 +73,14 @@ async function runAutomation() {
           AND (
             ("studentId" IN (SELECT id FROM students WHERE "organizationId" = ${orgId} AND status IN ('inativo', 'pausado')))
             OR ("paymentDueId" IN (SELECT id FROM payment_dues WHERE "organizationId" = ${orgId} AND status = 'pago'))
-            OR ("lessonId" IN (SELECT id FROM lessons WHERE "organizationId" = ${orgId} AND status IN ('cancelada', 'remarcada', 'falta')))
+            OR ("lessonId" IN (SELECT id FROM lessons WHERE "organizationId" = ${orgId} AND status IN ('cancelada', 'remarcada', 'falta', 'concluida')))
           )
       `);
 
       // ─── LIMPEZA SEMANAL AUTOMÁTICA (Domingo 00:00 Horário de Brasília) ───────────────
-      // Apaga TODOS os lembretes (incluindo 'enviado' e 'cancelado') para limpar a tela.
-      // Isso é seguro pois: os lembretes 'enviado' da semana passada não precisam mais bloquear nada
-      // (as aulas/pagamentos correspondentes já ocorreram ou foram processados).
-      // O robô vai criar os novos lembretes da semana seguinte normalmente.
+      // Apaga lembretes antigos (enviados e cancelados) para manter a tela limpa.
+      // Mantém os lembretes de aulas futuras (recentes dos últimos 2 dias ou futuros)
+      // para servirem como travas e evitar que a automação os recrie e envie de novo.
       const brazilDateStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
       const brazilDay = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay(); // 0 = domingo
       const cleanupKey = `${orgId}-${userId}`;
@@ -90,7 +89,9 @@ async function runAutomation() {
       if (brazilDay === 0 && lastCleanupByUser.get(cleanupKey) !== brazilDateStr) {
         await db.execute(sql`
           DELETE FROM reminders
-          WHERE "organizationId" = ${orgId} AND "userId" = ${userId}
+          WHERE "organizationId" = ${orgId} 
+            AND "userId" = ${userId}
+            AND "scheduledAt" < now() - interval '2 days'
         `);
         lastCleanupByUser.set(cleanupKey, brazilDateStr);
         ranCleanupThisCycle = true;

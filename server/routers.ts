@@ -1900,6 +1900,17 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           }
         }
 
+        // Cancelar lembretes pendentes associados se a aula mudou para um status não-agendada
+        if (input.status === 'cancelada' || input.status === 'concluida' || input.status === 'remarcada' || input.status === 'falta') {
+          await db.update(reminders)
+            .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
+            .where(and(
+              eq(reminders.lessonId, input.id),
+              eq(reminders.organizationId, orgId),
+              eq(reminders.status, 'pendente')
+            ));
+        }
+
         await db.update(lessons).set(updateData).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
         
         return { success: true };
@@ -2962,7 +2973,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const orgId = ctx.user.organizationId!;
         await db.update(reminders)
           .set({ status: "cancelado", cancelledAt: new Date() })
-          .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id)));
+          .where(and(eq(reminders.id, input.id), eq(reminders.organizationId, orgId)));
         return { success: true };
       }),
 
@@ -2993,7 +3004,6 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             and(
               eq(reminders.lessonId, input.lessonId),
               eq(reminders.organizationId, orgId),
-              eq(reminders.userId, ctx.user.id),
               eq(reminders.status, "pendente")
             )
           );
@@ -3013,7 +3023,6 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             and(
               eq(reminders.paymentDueId, input.paymentDueId),
               eq(reminders.organizationId, orgId),
-              eq(reminders.userId, ctx.user.id),
               eq(reminders.status, "pendente")
             )
           );
