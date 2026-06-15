@@ -301,10 +301,10 @@ export default function StudentProgress() {
       {/* Header + seletor de dia */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <PageHeader />
-        <div className="flex items-center gap-3 bg-white border border-slate-200 p-2 rounded-xl shadow-sm self-start md:self-auto">
+        <div className="flex items-center gap-3 bg-card border border-border p-2 rounded-xl shadow-sm self-start md:self-auto">
           <div className="flex items-center gap-2 px-3">
-            <CalendarDays size={17} className="text-indigo-600" />
-            <span className="font-bold text-sm text-slate-800">
+            <CalendarDays size={17} className="text-indigo-600 dark:text-indigo-400" />
+            <span className="font-bold text-sm text-foreground">
               {currentDayData?.dayName || "Dia " + (safeDayIndex + 1)}
             </span>
           </div>
@@ -336,7 +336,7 @@ export default function StudentProgress() {
       <AnimatePresence mode="wait">
         <motion.div key={"focus-" + safeDayIndex}
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-          <div className="bg-indigo-50/50 border border-indigo-100 p-6 md:p-8 rounded-[2rem] flex flex-col md:flex-row justify-between gap-8 items-center shadow-sm">
+          <div className="bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 p-6 md:p-8 rounded-[2rem] flex flex-col md:flex-row justify-between gap-8 items-center shadow-sm">
             <div className="flex gap-5 items-center flex-1">
               <div className="w-20 h-20 bg-indigo-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 shrink-0 relative overflow-hidden">
                 <Music size={32} className="relative z-10" />
@@ -344,21 +344,21 @@ export default function StudentProgress() {
                 <Star size={9} className="absolute bottom-4 right-4 opacity-40" />
               </div>
               <div>
-                <p className="text-sm font-bold text-indigo-600 mb-1">Foco do dia</p>
-                <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight mb-2">
+                <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mb-1">Foco do dia</p>
+                <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 leading-tight mb-2">
                   {currentDayData?.focus?.title || "Treino Prático"}
                 </h2>
-                <p className="text-sm text-slate-600 font-medium leading-relaxed max-w-md">
+                <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-md">
                   {currentDayData?.focus?.description || "Siga os exercícios abaixo para concluir sua rotina de hoje."}
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm w-full md:w-auto min-w-[300px]">
-              <h3 className="text-center font-black text-slate-900 mb-1">Treinou hoje?</h3>
-              <p className="text-xs text-center text-slate-500 mb-4 font-medium">Marque abaixo após concluir seu plano de estudo.</p>
+            <div className="bg-card p-6 rounded-2xl border border-border shadow-sm w-full md:w-auto min-w-[300px]">
+              <h3 className="text-center font-black text-foreground mb-1">Treinou hoje?</h3>
+              <p className="text-xs text-center text-muted-foreground mb-4 font-medium">Marque abaixo após concluir seu plano de estudo.</p>
               {isPlanFinished ? (
-                <p className="text-center text-sm text-emerald-600 font-bold py-2">✅ Semana concluída com sucesso!</p>
+                <p className="text-center text-sm text-emerald-600 dark:text-emerald-400 font-bold py-2">✅ Semana concluída com sucesso!</p>
               ) : (
                 <div className="flex gap-3">
                   <Button
@@ -410,22 +410,22 @@ export default function StudentProgress() {
             <div className="flex flex-col gap-4">
               {currentDayData.exercises.map((exercise, idx) => (
                 <div key={idx}
-                  className="bg-white border border-slate-100 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center gap-5 shadow-sm hover:shadow-md transition-shadow">
+                  className="bg-card dark:bg-slate-800/50 border border-border p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center gap-5 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-4 w-full md:w-auto md:flex-1">
-                    <span className="text-slate-300 font-black text-xl w-8 text-center shrink-0">
+                    <span className="text-slate-300 dark:text-slate-600 font-black text-xl w-8 text-center shrink-0">
                       {String(idx + 1).padStart(2, "0")}
                     </span>
-                    <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="w-11 h-11 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl flex items-center justify-center shrink-0">
                       <ExerciseIcon icon={exercise.icon} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-black text-slate-900">{exercise.title}</h4>
-                      <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">{exercise.subtitle}</p>
+                      <h4 className="font-black text-foreground">{exercise.title}</h4>
+                      <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">{exercise.subtitle}</p>
                     </div>
                   </div>
 
                   {exercise.duration && (
-                    <div className="flex items-center gap-1.5 text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg text-sm font-bold shrink-0 self-start md:self-auto">
+                    <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1.5 rounded-lg text-sm font-bold shrink-0 self-start md:self-auto">
                       ⏱ {exercise.duration}
                     </div>
                   )}

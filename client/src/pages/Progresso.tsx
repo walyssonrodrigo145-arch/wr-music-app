@@ -808,21 +808,21 @@ export default function Progresso() {
                                     <div className="space-y-6">
                                       {/* Objetivo Semanal */}
                                       {activePlanData.weeklyGoal && (
-                                        <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                                        <div className="bg-indigo-50/50 dark:bg-indigo-500/10 p-4 rounded-2xl border border-indigo-100/50 dark:border-indigo-500/20 flex items-start gap-3">
                                           <Target size={20} className="text-indigo-500 shrink-0 mt-0.5" />
                                           <div>
-                                            <p className="text-xs font-bold text-indigo-600 uppercase mb-1">Objetivo da Semana</p>
-                                            <p className="text-sm text-slate-700 leading-relaxed">{activePlanData.weeklyGoal}</p>
+                                            <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase mb-1">Objetivo da Semana</p>
+                                            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{activePlanData.weeklyGoal}</p>
                                           </div>
                                         </div>
                                       )}
 
                                       {/* Header + Seletor de dia */}
                                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3 bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
+                                        <div className="flex items-center gap-3 bg-card border border-border p-2 rounded-xl shadow-sm">
                                           <div className="flex items-center gap-2 px-3">
-                                            <CalendarDays size={17} className="text-indigo-600" />
-                                            <span className="font-bold text-sm text-slate-800">
+                                            <CalendarDays size={17} className="text-indigo-600 dark:text-indigo-400" />
+                                            <span className="font-bold text-sm text-foreground">
                                               {currentDayData?.dayName || "Dia " + (safeDayIndex + 1)}
                                             </span>
                                           </div>
@@ -843,29 +843,29 @@ export default function Progresso() {
                                       <AnimatePresence mode="wait">
                                         <motion.div key={"focus-" + safeDayIndex}
                                           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-                                          <div className="bg-indigo-50/30 border border-indigo-100/50 p-6 rounded-2xl flex flex-col md:flex-row justify-between gap-6 items-center shadow-sm">
+                                          <div className="bg-indigo-50/30 dark:bg-indigo-500/10 border border-indigo-100/50 dark:border-indigo-500/20 p-6 rounded-2xl flex flex-col md:flex-row justify-between gap-6 items-center shadow-sm">
                                             <div className="flex gap-4 items-center flex-1">
                                               <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 shrink-0">
                                                 <Music size={28} />
                                               </div>
                                               <div>
-                                                <p className="text-xs font-bold text-indigo-600 mb-1">FOCO DO DIA</p>
-                                                <h2 className="text-lg font-black text-slate-900 leading-tight mb-1">
+                                                <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">FOCO DO DIA</p>
+                                                <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 leading-tight mb-1">
                                                   {currentDayData?.focus?.title || "Treino Prático"}
                                                 </h2>
-                                                <p className="text-sm text-slate-600 font-medium leading-relaxed max-w-sm">
+                                                <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
                                                   {currentDayData?.focus?.description || "Siga os exercícios para concluir a rotina de hoje."}
                                                 </p>
                                               </div>
                                             </div>
-                                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm w-full md:w-auto min-w-[200px] text-center">
-                                              <h3 className="font-bold text-slate-800 mb-1">Status do Aluno</h3>
+                                            <div className="bg-card p-4 rounded-xl border border-border shadow-sm w-full md:w-auto min-w-[200px] text-center">
+                                              <h3 className="font-bold text-foreground mb-1">Status do Aluno</h3>
                                               {isCurrentDayCompleted ? (
-                                                <div className="flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50 py-2 rounded-lg font-bold text-sm">
+                                                <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 py-2 rounded-lg font-bold text-sm">
                                                   <CheckCircle2 size={16} /> Treino Concluído
                                                 </div>
                                               ) : (
-                                                <div className="flex items-center justify-center gap-2 text-amber-600 bg-amber-50 py-2 rounded-lg font-bold text-sm">
+                                                <div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 py-2 rounded-lg font-bold text-sm">
                                                   <AlertTriangle size={16} /> Pendente
                                                 </div>
                                               )}
@@ -886,21 +886,21 @@ export default function Progresso() {
                                           ) : (
                                             <div className="flex flex-col gap-3">
                                               {currentDayData.exercises.map((exercise, idx) => (
-                                                <div key={idx} className="bg-white border border-slate-100 p-4 rounded-xl flex flex-col md:flex-row items-start md:items-center gap-4 shadow-sm">
+                                                <div key={idx} className="bg-card dark:bg-slate-800/50 border border-border p-4 rounded-xl flex flex-col md:flex-row items-start md:items-center gap-4 shadow-sm">
                                                   <div className="flex items-center gap-3 flex-1">
-                                                    <span className="text-slate-300 font-black text-lg w-6 text-center shrink-0">
+                                                    <span className="text-slate-300 dark:text-slate-600 font-black text-lg w-6 text-center shrink-0">
                                                       {String(idx + 1).padStart(2, "0")}
                                                     </span>
-                                                    <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0">
+                                                    <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg flex items-center justify-center shrink-0">
                                                       <ExerciseIcon icon={exercise.icon} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                      <h4 className="font-bold text-slate-900 text-sm">{exercise.title}</h4>
-                                                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{exercise.subtitle}</p>
+                                                      <h4 className="font-bold text-foreground text-sm">{exercise.title}</h4>
+                                                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{exercise.subtitle}</p>
                                                     </div>
                                                   </div>
                                                   {exercise.duration && (
-                                                    <div className="text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md text-xs font-bold shrink-0">
+                                                    <div className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 rounded-md text-xs font-bold shrink-0">
                                                       ⏱ {exercise.duration}
                                                     </div>
                                                   )}
