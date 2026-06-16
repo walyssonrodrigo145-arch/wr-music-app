@@ -2614,13 +2614,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         // Só gera se a janela de 24h já chegou (1 dia antes da aula)
         if (reminderTime > now) { skipped++; continue; }
 
-        // ✅ TRAVA PRINCIPAL: Se já existe QUALQUER lembrete 'enviado' para esta aula
-        // (independente do refId), não criar novo. Isso impede regeneração após "Concluir".
+        // ✅ TRAVA PRINCIPAL: Se já existe QUALQUER lembrete 'enviado' ou 'cancelado' para esta aula
+        // (independente do refId), não criar novo. Isso impede regeneração após "Concluir" ou "Cancelar".
         const alreadySent = await db.select({ id: reminders.id }).from(reminders)
           .where(and(
             eq(reminders.organizationId, orgId),
             eq(reminders.lessonId, lesson.id),
-            eq(reminders.status, "enviado")
+            or(eq(reminders.status, "enviado"), eq(reminders.status, "cancelado"))
           )).limit(1);
         if (alreadySent.length > 0) { skipped++; continue; }
 
@@ -2769,13 +2769,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           defaultBody = "Olá {nome}, sua mensalidade de {valor} vence em {vencimento}. Por favor, efetue o pagamento.";
         }
 
-        // ✅ TRAVA PRINCIPAL: Se já existe QUALQUER lembrete 'enviado' para esta cobrança
-        // (independente do refId), não criar novo. Isso impede regeneração após "Concluir".
+        // ✅ TRAVA PRINCIPAL: Se já existe QUALQUER lembrete 'enviado' ou 'cancelado' para esta cobrança
+        // (independente do refId), não criar novo. Isso impede regeneração após "Concluir" ou "Cancelar".
         const alreadySentPayment = await db.select({ id: reminders.id }).from(reminders)
           .where(and(
             eq(reminders.organizationId, orgId),
             eq(reminders.paymentDueId, due.id),
-            eq(reminders.status, "enviado")
+            or(eq(reminders.status, "enviado"), eq(reminders.status, "cancelado"))
           )).limit(1);
         if (alreadySentPayment.length > 0) { skipped++; continue; }
 

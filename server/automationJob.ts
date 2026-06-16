@@ -87,15 +87,12 @@ async function runAutomation() {
       let ranCleanupThisCycle = false;
 
       if (brazilDay === 0 && lastCleanupByUser.get(cleanupKey) !== brazilDateStr) {
-        await db.execute(sql`
-          DELETE FROM reminders
-          WHERE "organizationId" = ${orgId} 
-            AND "userId" = ${userId}
-            AND "scheduledAt" < now() - interval '2 days'
-        `);
+        // [MODIFIED] Não deletar mais os lembretes do banco.
+        // Manter o histórico no banco é essencial para as travas anti-duplicação funcionarem.
+        // O limite de visualização já é gerenciado pelo tRPC limit(200) na tela.
         lastCleanupByUser.set(cleanupKey, brazilDateStr);
         ranCleanupThisCycle = true;
-        console.log(`[Automation] ✅ Limpeza semanal completa — domingo ${brazilDateStr} (userId=${userId})`);
+        console.log(`[Automation] ✅ Limpeza semanal (pular deleção para manter histórico) — domingo ${brazilDateStr} (userId=${userId})`);
       }
 
       // ─── 1. BUSCA E GERAÇÃO DE LEMBRETES DE AULA ────────────────────────────
@@ -162,13 +159,12 @@ async function runAutomation() {
 
         const dateStr = lessonDate.toISOString().slice(0, 10);
 
-        // --- TRAVA GLOBAL: qualquer lembrete 'enviado' para esta aula impede novos ---
-        // ✅ Bug fix #2: verifica 'enviado' — este registro sobrevive ao cleanup do domingo
+        // --- TRAVA GLOBAL: qualquer lembrete 'enviado' ou 'cancelado' para esta aula impede novos ---
         const userConcludedAula = await db.select({ id: reminders.id }).from(reminders)
           .where(and(
             eq(reminders.organizationId, orgId),
             eq(reminders.lessonId, lesson.id),
-            eq(reminders.status, "enviado")
+            or(eq(reminders.status, "enviado"), eq(reminders.status, "cancelado"))
           )).limit(1);
         if (userConcludedAula.length > 0) continue;
 
@@ -305,13 +301,13 @@ async function runAutomation() {
         if (isOverdue) continue;
 
         // --- TRAVA MANUAL ---
-        // Se o usuário já marcou qualquer lembrete desta cobrança como 'enviado', 
+        // Se o usuário já marcou qualquer lembrete desta cobrança como 'enviado' ou 'cancelado', 
         // o robô não deve gerar novos lembretes (nem prévio, nem Dia D).
         const userConcludedPayment = await db.select({ id: reminders.id }).from(reminders)
           .where(and(
             eq(reminders.organizationId, orgId),
             eq(reminders.paymentDueId, due.id),
-            eq(reminders.status, "enviado")
+            or(eq(reminders.status, "enviado"), eq(reminders.status, "cancelado"))
           )).limit(1);
         if (userConcludedPayment.length > 0) continue;
 
