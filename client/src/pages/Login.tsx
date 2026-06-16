@@ -14,7 +14,7 @@ export default function Login() {
   const searchParams = new URLSearchParams(window.location.search);
   const loginType = searchParams.get('type') as 'aluno' | 'professor' | undefined;
 
-  const [errorMsg, setErrorMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState(searchParams.get('error') || "");
   const [successMsg, setSuccessMsg] = useState("");
 
   const [email, setEmail] = useState("");
