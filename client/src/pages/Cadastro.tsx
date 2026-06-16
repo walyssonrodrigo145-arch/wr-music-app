@@ -13,6 +13,7 @@ export default function Cadastro() {
   
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [password, setPassword] = useState("");
   const [planType, setPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
 
@@ -36,12 +37,14 @@ export default function Cadastro() {
     if (!name.trim()) return setErrorMsg("Por favor, informe seu nome completo.");
     if (!email.trim()) return setErrorMsg("O e-mail é obrigatório.");
     if (!emailRegex.test(email)) return setErrorMsg("Por favor, insira um e-mail válido.");
+    if (!cpfCnpj.trim() || cpfCnpj.replace(/\D/g, '').length < 11) return setErrorMsg("Por favor, insira um CPF/CNPJ válido com pelo menos 11 dígitos.");
     if (!password) return setErrorMsg("Crie uma senha.");
     if (password.length < 6) return setErrorMsg("A senha deve ter pelo menos 6 caracteres.");
     
     registerMutation.mutate({ 
       name: name.trim(), 
       email: email.trim(), 
+      cpfCnpj: cpfCnpj.replace(/\D/g, ''),
       password,
       planType
     });
@@ -128,6 +131,17 @@ export default function Cadastro() {
                   />
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-primary transition-colors" />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white/70 font-semibold uppercase tracking-wider text-xs ml-1">CPF ou CNPJ</Label>
+                <Input 
+                  type="text" 
+                  placeholder="000.000.000-00"
+                  value={cpfCnpj}
+                  onChange={(e) => setCpfCnpj(e.target.value)}
+                  className="h-14 bg-black/40 border-white/10 text-white rounded-2xl px-4 focus:ring-2 focus:ring-primary/50 transition-all hover:border-white/20"
+                />
               </div>
 
               <div className="space-y-2">

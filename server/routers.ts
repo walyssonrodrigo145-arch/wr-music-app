@@ -237,7 +237,8 @@ export const appRouter = router({
         name: z.string().min(2),
         email: z.string().email(),
         password: z.string().min(6),
-        planType: z.enum(["MONTHLY", "YEARLY"])
+        planType: z.enum(["MONTHLY", "YEARLY"]),
+        cpfCnpj: z.string().min(11, "CPF/CNPJ inválido").optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -281,6 +282,7 @@ export const appRouter = router({
         const customerId = await createAsaasCustomer({
           name: org.name || "Escola",
           email: newUser.email ?? undefined,
+          cpfCnpj: input.cpfCnpj,
         });
         
         const sub = await createAsaasSubscription({
