@@ -94,7 +94,10 @@ export async function getDb() {
           search_path: "public"
         }
       };
-      if (process.env.DATABASE_URL.includes("supabase.co") || process.env.NODE_ENV === "production") {
+      const isLocalDb = process.env.DATABASE_URL.includes("localhost") || 
+                        process.env.DATABASE_URL.includes("127.0.0.1") || 
+                        process.env.DATABASE_URL.includes("@db:");
+      if (!isLocalDb && (process.env.DATABASE_URL.includes("supabase.co") || process.env.DATABASE_URL.includes("supabase.com") || process.env.NODE_ENV === "production")) {
         options.ssl = { rejectUnauthorized: false };
       }
 
