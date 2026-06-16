@@ -2506,12 +2506,15 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       .query(async ({ ctx, input }) => {
         const orgId = ctx.user.organizationId!;
         const db = await getDb();
-        if (!db) throw new Error("Database not available");
+        if (!db) return [];
 
         // Monta filtros diretamente no SQL para evitar fetch completo
+        // ⚠️ Filtra APENAS por organizationId (não por userId) para que lembretes
+        // criados pelo automationJob (que usa seu próprio userId) também apareçam
+        // e permaneçam como 'enviado' após o markSent. Filtrar por userId causava
+        // um revert visual: o lembrete sumia da lista após ser marcado como enviado.
         const conditions: any[] = [
           eq(reminders.organizationId, orgId),
-          eq(reminders.userId, ctx.user.id),
         ];
         if (input?.studentId) conditions.push(eq(reminders.studentId, input.studentId));
         if (input?.type)      conditions.push(eq(reminders.type, input.type));
@@ -2553,8 +2556,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const db = await getDb();
       if (!db) return 0;
       const orgId = ctx.user.organizationId!;
+      // Conta todos os pendentes da organização (não só do userId logado)
       const rows = await db.select({ id: reminders.id }).from(reminders)
-        .where(and(eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id), eq(reminders.status, "pendente")));
+        .where(and(eq(reminders.organizationId, orgId), eq(reminders.status, "pendente")));
       return rows.length;
     }),
 
@@ -3150,7 +3154,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
     list: protectedProcedure.query(async ({ ctx }) => {
       const orgId = ctx.user.organizationId!;
       const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      if (!db) return [];
       return db.select().from(reminderTemplates)
         .where(and(eq(reminderTemplates.organizationId, orgId), eq(reminderTemplates.userId, ctx.user.id)))
         .orderBy(asc(reminderTemplates.type));
