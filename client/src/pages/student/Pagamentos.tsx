@@ -55,6 +55,7 @@ export default function StudentPayments() {
   const verifyMutation = trpc.studentPortal.verifyAndConfirmPayment.useMutation();
 
   const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+  const [pixCopiaECola, setPixCopiaECola] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ success: boolean; reason: string; amountPaid?: number } | null>(null);
@@ -214,9 +215,16 @@ export default function StudentPayments() {
                         ) : (
                           <button 
                             onClick={() => {
-                              if (payment.asaasPaymentLink) {
+                              if (payment.asaasBillingType === "PIX" && payment.asaasPaymentLink) {
+                                setPixCopiaECola(payment.asaasPaymentLink);
+                                setSelectedPayment(payment);
+                                setIsPixModalOpen(true);
+                                setAnalysisResult(null);
+                                setUploadedImageUrl(null);
+                              } else if (payment.asaasPaymentLink) {
                                 window.open(payment.asaasPaymentLink, "_blank");
                               } else if (profile?.teacherPixKey) {
+                                setPixCopiaECola(null);
                                 setSelectedPayment(payment);
                                 setIsPixModalOpen(true);
                                 setAnalysisResult(null);
@@ -273,9 +281,16 @@ export default function StudentPayments() {
                    </div>
                    <button 
                      onClick={() => {
-                       if (nextPayment?.asaasPaymentLink) {
+                       if (nextPayment?.asaasBillingType === "PIX" && nextPayment?.asaasPaymentLink) {
+                         setPixCopiaECola(nextPayment.asaasPaymentLink);
+                         setSelectedPayment(nextPayment);
+                         setIsPixModalOpen(true);
+                         setAnalysisResult(null);
+                         setUploadedImageUrl(null);
+                       } else if (nextPayment?.asaasPaymentLink) {
                          window.open(nextPayment.asaasPaymentLink, "_blank");
                        } else if (profile?.teacherPixKey) {
+                         setPixCopiaECola(null);
                          setSelectedPayment(nextPayment);
                          setIsPixModalOpen(true);
                          setAnalysisResult(null);
@@ -284,9 +299,9 @@ export default function StudentPayments() {
                          toast.info("Aguardando configuração de pagamento do professor.");
                        }
                      }}
-                     className="w-full bg-white text-primary font-black text-xs uppercase tracking-[0.2em] py-4 rounded-2xl shadow-xl hover:translate-y-[-2px] active:scale-95 transition-all"
+                     className="bg-primary/20 text-primary hover:bg-primary hover:text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all"
                    >
-                      Pagar Fatura
+                     Pagar Agora
                    </button>
                 </div>
              </CardContent>
@@ -347,7 +362,26 @@ export default function StudentPayments() {
           </div>
 
           <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
-             {!uploadedImageUrl ? (
+             {pixCopiaECola ? (
+               <div className="p-6 bg-muted/50 rounded-3xl border-2 border-dashed border-primary/20 space-y-3">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] text-center">PIX Copia e Cola (Asaas)</p>
+                  <div className="bg-card border border-border p-4 rounded-2xl flex items-center justify-between gap-4 group">
+                     <p className="text-xs font-mono text-foreground truncate flex-1">{pixCopiaECola}</p>
+                     <button 
+                       onClick={() => {
+                         navigator.clipboard.writeText(pixCopiaECola);
+                         toast.success("PIX Copia e Cola copiado!");
+                       }}
+                       className="p-3 bg-primary text-white rounded-xl hover:scale-110 active:scale-90 transition-all shadow-lg shadow-primary/20"
+                     >
+                        <Copy size={16} />
+                     </button>
+                  </div>
+                  <p className="text-xs text-center text-muted-foreground mt-4">
+                    Pague no seu aplicativo de banco. A confirmação é automática.
+                  </p>
+               </div>
+             ) : !uploadedImageUrl ? (
                <>
                  <div className="p-6 bg-muted/50 rounded-3xl border-2 border-dashed border-primary/20 space-y-3">
                     <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] text-center">Chave PIX do Professor</p>

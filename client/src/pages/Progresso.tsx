@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
+import { getFixedUrl } from "@/lib/utils";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ReactMarkdown from 'react-markdown';
@@ -1925,7 +1926,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                      asChild
                      className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest px-5"
                    >
-                      <a href={previewFile?.fileUrl} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
+                      <a href={getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
                          <Download size={14} className="mr-2" /> Baixar Arquivo
                       </a>
                    </Button>
@@ -1935,7 +1936,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
              <div className="aspect-video w-full flex items-center justify-center bg-black/40 relative overflow-hidden">
                 {previewFile?.category === 'video' && (
                    <video 
-                     src={previewFile.fileUrl} 
+                     src={getFixedUrl(previewFile.fileUrl)} 
                      controls 
                      className="max-h-full max-w-full z-10"
                      autoPlay
@@ -1947,7 +1948,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                          <Music size={48} />
                       </div>
                       <audio 
-                        src={previewFile.fileUrl} 
+                        src={getFixedUrl(previewFile.fileUrl)} 
                         controls 
                         className="w-full h-14"
                         autoPlay
@@ -1956,14 +1957,14 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                 )}
                 {previewFile?.category === 'pdf' && (
                    <iframe 
-                     src={`${previewFile.fileUrl}#toolbar=0`} 
+                     src={`${getFixedUrl(previewFile.fileUrl)}#toolbar=0`} 
                      className="w-full h-full border-none z-10"
                      title={previewFile.fileName}
                    />
                 )}
                 {previewFile?.category === 'imagem' && (
                    <img 
-                     src={previewFile.fileUrl} 
+                     src={getFixedUrl(previewFile.fileUrl)} 
                      alt={previewFile.fileName}
                      className="max-h-full max-w-full object-contain z-10 shadow-2xl"
                    />

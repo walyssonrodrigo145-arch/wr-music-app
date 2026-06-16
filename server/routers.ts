@@ -100,26 +100,63 @@ export const appRouter = router({
     }),
   }),
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) return null;
+      const db = await getDb();
+      if (!db) return ctx.user;
+      
+      if (ctx.user.organizationId) {
+        const [org] = await db.select({
+          subscriptionStatus: organizations.subscriptionStatus,
+          trialEndsAt: organizations.trialEndsAt
+        }).from(organizations).where(eq(organizations.id, ctx.user.organizationId)).limit(1);
+        
+        return {
+          ...ctx.user,
+          subscriptionStatus: org?.subscriptionStatus,
+          trialEndsAt: org?.trialEndsAt,
+        };
+      }
+      
+      return ctx.user;
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
     login: publicProcedure
-      .input(z.object({ email: z.string().email(), password: z.string(), rememberMe: z.boolean().optional() }))
+      .input(z.object({ 
+        email: z.string().email(), 
+        password: z.string(), 
+        rememberMe: z.boolean().optional(),
+        loginType: z.enum(['aluno', 'professor']).optional()
+      }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const [user] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
-        if (!user || !user.passwordHash) {
-          throw new Error("Email ou senha inválidos");
+        
+        if (!user) {
+          throw new Error("Usuário não encontrado");
+        }
+
+        if (input.loginType === 'aluno' && user.role !== 'aluno') {
+          throw new Error("Acesso restrito a alunos");
+        }
+        
+        if (input.loginType === 'professor' && user.role === 'aluno') {
+          throw new Error("Acesso restrito a professores");
+        }
+
+        if (!user.passwordHash) {
+          throw new Error("Credenciais inválidas");
         }
         
         const [salt, key] = user.passwordHash.split(":");
         const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
         if (key !== derivedKey) {
-          throw new Error("Email ou senha inválidos");
+          throw new Error("Credenciais inválidas");
         }
 
         if (!user.isEmailVerified) {
@@ -169,12 +206,16 @@ export const appRouter = router({
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
-        // Create default organization for new admin
+        // Create default organization for new admin with 7-day trial
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 7);
         const org = await db.insert(organizations).values({
           name: `${input.name}'s School`,
           slug: uniqueSlug,
+          subscriptionStatus: "trialing",
+          trialEndsAt,
           createdAt: new Date(),
         }).returning().then(res => res[0]);
 
@@ -190,6 +231,79 @@ export const appRouter = router({
         });
 
         return { success: true, message: "Conta criada com sucesso! Você já pode fazer login." };
+      }),
+    registerWithPlan: publicProcedure
+      .input(z.object({
+        name: z.string().min(2),
+        email: z.string().email(),
+        password: z.string().min(6),
+        planType: z.enum(["MONTHLY", "YEARLY"])
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        
+        const [existing] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+        if (existing) {
+          throw new Error("Este e-mail já está em uso.");
+        }
+
+        const salt = crypto.randomBytes(16).toString("hex");
+        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
+        const passwordHash = `${salt}:${derivedKey}`;
+        const openId = crypto.randomUUID();
+
+        // Criar organização (com status pending)
+        const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
+        const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
+        
+        const [org] = await db.insert(organizations).values({
+          name: `${input.name}`,
+          slug: uniqueSlug,
+          subscriptionStatus: "pending",
+          createdAt: new Date(),
+        }).returning();
+
+        const [newUser] = await db.insert(users).values({
+          openId,
+          organizationId: org.id,
+          name: input.name,
+          email: input.email,
+          passwordHash,
+          loginMethod: "local",
+          role: "admin",
+          isEmailVerified: true,
+        }).returning();
+
+        // Integração Asaas
+        const { createAsaasCustomer, createAsaasSubscription, getAsaasSubscriptionPayments } = await import('./utils/asaas');
+        
+        const customerId = await createAsaasCustomer({
+          name: org.name || "Escola",
+          email: newUser.email ?? undefined,
+        });
+        
+        const sub = await createAsaasSubscription({
+          customer: customerId,
+          billingType: 'UNDEFINED',
+          value: input.planType === "YEARLY" ? 499.00 : 49.90,
+          nextDueDate: new Date().toISOString().slice(0, 10),
+          cycle: input.planType,
+          description: `Assinatura MusicPro - Plano ${input.planType}`
+        });
+
+        await db.update(organizations)
+          .set({ asaasCustomerId: customerId, asaasSubscriptionId: sub.id })
+          .where(eq(organizations.id, org.id));
+
+        const payments = await getAsaasSubscriptionPayments(sub.id);
+        const pendingPayment = payments.find((p: any) => p.status === 'PENDING' || p.status === 'OVERDUE');
+        
+        if (!pendingPayment) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível gerar o link de pagamento. Tente novamente mais tarde." });
+        }
+
+        return { success: true, paymentLink: pendingPayment.invoiceUrl };
       }),
     verifyEmail: publicProcedure
       .input(z.object({ token: z.string() }))
@@ -1304,7 +1418,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       notes: z.string().optional(),
       status: z.enum(['ativo','inativo','pausado']).default('ativo'),
       startDate: z.string().optional().nullable(),
-      temporaryPassword: z.string().min(6, "A senha temporária deve ter pelo menos 6 caracteres").optional(),
+      temporaryPassword: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -1340,29 +1454,41 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           updatedAt: new Date(),
         }).returning({ id: students.id });
 
-        // 2. Se informada senha temporária e email, criar o usuário
-        if (input.temporaryPassword && input.email) {
-          const salt = crypto.randomBytes(16).toString("hex");
-          const derivedKey = crypto.scryptSync(input.temporaryPassword, salt, 64).toString("hex");
-          const passwordHash = `${salt}:${derivedKey}`;
-          const openId = crypto.randomUUID();
+        // 2. Criar o usuário se o email for gmail (mesmo sem senha) ou se tiver senha temporária
+        if (input.email) {
+          const isGoogle = input.email.toLowerCase().endsWith('@gmail.com');
+          
+          if (isGoogle || input.temporaryPassword) {
+            let passwordHash: string | null = null;
+            let loginMethod = 'local';
+            
+            if (isGoogle) {
+              loginMethod = 'google';
+            } else if (input.temporaryPassword) {
+              const salt = crypto.randomBytes(16).toString("hex");
+              const derivedKey = crypto.scryptSync(input.temporaryPassword, salt, 64).toString("hex");
+              passwordHash = `${salt}:${derivedKey}`;
+            }
 
-          const [newUser] = await db.insert(users).values({
-            openId,
-            organizationId: orgId,
-            name: input.name,
-            email: input.email,
-            passwordHash,
-            loginMethod: 'local',
-            role: 'aluno',
-            studentId: newStudent.id,
-            isEmailVerified: true,
-          }).returning({ id: users.id });
+            const openId = crypto.randomUUID();
 
-          // Atualizar o aluno com o link para o usuário
-          await db.update(students)
-            .set({ studentUserId: newUser.id })
-            .where(and(eq(students.id, newStudent.id), eq(students.organizationId, orgId)));
+            const [newUser] = await db.insert(users).values({
+              openId,
+              organizationId: orgId,
+              name: input.name,
+              email: input.email,
+              passwordHash,
+              loginMethod,
+              role: 'aluno',
+              studentId: newStudent.id,
+              isEmailVerified: true,
+            }).returning({ id: users.id });
+
+            // Atualizar o aluno com o link para o usuário
+            await db.update(students)
+              .set({ studentUserId: newUser.id })
+              .where(and(eq(students.id, newStudent.id), eq(students.organizationId, orgId)));
+          }
         }
         
         return { success: true, studentId: newStudent.id };
@@ -2436,6 +2562,17 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       return { success: true };
     }),
 
+    updateAsaasIntegration: protectedProcedure.input(z.object({
+      asaasApiKey: z.string().optional(),
+      asaasEnabled: z.boolean().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
+        asaasApiKey: input.asaasApiKey ?? null,
+        asaasEnabled: input.asaasEnabled !== undefined ? (input.asaasEnabled ? 1 : 0) : undefined,
+      });
+      return { success: true };
+    }),
+
     exportData: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -3337,10 +3474,11 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             updatedAt: new Date(),
           };
 
-          const { isAsaasEnabled, createAsaasCustomer, createAsaasCharge } = await import('./utils/asaas');
-          const [profData] = await db.select({ email: users.email }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+          const { createAsaasCustomer, createAsaasCharge } = await import('./utils/asaas');
+          const [settingsData] = await db.select({ asaasEnabled: settings.asaasEnabled, asaasApiKey: settings.asaasApiKey }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
           
-          if (profData && isAsaasEnabled(profData.email)) {
+          if (settingsData && settingsData.asaasEnabled === 1 && settingsData.asaasApiKey) {
+            const apiKey = settingsData.asaasApiKey;
             // Get or create Asaas customer
             let asaasCustomerId: string | null = null;
             const [existingCustomer] = await db.select().from(asaasCustomers)
@@ -3355,7 +3493,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
                 email: ownedStudent.email ?? undefined,
                 phone: ownedStudent.phone ?? undefined,
                 cpfCnpj: ownedStudent.cpf ?? undefined,
-              });
+              }, apiKey);
               
               if (asaasCustomerId) {
                 await db.insert(asaasCustomers).values({
@@ -3378,7 +3516,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
                 value: Number(input.amount.toFixed(2)),
                 dueDate: finalDueDate,
                 description: `Mensalidade ${input.month}/${input.year} - ${ownedStudent.name}`,
-              });
+              }, apiKey);
 
               if (charge) {
                 paymentData.asaasId = charge.id;
@@ -3969,11 +4107,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const professorId = ctx.user.id;
 
         // Security Lock
-        const { isAsaasEnabled } = await import('./utils/asaas');
-        const [profData] = await db.select({ email: users.email }).from(users).where(eq(users.id, professorId)).limit(1);
-        if (!profData || !isAsaasEnabled(profData.email)) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Asaas não está disponível para esta conta." });
+        const { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode } = await import('./utils/asaas');
+        const [settingsData] = await db.select({ asaasEnabled: settings.asaasEnabled, asaasApiKey: settings.asaasApiKey }).from(settings).where(eq(settings.userId, professorId)).limit(1);
+        if (!settingsData || settingsData.asaasEnabled !== 1 || !settingsData.asaasApiKey) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Asaas não está disponível para esta conta. Configure a Chave da API." });
         }
+        const apiKey = settingsData.asaasApiKey;
 
         // Fetch payment due
         const [due] = await db.select().from(paymentDues)
@@ -4004,7 +4143,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             email: student.email ?? undefined,
             phone: student.phone ?? undefined,
             cpfCnpj: student.cpf ?? undefined,
-          });
+          }, apiKey);
           await db.insert(asaasCustomers).values({
             organizationId: orgId,
             studentId: student.id,
@@ -4024,14 +4163,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           value: Number(due.amount),
           dueDate: finalDueDate,
           description: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
-        });
+        }, apiKey);
 
         // Fetch PIX QR code if PIX
         let pixPayload: string | null = null;
         let pixQrCode: string | null = null;
         if (input.billingType === "PIX") {
           try {
-            const pix = await getAsaasPixQrCode(charge.id);
+            const pix = await getAsaasPixQrCode(charge.id, apiKey);
             pixPayload = pix.payload;
             pixQrCode = pix.encodedImage;
           } catch (e) {
@@ -5760,6 +5899,54 @@ Instruções de análise:
           return handleDbError(error, "enviar comprovante de despesa");
         }
       }),
+  }),
+  platform: router({
+    checkout: protectedProcedure
+      .input(z.object({
+        planType: z.enum(["MONTHLY", "YEARLY"])
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        const orgId = ctx.user.organizationId!;
+        const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+        if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada" });
+
+        const [profData] = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+
+        const { createAsaasCustomer, createAsaasSubscription, getAsaasSubscriptionPayments } = await import('./utils/asaas');
+        
+        let customerId = org.asaasCustomerId;
+        if (!customerId) {
+          customerId = await createAsaasCustomer({
+            name: org.name || "Escola",
+            email: profData?.email ?? undefined,
+          });
+          await db.update(organizations).set({ asaasCustomerId: customerId }).where(eq(organizations.id, orgId));
+        }
+
+        let subId = org.asaasSubscriptionId;
+        if (!subId) {
+          const sub = await createAsaasSubscription({
+            customer: customerId,
+            billingType: 'UNDEFINED',
+            value: input.planType === "YEARLY" ? 499.00 : 49.90,
+            nextDueDate: new Date().toISOString().slice(0, 10),
+            cycle: input.planType,
+            description: `Assinatura MusicPro - Plano ${input.planType}`
+          });
+          subId = sub.id;
+          await db.update(organizations).set({ asaasSubscriptionId: subId }).where(eq(organizations.id, orgId));
+        }
+
+        const payments = await getAsaasSubscriptionPayments(subId);
+        const pendingPayment = payments.find(p => p.status === 'PENDING' || p.status === 'OVERDUE');
+        if (!pendingPayment) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível gerar o link de pagamento." });
+        }
+
+        return { success: true, paymentLink: pendingPayment.invoiceUrl };
+      })
   }),
   fcm: fcmRouter,
 });

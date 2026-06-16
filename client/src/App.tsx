@@ -22,6 +22,8 @@ const Financeiro = lazy(() => import("./pages/Financeiro"));
 const Login = lazy(() => import("./pages/Login"));
 const Progresso = lazy(() => import("./pages/Progresso"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const Cadastro = lazy(() => import("./pages/Cadastro"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const NovoAluno = lazy(() => import("./pages/NovoAluno"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
@@ -62,6 +64,7 @@ function Router() {
         <Switch>
           <Route path="/" component={LandingPage} />
           <Route path="/login" component={Login} />
+          <Route path="/cadastro" component={Cadastro} />
           <Route>
             <Redirect to="/login" />
           </Route>
@@ -97,6 +100,26 @@ function Router() {
     );
   }
 
+  // Admin/Professor Paywall Logic
+  const isTrialing = user?.subscriptionStatus === "trialing" || !user?.subscriptionStatus;
+  const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const isTrialExpired = isTrialing && trialEndsAt && trialEndsAt < new Date();
+  const isSubscriptionActive = user?.subscriptionStatus === "active";
+  const hasAccess = isSubscriptionActive || (isTrialing && !isTrialExpired);
+
+  if (!hasAccess) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Switch>
+           <Route path="/checkout" component={Checkout} />
+           <Route>
+             <Redirect to="/checkout" />
+           </Route>
+        </Switch>
+      </Suspense>
+    );
+  }
+
   // Admin/Professor Routes
   return (
     <MusicLayout>
@@ -117,6 +140,7 @@ function Router() {
           <Route path="/mensagens" component={Mensagens} />
           <Route path="/solicitacoes" component={Solicitacoes} />
           <Route path="/ia" component={IAAssistente} />
+          <Route path="/checkout" component={Checkout} />
           <Route>
             <Redirect to="/dashboard" />
           </Route>

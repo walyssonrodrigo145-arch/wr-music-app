@@ -5,9 +5,9 @@
 
 import { ENV } from "../_core/env";
 
-const headers = () => ({
+const headers = (apiKey?: string) => ({
   "Content-Type": "application/json",
-  access_token: ENV.asaasApiKey,
+  access_token: apiKey || ENV.asaasApiKey,
 });
 
 // ─── Security Lock ────────────────────────────────────────────────────────────
@@ -53,11 +53,11 @@ export async function createAsaasCustomer(params: {
   email?: string;
   phone?: string;
   cpfCnpj?: string;
-}): Promise<string> {
+}, apiKey?: string): Promise<string> {
   console.log(`[Asaas] Criando cliente no ambiente: ${ENV.asaasBaseUrl}`);
   const res = await fetch(`${ENV.asaasBaseUrl}/customers`, {
     method: "POST",
-    headers: headers(),
+    headers: headers(apiKey),
     body: JSON.stringify({
       name: params.name,
       email: params.email,
@@ -87,11 +87,11 @@ export async function createAsaasCharge(params: {
   value: number;
   dueDate: string; // "YYYY-MM-DD"
   description?: string;
-}): Promise<AsaasCharge> {
+}, apiKey?: string): Promise<AsaasCharge> {
   console.log(`[Asaas] Criando cobrança no ambiente: ${ENV.asaasBaseUrl}`);
   const res = await fetch(`${ENV.asaasBaseUrl}/payments`, {
     method: "POST",
-    headers: headers(),
+    headers: headers(apiKey),
     body: JSON.stringify({
       customer: params.asaasCustomerId,
       billingType: params.billingType,
@@ -113,14 +113,14 @@ export async function createAsaasCharge(params: {
 /**
  * Retrieves PIX QR Code details for an existing charge.
  */
-export async function getAsaasPixQrCode(asaasPaymentId: string): Promise<{
+export async function getAsaasPixQrCode(asaasPaymentId: string, apiKey?: string): Promise<{
   encodedImage: string;
   payload: string;
   expirationDate: string;
 }> {
   const res = await fetch(`${ENV.asaasBaseUrl}/payments/${asaasPaymentId}/pixQrCode`, {
     method: "GET",
-    headers: headers(),
+    headers: headers(apiKey),
   });
 
   if (!res.ok) {
@@ -134,10 +134,10 @@ export async function getAsaasPixQrCode(asaasPaymentId: string): Promise<{
 /**
  * Deletes/cancels an existing charge on Asaas.
  */
-export async function deleteAsaasCharge(asaasPaymentId: string): Promise<void> {
+export async function deleteAsaasCharge(asaasPaymentId: string, apiKey?: string): Promise<void> {
   const res = await fetch(`${ENV.asaasBaseUrl}/payments/${asaasPaymentId}`, {
     method: "DELETE",
-    headers: headers(),
+    headers: headers(apiKey),
   });
 
   if (!res.ok && res.status !== 404) {
@@ -146,13 +146,10 @@ export async function deleteAsaasCharge(asaasPaymentId: string): Promise<void> {
   }
 }
 
-/**
- * Retrieves the current status of a charge.
- */
-export async function getAsaasChargeStatus(asaasPaymentId: string): Promise<string> {
+export async function getAsaasChargeStatus(asaasPaymentId: string, apiKey?: string): Promise<string> {
   const res = await fetch(`${ENV.asaasBaseUrl}/payments/${asaasPaymentId}`, {
     method: "GET",
-    headers: headers(),
+    headers: headers(apiKey),
   });
 
   if (!res.ok) {
@@ -161,4 +158,48 @@ export async function getAsaasChargeStatus(asaasPaymentId: string): Promise<stri
 
   const data = await res.json() as AsaasCharge;
   return data.status;
+}
+
+export async function createAsaasSubscription(params: {
+  customer: string;
+  billingType: AsaasBillingType;
+  value: number;
+  nextDueDate: string;
+  cycle: "MONTHLY" | "YEARLY";
+  description: string;
+}, apiKey?: string) {
+  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions`, {
+    method: "POST",
+    headers: headers(apiKey),
+    body: JSON.stringify({
+      customer: params.customer,
+      billingType: params.billingType,
+      value: params.value,
+      nextDueDate: params.nextDueDate,
+      cycle: params.cycle,
+      description: params.description,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`[Asaas] Erro ao criar assinatura: ${res.status} ${body}`);
+  }
+
+  return res.json() as Promise<{ id: string; status: string }>;
+}
+
+export async function getAsaasSubscriptionPayments(subscriptionId: string, apiKey?: string): Promise<AsaasCharge[]> {
+  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}/payments`, {
+    method: "GET",
+    headers: headers(apiKey),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`[Asaas] Erro ao buscar pagamentos da assinatura: ${res.status} ${body}`);
+  }
+
+  const data = await res.json() as { data: AsaasCharge[] };
+  return data.data;
 }

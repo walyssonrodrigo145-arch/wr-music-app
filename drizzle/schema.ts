@@ -31,6 +31,14 @@ export const organizations = pgTable("organizations", {
   logo: text("logo"),
   active: boolean("active").default(true).notNull(),
   ownerId: integer("ownerId"), // Admin/Owner of the school
+  
+  // Platform Subscription Fields
+  subscriptionStatus: varchar("subscriptionStatus", { length: 50 }).default("trialing").notNull(),
+  trialEndsAt: timestamp("trialEndsAt"),
+  currentPeriodEnd: timestamp("currentPeriodEnd"),
+  asaasCustomerId: varchar("asaasCustomerId", { length: 100 }),
+  asaasSubscriptionId: varchar("asaasSubscriptionId", { length: 100 }),
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -172,6 +180,9 @@ export const settings = pgTable("settings", {
   whatsappBotUrl: varchar("whatsappBotUrl", { length: 255 }),
   whatsappBotToken: text("whatsappBotToken"),
   whatsappAutoSend: integer("whatsappAutoSend").default(0).notNull(),
+  // Asaas Integration
+  asaasApiKey: text("asaasApiKey"),
+  asaasEnabled: integer("asaasEnabled").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

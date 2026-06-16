@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { getFixedUrl } from "@/lib/utils";
 import { 
   Search, 
   Filter, 
@@ -284,7 +285,7 @@ export default function StudentMaterials() {
                         variant="outline"
                         className="w-14 h-14 rounded-2xl bg-background border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center shrink-0 shadow-sm"
                       >
-                        <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" download={item.fileName}>
+                        <a href={getFixedUrl(item.fileUrl)} target="_blank" rel="noopener noreferrer" download={item.fileName}>
                           <Download size={20} />
                         </a>
                       </Button>
@@ -357,7 +358,7 @@ export default function StudentMaterials() {
                       asChild
                       className="h-12 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold px-6 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95"
                     >
-                       <a href={previewFile?.fileUrl} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
+                       <a href={getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
                           <Download size={18} className="mr-2" /> Baixar Arquivo
                        </a>
                     </Button>
@@ -376,7 +377,7 @@ export default function StudentMaterials() {
                <div className="w-full h-full flex items-center justify-center relative z-10">
                  {previewFile?.category === 'video' && (
                     <video 
-                      src={previewFile.fileUrl} 
+                      src={getFixedUrl(previewFile.fileUrl)} 
                       controls 
                       className="max-h-[90%] max-w-[95%] rounded-2xl shadow-2xl bg-black"
                       autoPlay
@@ -393,7 +394,7 @@ export default function StudentMaterials() {
                           <p className="text-xl font-bold text-foreground">{previewFile.fileName}</p>
                        </div>
                        <audio 
-                         src={previewFile.fileUrl} 
+                         src={getFixedUrl(previewFile.fileUrl)} 
                          controls 
                          className="w-full h-14 custom-audio-player"
                          autoPlay
@@ -402,14 +403,14 @@ export default function StudentMaterials() {
                  )}
                  {previewFile?.category === 'pdf' && (
                     <iframe 
-                      src={`${previewFile.fileUrl}#toolbar=0`} 
+                      src={`${getFixedUrl(previewFile.fileUrl)}#toolbar=0`} 
                       className="w-full h-full border-none"
                       title={previewFile.fileName}
                     />
                  )}
                  {previewFile?.category === 'imagem' && (
                     <img 
-                      src={previewFile.fileUrl} 
+                      src={getFixedUrl(previewFile.fileUrl)} 
                       alt={previewFile.fileName}
                       className="max-h-[90%] max-w-[95%] object-contain rounded-2xl shadow-2xl border border-border/50"
                     />

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   User, Building2, Bell, Palette, Shield, Save,
   Sun, Moon, Phone, Mail, Globe, MapPin, FileText,
-  CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone,
+  CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet,
 } from "lucide-react";
 
 // ─── Export CSV helper ──────────────────────────────────────────────────────
@@ -629,7 +629,7 @@ function WhatsAppSessionManager() {
 }
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "notificacoes" | "aparencia" | "whatsapp" | "seguranca";
+type Tab = "perfil" | "escola" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "seguranca";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
@@ -637,6 +637,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "aparencia", label: "Aparência", icon: Palette },
   { id: "whatsapp", label: "Meu WhatsApp", icon: Smartphone },
+  { id: "integracoes", label: "Integrações", icon: Wallet },
   { id: "seguranca", label: "Segurança", icon: Shield },
 ];
 
@@ -709,6 +710,10 @@ export default function Configuracoes() {
   const [whatsappBotToken, setWhatsappBotToken] = useState("");
   const [whatsappAutoSend, setWhatsappAutoSend] = useState(false);
 
+  // ── Asaas state ──
+  const [asaasApiKey, setAsaasApiKey] = useState("");
+  const [asaasEnabled, setAsaasEnabled] = useState(false);
+
   // Populate from DB
   useEffect(() => {
     if (user) {
@@ -737,6 +742,8 @@ export default function Configuracoes() {
       setWhatsappBotUrl(settings.whatsappBotUrl ?? "");
       setWhatsappBotToken(settings.whatsappBotToken ?? "");
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
+      setAsaasApiKey(settings.asaasApiKey ?? "");
+      setAsaasEnabled(settings.asaasEnabled === 1);
     }
   }, [settings]);
 
@@ -795,6 +802,22 @@ export default function Configuracoes() {
     },
   });
 
+  const updateWhatsAppMutation = trpc.settings.updateWhatsAppBot.useMutation({
+    onSuccess: () => {
+      toast.success("Configurações do WhatsApp atualizadas");
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao atualizar WhatsApp: " + e.message),
+  });
+
+  const updateAsaasMutation = trpc.settings.updateAsaasIntegration.useMutation({
+    onSuccess: () => {
+      toast.success("Integração Asaas atualizada");
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao atualizar Asaas: " + e.message),
+  });
+
   const updateTheme = trpc.settings.updateTheme.useMutation({
     onError: (e) => {
       let msg = e.message;
@@ -815,17 +838,20 @@ export default function Configuracoes() {
     },
   });
 
-  const updateWhatsAppBot = trpc.settings.updateWhatsAppBot.useMutation({
-    onSuccess: () => {
-      toast.success("Configurações do robô de WhatsApp salvas!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
-      utils.settings.get.invalidate();
-    },
-    onError: (e) => {
-      let msg = e.message;
-      try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
-      toast.error("Erro ao salvar robô: " + msg);
-    },
-  });
+  const handleSaveWhatsApp = () => {
+    updateWhatsAppMutation.mutate({
+      whatsappBotUrl,
+      whatsappBotToken,
+      whatsappAutoSend,
+    });
+  };
+
+  const handleSaveAsaas = () => {
+    updateAsaasMutation.mutate({
+      asaasApiKey,
+      asaasEnabled,
+    });
+  };
 
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) ?? "P";
 
@@ -1236,14 +1262,10 @@ export default function Configuracoes() {
                   </div>
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
-                    disabled={updateWhatsAppBot.isPending}
-                    onClick={() => updateWhatsAppBot.mutate({
-                      whatsappBotUrl,
-                      whatsappBotToken,
-                      whatsappAutoSend,
-                    })}
+                    disabled={updateWhatsAppMutation.isPending}
+                    onClick={handleSaveWhatsApp}
                   >
-                    {updateWhatsAppBot.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    {updateWhatsAppMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     <span className="text-xs font-black uppercase tracking-widest">Salvar Automação</span>
                   </Button>
                 </div>
@@ -1277,6 +1299,53 @@ export default function Configuracoes() {
             )}
 
             {/* ── ABA: SEGURANÇA ── */}
+          {activeTab === "integracoes" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Wallet size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Asaas Pagamentos</h3>
+                  <p className="text-xs text-muted-foreground font-medium">Habilite o checkout de mensalidades via Asaas na área do aluno.</p>
+                </div>
+              </div>
+
+              <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-border bg-muted/30">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-foreground">Ativar Integração Asaas</h4>
+                    <p className="text-xs text-muted-foreground font-medium max-w-sm leading-relaxed">
+                      Quando ativado, os alunos poderão visualizar o QR Code do PIX e pagar faturas diretamente pelo portal usando o Asaas.
+                    </p>
+                  </div>
+                  <Toggle checked={asaasEnabled} onChange={setAsaasEnabled} />
+                </div>
+
+                <Field 
+                  label="Chave da API Asaas (API Key)"
+                  hint="A chave secreta gerada no painel do Asaas (Configurações > Integrações > Gerar API Key)."
+                >
+                  <Input
+                    type="password"
+                    value={asaasApiKey}
+                    onChange={(e) => setAsaasApiKey(e.target.value)}
+                    placeholder="$aact_..."
+                    className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                  />
+                </Field>
+              </div>
+
+              <Button
+                onClick={handleSaveAsaas}
+                disabled={updateAsaasMutation.isPending}
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg px-6 h-10 text-xs font-bold"
+              >
+                {updateAsaasMutation.isPending ? "Salvando..." : "Salvar Integração"}
+              </Button>
+            </div>
+          )}
+
             {activeTab === "seguranca" && (
               <div className="space-y-8">
                 <div>

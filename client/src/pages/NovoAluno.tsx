@@ -367,22 +367,31 @@ export default function NovoAluno() {
 
       <div className="space-y-6 relative z-10">
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
-            Senha Temporária (mín. 6 caracteres)
-          </label>
-          <div className="relative group/input">
-            <Input 
-              placeholder="Defina uma senha inicial" 
-              type="password"
-              value={form.temporaryPassword}
-              onChange={(e) => handleInputChange('temporaryPassword', e.target.value)}
-              className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-semibold pl-11"
-            />
-            <AlertCircle className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-emerald-500 transition-colors" size={18} />
-          </div>
-          <p className="text-[10px] text-muted-foreground/70 font-medium px-1">
-            O aluno usará o e-mail cadastrado e esta senha para o primeiro acesso.
-          </p>
+          {form.email?.toLowerCase().endsWith('@gmail.com') ? (
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+              <p className="text-sm font-bold text-emerald-700">Acesso via Google Detectado</p>
+              <p className="text-xs text-emerald-600 mt-1">Como o e-mail cadastrado é um @gmail.com, o aluno poderá fazer login diretamente clicando em "Entrar com Google". Nenhuma senha temporária é necessária.</p>
+            </div>
+          ) : (
+            <>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
+                Senha Temporária (mín. 6 caracteres)
+              </label>
+              <div className="relative group/input">
+                <Input 
+                  placeholder="Defina uma senha inicial" 
+                  type="password"
+                  value={form.temporaryPassword}
+                  onChange={(e) => handleInputChange('temporaryPassword', e.target.value)}
+                  className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-semibold pl-11"
+                />
+                <AlertCircle className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-emerald-500 transition-colors" size={18} />
+              </div>
+              <p className="text-[10px] text-muted-foreground/70 font-medium px-1">
+                O aluno usará o e-mail cadastrado e esta senha para o primeiro acesso.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </motion.div>

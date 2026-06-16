@@ -23,6 +23,17 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "pixKey" text`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hiddenTabs" text DEFAULT '' NOT NULL`);
     
+    // settings Asaas Integration
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "asaasApiKey" text`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "asaasEnabled" integer DEFAULT 0 NOT NULL`);
+    
+    // organizations Subscription Fields
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "subscriptionStatus" varchar(50) DEFAULT 'trialing' NOT NULL`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "trialEndsAt" timestamp`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "currentPeriodEnd" timestamp`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "asaasCustomerId" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "asaasSubscriptionId" varchar(100)`);
+
     // students.studentUserId
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "studentUserId" integer`);
     
@@ -133,6 +144,7 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
           const [newOrg] = await db.insert(organizations).values({
             name: "Escola de Música",
             slug: `escola-${Date.now()}`,
+            subscriptionStatus: "active",
             createdAt: new Date(),
           }).returning();
           targetOrgId = newOrg.id;
@@ -205,6 +217,7 @@ export async function getUserByOpenId(openId: string) {
       const [newOrg] = await db.insert(organizations).values({
         name: "Escola de Música",
         slug: `escola-${Date.now()}`,
+        subscriptionStatus: "active",
         createdAt: new Date(),
       }).returning();
       orgId = newOrg.id;
@@ -585,6 +598,7 @@ export async function createOrganization(name: string, ownerOpenId: string) {
   const [org] = await db.insert(organizations).values({
     name,
     slug: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+    subscriptionStatus: "active",
     createdAt: new Date(),
   }).returning();
   

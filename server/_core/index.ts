@@ -131,6 +131,50 @@ async function startServer() {
       return res.status(500).json({ error: "Internal error" });
     }
   });
+
+  // ─── Asaas Platform Webhook ──────────────────────────────────────────────
+  // Recebe notificações sobre a assinatura do próprio professor (SaaS)
+  app.post("/api/webhooks/asaas/platform", async (req, res) => {
+    try {
+      const { event, payment } = req.body as {
+        event: string;
+        payment?: { id: string; status: string; customer: string; subscription?: string };
+      };
+
+      console.log(`[Asaas Platform Webhook] Evento recebido: ${event}`, payment?.id);
+
+      if (!payment?.customer) {
+        return res.status(200).json({ ok: true });
+      }
+
+      const db = await getDb();
+      if (!db) return res.status(500).json({ error: "DB unavailable" });
+
+      if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
+        await db
+          .update(organizations)
+          .set({ 
+            subscriptionStatus: "active",
+            updatedAt: new Date()
+          })
+          .where(eq(organizations.asaasCustomerId, payment.customer));
+        console.log(`[Asaas Platform Webhook] Assinatura ativada para customer ${payment.customer}`);
+      }
+
+      if (event === "PAYMENT_OVERDUE") {
+        await db
+          .update(organizations)
+          .set({ subscriptionStatus: "past_due", updatedAt: new Date() })
+          .where(eq(organizations.asaasCustomerId, payment.customer));
+        console.log(`[Asaas Platform Webhook] Assinatura atrasada para customer ${payment.customer}`);
+      }
+
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error("[Asaas Platform Webhook] Erro ao processar:", err);
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
   // ─────────────────────────────────────────────────────────────────────────
 
   app.use("/api/webhooks/whatsapp", whatsappWebhookRouter);

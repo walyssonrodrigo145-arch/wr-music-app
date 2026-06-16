@@ -513,7 +513,9 @@ function NovaModal({ open, onClose, students }: {
 
 export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoading }: { viewMonth: number, viewYear: number, payments: any[], isLoading: boolean }) {
   const { user } = useAuth();
-  const isAsaasEnabled = user?.email === 'wrmusic762@gmail.com';
+  const { data: settings } = trpc.settings.get.useQuery();
+  const isAsaasEnabled = settings?.asaasEnabled === 1;
+  const isWhatsAppEnabled = settings?.whatsappBotUrl && settings?.whatsappBotToken;
   const utils = trpc.useUtils();
   const now = new Date();
   const [filterStatus, setFilterStatus] = useState<string>("todas");
