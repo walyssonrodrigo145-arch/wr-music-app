@@ -1238,8 +1238,8 @@ export default function Configuracoes() {
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
                     disabled={updateWhatsAppBot.isPending}
                     onClick={() => updateWhatsAppBot.mutate({
-                      whatsappBotUrl: "https://meu-bot-whatsapp.fly.dev",
-                      whatsappBotToken: "minha_chave_secreta_123",
+                      whatsappBotUrl,
+                      whatsappBotToken,
                       whatsappAutoSend,
                     })}
                   >

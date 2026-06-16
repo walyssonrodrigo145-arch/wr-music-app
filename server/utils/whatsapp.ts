@@ -12,8 +12,8 @@ interface SendWhatsAppParams {
   sessionId?: string;
 }
 
-// URL e chave da Evolution API hospedada no Fly.io
-const EVOLUTION_API_URL = "https://evolution-api-wr-music.fly.dev";
+// URL e chave da Evolution API hospedada no VPS
+const EVOLUTION_API_URL = "http://76.13.228.159:8080";
 const EVOLUTION_API_KEY = "minha_chave_secreta_123";
 
 // Nome da instância WhatsApp conectada (criada na Evolution API)
