@@ -5948,7 +5948,32 @@ Instruções de análise:
         }
 
         return { success: true, paymentLink: pendingPayment.invoiceUrl };
-      })
+      }),
+    syncSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const orgId = ctx.user.organizationId!;
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada" });
+
+      if (!org.asaasSubscriptionId) {
+        return { success: false, status: org.subscriptionStatus, message: "Nenhuma assinatura encontrada." };
+      }
+
+      const { getAsaasSubscriptionPayments } = await import('./utils/asaas');
+      const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
+      const confirmedPayment = payments.find((p: any) => p.status === 'RECEIVED' || p.status === 'CONFIRMED');
+      
+      if (confirmedPayment) {
+        await db.update(organizations)
+          .set({ subscriptionStatus: "active", updatedAt: new Date() })
+          .where(eq(organizations.id, orgId));
+        console.log(`[Platform Sync] Assinatura ativada manualmente para org ${orgId}`);
+        return { success: true, status: "active", message: "Assinatura ativada com sucesso!" };
+      }
+
+      return { success: false, status: org.subscriptionStatus, message: "Nenhum pagamento confirmado encontrado." };
+    }),
   }),
   fcm: fcmRouter,
 });

@@ -88,8 +88,19 @@ export function registerGoogleAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-      // Redirecionar para dashboard
-      res.redirect(302, "/dashboard");
+      // Redirecionar para o portal correto de acordo com o role do usuário
+      const dbModule = await import('../db');
+      const db = await dbModule.getDb();
+      let redirectPath = "/dashboard";
+      if (db) {
+        const { users } = await import('../../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        const [dbUser] = await db.select({ role: users.role }).from(users).where(eq(users.email, googleUser.email)).limit(1);
+        if (dbUser?.role === 'aluno') {
+          redirectPath = "/aluno";
+        }
+      }
+      res.redirect(302, redirectPath);
     } catch (error: any) {
       // Extraímos o erro real do banco de dados se disponível (Drizzle envolve o erro original no .cause ou .driverError)
       const dbErr = error.cause || error.driverError || error;
@@ -114,11 +125,8 @@ export function registerGoogleAuthRoutes(app: Express) {
         constraint: dbErr.constraint
       } : null;
 
-      res.status(500).json({ 
-        error: "Falha na autenticação com Google.",
-        details: errorMessage,
-        dbError
-      });
+      const errorMsg = encodeURIComponent("Falha ao autenticar com Google. Verifique suas credenciais e tente novamente.");
+      res.redirect(302, `/login?error=${errorMsg}`);
     }
 
   });

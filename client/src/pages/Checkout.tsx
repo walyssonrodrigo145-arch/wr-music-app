@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CreditCard, LogOut, CheckCircle2, AlertCircle, ArrowRight, Sparkles } from "lucide-react";
+import { CreditCard, LogOut, CheckCircle2, ArrowRight, Sparkles, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function Checkout() {
-  const { user, logout } = useAuth();
+  const { user, logout, refresh } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
+
   const checkoutMutation = trpc.platform.checkout.useMutation({
     onSuccess: (data) => {
       if (data.paymentLink) {
@@ -20,12 +21,23 @@ export default function Checkout() {
     }
   });
 
+  const syncMutation = trpc.platform.syncSubscription.useMutation({
+    onSuccess: async (data) => {
+      if (data.success && data.status === "active") {
+        toast.success("Pagamento confirmado! Redirecionando...");
+        await refresh();
+        window.location.href = "/dashboard";
+      } else {
+        toast.warning(data.message || "Pagamento ainda não confirmado. Aguarde alguns minutos e tente novamente.");
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Erro ao verificar pagamento.");
+    }
+  });
+
   const isExpired = user?.trialEndsAt && isPast(new Date(user.trialEndsAt));
   const trialDate = user?.trialEndsAt ? format(new Date(user.trialEndsAt), "dd/MM/yyyy", { locale: ptBR }) : "";
-
-  const handleCheckout = () => {
-    checkoutMutation.mutate({ planType: selectedPlan });
-  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -90,20 +102,30 @@ export default function Checkout() {
           </div>
 
           <button 
-            onClick={handleCheckout}
-            disabled={checkoutMutation.isLoading}
+            onClick={() => checkoutMutation.mutate({ planType: selectedPlan })}
+            disabled={checkoutMutation.isPending}
             className="w-full py-4 bg-foreground text-background font-black rounded-2xl uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {checkoutMutation.isLoading ? "Gerando Link..." : "Assinar Agora"} <ArrowRight size={18} />
+            {checkoutMutation.isPending ? "Gerando Link..." : "Assinar Agora"} <ArrowRight size={18} />
           </button>
 
           <p className="text-center text-xs text-muted-foreground font-medium flex items-center justify-center gap-1">
             <CreditCard size={14} /> Pagamento 100% seguro pelo Asaas
           </p>
 
+          {/* Botão "Já paguei" — verifica e ativa a assinatura automaticamente */}
+          <button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="w-full py-3 text-primary font-bold text-sm border border-primary/30 hover:bg-primary/5 rounded-2xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={syncMutation.isPending ? "animate-spin" : ""} />
+            {syncMutation.isPending ? "Verificando..." : "Já paguei — Verificar pagamento"}
+          </button>
+
           <button 
             onClick={logout}
-            className="mt-4 w-full py-3 text-muted-foreground font-bold text-xs uppercase hover:bg-muted/50 rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 text-muted-foreground font-bold text-xs uppercase hover:bg-muted/50 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             <LogOut size={14} /> Sair da conta
           </button>
