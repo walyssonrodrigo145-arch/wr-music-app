@@ -31,6 +31,7 @@ import {
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { BenefitsCarousel } from '@/components/BenefitsCarousel';
+import { HeroSlider } from '@/components/HeroSlider';
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 type PlanType = 'basico' | 'profissional' | 'premium';
@@ -733,6 +734,10 @@ const LandingPage = () => {
                 <img src="/images/dashboard-preview.png" alt="Dashboard do Sistema MusicPro" className="relative rounded-[24px] shadow-2xl border border-border w-full h-auto object-cover" />
               </div>
             </motion.div>
+          </div>
+
+          <div className="mt-20 w-full">
+            <HeroSlider />
           </div>
         </div>
       </section>
