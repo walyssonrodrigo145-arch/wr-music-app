@@ -101,13 +101,14 @@ async function seed() {
       await db.insert(paymentDues).values({
         studentId,
         organizationId: orgId,
+        userId: userId,
         amount: "150.00",
-        dueDate: d,
+        dueDate: d.toISOString().slice(0, 10),
         status: m === -1 ? "pago" : (m === 0 ? "pendente" : "pendente"),
+        month: d.getMonth() + 1,
+        year: d.getFullYear(),
         createdAt: new Date(),
-        updatedAt: new Date(),
-        referenceMonth: d,
-        asaasInvoiceId: null
+        updatedAt: new Date()
       });
     }
 
@@ -123,11 +124,11 @@ async function seed() {
       await db.insert(lessons).values({
         studentId,
         organizationId: orgId,
-        professorId: userId,
-        startTime: ld,
-        endTime: endTime,
+        userId: userId,
+        title: `Aula de teste ${l}`,
+        scheduledAt: ld,
+        duration: 60,
         status: l < 0 ? "concluida" : "agendada",
-        price: "0",
         createdAt: new Date()
       });
     }
