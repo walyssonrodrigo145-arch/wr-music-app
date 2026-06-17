@@ -130,7 +130,7 @@ export const appRouter = router({
         email: z.string().email(), 
         password: z.string(), 
         rememberMe: z.boolean().optional(),
-        loginType: z.enum(['aluno', 'professor']).optional()
+        loginType: z.enum(['aluno', 'professor']).nullish()
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
