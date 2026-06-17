@@ -474,7 +474,27 @@ export async function getSettingsByUserId(organizationId: number, userId: number
   const db = await getDb();
   if (!db) return null;
   const result = await db.select().from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);
-  return result.length > 0 ? result[0] : null;
+  if (result.length > 0) return result[0];
+
+  // Auto-cria um registro padrão se não existir (evita erros de null na UI)
+  try {
+    await db.insert(settings).values({
+      organizationId,
+      userId,
+      hiddenTabs: '',
+      notifyLessonReminder: 1,
+      notifyPaymentDue: 1,
+      notifyStudentAbsence: 1,
+      notifyNewStudent: 1,
+      notifyWeeklyReport: 0,
+      automationEnabled: 0,
+      whatsappAutoSend: 0,
+    });
+  } catch (_) {
+    // Ignora conflito de insert concorrente
+  }
+  const created = await db.select().from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);
+  return created.length > 0 ? created[0] : null;
 }
 
 export async function upsertSettings(organizationId: number, userId: number, data: Partial<InsertSettings>) {
