@@ -1365,6 +1365,43 @@ export default function Configuracoes() {
             </div>
           )}
 
+          {activeTab === "ia" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 flex items-center justify-center">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">IA Assistente (Gemini)</h3>
+                  <p className="text-xs text-muted-foreground font-medium">Configure a sua chave secreta da API do Google Gemini.</p>
+                </div>
+              </div>
+
+              <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                <Field 
+                  label="Chave da API Gemini"
+                  hint="Esta chave é individual e será usada para gerar as respostas da inteligência artificial no seu painel."
+                >
+                  <Input
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                  />
+                </Field>
+              </div>
+
+              <Button
+                onClick={handleSaveIA}
+                disabled={updateSettingsMutation.isPending}
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg px-6 h-10 text-xs font-bold"
+              >
+                {updateSettingsMutation.isPending ? "Salvando..." : "Salvar Chave da IA"}
+              </Button>
+            </div>
+          )}
+
             {activeTab === "seguranca" && (
               <div className="space-y-8">
                 <div>
