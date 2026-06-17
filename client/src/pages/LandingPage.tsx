@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/_core/hooks/useAuth';
+import { BenefitsCarousel } from '@/components/BenefitsCarousel';
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 type PlanType = 'basico' | 'profissional' | 'premium';
@@ -809,6 +810,8 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      <BenefitsCarousel />
 
       {/* TESTIMONIALS */}
       <section id="testimonials" className="py-24 bg-background">

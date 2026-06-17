@@ -102,9 +102,19 @@ async function startServer() {
 
         if (paymentDetails) {
           const valor = Number(paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          const contentStr = `O aluno ${paymentDetails.studentName || "Aluno"} pagou a mensalidade no valor de ${valor}.`;
+          
           await notifyUser(paymentDetails.userId, {
             title: "Pagamento Confirmado",
-            content: `O aluno ${paymentDetails.studentName || "Aluno"} pagou a mensalidade no valor de ${valor}.`,
+            content: contentStr,
+          });
+
+          // SSE Notification for Real-Time UI
+          const { broadcastSSE } = await import("../webhooks/botStatus");
+          broadcastSSE("PAYMENT_CONFIRMED", {
+            studentName: paymentDetails.studentName,
+            amount: valor,
+            message: contentStr,
           });
         }
       }

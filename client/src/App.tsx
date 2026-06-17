@@ -30,6 +30,9 @@ const Comunicados = lazy(() => import("./pages/Comunicados"));
 const Mensagens = lazy(() => import("./pages/Mensagens"));
 const Solicitacoes = lazy(() => import("./pages/Solicitacoes"));
 const IAAssistente = lazy(() => import("./pages/IAAssistente"));
+const ProfessorExtract = lazy(() => import("./pages/ProfessorExtract"));
+const RecepcaoQRCode = lazy(() => import("./pages/RecepcaoQRCode"));
+const QRScanner = lazy(() => import("./pages/QRScanner"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -140,6 +143,9 @@ function Router() {
           <Route path="/mensagens" component={Mensagens} />
           <Route path="/solicitacoes" component={Solicitacoes} />
           <Route path="/ia" component={IAAssistente} />
+          <Route path="/folha" component={ProfessorExtract} />
+          <Route path="/recepcao-qr" component={RecepcaoQRCode} />
+          <Route path="/scanner" component={QRScanner} />
           <Route path="/checkout" component={Checkout} />
           <Route>
             <Redirect to="/dashboard" />

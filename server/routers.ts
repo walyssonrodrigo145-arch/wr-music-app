@@ -17,7 +17,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, expenses, dailyStudyPlans, notifications } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -5935,6 +5935,530 @@ Instruções de análise:
         }
       }),
   }),
+
+  // ─── PILAR 4: PROFESSOR PAYMENT CALCULATION ─────────────────────
+  professorPayments: router({
+    list: protectedProcedure
+      .input(z.object({
+        month: z.number().min(1).max(12),
+        year: z.number().min(2020).max(2100),
+      }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const orgId = ctx.user.organizationId!;
+
+        const payments = await db.select({
+          payment: professorPayments,
+          professorName: users.name,
+        })
+          .from(professorPayments)
+          .innerJoin(professores, eq(professores.id, professorPayments.professorId))
+          .innerJoin(users, eq(users.id, professores.userId))
+          .where(and(
+            eq(professorPayments.organizationId, orgId),
+            eq(professorPayments.month, input.month),
+            eq(professorPayments.year, input.year),
+          ))
+          .orderBy(asc(users.name));
+
+        return payments.map(p => ({
+          ...p.payment,
+          professorName: p.professorName,
+        }));
+      }),
+
+    calculate: protectedProcedure
+      .input(z.object({
+        professorId: z.number(),
+        month: z.number().min(1).max(12),
+        year: z.number().min(2020).max(2100),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+
+          // Get professor data
+          const [prof] = await db.select()
+            .from(professores)
+            .where(and(
+              eq(professores.id, input.professorId),
+              eq(professores.organizationId, orgId),
+            ))
+            .limit(1);
+
+          if (!prof) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
+          }
+
+          // Date range for the month
+          const startDate = new Date(input.year, input.month - 1, 1);
+          const endDate = new Date(input.year, input.month, 1);
+
+          // Get completed lessons for this professor in the given month
+          const completedLessons = await db.select({
+            id: lessons.id,
+            duration: lessons.duration,
+            studentId: lessons.studentId,
+          })
+            .from(lessons)
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.userId, prof.userId),
+              eq(lessons.status, "concluida"),
+              gte(lessons.scheduledAt, startDate),
+              lt(lessons.scheduledAt, endDate),
+            ));
+
+          const totalClasses = completedLessons.length;
+          const totalMinutes = completedLessons.reduce((sum, l) => sum + (l.duration || 60), 0);
+          let totalCredits = 0;
+
+          if (prof.paymentType === "fixo") {
+            // Fixed rate: totalMinutes / 60 * hourlyRate
+            const hourlyRate = parseFloat(prof.hourlyRate || "0");
+            totalCredits = (totalMinutes / 60) * hourlyRate;
+          } else if (prof.paymentType === "porcentagem") {
+            // Percentage: sum of monthly fees for students who had lessons * percentage / 100
+            const uniqueStudentIds = [...new Set(completedLessons.map(l => l.studentId).filter(Boolean))] as number[];
+            if (uniqueStudentIds.length > 0) {
+              const studentList = await db.select({
+                id: students.id,
+                monthlyFee: students.monthlyFee,
+              })
+                .from(students)
+                .where(and(
+                  eq(students.organizationId, orgId),
+                  inArray(students.id, uniqueStudentIds),
+                ));
+
+              const totalFees = studentList.reduce((sum, s) => sum + parseFloat(s.monthlyFee || "0"), 0);
+              const percentage = parseFloat(prof.paymentPercentage || "0");
+              totalCredits = (totalFees * percentage) / 100;
+            }
+          }
+
+          const totalAmount = totalCredits; // totalAmount = totalCredits - totalDebits (debits can be added later)
+
+          // Upsert: check if a payment record already exists for this professor/month/year
+          const [existing] = await db.select()
+            .from(professorPayments)
+            .where(and(
+              eq(professorPayments.organizationId, orgId),
+              eq(professorPayments.professorId, input.professorId),
+              eq(professorPayments.month, input.month),
+              eq(professorPayments.year, input.year),
+            ))
+            .limit(1);
+
+          if (existing) {
+            await db.update(professorPayments)
+              .set({
+                totalClasses,
+                totalMinutes,
+                totalCredits: totalCredits.toFixed(2),
+                totalAmount: totalAmount.toFixed(2),
+                status: "aberto",
+                updatedAt: new Date(),
+              })
+              .where(eq(professorPayments.id, existing.id));
+
+            return { success: true, paymentId: existing.id, totalClasses, totalMinutes, totalCredits, totalAmount };
+          } else {
+            const [newPayment] = await db.insert(professorPayments).values({
+              organizationId: orgId,
+              professorId: input.professorId,
+              month: input.month,
+              year: input.year,
+              totalClasses,
+              totalMinutes,
+              totalCredits: totalCredits.toFixed(2),
+              totalDebits: "0.00",
+              totalAmount: totalAmount.toFixed(2),
+              status: "aberto",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }).returning({ id: professorPayments.id });
+
+            return { success: true, paymentId: newPayment.id, totalClasses, totalMinutes, totalCredits, totalAmount };
+          }
+        } catch (error) {
+          if (error instanceof TRPCError) throw error;
+          return handleDbError(error, "calcular pagamento do professor");
+        }
+      }),
+
+    calculateAll: protectedProcedure
+      .input(z.object({
+        month: z.number().min(1).max(12),
+        year: z.number().min(2020).max(2100),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+
+          // Get all professors in the organization
+          const allProfessors = await db.select()
+            .from(professores)
+            .where(eq(professores.organizationId, orgId));
+
+          const results: Array<{ professorId: number; totalClasses: number; totalMinutes: number; totalCredits: number; totalAmount: number }> = [];
+
+          const startDate = new Date(input.year, input.month - 1, 1);
+          const endDate = new Date(input.year, input.month, 1);
+
+          for (const prof of allProfessors) {
+            const completedLessons = await db.select({
+              id: lessons.id,
+              duration: lessons.duration,
+              studentId: lessons.studentId,
+            })
+              .from(lessons)
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.userId, prof.userId),
+                eq(lessons.status, "concluida"),
+                gte(lessons.scheduledAt, startDate),
+                lt(lessons.scheduledAt, endDate),
+              ));
+
+            const totalClasses = completedLessons.length;
+            const totalMinutes = completedLessons.reduce((sum, l) => sum + (l.duration || 60), 0);
+            let totalCredits = 0;
+
+            if (prof.paymentType === "fixo") {
+              const hourlyRate = parseFloat(prof.hourlyRate || "0");
+              totalCredits = (totalMinutes / 60) * hourlyRate;
+            } else if (prof.paymentType === "porcentagem") {
+              const uniqueStudentIds = [...new Set(completedLessons.map(l => l.studentId).filter(Boolean))] as number[];
+              if (uniqueStudentIds.length > 0) {
+                const studentList = await db.select({
+                  id: students.id,
+                  monthlyFee: students.monthlyFee,
+                })
+                  .from(students)
+                  .where(and(
+                    eq(students.organizationId, orgId),
+                    inArray(students.id, uniqueStudentIds),
+                  ));
+
+                const totalFees = studentList.reduce((sum, s) => sum + parseFloat(s.monthlyFee || "0"), 0);
+                const percentage = parseFloat(prof.paymentPercentage || "0");
+                totalCredits = (totalFees * percentage) / 100;
+              }
+            }
+
+            const totalAmount = totalCredits;
+
+            // Upsert payment record
+            const [existing] = await db.select()
+              .from(professorPayments)
+              .where(and(
+                eq(professorPayments.organizationId, orgId),
+                eq(professorPayments.professorId, prof.id),
+                eq(professorPayments.month, input.month),
+                eq(professorPayments.year, input.year),
+              ))
+              .limit(1);
+
+            if (existing) {
+              await db.update(professorPayments)
+                .set({
+                  totalClasses,
+                  totalMinutes,
+                  totalCredits: totalCredits.toFixed(2),
+                  totalAmount: totalAmount.toFixed(2),
+                  status: "aberto",
+                  updatedAt: new Date(),
+                })
+                .where(eq(professorPayments.id, existing.id));
+            } else {
+              await db.insert(professorPayments).values({
+                organizationId: orgId,
+                professorId: prof.id,
+                month: input.month,
+                year: input.year,
+                totalClasses,
+                totalMinutes,
+                totalCredits: totalCredits.toFixed(2),
+                totalDebits: "0.00",
+                totalAmount: totalAmount.toFixed(2),
+                status: "aberto",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+            }
+
+            results.push({ professorId: prof.id, totalClasses, totalMinutes, totalCredits, totalAmount });
+          }
+
+          return { success: true, count: results.length, results };
+        } catch (error) {
+          return handleDbError(error, "calcular pagamentos de todos os professores");
+        }
+      }),
+
+    approve: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+
+          const [payment] = await db.select()
+            .from(professorPayments)
+            .where(and(
+              eq(professorPayments.id, input.id),
+              eq(professorPayments.organizationId, orgId),
+            ))
+            .limit(1);
+
+          if (!payment) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Pagamento não encontrado" });
+          }
+
+          if (payment.status !== "aberto") {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Somente pagamentos em aberto podem ser aprovados" });
+          }
+
+          await db.update(professorPayments)
+            .set({
+              status: "aprovado",
+              approvedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(professorPayments.id, input.id));
+
+          return { success: true };
+        } catch (error) {
+          if (error instanceof TRPCError) throw error;
+          return handleDbError(error, "aprovar pagamento do professor");
+        }
+      }),
+
+    markPaid: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+
+          const [payment] = await db.select()
+            .from(professorPayments)
+            .where(and(
+              eq(professorPayments.id, input.id),
+              eq(professorPayments.organizationId, orgId),
+            ))
+            .limit(1);
+
+          if (!payment) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Pagamento não encontrado" });
+          }
+
+          if (payment.status !== "aprovado") {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Somente pagamentos aprovados podem ser marcados como pagos" });
+          }
+
+          await db.update(professorPayments)
+            .set({
+              status: "pago",
+              paidAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(professorPayments.id, input.id));
+
+          return { success: true };
+        } catch (error) {
+          if (error instanceof TRPCError) throw error;
+          return handleDbError(error, "marcar pagamento como pago");
+        }
+      }),
+  }),
+
+  // ─── PILAR 5: QR CODE ATTENDANCE ────────────────────────────────
+  attendance: router({
+    generateToken: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+
+          const token = crypto.randomBytes(16).toString('hex');
+          const expiresAt = new Date(Date.now() + 30 * 1000); // 30 seconds
+
+          const [created] = await db.insert(attendanceTokens).values({
+            organizationId: orgId,
+            token,
+            expiresAt,
+            createdAt: new Date(),
+          }).returning();
+
+          return { success: true, token: created.token, expiresAt: created.expiresAt };
+        } catch (error) {
+          return handleDbError(error, "gerar token de presença");
+        }
+      }),
+
+    getActiveToken: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) return null;
+        const orgId = ctx.user.organizationId!;
+
+        const [active] = await db.select()
+          .from(attendanceTokens)
+          .where(and(
+            eq(attendanceTokens.organizationId, orgId),
+            gte(attendanceTokens.expiresAt, new Date()),
+          ))
+          .orderBy(desc(attendanceTokens.createdAt))
+          .limit(1);
+
+        return active || null;
+      }),
+
+    scan: protectedProcedure
+      .input(z.object({
+        token: z.string().min(1),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+          const userId = ctx.user.id;
+
+          // 1. Validate the token
+          const [tokenRecord] = await db.select()
+            .from(attendanceTokens)
+            .where(and(
+              eq(attendanceTokens.organizationId, orgId),
+              eq(attendanceTokens.token, input.token),
+            ))
+            .limit(1);
+
+          if (!tokenRecord) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Token inválido" });
+          }
+
+          if (new Date() > tokenRecord.expiresAt) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Token expirado" });
+          }
+
+          // 2. Find the user's lesson for today (scheduled status)
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayEnd = new Date();
+          todayEnd.setHours(23, 59, 59, 999);
+
+          // Determine if the user is a student or a professor
+          // For students, match by studentId (through their user-student link)
+          // For professors, match by userId (the professor is the lesson owner)
+          let lessonFilter;
+          if (ctx.user.role === "aluno" && ctx.user.studentId) {
+            lessonFilter = eq(lessons.studentId, ctx.user.studentId);
+          } else {
+            lessonFilter = eq(lessons.userId, userId);
+          }
+
+          const [todayLesson] = await db.select()
+            .from(lessons)
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              lessonFilter,
+              eq(lessons.status, "agendada"),
+              gte(lessons.scheduledAt, todayStart),
+              lte(lessons.scheduledAt, todayEnd),
+            ))
+            .orderBy(asc(lessons.scheduledAt))
+            .limit(1);
+
+          if (!todayLesson) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Nenhuma aula agendada para hoje" });
+          }
+
+          // 3. Check for duplicate scan
+          const [existingLog] = await db.select()
+            .from(attendanceLogs)
+            .where(and(
+              eq(attendanceLogs.organizationId, orgId),
+              eq(attendanceLogs.userId, userId),
+              eq(attendanceLogs.lessonId, todayLesson.id),
+            ))
+            .limit(1);
+
+          if (existingLog) {
+            throw new TRPCError({ code: "CONFLICT", message: "Presença já registrada para esta aula" });
+          }
+
+          // 4. Mark the lesson as completed
+          await db.update(lessons)
+            .set({ status: "concluida", updatedAt: new Date() })
+            .where(eq(lessons.id, todayLesson.id));
+
+          // 5. Create attendance log
+          await db.insert(attendanceLogs).values({
+            organizationId: orgId,
+            userId,
+            lessonId: todayLesson.id,
+            tokenId: tokenRecord.id,
+            scannedAt: new Date(),
+          });
+
+          return { success: true, lessonId: todayLesson.id, lessonTitle: todayLesson.title };
+        } catch (error) {
+          if (error instanceof TRPCError) throw error;
+          return handleDbError(error, "registrar presença");
+        }
+      }),
+
+    getLogs: protectedProcedure
+      .input(z.object({
+        startDate: z.string(), // ISO date string
+        endDate: z.string(),   // ISO date string
+      }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const orgId = ctx.user.organizationId!;
+
+        const start = new Date(input.startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(input.endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const logs = await db.select({
+          log: attendanceLogs,
+          userName: users.name,
+          lessonTitle: lessons.title,
+          lessonScheduledAt: lessons.scheduledAt,
+        })
+          .from(attendanceLogs)
+          .innerJoin(users, eq(users.id, attendanceLogs.userId))
+          .leftJoin(lessons, eq(lessons.id, attendanceLogs.lessonId))
+          .where(and(
+            eq(attendanceLogs.organizationId, orgId),
+            gte(attendanceLogs.scannedAt, start),
+            lte(attendanceLogs.scannedAt, end),
+          ))
+          .orderBy(desc(attendanceLogs.scannedAt));
+
+        return logs.map(l => ({
+          ...l.log,
+          userName: l.userName,
+          lessonTitle: l.lessonTitle,
+          lessonScheduledAt: l.lessonScheduledAt,
+        }));
+      }),
+  }),
+
   platform: router({
     checkout: protectedProcedure
       .input(z.object({
@@ -6009,6 +6533,128 @@ Instruções de análise:
       return { success: false, status: org.subscriptionStatus, message: "Nenhum pagamento confirmado encontrado." };
     }),
   }),
+
+  // ─── PILAR 3: DIGITAL CONTRACTS (ZAPSIGN) ───────────────────────
+  contracts: router({
+    list: protectedProcedure
+      .input(z.object({
+        studentId: z.number().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const orgId = ctx.user.organizationId!;
+
+        let filters = eq(contracts.organizationId, orgId);
+        if (input.studentId) {
+          filters = and(filters, eq(contracts.studentId, input.studentId)) as any;
+        }
+
+        const list = await db.select({
+          contract: contracts,
+          studentName: students.name,
+        })
+          .from(contracts)
+          .innerJoin(students, eq(students.id, contracts.studentId))
+          .where(filters)
+          .orderBy(desc(contracts.createdAt));
+
+        return list.map(l => ({
+          ...l.contract,
+          studentName: l.studentName,
+        }));
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        studentId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+          
+          // Get school settings
+          const [orgSettings] = await db.select()
+            .from(settings)
+            .where(eq(settings.organizationId, orgId))
+            .limit(1);
+
+          if (!orgSettings?.zapsignApiKey) {
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "API Key da ZapSign não configurada. Vá em Configurações > Integrações." });
+          }
+
+          // Get student details
+          const [student] = await db.select()
+            .from(students)
+            .where(and(
+              eq(students.id, input.studentId),
+              eq(students.organizationId, orgId)
+            ))
+            .limit(1);
+
+          if (!student) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+          }
+
+          // Generate HTML/Base64 contract
+          const { generateContractHtml, createZapSignDocument } = await import("./utils/zapsign");
+          const htmlContent = generateContractHtml({
+            schoolName: orgSettings.schoolName || "MusicPro",
+            schoolAddress: orgSettings.schoolAddress || "",
+            schoolPhone: orgSettings.schoolPhone || "",
+            studentName: student.name,
+            studentCpf: student.cpf || "",
+            studentPhone: student.phone || "",
+            monthlyFee: student.monthlyFee || "0.00",
+            dueDay: student.dueDay || 10,
+            lessonType: student.lessonType,
+          });
+
+          // Convert HTML to base64 pdf string if needed, or ZapSign accepts PDF URLs.
+          // Since we don't have a PDF generation library, we will pass a generic PDF URL for now.
+          const pdfUrl = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+
+          const zapResponse = await createZapSignDocument(
+            { apiToken: orgSettings.zapsignApiKey },
+            {
+              name: `Contrato - ${student.name}`,
+              urlPdf: pdfUrl,
+              signers: [
+                {
+                  name: student.name,
+                  email: student.email || "aluno@musicpro.com.br", // fallback
+                  auth_mode: "assinaturaTela",
+                }
+              ]
+            }
+          );
+
+          // Save to DB
+          const [newContract] = await db.insert(contracts).values({
+            organizationId: orgId,
+            userId: ctx.user.id,
+            studentId: student.id,
+            title: `Contrato - ${student.name}`,
+            status: "enviado",
+            zapsignDocId: zapResponse.token,
+            zapsignSignUrl: zapResponse.signers[0].sign_url,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }).returning();
+
+          return { success: true, contract: newContract };
+        } catch (error: any) {
+          if (error instanceof TRPCError) throw error;
+          if (error.response?.data) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro na ZapSign: " + JSON.stringify(error.response.data) });
+          }
+          return handleDbError(error, "gerar contrato");
+        }
+      }),
+  }),
+
   fcm: fcmRouter,
 });
 

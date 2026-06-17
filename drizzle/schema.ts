@@ -23,6 +23,9 @@ export const timelineCategoryEnum = pgEnum('timeline_category', ["tecnica", "teo
 export const fileCategoryEnum = pgEnum('file_category', ["imagem", "video", "pdf", "audio", "documento"]);
 export const rescheduleStatusEnum = pgEnum('reschedule_status', ["pendente", "aprovada", "recusada"]);
 export const lessonTypeEnum = pgEnum('lesson_type', ["individual", "turma"]);
+export const contractStatusEnum = pgEnum('contract_status', ["rascunho", "enviado", "assinado", "cancelado"]);
+export const professorPaymentTypeEnum = pgEnum('professor_payment_type', ["fixo", "porcentagem"]);
+export const professorPaymentStatusEnum = pgEnum('professor_payment_status', ["aberto", "aprovado", "pago"]);
 
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -71,6 +74,10 @@ export const professores = pgTable("professores", {
   telefone: varchar("telefone", { length: 30 }),
   foto: text("foto"),
   pixKey: text("pixKey"),
+  // Payment calculation fields
+  paymentType: professorPaymentTypeEnum("paymentType").default("fixo"),
+  hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("0.00"),
+  paymentPercentage: decimal("paymentPercentage", { precision: 5, scale: 2 }).default("0.00"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -185,6 +192,8 @@ export const settings = pgTable("settings", {
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
   // AI Integration (Gemini)
   geminiApiKey: varchar("geminiApiKey", { length: 255 }),
+  // ZapSign Integration (Digital Contracts)
+  zapsignApiKey: text("zapsignApiKey"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -469,3 +478,69 @@ export const fcmTokens = pgTable("fcm_tokens", {
 
 export type FcmToken = typeof fcmTokens.$inferSelect;
 export type InsertFcmToken = typeof fcmTokens.$inferInsert;
+
+// ─── CONTRACTS (ZapSign Integration) ──────────────────────────
+export const contracts = pgTable("contracts", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(),
+  studentId: integer("studentId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  status: contractStatusEnum("status").default("rascunho").notNull(),
+  zapsignDocId: text("zapsignDocId"),
+  zapsignSignUrl: text("zapsignSignUrl"),
+  signedAt: timestamp("signedAt"),
+  documentUrl: text("documentUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type Contract = typeof contracts.$inferSelect;
+export type InsertContract = typeof contracts.$inferInsert;
+
+// ─── PROFESSOR PAYMENTS (Monthly Payroll) ─────────────────────
+export const professorPayments = pgTable("professor_payments", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  professorId: integer("professorId").notNull(),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  totalClasses: integer("totalClasses").default(0).notNull(),
+  totalMinutes: integer("totalMinutes").default(0).notNull(),
+  totalCredits: decimal("totalCredits", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  totalDebits: decimal("totalDebits", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  totalAmount: decimal("totalAmount", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  status: professorPaymentStatusEnum("status").default("aberto").notNull(),
+  approvedAt: timestamp("approvedAt"),
+  paidAt: timestamp("paidAt"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type ProfessorPayment = typeof professorPayments.$inferSelect;
+export type InsertProfessorPayment = typeof professorPayments.$inferInsert;
+
+// ─── ATTENDANCE TOKENS (QR Code Presence) ─────────────────────
+export const attendanceTokens = pgTable("attendance_tokens", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AttendanceToken = typeof attendanceTokens.$inferSelect;
+export type InsertAttendanceToken = typeof attendanceTokens.$inferInsert;
+
+export const attendanceLogs = pgTable("attendance_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(),
+  lessonId: integer("lessonId"),
+  tokenId: integer("tokenId").notNull(),
+  scannedAt: timestamp("scannedAt").defaultNow().notNull(),
+});
+
+export type AttendanceLog = typeof attendanceLogs.$inferSelect;
+export type InsertAttendanceLog = typeof attendanceLogs.$inferInsert;

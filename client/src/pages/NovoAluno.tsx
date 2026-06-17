@@ -217,6 +217,16 @@ export default function NovoAluno() {
     }
   });
 
+  const generateContractMutation = trpc.contracts.create.useMutation({
+    onSuccess: (data) => {
+      toast.success("Contrato gerado com sucesso!");
+      if (data.contract?.zapsignSignUrl) {
+        window.open(data.contract.zapsignSignUrl, '_blank');
+      }
+    },
+    onError: (e) => toast.error(`Erro ao gerar contrato: ${e.message}`)
+  });
+
   const handleSave = async () => {
     // Basic validation
     const newErrors: Record<string, string> = {};
@@ -441,6 +451,17 @@ export default function NovoAluno() {
           </div>
           
           <div className="flex items-center gap-3">
+            {isEditMode && (
+              <Button 
+                variant="outline" 
+                className="rounded-xl border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 h-11 px-6 flex items-center gap-2"
+                onClick={() => generateContractMutation.mutate({ studentId: studentId! })}
+                disabled={generateContractMutation.isPending}
+              >
+                {generateContractMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
+                Gerar Contrato
+              </Button>
+            )}
             <Button 
               variant="outline" 
               className="rounded-xl border-border font-bold text-slate-600 hover:bg-slate-50 h-11 px-6"

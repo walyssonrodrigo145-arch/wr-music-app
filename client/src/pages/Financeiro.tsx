@@ -94,15 +94,20 @@ export default function Financeiro() {
         </div>
 
         <Tabs defaultValue="mensalidades" className="w-full">
-          <TabsList className="w-full lg:w-auto grid grid-cols-2 lg:inline-flex mb-6 rounded-2xl bg-muted/50 p-1">
-            <TabsTrigger value="mensalidades" className="rounded-xl text-xs font-bold uppercase tracking-widest h-10 data-[state=active]:bg-card data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">Mensalidades</TabsTrigger>
-            <TabsTrigger value="despesas" className="rounded-xl text-xs font-bold uppercase tracking-widest h-10 data-[state=active]:bg-card data-[state=active]:text-rose-600 data-[state=active]:shadow-sm">Despesas</TabsTrigger>
+          <TabsList className="w-full lg:w-auto grid grid-cols-3 lg:inline-flex mb-6 rounded-2xl bg-muted/50 p-1">
+            <TabsTrigger value="mensalidades" className="rounded-xl text-xs font-bold uppercase tracking-widest h-10 data-[state=active]:bg-card data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">Emissões</TabsTrigger>
+            <TabsTrigger value="inadimplentes" className="rounded-xl text-xs font-bold uppercase tracking-widest h-10 data-[state=active]:bg-card data-[state=active]:text-rose-600 data-[state=active]:shadow-sm">Inadimplentes</TabsTrigger>
+            <TabsTrigger value="despesas" className="rounded-xl text-xs font-bold uppercase tracking-widest h-10 data-[state=active]:bg-card data-[state=active]:text-orange-600 data-[state=active]:shadow-sm">Despesas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="mensalidades" className="mt-0">
             <MensalidadesTab viewMonth={viewMonth} viewYear={viewYear} payments={payments} isLoading={isLoadingPayments} />
           </TabsContent>
           
+          <TabsContent value="inadimplentes" className="mt-0">
+            <MensalidadesTab viewMonth={viewMonth} viewYear={viewYear} payments={payments.filter(p => p.status === "atrasado")} isLoading={isLoadingPayments} />
+          </TabsContent>
+
           <TabsContent value="despesas" className="mt-0">
             <DespesasTab viewMonth={viewMonth} viewYear={viewYear} expenses={expenses} isLoading={isLoadingExpenses} />
           </TabsContent>

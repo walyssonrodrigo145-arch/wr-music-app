@@ -55,6 +55,24 @@ export function useBotStatusSSE() {
         }
       });
 
+      // NOVO: Pagamento Recebido (Asaas Webhook)
+      es.addEventListener("PAYMENT_CONFIRMED", (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data) as {
+            studentName: string;
+            amount: string;
+            message: string;
+          };
+
+          toast.success("Pagamento Confirmado!", {
+            description: data.message,
+            duration: 10000,
+          });
+        } catch {
+          // Ignore
+        }
+      });
+
       es.onerror = () => {
         es.close();
         eventSourceRef.current = null;
