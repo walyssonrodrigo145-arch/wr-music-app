@@ -84,6 +84,25 @@ export async function runAutoMigrations() {
           "actionUrl" text,
           "createdAt" timestamp DEFAULT now() NOT NULL
         );`
+      },
+      { table: 'attendance_tokens', sql: `
+        CREATE TABLE IF NOT EXISTS "attendance_tokens" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "organizationId" integer,
+          "token" varchar(64) NOT NULL UNIQUE,
+          "expiresAt" timestamp NOT NULL,
+          "createdAt" timestamp DEFAULT now() NOT NULL
+        );`
+      },
+      { table: 'attendance_logs', sql: `
+        CREATE TABLE IF NOT EXISTS "attendance_logs" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "organizationId" integer,
+          "userId" integer NOT NULL,
+          "lessonId" integer,
+          "tokenId" integer,
+          "scannedAt" timestamp DEFAULT now() NOT NULL
+        );`
       }
     ];
 

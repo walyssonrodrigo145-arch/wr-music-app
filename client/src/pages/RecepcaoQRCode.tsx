@@ -138,7 +138,10 @@ export default function RecepcaoQRCode() {
   });
 
   const { data: recentLogs } = trpc.attendance.getLogs.useQuery(
-    { date: format(new Date(), "yyyy-MM-dd") },
+    { 
+      startDate: format(new Date(), "yyyy-MM-dd"),
+      endDate: format(new Date(), "yyyy-MM-dd")
+    },
     {
       refetchInterval: 10_000, // Refetch every 10s
     }
