@@ -1394,10 +1394,10 @@ export default function Configuracoes() {
 
               <Button
                 onClick={handleSaveIA}
-                disabled={updateSettingsMutation.isPending}
+                disabled={updateIAMutation.isPending}
                 className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg px-6 h-10 text-xs font-bold"
               >
-                {updateSettingsMutation.isPending ? "Salvando..." : "Salvar Chave da IA"}
+                {updateIAMutation.isPending ? "Salvando..." : "Salvar Chave da IA"}
               </Button>
             </div>
           )}
