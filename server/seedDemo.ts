@@ -82,6 +82,7 @@ async function seed() {
       paymentMethod: "pix",
       organizationId: orgId,
       professorId: userId,
+      userId: userId,
       status: "ativo",
       createdAt: new Date(),
       updatedAt: new Date()
