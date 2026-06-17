@@ -45,9 +45,11 @@ function getFileHash(filePath: string): string {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
-export async function syncFolderToGemini(folderPath: string): Promise<{ uri: string; mimeType: string; name: string }[]> {
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is missing.");
+export async function syncFolderToGemini(folderPath: string, customApiKey?: string | null): Promise<{ uri: string; mimeType: string; name: string }[]> {
+  const apiKeyToUse = customApiKey || apiKey;
+  
+  if (!apiKeyToUse) {
+    throw new Error("Chave da API do Gemini não configurada.");
   }
 
   const uploadedFiles: { uri: string; mimeType: string; name: string }[] = [];
@@ -85,7 +87,7 @@ export async function syncFolderToGemini(folderPath: string): Promise<{ uri: str
       const fileStats = fs.statSync(fullPath);
       
       // 1. Initiate upload
-      const initRes = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=resumable&key=${apiKey}`, {
+      const initRes = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=resumable&key=${apiKeyToUse}`, {
         method: "POST",
         headers: {
           "X-Goog-Upload-Protocol": "resumable",
@@ -119,16 +121,27 @@ export async function syncFolderToGemini(folderPath: string): Promise<{ uri: str
       });
 
       if (!uploadRes.ok) {
-        throw new Error(`Failed to upload file chunk: ${await uploadRes.text()}`);
+        throw new Error(`Failed to upload contents: ${await uploadRes.text()}`);
       }
 
-      const uploadResult = await uploadRes.json();
-      console.log(`Uploaded! File URI: ${uploadResult.file.uri}`);
+      const uploadData = await uploadRes.json();
+      const fileUri = uploadData.file.uri;
+
+      // 3. Wait for processing
+      let fileState = "PROCESSING";
+      const fileId = uploadData.file.name;
+      
+      while (fileState === "PROCESSING") {
+        await new Promise(r => setTimeout(r, 2000));
+        const checkRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fileId}?key=${apiKeyToUse}`);
+        const fileInfo = await checkRes.json();
+        fileState = fileInfo.state;
+      }
 
       const fileData = {
-        uri: uploadResult.file.uri,
-        name: uploadResult.file.name,
-        mimeType: uploadResult.file.mimeType,
+        uri: fileUri,
+        name: fileId,
+        mimeType: "application/pdf",
         uploadedAt: new Date().toISOString()
       };
 

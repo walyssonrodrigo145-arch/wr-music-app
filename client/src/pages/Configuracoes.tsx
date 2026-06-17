@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   User, Building2, Bell, Palette, Shield, Save,
   Sun, Moon, Phone, Mail, Globe, MapPin, FileText,
-  CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet,
+  CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles,
 } from "lucide-react";
 
 // ─── Export CSV helper ──────────────────────────────────────────────────────
@@ -629,7 +629,7 @@ function WhatsAppSessionManager() {
 }
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "seguranca";
+type Tab = "perfil" | "escola" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
@@ -638,6 +638,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "aparencia", label: "Aparência", icon: Palette },
   { id: "whatsapp", label: "Meu WhatsApp", icon: Smartphone },
   { id: "integracoes", label: "Integrações", icon: Wallet },
+  { id: "ia", label: "IA Assistente", icon: Sparkles },
   { id: "seguranca", label: "Segurança", icon: Shield },
 ];
 
@@ -714,6 +715,9 @@ export default function Configuracoes() {
   const [asaasApiKey, setAsaasApiKey] = useState("");
   const [asaasEnabled, setAsaasEnabled] = useState(false);
 
+  // ── IA state ──
+  const [geminiApiKey, setGeminiApiKey] = useState("");
+
   // Populate from DB
   useEffect(() => {
     if (user) {
@@ -744,6 +748,7 @@ export default function Configuracoes() {
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
+      setGeminiApiKey(settings.geminiApiKey ?? "");
     }
   }, [settings]);
 
@@ -818,6 +823,14 @@ export default function Configuracoes() {
     onError: (e) => toast.error("Erro ao atualizar Asaas: " + e.message),
   });
 
+  const updateIAMutation = trpc.settings.updateIA.useMutation({
+    onSuccess: () => {
+      toast.success("Chave da IA salva com sucesso!", { icon: <Sparkles size={16} className="text-emerald-500" /> });
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao salvar chave da IA: " + e.message),
+  });
+
   const updateTheme = trpc.settings.updateTheme.useMutation({
     onError: (e) => {
       let msg = e.message;
@@ -850,6 +863,12 @@ export default function Configuracoes() {
     updateAsaasMutation.mutate({
       asaasApiKey,
       asaasEnabled,
+    });
+  };
+
+  const handleSaveIA = () => {
+    updateIAMutation.mutate({
+      geminiApiKey,
     });
   };
 

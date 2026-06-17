@@ -1,20 +1,30 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.env.GEMINI_API_KEY;
+const defaultApiKey = process.env.GEMINI_API_KEY;
 
-if (!apiKey) {
-  console.warn("GEMINI_API_KEY is not set. AI features will not work.");
+if (!defaultApiKey) {
+  console.warn("GEMINI_API_KEY is not set globally. AI features will require per-user keys.");
 }
 
-export const genAI = new GoogleGenerativeAI(apiKey || "");
+// Deprecated: Avoid using this global instance directly. 
+// Pass customApiKey to callGemini functions or instantiate locally.
+export const genAI = new GoogleGenerativeAI(defaultApiKey || "");
 
-export async function callGemini(messages: { role: string; content: string }[], systemPrompt?: string, isJson?: boolean): Promise<string> {
-  if (!apiKey) {
-    throw new Error("Chave da API do Gemini não configurada no servidor.");
+export async function callGemini(
+  messages: { role: string; content: string }[], 
+  systemPrompt?: string, 
+  isJson?: boolean,
+  customApiKey?: string | null
+): Promise<string> {
+  const apiKeyToUse = customApiKey || defaultApiKey;
+
+  if (!apiKeyToUse) {
+    throw new Error("Chave da API do Gemini não configurada. Por favor, adicione sua chave nas Configurações.");
   }
 
   try {
-    const model = genAI.getGenerativeModel({
+    const localGenAI = new GoogleGenerativeAI(apiKeyToUse);
+    const model = localGenAI.getGenerativeModel({
       model: "gemini-3-flash-preview",
       systemInstruction: systemPrompt,
       generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
@@ -31,16 +41,11 @@ export async function callGemini(messages: { role: string; content: string }[], 
 
     const lastMessage = formattedMessages[formattedMessages.length - 1];
     
-    // Configura timeout de 30 segundos usando AbortController (se suportado nativamente pelo fetch do node/SDK)
-    // O SDK do Gemini não suporta signal diretamente no sendMessage, então não vamos forçar, 
-    // mas o flash model costuma responder muito rápido.
-    
     const result = await chat.sendMessage(lastMessage.parts[0].text);
     return result.response.text();
   } catch (error: any) {
     console.error("[Gemini API Error]:", error);
     
-    // Identificar erro de limite de quota/faturamento
     if (
       error.status === 429 || 
       error.message?.includes("429") || 
@@ -53,11 +58,10 @@ export async function callGemini(messages: { role: string; content: string }[], 
       );
     }
     
-    // Identificar erro de chave inválida ou não autorizada
     if (error.status === 403 || error.status === 400 || error.message?.includes("API key")) {
       throw new Error(
         "A chave da API do Gemini está incorreta ou é inválida. " +
-        "Verifique a variável GEMINI_API_KEY no arquivo .env."
+        "Verifique a chave informada nas Configurações."
       );
     }
 
@@ -68,14 +72,18 @@ export async function callGemini(messages: { role: string; content: string }[], 
 export async function callGeminiWithFiles(
   messages: { role: string; content: string }[], 
   files: { uri: string; mimeType: string }[],
-  systemPrompt?: string
+  systemPrompt?: string,
+  customApiKey?: string | null
 ): Promise<string> {
-  if (!apiKey) {
-    throw new Error("Chave da API do Gemini não configurada no servidor.");
+  const apiKeyToUse = customApiKey || defaultApiKey;
+
+  if (!apiKeyToUse) {
+    throw new Error("Chave da API do Gemini não configurada. Por favor, adicione sua chave nas Configurações.");
   }
 
   try {
-    const model = genAI.getGenerativeModel({
+    const localGenAI = new GoogleGenerativeAI(apiKeyToUse);
+    const model = localGenAI.getGenerativeModel({
       model: "gemini-3-flash-preview", // Using Flash which is faster for large context
       systemInstruction: systemPrompt,
     });

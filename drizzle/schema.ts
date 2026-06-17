@@ -183,6 +183,8 @@ export const settings = pgTable("settings", {
   // Asaas Integration
   asaasApiKey: text("asaasApiKey"),
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
+  // AI Integration (Gemini)
+  geminiApiKey: varchar("geminiApiKey", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
