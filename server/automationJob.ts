@@ -8,7 +8,7 @@ import { eq, and, gte, lte, desc, sql, or, like } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
-import { sendWhatsAppMessage } from "./utils/whatsapp";
+import { sendWhatsAppMessage, getWhatsAppSessionStatus } from "./utils/whatsapp";
 
 // Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
 let isAutomationRunning = false;
@@ -57,6 +57,21 @@ async function runAutomation() {
     if (!orgId) {
       console.warn(`[Automation] Skipping userId=${userId}: no organizationId found.`);
       continue;
+    }
+
+    // --- PING DE KEEP-ALIVE PARA O WHATSAPP ---
+    // Roda a cada 15 minutos para evitar que a sessão caia por inatividade na Evolution API
+    if (userSettings.whatsappAutoSend === 1 && now.getMinutes() % 15 === 0) {
+      try {
+        await getWhatsAppSessionStatus({
+          url: userSettings.whatsappBotUrl || undefined,
+          token: userSettings.whatsappBotToken || undefined,
+          sessionId: `prof_${userId}`,
+        });
+        console.log(`[Automation] Keep-alive ping executado para a sessão prof_${userId}`);
+      } catch (e) {
+        // Ignorar erros de keep-alive
+      }
     }
 
     let remindersCreated = 0;
