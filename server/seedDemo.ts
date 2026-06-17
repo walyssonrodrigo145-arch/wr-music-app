@@ -70,7 +70,7 @@ async function seed() {
     const instId = instrumentIds[i % instrumentIds.length];
     const [student] = await db.insert(students).values({
       name: `Aluno Demo ${i}`,
-      email: `aluno${i}@demo.com`,
+      email: `aluno${i}_${Date.now()}@demo.com`,
       phone: `1198${Math.floor(1000000 + Math.random() * 9000000)}`,
       document: `111222333${i.toString().padStart(2, '0')}`,
       address: "Rua Demo, 123",
