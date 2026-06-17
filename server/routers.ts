@@ -718,9 +718,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const [plan] = await db.select().from(dailyStudyPlans).where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.studentId, ctx.user.studentId!)));
       if (!plan) throw new Error("Plano não encontrado");
 
-      const daysCompleted = JSON.parse(plan.daysCompleted as string) as boolean[];
-      daysCompleted[input.dayIndex] = !daysCompleted[input.dayIndex];
+      const parsedDays = JSON.parse(plan.daysCompleted as string);
+      const daysCompleted = Array.isArray(parsedDays) ? parsedDays.map(Boolean) : [false, false, false, false, false];
+      
+      // Ensure it always has exactly 5 days
+      while (daysCompleted.length < 5) daysCompleted.push(false);
+      if (daysCompleted.length > 5) daysCompleted.length = 5;
 
+      if (input.dayIndex >= 0 && input.dayIndex < 5) {
+        daysCompleted[input.dayIndex] = !daysCompleted[input.dayIndex];
+      }
+
+      // Check if all 5 days are actually true
       const allCompleted = daysCompleted.every(Boolean);
 
       await db.update(dailyStudyPlans)

@@ -736,13 +736,14 @@ const LandingPage = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center gap-4 mb-10">
-                <button
-                  onClick={() => setSignupPlan('profissional')}
-                  className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-xl shadow-primary/30 hover:bg-primary/90 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group"
-                >
-                  Área do Professor
-                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </button>
+                <Link href="/login?type=professor">
+                  <button
+                    className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-xl shadow-primary/30 hover:bg-primary/90 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    Área do Professor
+                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </Link>
                 <Link href="/login?type=aluno">
                   <button className="w-full sm:w-auto px-8 py-4 bg-background border-2 border-primary/20 text-foreground rounded-2xl font-black text-sm uppercase tracking-widest hover:border-primary/50 hover:bg-muted/50 active:scale-95 transition-all flex items-center justify-center gap-3">
                     <Users size={18} className="text-primary" />

@@ -227,11 +227,16 @@ export default function Progresso() {
     }
   }
 
-  function parseDaysCompleted(raw: string | null | undefined): boolean[] {
+  function parseDaysCompleted(raw: any): boolean[] {
     if (!raw) return [false, false, false, false, false];
     try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed.map(Boolean);
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (Array.isArray(parsed)) {
+        const arr = parsed.map(Boolean);
+        while (arr.length < 5) arr.push(false);
+        if (arr.length > 5) arr.length = 5;
+        return arr;
+      }
     } catch { /* noop */ }
     return [false, false, false, false, false];
   }
