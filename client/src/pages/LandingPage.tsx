@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Music, 
@@ -725,38 +725,50 @@ const LandingPage = () => {
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="relative hidden lg:flex items-center justify-center"
+              className="relative hidden lg:flex items-center justify-center w-full max-w-2xl"
             >
-              <div className="relative w-full max-w-md">
+              <div className="relative w-full">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-[48px] blur-2xl"></div>
-                <div className="relative bg-card border border-border rounded-[40px] p-10 shadow-2xl">
-                  <div className="flex items-center gap-3 mb-8">
-                    <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg">
-                      <Music size={24} />
-                    </div>
-                    <div>
-                      <div className="font-black text-foreground">MusicPro Dashboard</div>
-                      <div className="text-xs text-muted-foreground">Escola de Música do João</div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {[
-                      { icon: Users, label: '42 alunos ativos', color: 'text-blue-500' },
-                      { icon: Calendar, label: '8 aulas hoje', color: 'text-green-500' },
-                      { icon: DollarSign, label: 'R$ 4.200 este mês', color: 'text-emerald-500' },
-                      { icon: Bell, label: '3 lembretes enviados', color: 'text-orange-500' },
-                    ].map(item => (
-                      <div key={item.label} className="flex items-center gap-4 p-3 bg-muted/50 rounded-2xl border border-border/50">
-                        <div className={`w-9 h-9 bg-muted rounded-xl flex items-center justify-center ${item.color}`}>
-                          <item.icon size={18} />
-                        </div>
-                        <span className="text-sm font-semibold text-foreground">{item.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <img src="/images/dashboard-preview.png" alt="Dashboard do Sistema MusicPro" className="relative rounded-[24px] shadow-2xl border border-border w-full h-auto object-cover" />
               </div>
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* SYSTEM PREVIEW SECTION */}
+      <section id="preview" className="py-24 bg-background border-t border-border/50">
+        <div className="container">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Conheça o Sistema</h2>
+            <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Telas projetadas para organizar sua rotina</h3>
+            <p className="text-lg text-muted-foreground font-medium">
+              Veja como é fácil e visualmente agradável gerenciar todos os aspectos da sua escola de música.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-10">
+            {[
+              { img: '/images/alunos-preview.png', title: 'Gestão de Alunos', desc: 'Controle matrículas, veja os ativos e inativos e todas as informações rapidamente.' },
+              { img: '/images/aulas-preview.png', title: 'Agenda de Aulas', desc: 'Calendário interativo para aulas individuais e em turmas.' },
+              { img: '/images/relatorios-preview.png', title: 'Financeiro e Relatórios', desc: 'Acompanhe receita, despesas e inadimplência em tempo real.' },
+              { img: '/images/lembretes-preview.png', title: 'Automação de Mensagens', desc: 'O robô avisa seus alunos sobre aulas e cobranças automaticamente.' },
+            ].map((item, i) => (
+              <motion.div
+                key={item.title}
+                {...fadeIn}
+                transition={{ delay: i * 0.1 }}
+                className="group relative rounded-[24px] bg-card border border-border overflow-hidden shadow-md hover:shadow-xl hover:border-primary/30 transition-all duration-300"
+              >
+                <div className="overflow-hidden border-b border-border">
+                  <img src={item.img} alt={item.title} className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500" />
+                </div>
+                <div className="p-6">
+                  <h4 className="text-xl font-bold text-foreground mb-2">{item.title}</h4>
+                  <p className="text-muted-foreground font-medium">{item.desc}</p>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
