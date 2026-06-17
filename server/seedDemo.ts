@@ -28,6 +28,7 @@ async function seed() {
       name: "Demo Professor",
       passwordHash,
       role: "professor",
+      openId: `demo_${Date.now()}`,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
