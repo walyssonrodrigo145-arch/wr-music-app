@@ -37,14 +37,13 @@ async function seed() {
   const userId = demoUser.id;
   const orgId = demoUser.organizationId;
 
-  // Insert settings
   await db.insert(settings).values({
     userId,
     organizationId: orgId,
     schoolName: "MusicPro Demo School",
     schoolPhone: "11999999999",
-    notifyLessonReminder: true,
-    notifyPaymentDue: true,
+    notifyLessonReminder: 1,
+    notifyPaymentDue: 1,
     asaasEnabled: false,
     automationEnabled: false,
   });
