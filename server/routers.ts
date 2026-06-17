@@ -5935,7 +5935,8 @@ Instruções de análise:
             value: input.planType === "YEARLY" ? 499.00 : 49.90,
             nextDueDate: new Date().toISOString().slice(0, 10),
             cycle: input.planType,
-            description: `Assinatura MusicPro - Plano ${input.planType}`
+            description: `Assinatura MusicPro - Plano ${input.planType}`,
+            successUrl: `${ENV.appUrl}/checkout?payment=success`,
           });
           subId = sub.id;
           await db.update(organizations).set({ asaasSubscriptionId: subId }).where(eq(organizations.id, orgId));

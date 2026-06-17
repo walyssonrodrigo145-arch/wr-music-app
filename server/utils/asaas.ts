@@ -167,6 +167,7 @@ export async function createAsaasSubscription(params: {
   nextDueDate: string;
   cycle: "MONTHLY" | "YEARLY";
   description: string;
+  successUrl?: string;
 }, apiKey?: string) {
   const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions`, {
     method: "POST",
@@ -178,6 +179,8 @@ export async function createAsaasSubscription(params: {
       nextDueDate: params.nextDueDate,
       cycle: params.cycle,
       description: params.description,
+      // Redireciona o professor de volta ao sistema após o pagamento
+      successUrl: params.successUrl,
     }),
   });
 

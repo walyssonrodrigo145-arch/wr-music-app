@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { CreditCard, LogOut, CheckCircle2, ArrowRight, Sparkles, RefreshCw } from "lucide-react";
@@ -35,6 +35,19 @@ export default function Checkout() {
       toast.error(err.message || "Erro ao verificar pagamento.");
     }
   });
+
+  // Ao retornar da página de pagamento da Asaas (?payment=success),
+  // verificar automaticamente se o pagamento foi confirmado
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      toast.info("Verificando confirmação do pagamento...");
+      // Limpa o parâmetro da URL sem recarregar
+      window.history.replaceState({}, "", "/checkout");
+      // Aguarda 2s para a Asaas processar antes de consultar
+      setTimeout(() => syncMutation.mutate(), 2000);
+    }
+  }, []);
 
   const isExpired = user?.trialEndsAt && isPast(new Date(user.trialEndsAt));
   const trialDate = user?.trialEndsAt ? format(new Date(user.trialEndsAt), "dd/MM/yyyy", { locale: ptBR }) : "";
