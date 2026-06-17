@@ -90,43 +90,39 @@ export function registerGoogleAuthRoutes(app: Express) {
 
       // Redirecionar para o portal correto de acordo com o role do usuário
       const dbModule = await import('../db');
-      const db = await dbModule.getDb();
+      const drizzle = await dbModule.getDb();
       let redirectPath = "/dashboard";
-      if (db) {
+      if (drizzle) {
         const { users } = await import('../../drizzle/schema');
         const { eq } = await import('drizzle-orm');
-        const [dbUser] = await db.select({ role: users.role }).from(users).where(eq(users.email, googleUser.email)).limit(1);
+        const [dbUser] = await drizzle.select({ role: users.role }).from(users).where(eq(users.email, googleUser.email)).limit(1);
         if (dbUser?.role === 'aluno') {
           redirectPath = "/aluno";
         }
       }
-      res.redirect(302, redirectPath);
+      return res.redirect(302, redirectPath);
     } catch (error: any) {
-      // Extraímos o erro real do banco de dados se disponível (Drizzle envolve o erro original no .cause ou .driverError)
-      const dbErr = error.cause || error.driverError || error;
+      // Log detalhado incluindo resposta da API do Google (erro 400)
+      const googleErrData = error?.response?.data;
       const errorMessage = error.message || "Erro desconhecido";
       
       console.error("[Google Auth] Error:", errorMessage);
+      if (googleErrData) {
+        console.error("[Google Auth] Google API Error:", JSON.stringify(googleErrData));
+      }
+
+      const dbErr = error.cause || error.driverError;
       if (dbErr) {
-        console.error("[Google Auth] Driver Error Detail:", {
+        console.error("[Google Auth] DB Error Detail:", {
           code: dbErr.code,
           detail: dbErr.detail,
           table: dbErr.table,
-          schema: dbErr.schema,
-          column: dbErr.column,
-          constraint: dbErr.constraint
+          constraint: dbErr.constraint,
         });
       }
 
-      const dbError = dbErr?.code ? {
-        code: dbErr.code,
-        detail: dbErr.detail,
-        table: dbErr.table,
-        constraint: dbErr.constraint
-      } : null;
-
       const errorMsg = encodeURIComponent("Falha ao autenticar com Google. Verifique suas credenciais e tente novamente.");
-      res.redirect(302, `/login?error=${errorMsg}`);
+      return res.redirect(302, `/login?error=${errorMsg}`);
     }
 
   });
