@@ -44,8 +44,8 @@ async function seed() {
     schoolPhone: "11999999999",
     notifyLessonReminder: 1,
     notifyPaymentDue: 1,
-    asaasEnabled: false,
-    automationEnabled: false,
+    asaasEnabled: 0,
+    automationEnabled: 0,
   });
 
   // Instruments
