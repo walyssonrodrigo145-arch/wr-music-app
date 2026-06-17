@@ -742,43 +742,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* SYSTEM PREVIEW SECTION */}
-      <section id="preview" className="py-24 bg-background border-t border-border/50">
-        <div className="container">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Conheça o Sistema</h2>
-            <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Telas projetadas para organizar sua rotina</h3>
-            <p className="text-lg text-muted-foreground font-medium">
-              Veja como é fácil e visualmente agradável gerenciar todos os aspectos da sua escola de música.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-10">
-            {[
-              { img: '/images/alunos-preview.png', title: 'Gestão de Alunos', desc: 'Controle matrículas, veja os ativos e inativos e todas as informações rapidamente.' },
-              { img: '/images/aulas-preview.png', title: 'Agenda de Aulas', desc: 'Calendário interativo para aulas individuais e em turmas.' },
-              { img: '/images/relatorios-preview.png', title: 'Financeiro e Relatórios', desc: 'Acompanhe receita, despesas e inadimplência em tempo real.' },
-              { img: '/images/lembretes-preview.png', title: 'Automação de Mensagens', desc: 'O robô avisa seus alunos sobre aulas e cobranças automaticamente.' },
-            ].map((item, i) => (
-              <motion.div
-                key={item.title}
-                {...fadeIn}
-                transition={{ delay: i * 0.1 }}
-                className="group relative rounded-[24px] bg-card border border-border overflow-hidden shadow-md hover:shadow-xl hover:border-primary/30 transition-all duration-300"
-              >
-                <div className="overflow-hidden border-b border-border">
-                  <img src={item.img} alt={item.title} className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500" />
-                </div>
-                <div className="p-6">
-                  <h4 className="text-xl font-bold text-foreground mb-2">{item.title}</h4>
-                  <p className="text-muted-foreground font-medium">{item.desc}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* FEATURES */}
       <section id="features" className="py-24 bg-muted/30 border-y border-border/50">
         <div className="container">
