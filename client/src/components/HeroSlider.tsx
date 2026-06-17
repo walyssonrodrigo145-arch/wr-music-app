@@ -7,6 +7,12 @@ const slides = [
   { id: 2, src: '/slider/slide2.png', alt: 'Dashboard Financeiro' },
   { id: 3, src: '/slider/slide3.png', alt: 'Despesas' },
   { id: 4, src: '/slider/slide4.png', alt: 'Evolução do Aluno' },
+  { id: 5, src: '/slider/slide5.png', alt: 'Mensalidades e Aulas' },
+  { id: 6, src: '/slider/slide6.png', alt: 'Configurações do Sistema' },
+  { id: 7, src: '/slider/slide7.png', alt: 'Visualização de Alunos' },
+  { id: 8, src: '/slider/slide8.png', alt: 'Relatório Completo' },
+  { id: 9, src: '/slider/slide9.png', alt: 'Gestão Escolar' },
+  { id: 10, src: '/slider/slide10.png', alt: 'Agenda e Frequência' },
 ];
 
 const AUTOPLAY_INTERVAL = 5000;
