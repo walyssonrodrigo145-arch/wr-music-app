@@ -713,11 +713,6 @@ const LandingPage = () => {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none max-w-[1920px]">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-indigo-500/10 blur-[100px] rounded-full"></div>
-          
-          {/* Instrument Decorations */}
-          <div className="hidden xl:block absolute top-[15%] left-[-5%] transform -rotate-[10deg] z-0 pointer-events-none">
-            <img src="/img/piano-trans.png" alt="" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
-          </div>
         </div>
 
         <div className="container relative z-10">
@@ -793,8 +788,11 @@ const LandingPage = () => {
       {/* FEATURES */}
       <section id="features" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
-        <div className="hidden xl:block absolute top-[10%] right-[-5%] transform rotate-[15deg] z-0 pointer-events-none">
-          <img src="/img/guitar-trans.png" alt="" className="w-[700px] object-contain select-none opacity-90 drop-shadow-2xl" draggable={false} />
+        <div className="hidden xl:block absolute top-[2%] left-[-2%] transform -rotate-[15deg] z-0 pointer-events-none">
+          <img src="/img/piano-trans.png" alt="" className="w-[400px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+        </div>
+        <div className="hidden xl:block absolute top-[2%] right-[-2%] transform rotate-[15deg] z-0 pointer-events-none">
+          <img src="/img/guitar-trans.png" alt="" className="w-[450px] object-contain select-none opacity-90 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
@@ -837,8 +835,8 @@ const LandingPage = () => {
       {/* TESTIMONIALS */}
       <section id="testimonials" className="relative py-24 bg-background overflow-hidden">
         {/* Instrument Decorations */}
-        <div className="hidden xl:block absolute top-[5%] left-[-8%] transform -rotate-[5deg] z-0 pointer-events-none">
-          <img src="/img/sax-trans.png" alt="" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+        <div className="hidden xl:block absolute top-[2%] left-[-2%] transform -rotate-[10deg] z-0 pointer-events-none">
+          <img src="/img/sax-trans.png" alt="" className="w-[350px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
@@ -873,11 +871,8 @@ const LandingPage = () => {
       {/* ── PREÇOS ─────────────────────────────────────────────────────────────── */}
       <section id="pricing" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
-        <div className="hidden xl:block absolute bottom-[5%] right-[-5%] transform rotate-[10deg] z-0 pointer-events-none">
-          <img src="/img/violin-trans.png" alt="" className="w-[400px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
-        </div>
-        <div className="hidden xl:block absolute top-[10%] left-[-5%] transform -rotate-[5deg] z-0 pointer-events-none">
-          <img src="/img/drum-trans.png" alt="" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+        <div className="hidden xl:block absolute top-[2%] right-[-2%] transform rotate-[10deg] z-0 pointer-events-none">
+          <img src="/img/violin-trans.png" alt="" className="w-[350px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
