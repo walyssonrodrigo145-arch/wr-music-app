@@ -24,7 +24,8 @@ import {
   User,
   LayoutDashboard,
   ClipboardCheck,
-  Circle
+  Circle,
+  QrCode
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,6 +81,10 @@ export default function StudentDashboard() {
            <p className="text-muted-foreground text-sm md:text-base font-medium mt-1">Aqui está um resumo da sua jornada musical hoje.</p>
         </div>
         <div className="flex items-center gap-4">
+           <button onClick={() => navigate('/aluno/scanner')} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-primary/30 transition-all hover:-translate-y-0.5">
+             <QrCode size={20} />
+             <span className="hidden sm:inline">Confirmar Presença</span>
+           </button>
            <div className="text-right hidden sm:block">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nível de Progresso</p>
               <p className="text-sm font-black text-primary">Intermediário • 65%</p>

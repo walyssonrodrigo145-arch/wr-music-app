@@ -94,6 +94,7 @@ function Router() {
             <Route path="/aluno/avisos" component={StudentAnnouncements} />
             <Route path="/aluno/solicitar-reposicao" component={StudentRequestMakeUp} />
             <Route path="/aluno/solicitar-remarcacao" component={StudentRequestReschedule} />
+            <Route path="/aluno/scanner" component={QRScanner} />
             <Route>
               <Redirect to="/aluno" />
             </Route>
