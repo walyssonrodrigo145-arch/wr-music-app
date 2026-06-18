@@ -256,22 +256,32 @@ export default function QRScanner() {
     [scanMutation, scanState]
   );
 
+  const canvasRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
+
   const scanQRCode = useCallback(() => {
-    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-      const canvasElement = document.createElement("canvas");
+    if (
+      videoRef.current && 
+      videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA &&
+      videoRef.current.videoWidth > 0
+    ) {
+      const canvasElement = canvasRef.current;
       const canvas = canvasElement.getContext("2d", { willReadFrequently: true });
       canvasElement.width = videoRef.current.videoWidth;
       canvasElement.height = videoRef.current.videoHeight;
       if (canvas) {
-        canvas.drawImage(videoRef.current, 0, 0, canvasElement.width, canvasElement.height);
-        const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "dontInvert",
-        });
+        try {
+          canvas.drawImage(videoRef.current, 0, 0, canvasElement.width, canvasElement.height);
+          const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          });
 
-        if (code && code.data) {
-          handleScan(code.data);
-          return;
+          if (code && code.data) {
+            handleScan(code.data);
+            return;
+          }
+        } catch (e) {
+          // ignora erro silenciosamente
         }
       }
     }
