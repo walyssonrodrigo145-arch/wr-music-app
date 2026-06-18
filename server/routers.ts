@@ -6318,8 +6318,21 @@ Instruções de análise:
           if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
 
+          const [active] = await db.select()
+            .from(attendanceTokens)
+            .where(and(
+              eq(attendanceTokens.organizationId, orgId),
+              gte(attendanceTokens.expiresAt, new Date())
+            ))
+            .orderBy(desc(attendanceTokens.createdAt))
+            .limit(1);
+
+          if (active) {
+            return { success: true, token: active.token, expiresAt: active.expiresAt };
+          }
+
           const token = crypto.randomBytes(16).toString('hex');
-          const expiresAt = new Date(Date.now() + 30 * 1000); // 30 seconds
+          const expiresAt = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000); // 100 anos
 
           const [created] = await db.insert(attendanceTokens).values({
             organizationId: orgId,

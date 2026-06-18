@@ -147,34 +147,14 @@ export default function RecepcaoQRCode() {
     }
   );
 
-  // Generate token on mount and every 30s
+  // Generate token on mount
   const refreshToken = useCallback(() => {
     generateToken.mutate({});
   }, [generateToken]);
 
   useEffect(() => {
     refreshToken();
-
-    intervalRef.current = setInterval(() => {
-      refreshToken();
-    }, TOKEN_REFRESH_INTERVAL * 1000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
-  // Countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) return TOKEN_REFRESH_INTERVAL;
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
+  }, [refreshToken]);
 
   // Clock
   useEffect(() => {
@@ -330,25 +310,12 @@ export default function RecepcaoQRCode() {
               </div>
             </motion.div>
 
-            {/* Timer and Security Info */}
+            {/* Security Info */}
             <div className="flex items-center gap-6">
-              <CircularTimer
-                remaining={countdown}
-                total={TOKEN_REFRESH_INTERVAL}
-              />
-              <div>
-                <p className="text-sm text-white/60 font-medium">
-                  Próxima atualização em
-                </p>
-                <p className="text-lg font-bold text-white tabular-nums">
-                  {formatTime(countdown)}
-                </p>
-              </div>
-              <div className="w-px h-10 bg-white/10" />
               <div className="flex items-center gap-2 text-white/30">
                 <Shield size={16} />
                 <span className="text-xs font-medium">
-                  Token seguro com rotação automática
+                  QR Code da Recepção - Fixo
                 </span>
               </div>
             </div>
