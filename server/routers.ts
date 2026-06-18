@@ -1695,9 +1695,37 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (!db) throw new Error("Banco de dados não disponível");
         
         const orgId = ctx.user.organizationId!;
-        // Deletar aulas relacionadas primeiro para evitar erro de FK (garantindo que sejam aulas do próprio professor)
-        await db.delete(lessons).where(and(eq(lessons.organizationId, orgId), eq(lessons.studentId, input.id), eq(lessons.userId, ctx.user.id)));
-        await db.delete(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(students.userId, ctx.user.id)));
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+        // Fetch student first to check permissions and get studentUserId
+        const [student] = await db.select().from(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId))).limit(1);
+        if (!student) throw new Error("Aluno não encontrado");
+        
+        // Only admin or the assigned professor can delete the student
+        if (!isAdmin && student.professorId !== ctx.user.id) {
+          throw new Error("Você não tem permissão para remover este aluno");
+        }
+
+        // Deletar dependências para evitar erro de FK
+        await db.delete(paymentDues).where(and(eq(paymentDues.studentId, input.id), eq(paymentDues.organizationId, orgId)));
+        await db.delete(reminders).where(and(eq(reminders.studentId, input.id), eq(reminders.organizationId, orgId)));
+        await db.delete(rescheduleRequests).where(and(eq(rescheduleRequests.studentId, input.id), eq(rescheduleRequests.organizationId, orgId)));
+        await db.delete(studentEvolution).where(and(eq(studentEvolution.studentId, input.id), eq(studentEvolution.organizationId, orgId)));
+        await db.delete(dailyStudyPlans).where(and(eq(dailyStudyPlans.studentId, input.id), eq(dailyStudyPlans.organizationId, orgId)));
+        await db.delete(studentGoals).where(and(eq(studentGoals.studentId, input.id), eq(studentGoals.organizationId, orgId)));
+        await db.delete(studentTimeline).where(and(eq(studentTimeline.studentId, input.id), eq(studentTimeline.organizationId, orgId)));
+        await db.delete(studentFiles).where(and(eq(studentFiles.studentId, input.id), eq(studentFiles.organizationId, orgId)));
+        
+        if (student.studentUserId) {
+          await db.delete(chatMessages).where(and(or(eq(chatMessages.senderId, student.studentUserId), eq(chatMessages.receiverId, student.studentUserId)), eq(chatMessages.organizationId, orgId)));
+        }
+
+        await db.delete(lessons).where(and(eq(lessons.studentId, input.id), eq(lessons.organizationId, orgId)));
+        await db.delete(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId)));
+        
+        if (student.studentUserId) {
+          await db.delete(users).where(and(eq(users.id, student.studentUserId), eq(users.organizationId, orgId)));
+        }
         
         return { success: true };
       } catch (error) {

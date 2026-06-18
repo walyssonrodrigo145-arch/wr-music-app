@@ -137,21 +137,22 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
 
       const [existing] = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
 
-      // Garante que todo usuário tenha uma organização válida
+      // Garante que todo usuário tenha uma organização válida isolada
       let targetOrgId = user.organizationId || existing?.organizationId;
       if (!targetOrgId) {
-        const [firstOrg] = await db.select().from(organizations).orderBy(organizations.id).limit(1);
-        if (firstOrg) {
-          targetOrgId = firstOrg.id;
-        } else {
-          const [newOrg] = await db.insert(organizations).values({
-            name: "Escola de Música",
-            slug: `escola-${Date.now()}`,
-            subscriptionStatus: "active",
-            createdAt: new Date(),
-          }).returning();
-          targetOrgId = newOrg.id;
-        }
+        // Sempre cria uma nova organização para não misturar com escolas existentes
+        const newOrgName = user.name ? `Escola de ${user.name.split(' ')[0]}` : "Escola de Música";
+        const slugBase = user.name ? user.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : 'escola';
+        const [newOrg] = await db.insert(organizations).values({
+          name: newOrgName,
+          slug: `${slugBase}-${Date.now()}`,
+          subscriptionStatus: "active",
+          createdAt: new Date(),
+        }).returning();
+        targetOrgId = newOrg.id;
+        
+        // Se criou a organização agora, ele deve ser o admin dono dela
+        user.role = "admin";
       }
 
       const data = {
