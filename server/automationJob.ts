@@ -8,15 +8,22 @@ import { eq, and, gte, lte, desc, sql, or, like } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
-import { sendWhatsAppMessage, getWhatsAppSessionStatus } from "./utils/whatsapp";
+import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession } from "./utils/whatsapp";
 
 // Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
 let isAutomationRunning = false;
 
 // Rastreia a data do último cleanup semanal por usuário.
-// Evita que o cleanup rode múltiplas vezes no mesmo domingo (o robô roda todo minuto).
-// Chave: "orgId-userId", Valor: "YYYY-MM-DD" em horário de Brasília.
 const lastCleanupByUser = new Map<string, string>();
+
+// Rastreia o último timestamp de keep-alive executado por sessão para garantir ping real
+const lastKeepAliveBySession = new Map<string, number>(); // chave: sessionId, valor: timestamp ms
+const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000; // 10 minutos (antes: 15 min impreciso)
+
+// Rastreia tentativas de reconexão automática para evitar flood
+const autoReconnectAttempts = new Map<string, { count: number; lastAt: number }>();
+const MAX_AUTO_RECONNECT = 3;
+const AUTO_RECONNECT_COOLDOWN_MS = 15 * 60 * 1000; // 15 min entre tentativas
 
 async function runAutomation() {
   if (isAutomationRunning) {
@@ -59,18 +66,57 @@ async function runAutomation() {
       continue;
     }
 
-    // --- PING DE KEEP-ALIVE PARA O WHATSAPP ---
-    // Roda a cada 15 minutos para evitar que a sessão caia por inatividade na Evolution API
-    if (userSettings.whatsappAutoSend === 1 && now.getMinutes() % 15 === 0) {
-      try {
-        await getWhatsAppSessionStatus({
-          url: userSettings.whatsappBotUrl || undefined,
-          token: userSettings.whatsappBotToken || undefined,
-          sessionId: `prof_${userId}`,
-        });
-        console.log(`[Automation] Keep-alive ping executado para a sessão prof_${userId}`);
-      } catch (e) {
-        // Ignorar erros de keep-alive
+    // --- KEEP-ALIVE PARA O WHATSAPP (baseado em timestamp — confiável) ---
+    // Usa timestamp real em vez de now.getMinutes() % 15 para evitar ciclos perdidos
+    if (userSettings.whatsappAutoSend === 1 && userSettings.whatsappBotUrl) {
+      const sessionId = `prof_${userId}`;
+      const lastPing = lastKeepAliveBySession.get(sessionId) ?? 0;
+      const timeSinceLastPing = now.getTime() - lastPing;
+
+      if (timeSinceLastPing >= KEEP_ALIVE_INTERVAL_MS) {
+        try {
+          const statusResult = await getWhatsAppSessionStatus({
+            url: userSettings.whatsappBotUrl || undefined,
+            token: userSettings.whatsappBotToken || undefined,
+            sessionId,
+          });
+          lastKeepAliveBySession.set(sessionId, now.getTime());
+          console.log(`[Keep-Alive] Ping OK para sessão ${sessionId} — status: ${statusResult.status}`);
+
+          // Se detectou que a sessão caiu, tenta reconectar automaticamente
+          if (statusResult.status === 'DISCONNECTED') {
+            const reconnectInfo = autoReconnectAttempts.get(sessionId);
+            const canRetry = !reconnectInfo ||
+              (reconnectInfo.count < MAX_AUTO_RECONNECT && now.getTime() - reconnectInfo.lastAt >= AUTO_RECONNECT_COOLDOWN_MS);
+
+            if (canRetry) {
+              console.log(`[Keep-Alive] Sessão ${sessionId} DESCONECTADA — tentando reconexão automática...`);
+              try {
+                await reconnectWhatsAppSession({
+                  url: userSettings.whatsappBotUrl || undefined,
+                  token: userSettings.whatsappBotToken || undefined,
+                  sessionId,
+                });
+                autoReconnectAttempts.set(sessionId, {
+                  count: (reconnectInfo?.count ?? 0) + 1,
+                  lastAt: now.getTime(),
+                });
+                console.log(`[Keep-Alive] Reconexão automática solicitada para ${sessionId}`);
+              } catch (reconErr) {
+                console.error(`[Keep-Alive] Falha na reconexão automática para ${sessionId}:`, reconErr);
+              }
+            } else {
+              console.warn(`[Keep-Alive] Sessão ${sessionId} desconectada — limite de reconexões automáticas atingido. Admin deve reconectar manualmente.`);
+            }
+          } else {
+            // Sessão OK: reseta contadores de reconexão
+            if (autoReconnectAttempts.has(sessionId)) {
+              autoReconnectAttempts.delete(sessionId);
+            }
+          }
+        } catch (e) {
+          console.error(`[Keep-Alive] Erro ao fazer ping para ${sessionId}:`, e);
+        }
       }
     }
 

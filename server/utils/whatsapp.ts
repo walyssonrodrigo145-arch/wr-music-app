@@ -174,6 +174,35 @@ export async function logoutWhatsAppSession({ url, token, sessionId }: SessionSt
 }
 
 /**
+ * Força a reconexão de uma sessão existente sem novo pareamento.
+ * Usa as credenciais salvas no disco do bot.
+ * Endpoint: POST /sessions/reconnect
+ */
+export async function reconnectWhatsAppSession({ url, token, sessionId }: SessionStatusParams) {
+  const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
+  const activeToken = token || EVOLUTION_API_KEY;
+
+  try {
+    const res = await fetch(`${baseUrl}/sessions/reconnect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, apiKey: activeToken }),
+      signal: AbortSignal.timeout(15_000), // timeout de 15s
+    });
+
+    const data = await res.json().catch(() => ({})) as any;
+    return {
+      success: res.ok,
+      status: data.status || "RECONNECTING",
+      message: data.message || "",
+    };
+  } catch (err: any) {
+    console.error(`[WhatsApp] Erro ao reconectar sessão ${sessionId}:`, err.message);
+    return { success: false, status: "DISCONNECTED", message: err.message };
+  }
+}
+
+/**
  * Registra a URL de webhook do Render na Evolution API para receber as mensagens
  */
 export async function setupEvolutionWebhook(instanceName: string = DEFAULT_INSTANCE) {
