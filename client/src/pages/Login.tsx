@@ -20,9 +20,16 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: (data) => {
+      if (data.mustChangePassword) {
+        setShowResetPassword(true);
+        return;
+      }
       if (data.role === 'aluno') {
         window.location.href = "/aluno";
       } else {
@@ -31,6 +38,29 @@ export default function Login() {
     },
     onError: (err) => setErrorMsg(err.message)
   });
+
+  const updatePasswordMutation = trpc.auth.updateMyPassword.useMutation({
+    onSuccess: () => {
+      setSuccessMsg("Senha atualizada com sucesso! Redirecionando...");
+      setTimeout(() => {
+        if (loginMutation.data?.role === 'aluno') {
+          window.location.href = "/aluno";
+        } else {
+          window.location.href = "/dashboard";
+        }
+      }, 1500);
+    },
+    onError: (err) => setErrorMsg(err.message)
+  });
+
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+    if (newPassword.length < 6) return setErrorMsg("A nova senha deve ter pelo menos 6 caracteres.");
+    if (newPassword !== confirmPassword) return setErrorMsg("As senhas não coincidem.");
+    updatePasswordMutation.mutate({ password: newPassword });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +123,66 @@ export default function Login() {
           {/* Subtle inner glow */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
 
+          {showResetPassword ? (
+            <form onSubmit={handleResetPassword} className="space-y-6 relative z-10">
+              {errorMsg && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3"
+                >
+                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-200 font-medium leading-relaxed">{errorMsg}</p>
+                </motion.div>
+              )}
+
+              {successMsg && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-start gap-3"
+                >
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-emerald-200 font-medium leading-relaxed">{successMsg}</p>
+                </motion.div>
+              )}
+
+              <div className="space-y-4">
+                <div className="mb-4 text-center">
+                  <h3 className="text-xl font-bold text-white">Redefinir Senha</h3>
+                  <p className="text-white/70 text-sm mt-2">Para sua segurança, defina uma nova senha antes de continuar.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white/70 font-semibold uppercase tracking-wider text-xs ml-1">Nova Senha</Label>
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="h-14 bg-black/40 border-white/10 text-white rounded-2xl px-4 focus:ring-2 focus:ring-primary/50 transition-all hover:border-white/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white/70 font-semibold uppercase tracking-wider text-xs ml-1">Confirmar Nova Senha</Label>
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="h-14 bg-black/40 border-white/10 text-white rounded-2xl px-4 focus:ring-2 focus:ring-primary/50 transition-all hover:border-white/20"
+                  />
+                </div>
+              </div>
+
+              <Button 
+                type="submit" 
+                disabled={updatePasswordMutation.isPending}
+                className="w-full h-14 bg-primary text-primary-foreground hover:bg-primary/90 font-black text-sm uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
+              >
+                {updatePasswordMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Atualizar Senha"}
+              </Button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
             {errorMsg && (
               <motion.div 
@@ -215,6 +305,7 @@ export default function Login() {
               </div>
             )}
           </form>
+          )}
         </motion.div>
       </div>
     </div>
