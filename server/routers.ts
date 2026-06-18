@@ -6475,6 +6475,8 @@ Instruções de análise:
         const end = new Date(input.endDate);
         end.setHours(23, 59, 59, 999);
 
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
         const logs = await db.select({
           log: attendanceLogs,
           userName: users.name,
@@ -6488,6 +6490,7 @@ Instruções de análise:
             eq(attendanceLogs.organizationId, orgId),
             gte(attendanceLogs.scannedAt, start),
             lte(attendanceLogs.scannedAt, end),
+            isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
           ))
           .orderBy(desc(attendanceLogs.scannedAt));
 
