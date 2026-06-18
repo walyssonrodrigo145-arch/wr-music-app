@@ -79,6 +79,7 @@ export const professores = pgTable("professores", {
   paymentType: professorPaymentTypeEnum("paymentType").default("fixo"),
   hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("0.00"),
   paymentPercentage: decimal("paymentPercentage", { precision: 5, scale: 2 }).default("0.00"),
+  permissions: jsonb("permissions").default('["aulas", "progresso", "recepcao", "ia", "lembretes", "relatorios"]'),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

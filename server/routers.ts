@@ -111,10 +111,22 @@ export const appRouter = router({
           trialEndsAt: organizations.trialEndsAt
         }).from(organizations).where(eq(organizations.id, ctx.user.organizationId)).limit(1);
         
+        let permissions: string[] = [];
+        if (ctx.user.role === 'professor') {
+          const [prof] = await db.select({ permissions: professores.permissions })
+            .from(professores)
+            .where(eq(professores.userId, ctx.user.id))
+            .limit(1);
+          if (prof?.permissions) {
+            permissions = prof.permissions as string[];
+          }
+        }
+
         return {
           ...ctx.user,
           subscriptionStatus: org?.subscriptionStatus,
           trialEndsAt: org?.trialEndsAt,
+          permissions,
         };
       }
       
@@ -1455,6 +1467,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       status: z.enum(['ativo','inativo','pausado']).default('ativo'),
       startDate: z.string().optional().nullable(),
       temporaryPassword: z.string().optional(),
+      professorId: z.number().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -1464,7 +1477,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         // 1. Criar o Aluno primeiro para ter o ID
         const [newStudent] = await db.insert(students).values({
           organizationId: orgId,
-          professorId: ctx.user.id,
+          professorId: input.professorId || ctx.user.id,
           name: input.name,
           socialName: input.socialName || null,
           email: input.email || null,
@@ -1593,10 +1606,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       monthlyFee: z.number().optional(),
       dueDay: z.number().optional(),
       status: z.enum(['ativo', 'inativo', 'pausado']).optional(),
-      lessonType: z.enum(['individual', 'turma']).optional(),
       notes: z.string().optional(),
       startDate: z.string().optional().nullable(),
       updateFutureDues: z.boolean().optional(),
+      professorId: z.number().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -1615,7 +1628,15 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           updateData.monthlyFee = String(updateData.monthlyFee);
         }
         
-        await db.update(students).set(updateData).where(and(eq(students.id, id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(students.userId, ctx.user.id)));
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        const condition = isUserAdmin 
+          ? and(eq(students.id, id), eq(students.organizationId, orgId))
+          : and(eq(students.id, id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id));
+
+        const [existing] = await db.select().from(students).where(condition).limit(1);
+        if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "Aluno não encontrado ou sem permissão" });
+
+        await db.update(students).set(updateData).where(eq(students.id, id));
 
         // Sincronizar vencimentos futuros se solicitado
         if (updateFutureDues && data.dueDay) {
@@ -6696,6 +6717,152 @@ Instruções de análise:
           }
           return handleDbError(error, "gerar contrato");
         }
+      }),
+  }),
+
+  professores: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const orgId = ctx.user.organizationId!;
+
+      const list = await db.select({
+        professor: professores,
+        userName: users.name,
+        userEmail: users.email,
+        openId: users.openId,
+      })
+        .from(professores)
+        .innerJoin(users, eq(users.id, professores.userId))
+        .where(eq(professores.organizationId, orgId));
+
+      return list.map(p => ({
+        ...p.professor,
+        name: p.userName,
+        email: p.userEmail,
+      }));
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        email: z.string().email(),
+        password: z.string().min(6),
+        telefone: z.string().optional(),
+        especialidade: z.string().optional(),
+        permissions: z.array(z.string()).default([]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        const orgId = ctx.user.organizationId!;
+
+        if (ctx.user.role !== "admin" && ctx.user.openId !== ENV.ownerOpenId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem criar professores" });
+        }
+
+        const existingUser = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+        if (existingUser.length > 0) {
+          throw new TRPCError({ code: "CONFLICT", message: "E-mail já cadastrado no sistema" });
+        }
+
+        const { crypto } = await import("crypto");
+        const cryptoLib = crypto || require("crypto");
+        const salt = cryptoLib.randomBytes(16).toString("hex");
+        const derivedKey = cryptoLib.scryptSync(input.password, salt, 64).toString("hex");
+        const passwordHash = `${salt}:${derivedKey}`;
+
+        const openId = `prof_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+        const [newUser] = await db.insert(users).values({
+          organizationId: orgId,
+          name: input.name,
+          email: input.email,
+          openId,
+          passwordHash,
+          role: "professor",
+          mustChangePassword: false,
+          isEmailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).returning({ id: users.id });
+
+        const [newProfessor] = await db.insert(professores).values({
+          organizationId: orgId,
+          userId: newUser.id,
+          telefone: input.telefone,
+          especialidade: input.especialidade,
+          permissions: input.permissions,
+          createdAt: new Date(),
+        }).returning();
+
+        return { success: true, professor: newProfessor };
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string(),
+        telefone: z.string().optional(),
+        especialidade: z.string().optional(),
+        permissions: z.array(z.string()).optional(),
+        password: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        const orgId = ctx.user.organizationId!;
+
+        if (ctx.user.role !== "admin" && ctx.user.openId !== ENV.ownerOpenId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem editar professores" });
+        }
+
+        const [prof] = await db.select().from(professores).where(and(eq(professores.id, input.id), eq(professores.organizationId, orgId))).limit(1);
+        if (!prof) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
+
+        await db.update(professores)
+          .set({
+            telefone: input.telefone,
+            especialidade: input.especialidade,
+            ...(input.permissions ? { permissions: input.permissions } : {})
+          })
+          .where(eq(professores.id, input.id));
+
+        const userUpdates: any = { name: input.name, updatedAt: new Date() };
+
+        if (input.password) {
+          const { crypto } = await import("crypto");
+          const cryptoLib = crypto || require("crypto");
+          const salt = cryptoLib.randomBytes(16).toString("hex");
+          const derivedKey = cryptoLib.scryptSync(input.password, salt, 64).toString("hex");
+          userUpdates.passwordHash = `${salt}:${derivedKey}`;
+        }
+
+        await db.update(users).set(userUpdates).where(eq(users.id, prof.userId));
+
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        const orgId = ctx.user.organizationId!;
+
+        if (ctx.user.role !== "admin" && ctx.user.openId !== ENV.ownerOpenId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem excluir professores" });
+        }
+
+        const [prof] = await db.select().from(professores).where(and(eq(professores.id, input.id), eq(professores.organizationId, orgId))).limit(1);
+        if (!prof) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
+
+        await db.delete(professores).where(eq(professores.id, input.id));
+        await db.delete(users).where(eq(users.id, prof.userId));
+
+        return { success: true };
       }),
   }),
 

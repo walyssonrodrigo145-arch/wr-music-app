@@ -645,7 +645,7 @@ const LandingPage = () => {
             </Link>
             <Link href="/login?type=professor">
               <button className="px-5 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
-                Área do Professor
+                Área da Escola / Professor
               </button>
             </Link>
             <button
@@ -692,7 +692,7 @@ const LandingPage = () => {
                     <button className="w-full py-3 bg-muted text-foreground rounded-xl font-bold border border-border">Área do Aluno</button>
                   </Link>
                   <Link href="/login?type=professor" onClick={() => setMobileMenuOpen(false)}>
-                    <button className="w-full py-3 bg-muted text-foreground rounded-xl font-bold border border-border">Área do Professor</button>
+                    <button className="w-full py-3 bg-muted text-foreground rounded-xl font-bold border border-border">Área da Escola / Professor</button>
                   </Link>
                   <button
                     onClick={() => { setMobileMenuOpen(false); setSignupPlan('profissional'); }}
@@ -737,7 +737,7 @@ const LandingPage = () => {
                   <button
                     className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-xl shadow-primary/30 hover:bg-primary/90 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group"
                   >
-                    Área do Professor
+                    Área da Escola / Professor
                     <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                   </button>
                 </Link>

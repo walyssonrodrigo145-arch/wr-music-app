@@ -110,7 +110,7 @@ export default function Login() {
             Music<span className="text-primary">Pro</span>
           </h1>
           <p className="text-muted-foreground font-medium">
-            {loginType === 'aluno' ? 'Área do Aluno' : 'Área do Professor'}
+            {loginType === 'aluno' ? 'Área do Aluno' : 'Área da Escola / Professor'}
           </p>
         </motion.div>
 

@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  User, Building2, Bell, Palette, Shield, Save,
+  User, Building2, Bell, Palette, Shield, Save, Users,
   Sun, Moon, Phone, Mail, Globe, MapPin, FileText,
   CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles,
 } from "lucide-react";
+import { ProfessoresTab } from "./ProfessoresTab";
 
 // ─── Export CSV helper ──────────────────────────────────────────────────────
 function downloadCsv(content: string, filename: string) {
@@ -629,11 +630,13 @@ function WhatsAppSessionManager() {
 }
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca";
+// ─── Tab types ───────────────────────────────────────────────────────────────
+type Tab = "perfil" | "escola" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
+  { id: "professores", label: "Professores", icon: Users },
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "aparencia", label: "Aparência", icon: Palette },
   { id: "whatsapp", label: "Meu WhatsApp", icon: Smartphone },
@@ -1449,6 +1452,11 @@ export default function Configuracoes() {
                 <ExportDataSection />
                 <CleanupTestDataSection />
               </div>
+            )}
+
+            {/* ── ABA: PROFESSORES ── */}
+            {activeTab === "professores" && (
+              <ProfessoresTab />
             )}
           </div>
         </div>

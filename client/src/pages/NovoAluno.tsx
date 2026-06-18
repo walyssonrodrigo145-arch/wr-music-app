@@ -47,6 +47,7 @@ export default function NovoAluno() {
 
   const utils = trpc.useUtils();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
+  const { data: professores = [] } = trpc.professores.list.useQuery();
   const { data: studentData, isLoading: isLoadingStudent } = trpc.students.getForEdit.useQuery(
     { id: studentId! },
     { enabled: isEditMode, staleTime: 0 }
@@ -63,6 +64,7 @@ export default function NovoAluno() {
     email: "",
     phone: "",
     address: "",
+    professorId: "",
     instrumentId: "",
     level: "iniciante",
     startDate: new Date().toISOString().split('T')[0],
@@ -90,6 +92,7 @@ export default function NovoAluno() {
         email: studentData.email ?? "",
         phone: studentData.phone ?? "",
         address: (studentData as any).address ?? "",
+        professorId: studentData.professorId ? String(studentData.professorId) : "",
         instrumentId: studentData.instrumentId ? String(studentData.instrumentId) : "",
         level: studentData.level ?? "iniciante",
         startDate: studentData.startDate ? String(studentData.startDate).slice(0, 10) : new Date().toISOString().split('T')[0],
@@ -137,10 +140,16 @@ export default function NovoAluno() {
       .replace(/(-\d{4})\d+?$/, "$1");
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    let maskedValue = value;
-    if (field === 'cpf') maskedValue = maskCPF(value);
-    if (field === 'phone' || field === 'guardianPhone') maskedValue = maskPhone(value);
+  const handleInputChange = (field: string | React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, value?: string) => {
+    if (typeof field !== 'string') {
+        const { name, value: eValue } = field.target;
+        setForm(prev => ({ ...prev, [name]: eValue }));
+        return;
+    }
+
+    let maskedValue = value || "";
+    if (field === 'cpf') maskedValue = maskCPF(value || "");
+    if (field === 'phone' || field === 'guardianPhone') maskedValue = maskPhone(value || "");
     
     setForm(prev => ({ ...prev, [field]: maskedValue }));
     if (errors[field]) {
@@ -152,7 +161,7 @@ export default function NovoAluno() {
     }
 
     if (field === 'birthDate') {
-      const date = parseISO(value);
+      const date = parseISO(value || "");
       if (isValid(date)) {
         const age = differenceInYears(new Date(), date);
         setIsMinor(age < 18);
@@ -330,21 +339,22 @@ export default function NovoAluno() {
       return isNaN(num) ? 0 : num;
     };
 
-    const payload = {
-      name: form.name,
-      socialName: form.socialName,
-      email: form.email,
-      phone: form.phone,
-      birthDate: form.birthDate,
-      gender: form.gender,
-      cpf: form.cpf,
-      rg: form.rg,
-      address: form.address,
-      guardianName: form.guardianName,
-      guardianPhone: form.guardianPhone,
-      guardianEmail: form.guardianEmail,
+    const payload: any = {
+      name: form.name.trim(),
+      socialName: form.socialName.trim() || undefined,
+      email: form.email.trim() || undefined,
+      phone: form.phone.replace(/\D/g, ""),
+      birthDate: form.birthDate || undefined,
+      gender: form.gender || undefined,
+      cpf: form.cpf || undefined,
+      rg: form.rg || undefined,
+      address: form.address || undefined,
+      guardianName: form.guardianName.trim() || undefined,
+      guardianPhone: form.guardianPhone.replace(/\D/g, "") || undefined,
+      guardianEmail: form.guardianEmail.trim() || undefined,
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
-      level: form.level as any,
+      professorId: form.professorId ? Number(form.professorId) : undefined,
+      level: form.level as "iniciante" | "intermediario" | "avancado",
       monthlyFee: parseFee(form.monthlyFee),
       dueDay: Number(form.dueDay) || 10,
       lessonType: form.lessonType as any,
@@ -732,6 +742,24 @@ export default function NovoAluno() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Professor Responsável</label>
+                    <Select value={form.professorId} onValueChange={(v) => handleInputChange('professorId', v)}>
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                        <SelectValue placeholder="Selecione (Opcional)" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                        <SelectItem value="" className="rounded-lg">
+                           <span className="font-medium text-muted-foreground">Nenhum</span>
+                        </SelectItem>
+                        {professores.map((prof: any) => (
+                          <SelectItem key={prof.id} value={String(prof.id)} className="rounded-lg">
+                            <span className="font-medium">{prof.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data de início</label>
                     <div className="relative group/input">

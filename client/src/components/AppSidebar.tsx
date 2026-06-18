@@ -74,13 +74,30 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   const hiddenTabs = settings?.hiddenTabs ? settings.hiddenTabs.split(",") : [];
   
   const navItems: NavItem[] = staticNavItems
-    .filter(item => !hiddenTabs.includes(item.href))
+    .filter(item => {
+      // 1. Check global hidden tabs
+      if (hiddenTabs.includes(item.href)) return false;
+      // 2. Check professor permissions
+      if (user?.role === 'professor') {
+        const perms = (user as any).permissions || [];
+        if (!perms.includes(item.href)) return false;
+      }
+      return true;
+    })
     .map(item => {
       if (item.href === "/lembretes") return { ...item, badge: reminderCount > 0 ? reminderCount : undefined };
       if (item.href === "/mensagens") return { ...item, badge: messageCount > 0 ? messageCount : undefined };
       if (item.href === "/solicitacoes") return { ...item, badge: requestCount > 0 ? requestCount : undefined };
       return item;
     });
+
+  const filteredBottomItems = bottomItems.filter(item => {
+    if (user?.role === 'professor') {
+      const perms = (user as any).permissions || [];
+      if (!perms.includes(item.href)) return false;
+    }
+    return true;
+  });
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
   });
@@ -199,7 +216,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         {!collapsed && (
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mt-8 mb-4 animate-in fade-in duration-500">Geral</p>
         )}
-        {bottomItems.map((item) => {
+        {filteredBottomItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href;
           return (
