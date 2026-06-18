@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import jsQR from "jsqr";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ScanState = "idle" | "scanning" | "success" | "error";
@@ -176,6 +177,7 @@ export default function QRScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestRef = useRef<number>();
 
   // tRPC mutation
   const scanMutation = trpc.attendance.scan.useMutation({
@@ -253,6 +255,39 @@ export default function QRScanner() {
     },
     [scanMutation, scanState]
   );
+
+  const scanQRCode = useCallback(() => {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      const canvasElement = document.createElement("canvas");
+      const canvas = canvasElement.getContext("2d", { willReadFrequently: true });
+      canvasElement.width = videoRef.current.videoWidth;
+      canvasElement.height = videoRef.current.videoHeight;
+      if (canvas) {
+        canvas.drawImage(videoRef.current, 0, 0, canvasElement.width, canvasElement.height);
+        const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code && code.data) {
+          handleScan(code.data);
+          return;
+        }
+      }
+    }
+    if (mode === "camera" && scanState === "idle") {
+      requestRef.current = requestAnimationFrame(scanQRCode);
+    }
+  }, [handleScan, scanState, mode]);
+
+  useEffect(() => {
+    if (mode === "camera" && scanState === "idle") {
+      requestRef.current = requestAnimationFrame(scanQRCode);
+    }
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [mode, scanState, scanQRCode]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
