@@ -710,9 +710,17 @@ const LandingPage = () => {
       {/* HERO SECTION */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden bg-background">
         {/* Semantic Background Effects */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none max-w-[1920px]">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-indigo-500/10 blur-[100px] rounded-full"></div>
+          
+          {/* Instrument Decorations */}
+          <div className="hidden xl:block absolute top-[15%] -left-20 opacity-[0.15] mix-blend-screen transform -rotate-[15deg]">
+            <img src="/img/piano.png" alt="" className="w-[450px] object-contain select-none" draggable={false} />
+          </div>
+          <div className="hidden xl:block absolute top-[5%] -right-20 opacity-[0.15] mix-blend-screen transform rotate-[10deg]">
+            <img src="/img/guitar.png" alt="" className="w-[500px] object-contain select-none" draggable={false} />
+          </div>
         </div>
 
         <div className="container relative z-10">
