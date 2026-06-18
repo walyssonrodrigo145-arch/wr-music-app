@@ -174,6 +174,8 @@ export default function QRScanner() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successName, setSuccessName] = useState<string | undefined>();
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const scanMutation = trpc.attendance.scan.useMutation({
     onSuccess: (data: any) => {
       setScanState("success");
