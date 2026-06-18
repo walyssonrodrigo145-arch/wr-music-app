@@ -769,7 +769,9 @@ export default function Configuracoes() {
     { label: "Solicitações", href: "/solicitacoes", desc: "Reposições e faltas" },
     { label: "IA Assistente", href: "/ia", desc: "Chat inteligente (Gemini)" },
     { label: "Progresso", href: "/progresso", desc: "Evolução dos alunos" },
-    { label: "Mensalidades", href: "/mensalidades", desc: "Financeiro" },
+    { label: "Financeiro", href: "/financeiro", desc: "Gestão Financeira" },
+    { label: "Folha de Pagto", href: "/folha", desc: "Extrato de Professores" },
+    { label: "Recepção QR", href: "/recepcao-qr", desc: "Check-in de alunos" },
   ];
 
   // ── Mutations ──
