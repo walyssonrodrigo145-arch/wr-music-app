@@ -785,8 +785,8 @@ const LandingPage = () => {
       {/* FEATURES */}
       <section id="features" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
-        <div className="hidden xl:block absolute top-[-10%] right-[-2%] transform rotate-[15deg] z-0 pointer-events-none">
-          <img src="/img/guitar-trans.png" alt="" className="w-[450px] object-contain select-none opacity-90 drop-shadow-2xl" draggable={false} />
+        <div className="hidden xl:block absolute top-[20px] right-[-200px] transform rotate-[20deg] z-0 pointer-events-none">
+          <img src="/img/guitar-trans.png" alt="" className="w-[500px] object-contain select-none opacity-90 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
@@ -829,8 +829,8 @@ const LandingPage = () => {
       {/* TESTIMONIALS */}
       <section id="testimonials" className="relative py-24 bg-background overflow-hidden">
         {/* Instrument Decorations */}
-        <div className="hidden xl:block absolute top-[-10%] left-[-2%] transform -rotate-[10deg] z-0 pointer-events-none">
-          <img src="/img/sax-trans.png" alt="" className="w-[350px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+        <div className="hidden xl:block absolute top-[20px] left-[-150px] transform -rotate-[15deg] z-0 pointer-events-none">
+          <img src="/img/sax-trans.png" alt="" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">
@@ -865,11 +865,11 @@ const LandingPage = () => {
       {/* ── PREÇOS ─────────────────────────────────────────────────────────────── */}
       <section id="pricing" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
-        <div className="hidden xl:block absolute top-[-5%] left-[-2%] transform -rotate-[10deg] z-0 pointer-events-none">
-          <img src="/img/synth-trans.png" alt="" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+        <div className="hidden xl:block absolute top-[40px] left-[-250px] transform -rotate-[15deg] z-0 pointer-events-none">
+          <img src="/img/synth-trans.png" alt="" className="w-[600px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
         </div>
-        <div className="hidden xl:block absolute top-[-5%] right-[-2%] transform rotate-[10deg] z-0 pointer-events-none">
-          <img src="/img/violin-trans.png" alt="" className="w-[350px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
+        <div className="hidden xl:block absolute top-[40px] right-[-180px] transform rotate-[15deg] z-0 pointer-events-none">
+          <img src="/img/violin-trans.png" alt="" className="w-[450px] object-contain select-none opacity-80 drop-shadow-2xl" draggable={false} />
         </div>
 
         <div className="container relative z-10">

@@ -159,10 +159,6 @@ export function BenefitsCarousel() {
     >
       {/* Imagens de Fundo / Decoração de Instrumentos */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
-        <img src="https://images.unsplash.com/photo-1552422535-c45813c61732?q=80&w=400&auto=format&fit=crop" alt="Teclado" className="absolute top-10 left-10 w-48 h-48 object-cover rounded-full mix-blend-luminosity blur-[2px] opacity-40 animate-pulse" style={{ animationDuration: '8s' }} />
-        <img src="https://images.unsplash.com/photo-1510915361894-db8b60106cb1?q=80&w=400&auto=format&fit=crop" alt="Violão" className="absolute bottom-20 right-10 w-64 h-64 object-cover rounded-[3rem] mix-blend-luminosity blur-[2px] opacity-40 animate-pulse" style={{ animationDuration: '10s' }} />
-        <img src="https://images.unsplash.com/photo-1573871666457-7c7329118cf9?q=80&w=400&auto=format&fit=crop" alt="Saxofone" className="absolute top-1/2 -right-10 w-56 h-56 object-cover rounded-full mix-blend-luminosity blur-[3px] opacity-30 animate-pulse" style={{ animationDuration: '12s' }} />
-        <img src="https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?q=80&w=400&auto=format&fit=crop" alt="Bateria" className="absolute -bottom-10 -left-10 w-72 h-72 object-cover rounded-[4rem] mix-blend-luminosity blur-[4px] opacity-30 animate-pulse" style={{ animationDuration: '9s' }} />
       </div>
 
       <div className="container relative z-10">
