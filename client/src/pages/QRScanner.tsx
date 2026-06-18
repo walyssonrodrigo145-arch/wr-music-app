@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import jsQR from "jsqr";
+import { Scanner, IDetectedBarcode } from "@yudiel/react-qr-scanner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ScanState = "idle" | "scanning" | "success" | "error";
@@ -174,12 +174,6 @@ export default function QRScanner() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successName, setSuccessName] = useState<string | undefined>();
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const requestRef = useRef<number>();
-
-  // tRPC mutation
   const scanMutation = trpc.attendance.scan.useMutation({
     onSuccess: (data: any) => {
       setScanState("success");
@@ -202,42 +196,6 @@ export default function QRScanner() {
     },
   });
 
-  const startCamera = useCallback(async () => {
-    try {
-      setCameraError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute("playsinline", "true");
-        videoRef.current.play().catch((e) => console.error("Video play err:", e));
-      }
-    } catch (err) {
-      setCameraError(
-        "Não foi possível acessar a câmera. Verifique as permissões do navegador."
-      );
-      setMode("manual");
-    }
-  }, []);
-
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (mode === "camera") {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => stopCamera();
-  }, [mode, startCamera, stopCamera]);
-
   // Focus manual input on mode change
   useEffect(() => {
     if (mode === "manual") {
@@ -256,49 +214,6 @@ export default function QRScanner() {
     },
     [scanMutation, scanState]
   );
-
-  const canvasRef = useRef<HTMLCanvasElement>(document.createElement("canvas"));
-
-  const scanQRCode = useCallback(() => {
-    if (
-      videoRef.current && 
-      videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA &&
-      videoRef.current.videoWidth > 0
-    ) {
-      const canvasElement = canvasRef.current;
-      const canvas = canvasElement.getContext("2d", { willReadFrequently: true });
-      canvasElement.width = videoRef.current.videoWidth;
-      canvasElement.height = videoRef.current.videoHeight;
-      if (canvas) {
-        try {
-          canvas.drawImage(videoRef.current, 0, 0, canvasElement.width, canvasElement.height);
-          const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
-          });
-
-          if (code && code.data) {
-            handleScan(code.data);
-            return;
-          }
-        } catch (e) {
-          // ignora erro silenciosamente
-        }
-      }
-    }
-    if (mode === "camera" && scanState === "idle") {
-      requestRef.current = requestAnimationFrame(scanQRCode);
-    }
-  }, [handleScan, scanState, mode]);
-
-  useEffect(() => {
-    if (mode === "camera" && scanState === "idle") {
-      requestRef.current = requestAnimationFrame(scanQRCode);
-    }
-    return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
-  }, [mode, scanState, scanQRCode]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -390,7 +305,7 @@ export default function QRScanner() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={startCamera}
+                      onClick={() => window.location.reload()}
                       className="border-white/20 text-white hover:bg-white/10 rounded-xl"
                     >
                       <RefreshCw size={14} className="mr-2" />
@@ -399,20 +314,25 @@ export default function QRScanner() {
                   </div>
                 ) : (
                   <>
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      onLoadedMetadata={() => {
-                        videoRef.current?.play().catch(console.error);
-                      }}
-                      onPlay={() => {
-                        if (mode === "camera" && scanState === "idle") {
-                          requestRef.current = requestAnimationFrame(scanQRCode);
+                    <Scanner
+                      onScan={(result: IDetectedBarcode[]) => {
+                        if (result && result.length > 0) {
+                          handleScan(result[0].rawValue);
                         }
                       }}
-                      className="w-full h-full object-cover"
+                      onError={(err: any) => {
+                        console.error(err);
+                        setCameraError("Não foi possível acessar a câmera. Verifique as permissões.");
+                      }}
+                      components={{
+                        tracker: true,
+                        audio: false,
+                        finder: false
+                      }}
+                      styles={{
+                        container: { width: "100%", height: "100%" },
+                        video: { objectFit: "cover" }
+                      }}
                     />
                     <Viewfinder />
                   </>
