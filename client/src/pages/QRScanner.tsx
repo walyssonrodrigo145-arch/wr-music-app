@@ -202,16 +202,17 @@ export default function QRScanner() {
     },
   });
 
-  // Camera access
   const startCamera = useCallback(async () => {
     try {
       setCameraError(null);
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: 1280, height: 720 },
+        video: { facingMode: { ideal: "environment" } },
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.play().catch((e) => console.error("Video play err:", e));
       }
     } catch (err) {
       setCameraError(
@@ -403,6 +404,14 @@ export default function QRScanner() {
                       autoPlay
                       playsInline
                       muted
+                      onLoadedMetadata={() => {
+                        videoRef.current?.play().catch(console.error);
+                      }}
+                      onPlay={() => {
+                        if (mode === "camera" && scanState === "idle") {
+                          requestRef.current = requestAnimationFrame(scanQRCode);
+                        }
+                      }}
                       className="w-full h-full object-cover"
                     />
                     <Viewfinder />
