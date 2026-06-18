@@ -8,7 +8,8 @@ import {
   decimal,
   date,
   serial,
-  boolean
+  boolean,
+  jsonb
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum('role', ["admin", "professor", "aluno"]);
