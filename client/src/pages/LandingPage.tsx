@@ -794,8 +794,13 @@ const LandingPage = () => {
       </section>
 
       {/* FEATURES */}
-      <section id="features" className="py-24 bg-muted/30 border-y border-border/50">
-        <div className="container">
+      <section id="features" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
+        {/* Instrument Decorations */}
+        <div className="hidden xl:block absolute top-[20%] -right-24 opacity-[0.12] mix-blend-screen transform rotate-[5deg]">
+          <img src="/img/drum.png" alt="" className="w-[450px] object-contain select-none" draggable={false} />
+        </div>
+
+        <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Tudo que você precisa</h2>
             <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Funcionalidades pensadas para músicos</h3>
@@ -833,8 +838,13 @@ const LandingPage = () => {
       <BenefitsCarousel />
 
       {/* TESTIMONIALS */}
-      <section id="testimonials" className="py-24 bg-background">
-        <div className="container">
+      <section id="testimonials" className="relative py-24 bg-background overflow-hidden">
+        {/* Instrument Decorations */}
+        <div className="hidden xl:block absolute top-[10%] -left-20 opacity-[0.12] mix-blend-screen transform -rotate-[10deg]">
+          <img src="/img/sax.png" alt="" className="w-[400px] object-contain select-none" draggable={false} />
+        </div>
+
+        <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Depoimentos</h2>
             <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Quem já usa, aprova</h3>
@@ -864,8 +874,13 @@ const LandingPage = () => {
       </section>
 
       {/* ── PREÇOS ─────────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 bg-muted/30 border-y border-border/50">
-        <div className="container">
+      <section id="pricing" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
+        {/* Instrument Decorations */}
+        <div className="hidden xl:block absolute bottom-[10%] -right-20 opacity-[0.12] mix-blend-screen transform rotate-[15deg]">
+          <img src="/img/violin.png" alt="" className="w-[350px] object-contain select-none" draggable={false} />
+        </div>
+
+        <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Planos simples e transparentes</h2>
             <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Escolha o plano ideal para sua escola</h3>
