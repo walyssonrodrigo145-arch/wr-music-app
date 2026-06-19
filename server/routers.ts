@@ -2506,8 +2506,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const { id, ...rest } = input;
-        await db.update(instruments).set(rest).where(and(eq(instruments.id, id), eq(instruments.organizationId, orgId), eq(instruments.userId, ctx.user.id)));
+        const whereClause = isAdmin
+          ? and(eq(instruments.id, id), eq(instruments.organizationId, orgId))
+          : and(eq(instruments.id, id), eq(instruments.organizationId, orgId), eq(instruments.userId, ctx.user.id));
+        await db.update(instruments).set(rest).where(whereClause);
         return { success: true };
       } catch (error) {
         return handleDbError(error, "atualizar o instrumento");
@@ -2520,9 +2524,23 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
-        // Remove instrument reference from students (only if student belongs to user)
-        await db.update(students).set({ instrumentId: null }).where(and(eq(students.instrumentId, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)));
-        await db.delete(instruments).where(and(eq(instruments.id, input.id), eq(instruments.organizationId, orgId), eq(instruments.userId, ctx.user.id)));
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+        // Verify instrument belongs to this org before deleting
+        const [inst] = await db.select({ id: instruments.id, userId: instruments.userId })
+          .from(instruments)
+          .where(and(eq(instruments.id, input.id), eq(instruments.organizationId, orgId)))
+          .limit(1);
+
+        if (!inst) return { success: false, message: "Instrumento não encontrado." };
+        if (!isAdmin && inst.userId !== ctx.user.id) return { success: false, message: "Sem permissão para remover este instrumento." };
+
+        // Remove instrument reference from students of this org
+        await db.update(students).set({ instrumentId: null }).where(and(eq(students.instrumentId, input.id), eq(students.organizationId, orgId)));
+        // Remove instrument reference from lessons (agenda) of this org
+        await db.update(lessons).set({ instrumentId: null }).where(and(eq(lessons.instrumentId, input.id), eq(lessons.organizationId, orgId)));
+        // Delete the instrument
+        await db.delete(instruments).where(and(eq(instruments.id, input.id), eq(instruments.organizationId, orgId)));
         return { success: true };
       } catch (error) {
         return handleDbError(error, "remover o instrumento");
