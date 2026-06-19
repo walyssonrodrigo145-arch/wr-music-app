@@ -380,6 +380,7 @@ export const dailyStudyPlans = pgTable("daily_study_plans", {
   publishedStatus: varchar("publishedStatus", { length: 20 }).default("rascunho").notNull(), // 'rascunho', 'publicado'
   daysCompleted: text("daysCompleted").default("[false,false,false,false,false]").notNull(), // JSON array
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   completedAt: timestamp("completedAt"),
 });
 

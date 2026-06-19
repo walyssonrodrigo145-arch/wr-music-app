@@ -88,9 +88,11 @@ export async function runAutoMigrations() {
           "status" varchar(50) DEFAULT 'ativo' NOT NULL,
           "daysCompleted" text DEFAULT '[false,false,false,false,false]' NOT NULL,
           "createdAt" timestamp DEFAULT now() NOT NULL,
+          "updatedAt" timestamp DEFAULT now() NOT NULL,
           "completedAt" timestamp
         );`
       },
+      { table: 'daily_study_plans', sql: 'ALTER TABLE "daily_study_plans" ADD COLUMN IF NOT EXISTS "updatedAt" timestamp DEFAULT now() NOT NULL' },
       { table: 'notifications', sql: `
         CREATE TABLE IF NOT EXISTS "notifications" (
           "id" serial PRIMARY KEY NOT NULL,

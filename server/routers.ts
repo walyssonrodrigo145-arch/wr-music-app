@@ -763,6 +763,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       await db.update(dailyStudyPlans)
         .set({ 
           daysCompleted: JSON.stringify(daysCompleted),
+          updatedAt: new Date(),
           ...(allCompleted ? { status: 'inativo', completedAt: new Date() } : {})
         })
         .where(eq(dailyStudyPlans.id, plan.id));
