@@ -7108,52 +7108,59 @@ Instruções de análise:
       const orgId = ctx.user.organizationId!;
       const userId = ctx.user.id;
 
-      const rules = await db
-        .select()
-        .from(messageAutomationRules)
-        .where(
-          and(
-            eq(messageAutomationRules.organizationId, orgId),
-            eq(messageAutomationRules.userId, userId)
-          )
-        );
+      try {
+        const rules = await db
+          .select()
+          .from(messageAutomationRules)
+          .where(
+            and(
+              eq(messageAutomationRules.organizationId, orgId),
+              eq(messageAutomationRules.userId, userId)
+            )
+          );
 
-      const totalSent = rules.reduce((acc, r) => acc + (r.totalSent || 0), 0);
-      const activeRules = rules.filter(r => r.isActive === 1).length;
+        const totalSent = rules.reduce((acc, r) => acc + (r.totalSent || 0), 0);
+        const activeRules = rules.filter(r => r.isActive === 1).length;
 
-      // Count sent/error from reminders with auto-rule prefix
-      const [sentCount] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(reminders)
-        .where(
-          and(
-            eq(reminders.organizationId, orgId),
-            eq(reminders.userId, userId),
-            eq(reminders.status, "enviado"),
-            sql`${reminders.refId} LIKE 'auto-rule-%'`
-          )
-        );
+        // Count sent/error from reminders with auto-rule prefix
+        const [sentCount] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(reminders)
+          .where(
+            and(
+              eq(reminders.organizationId, orgId),
+              eq(reminders.userId, userId),
+              eq(reminders.status, "enviado"),
+              sql`${reminders.refId} LIKE 'auto-rule-%'`
+            )
+          );
 
-      const [totalCount] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(reminders)
-        .where(
-          and(
-            eq(reminders.organizationId, orgId),
-            eq(reminders.userId, userId),
-            sql`${reminders.refId} LIKE 'auto-rule-%'`
-          )
-        );
+        const [totalCount] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(reminders)
+          .where(
+            and(
+              eq(reminders.organizationId, orgId),
+              eq(reminders.userId, userId),
+              sql`${reminders.refId} LIKE 'auto-rule-%'`
+            )
+          );
 
-      const deliveryRate = totalCount.count > 0 ? Math.round((sentCount.count / totalCount.count) * 100) : 0;
-      const topRule = rules.sort((a, b) => (b.totalSent || 0) - (a.totalSent || 0))[0] ?? null;
+        const sentNum = Number(sentCount?.count ?? 0);
+        const totalNum = Number(totalCount?.count ?? 0);
+        const deliveryRate = totalNum > 0 ? Math.round((sentNum / totalNum) * 100) : 0;
+        const topRule = rules.sort((a, b) => (b.totalSent || 0) - (a.totalSent || 0))[0] ?? null;
 
-      return {
-        totalSent: sentCount.count || 0,
-        activeRules,
-        deliveryRate,
-        topRule: topRule ? { id: topRule.id, name: topRule.name, totalSent: topRule.totalSent } : null,
-      };
+        return {
+          totalSent: sentNum || 0,
+          activeRules,
+          deliveryRate,
+          topRule: topRule ? { id: topRule.id, name: topRule.name, totalSent: topRule.totalSent } : null,
+        };
+      } catch (e) {
+        console.error("[automations.stats] ERROR:", e);
+        return { totalSent: 0, activeRules: 0, deliveryRate: 0, topRule: null };
+      }
     }),
 
     // Seed default system rules for the current user if they don't exist yet
