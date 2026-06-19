@@ -6940,25 +6940,30 @@ Instruções de análise:
         const orgId = ctx.user.organizationId!;
         const userId = ctx.user.id;
 
-        const [rule] = await db
-          .insert(messageAutomationRules)
-          .values({
-            organizationId: orgId,
-            userId,
-            name: input.name,
-            description: input.description ?? null,
-            isSystem: 0,
-            isActive: input.isActive,
-            trigger: input.trigger,
-            offsetDays: input.offsetDays,
-            offsetHours: input.offsetHours,
-            conditions: input.conditions ?? null,
-            actions: input.actions ?? null,
-            messageTemplate: input.messageTemplate,
-            channel: input.channel,
-          })
-          .returning();
-        return rule;
+        try {
+          const [rule] = await db
+            .insert(messageAutomationRules)
+            .values({
+              organizationId: orgId,
+              userId,
+              name: input.name,
+              description: input.description ?? null,
+              isSystem: 0,
+              isActive: input.isActive,
+              trigger: input.trigger,
+              offsetDays: input.offsetDays,
+              offsetHours: input.offsetHours,
+              conditions: input.conditions ?? null,
+              actions: input.actions ?? null,
+              messageTemplate: input.messageTemplate,
+              channel: input.channel,
+            })
+            .returning();
+          return rule;
+        } catch (error) {
+          console.error("AUTOMATIONS CREATE ERROR:", error);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: String(error) });
+        }
       }),
 
     // Update an existing automation rule (name, template, timing, etc.)
