@@ -203,6 +203,20 @@ async function startServer() {
 
 
   // tRPC API
+  // DEBUG: Log automations.create requests
+  app.use("/api/trpc", (req: any, res: any, next: any) => {
+    if (req.url && req.url.includes("automations.create")) {
+      console.log("[DEBUG automations.create] Method:", req.method);
+      console.log("[DEBUG automations.create] Body:", JSON.stringify(req.body));
+      const originalJson = res.json.bind(res);
+      res.json = (data: any) => {
+        console.log("[DEBUG automations.create] Response:", JSON.stringify(data));
+        return originalJson(data);
+      };
+    }
+    next();
+  });
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({
