@@ -152,18 +152,26 @@ export async function runAutoMigrations() {
     for (const m of migrations) {
       try {
         await db.execute(sql.raw(m.sql));
-        results.push(`OK: ${m.table} - ${m.sql.split('ADD COLUMN IF NOT EXISTS ')[1]}`);
+        const colPart = m.sql.split('ADD COLUMN IF NOT EXISTS ')[1];
+        results.push(`OK: ${m.table}${colPart ? ' - ' + colPart : ''}`);
       } catch (e: any) {
-        if (e.message.includes("already exists") || e.message.includes("já existe")) {
-          results.push(`SKIP: ${m.table} já possui a coluna`);
+        const msg: string = e.message ?? String(e);
+        if (msg.includes("already exists") || msg.includes("já existe") || msg.includes("duplicate column")) {
+          results.push(`SKIP: ${m.table} já possui a estrutura`);
         } else {
-          console.warn(`[Database] Erro ao aplicar coluna em ${m.table}: ${e.message}`);
-          results.push(`ERROR: ${m.table} - ${e.message}`);
+          // Log real errors clearly - they are important for diagnosing missing tables/columns
+          console.error(`[Migration] ERRO em ${m.table}: ${msg}`);
+          results.push(`ERROR: ${m.table} - ${msg}`);
         }
       }
     }
 
-    console.log("[Database] Migrações automáticas concluídas!");
+    const errors = results.filter(r => r.startsWith('ERROR'));
+    if (errors.length > 0) {
+      console.warn(`[Database] Migrações concluídas com ${errors.length} erro(s):`, errors);
+    } else {
+      console.log("[Database] Migrações automáticas concluídas sem erros!");
+    }
     return { success: true, results };
   } catch (error: any) {
     console.error("[Database] Falha crítica nas migrações:", error.message);
