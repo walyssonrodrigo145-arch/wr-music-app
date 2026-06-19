@@ -5847,9 +5847,14 @@ Instruções de análise:
           if (data.date) updateData.date = data.date.slice(0, 10);
           if (data.amount !== undefined) updateData.amount = data.amount.toFixed(2);
           
+          const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+          const whereClause = isAdmin
+            ? and(eq(expenses.id, id), eq(expenses.organizationId, orgId))
+            : and(eq(expenses.id, id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id));
+            
           await db.update(expenses)
             .set(updateData)
-            .where(and(eq(expenses.id, id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id)));
+            .where(whereClause);
           return { success: true };
         } catch (error) {
           return handleDbError(error, "atualizar despesa");
@@ -5863,7 +5868,12 @@ Instruções de análise:
           const db = await getDb();
           if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
-          await db.delete(expenses).where(and(eq(expenses.id, input.id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id)));
+          const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+          const whereClause = isAdmin
+            ? and(eq(expenses.id, input.id), eq(expenses.organizationId, orgId))
+            : and(eq(expenses.id, input.id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id));
+            
+          await db.delete(expenses).where(whereClause);
           return { success: true };
         } catch (error) {
           return handleDbError(error, "remover despesa");
@@ -5877,9 +5887,14 @@ Instruções de análise:
           const db = await getDb();
           if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
+          const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+          const whereClause = isAdmin
+            ? and(eq(expenses.id, input.id), eq(expenses.organizationId, orgId))
+            : and(eq(expenses.id, input.id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id));
+            
           await db.update(expenses)
             .set({ status: "pago", updatedAt: new Date() })
-            .where(and(eq(expenses.id, input.id), eq(expenses.organizationId, orgId), eq(expenses.userId, ctx.user.id)));
+            .where(whereClause);
           return { success: true };
         } catch (error) {
           return handleDbError(error, "marcar despesa como paga");
