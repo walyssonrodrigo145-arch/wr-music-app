@@ -6940,51 +6940,25 @@ Instruções de análise:
         const orgId = ctx.user.organizationId!;
         const userId = ctx.user.id;
 
-        console.log("[automations.create] RECEIVED REQUEST:", { userId, orgId, input });
+        console.log("[automations.create] RECEIVED REQUEST:", { userId, orgId, name: input.name, trigger: input.trigger });
 
         try {
-          const [rule] = await db
-            .insert(messageAutomationRules)
-            .values({
-              organizationId: orgId,
-              userId,
-              name: input.name,
-              description: input.description ?? null,
-              isSystem: 0,
-              isActive: input.isActive,
-              trigger: input.trigger,
-              offsetDays: input.offsetDays,
-              offsetHours: input.offsetHours,
-              conditions: input.conditions ?? null,
-              actions: input.actions ?? null,
-              messageTemplate: input.messageTemplate,
-              channel: input.channel,
-            })
-            .returning();
-          
-          console.log("[automations.create] INSERT OK, id=", rule?.id);
-          
-          // Serialize to plain object to avoid superjson issues with Drizzle result types
-          return {
-            id: rule.id,
-            organizationId: rule.organizationId,
-            userId: rule.userId,
-            name: rule.name,
-            description: rule.description,
-            isSystem: rule.isSystem,
-            isActive: rule.isActive,
-            trigger: rule.trigger,
-            offsetDays: rule.offsetDays,
-            offsetHours: rule.offsetHours,
-            conditions: rule.conditions,
-            actions: rule.actions,
-            messageTemplate: rule.messageTemplate,
-            channel: rule.channel,
-            totalSent: rule.totalSent,
-            lastExecutedAt: rule.lastExecutedAt ? rule.lastExecutedAt.toISOString() : null,
-            createdAt: rule.createdAt ? rule.createdAt.toISOString() : new Date().toISOString(),
-            updatedAt: rule.updatedAt ? rule.updatedAt.toISOString() : new Date().toISOString(),
-          };
+          // Use raw SQL INSERT to avoid superjson serialization issues with Drizzle's returning()
+          const result = await db.execute(
+            sql`INSERT INTO "message_automation_rules"
+              ("organizationId", "userId", "name", "description", "isSystem", "isActive",
+               "trigger", "offsetDays", "offsetHours", "conditions", "actions", "messageTemplate", "channel")
+            VALUES
+              (${orgId}, ${userId}, ${input.name}, ${input.description ?? null}, 0, ${input.isActive},
+               ${input.trigger}, ${input.offsetDays}, ${input.offsetHours},
+               ${input.conditions ?? null}, ${input.actions ?? null}, ${input.messageTemplate}, ${input.channel})
+            RETURNING id`
+          );
+
+          const newId = (result as any)?.[0]?.id ?? (result as any)?.rows?.[0]?.id;
+          console.log("[automations.create] INSERT OK, newId=", newId);
+
+          return { success: true, id: Number(newId), name: input.name };
         } catch (error) {
           console.error("[automations.create] FAILED:", error);
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao salvar automação: " + String(error) });
