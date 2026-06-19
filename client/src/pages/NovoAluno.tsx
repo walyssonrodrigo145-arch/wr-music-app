@@ -243,17 +243,13 @@ export default function NovoAluno() {
     // Name validation
     if (!form.name.trim()) {
       newErrors.name = "Nome é obrigatório";
-    } else if (!nameRegex.test(form.name.trim())) {
-      newErrors.name = "O nome deve conter apenas letras";
     }
 
-    // Phone validation
+    // Phone validation (optional - only validate format if filled)
     const cleanPhone = form.phone.replace(/\D/g, "");
-    if (!form.phone.trim()) {
-      newErrors.phone = "Telefone é obrigatório";
-    } else if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+    if (form.phone.trim() && (cleanPhone.length < 10 || cleanPhone.length > 11)) {
       newErrors.phone = "Telefone deve ter 10 ou 11 dígitos";
-    } else if (/^0+$/.test(cleanPhone)) {
+    } else if (form.phone.trim() && /^0+$/.test(cleanPhone)) {
       newErrors.phone = "Telefone inválido (não pode conter apenas zeros)";
     }
 
@@ -294,20 +290,17 @@ export default function NovoAluno() {
       }
     }
 
-    // Guardian validations (if minor)
+    // Guardian validations (only if minor AND fields are filled)
     if (isMinor) {
-      if (!form.guardianName.trim()) {
-        newErrors.guardianName = "Nome do responsável é obrigatório";
-      } else if (!nameRegex.test(form.guardianName.trim())) {
+      // Guardian name is optional even for minors now
+      if (form.guardianName.trim() && !nameRegex.test(form.guardianName.trim())) {
         newErrors.guardianName = "O nome do responsável deve conter apenas letras";
       }
 
       const cleanGuardianPhone = form.guardianPhone.replace(/\D/g, "");
-      if (!form.guardianPhone.trim()) {
-        newErrors.guardianPhone = "Telefone do responsável é obrigatório";
-      } else if (cleanGuardianPhone.length < 10 || cleanGuardianPhone.length > 11) {
+      if (form.guardianPhone.trim() && (cleanGuardianPhone.length < 10 || cleanGuardianPhone.length > 11)) {
         newErrors.guardianPhone = "Telefone do responsável deve ter 10 ou 11 dígitos";
-      } else if (/^0+$/.test(cleanGuardianPhone)) {
+      } else if (form.guardianPhone.trim() && /^0+$/.test(cleanGuardianPhone)) {
         newErrors.guardianPhone = "Telefone do responsável inválido (não pode conter apenas zeros)";
       }
     } else {

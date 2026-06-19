@@ -1410,13 +1410,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       return { success: true, email, password };
     }),
     create: protectedProcedure.input(z.object({
-      name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres").regex(/^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/, "O nome deve conter apenas letras"),
+      name: z.string().min(1, "O nome é obrigatório"),
       socialName: z.string().optional().nullable(),
       email: z.string().email("E-mail inválido").or(z.literal("")).optional().nullable(),
-      phone: z.string().min(8, "Telefone é obrigatório").refine((val) => {
-        const clean = val.replace(/\D/g, "");
-        return (clean.length === 10 || clean.length === 11) && !/^0+$/.test(clean);
-      }, "Telefone deve ter 10 ou 11 dígitos e não conter apenas zeros"),
+      phone: z.string().optional().nullable().default(""),
       birthDate: z.string().optional().nullable(),
       gender: z.string().optional().nullable(),
       cpf: z.string().optional().nullable().refine((val) => {
@@ -1549,10 +1546,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
     update: protectedProcedure.input(z.object({
       id: z.number(),
-      name: z.string().optional().refine((val) => {
-        if (val === undefined) return true;
-        return val.trim().length >= 2 && /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/.test(val);
-      }, "O nome deve conter apenas letras e pelo menos 2 caracteres"),
+      name: z.string().optional(),
       socialName: z.string().optional().nullable(),
       birthDate: z.string().optional().nullable(),
       gender: z.string().optional().nullable(),
@@ -1596,11 +1590,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       }, "Telefone do responsável deve ter 10 ou 11 dígitos e não conter apenas zeros"),
       guardianEmail: z.string().email("E-mail do responsável inválido").or(z.literal("")).optional().nullable(),
       email: z.string().email("E-mail inválido").or(z.literal("")).optional().nullable(),
-      phone: z.string().min(8, "Telefone é obrigatório").optional().refine((val) => {
-        if (val === undefined) return true;
-        const clean = val.replace(/\D/g, "");
-        return (clean.length === 10 || clean.length === 11) && !/^0+$/.test(clean);
-      }, "Telefone deve ter 10 ou 11 dígitos e não conter apenas zeros"),
+      phone: z.string().optional().nullable(),
       instrumentId: z.number().optional().nullable(),
       level: z.enum(['iniciante', 'intermediario', 'avancado']).optional(),
       monthlyFee: z.number().optional(),
@@ -2137,25 +2127,31 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const deleteSeries = input.deleteSeries === true;
 
         if (deleteSeries) {
-          const [currentLesson] = await db.select({ recurringGroupId: lessons.recurringGroupId, scheduledAt: lessons.scheduledAt }).from(lessons)
-            .where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)))
-            .limit(1);
+          // Admin can delete series from any professor; others only their own
+          const seriesWhere = isAdmin
+            ? and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))
+            : and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id));
+
+          const [currentLesson] = await db.select({ recurringGroupId: lessons.recurringGroupId, scheduledAt: lessons.scheduledAt })
+            .from(lessons).where(seriesWhere).limit(1);
 
           if (currentLesson && currentLesson.recurringGroupId) {
-            await db.delete(lessons).where(and(
-              eq(lessons.organizationId, orgId),
-              eq(lessons.userId, ctx.user.id),
-              eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
-              gte(lessons.scheduledAt, currentLesson.scheduledAt)
-            ));
+            const deleteSeriesWhere = isAdmin
+              ? and(eq(lessons.organizationId, orgId), eq(lessons.recurringGroupId, currentLesson.recurringGroupId), gte(lessons.scheduledAt, currentLesson.scheduledAt))
+              : and(eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id), eq(lessons.recurringGroupId, currentLesson.recurringGroupId), gte(lessons.scheduledAt, currentLesson.scheduledAt));
+            await db.delete(lessons).where(deleteSeriesWhere);
             return { success: true };
           }
         }
 
-        await db.delete(lessons).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+        const deleteWhere = isAdmin
+          ? and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))
+          : and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id));
+        await db.delete(lessons).where(deleteWhere);
         return { success: true };
       } catch (error) {
         return handleDbError(error, "remover a aula");
@@ -3801,7 +3797,11 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           const db = await getDb();
           if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
-          await db.delete(paymentDues).where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id)));
+          const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+          const whereClause = isAdmin
+            ? and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId))
+            : and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id));
+          await db.delete(paymentDues).where(whereClause);
           return { success: true };
         } catch (error) {
           return handleDbError(error, "remover a mensalidade");
@@ -5667,42 +5667,7 @@ Instruções de análise:
             try {
               const actionData = JSON.parse(jsonStr);
 
-              // Validar campos obrigatórios base
-              if (!actionData.name || !actionData.birthDate || actionData.monthlyFee === undefined || actionData.dueDay === undefined) {
-                finalResponseContent = finalResponseContent.replace(blockStr,
-                  `\n\n⚠️ Não foi possível cadastrar **${actionData.name || 'Aluno'}**: nome, nascimento, mensalidade e vencimento são obrigatórios.`
-                );
-                continue;
-              }
-
-              // Calcular idade para validar telefone e responsável
-              const birth = new Date(actionData.birthDate);
-              const today = new Date();
-              let age = today.getFullYear() - birth.getFullYear();
-              const m = today.getMonth() - birth.getMonth();
-              if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-                age--;
-              }
-
-              const isMinor = age < 18;
-
-              if (isMinor) {
-                if (!actionData.guardianName || !actionData.guardianPhone) {
-                  finalResponseContent = finalResponseContent.replace(blockStr,
-                    `\n\n⚠️ Não foi possível cadastrar **${actionData.name}**: por ser menor de idade (${age} anos), o nome e telefone do responsável são obrigatórios.`
-                  );
-                  continue;
-                }
-              } else {
-                if (!actionData.phone) {
-                  finalResponseContent = finalResponseContent.replace(blockStr,
-                    `\n\n⚠️ Não foi possível cadastrar **${actionData.name}**: o telefone do aluno é obrigatório para maiores de idade.`
-                  );
-                  continue;
-                }
-              }
-
-              // Executar o cadastro do aluno
+              // Executar o cadastro do aluno sem exigir campos extras
               const [newStudent] = await db.insert(students).values({
                 organizationId: orgId,
                 professorId: ctx.user.id,
@@ -5710,13 +5675,13 @@ Instruções de análise:
                 name: actionData.name,
                 phone: actionData.phone || "",
                 email: actionData.email || null,
-                birthDate: actionData.birthDate,
+                birthDate: actionData.birthDate || null,
                 guardianName: actionData.guardianName || null,
                 guardianPhone: actionData.guardianPhone || null,
                 guardianEmail: null,
                 level: actionData.level || "iniciante",
-                monthlyFee: String(actionData.monthlyFee),
-                dueDay: actionData.dueDay,
+                monthlyFee: String(actionData.monthlyFee ?? 0),
+                dueDay: actionData.dueDay ?? 15,
                 lessonType: "individual",
                 status: "ativo",
                 startDate: new Date().toISOString().slice(0, 10),
