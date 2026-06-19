@@ -213,6 +213,15 @@ function EditDespesaModal({ open, onClose, expense }: { open: boolean; onClose: 
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
+  const deleteMutation = trpc.expenses.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Despesa removida!");
+      utils.expenses.invalidate();
+      onClose();
+    },
+    onError: (e: any) => toast.error("Erro ao excluir: " + e.message),
+  });
+
   const handleSubmit = () => {
     if (!form.description || !form.amount || !form.date || !form.category) {
       toast.error("Preencha todos os campos obrigatórios");
@@ -329,13 +338,24 @@ function EditDespesaModal({ open, onClose, expense }: { open: boolean; onClose: 
             </div>
         </div>
 
-        <div className="p-6 lg:p-8 border-t border-border bg-muted/20 flex gap-4">
-          <Button variant="ghost" className="flex-1 h-12 rounded-2xl text-xs font-bold uppercase tracking-widest" onClick={onClose}>Cancelar</Button>
-          <Button className="flex-1 h-12 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl shadow-blue-500/20 gap-3 bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={handleSubmit} disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Pencil size={18} />}
-            Salvar Alterações
+        <div className="p-6 lg:p-8 border-t border-border bg-muted/20 flex flex-col sm:flex-row gap-4">
+          <Button variant="ghost" className="flex-1 h-12 rounded-2xl text-xs font-bold text-rose-500 hover:bg-rose-500/10 uppercase tracking-widest"
+            onClick={() => {
+              if(confirm("Deseja realmente excluir esta despesa?")) {
+                deleteMutation.mutate({ id: expense.id });
+              }
+            }} disabled={deleteMutation.isPending}>
+            {deleteMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={18} className="mr-2" />}
+            Excluir
           </Button>
+          <div className="flex flex-1 gap-4">
+            <Button variant="ghost" className="flex-1 h-12 rounded-2xl text-xs font-bold uppercase tracking-widest" onClick={onClose}>Cancelar</Button>
+            <Button className="flex-1 h-12 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl shadow-blue-500/20 gap-3 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleSubmit} disabled={updateMutation.isPending || deleteMutation.isPending}>
+              {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Pencil size={18} />}
+              Salvar
+            </Button>
+          </div>
         </div>
       </motion.div>
     </div>
