@@ -1,10 +1,9 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import {
-  BellRing, Plus, Loader2,
-  BookOpen, CreditCard, AlertTriangle, ListTodo, Zap, FileText, Bell, RefreshCw, ToggleLeft, ToggleRight,
+  Plus, Loader2,
+  BookOpen, CreditCard, AlertTriangle, ListTodo, FileText, Bell, RefreshCw,
 } from "lucide-react";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -17,7 +16,6 @@ import { ManualReminderModal, TemplatesModal, DeleteConfirmModal } from "../comp
 
 export default function Lembretes() {
   const utils = trpc.useUtils();
-  const [autoEnabled, setAutoEnabled] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -36,12 +34,7 @@ export default function Lembretes() {
   );
   const { data: students = [] } = trpc.students.list.useQuery(undefined, { staleTime: 300_000 });
   const { data: templates = [] } = trpc.reminderTemplates.list.useQuery(undefined, { staleTime: 300_000 });
-  const { data: automationData } = trpc.settings.getAutomation.useQuery(
-    undefined,
-    { refetchInterval: 60_000, staleTime: 30_000 }
-  );
 
-  const { permission, isSupported, requestPermission, showNotification } = usePushNotifications();
   const seenPendingIds = useRef<Set<number>>(new Set());
 
   // REMOVIDO: useEffect que disparava showNotification local.
@@ -168,23 +161,7 @@ export default function Lembretes() {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
-  const toggleAutomation = trpc.settings.toggleAutomation.useMutation({
-    onSuccess: (r) => {
-      setAutoEnabled(r.enabled);
-      utils.settings.getAutomation.invalidate();
-      toast.success(r.enabled ? "Automacao ativada!" : "Automacao desativada.");
-    },
-    onError: (e) => toast.error("Erro: " + e.message),
-  });
 
-  const testPush = trpc.fcm.testNotification.useMutation({
-    onSuccess: (r) => toast.success(`Notificacao enviada para ${r.sentCount} dispositivo(s)!`),
-    onError: (e) => toast.error("Erro: " + e.message),
-  });
-
-  useEffect(() => {
-    if (automationData !== undefined) setAutoEnabled(automationData.enabled);
-  }, [automationData]);
 
   const handleGenerateAll = async () => {
     try {
@@ -284,67 +261,7 @@ export default function Lembretes() {
           <RemindersSummary total={allReminders.length} pending={rawPendingCount} delayed={rawDelayedCount} />
         </div>
 
-        <div className={cn(
-          "relative overflow-hidden p-6 rounded-[2rem] border transition-all duration-300",
-          autoEnabled
-            ? "bg-gradient-to-br from-indigo-600 to-indigo-800 border-indigo-700 shadow-xl shadow-indigo-500/20 text-white"
-            : "bg-card border-border shadow-sm text-muted-foreground"
-        )}>
-          {autoEnabled && (
-            <>
-              <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-card/10 blur-2xl" />
-              <div className="absolute -left-10 -bottom-10 w-24 h-24 rounded-full bg-indigo-400/20 blur-xl" />
-            </>
-          )}
-          <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
-            <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg", autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground")}>
-              <Zap size={28} />
-            </div>
-            <div className="flex-1 text-center sm:text-left min-w-0">
-              <div className="flex items-center justify-center sm:justify-start gap-3 mb-2">
-                <h3 className={cn("text-base font-black uppercase tracking-widest", autoEnabled ? "text-white" : "text-foreground")}>Automacao do Robo</h3>
-                <span className={cn("text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full", autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground")}>
-                  {autoEnabled ? "Ativo" : "Inativo"}
-                </span>
-              </div>
-              <p className={cn("text-xs font-medium leading-relaxed", autoEnabled ? "text-white/80" : "text-muted-foreground")}>
-                {autoEnabled ? "Varredura automatica de aulas e cobrancas em execucao." : "A automacao esta desligada. Apenas lembretes manuais serao processados."}
-              </p>
-            </div>
-            <button onClick={() => toggleAutomation.mutate({ enabled: !autoEnabled })} disabled={toggleAutomation.isPending} className="transition-transform hover:scale-110 active:scale-90 disabled:opacity-50">
-              {toggleAutomation.isPending
-                ? <Loader2 size={48} className="animate-spin opacity-50" />
-                : autoEnabled
-                  ? <ToggleRight size={64} className="text-white drop-shadow-lg" />
-                  : <ToggleLeft size={64} className="text-muted-foreground/30" />
-              }
-            </button>
-          </div>
-        </div>
 
-        {isSupported && permission === "default" && (
-          <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-100 shadow-sm shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
-            <p className="text-[11px] lg:text-xs text-amber-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Ative os alertas para ser avisado sobre novos lembretes.</p>
-            <Button size="sm" className="w-full sm:w-auto h-9 rounded-xl bg-amber-600 text-white font-black uppercase tracking-widest text-[9px] px-4 shadow-lg shadow-amber-500/20" onClick={async () => {
-              const result = await requestPermission();
-              if (result === "granted") toast.success("Notificacoes ativadas!");
-            }}>Ativar</Button>
-          </div>
-        )}
-
-        {isSupported && permission === "granted" && (
-          <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-100 shadow-sm shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
-            <p className="text-[11px] lg:text-xs text-emerald-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Notificacoes Ativadas! Voce pode fechar a aba que continuara sendo avisado.</p>
-            <div className="flex gap-2 w-full sm:w-auto">
-              <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => requestPermission()}>Sincronizar</Button>
-              <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => testPush.mutate()} disabled={testPush.isPending}>
-                {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Disparar Teste
-              </Button>
-            </div>
-          </div>
-        )}
 
         <div className="shrink-0">
           <RemindersFilter {...{filterStudent, setFilterStudent, filterType, setFilterType, filterStatus, setFilterStatus}} />
