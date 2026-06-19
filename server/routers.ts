@@ -6442,10 +6442,11 @@ Instruções de análise:
           }
 
           // 2. Find the user's lesson for today (scheduled status)
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
-          const todayEnd = new Date();
-          todayEnd.setHours(23, 59, 59, 999);
+          const spDateStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+          const spNow = new Date(spDateStr);
+          
+          const todayStart = new Date(spNow.getFullYear(), spNow.getMonth(), spNow.getDate(), 0, 0, 0);
+          const todayEnd = new Date(spNow.getFullYear(), spNow.getMonth(), spNow.getDate(), 23, 59, 59, 999);
 
           // Determine if the user is a student or a professor
           // For students, match by studentId (through their user-student link)
