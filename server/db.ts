@@ -159,7 +159,17 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
       const db = await getDb();
       if (!db) return;
 
-      const [existing] = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
+      let [existing] = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
+
+      if (!existing && user.email) {
+        const [existingByEmail] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+        if (existingByEmail) {
+          existing = existingByEmail;
+          // Link accounts by updating the openId to the new one (e.g., from Google)
+          await db.update(users).set({ openId: user.openId }).where(eq(users.id, existing.id));
+        }
+      }
+
 
       // Garante que todo usuário tenha uma organização válida isolada
       let targetOrgId = user.organizationId || existing?.organizationId;
