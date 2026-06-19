@@ -8,11 +8,12 @@ import {
   MessageSquare, Bell, Star, TrendingUp, Users,
   Edit3, X, Search,
   Calendar, DollarSign, Gift, UserX, Loader2, Sparkles,
-  Info, Save, Trash2
+  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type AutomationRule = {
@@ -346,15 +347,16 @@ function RuleEditorModal({ rule, onClose, onSave }: {
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Direção</label>
                       <div className="flex gap-2">
-                        {["Antes", "Depois"].map(dir => (
-                          <button key={dir}
-                            onClick={() => setOffsetHours(h => dir === "Antes" ? -Math.abs(h) : Math.abs(h))}
-                            className={cn("px-4 py-2 rounded-xl text-xs font-black border transition-all",
-                              (dir === "Antes" ? offsetHours <= 0 : offsetHours > 0)
-                                ? "bg-indigo-500 text-white border-transparent"
-                                : "border-border text-muted-foreground hover:bg-muted"
+                        {[
+                          { label: "Antes", action: () => setOffsetHours(h => -Math.abs(h || 1)), active: offsetHours < 0 },
+                          { label: "Na hora", action: () => setOffsetHours(0), active: offsetHours === 0 },
+                          { label: "Depois", action: () => setOffsetHours(h => Math.abs(h || 1)), active: offsetHours > 0 },
+                        ].map(btn => (
+                          <button key={btn.label} onClick={btn.action}
+                            className={cn("px-3 py-2 rounded-xl text-xs font-black border transition-all",
+                              btn.active ? "bg-indigo-500 text-white border-transparent" : "border-border text-muted-foreground hover:bg-muted"
                             )}
-                          >{dir}</button>
+                          >{btn.label}</button>
                         ))}
                       </div>
                     </div>
@@ -580,6 +582,32 @@ export default function Automacoes() {
     }
   }, [isLoading, rules.length]);
 
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const { permission, isSupported, requestPermission } = usePushNotifications();
+  
+  const { data: automationData } = trpc.settings.getAutomation.useQuery(
+    undefined,
+    { refetchInterval: 60_000, staleTime: 30_000 }
+  );
+
+  const toggleAutomation = trpc.settings.toggleAutomation.useMutation({
+    onSuccess: (r) => {
+      setAutoEnabled(r.enabled);
+      utils.settings.getAutomation.invalidate();
+      toast.success(r.enabled ? "Automação ativada!" : "Automação desativada.");
+    },
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+
+  const testPush = trpc.fcm.testNotification.useMutation({
+    onSuccess: (r) => toast.success(`Notificação enviada para ${r.sentCount} dispositivo(s)!`),
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+
+  useEffect(() => {
+    if (automationData !== undefined) setAutoEnabled(automationData.enabled);
+  }, [automationData]);
+
   const handleSaveRule = (data: Partial<AutomationRule>) => {
     if (data.id) {
       updateMutation.mutate({ id: data.id, name: data.name, description: data.description ?? undefined, offsetDays: data.offsetDays, offsetHours: data.offsetHours, messageTemplate: data.messageTemplate, channel: data.channel });
@@ -623,6 +651,68 @@ export default function Automacoes() {
           <Plus size={16} /> Criar Nova Regra
         </Button>
       </div>
+
+      <div className={cn(
+        "relative overflow-hidden p-6 rounded-[2rem] border transition-all duration-300",
+        autoEnabled
+          ? "bg-gradient-to-br from-indigo-600 to-indigo-800 border-indigo-700 shadow-xl shadow-indigo-500/20 text-white"
+          : "bg-card border-border shadow-sm text-muted-foreground"
+      )}>
+        {autoEnabled && (
+          <>
+            <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-card/10 blur-2xl" />
+            <div className="absolute -left-10 -bottom-10 w-24 h-24 rounded-full bg-indigo-400/20 blur-xl" />
+          </>
+        )}
+        <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
+          <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg", autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground")}>
+            <Zap size={28} />
+          </div>
+          <div className="flex-1 text-center sm:text-left min-w-0">
+            <div className="flex items-center justify-center sm:justify-start gap-3 mb-2">
+              <h3 className={cn("text-base font-black uppercase tracking-widest", autoEnabled ? "text-white" : "text-foreground")}>Automação do Robô</h3>
+              <span className={cn("text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full", autoEnabled ? "bg-card/20 text-white" : "bg-muted text-muted-foreground")}>
+                {autoEnabled ? "Ativo" : "Inativo"}
+              </span>
+            </div>
+            <p className={cn("text-xs font-medium leading-relaxed", autoEnabled ? "text-white/80" : "text-muted-foreground")}>
+              {autoEnabled ? "Varredura automática de regras e notificações em execução." : "A automação está desligada. Apenas ações manuais serão processadas."}
+            </p>
+          </div>
+          <button onClick={() => toggleAutomation.mutate({ enabled: !autoEnabled })} disabled={toggleAutomation.isPending} className="transition-transform hover:scale-110 active:scale-90 disabled:opacity-50">
+            {toggleAutomation.isPending
+              ? <Loader2 size={48} className="animate-spin opacity-50" />
+              : autoEnabled
+                ? <ToggleRight size={64} className="text-white drop-shadow-lg" />
+                : <ToggleLeft size={64} className="text-muted-foreground/30" />
+            }
+          </button>
+        </div>
+      </div>
+
+      {isSupported && permission === "default" && (
+        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-100 shadow-sm shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
+          <p className="text-[11px] lg:text-xs text-amber-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Ative os alertas para ser avisado sobre novos lembretes.</p>
+          <Button size="sm" className="w-full sm:w-auto h-9 rounded-xl bg-amber-600 text-white font-black uppercase tracking-widest text-[9px] px-4 shadow-lg shadow-amber-500/20" onClick={async () => {
+            const result = await requestPermission();
+            if (result === "granted") toast.success("Notificações ativadas!");
+          }}>Ativar</Button>
+        </div>
+      )}
+
+      {isSupported && permission === "granted" && (
+        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-100 shadow-sm shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
+          <p className="text-[11px] lg:text-xs text-emerald-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Notificações Ativadas! Você pode fechar a aba que continuará sendo avisado.</p>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => requestPermission()}>Sincronizar</Button>
+            <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => testPush.mutate()} disabled={testPush.isPending}>
+              {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Disparar Teste
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
