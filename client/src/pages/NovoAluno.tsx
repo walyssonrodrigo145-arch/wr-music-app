@@ -147,6 +147,8 @@ export default function NovoAluno() {
         return;
     }
 
+    if (value === "none") value = "";
+
     let maskedValue = value || "";
     if (field === 'cpf') maskedValue = maskCPF(value || "");
     if (field === 'phone' || field === 'guardianPhone') maskedValue = maskPhone(value || "");
@@ -742,7 +744,7 @@ export default function NovoAluno() {
                         <SelectValue placeholder="Selecione (Opcional)" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        <SelectItem value="" className="rounded-lg">
+                        <SelectItem value="none" className="rounded-lg">
                            <span className="font-medium text-muted-foreground">Nenhum</span>
                         </SelectItem>
                         {professores.map((prof: any) => (
