@@ -6935,10 +6935,12 @@ Instruções de análise:
       )
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
         const { messageAutomationRules } = await import("../drizzle/schema");
         const orgId = ctx.user.organizationId!;
         const userId = ctx.user.id;
+
+        console.log("[automations.create] RECEIVED REQUEST:", { userId, orgId, input });
 
         try {
           const [rule] = await db
@@ -6959,10 +6961,33 @@ Instruções de análise:
               channel: input.channel,
             })
             .returning();
-          return rule;
+          
+          console.log("[automations.create] INSERT OK, id=", rule?.id);
+          
+          // Serialize to plain object to avoid superjson issues with Drizzle result types
+          return {
+            id: rule.id,
+            organizationId: rule.organizationId,
+            userId: rule.userId,
+            name: rule.name,
+            description: rule.description,
+            isSystem: rule.isSystem,
+            isActive: rule.isActive,
+            trigger: rule.trigger,
+            offsetDays: rule.offsetDays,
+            offsetHours: rule.offsetHours,
+            conditions: rule.conditions,
+            actions: rule.actions,
+            messageTemplate: rule.messageTemplate,
+            channel: rule.channel,
+            totalSent: rule.totalSent,
+            lastExecutedAt: rule.lastExecutedAt ? rule.lastExecutedAt.toISOString() : null,
+            createdAt: rule.createdAt ? rule.createdAt.toISOString() : new Date().toISOString(),
+            updatedAt: rule.updatedAt ? rule.updatedAt.toISOString() : new Date().toISOString(),
+          };
         } catch (error) {
-          console.error("AUTOMATIONS CREATE ERROR:", error);
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: String(error) });
+          console.error("[automations.create] FAILED:", error);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao salvar automação: " + String(error) });
         }
       }),
 

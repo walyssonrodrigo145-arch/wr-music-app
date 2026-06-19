@@ -124,6 +124,28 @@ export async function runAutoMigrations() {
           "tokenId" integer,
           "scannedAt" timestamp DEFAULT now() NOT NULL
         );`
+      },
+      { table: 'message_automation_rules', sql: `
+        CREATE TABLE IF NOT EXISTS "message_automation_rules" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "organizationId" integer,
+          "userId" integer NOT NULL,
+          "name" varchar(255) NOT NULL,
+          "description" text,
+          "isSystem" integer DEFAULT 0 NOT NULL,
+          "isActive" integer DEFAULT 1 NOT NULL,
+          "trigger" varchar(100) NOT NULL,
+          "offsetDays" integer DEFAULT 0 NOT NULL,
+          "offsetHours" integer DEFAULT 0 NOT NULL,
+          "conditions" text,
+          "actions" text,
+          "messageTemplate" text NOT NULL,
+          "channel" varchar(50) DEFAULT 'whatsapp' NOT NULL,
+          "totalSent" integer DEFAULT 0 NOT NULL,
+          "lastExecutedAt" timestamp,
+          "createdAt" timestamp DEFAULT now() NOT NULL,
+          "updatedAt" timestamp DEFAULT now() NOT NULL
+        );`
       }
     ];
 
