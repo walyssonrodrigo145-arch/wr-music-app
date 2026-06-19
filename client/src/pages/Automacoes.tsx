@@ -53,6 +53,7 @@ const VARIABLES = [
   { label: "{nome_professor}",    desc: "Nome do professor"       },
   { label: "{nome_escola}",       desc: "Nome da escola"          },
   { label: "{curso}",             desc: "Instrumento/curso"       },
+  { label: "{instrumento}",       desc: "Nome do instrumento"     },
   { label: "{data_aula}",         desc: "Data da aula"            },
   { label: "{hora_aula}",         desc: "Horário da aula"         },
   { label: "{valor_mensalidade}", desc: "Valor da mensalidade"    },
@@ -433,6 +434,7 @@ function RuleEditorModal({ rule, onClose, onSave }: {
                       .replace(/\{nome_professor\}/g, "Prof. Carlos")
                       .replace(/\{nome_escola\}/g, "WR Music")
                       .replace(/\{curso\}/g, "Violão")
+                      .replace(/\{instrumento\}/g, "Violão")
                       .replace(/\{data_aula\}/g, "segunda-feira, 23 de junho")
                       .replace(/\{hora_aula\}/g, "14:00")
                       .replace(/\{valor_mensalidade\}/g, "R$ 250,00")

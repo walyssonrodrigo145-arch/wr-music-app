@@ -537,6 +537,7 @@ async function runAutomation() {
                   .replace(/\{nome_professor\}/g, professorName)
                   .replace(/\{nome_escola\}/g, schoolName)
                   .replace(/\{curso\}/g, due.instrumentName ?? "música")
+                  .replace(/\{instrumento\}/g, due.instrumentName ?? "música")
                   .replace(/\{valor_mensalidade\}/g, valor)
                   .replace(/\{data_vencimento\}/g, vencimento);
 
@@ -638,6 +639,7 @@ async function runAutomation() {
                   .replace(/\{nome_professor\}/g, professorName)
                   .replace(/\{nome_escola\}/g, schoolName)
                   .replace(/\{curso\}/g, lesson.instrumentName ?? "música")
+                  .replace(/\{instrumento\}/g, lesson.instrumentName ?? "música")
                   .replace(/\{data_aula\}/g, dataAula)
                   .replace(/\{hora_aula\}/g, horaAula);
 
@@ -697,7 +699,8 @@ async function runAutomation() {
                   .replace(/\{nome_aluno\}/g, student.name ?? "Aluno")
                   .replace(/\{nome_professor\}/g, professorName)
                   .replace(/\{nome_escola\}/g, schoolName)
-                  .replace(/\{curso\}/g, student.instrumentName ?? "música");
+                  .replace(/\{curso\}/g, student.instrumentName ?? "música")
+                  .replace(/\{instrumento\}/g, student.instrumentName ?? "música");
 
                 const targetPhone = student.phone || student.guardianPhone;
                 if (!targetPhone) continue;
@@ -771,6 +774,7 @@ async function runAutomation() {
                   .replace(/\{nome_professor\}/g, professorName)
                   .replace(/\{nome_escola\}/g, schoolName)
                   .replace(/\{curso\}/g, row.instrumentName ?? "música")
+                  .replace(/\{instrumento\}/g, row.instrumentName ?? "música")
                   .replace(/\{dias_sem_estudo\}/g, String(daysSince));
 
                 const targetPhone = row.studentPhone || row.guardianPhone;
@@ -838,7 +842,8 @@ async function runAutomation() {
                   .replace(/\{nome_aluno\}/g, student.name ?? "Aluno")
                   .replace(/\{nome_professor\}/g, professorName)
                   .replace(/\{nome_escola\}/g, schoolName)
-                  .replace(/\{curso\}/g, student.instrumentName ?? "música");
+                  .replace(/\{curso\}/g, student.instrumentName ?? "música")
+                  .replace(/\{instrumento\}/g, student.instrumentName ?? "música");
 
                 let targetPhone = student.phone;
                 if (student.birthDate) {
