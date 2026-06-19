@@ -738,7 +738,539 @@ async function runAutomation() {
     }
   }
 
+  // ─── PROCESSAMENTO DE REGRAS DE AUTOMAÇÃO PERSONALIZADAS ─────────────────
+  try {
+    const db = await getDb();
+    if (db) {
+      const { messageAutomationRules } = await import("../drizzle/schema");
+      const { settings: settingsTable } = await import("../drizzle/schema");
+
+      // Re-fetch all active user settings that have automation enabled
+      const activeSettingsForRules = await db
+        .select({
+          userId: settings.userId,
+          organizationId: settings.organizationId,
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+          whatsappAutoSend: settings.whatsappAutoSend,
+          pixKey: settings.pixKey,
+        })
+        .from(settings)
+        .where(eq(settings.automationEnabled, 1));
+
+      for (const userSet of activeSettingsForRules) {
+        const userId = userSet.userId;
+        const orgId = userSet.organizationId;
+        if (!orgId) continue;
+
+        // Load all active custom/system rules for this user
+        const activeRules = await db
+          .select()
+          .from(messageAutomationRules)
+          .where(
+            and(
+              eq(messageAutomationRules.organizationId, orgId),
+              eq(messageAutomationRules.userId, userId),
+              eq(messageAutomationRules.isActive, 1)
+            )
+          );
+
+        if (activeRules.length === 0) continue;
+
+        // Fetch school name from settings
+        const [userSettings2] = await db.select({ schoolName: settings.schoolName }).from(settings).where(eq(settings.userId, userId)).limit(1);
+        const [userInfo] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1);
+        const schoolName = userSettings2?.schoolName ?? "nossa escola";
+        const professorName = userInfo?.name ?? "Professor";
+        const now2 = new Date();
+        const todayStr2 = now2.toISOString().slice(0, 10);
+
+        for (const rule of activeRules) {
+          try {
+            if (rule.trigger === "payment_due" || rule.trigger === "payment_overdue") {
+              // ── MENSALIDADES ──────────────────────────────────────────────────
+              const pendingDues = await db
+                .select({
+                  id: paymentDues.id,
+                  studentId: paymentDues.studentId,
+                  amount: paymentDues.amount,
+                  dueDate: paymentDues.dueDate,
+                  status: paymentDues.status,
+                  month: paymentDues.month,
+                  year: paymentDues.year,
+                  studentName: students.name,
+                  studentPhone: students.phone,
+                  guardianPhone: students.guardianPhone,
+                  birthDate: students.birthDate,
+                  instrumentName: instruments.name,
+                  asaasPaymentLink: paymentDues.asaasPaymentLink,
+                })
+                .from(paymentDues)
+                .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
+                .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+                .where(
+                  and(
+                    eq(paymentDues.organizationId, orgId),
+                    eq(paymentDues.userId, userId),
+                    rule.trigger === "payment_overdue"
+                      ? eq(paymentDues.status, "atrasado")
+                      : or(eq(paymentDues.status, "pendente"), eq(paymentDues.status, "atrasado")),
+                    eq(students.status, "ativo")
+                  )
+                );
+
+              for (const due of pendingDues) {
+                const dueDate = new Date(due.dueDate + "T12:00:00");
+                const dueDateStr = String(due.dueDate).slice(0, 10);
+                const isOverdue = dueDateStr < todayStr2;
+
+                // For payment_due: check if trigger date (dueDate + offsetDays) <= today
+                // offsetDays is negative for "before" e.g. -3 means 3 days before
+                if (rule.trigger === "payment_due") {
+                  if (isOverdue) continue; // Already overdue, skip
+                  const triggerDate = new Date(dueDate);
+                  triggerDate.setDate(triggerDate.getDate() + (rule.offsetDays ?? 0));
+                  if (triggerDate > now2) continue; // Not yet time
+                }
+
+                const refId = `auto-rule-${rule.id}-${due.id}-${todayStr2}`;
+                const existingReminder = await db.select({ id: reminders.id }).from(reminders)
+                  .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
+                if (existingReminder.length > 0) continue;
+
+                const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
+
+                let message = (rule.messageTemplate ?? "")
+                  .replace(/\{nome_aluno\}/g, due.studentName ?? "Aluno")
+                  .replace(/\{nome_professor\}/g, professorName)
+                  .replace(/\{nome_escola\}/g, schoolName)
+                  .replace(/\{curso\}/g, due.instrumentName ?? "música")
+                  .replace(/\{valor_mensalidade\}/g, valor)
+                  .replace(/\{data_vencimento\}/g, vencimento);
+
+                if (due.asaasPaymentLink) {
+                  message += `\n\n💳 *Link de pagamento:*\n${due.asaasPaymentLink}`;
+                } else if (userSet.pixKey) {
+                  message += `\n\n💳 *PIX:* ${userSet.pixKey}`;
+                }
+
+                let targetPhone = due.studentPhone;
+                if (due.birthDate) {
+                  const bd = new Date(due.birthDate);
+                  let age = now2.getFullYear() - bd.getFullYear();
+                  if (now2.getMonth() < bd.getMonth() || (now2.getMonth() === bd.getMonth() && now2.getDate() < bd.getDate())) age--;
+                  if (age < 18 && due.guardianPhone) targetPhone = due.guardianPhone;
+                }
+                if (!targetPhone) continue;
+
+                await db.insert(reminders).values({
+                  organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
+                  type: "cobranca", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
+                });
+
+                // If auto-send enabled, send immediately
+                if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
+                  const sendRes = await sendWhatsAppMessage({
+                    url: userSet.whatsappBotUrl,
+                    token: userSet.whatsappBotToken,
+                    phone: targetPhone,
+                    message,
+                    sessionId: `prof_${userId}`,
+                  });
+                  const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
+                  if (newRem) {
+                    await db.update(reminders).set({
+                      status: sendRes.success ? "enviado" : "pendente",
+                      sentAt: sendRes.success ? now2 : undefined,
+                      externalMessageId: sendRes.messageId ?? null,
+                      errorMessage: sendRes.error ?? null,
+                      updatedAt: new Date(),
+                    }).where(eq(reminders.id, newRem.id));
+                  }
+                  if (sendRes.success) {
+                    await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
+                  }
+                }
+              }
+
+            } else if (rule.trigger === "lesson_scheduled") {
+              // ── AULAS ─────────────────────────────────────────────────────────
+              const offsetMs = (rule.offsetHours ?? 0) * 60 * 60 * 1000;
+              const monday = new Date(now2);
+              monday.setDate(monday.getDate() - monday.getDay());
+              const sunday = new Date(monday);
+              sunday.setDate(monday.getDate() + 14); // Look 2 weeks ahead
+
+              const upcomingLessons2 = await db
+                .select({
+                  id: lessons.id,
+                  studentId: lessons.studentId,
+                  title: lessons.title,
+                  scheduledAt: lessons.scheduledAt,
+                  studentName: students.name,
+                  studentPhone: students.phone,
+                  guardianPhone: students.guardianPhone,
+                  birthDate: students.birthDate,
+                  instrumentName: instruments.name,
+                })
+                .from(lessons)
+                .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
+                .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+                .where(
+                  and(
+                    eq(lessons.organizationId, orgId),
+                    eq(lessons.userId, userId),
+                    eq(lessons.status, "agendada"),
+                    gte(lessons.scheduledAt, now2),
+                    lte(lessons.scheduledAt, sunday),
+                    eq(students.status, "ativo")
+                  )
+                );
+
+              for (const lesson of upcomingLessons2) {
+                const lessonTime = new Date(lesson.scheduledAt);
+                const triggerTime = new Date(lessonTime.getTime() + offsetMs); // offsetHours=-24 → 24h before
+                if (triggerTime > now2) continue;
+
+                const lessonDateStr = lessonTime.toISOString().slice(0, 10);
+                const refId = `auto-rule-${rule.id}-lesson-${lesson.id}-${lessonDateStr}`;
+                const existing = await db.select({ id: reminders.id }).from(reminders)
+                  .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
+                if (existing.length > 0) continue;
+
+                const dataAula = lessonTime.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
+                const horaAula = lessonTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+                let message = (rule.messageTemplate ?? "")
+                  .replace(/\{nome_aluno\}/g, lesson.studentName ?? "Aluno")
+                  .replace(/\{nome_professor\}/g, professorName)
+                  .replace(/\{nome_escola\}/g, schoolName)
+                  .replace(/\{curso\}/g, lesson.instrumentName ?? "música")
+                  .replace(/\{data_aula\}/g, dataAula)
+                  .replace(/\{hora_aula\}/g, horaAula);
+
+                let targetPhone = lesson.studentPhone;
+                if (lesson.birthDate) {
+                  const bd = new Date(lesson.birthDate);
+                  let age = now2.getFullYear() - bd.getFullYear();
+                  if (now2.getMonth() < bd.getMonth() || (now2.getMonth() === bd.getMonth() && now2.getDate() < bd.getDate())) age--;
+                  if (age < 18 && lesson.guardianPhone) targetPhone = lesson.guardianPhone;
+                }
+                if (!targetPhone) continue;
+
+                await db.insert(reminders).values({
+                  organizationId: orgId, userId, studentId: lesson.studentId, lessonId: lesson.id,
+                  type: "aula", message, scheduledAt: triggerTime, status: "pendente", autoGenerated: 1, refId,
+                });
+
+                if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
+                  const sendRes = await sendWhatsAppMessage({
+                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
+                    phone: targetPhone, message, sessionId: `prof_${userId}`,
+                  });
+                  const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
+                  if (newRem) {
+                    await db.update(reminders).set({
+                      status: sendRes.success ? "enviado" : "pendente",
+                      sentAt: sendRes.success ? now2 : undefined,
+                      errorMessage: sendRes.error ?? null,
+                      updatedAt: new Date(),
+                    }).where(eq(reminders.id, newRem.id));
+                  }
+                  if (sendRes.success) {
+                    await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
+                  }
+                }
+              }
+
+            } else if (rule.trigger === "birthday") {
+              // ── ANIVERSÁRIOS ─────────────────────────────────────────────────
+              const allStudents = await db
+                .select({ id: students.id, name: students.name, phone: students.phone, guardianPhone: students.guardianPhone, birthDate: students.birthDate, instrumentName: instruments.name })
+                .from(students)
+                .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+                .where(and(eq(students.organizationId, orgId), eq(students.userId, userId), eq(students.status, "ativo")));
+
+              for (const student of allStudents) {
+                if (!student.birthDate) continue;
+                const bd = new Date(student.birthDate);
+                if (bd.getMonth() !== now2.getMonth() || bd.getDate() !== now2.getDate()) continue;
+
+                const refId = `auto-rule-${rule.id}-bday-${student.id}-${todayStr2}`;
+                const existing = await db.select({ id: reminders.id }).from(reminders)
+                  .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
+                if (existing.length > 0) continue;
+
+                const message = (rule.messageTemplate ?? "")
+                  .replace(/\{nome_aluno\}/g, student.name ?? "Aluno")
+                  .replace(/\{nome_professor\}/g, professorName)
+                  .replace(/\{nome_escola\}/g, schoolName)
+                  .replace(/\{curso\}/g, student.instrumentName ?? "música");
+
+                const targetPhone = student.phone || student.guardianPhone;
+                if (!targetPhone) continue;
+
+                await db.insert(reminders).values({
+                  organizationId: orgId, userId, studentId: student.id,
+                  type: "manual", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
+                });
+
+                if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
+                  const sendRes = await sendWhatsAppMessage({
+                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
+                    phone: targetPhone, message, sessionId: `prof_${userId}`,
+                  });
+                  const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
+                  if (newRem) {
+                    await db.update(reminders).set({
+                      status: sendRes.success ? "enviado" : "pendente",
+                      sentAt: sendRes.success ? now2 : undefined,
+                      errorMessage: sendRes.error ?? null,
+                      updatedAt: new Date(),
+                    }).where(eq(reminders.id, newRem.id));
+                  }
+                  if (sendRes.success) {
+                    await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
+                  }
+                }
+              }
+
+            } else if (rule.trigger === "student_inactive") {
+              // ── ALUNOS INATIVOS ──────────────────────────────────────────────
+              const inactiveDays = rule.offsetDays ?? 30;
+              const thresholdDate = new Date(now2);
+              thresholdDate.setDate(thresholdDate.getDate() - inactiveDays);
+
+              // Find students whose last lesson was before threshold
+              const studentsWithLastLesson = await db
+                .select({
+                  studentId: lessons.studentId,
+                  lastLesson: sql<string>`max(${lessons.scheduledAt})`,
+                  studentName: students.name,
+                  studentPhone: students.phone,
+                  guardianPhone: students.guardianPhone,
+                  instrumentName: instruments.name,
+                })
+                .from(lessons)
+                .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
+                .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+                .where(
+                  and(
+                    eq(lessons.organizationId, orgId),
+                    eq(lessons.userId, userId),
+                    eq(students.status, "ativo")
+                  )
+                )
+                .groupBy(lessons.studentId, students.name, students.phone, students.guardianPhone, instruments.name);
+
+              for (const row of studentsWithLastLesson) {
+                if (!row.studentId || !row.lastLesson) continue;
+                const lastLessonDate = new Date(row.lastLesson);
+                if (lastLessonDate > thresholdDate) continue; // Still active
+
+                const daysSince = Math.floor((now2.getTime() - lastLessonDate.getTime()) / (1000 * 60 * 60 * 24));
+                const refId = `auto-rule-${rule.id}-inactive-${row.studentId}-${todayStr2}`;
+                const existing = await db.select({ id: reminders.id }).from(reminders)
+                  .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
+                if (existing.length > 0) continue;
+
+                const message = (rule.messageTemplate ?? "")
+                  .replace(/\{nome_aluno\}/g, row.studentName ?? "Aluno")
+                  .replace(/\{nome_professor\}/g, professorName)
+                  .replace(/\{nome_escola\}/g, schoolName)
+                  .replace(/\{curso\}/g, row.instrumentName ?? "música")
+                  .replace(/\{dias_sem_estudo\}/g, String(daysSince));
+
+                const targetPhone = row.studentPhone || row.guardianPhone;
+                if (!targetPhone) continue;
+
+                await db.insert(reminders).values({
+                  organizationId: orgId, userId, studentId: row.studentId,
+                  type: "manual", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
+                });
+
+                if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
+                  const sendRes = await sendWhatsAppMessage({
+                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
+                    phone: targetPhone, message, sessionId: `prof_${userId}`,
+                  });
+                  const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
+                  if (newRem) {
+                    await db.update(reminders).set({
+                      status: sendRes.success ? "enviado" : "pendente",
+                      sentAt: sendRes.success ? now2 : undefined,
+                      errorMessage: sendRes.error ?? null,
+                      updatedAt: new Date(),
+                    }).where(eq(reminders.id, newRem.id));
+                  }
+                  if (sendRes.success) {
+                    await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
+                  }
+                }
+              }
+
+            } else if (rule.trigger === "new_student") {
+              // ── NOVOS ALUNOS ─────────────────────────────────────────────────
+              const offsetMs2 = (rule.offsetDays ?? 0) * 24 * 60 * 60 * 1000;
+              const newStudents2 = await db
+                .select({
+                  id: students.id,
+                  name: students.name,
+                  phone: students.phone,
+                  guardianPhone: students.guardianPhone,
+                  birthDate: students.birthDate,
+                  createdAt: students.createdAt,
+                  instrumentName: instruments.name,
+                })
+                .from(students)
+                .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+                .where(
+                  and(
+                    eq(students.organizationId, orgId),
+                    eq(students.userId, userId),
+                    eq(students.status, "ativo"),
+                    gte(students.createdAt, new Date(now2.getTime() - 7 * 24 * 60 * 60 * 1000)) // Last 7 days
+                  )
+                );
+
+              for (const student of newStudents2) {
+                const triggerDate = new Date(student.createdAt.getTime() + offsetMs2);
+                if (triggerDate > now2) continue;
+
+                const refId = `auto-rule-${rule.id}-newstudent-${student.id}`;
+                const existing = await db.select({ id: reminders.id }).from(reminders)
+                  .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
+                if (existing.length > 0) continue;
+
+                const message = (rule.messageTemplate ?? "")
+                  .replace(/\{nome_aluno\}/g, student.name ?? "Aluno")
+                  .replace(/\{nome_professor\}/g, professorName)
+                  .replace(/\{nome_escola\}/g, schoolName)
+                  .replace(/\{curso\}/g, student.instrumentName ?? "música");
+
+                let targetPhone = student.phone;
+                if (student.birthDate) {
+                  const bd = new Date(student.birthDate);
+                  let age = now2.getFullYear() - bd.getFullYear();
+                  if (now2.getMonth() < bd.getMonth() || (now2.getMonth() === bd.getMonth() && now2.getDate() < bd.getDate())) age--;
+                  if (age < 18 && student.guardianPhone) targetPhone = student.guardianPhone;
+                }
+                if (!targetPhone) continue;
+
+                await db.insert(reminders).values({
+                  organizationId: orgId, userId, studentId: student.id,
+                  type: "manual", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
+                });
+
+                if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
+                  const sendRes = await sendWhatsAppMessage({
+                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
+                    phone: targetPhone, message, sessionId: `prof_${userId}`,
+                  });
+                  const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
+                  if (newRem) {
+                    await db.update(reminders).set({
+                      status: sendRes.success ? "enviado" : "pendente",
+                      sentAt: sendRes.success ? now2 : undefined,
+                      errorMessage: sendRes.error ?? null,
+                      updatedAt: new Date(),
+                    }).where(eq(reminders.id, newRem.id));
+                  }
+                  if (sendRes.success) {
+                    await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
+                  }
+                }
+              }
+
+            } else if (rule.trigger === "payment_confirmed") {
+              // ── PAGAMENTO CONFIRMADO ─────────────────────────────────────────
+              // Find payments confirmed today (paidAt >= start of today)
+              const startOfToday = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate(), 0, 0, 0);
+              const confirmedToday = await db
+                .select({
+                  id: paymentDues.id,
+                  studentId: paymentDues.studentId,
+                  amount: paymentDues.amount,
+                  paidAt: paymentDues.paidAt,
+                  studentName: students.name,
+                  studentPhone: students.phone,
+                  guardianPhone: students.guardianPhone,
+                  birthDate: students.birthDate,
+                  instrumentName: instruments.name,
+                })
+                .from(paymentDues)
+                .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
+                .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+                .where(
+                  and(
+                    eq(paymentDues.organizationId, orgId),
+                    eq(paymentDues.userId, userId),
+                    eq(paymentDues.status, "pago"),
+                    gte(paymentDues.paidAt, startOfToday)
+                  )
+                );
+
+              for (const payment of confirmedToday) {
+                const refId = `auto-rule-${rule.id}-paid-${payment.id}-${todayStr2}`;
+                const existing = await db.select({ id: reminders.id }).from(reminders)
+                  .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
+                if (existing.length > 0) continue;
+
+                const valor = Number(payment.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const message = (rule.messageTemplate ?? "")
+                  .replace(/\{nome_aluno\}/g, payment.studentName ?? "Aluno")
+                  .replace(/\{nome_professor\}/g, professorName)
+                  .replace(/\{nome_escola\}/g, schoolName)
+                  .replace(/\{curso\}/g, payment.instrumentName ?? "música")
+                  .replace(/\{valor_mensalidade\}/g, valor);
+
+                let targetPhone = payment.studentPhone;
+                if (payment.birthDate) {
+                  const bd = new Date(payment.birthDate);
+                  let age = now2.getFullYear() - bd.getFullYear();
+                  if (now2.getMonth() < bd.getMonth() || (now2.getMonth() === bd.getMonth() && now2.getDate() < bd.getDate())) age--;
+                  if (age < 18 && payment.guardianPhone) targetPhone = payment.guardianPhone;
+                }
+                if (!targetPhone) continue;
+
+                await db.insert(reminders).values({
+                  organizationId: orgId, userId, studentId: payment.studentId, paymentDueId: payment.id,
+                  type: "cobranca", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
+                });
+
+                if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
+                  const sendRes = await sendWhatsAppMessage({
+                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
+                    phone: targetPhone, message, sessionId: `prof_${userId}`,
+                  });
+                  const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
+                  if (newRem) {
+                    await db.update(reminders).set({
+                      status: sendRes.success ? "enviado" : "pendente",
+                      sentAt: sendRes.success ? now2 : undefined,
+                      errorMessage: sendRes.error ?? null,
+                      updatedAt: new Date(),
+                    }).where(eq(reminders.id, newRem.id));
+                  }
+                  if (sendRes.success) {
+                    await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
+                  }
+                }
+              }
+            }
+          } catch (ruleErr) {
+            console.error(`[Automation] Error processing rule ID ${rule.id} (${rule.name}):`, ruleErr);
+          }
+        }
+      }
+    }
+  } catch (automationRulesErr) {
+    console.error("[Automation] Error in automation rules processing:", automationRulesErr);
+  }
+
   isAutomationRunning = false;
+
 }
 
 export function startAutomationJob() {

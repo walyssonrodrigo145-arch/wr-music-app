@@ -17,7 +17,8 @@ import {
   Megaphone,
   Inbox,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -45,6 +46,7 @@ const staticNavItems = [
   { label: "Lembretes", href: "/lembretes", icon: Bell },
   { label: "Comunicados", href: "/comunicados", icon: Megaphone },
   { label: "Mensagens", href: "/mensagens", icon: MessageSquare },
+  { label: "Automações", href: "/automacoes", icon: Zap },
   { label: "Solicitações", href: "/solicitacoes", icon: Inbox },
   { label: "IA Assistente", href: "/ia", icon: Sparkles },
   { label: "Progresso", href: "/progresso", icon: Activity },

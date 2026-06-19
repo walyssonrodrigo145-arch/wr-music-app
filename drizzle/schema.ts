@@ -548,3 +548,28 @@ export const attendanceLogs = pgTable("attendance_logs", {
 
 export type AttendanceLog = typeof attendanceLogs.$inferSelect;
 export type InsertAttendanceLog = typeof attendanceLogs.$inferInsert;
+
+// ─── MESSAGE AUTOMATION RULES ─────────────────────────────────────────────────
+export const messageAutomationRules = pgTable("message_automation_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  isSystem: integer("isSystem").default(0).notNull(),    // 1 = native rule, 0 = custom
+  isActive: integer("isActive").default(1).notNull(),
+  trigger: varchar("trigger", { length: 100 }).notNull(), // payment_due | payment_overdue | lesson_scheduled | birthday | student_inactive | payment_confirmed | new_student
+  offsetDays: integer("offsetDays").default(0).notNull(), // negative = before, positive = after
+  offsetHours: integer("offsetHours").default(0).notNull(),
+  conditions: text("conditions"),                         // JSON: [{field, operator, value}]
+  actions: text("actions"),                               // JSON: [{type: 'whatsapp'|'notification'|'task'}]
+  messageTemplate: text("messageTemplate").notNull(),
+  channel: varchar("channel", { length: 50 }).default("whatsapp").notNull(),
+  totalSent: integer("totalSent").default(0).notNull(),
+  lastExecutedAt: timestamp("lastExecutedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type MessageAutomationRule = typeof messageAutomationRules.$inferSelect;
+export type InsertMessageAutomationRule = typeof messageAutomationRules.$inferInsert;

@@ -33,6 +33,7 @@ const IAAssistente = lazy(() => import("./pages/IAAssistente"));
 const ProfessorExtract = lazy(() => import("./pages/ProfessorExtract"));
 const RecepcaoQRCode = lazy(() => import("./pages/RecepcaoQRCode"));
 const QRScanner = lazy(() => import("./pages/QRScanner"));
+const Automacoes = lazy(() => import("./pages/Automacoes"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -142,6 +143,7 @@ function Router() {
           <Route path="/progresso" component={Progresso} />
           <Route path="/comunicados" component={Comunicados} />
           <Route path="/mensagens" component={Mensagens} />
+          <Route path="/automacoes" component={Automacoes} />
           <Route path="/solicitacoes" component={Solicitacoes} />
           <Route path="/ia" component={IAAssistente} />
           <Route path="/folha" component={ProfessorExtract} />

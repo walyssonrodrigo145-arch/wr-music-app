@@ -6894,6 +6894,366 @@ Instruções de análise:
   }),
 
   fcm: fcmRouter,
+
+  // ─── AUTOMATIONS ROUTER ───────────────────────────────────────────────────────
+  automations: router({
+    // List all automation rules for the current user/org
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const { messageAutomationRules } = await import("../drizzle/schema");
+      const orgId = ctx.user.organizationId!;
+      const userId = ctx.user.id;
+
+      const rules = await db
+        .select()
+        .from(messageAutomationRules)
+        .where(
+          and(
+            eq(messageAutomationRules.organizationId, orgId),
+            eq(messageAutomationRules.userId, userId)
+          )
+        )
+        .orderBy(desc(messageAutomationRules.isSystem), asc(messageAutomationRules.createdAt));
+      return rules;
+    }),
+
+    // Create a new custom automation rule
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1),
+          description: z.string().optional(),
+          trigger: z.string().min(1),
+          offsetDays: z.number().default(0),
+          offsetHours: z.number().default(0),
+          conditions: z.string().optional(),
+          actions: z.string().optional(),
+          messageTemplate: z.string().min(1),
+          channel: z.string().default("whatsapp"),
+          isActive: z.number().default(1),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { messageAutomationRules } = await import("../drizzle/schema");
+        const orgId = ctx.user.organizationId!;
+        const userId = ctx.user.id;
+
+        const [rule] = await db
+          .insert(messageAutomationRules)
+          .values({
+            organizationId: orgId,
+            userId,
+            name: input.name,
+            description: input.description ?? null,
+            isSystem: 0,
+            isActive: input.isActive,
+            trigger: input.trigger,
+            offsetDays: input.offsetDays,
+            offsetHours: input.offsetHours,
+            conditions: input.conditions ?? null,
+            actions: input.actions ?? null,
+            messageTemplate: input.messageTemplate,
+            channel: input.channel,
+          })
+          .returning();
+        return rule;
+      }),
+
+    // Update an existing automation rule (name, template, timing, etc.)
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().min(1).optional(),
+          description: z.string().optional(),
+          offsetDays: z.number().optional(),
+          offsetHours: z.number().optional(),
+          conditions: z.string().optional(),
+          actions: z.string().optional(),
+          messageTemplate: z.string().optional(),
+          channel: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { messageAutomationRules } = await import("../drizzle/schema");
+        const orgId = ctx.user.organizationId!;
+        const userId = ctx.user.id;
+
+        const { id, ...fields } = input;
+        const updateData: Record<string, any> = {};
+        if (fields.name !== undefined) updateData.name = fields.name;
+        if (fields.description !== undefined) updateData.description = fields.description;
+        if (fields.offsetDays !== undefined) updateData.offsetDays = fields.offsetDays;
+        if (fields.offsetHours !== undefined) updateData.offsetHours = fields.offsetHours;
+        if (fields.conditions !== undefined) updateData.conditions = fields.conditions;
+        if (fields.actions !== undefined) updateData.actions = fields.actions;
+        if (fields.messageTemplate !== undefined) updateData.messageTemplate = fields.messageTemplate;
+        if (fields.channel !== undefined) updateData.channel = fields.channel;
+        updateData.updatedAt = new Date();
+
+        await db
+          .update(messageAutomationRules)
+          .set(updateData)
+          .where(
+            and(
+              eq(messageAutomationRules.id, id),
+              eq(messageAutomationRules.organizationId, orgId),
+              eq(messageAutomationRules.userId, userId)
+            )
+          );
+        return { success: true };
+      }),
+
+    // Toggle active/inactive
+    toggle: protectedProcedure
+      .input(z.object({ id: z.number(), isActive: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { messageAutomationRules } = await import("../drizzle/schema");
+        const orgId = ctx.user.organizationId!;
+        const userId = ctx.user.id;
+
+        await db
+          .update(messageAutomationRules)
+          .set({ isActive: input.isActive, updatedAt: new Date() })
+          .where(
+            and(
+              eq(messageAutomationRules.id, input.id),
+              eq(messageAutomationRules.organizationId, orgId),
+              eq(messageAutomationRules.userId, userId)
+            )
+          );
+        return { success: true };
+      }),
+
+    // Delete a custom rule (system rules cannot be deleted)
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { messageAutomationRules } = await import("../drizzle/schema");
+        const orgId = ctx.user.organizationId!;
+        const userId = ctx.user.id;
+
+        const [rule] = await db
+          .select()
+          .from(messageAutomationRules)
+          .where(
+            and(
+              eq(messageAutomationRules.id, input.id),
+              eq(messageAutomationRules.organizationId, orgId),
+              eq(messageAutomationRules.userId, userId)
+            )
+          )
+          .limit(1);
+
+        if (!rule) throw new TRPCError({ code: "NOT_FOUND" });
+        if (rule.isSystem === 1) throw new TRPCError({ code: "FORBIDDEN", message: "Regras do sistema não podem ser excluídas." });
+
+        await db
+          .delete(messageAutomationRules)
+          .where(eq(messageAutomationRules.id, input.id));
+        return { success: true };
+      }),
+
+    // Get execution history (reminders generated by a specific rule)
+    history: protectedProcedure
+      .input(z.object({ ruleId: z.number(), limit: z.number().default(50) }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const orgId = ctx.user.organizationId!;
+
+        const rows = await db
+          .select({
+            id: reminders.id,
+            studentName: students.name,
+            studentPhone: students.phone,
+            message: reminders.message,
+            status: reminders.status,
+            scheduledAt: reminders.scheduledAt,
+            sentAt: reminders.sentAt,
+            errorMessage: reminders.errorMessage,
+            channel: reminders.type,
+          })
+          .from(reminders)
+          .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
+          .where(
+            and(
+              eq(reminders.organizationId, orgId),
+              eq(reminders.userId, ctx.user.id),
+              sql`${reminders.refId} LIKE ${'auto-rule-' + input.ruleId + '-%'}`
+            )
+          )
+          .orderBy(desc(reminders.createdAt))
+          .limit(input.limit);
+        return rows;
+      }),
+
+    // Dashboard stats
+    stats: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return { totalSent: 0, activeRules: 0, deliveryRate: 0, topRule: null };
+      const { messageAutomationRules } = await import("../drizzle/schema");
+      const orgId = ctx.user.organizationId!;
+      const userId = ctx.user.id;
+
+      const rules = await db
+        .select()
+        .from(messageAutomationRules)
+        .where(
+          and(
+            eq(messageAutomationRules.organizationId, orgId),
+            eq(messageAutomationRules.userId, userId)
+          )
+        );
+
+      const totalSent = rules.reduce((acc, r) => acc + (r.totalSent || 0), 0);
+      const activeRules = rules.filter(r => r.isActive === 1).length;
+
+      // Count sent/error from reminders with auto-rule prefix
+      const [sentCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(reminders)
+        .where(
+          and(
+            eq(reminders.organizationId, orgId),
+            eq(reminders.userId, userId),
+            eq(reminders.status, "enviado"),
+            sql`${reminders.refId} LIKE 'auto-rule-%'`
+          )
+        );
+
+      const [totalCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(reminders)
+        .where(
+          and(
+            eq(reminders.organizationId, orgId),
+            eq(reminders.userId, userId),
+            sql`${reminders.refId} LIKE 'auto-rule-%'`
+          )
+        );
+
+      const deliveryRate = totalCount.count > 0 ? Math.round((sentCount.count / totalCount.count) * 100) : 0;
+      const topRule = rules.sort((a, b) => (b.totalSent || 0) - (a.totalSent || 0))[0] ?? null;
+
+      return {
+        totalSent: sentCount.count || 0,
+        activeRules,
+        deliveryRate,
+        topRule: topRule ? { id: topRule.id, name: topRule.name, totalSent: topRule.totalSent } : null,
+      };
+    }),
+
+    // Seed default system rules for the current user if they don't exist yet
+    seedDefaults: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { messageAutomationRules } = await import("../drizzle/schema");
+      const orgId = ctx.user.organizationId!;
+      const userId = ctx.user.id;
+
+      const existing = await db
+        .select({ id: messageAutomationRules.id })
+        .from(messageAutomationRules)
+        .where(
+          and(
+            eq(messageAutomationRules.organizationId, orgId),
+            eq(messageAutomationRules.userId, userId),
+            eq(messageAutomationRules.isSystem, 1)
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) return { seeded: false };
+
+      const systemRules = [
+        {
+          name: "Boas-vindas ao Novo Aluno",
+          description: "Envia mensagem de boas-vindas quando um novo aluno é matriculado.",
+          trigger: "new_student",
+          offsetDays: 0,
+          offsetHours: 0,
+          messageTemplate: "Olá {nome_aluno}! 🎵 Seja muito bem-vindo(a) à {nome_escola}! Estamos felizes em ter você aqui. Em breve seu professor {nome_professor} entrará em contato para organizar sua primeira aula de {curso}. Qualquer dúvida, estamos à disposição!",
+          channel: "whatsapp",
+        },
+        {
+          name: "Lembrete de Aula 24h Antes",
+          description: "Lembra o aluno da aula 24 horas antes do horário agendado.",
+          trigger: "lesson_scheduled",
+          offsetDays: 0,
+          offsetHours: -24,
+          messageTemplate: "Olá {nome_aluno}! 🎸 Lembrando que você tem aula de {curso} amanhã, {data_aula} às {hora_aula}. Te esperamos! Qualquer imprevisto, entre em contato.",
+          channel: "whatsapp",
+        },
+        {
+          name: "Mensalidade Próxima do Vencimento",
+          description: "Avisa o aluno sobre mensalidade prestes a vencer. Timing configurável.",
+          trigger: "payment_due",
+          offsetDays: -3,
+          offsetHours: 0,
+          messageTemplate: "Olá {nome_aluno}! 💰 Passando para lembrar que sua mensalidade de {valor_mensalidade} vence em {data_vencimento}. Por favor, realize o pagamento no prazo. Obrigado!",
+          channel: "whatsapp",
+        },
+        {
+          name: "Mensalidade Vencida",
+          description: "Avisa o aluno que a mensalidade já venceu.",
+          trigger: "payment_overdue",
+          offsetDays: 0,
+          offsetHours: 0,
+          messageTemplate: "Olá {nome_aluno}! Identificamos que sua mensalidade de {valor_mensalidade} com vencimento em {data_vencimento} ainda consta como pendente. Por favor, regularize o quanto antes. Qualquer dúvida, fale conosco!",
+          channel: "whatsapp",
+        },
+        {
+          name: "Parabéns no Aniversário",
+          description: "Envia mensagem de parabéns no dia do aniversário do aluno.",
+          trigger: "birthday",
+          offsetDays: 0,
+          offsetHours: 0,
+          messageTemplate: "🎂 Feliz Aniversário, {nome_aluno}! A equipe da {nome_escola} deseja um dia incrível cheio de muita música e alegria! 🎵🎉",
+          channel: "whatsapp",
+        },
+        {
+          name: "Confirmação de Pagamento Recebido",
+          description: "Confirma ao aluno que o pagamento foi registrado.",
+          trigger: "payment_confirmed",
+          offsetDays: 0,
+          offsetHours: 0,
+          messageTemplate: "Olá {nome_aluno}! ✅ Seu pagamento de {valor_mensalidade} foi confirmado com sucesso. Obrigado pela pontualidade! Qualquer dúvida, estamos à disposição.",
+          channel: "whatsapp",
+        },
+        {
+          name: "Reativação de Aluno Inativo",
+          description: "Envia mensagem para alunos que não acessam a plataforma há muitos dias.",
+          trigger: "student_inactive",
+          offsetDays: 30,
+          offsetHours: 0,
+          messageTemplate: "Olá {nome_aluno}! 🎵 Sentimos sua falta! Você está há {dias_sem_estudo} dias sem registrar atividades. Que tal voltar à sua jornada musical? Estamos aqui para te apoiar na {nome_escola}!",
+          channel: "whatsapp",
+        },
+      ];
+
+      for (const rule of systemRules) {
+        await db.insert(messageAutomationRules).values({
+          organizationId: orgId,
+          userId,
+          isSystem: 1,
+          isActive: 1,
+          ...rule,
+        });
+      }
+
+      return { seeded: true, count: systemRules.length };
+    }),
+  }),
 });
 
-export type AppRouter = typeof appRouter;
+export type AppRouter = typeof appRouter;
