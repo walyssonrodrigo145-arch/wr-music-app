@@ -6941,19 +6941,29 @@ Instruções de análise:
         console.log("[automations.create] RECEIVED REQUEST:", { userId, orgId, name: input.name, trigger: input.trigger });
 
         try {
-          // Use raw SQL INSERT to avoid superjson serialization issues with Drizzle's returning()
-          const result = await db.execute(
-            sql`INSERT INTO "message_automation_rules"
-              ("organizationId", "userId", "name", "description", "isSystem", "isActive",
-               "trigger", "offsetDays", "offsetHours", "conditions", "actions", "messageTemplate", "channel")
-            VALUES
-              (${orgId}, ${userId}, ${input.name}, ${input.description ?? null}, 0, ${input.isActive},
-               ${input.trigger}, ${input.offsetDays}, ${input.offsetHours},
-               ${input.conditions ?? null}, ${input.actions ?? null}, ${input.messageTemplate}, ${input.channel})
-            RETURNING id`
-          );
+          // Use Drizzle's .insert().values().returning() for safe superjson serialization
+          // (db.execute with RETURNING returns postgres.Row[] which is not a plain JS array
+          //  and cannot be serialized by superjson, causing "Unable to transform response" errors)
+          const inserted = await db
+            .insert(messageAutomationRules)
+            .values({
+              organizationId: orgId,
+              userId,
+              name: input.name,
+              description: input.description ?? null,
+              isSystem: 0,
+              isActive: input.isActive,
+              trigger: input.trigger,
+              offsetDays: input.offsetDays,
+              offsetHours: input.offsetHours,
+              conditions: input.conditions ?? null,
+              actions: input.actions ?? null,
+              messageTemplate: input.messageTemplate,
+              channel: input.channel,
+            })
+            .returning({ id: messageAutomationRules.id });
 
-          const newId = (result as any)?.[0]?.id ?? (result as any)?.rows?.[0]?.id;
+          const newId = inserted[0]?.id ?? null;
           console.log("[automations.create] INSERT OK, newId=", newId);
 
           return { success: true, id: Number(newId), name: input.name };
