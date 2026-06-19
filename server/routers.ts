@@ -6446,32 +6446,30 @@ Instruções de análise:
           const spNow = new Date(spDateStr);
           
           const todayStart = new Date(spNow.getFullYear(), spNow.getMonth(), spNow.getDate(), 0, 0, 0);
-          const todayEnd = new Date(spNow.getFullYear(), spNow.getMonth(), spNow.getDate(), 23, 59, 59, 999);
 
           // Determine if the user is a student or a professor
-          // For students, match by studentId (through their user-student link)
-          // For professors, match by userId (the professor is the lesson owner)
-          let lessonFilter;
-          if (ctx.user.role === "aluno" && ctx.user.studentId) {
-            lessonFilter = eq(lessons.studentId, ctx.user.studentId);
-          } else {
-            lessonFilter = eq(lessons.userId, userId);
+          // Trava 1: Apenas alunos podem registrar presença via QR Code
+          if (ctx.user.role !== "aluno" || !ctx.user.studentId) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Apenas alunos podem registrar presença via QR Code." });
           }
+
+          // Trava 2: Não concluir aulas muito no futuro (limite de 30 minutos a partir de agora)
+          const maxAllowedTime = new Date(spNow.getTime() + 30 * 60 * 1000);
 
           const [todayLesson] = await db.select()
             .from(lessons)
             .where(and(
               eq(lessons.organizationId, orgId),
-              lessonFilter,
+              eq(lessons.studentId, ctx.user.studentId),
               eq(lessons.status, "agendada"),
               gte(lessons.scheduledAt, todayStart),
-              lte(lessons.scheduledAt, todayEnd),
+              lte(lessons.scheduledAt, maxAllowedTime),
             ))
             .orderBy(asc(lessons.scheduledAt))
             .limit(1);
 
           if (!todayLesson) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Nenhuma aula agendada para hoje" });
+            throw new TRPCError({ code: "NOT_FOUND", message: "Nenhuma aula agendada disponível para check-in neste momento. (Aguarde o horário da aula)" });
           }
 
           // 3. Check for duplicate scan
