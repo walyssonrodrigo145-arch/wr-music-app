@@ -1,4 +1,4 @@
-import { eq, desc, asc, sql, and, gte, lte, lt } from "drizzle-orm";
+import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -465,8 +465,9 @@ export async function getInstrumentsWithCount(organizationId: number, userId?: n
     icon: instruments.icon,
     color: instruments.color,
     studentCount: sql<number>`count(${students.id})`,
-  }).from(instruments).leftJoin(students, eq(instruments.id, students.instrumentId))
+  }).from(instruments).leftJoin(students, and(eq(instruments.id, students.instrumentId), eq(students.organizationId, organizationId)))
     .where(and(
+        isNotNull(instruments.organizationId),
         eq(instruments.organizationId, organizationId),
         userId ? eq(instruments.userId, userId) : undefined
     ))
