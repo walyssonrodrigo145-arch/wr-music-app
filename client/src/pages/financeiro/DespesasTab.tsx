@@ -851,10 +851,24 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
 
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Conta: {expense.account || "—"}</span>
-                    <Button variant="ghost" size="sm" className="h-8 px-3 rounded-xl text-xs font-bold text-purple-600 hover:bg-purple-500/10"
-                      onClick={(e) => { e.stopPropagation(); setEditExpense(expense); }}>
-                      <Pencil size={12} className="mr-1.5" /> Editar
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-xl text-rose-500 hover:bg-rose-500/10"
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          e.stopPropagation(); 
+                          if(confirm("Deseja excluir esta despesa?")) deleteMutation.mutate({ id: expense.id }); 
+                        }}>
+                        <Trash2 size={14} />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-3 rounded-xl text-xs font-bold text-purple-600 hover:bg-purple-500/10"
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          e.stopPropagation(); 
+                          setEditExpense(expense); 
+                        }}>
+                        <Pencil size={12} className="mr-1.5" /> Editar
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))

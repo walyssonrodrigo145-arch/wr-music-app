@@ -958,13 +958,22 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                          </Button>
                        ) : (
                          <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10"
-                           onClick={(e) => { e.stopPropagation(); setUploadingFor(payment.id); setTimeout(() => fileInputRef.current?.click(), 100); }}>
+                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setUploadingFor(payment.id); setTimeout(() => fileInputRef.current?.click(), 100); }}>
                            <FileUp size={12} className="mr-1" /> Anexar
                          </Button>
                        )}
 
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-500 hover:bg-rose-500/10 shrink-0"
+                        onClick={(e) => { 
+                          e.preventDefault();
+                          e.stopPropagation(); 
+                          if(confirm("Deseja excluir esta mensalidade?")) deleteMutation.mutate({ id: payment.id });
+                        }}>
+                        <Trash2 size={14} />
+                      </Button>
+
                       <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10"
-                        onClick={(e) => { e.stopPropagation(); setNotesPayment(payment); }}>
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setNotesPayment(payment); }}>
                         <FileText size={12} className="mr-1" /> Obs
                       </Button>
 
@@ -972,7 +981,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                          <Button
                            variant="outline" size="sm"
                            className="h-8 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600 hover:bg-violet-500/10"
-                           onClick={() => setAsaasPayment(payment)}
+                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAsaasPayment(payment); }}
                          >
                            <Zap size={12} /> Gerar Link
                          </Button>

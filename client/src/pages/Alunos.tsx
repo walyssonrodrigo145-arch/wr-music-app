@@ -769,7 +769,7 @@ export default function Alunos() {
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground" onClick={() => setLocation(`/alunos/${student.id}/editar`)}>
                           <Pencil size={14} />
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-500/10" onClick={() => setDeleteStudent(student)}>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-500/10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteStudent(student); }}>
                           <Trash2 size={14} />
                         </Button>
                       </div>
