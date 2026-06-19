@@ -6441,11 +6441,12 @@ Instruções de análise:
             throw new TRPCError({ code: "BAD_REQUEST", message: "Token expirado" });
           }
 
-          // 2. Find the user's lesson for today (scheduled status)
-          const spDateStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-          const spNow = new Date(spDateStr);
-          
-          const todayStart = new Date(spNow.getFullYear(), spNow.getMonth(), spNow.getDate(), 0, 0, 0);
+          // 2. Find the user's lesson (scheduled status)
+          // Allow checking into lessons that started up to 12 hours ago, and up to 30 minutes in the future.
+          // This avoids complex timezone string parsing issues on UTC servers.
+          const now = new Date();
+          const minAllowedTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+          const maxAllowedTime = new Date(now.getTime() + 30 * 60 * 1000);
 
           // Determine if the user is a student or a professor
           // Trava 1: Apenas alunos podem registrar presença via QR Code
@@ -6453,16 +6454,13 @@ Instruções de análise:
             throw new TRPCError({ code: "FORBIDDEN", message: "Apenas alunos podem registrar presença via QR Code." });
           }
 
-          // Trava 2: Não concluir aulas muito no futuro (limite de 30 minutos a partir de agora)
-          const maxAllowedTime = new Date(spNow.getTime() + 30 * 60 * 1000);
-
           const [todayLesson] = await db.select()
             .from(lessons)
             .where(and(
               eq(lessons.organizationId, orgId),
               eq(lessons.studentId, ctx.user.studentId),
               eq(lessons.status, "agendada"),
-              gte(lessons.scheduledAt, todayStart),
+              gte(lessons.scheduledAt, minAllowedTime),
               lte(lessons.scheduledAt, maxAllowedTime),
             ))
             .orderBy(asc(lessons.scheduledAt))
