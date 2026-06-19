@@ -518,6 +518,8 @@ async function runAutomation() {
             .set({ alertSent30m: true, updatedAt: new Date() })
             .where(eq(lessons.id, lesson.id));
         }
+      }
+      
       // ─── 5. LEMBRETE DE PLANO DE ESTUDO (DIÁRIO) ────────────────────────────
       // Envia lembrete às 18:00 (ou depois) se o aluno tem um plano ativo com pendências, e ainda não interagiu hoje.
       if (now.getHours() >= 18) {
