@@ -198,7 +198,7 @@ async function startServer() {
   app.use("/uploads", express.static("uploads"));
 
   // Rate Limiting para a API
-  const apiLimiter = createRateLimiter(60 * 1000, 120, "Muitas requisições. Tente novamente em um minuto.");
+  const apiLimiter = createRateLimiter(60 * 1000, 1200, "Muitas requisições. Tente novamente em um minuto.");
   app.use("/api/trpc", apiLimiter);
 
 

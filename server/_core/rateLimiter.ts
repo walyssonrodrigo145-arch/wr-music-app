@@ -31,11 +31,19 @@ export const createRateLimiter = (windowMs: number, max: number, message: string
     store[ip].count++;
 
     if (store[ip].count > max) {
+      // Formata a resposta de erro exatamente como o tRPC + SuperJSON espera
+      // Isso evita o erro "Unable to transform response from server" no cliente
       return res.status(429).json({
         error: {
-          message: message,
-          code: "TOO_MANY_REQUESTS",
-        },
+          json: {
+            message: message,
+            code: -32005, // TRPC TOO_MANY_REQUESTS code
+            data: {
+              code: "TOO_MANY_REQUESTS",
+              httpStatus: 429
+            }
+          }
+        }
       });
     }
 
