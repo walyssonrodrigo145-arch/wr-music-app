@@ -49,6 +49,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     date: format(new Date(), "yyyy-MM-dd"),
     isExperimental: false,
     experimentalName: "",
+    experimentalPhone: "",
     lessonType: "individual" as "individual" | "turma",
     turmaStudentIds: [] as number[],
   });
@@ -82,6 +83,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           updateSeries: false,
           isExperimental: !!editingLesson.isExperimental,
           experimentalName: editingLesson.experimentalName || "",
+          experimentalPhone: (editingLesson as any).experimentalPhone || "",
           lessonType: editingLesson.lessonType || "individual",
           turmaStudentIds: []
         });
@@ -98,6 +100,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           updateSeries: false,
           isExperimental: false,
           experimentalName: "",
+          experimentalPhone: "",
           lessonType: "individual",
           turmaStudentIds: []
         });
@@ -159,6 +162,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       updateSeries: false,
       isExperimental: false,
       experimentalName: "",
+      experimentalPhone: "",
       lessonType: "individual",
       turmaStudentIds: []
     });
@@ -244,6 +248,11 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       return;
     }
 
+    if (formData.isExperimental && !formData.experimentalPhone) {
+      toast.error("Por favor, informe o telefone/WhatsApp do aluno para envio do lembrete automático.");
+      return;
+    }
+
     // Título padrão se estiver vazio
     const student = students?.find((s: any) => s.id.toString() === formData.studentId);
     const studentLabel = formData.isExperimental ? formData.experimentalName : student?.name;
@@ -260,6 +269,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         studentId: formData.isExperimental ? null : (formData.studentId ? Number(formData.studentId) : null),
         isExperimental: formData.isExperimental,
         experimentalName: formData.experimentalName,
+        experimentalPhone: formData.experimentalPhone,
         title: submissionTitle,
         duration: formData.duration,
         notes: formData.notes,
@@ -306,6 +316,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         studentId: formData.isExperimental ? null : (formData.studentId ? Number(formData.studentId) : null),
         isExperimental: formData.isExperimental,
         experimentalName: formData.experimentalName,
+        experimentalPhone: formData.experimentalPhone,
         title: submissionTitle,
         scheduledAt: scheduledDate.toISOString(),
         duration: formData.duration,
@@ -508,6 +519,22 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                    ))}
                  </select>
               </div>
+
+              {/* Telefone Experimental */}
+              {formData.isExperimental && (
+                <div className="space-y-2 md:col-span-2">
+                   <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
+                     <span className="text-yellow-600/40">📱</span> Telefone/WhatsApp
+                   </label>
+                   <input 
+                     type="text"
+                     placeholder="(11) 99999-9999"
+                     value={formData.experimentalPhone}
+                     onChange={(e) => setFormData({ ...formData, experimentalPhone: e.target.value })}
+                     className="w-full h-14 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-yellow-500/5 outline-none transition-all"
+                   />
+                </div>
+              )}
             </div>
           )}
 

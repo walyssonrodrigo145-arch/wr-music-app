@@ -134,6 +134,7 @@ export const lessons = pgTable("lessons", {
   studentId: integer("studentId"),
   isExperimental: boolean("isExperimental").default(false).notNull(),
   experimentalName: varchar("experimentalName", { length: 255 }),
+  experimentalPhone: varchar("experimentalPhone", { length: 30 }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   scheduledAt: timestamp("scheduledAt").notNull(),
@@ -217,6 +218,7 @@ export const reminders = pgTable("reminders", {
   sentAt: timestamp("sentAt"),
   cancelledAt: timestamp("cancelledAt"),
   refId: varchar("refId", { length: 100 }),
+  targetPhone: varchar("targetPhone", { length: 30 }),
   // WhatsApp Bot tracking
   externalMessageId: varchar("externalMessageId", { length: 255 }),
   errorMessage: text("errorMessage"),
