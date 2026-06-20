@@ -168,6 +168,7 @@ async function runAutomation() {
           alertSent1h: lessons.alertSent1h,
           alertSent30m: lessons.alertSent30m,
           studentName: students.name,
+          studentPhone: students.phone,
         })
         .from(lessons)
         .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
@@ -186,9 +187,11 @@ async function runAutomation() {
         
         // Alerta de 1 hora (entre 50 e 70 minutos para tolerância)
         if (diffMinutes >= 50 && diffMinutes <= 70 && !lesson.alertSent1h) {
+          const timeStr = new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+          const dateStr = new Date(lesson.scheduledAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
           await notifyUser(userId, {
-            title: "Alerta de Aula",
-            content: `Sua aula "${lesson.title}" com ${lesson.studentName || "Aluno"} começa em 1 hora (${new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}).`
+            title: `🎸 Lembrete de Aula: ${lesson.title}`,
+            content: `👤 Aluno: ${lesson.studentName || "Aluno"}\n📱 Número: ${lesson.studentPhone || "Não cadastrado"}\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}`
           });
           
           await db
@@ -199,9 +202,11 @@ async function runAutomation() {
         
         // Alerta de 30 minutos (entre 20 e 40 minutos para tolerância)
         if (diffMinutes >= 20 && diffMinutes <= 40 && !lesson.alertSent30m) {
+          const timeStr = new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+          const dateStr = new Date(lesson.scheduledAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
           await notifyUser(userId, {
-            title: "Alerta de Aula",
-            content: `Sua aula "${lesson.title}" com ${lesson.studentName || "Aluno"} começa em 30 minutos (${new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}).`
+            title: `🎸 Lembrete de Aula: ${lesson.title}`,
+            content: `👤 Aluno: ${lesson.studentName || "Aluno"}\n📱 Número: ${lesson.studentPhone || "Não cadastrado"}\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}`
           });
           
           await db

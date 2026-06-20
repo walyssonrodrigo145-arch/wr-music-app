@@ -8,6 +8,9 @@ import { eq } from "drizzle-orm";
 export type NotificationPayload = {
   title: string;
   content: string;
+  icon?: string;
+  badge?: string;
+  url?: string;
 };
 
 const TITLE_MAX_LENGTH = 1200;
@@ -130,7 +133,11 @@ export async function notifyUser(
       } else {
         let sentCount = 0;
         for (const device of tokens) {
-          const success = await sendPushNotification(device.token, title, content);
+          const success = await sendPushNotification(device.token, title, content, undefined, {
+            icon: payload.icon,
+            badge: payload.badge,
+            url: payload.url,
+          });
           if (success) sentCount++;
         }
         console.log(`[Push] Sent ${sentCount} notifications to userId ${userId}`);

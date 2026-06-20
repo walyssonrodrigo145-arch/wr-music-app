@@ -24,7 +24,7 @@ if (!getApps().length) {
 
 export const messaging = getApps().length ? getMessaging() : null;
 
-export async function sendPushNotification(token: string, title: string, body: string, data?: Record<string, string>) {
+export async function sendPushNotification(token: string, title: string, body: string, data?: Record<string, string>, opts?: { icon?: string, badge?: string, url?: string }) {
   if (!messaging) {
     console.log('Firebase messaging não está configurado.');
     return false;
@@ -36,6 +36,16 @@ export async function sendPushNotification(token: string, title: string, body: s
       notification: {
         title,
         body,
+      },
+      webpush: {
+        notification: {
+          icon: opts?.icon || 'https://wrmusicpro.com.br/icon-192.png',
+          badge: opts?.badge || 'https://wrmusicpro.com.br/icon-192.png',
+          vibrate: [200, 100, 200],
+        },
+        fcmOptions: {
+          link: opts?.url || 'https://wrmusicpro.com.br/'
+        }
       },
       data,
     });
