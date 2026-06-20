@@ -178,7 +178,7 @@ export default function RecepcaoQRCode() {
   const schoolName = user?.organizationName || "MusicPro";
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 overflow-hidden select-none">
+    <div className="min-h-[calc(100vh-8rem)] flex flex-col relative w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-[2.5rem] overflow-hidden select-none shadow-2xl border border-white/5">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-indigo-600/10 blur-3xl" />
@@ -195,7 +195,7 @@ export default function RecepcaoQRCode() {
         />
       </div>
 
-      <div className="relative z-10 h-full flex flex-col">
+      <div className="relative z-10 flex-1 flex flex-col">
         {/* ── Header ─────────────────────────────────────────────── */}
         <header className="flex items-center justify-between px-8 py-5">
           <div className="flex items-center gap-4">
@@ -239,7 +239,7 @@ export default function RecepcaoQRCode() {
         </header>
 
         {/* ── Main Content ───────────────────────────────────────── */}
-        <main className="flex-1 flex items-center justify-center px-8 gap-12">
+        <main className="flex-1 flex flex-col xl:flex-row items-center justify-center px-8 gap-12 py-8">
           {/* QR Code Section */}
           <div className="flex flex-col items-center gap-6">
             {/* Instruction */}
