@@ -422,12 +422,7 @@ async function runAutomation() {
 
       await db.update(settings).set({ automationLastRun: now }).where(eq(settings.userId, userId));
 
-      if (remindersCreated > 0) {
-        await notifyUser(userId, {
-          title: "Lembretes Gerados",
-          content: `O robô gerou ${remindersCreated} novos lembretes de aula e/ou cobrança do dia.`
-        });
-      }
+      // Notificação de log "Lembretes Gerados" removida para evitar spam
 
       // ─── 3. DISPARO AUTOMÁTICO COM CONTROLE DE FILA E PRIORIDADE ────────────
       if (userSettings.whatsappAutoSend === 1 && userSettings.whatsappBotUrl) {
@@ -547,10 +542,7 @@ async function runAutomation() {
             sentMap.add(remKey);
             messagesSentThisCycle++;
 
-            await notifyUser(userId, {
-              title: "Mensagem Enviada",
-              content: `Lembrete enviado com sucesso para ${rem.studentName || "Aluno"} (${targetPhone}).`,
-            });
+            // Notificação de log "Mensagem Enviada" removida para evitar spam
           } else {
             await db.update(reminders)
               .set({

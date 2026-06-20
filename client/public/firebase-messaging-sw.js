@@ -17,11 +17,6 @@ const messaging = firebase.messaging();
 // Fica escutando por mensagens recebidas enquanto a aba estiver em background
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification?.title || 'Nova Notificação';
-  const notificationOptions = {
-    body: payload.notification?.body || '',
-    icon: '/favicon.ico'
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  // O Firebase SDK já exibe notificações automaticamente se o payload contiver 'notification'.
+  // Se enviarmos apenas 'data', podemos chamar self.registration.showNotification aqui.
 });
