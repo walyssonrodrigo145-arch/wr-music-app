@@ -70,17 +70,69 @@ export function registerGoogleAuthRoutes(app: Express) {
       // Usamos o 'sub' do Google como openId único
       const openId = `google_${googleUser.sub}`;
       
-      await db.upsertUser({
-        openId,
-        name: googleUser.name,
-        email: googleUser.email,
-        loginMethod: "google",
-        isEmailVerified: true, // Google já verificou o e-mail
-        lastSignedIn: new Date(),
-      });
+      const dbModule = await import('../db');
+      const drizzle = await dbModule.getDb();
+      let finalOpenId = openId;
+      
+      if (drizzle) {
+        const { users, students } = await import('../../drizzle/schema');
+        const { ilike } = await import('drizzle-orm');
+        
+        // 1. Verificar se já existe um usuário com esse e-mail (ex: criado via Auth local)
+        const [existingUser] = await drizzle.select().from(users).where(ilike(users.email, googleUser.email)).limit(1);
+        
+        if (existingUser) {
+           finalOpenId = existingUser.openId; // Mantém o openId original do usuário
+           await db.upsertUser({
+             openId: finalOpenId,
+             name: existingUser.name || googleUser.name,
+             email: googleUser.email,
+             loginMethod: "google",
+             isEmailVerified: true,
+             lastSignedIn: new Date(),
+           });
+        } else {
+           // 2. Se não tem usuário, ver se tem um aluno com esse e-mail
+           const [existingStudent] = await drizzle.select().from(students).where(ilike(students.email, googleUser.email)).limit(1);
+           
+           if (existingStudent) {
+              await db.upsertUser({
+                openId: finalOpenId,
+                name: existingStudent.name || googleUser.name,
+                email: googleUser.email,
+                loginMethod: "google",
+                isEmailVerified: true,
+                role: "aluno",
+                organizationId: existingStudent.organizationId || undefined,
+                studentId: existingStudent.id,
+                lastSignedIn: new Date(),
+              });
+           } else {
+              // 3. Usuário totalmente novo
+              await db.upsertUser({
+                openId: finalOpenId,
+                name: googleUser.name,
+                email: googleUser.email,
+                loginMethod: "google",
+                isEmailVerified: true,
+                lastSignedIn: new Date(),
+              });
+           }
+        }
+      } else {
+         // Fallback se não der para usar drizzle direto
+         await db.upsertUser({
+           openId: finalOpenId,
+           name: googleUser.name,
+           email: googleUser.email,
+           loginMethod: "google",
+           isEmailVerified: true,
+           lastSignedIn: new Date(),
+         });
+      }
 
       // Criar sessão
-      const sessionToken = await sdk.createSessionToken(openId, {
+      const sessionToken = await sdk.createSessionToken(finalOpenId, {
         name: googleUser.name || "",
         expiresInMs: ONE_YEAR_MS,
       });
@@ -89,13 +141,11 @@ export function registerGoogleAuthRoutes(app: Express) {
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
       // Redirecionar para o portal correto de acordo com o role do usuário
-      const dbModule = await import('../db');
-      const drizzle = await dbModule.getDb();
       let redirectPath = "/dashboard";
       if (drizzle) {
         const { users } = await import('../../drizzle/schema');
         const { eq } = await import('drizzle-orm');
-        const [dbUser] = await drizzle.select({ role: users.role }).from(users).where(eq(users.email, googleUser.email)).limit(1);
+        const [dbUser] = await drizzle.select({ role: users.role }).from(users).where(eq(users.openId, finalOpenId)).limit(1);
         if (dbUser?.role === 'aluno') {
           redirectPath = "/aluno";
         }
