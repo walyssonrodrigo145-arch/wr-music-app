@@ -625,51 +625,34 @@ export default function Progresso() {
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
               
-              {/* TOP HEADER PANEL */}
-              <div className="px-8 py-6 shrink-0 relative overflow-hidden bg-transparent">
-                <div className="flex flex-row items-center justify-between relative z-10 gap-4">
-                  <div className="flex items-center gap-4">
-                    <button 
-                      onClick={() => setSelectedStudentId(null)}
-                      className="md:hidden p-2 -ml-2 hover:bg-muted rounded-xl transition-all shrink-0"
-                    >
-                      <ChevronLeft size={24} />
-                    </button>
-                    <div>
-                      <h2 className="text-2xl font-black text-foreground tracking-tighter">Olá, {selectedStudent?.name.split(' ')[0]}! 👋</h2>
-                      <p className="text-sm text-muted-foreground font-medium mt-1">Acompanhe seu progresso e planeje sua jornada musical.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="hidden xl:flex flex-col items-end">
-                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status de Evolução</span>
-                       <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/100/5 border border-emerald-500/10 rounded-2xl">
-                          <Zap size={14} className="text-emerald-500 fill-emerald-500/20" />
-                          <span className="text-xs font-black text-emerald-600 uppercase tracking-tight">Excelente Desempenho</span>
-                       </div>
-                    </div>
-                    <Button 
-                      onClick={() => { resetForm(); setIsModalOpen(true); }}
-                      className="h-10 sm:h-12 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/10 transition-all active:scale-95 border-none flex items-center gap-2"
-                    >
-                       <Plus size={20} />
-                       <span className="hidden sm:inline font-black uppercase text-xs tracking-wider">Novo</span>
-                    </Button>
-                  </div>
+              {/* TOP ACTIONS */}
+              <div className="px-8 py-4 shrink-0 flex justify-end gap-4 relative z-10 bg-transparent">
+                <div className="hidden xl:flex flex-col items-end justify-center">
+                   <span className="text-[10px] font-bold text-muted-foreground mb-1">Status de Evolução</span>
+                   <div className="flex items-center gap-1.5 px-2">
+                      <Zap size={14} className="text-emerald-500 fill-emerald-500/20" />
+                      <span className="text-xs font-bold text-emerald-600">Excelente desempenho</span>
+                   </div>
                 </div>
+                <Button 
+                  onClick={() => { resetForm(); setIsModalOpen(true); }}
+                  className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all border-none flex items-center gap-2"
+                >
+                   <Plus size={16} />
+                   <span className="font-medium text-sm">Novo</span>
+                </Button>
               </div>
 
               {/* STATS AND STUDENT INFO GRID */}
               <div className="px-8 pb-6 shrink-0">
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* STUDENT CARD */}
-                  <div className="lg:w-1/3 bg-card p-6 rounded-3xl border border-border shadow-sm flex flex-col justify-center gap-6">
+                  <div className="lg:w-1/3 bg-card p-6 rounded-2xl border border-border shadow-sm flex flex-col justify-between min-h-[140px]">
                     <div className="flex items-center gap-4">
                       <div className="relative">
-                        <Avatar className="w-14 h-14 border-4 border-indigo-50 shadow-sm">
+                        <Avatar className="w-14 h-14">
                           <AvatarImage src={selectedStudent?.avatar} className="object-cover" />
-                          <AvatarFallback className="bg-indigo-600 text-white text-xl font-black uppercase">
+                          <AvatarFallback className="bg-indigo-600 text-white text-xl font-bold uppercase">
                             {selectedStudent?.name.substring(0, 2)}
                           </AvatarFallback>
                         </Avatar>
@@ -683,33 +666,35 @@ export default function Progresso() {
                         <motion.div 
                           whileHover={{ scale: 1.1 }}
                           onClick={() => avatarInputRef.current?.click()}
-                          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-card border border-slate-100 shadow-md flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
+                          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
                         >
                           {uploadAvatarMutation.isPending ? (
                             <Loader2 size={10} className="animate-spin" />
                           ) : (
-                            <Edit2 size={12} />
+                            <Edit2 size={10} />
                           )}
                         </motion.div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h2 className="text-lg font-black text-foreground truncate leading-tight">{selectedStudent?.name}</h2>
-                          <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-[9px] font-black uppercase rounded-md tracking-wider">
+                        <div className="flex flex-col items-start gap-1">
+                          <h2 className="text-sm font-bold text-foreground leading-tight">{selectedStudent?.name}</h2>
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase rounded-md tracking-wider">
                             {selectedStudent?.level || "Iniciante"}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
+                    <div className="mt-4 flex flex-col gap-1.5">
+                      <div className="flex justify-end">
+                        <span className="text-[10px] font-medium text-muted-foreground">{summary?.frequency || 0}% de frequência</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${summary?.frequency || 0}%` }}
-                          className="h-full bg-indigo-600" 
+                          className="h-full bg-indigo-600 rounded-full" 
                         />
                       </div>
-                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">{summary?.frequency || 0}% de frequência</span>
                     </div>
                   </div>
 
@@ -719,14 +704,12 @@ export default function Progresso() {
                       { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500" },
                       { label: "Aulas Concluídas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-indigo-500" },
                       { label: "Última Aula", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500" },
-                      { label: "Tempo Total", value: "12h 40m", icon: Clock, color: "text-blue-500" },
+                      { label: "Tempo Total", value: "12h 40m", icon: Clock, color: "text-slate-400" },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-card p-4 rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center text-center">
-                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-muted/50", stat.color)}>
-                          <stat.icon size={18} />
-                        </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">{stat.label}</p>
-                        <p className="text-2xl font-black text-foreground">{stat.value}</p>
+                      <div key={i} className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center h-[140px]">
+                        <stat.icon size={24} className={cn("mb-3", stat.color)} strokeWidth={1.5} />
+                        <p className="text-[11px] font-medium text-muted-foreground mb-1">{stat.label}</p>
+                        <p className="text-xl font-bold text-foreground">{stat.value}</p>
                       </div>
                     ))}
                   </div>
@@ -735,7 +718,7 @@ export default function Progresso() {
 
                {/* INTERNAL HEADER - TABS */}
                <div className="shrink-0 border-b border-border">
-                  <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto subtle-scrollbar px-8 pb-1">
+                  <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto subtle-scrollbar px-8 pb-0">
                     {[
                       { id: "jornada", label: "Jornada Musical", icon: Activity },
                       { id: "biblioteca", label: "Biblioteca Musical", icon: Folder },
@@ -749,16 +732,16 @@ export default function Progresso() {
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id as any)}
                           className={cn(
-                            "flex items-center gap-2 px-2 py-4 text-[11px] font-black uppercase tracking-[0.1em] transition-all relative whitespace-nowrap shrink-0",
+                            "flex items-center gap-2 px-2 py-4 text-xs font-medium transition-all relative whitespace-nowrap shrink-0",
                             isActive ? "text-indigo-600" : "text-muted-foreground hover:text-slate-600"
                           )}
                         >
-                          <tab.icon size={16} className={cn("transition-colors", isActive ? "text-indigo-500" : "text-muted-foreground/40")} />
+                          <tab.icon size={16} className={cn("transition-colors", isActive ? "text-indigo-600" : "text-muted-foreground")} />
                           {tab.label}
                           {isActive && (
                             <motion.div 
                               layoutId="activeIndicator"
-                              className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-600 rounded-t-full shadow-[0_-4px_12px_rgba(79,70,229,0.3)]"
+                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"
                             />
                           )}
                         </button>
