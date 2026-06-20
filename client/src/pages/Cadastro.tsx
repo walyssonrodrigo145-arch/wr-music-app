@@ -18,11 +18,11 @@ export default function Cadastro() {
   const [planType, setPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
 
   const registerMutation = trpc.auth.registerWithPlan.useMutation({
-    onSuccess: (data) => {
-      setSuccessMsg("Redirecionando para o pagamento...");
-      if (data.paymentLink) {
-        window.location.href = data.paymentLink;
-      }
+    onSuccess: () => {
+      setSuccessMsg("Conta criada com sucesso! Redirecionando...");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1500);
     },
     onError: (err) => setErrorMsg(err.message)
   });
@@ -207,7 +207,7 @@ export default function Cadastro() {
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 <>
-                  Continuar para Pagamento
+                  Iniciar 30 Dias Grátis
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}

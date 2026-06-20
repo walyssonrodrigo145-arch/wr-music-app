@@ -106,11 +106,12 @@ function Router() {
   }
 
   // Admin/Professor Paywall Logic
-  const isTrialing = user?.subscriptionStatus === "trialing" || !user?.subscriptionStatus;
   const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
-  const isTrialExpired = isTrialing && trialEndsAt && trialEndsAt < new Date();
+  const isTrialExpired = trialEndsAt ? trialEndsAt < new Date() : false;
   const isSubscriptionActive = user?.subscriptionStatus === "active";
-  const hasAccess = isSubscriptionActive || (isTrialing && !isTrialExpired);
+  
+  // Concede acesso se a assinatura estiver ativa OU se o período de trial/carência ainda não acabou
+  const hasAccess = isSubscriptionActive || (trialEndsAt && !isTrialExpired);
 
   if (!hasAccess) {
     return (

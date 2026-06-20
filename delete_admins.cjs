@@ -3,7 +3,7 @@ const conn = new Client();
 
 conn.on('ready', () => {
   console.log('Conectado à VPS...');
-  const cmd = `docker exec wr-music-app-db-1 psql -U postgres -d wrmusic -c "SELECT id, name, email, role, \\"organizationId\\" FROM users WHERE name ILIKE '%Jhonatan%';"`;
+  const cmd = `docker exec wr-music-app-db-1 psql -U postgres -d wrmusic -c "DELETE FROM users WHERE id IN (416, 1554, 1526);"`;
   
   conn.exec(cmd, (err, stream) => {
     if (err) throw err;

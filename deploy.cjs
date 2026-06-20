@@ -3,13 +3,14 @@ const conn = new Client();
 
 conn.on('ready', () => {
   console.log('Conectado à VPS...');
-  const cmd = `docker exec wr-music-app-db-1 psql -U postgres -d wrmusic -c "SELECT id, name, email, role, \\"organizationId\\" FROM users WHERE name ILIKE '%Jhonatan%';"`;
+  // Atualiza o código, faz o build e reinicia o app
+  const cmd = `cd /root/wr-music-app && git pull && docker compose up -d --build app`;
   
   conn.exec(cmd, (err, stream) => {
     if (err) throw err;
     let out = '';
     stream.on('close', () => {
-      console.log('--- Resposta ---');
+      console.log('--- Resposta do Deploy ---');
       console.log(out);
       conn.end();
     }).on('data', d => { out += d; process.stdout.write(d); }).stderr.on('data', d => { out += d; process.stderr.write(d); });

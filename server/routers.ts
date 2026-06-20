@@ -286,10 +286,17 @@ export const appRouter = router({
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         
+        // 33 days of physical access, but billed on day 30 (3 dias de carência)
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 33);
+        const nextDueDate = new Date();
+        nextDueDate.setDate(nextDueDate.getDate() + 30);
+
         const [org] = await db.insert(organizations).values({
           name: `${input.name}`,
           slug: uniqueSlug,
-          subscriptionStatus: "pending",
+          subscriptionStatus: "trialing",
+          trialEndsAt,
           createdAt: new Date(),
         }).returning();
 
@@ -305,7 +312,7 @@ export const appRouter = router({
         }).returning();
 
         // Integração Asaas
-        const { createAsaasCustomer, createAsaasSubscription, getAsaasSubscriptionPayments } = await import('./utils/asaas');
+        const { createAsaasCustomer, createAsaasSubscription } = await import('./utils/asaas');
         
         const customerId = await createAsaasCustomer({
           name: org.name || "Escola",
@@ -317,7 +324,7 @@ export const appRouter = router({
           customer: customerId,
           billingType: 'UNDEFINED',
           value: input.planType === "YEARLY" ? 499.00 : 49.90,
-          nextDueDate: new Date().toISOString().slice(0, 10),
+          nextDueDate: nextDueDate.toISOString().slice(0, 10),
           cycle: input.planType,
           description: `Assinatura MusicPro - Plano ${input.planType}`
         });
@@ -326,14 +333,20 @@ export const appRouter = router({
           .set({ asaasCustomerId: customerId, asaasSubscriptionId: sub.id })
           .where(eq(organizations.id, org.id));
 
-        const payments = await getAsaasSubscriptionPayments(sub.id);
-        const pendingPayment = payments.find((p: any) => p.status === 'PENDING' || p.status === 'OVERDUE');
+        // Create session token to log them in immediately
+        const expiresInMs = 30 * 24 * 60 * 60 * 1000;
+        const sessionToken = await sdk.createSessionToken(openId, {
+          name: input.name,
+          expiresInMs,
+        });
         
-        if (!pendingPayment) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível gerar o link de pagamento. Tente novamente mais tarde." });
-        }
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { 
+          ...cookieOptions, 
+          maxAge: expiresInMs 
+        });
 
-        return { success: true, paymentLink: pendingPayment.invoiceUrl };
+        return { success: true };
       }),
     verifyEmail: publicProcedure
       .input(z.object({ token: z.string() }))
