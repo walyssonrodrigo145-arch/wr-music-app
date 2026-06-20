@@ -626,69 +626,22 @@ export default function Progresso() {
             <div className="flex-1 flex flex-col overflow-hidden">
               
               {/* TOP HEADER PANEL */}
-              <div className="bg-card border-b border-border px-8 py-6 shrink-0 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/100/5 rounded-full blur-3xl -mr-32 -mt-32" />
-                
-                <div className="flex flex-row items-start justify-between relative z-10 gap-4">
-                  <div className="flex items-start gap-3 sm:gap-6 flex-1 min-w-0">
+              <div className="px-8 py-6 shrink-0 relative overflow-hidden bg-transparent">
+                <div className="flex flex-row items-center justify-between relative z-10 gap-4">
+                  <div className="flex items-center gap-4">
                     <button 
                       onClick={() => setSelectedStudentId(null)}
-                      className="md:hidden p-2 -ml-2 hover:bg-muted rounded-xl transition-all shrink-0 mt-1 sm:mt-2"
+                      className="md:hidden p-2 -ml-2 hover:bg-muted rounded-xl transition-all shrink-0"
                     >
                       <ChevronLeft size={24} />
                     </button>
-                    <div className="relative group shrink-0 mt-1 sm:mt-0">
-                      <Avatar className="w-14 h-14 sm:w-16 sm:h-16 border-4 border-slate-50 shadow-xl shadow-indigo-500/10">
-                        <AvatarImage src={selectedStudent?.avatar} className="object-cover" />
-                        <AvatarFallback className="bg-indigo-600 text-white text-xl font-black uppercase">
-                          {selectedStudent?.name.substring(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <input 
-                        type="file" 
-                        ref={avatarInputRef} 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={handleAvatarChange} 
-                      />
-                      <motion.div 
-                        whileHover={{ scale: 1.1 }}
-                        onClick={() => avatarInputRef.current?.click()}
-                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-card border border-slate-100 shadow-md flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
-                      >
-                        {uploadAvatarMutation.isPending ? (
-                          <Loader2 size={10} className="animate-spin" />
-                        ) : (
-                          <Edit2 size={12} />
-                        )}
-                      </motion.div>
-                    </div>
-                    
-                    <div className="space-y-2 flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                        <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tighter uppercase break-words leading-tight">{selectedStudent?.name}</h2>
-                        <span className="w-fit px-2 sm:px-3 py-1 rounded-xl bg-indigo-500/10 text-[9px] font-black text-indigo-600 uppercase tracking-[0.2em] border border-indigo-100">
-                          {selectedStudent?.level || "Nível Iniciante"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 sm:gap-4 w-full">
-                        <div className="flex items-center gap-2 sm:gap-3 w-full">
-                           <div className="flex-1 max-w-[8rem] sm:max-w-none sm:w-32 lg:w-48 h-2 bg-muted rounded-full overflow-hidden border border-border/50">
-                              <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${summary?.frequency || 0}%` }}
-                                className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 shadow-[0_0_12px_rgba(79,70,229,0.4)]" 
-                              />
-                           </div>
-                           <span className="text-[9px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-widest shrink-0">
-                             {summary?.frequency || 0}% <span className="hidden sm:inline">Frequência</span><span className="sm:hidden">Freq.</span>
-                           </span>
-                        </div>
-                      </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-foreground tracking-tighter">Olá, {selectedStudent?.name.split(' ')[0]}! 👋</h2>
+                      <p className="text-sm text-muted-foreground font-medium mt-1">Acompanhe seu progresso e planeje sua jornada musical.</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 shrink-0 pt-1">
+                  <div className="flex items-center gap-4 shrink-0">
                     <div className="hidden xl:flex flex-col items-end">
                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status de Evolução</span>
                        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/100/5 border border-emerald-500/10 rounded-2xl">
@@ -698,17 +651,90 @@ export default function Progresso() {
                     </div>
                     <Button 
                       onClick={() => { resetForm(); setIsModalOpen(true); }}
-                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/10 transition-all active:scale-95 border-none"
+                      className="h-10 sm:h-12 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/10 transition-all active:scale-95 border-none flex items-center gap-2"
                     >
-                       <Plus size={20} className="sm:hidden" />
-                       <Plus size={24} className="hidden sm:block" />
+                       <Plus size={20} />
+                       <span className="hidden sm:inline font-black uppercase text-xs tracking-wider">Novo</span>
                     </Button>
                   </div>
                 </div>
               </div>
 
+              {/* STATS AND STUDENT INFO GRID */}
+              <div className="px-8 pb-6 shrink-0">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  {/* STUDENT CARD */}
+                  <div className="lg:w-1/3 bg-card p-6 rounded-3xl border border-border shadow-sm flex flex-col justify-center gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <Avatar className="w-14 h-14 border-4 border-indigo-50 shadow-sm">
+                          <AvatarImage src={selectedStudent?.avatar} className="object-cover" />
+                          <AvatarFallback className="bg-indigo-600 text-white text-xl font-black uppercase">
+                            {selectedStudent?.name.substring(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <input 
+                          type="file" 
+                          ref={avatarInputRef} 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={handleAvatarChange} 
+                        />
+                        <motion.div 
+                          whileHover={{ scale: 1.1 }}
+                          onClick={() => avatarInputRef.current?.click()}
+                          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-card border border-slate-100 shadow-md flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
+                        >
+                          {uploadAvatarMutation.isPending ? (
+                            <Loader2 size={10} className="animate-spin" />
+                          ) : (
+                            <Edit2 size={12} />
+                          )}
+                        </motion.div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <h2 className="text-lg font-black text-foreground truncate leading-tight">{selectedStudent?.name}</h2>
+                          <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-[9px] font-black uppercase rounded-md tracking-wider">
+                            {selectedStudent?.level || "Iniciante"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${summary?.frequency || 0}%` }}
+                          className="h-full bg-indigo-600" 
+                        />
+                      </div>
+                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">{summary?.frequency || 0}% de frequência</span>
+                    </div>
+                  </div>
+
+                  {/* STATS CARDS */}
+                  <div className="lg:w-2/3 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500" },
+                      { label: "Aulas Concluídas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-indigo-500" },
+                      { label: "Última Aula", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500" },
+                      { label: "Tempo Total", value: "12h 40m", icon: Clock, color: "text-blue-500" },
+                    ].map((stat, i) => (
+                      <div key={i} className="bg-card p-4 rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center text-center">
+                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-muted/50", stat.color)}>
+                          <stat.icon size={18} />
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">{stat.label}</p>
+                        <p className="text-2xl font-black text-foreground">{stat.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
                {/* INTERNAL HEADER - TABS */}
-               <div className="mt-8 shrink-0 border-b border-border">
+               <div className="shrink-0 border-b border-border">
                   <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto subtle-scrollbar px-8 pb-1">
                     {[
                       { id: "jornada", label: "Jornada Musical", icon: Activity },
@@ -723,7 +749,7 @@ export default function Progresso() {
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id as any)}
                           className={cn(
-                            "flex items-center gap-2 px-2 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap shrink-0",
+                            "flex items-center gap-2 px-2 py-4 text-[11px] font-black uppercase tracking-[0.1em] transition-all relative whitespace-nowrap shrink-0",
                             isActive ? "text-indigo-600" : "text-muted-foreground hover:text-slate-600"
                           )}
                         >
@@ -738,8 +764,8 @@ export default function Progresso() {
                         </button>
                       );
                     })}
-                 </div>
-              </div>
+                  </div>
+               </div>
 
               {/* CONTENT AREA */}
               <div className="flex-1 p-8 overflow-y-auto no-scrollbar">
@@ -752,28 +778,6 @@ export default function Progresso() {
                         exit={{ opacity: 0, y: -20 }}
                         className="space-y-8"
                       >
-                         {/* GRID DE CARDS SUPERIORES */}
-                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                            {[
-                              { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500", bg: "bg-amber-500/100/5", border: "border-amber-500/10" },
-                              { label: "Aulas Concluídas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-indigo-500", bg: "bg-indigo-500/100/5", border: "border-indigo-500/10" },
-                              { label: "Última Aula", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500", bg: "bg-rose-500/5", border: "border-rose-500/10" },
-                              { label: "Tempo Total", value: "12h 40m", icon: Clock, color: "text-blue-500", bg: "bg-blue-500/5", border: "border-blue-500/10" },
-                            ].map((stat, i) => (
-                              <motion.div 
-                                key={i}
-                                whileHover={{ y: -5, boxShadow: "0 20px 40px -10px rgba(0,0,0,0.05)" }}
-                                className={cn("bg-card p-6 rounded-[2rem] border border-border shadow-sm transition-all group relative overflow-hidden", stat.border)}
-                              >
-                                <div className="absolute top-0 right-0 w-16 h-16 bg-muted/50 rounded-full -mr-8 -mt-8 group-hover:scale-110 transition-transform" />
-                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-6 shadow-sm relative z-10", stat.bg, stat.color)}>
-                                  <stat.icon size={20} />
-                                </div>
-                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2 relative z-10">{stat.label}</p>
-                                <p className="text-xl font-black text-foreground relative z-10">{stat.value}</p>
-                              </motion.div>
-                            ))}
-                         </div>
 
                          {/* PLANO DE ESTUDO ATIVO (VISÃO PROFESSOR) */}
                          <div className="space-y-4 pt-4">

@@ -1627,6 +1627,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const [existing] = await db.select().from(students).where(condition).limit(1);
         if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "Aluno não encontrado ou sem permissão" });
 
+        // Sincronizar e-mail com a tabela de usuários, se houver alteração
+        if (updateData.email && updateData.email !== existing.email) {
+          // Verifica se já existe outro usuário com este e-mail
+          const [existingUserWithEmail] = await db.select().from(users).where(eq(users.email, updateData.email)).limit(1);
+          if (existingUserWithEmail && existingUserWithEmail.studentId !== id) {
+             throw new TRPCError({ code: "CONFLICT", message: "Este e-mail já está em uso por outro usuário." });
+          }
+          
+          // Atualiza o e-mail na tabela de usuários caso o aluno já tenha portal de acesso
+          await db.update(users).set({ email: updateData.email, updatedAt: new Date() }).where(eq(users.studentId, id));
+        }
+
         await db.update(students).set(updateData).where(eq(students.id, id));
 
         // Sincronizar vencimentos futuros se solicitado
