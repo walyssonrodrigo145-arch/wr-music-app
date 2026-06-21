@@ -1498,6 +1498,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       startDate: z.string().optional().nullable(),
       temporaryPassword: z.string().optional(),
       professorId: z.number().optional(),
+      avatar: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -1518,8 +1519,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           rg: input.rg || null,
           address: input.address || null,
           guardianName: input.guardianName || null,
+          avatar: input.avatar || null,
           guardianPhone: input.guardianPhone || null,
           guardianEmail: input.guardianEmail || null,
+          avatar: input.avatar !== undefined ? input.avatar : undefined,
           instrumentId: input.instrumentId || null,
           level: input.level,
           monthlyFee: String(input.monthlyFee),
@@ -1633,6 +1636,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       startDate: z.string().optional().nullable(),
       updateFutureDues: z.boolean().optional(),
       professorId: z.number().optional(),
+      avatar: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();

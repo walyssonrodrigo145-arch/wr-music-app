@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { format, isSameDay, startOfDay } from "date-fns";
@@ -30,6 +30,7 @@ type StudentRow = {
   portalEnabled?: boolean;
   professorId: number;
   lessonType: string;
+  avatar?: string | null;
 };
 
 interface FormData {
@@ -43,6 +44,7 @@ interface FormData {
   notes: string;
   status: "ativo" | "inativo" | "pausado";
   lessonType: "individual" | "turma";
+  avatar: string;
 }
 
 const EMPTY_FORM: FormData = {
@@ -56,6 +58,7 @@ const EMPTY_FORM: FormData = {
   notes: "",
   status: "ativo",
   lessonType: "individual",
+  avatar: "",
 };
 
 // ─── Badges ───────────────────────────────────────────────────────────────────
@@ -132,9 +135,40 @@ function StudentModal({
           notes: "",
           status: editData.status as FormData["status"],
           lessonType: (editData as any).lessonType as FormData["lessonType"] || "individual",
+          avatar: editData.avatar || "",
         }
       : EMPTY_FORM
   );
+
+  const uploadAvatarMutation = trpc.musicLibrary.upload.useMutation();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("A foto deve ter no máximo 2MB");
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      try {
+        const { url } = await uploadAvatarMutation.mutateAsync({
+          fileName: file.name,
+          fileType: file.type,
+          base64Data: base64
+        });
+        set("avatar", url);
+        toast.success("Foto carregada com sucesso!");
+      } catch (err) {
+        toast.error("Erro ao carregar foto");
+        console.error(err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const [updateFutureDues, setUpdateFutureDues] = useState(false);
   const [generatePortalAccess, setGeneratePortalAccess] = useState(false);
@@ -211,6 +245,7 @@ function StudentModal({
       notes: form.notes.trim() || undefined,
       status: form.status,
       lessonType: form.lessonType,
+      avatar: form.avatar || undefined,
     };
     if (editData) {
       updateMutation.mutate({ 
@@ -244,9 +279,36 @@ function StudentModal({
           </button>
         </div>
         <div className="p-6 space-y-5 overflow-y-auto">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Nome completo</label>
-            <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="Ex: João da Silva" className="h-9 text-xs rounded-lg bg-muted/10" />
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              <Avatar className="w-16 h-16 border-2 border-background shadow-sm">
+                <AvatarImage src={form.avatar} className="object-cover" />
+                <AvatarFallback className="bg-indigo-50 text-indigo-600 font-bold uppercase">
+                  {form.name ? form.name.substring(0, 2) : "?"}
+                </AvatarFallback>
+              </Avatar>
+              <input 
+                type="file" 
+                ref={avatarInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleAvatarChange} 
+              />
+              <button 
+                onClick={() => avatarInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
+              >
+                {uploadAvatarMutation.isPending ? (
+                  <Loader2 size={10} className="animate-spin" />
+                ) : (
+                  <Pencil size={10} />
+                )}
+              </button>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Nome completo</label>
+              <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="Ex: João da Silva" className="h-9 text-xs rounded-lg bg-muted/10" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
