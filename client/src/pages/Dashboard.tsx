@@ -153,7 +153,6 @@ export default function Dashboard() {
           value={statsLoading ? "..." : stats?.weekLessons ?? 0} 
           icon={Clock} 
           color="text-orange-500" 
-          trend="+5%" 
           sparkData={sparkAulas}
         />
         <MetricCard 

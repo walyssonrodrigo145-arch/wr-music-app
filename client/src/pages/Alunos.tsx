@@ -813,7 +813,6 @@ export default function Alunos() {
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Novos (30 dias)</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xl font-black text-foreground">{newStudentsLast30Days}</span>
-                          <Badge variant="secondary" className="bg-emerald-500/100/10 text-emerald-600 border-none text-[9px] font-bold px-1.5 h-4">+12%</Badge>
                         </div>
                       </div>
                       
