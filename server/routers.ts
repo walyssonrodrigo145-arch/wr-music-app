@@ -782,7 +782,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         .where(eq(dailyStudyPlans.id, plan.id));
 
       if (allCompleted) {
-        // Envia notificação no painel do professor
+        // Envia notificação no painel do professor (Semana completa)
         await db.insert(notifications).values({
           organizationId: plan.organizationId,
           userId: plan.teacherId,
@@ -797,6 +797,25 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           await notifyUser(plan.teacherId, {
             title: "Semana Gabaritada! 🎸",
             content: `O aluno ${ctx.user.name} concluiu os 5 dias de treino do plano de estudos!`,
+          });
+        } catch (e) {
+          console.error("Falha ao enviar push notification:", e);
+        }
+      } else if (input.dayIndex >= 0 && input.dayIndex < 5 && daysCompleted[input.dayIndex]) {
+        // Envia notificação diária quando o aluno marca um dia
+        await db.insert(notifications).values({
+          organizationId: plan.organizationId,
+          userId: plan.teacherId,
+          title: "Treino Concluído! 🎸",
+          message: `O aluno ${ctx.user.name} concluiu o treino do dia (Plano: ${plan.title})!`,
+          type: "success",
+          actionUrl: `/alunos/${ctx.user.studentId}`,
+        });
+
+        try {
+          await notifyUser(plan.teacherId, {
+            title: "Treino Concluído! 🎸",
+            content: `O aluno ${ctx.user.name} concluiu o treino do dia (Plano: ${plan.title})!`,
           });
         } catch (e) {
           console.error("Falha ao enviar push notification:", e);
