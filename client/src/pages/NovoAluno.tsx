@@ -826,7 +826,7 @@ export default function NovoAluno() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Vencimento (Dia)</label>
-                    <Select value={form.dueDay} onValueChange={(v) => handleInputChange('dueDay', v)}>
+                    <Select value={String(form.dueDay)} onValueChange={(v) => setForm(prev => ({ ...prev, dueDay: v }))}>
                       <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
                         <SelectValue placeholder="Dia" />
                       </SelectTrigger>
