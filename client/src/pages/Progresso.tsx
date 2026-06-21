@@ -655,12 +655,12 @@ export default function Progresso() {
 
               {/* STATS AND STUDENT INFO GRID */}
               <div className="px-4 sm:px-8 pb-6 shrink-0">
-                <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
                   {/* STUDENT CARD */}
-                  <div className="lg:w-1/3 bg-card p-6 rounded-2xl border border-border shadow-sm flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <Avatar className="w-14 h-14">
+                  <div className="lg:w-1/3 bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm flex flex-col justify-between min-h-[100px] sm:min-h-[140px]">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <div className="relative shrink-0">
+                        <Avatar className="w-10 h-10 sm:w-14 sm:h-14">
                           <AvatarImage src={selectedStudent?.avatar} className="object-cover" />
                           <AvatarFallback className="bg-indigo-600 text-white text-xl font-bold uppercase">
                             {selectedStudent?.name.substring(0, 2)}
@@ -686,15 +686,15 @@ export default function Progresso() {
                         </motion.div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-col items-start gap-1">
-                          <h2 className="text-sm font-bold text-foreground leading-tight">{selectedStudent?.name}</h2>
+                        <div className="flex flex-col items-start gap-0.5 sm:gap-1">
+                          <h2 className="text-xs sm:text-sm font-bold text-foreground leading-tight line-clamp-1 sm:line-clamp-none">{selectedStudent?.name}</h2>
                           <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase rounded-md tracking-wider">
                             {selectedStudent?.level || "Iniciante"}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="mt-4 flex flex-col gap-1.5">
+                    <div className="mt-3 sm:mt-4 flex flex-col gap-1.5">
                       <div className="flex justify-end">
                         <span className="text-[10px] font-medium text-muted-foreground">{summary?.frequency || 0}% de frequência</span>
                       </div>
@@ -716,10 +716,10 @@ export default function Progresso() {
                       { label: "Última Aula", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500" },
                       { label: "Tempo Total", value: "12h 40m", icon: Clock, color: "text-slate-400" },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-card p-3 sm:p-4 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center h-[100px] sm:h-[140px]">
-                        <stat.icon className={cn("w-5 h-5 sm:w-6 sm:h-6 mb-2 sm:mb-3", stat.color)} strokeWidth={1.5} />
-                        <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground mb-0.5 sm:mb-1">{stat.label}</p>
-                        <p className="text-lg sm:text-xl font-bold text-foreground">{stat.value}</p>
+                      <div key={i} className="bg-card p-2 sm:p-4 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center h-[80px] sm:h-[140px]">
+                        <stat.icon className={cn("w-4 h-4 sm:w-6 sm:h-6 mb-1 sm:mb-3", stat.color)} strokeWidth={1.5} />
+                        <p className="text-[9px] sm:text-[11px] font-medium text-muted-foreground mb-0.5 sm:mb-1">{stat.label}</p>
+                        <p className="text-base sm:text-xl font-bold text-foreground leading-none sm:leading-normal">{stat.value}</p>
                       </div>
                     ))}
                   </div>
