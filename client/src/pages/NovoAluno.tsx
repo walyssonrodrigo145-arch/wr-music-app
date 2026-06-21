@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { 
@@ -17,7 +17,8 @@ import {
   AlertCircle,
   MapPin,
   Mail,
-  UserCheck
+  UserCheck,
+  Pencil
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { differenceInYears, parseISO, isValid } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
 
@@ -76,6 +78,7 @@ export default function NovoAluno() {
     guardianEmail: "",
     notes: "",
     temporaryPassword: "",
+    avatar: "",
   });
 
   // Pre-populate form when editing
@@ -104,6 +107,7 @@ export default function NovoAluno() {
         guardianEmail: (studentData as any).guardianEmail ?? "",
         notes: (studentData as any).notes ?? "",
         temporaryPassword: "",
+        avatar: studentData.avatar ?? "",
       });
 
       const bd = (studentData as any).birthDate;
@@ -121,6 +125,36 @@ export default function NovoAluno() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isMinor, setIsMinor] = useState(false);
+
+  const uploadAvatarMutation = trpc.musicLibrary.upload.useMutation();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("A foto deve ter no máximo 2MB");
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      try {
+        const { url } = await uploadAvatarMutation.mutateAsync({
+          fileName: file.name,
+          fileType: file.type,
+          base64Data: base64
+        });
+        setForm(prev => ({ ...prev, avatar: url }));
+        toast.success("Foto carregada com sucesso!");
+      } catch (err) {
+        toast.error("Erro ao carregar foto");
+        console.error(err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Auto-masking for CPF and Phone
   const maskCPF = (value: string) => {
@@ -356,6 +390,7 @@ export default function NovoAluno() {
       startDate: form.startDate,
       notes: form.notes,
       temporaryPassword: form.temporaryPassword || undefined,
+      avatar: form.avatar || undefined,
     };
 
     if (isEditMode) {
@@ -499,9 +534,31 @@ export default function NovoAluno() {
             <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
               
-              <div className="flex items-center gap-3 mb-8 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/10">
-                  <User size={24} />
+              <div className="flex items-center gap-4 mb-8 relative z-10">
+                <div className="relative shrink-0">
+                  <Avatar className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/10 border-2 border-background">
+                    <AvatarImage src={form.avatar} className="object-cover" />
+                    <AvatarFallback className="bg-indigo-600 text-white font-bold uppercase text-xl">
+                      {form.name ? form.name.substring(0, 2) : <User size={24} />}
+                    </AvatarFallback>
+                  </Avatar>
+                  <input 
+                    type="file" 
+                    ref={avatarInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleAvatarChange} 
+                  />
+                  <button 
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-card border-2 border-border shadow-sm flex items-center justify-center text-indigo-600 cursor-pointer z-10 hover:bg-indigo-50 transition-colors"
+                  >
+                    {uploadAvatarMutation.isPending ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Pencil size={12} />
+                    )}
+                  </button>
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-foreground tracking-tight">Dados Pessoais</h3>
