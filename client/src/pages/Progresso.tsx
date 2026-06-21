@@ -626,25 +626,35 @@ export default function Progresso() {
             <div className="flex-1 flex flex-col overflow-hidden">
               
               {/* TOP ACTIONS */}
-              <div className="px-8 py-4 shrink-0 flex justify-end gap-4 relative z-10 bg-transparent">
-                <div className="hidden xl:flex flex-col items-end justify-center">
-                   <span className="text-[10px] font-bold text-muted-foreground mb-1">Status de Evolução</span>
-                   <div className="flex items-center gap-1.5 px-2">
-                      <Zap size={14} className="text-emerald-500 fill-emerald-500/20" />
-                      <span className="text-xs font-bold text-emerald-600">Excelente desempenho</span>
-                   </div>
-                </div>
+              <div className="px-4 sm:px-8 py-4 shrink-0 flex justify-between items-center relative z-10 bg-transparent">
                 <Button 
-                  onClick={() => { resetForm(); setIsModalOpen(true); }}
-                  className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all border-none flex items-center gap-2"
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setSelectedStudentId(null)}
+                  className="md:hidden w-10 h-10 rounded-xl bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground"
                 >
-                   <Plus size={16} />
-                   <span className="font-medium text-sm">Novo</span>
+                  <ChevronLeft size={20} />
                 </Button>
+                <div className="flex justify-end gap-4 ml-auto">
+                  <div className="hidden xl:flex flex-col items-end justify-center">
+                     <span className="text-[10px] font-bold text-muted-foreground mb-1">Status de Evolução</span>
+                     <div className="flex items-center gap-1.5 px-2">
+                        <Zap size={14} className="text-emerald-500 fill-emerald-500/20" />
+                        <span className="text-xs font-bold text-emerald-600">Excelente desempenho</span>
+                     </div>
+                  </div>
+                  <Button 
+                    onClick={() => { resetForm(); setIsModalOpen(true); }}
+                    className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all border-none flex items-center gap-2"
+                  >
+                     <Plus size={16} />
+                     <span className="font-medium text-sm">Novo</span>
+                  </Button>
+                </div>
               </div>
 
               {/* STATS AND STUDENT INFO GRID */}
-              <div className="px-8 pb-6 shrink-0">
+              <div className="px-4 sm:px-8 pb-6 shrink-0">
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* STUDENT CARD */}
                   <div className="lg:w-1/3 bg-card p-6 rounded-2xl border border-border shadow-sm flex flex-col justify-between min-h-[140px]">
@@ -718,7 +728,7 @@ export default function Progresso() {
 
                {/* INTERNAL HEADER - TABS */}
                <div className="shrink-0 border-b border-border">
-                  <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto subtle-scrollbar px-8 pb-0">
+                  <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto subtle-scrollbar px-4 sm:px-8 pb-0">
                     {[
                       { id: "jornada", label: "Jornada Musical", icon: Activity },
                       { id: "biblioteca", label: "Biblioteca Musical", icon: Folder },
@@ -751,7 +761,7 @@ export default function Progresso() {
                </div>
 
               {/* CONTENT AREA */}
-              <div className="flex-1 p-8 overflow-y-auto no-scrollbar">
+              <div className="flex-1 p-4 sm:p-8 overflow-y-auto no-scrollbar">
                  <AnimatePresence mode="wait">
                     {activeTab === "jornada" && (
                       <motion.div 
