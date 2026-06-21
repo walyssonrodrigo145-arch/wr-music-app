@@ -5530,15 +5530,10 @@ Instruções de análise:
           .orderBy(asc(aiMessages.createdAt));
 
         const usedToday = todayMsgs.length;
-        const canQuery = usedToday < DAILY_LIMIT;
+        const canQuery = true; // Removido limite diário de consultas
 
-        // Calcular quando o bloqueio termina: 24h após a PRIMEIRA mensagem do dia
+        // Não há mais reset diário pois não há limite
         let resetsAt: string | null = null;
-        if (!canQuery && todayMsgs.length > 0) {
-          const firstMsgAt = new Date(todayMsgs[0].createdAt);
-          const resetTime = new Date(firstMsgAt.getTime() + 24 * 60 * 60 * 1000);
-          resetsAt = resetTime.toISOString();
-        }
 
         // Calcular cooldown (última mensagem do usuário)
         const lastMsg = await db
@@ -5649,34 +5644,8 @@ Instruções de análise:
           }
         }
 
-        // ── LIMITE DIÁRIO DE 10 CONSULTAS ────────────────────────────────────────
-        const DAILY_LIMIT = 10;
-        const now = new Date();
-        const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-
-        if (convIds.length > 0) {
-          const todayMsgs = await db
-            .select({ createdAt: aiMessages.createdAt })
-            .from(aiMessages)
-            .where(
-              and(
-                sql`${aiMessages.conversationId} = ANY(ARRAY[${sql.join(convIds.map(id => sql`${id}`), sql`, `)}]::int[])`,
-                eq(aiMessages.role, "user"),
-                gte(aiMessages.createdAt, startOfDay)
-              )
-            )
-            .orderBy(asc(aiMessages.createdAt));
-
-          if (todayMsgs.length >= DAILY_LIMIT) {
-            const firstMsgAt = new Date(todayMsgs[0].createdAt);
-            const resetsAt = new Date(firstMsgAt.getTime() + 24 * 60 * 60 * 1000);
-            const hoursLeft = Math.ceil((resetsAt.getTime() - now.getTime()) / (1000 * 60 * 60));
-            throw new TRPCError({
-              code: "TOO_MANY_REQUESTS",
-              message: `Limite diário de ${DAILY_LIMIT} consultas atingido. Suas consultas serão liberadas em aproximadamente ${hoursLeft}h. Liberação: ${resetsAt.toISOString()}`,
-            });
-          }
-        }
+        // ── LIMITE DIÁRIO DE CONSULTAS REMOVIDO ──────────────────────────────────
+        // (O professor agora usa sua própria chave de API)
 
         // ── SALVAR A MENSAGEM DO USUÁRIO ─────────────────────────────────────────
         await db.insert(aiMessages).values({
@@ -5708,7 +5677,23 @@ Instruções de análise:
 
         // Constrói contexto e prompt do sistema
         const userDataContext = await buildUserContext(db, ctx.user.id, orgId);
-        const systemPrompt = getSystemPrompt(userDataContext);
+        let systemPrompt = getSystemPrompt(userDataContext);
+
+        // Fetch AI documents to use as context
+        const { schema } = await import("./db");
+        const userDocs = await db.select({
+          fileName: schema.aiDocuments.fileName,
+          extractedText: schema.aiDocuments.extractedText
+        }).from(schema.aiDocuments)
+          .where(and(eq(schema.aiDocuments.userId, ctx.user.id), eq(schema.aiDocuments.organizationId, orgId)));
+
+        if (userDocs.length > 0) {
+          systemPrompt += `\n\n=== BASE DE CONHECIMENTO DO USUÁRIO (DOCUMENTOS) ===\n`;
+          systemPrompt += `O usuário forneceu os seguintes documentos para você ler e usar como base para respostas. Nunca diga que você não tem acesso aos documentos, pois eles estão listados abaixo:\n`;
+          for (const doc of userDocs) {
+            systemPrompt += `\n--- Arquivo: ${doc.fileName} ---\n${doc.extractedText}\n----------------------\n`;
+          }
+        }
 
         // Fetch professor's API key
         let professorId = ctx.user.id;
@@ -5807,6 +5792,63 @@ Instruções de análise:
 
         await db.delete(aiMessages).where(eq(aiMessages.conversationId, input.id));
         await db.delete(aiConversations).where(eq(aiConversations.id, input.id));
+
+        return { success: true };
+      }),
+
+    uploadDocument: protectedProcedure
+      .input(z.object({
+        fileName: z.string(),
+        fileType: z.string(),
+        extractedText: z.string()
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { db, schema } = await import("./db");
+        const connection = await db();
+        if (!connection) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        await connection.insert(schema.aiDocuments).values({
+          organizationId: orgId,
+          userId: ctx.user.id,
+          fileName: input.fileName,
+          fileType: input.fileType,
+          extractedText: input.extractedText,
+          createdAt: new Date(),
+        });
+        return { success: true };
+      }),
+
+    listDocuments: protectedProcedure.query(async ({ ctx }) => {
+      const { db, schema } = await import("./db");
+      const connection = await db();
+      if (!connection) return [];
+      const orgId = ctx.user.organizationId!;
+
+      return connection.select({
+        id: schema.aiDocuments.id,
+        fileName: schema.aiDocuments.fileName,
+        fileType: schema.aiDocuments.fileType,
+        createdAt: schema.aiDocuments.createdAt
+      }).from(schema.aiDocuments)
+        .where(and(eq(schema.aiDocuments.organizationId, orgId), eq(schema.aiDocuments.userId, ctx.user.id)))
+        .orderBy(desc(schema.aiDocuments.createdAt));
+    }),
+
+    deleteDocument: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const { db, schema } = await import("./db");
+        const connection = await db();
+        if (!connection) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        await connection.delete(schema.aiDocuments)
+          .where(and(
+            eq(schema.aiDocuments.id, input.id),
+            eq(schema.aiDocuments.userId, ctx.user.id),
+            eq(schema.aiDocuments.organizationId, orgId)
+          ));
 
         return { success: true };
       }),

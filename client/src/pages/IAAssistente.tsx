@@ -3,7 +3,8 @@ import { trpc } from "@/lib/trpc";
 import { AIChatBox, Message } from "@/components/AIChatBox";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, MessageSquare, Plus, Trash2, Loader2, BrainCircuit, FileText, Users, DollarSign, Calendar, ArrowLeft, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { Sparkles, MessageSquare, Plus, Trash2, Loader2, BrainCircuit, FileText, Users, DollarSign, Calendar, ArrowLeft, AlertTriangle, Clock, CheckCircle2, Upload } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -105,8 +106,40 @@ export default function IAAssistente() {
     }
   }, [dbMessages]);
 
-  const isBlocked = usageStats ? !usageStats.canQuery : false;
+  const isBlocked = false;
   const isInCooldown = cooldownSeconds > 0;
+
+  const { data: documents = [], isLoading: isLoadingDocs } = trpc.ai.listDocuments.useQuery();
+  const uploadDocMutation = trpc.ai.uploadDocument.useMutation({
+    onSuccess: () => {
+      toast.success("Documento adicionado!");
+      utils.ai.listDocuments.invalidate();
+    },
+    onError: (e) => toast.error(`Erro ao adicionar: ${e.message}`)
+  });
+  const deleteDocMutation = trpc.ai.deleteDocument.useMutation({
+    onSuccess: () => {
+      toast.success("Documento removido!");
+      utils.ai.listDocuments.invalidate();
+    }
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const text = ev.target?.result as string;
+      uploadDocMutation.mutate({
+        fileName: file.name,
+        fileType: file.type || "text/plain",
+        extractedText: text
+      });
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   const handleSendMessage = (content: string) => {
     if (!activeConversationId) return;
@@ -261,36 +294,41 @@ export default function IAAssistente() {
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
 
-      {/* Sidebar de Conversas */}
+      {/* Sidebar de Conversas / Documentos */}
       <div className={cn(
         "w-full md:w-72 lg:w-80 border-r border-border bg-card/50 flex flex-col shrink-0 transition-all h-full md:h-auto",
         activeConversationId ? "hidden md:flex" : "flex"
       )}>
-        <div className="p-4 sm:p-6 border-b border-border flex flex-col gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
-              <BrainCircuit className="text-indigo-600" size={20} />
+        <Tabs defaultValue="conversas" className="flex flex-col h-full overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-border flex flex-col gap-3 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
+                <BrainCircuit className="text-indigo-600" size={20} />
+              </div>
+              <div>
+                <h2 className="font-bold text-foreground leading-tight">IA Assistente</h2>
+                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Gemini 2.0</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-bold text-foreground leading-tight">IA Assistente</h2>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Gemini 2.0</p>
-            </div>
+
+            <TabsList className="w-full grid grid-cols-2 mt-2">
+              <TabsTrigger value="conversas">Conversas</TabsTrigger>
+              <TabsTrigger value="documentos">Documentos</TabsTrigger>
+            </TabsList>
           </div>
 
-          <Button
-            onClick={() => handleCreateConversation()}
-            disabled={newConvMutation.isPending || isBlocked}
-            className="w-full gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/20 text-xs font-bold disabled:opacity-50"
-          >
-            {newConvMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            Nova Conversa
-          </Button>
-
-          {/* Badge de uso diário */}
-          <UsageBadge />
-        </div>
-
-        <ScrollArea className="flex-1 p-3">
+          <TabsContent value="conversas" className="flex-1 overflow-hidden m-0 data-[state=active]:flex flex-col">
+            <div className="px-4 pt-4 shrink-0">
+              <Button
+                onClick={() => handleCreateConversation()}
+                disabled={newConvMutation.isPending}
+                className="w-full gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/20 text-xs font-bold disabled:opacity-50"
+              >
+                {newConvMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                Nova Conversa
+              </Button>
+            </div>
+            <ScrollArea className="flex-1 p-3 mt-2">
           {/* Sugestões Rápidas no Mobile */}
           <div className="block md:hidden mb-6 p-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">Sugestões Rápidas</p>
@@ -358,6 +396,52 @@ export default function IAAssistente() {
             </div>
           )}
         </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="documentos" className="flex-1 overflow-hidden m-0 data-[state=active]:flex flex-col">
+          <div className="p-4 flex flex-col gap-4 h-full">
+            <p className="text-xs text-muted-foreground">
+              Faça upload de tabelas CSV, arquivos de texto ou anotações para treinar a IA.
+            </p>
+            <Button asChild variant="outline" className="w-full gap-2 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer">
+              <label>
+                {uploadDocMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                Adicionar Arquivo (.csv, .txt)
+                <input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileUpload} disabled={uploadDocMutation.isPending} />
+              </label>
+            </Button>
+            
+            <ScrollArea className="flex-1">
+              <div className="space-y-2">
+                {isLoadingDocs ? (
+                  <div className="flex justify-center p-8 text-muted-foreground">
+                    <Loader2 className="animate-spin" size={20} />
+                  </div>
+                ) : documents.length === 0 ? (
+                  <div className="text-center p-6 text-sm text-muted-foreground">
+                    Nenhum documento adicionado.
+                  </div>
+                ) : (
+                  documents.map((doc: any) => (
+                    <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
+                      <div className="flex items-center gap-3 truncate">
+                        <FileText size={16} className="shrink-0 text-indigo-500" />
+                        <span className="text-sm font-medium truncate">{doc.fileName}</span>
+                      </div>
+                      <button
+                        onClick={() => deleteDocMutation.mutate({ id: doc.id })}
+                        className="p-1.5 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-600 rounded-lg transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </TabsContent>
+        </Tabs>
       </div>
 
       {/* Área Principal — Chat */}
@@ -416,25 +500,9 @@ export default function IAAssistente() {
             </div>
 
             <h2 className="text-2xl font-black text-foreground text-center mb-2">Assistente Musical Inteligente</h2>
-            <p className="text-muted-foreground text-center max-w-md mb-4 leading-relaxed">
+            <p className="text-muted-foreground text-center max-w-md mb-8 leading-relaxed">
               Sua IA tem acesso em tempo real aos seus alunos, aulas e finanças. Comece uma nova conversa ou escolha uma sugestão abaixo.
             </p>
-
-            {/* Stats de uso no centro */}
-            {usageStats && (
-              <div className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-8 border",
-                isBlocked
-                  ? "border-rose-500/30 bg-rose-500/10 text-rose-600"
-                  : "border-indigo-500/20 bg-indigo-500/5 text-indigo-600"
-              )}>
-                {isBlocked ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
-                {isBlocked
-                  ? `Limite atingido — libera em ${timeLeftStr}`
-                  : `${usageStats.limit - usageStats.usedToday} de ${usageStats.limit} consultas disponíveis hoje`
-                }
-              </div>
-            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
               {suggestions.map((sug, i) => {

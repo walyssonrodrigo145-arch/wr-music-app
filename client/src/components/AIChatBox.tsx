@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Loader2, Send, User, Sparkles, AlertCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Streamdown } from "streamdown";
+import { SpreadsheetViewer } from "./SpreadsheetViewer";
 
 /**
  * Message type matching server-side LLM Message interface
@@ -303,8 +304,23 @@ export function AIChatBox({
                       )}
                     >
                       {message.role === "assistant" ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <Streamdown>{message.content}</Streamdown>
+                        <div className="prose prose-sm dark:prose-invert max-w-none w-full">
+                          {(() => {
+                            const SPREADSHEET_REGEX = /<!--SPREADSHEET:\s*(\{[\s\S]*?\})\s*-->/g;
+                            const matches = Array.from(message.content.matchAll(SPREADSHEET_REGEX));
+                            if (matches.length > 0) {
+                              const parts = message.content.split(SPREADSHEET_REGEX);
+                              return parts.map((part, i) => {
+                                // If it's a JSON block part
+                                if (matches.some(m => m[1] === part)) {
+                                  return <SpreadsheetViewer key={i} jsonRaw={part} />;
+                                }
+                                // It's normal markdown text
+                                return <Streamdown key={i}>{part}</Streamdown>;
+                              });
+                            }
+                            return <Streamdown>{message.content}</Streamdown>;
+                          })()}
                         </div>
                       ) : (
                         <p className="whitespace-pre-wrap text-sm">

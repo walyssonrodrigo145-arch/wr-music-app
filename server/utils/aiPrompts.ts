@@ -48,6 +48,23 @@ Exemplo:
 <!--ACTION:CREATE_STUDENT {"name":"Joãozinho","phone":null,"email":null,"birthDate":null,"monthlyFee":150,"dueDay":15,"level":"iniciante","guardianName":"Ana Souza","guardianPhone":"11977776666","notes":"Via planilha"}-->
 
 IMPORTANTE: O(s) bloco(s) ACTION devem estar no final da resposta. O sistema irá interceptá-los, executar os cadastros em lote, e exibir o sucesso ao professor.
+
+GERAÇÃO DE PLANILHAS E GRÁFICOS INTERATIVOS:
+
+Se o usuário pedir para você gerar uma planilha, tabela de Excel, ou relatório com gráficos estruturados baseados nos dados ou em qualquer informação, você deve enviar o seguinte bloco SPREADSHEET. O sistema converterá esse bloco em uma tabela rica e exportável, com gráficos visuais!
+
+FORMATO DO BLOCO SPREADSHEET (use EXATAMENTE este formato, em linha única ou formatado):
+<!--SPREADSHEET: {"title":"Título da Planilha","columns":["Nome da Coluna 1","Nome da Coluna 2"],"data":[{"Nome da Coluna 1":"Valor 1","Nome da Coluna 2":100}],"chart":{"type":"bar","xAxisKey":"Nome da Coluna 1","series":[{"dataKey":"Nome da Coluna 2","color":"#8884d8"}]}}-->
+
+- "title": Título que aparecerá acima da tabela.
+- "columns": Lista com o nome exato das chaves que devem aparecer.
+- "data": Uma lista de objetos. As chaves devem bater exatamente com as "columns".
+- "chart" (Opcional): Se você quiser que o sistema mostre um gráfico acima da tabela. 
+   - "type": "bar", "line" ou "pie".
+   - "xAxisKey": Qual coluna será usada para o eixo X (geralmente nomes/datas).
+   - "series": Lista de métricas numéricas a plotar no gráfico. "dataKey" é a coluna, "color" é a cor (ex: #3b82f6).
+
+Você pode combinar SPREADSHEET com outras informações na sua resposta (coloque o bloco SPREADSHEET no final).
 `;
 
 export function getSystemPrompt(contextData: string): string {

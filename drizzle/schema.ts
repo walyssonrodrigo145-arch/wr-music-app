@@ -447,6 +447,16 @@ export const aiConversations = pgTable("ai_conversations", {
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
 
+export const aiDocuments = pgTable("ai_documents", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId").notNull(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileType: varchar("fileType", { length: 50 }).notNull(),
+  extractedText: text("extractedText").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const aiMessages = pgTable("ai_messages", {
   id: serial("id").primaryKey(),
   conversationId: integer("conversationId").notNull(),
@@ -467,6 +477,8 @@ export const chatbotSessions = pgTable("chatbot_sessions", {
 
 export type AiConversation = typeof aiConversations.$inferSelect;
 export type InsertAiConversation = typeof aiConversations.$inferInsert;
+export type AiDocument = typeof aiDocuments.$inferSelect;
+export type InsertAiDocument = typeof aiDocuments.$inferInsert;
 export type AiMessage = typeof aiMessages.$inferSelect;
 export type InsertAiMessage = typeof aiMessages.$inferInsert;
 export type ChatbotSession = typeof chatbotSessions.$inferSelect;

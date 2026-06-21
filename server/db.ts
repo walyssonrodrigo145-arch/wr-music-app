@@ -89,6 +89,19 @@ async function ensureSchemaConsistency(db: any) {
         "recordedAt" timestamp DEFAULT now() NOT NULL
       )
     `);
+
+    // ai_documents table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "ai_documents" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer NOT NULL,
+        "userId" integer NOT NULL,
+        "fileName" varchar(255) NOT NULL,
+        "fileType" varchar(50) NOT NULL,
+        "extractedText" text NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
     
     // message_automation_rules table
     await db.execute(sql`
