@@ -709,17 +709,17 @@ export default function Progresso() {
                   </div>
 
                   {/* STATS CARDS */}
-                  <div className="lg:w-2/3 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="lg:w-2/3 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                     {[
                       { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500" },
                       { label: "Aulas Concluídas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-indigo-500" },
                       { label: "Última Aula", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500" },
                       { label: "Tempo Total", value: "12h 40m", icon: Clock, color: "text-slate-400" },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center h-[140px]">
-                        <stat.icon size={24} className={cn("mb-3", stat.color)} strokeWidth={1.5} />
-                        <p className="text-[11px] font-medium text-muted-foreground mb-1">{stat.label}</p>
-                        <p className="text-xl font-bold text-foreground">{stat.value}</p>
+                      <div key={i} className="bg-card p-3 sm:p-4 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center h-[100px] sm:h-[140px]">
+                        <stat.icon className={cn("w-5 h-5 sm:w-6 sm:h-6 mb-2 sm:mb-3", stat.color)} strokeWidth={1.5} />
+                        <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground mb-0.5 sm:mb-1">{stat.label}</p>
+                        <p className="text-lg sm:text-xl font-bold text-foreground">{stat.value}</p>
                       </div>
                     ))}
                   </div>
