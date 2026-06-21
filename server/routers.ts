@@ -17,7 +17,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -5680,12 +5680,11 @@ Instruções de análise:
         let systemPrompt = getSystemPrompt(userDataContext);
 
         // Fetch AI documents to use as context
-        const { schema } = await import("./db");
         const userDocs = await db.select({
-          fileName: schema.aiDocuments.fileName,
-          extractedText: schema.aiDocuments.extractedText
-        }).from(schema.aiDocuments)
-          .where(and(eq(schema.aiDocuments.userId, ctx.user.id), eq(schema.aiDocuments.organizationId, orgId)));
+          fileName: aiDocuments.fileName,
+          extractedText: aiDocuments.extractedText
+        }).from(aiDocuments)
+          .where(and(eq(aiDocuments.userId, ctx.user.id), eq(aiDocuments.organizationId, orgId)));
 
         if (userDocs.length > 0) {
           systemPrompt += `\n\n=== BASE DE CONHECIMENTO DO USUÁRIO (DOCUMENTOS) ===\n`;
@@ -5803,12 +5802,11 @@ Instruções de análise:
         extractedText: z.string()
       }))
       .mutation(async ({ ctx, input }) => {
-        const { db, schema } = await import("./db");
-        const connection = await db();
-        if (!connection) throw new Error("Database not available");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
 
-        await connection.insert(schema.aiDocuments).values({
+        await db.insert(aiDocuments).values({
           organizationId: orgId,
           userId: ctx.user.id,
           fileName: input.fileName,
@@ -5820,34 +5818,32 @@ Instruções de análise:
       }),
 
     listDocuments: protectedProcedure.query(async ({ ctx }) => {
-      const { db, schema } = await import("./db");
-      const connection = await db();
-      if (!connection) return [];
+      const db = await getDb();
+      if (!db) return [];
       const orgId = ctx.user.organizationId!;
 
-      return connection.select({
-        id: schema.aiDocuments.id,
-        fileName: schema.aiDocuments.fileName,
-        fileType: schema.aiDocuments.fileType,
-        createdAt: schema.aiDocuments.createdAt
-      }).from(schema.aiDocuments)
-        .where(and(eq(schema.aiDocuments.organizationId, orgId), eq(schema.aiDocuments.userId, ctx.user.id)))
-        .orderBy(desc(schema.aiDocuments.createdAt));
+      return db.select({
+        id: aiDocuments.id,
+        fileName: aiDocuments.fileName,
+        fileType: aiDocuments.fileType,
+        createdAt: aiDocuments.createdAt
+      }).from(aiDocuments)
+        .where(and(eq(aiDocuments.organizationId, orgId), eq(aiDocuments.userId, ctx.user.id)))
+        .orderBy(desc(aiDocuments.createdAt));
     }),
 
     deleteDocument: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const { db, schema } = await import("./db");
-        const connection = await db();
-        if (!connection) throw new Error("Database not available");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
 
-        await connection.delete(schema.aiDocuments)
+        await db.delete(aiDocuments)
           .where(and(
-            eq(schema.aiDocuments.id, input.id),
-            eq(schema.aiDocuments.userId, ctx.user.id),
-            eq(schema.aiDocuments.organizationId, orgId)
+            eq(aiDocuments.id, input.id),
+            eq(aiDocuments.userId, ctx.user.id),
+            eq(aiDocuments.organizationId, orgId)
           ));
 
         return { success: true };
