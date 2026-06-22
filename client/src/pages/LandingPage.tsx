@@ -33,6 +33,9 @@ import { useAuth } from '@/_core/hooks/useAuth';
 import { BenefitsCarousel } from '@/components/BenefitsCarousel';
 import { HeroSlider } from '@/components/HeroSlider';
 
+// ─── CONSTANTES ───────────────────────────────────────────────────────────────
+export const TRIAL_DAYS = 30;
+
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 type PlanType = '10alunos' | '20alunos' | '30alunos' | 'basico' | 'profissional' | 'premium';
 type ModalStep = 'conta' | 'endereco' | 'pagamento' | 'sucesso';
