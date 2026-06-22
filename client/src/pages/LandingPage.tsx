@@ -68,8 +68,22 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
     cardNumber: '', cardName: '', cardExpiry: '', cardCvv: '',
   });
 
-  const planLabels = { basico: 'Básico', profissional: 'Profissional', premium: 'Premium' };
-  const planPrices = { basico: 'R$ 59,90/mês', profissional: 'R$ 99,90/mês', premium: 'R$ 199,90/mês' };
+  const planLabels = { 
+    basico: 'Básico', 
+    profissional: 'Profissional', 
+    premium: 'Premium',
+    '10alunos': '10 Alunos',
+    '20alunos': '20 Alunos',
+    '30alunos': '30 Alunos'
+  };
+  const planPrices = { 
+    basico: 'R$ 29,99/mês', 
+    profissional: 'R$ 59,90/mês', 
+    premium: 'R$ 99,90/mês',
+    '10alunos': 'R$ 10,00/mês',
+    '20alunos': 'R$ 15,00/mês',
+    '30alunos': 'R$ 20,00/mês'
+  };
 
   const steps: ModalStep[] = ['conta', 'endereco', 'pagamento'];
   const stepLabels = { conta: 'Sua Conta', endereco: 'Endereço', pagamento: 'Pagamento' };
