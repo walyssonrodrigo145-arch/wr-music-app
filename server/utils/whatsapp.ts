@@ -58,6 +58,12 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
 
     if (!res.ok) {
       let errorMsg = responseData?.response?.message || responseData?.message || responseData?.error || `HTTP Error ${res.status}`;
+      
+      // Tratamento específico para número não registrado no WhatsApp
+      if (Array.isArray(errorMsg) && errorMsg.length > 0 && errorMsg[0].exists === false) {
+        return { success: false, error: `O número informado não está registrado no WhatsApp.` };
+      }
+
       if (typeof errorMsg === 'object') {
         errorMsg = JSON.stringify(errorMsg);
       }
