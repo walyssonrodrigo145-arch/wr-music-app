@@ -74,9 +74,9 @@ export const appRouter = router({
         ));
       const studentIds = studentList.map(s => s.id);
       if (studentIds.length > 0) {
-        await db.delete(lessons).where(and(eq(lessons.organizationId, orgId), sql`studentId IN ${studentIds}`));
-        await db.delete(paymentDues).where(and(eq(paymentDues.organizationId, orgId), sql`studentId IN ${studentIds}`));
-        await db.delete(students).where(and(eq(students.organizationId, orgId), eq(students.id, sql`ANY(${studentIds})`)));
+        await db.delete(lessons).where(and(eq(lessons.organizationId, orgId), inArray(lessons.studentId, studentIds)));
+        await db.delete(paymentDues).where(and(eq(paymentDues.organizationId, orgId), inArray(paymentDues.studentId, studentIds)));
+        await db.delete(students).where(and(eq(students.organizationId, orgId), inArray(students.id, studentIds)));
       }
       await db.delete(lessons).where(and(
         eq(lessons.organizationId, orgId),
@@ -1058,10 +1058,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       thumbnailData: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
-      // Simple sanitization of filename
-      const safeName = input.fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const baseKey = `music-library/${orgId}/${ctx.user.id}/${Date.now()}-${safeName}`;
-      
+      // Strong sanitization: replace the entire file name with a UUID to prevent path traversal or script execution
+      const ext = input.fileName.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'bin';
+      const uuid = crypto.randomUUID();
+      const baseKey = `music-library/${orgId}/${ctx.user.id}/${Date.now()}-${uuid}.${ext}`;
       // Upload do arquivo principal
       const base64 = input.base64Data.includes(',') ? input.base64Data.split(',')[1] : input.base64Data;
       const buffer = Buffer.from(base64, 'base64');

@@ -1,5 +1,7 @@
 import "dotenv/config";
 import express from "express";
+import helmet from "helmet";
+import cors from "cors";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -197,9 +199,19 @@ async function startServer() {
 
   app.use("/uploads", express.static("uploads"));
 
-  // Rate Limiting para a API
-  // const apiLimiter = createRateLimiter(60 * 1000, 1200, "Muitas requisições. Tente novamente em um minuto.");
-  // app.use("/api/trpc", apiLimiter);
+  // Security Middlewares
+  app.use(helmet({
+    contentSecurityPolicy: false, // Vite/React needs inline scripts in dev
+    crossOriginEmbedderPolicy: false
+  }));
+  app.use(cors({
+    origin: process.env.NODE_ENV === "production" ? process.env.APP_URL : "*",
+    credentials: true
+  }));
+
+  // Rate Limiting para a API (Global)
+  const apiLimiter = createRateLimiter(60 * 1000, 1200, "Muitas requisições. Tente novamente em um minuto.");
+  app.use("/api/trpc", apiLimiter);
 
 
   // tRPC API
