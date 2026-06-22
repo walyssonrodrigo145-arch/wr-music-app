@@ -30,8 +30,13 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
 
     const payload = {
       number: cleanPhone,
-      text: message,
-      delay: 1200 // 1.2s default delay for more natural sending
+      options: {
+        delay: 1200,
+        presence: "composing"
+      },
+      textMessage: {
+        text: message
+      }
     };
 
     const instanceName = sessionId || DEFAULT_INSTANCE;
