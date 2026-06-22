@@ -97,26 +97,29 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber 
       }),
     });
     
-    // Ignoramos o json se falhar (ex: instância já existe)
-    await createRes.json().catch(() => ({}));
+    // Pegar o qr code que pode vir direto do create na v1.6.1
+    const createData = await createRes.json().catch(() => ({}));
 
     // 2. Tentar conectar (pegar QRCode ou Pairing Code)
-    // Na v2, quando criamos já podemos receber o base64 qrcode no websocket,
-    // mas se pedirmos /instance/connect retorna o qr base64.
+    // Na v1/v2, se a instância já existe, pedimos /instance/connect
     const connectRes = await fetch(`${baseUrl}/instance/connect/${sessionId}`, {
       method: "GET",
       headers: { "apikey": activeToken },
     });
 
     const data = await connectRes.json().catch(() => ({}));
-    if (!connectRes.ok) throw new Error(data.error || "Erro ao conectar sessão");
+    
+    // O erro pode ser retornado se já está conectada, mas ignoramos se tivermos um qrcode ou sucesso
+    // if (!connectRes.ok && !createData.qrcode) throw new Error(data.error || "Erro ao conectar sessão");
 
+    const qrCodeBase64 = data?.base64 || data?.qrcode?.base64 || createData?.qrcode?.base64 || "";
+    
     return {
       success: true,
       status: data.instance?.state === "open" ? "CONNECTED" : "PAIRING",
       mode: "QR_CODE",
       pairingCode: "",
-      qr: data.base64 || "",
+      qr: qrCodeBase64,
     };
   } catch (err: any) {
     return { success: false, status: "DISCONNECTED", mode: "NONE", pairingCode: "", qr: "", error: err.message };
