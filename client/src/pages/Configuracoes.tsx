@@ -516,7 +516,7 @@ function WhatsAppSessionManager() {
                 {qrString ? (
                   <div className="p-4 bg-white rounded-3xl border-4 border-indigo-500/20 shadow-2xl animate-in zoom-in duration-500">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrString)}`} 
+                      src={qrString.startsWith('data:image') ? qrString : `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrString)}`} 
                       alt="WhatsApp QR Code"
                       className="w-60 h-60 object-contain"
                     />
