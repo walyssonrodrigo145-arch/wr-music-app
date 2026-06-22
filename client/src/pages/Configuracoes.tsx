@@ -464,11 +464,28 @@ function WhatsAppSessionManager() {
                     <Input
                       value={phoneNumber}
                       onChange={e => {
-                        let val = e.target.value.replace(/\D/g, "");
-                        if (val.length > 11) val = val.slice(0, 11);
-                        if (val.length > 2) val = `(${val.slice(0, 2)}) ${val.slice(2)}`;
-                        if (val.length > 10) val = `${val.slice(0, 10)}-${val.slice(10)}`;
-                        setPhoneNumber(val);
+                        let clean = e.target.value.replace(/\D/g, "");
+                        if (!clean) {
+                          setPhoneNumber("");
+                          return;
+                        }
+                        
+                        let prefix = "";
+                        if (clean.startsWith("55") && clean.length > 11) {
+                          prefix = "+55 ";
+                          clean = clean.substring(2);
+                        }
+                        
+                        let formatted = prefix + clean;
+                        if (clean.length > 2 && clean.length <= 6) {
+                          formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+                        } else if (clean.length > 6 && clean.length <= 10) {
+                          formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+                        } else if (clean.length > 10) {
+                          formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+                        }
+                        
+                        setPhoneNumber(formatted);
                       }}
                       placeholder="(33) 99999-9999"
                       className="pl-12 h-14 text-base font-bold rounded-2xl border-border bg-background focus:bg-card transition-all shadow-sm"

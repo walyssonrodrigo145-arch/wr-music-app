@@ -168,7 +168,27 @@ export function ProfessoresTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold">WhatsApp</label>
-                  <Input value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(11) 99999-9999" />
+                  <Input value={telefone} onChange={e => {
+                    let clean = e.target.value.replace(/\D/g, "");
+                    if (!clean) {
+                      setTelefone("");
+                      return;
+                    }
+                    let prefix = "";
+                    if (clean.startsWith("55") && clean.length > 11) {
+                      prefix = "+55 ";
+                      clean = clean.substring(2);
+                    }
+                    let formatted = prefix + clean;
+                    if (clean.length > 2 && clean.length <= 6) {
+                      formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+                    } else if (clean.length > 6 && clean.length <= 10) {
+                      formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+                    } else if (clean.length > 10) {
+                      formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+                    }
+                    setTelefone(formatted);
+                  }} placeholder="(11) 99999-9999" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-semibold">Especialidade</label>

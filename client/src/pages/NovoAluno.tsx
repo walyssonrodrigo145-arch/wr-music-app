@@ -167,11 +167,28 @@ export default function NovoAluno() {
   };
 
   const maskPhone = (value: string) => {
-    return value
-      .replace(/\D/g, "")
-      .replace(/(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{5})(\d)/, "$1-$2")
-      .replace(/(-\d{4})\d+?$/, "$1");
+    let clean = value.replace(/\D/g, "");
+    if (!clean) return "";
+    
+    let prefix = "";
+    if (clean.startsWith("55") && clean.length > 11) {
+      prefix = "+55 ";
+      clean = clean.substring(2);
+    }
+    
+    if (clean.length <= 2) {
+      return prefix + clean;
+    }
+    
+    if (clean.length <= 6) {
+      return prefix + `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+    }
+    
+    if (clean.length <= 10) {
+      return prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+    }
+    
+    return prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
   };
 
   const handleInputChange = (field: string | React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, value?: string) => {
