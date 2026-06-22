@@ -1042,18 +1042,29 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       fileName: z.string(),
       fileType: z.string(),
       base64Data: z.string(),
+      thumbnailData: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
       // Simple sanitization of filename
       const safeName = input.fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const key = `music-library/${orgId}/${ctx.user.id}/${Date.now()}-${safeName}`;
+      const baseKey = `music-library/${orgId}/${ctx.user.id}/${Date.now()}-${safeName}`;
       
-      // Remove data URL prefix if present
+      // Upload do arquivo principal
       const base64 = input.base64Data.includes(',') ? input.base64Data.split(',')[1] : input.base64Data;
       const buffer = Buffer.from(base64, 'base64');
+      const { url } = await storagePut(baseKey, buffer, input.fileType);
+
+      let thumbnailUrl: string | undefined = undefined;
+      // Upload da thumbnail se fornecida
+      if (input.thumbnailData) {
+        const thumbBase64 = input.thumbnailData.includes(',') ? input.thumbnailData.split(',')[1] : input.thumbnailData;
+        const thumbBuffer = Buffer.from(thumbBase64, 'base64');
+        const thumbKey = `${baseKey}-thumb.jpg`;
+        const thumbResult = await storagePut(thumbKey, thumbBuffer, 'image/jpeg');
+        thumbnailUrl = thumbResult.url;
+      }
       
-      const { url } = await storagePut(key, buffer, input.fileType);
-      return { url };
+      return { url, thumbnailUrl };
     }),
 
     update: protectedProcedure.input(z.object({

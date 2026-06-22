@@ -204,141 +204,207 @@ export default function StudentMaterials() {
       </div>
 
       {/* Materials Display Grouped by Folder */}
-      {Object.entries(groupedMaterials).map(([folderName, filesInFolder]) => (
-        <div key={folderName} className="space-y-4">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-primary border-b pb-2">
-            <FileBox size={24} /> {folderName}
-          </h2>
-          <motion.div 
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className={cn(
-              "grid gap-8",
-              viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-            )}
-          >
-            <AnimatePresence mode='popLayout'>
-              {filesInFolder.map((item: any) => (
-                <motion.div 
-                  layout
-                  variants={item}
-                  key={item.id}
-                  className="group"
-                >
-                  <Card className={cn(
-                    "h-full border border-border/50 shadow-xl bg-card/60 backdrop-blur-md hover:shadow-2xl hover:border-primary/30 transition-all duration-500 rounded-[2.5rem] overflow-hidden flex flex-col",
-                    viewMode === "list" && "flex-row h-32 items-center"
-                  )}>
-                    <CardContent className="p-0 flex flex-col h-full flex-1">
-                      {/* Media Section */}
-                      <div className={cn(
-                        "relative overflow-hidden shrink-0",
-                        viewMode === "grid" ? "aspect-[16/10] w-full" : "w-40 h-full border-r border-border/30"
-                      )}>
-                        {/* Background Pattern/Color */}
-                        {(item.category === 'imagem' || item.thumbnailUrl) ? (
-                          <img 
-                            src={getFixedUrl(item.thumbnailUrl || item.fileUrl)} 
-                            alt={item.fileName}
-                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                          />
-                        ) : (
-                          <>
-                            <div className={cn(
-                              "absolute inset-0 opacity-20 transition-transform duration-700 group-hover:scale-110",
-                              item.category === 'video' ? "bg-gradient-to-br from-pink-500 to-rose-600" :
-                              item.category === 'audio' ? "bg-gradient-to-br from-emerald-500 to-teal-600" :
-                              "bg-gradient-to-br from-blue-500 to-indigo-600"
-                            )} />
-                            {/* Icon Centered */}
-                            <div className="absolute inset-0 flex items-center justify-center opacity-40 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110">
-                              <div className={cn(
-                                "p-6 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl transition-all group-hover:bg-white/20",
-                                item.category === 'video' ? "text-pink-500" :
-                                item.category === 'audio' ? "text-emerald-500" :
-                                "text-blue-500"
-                              )}>
-                                {getIcon(item.category)}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                        
-                        {/* Floating Badge */}
-                        <div className="absolute top-4 left-4 z-10">
-                          <span className={cn(
-                            "text-[9px] font-black uppercase px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 backdrop-blur-md border",
-                            item.category === 'video' ? "bg-pink-500/10 text-pink-600 border-pink-500/20" :
-                            item.category === 'audio' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                            "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                          )}>
-                            <div className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              item.category === 'video' ? "bg-pink-500" :
-                              item.category === 'audio' ? "bg-emerald-500" :
-                              "bg-blue-500"
-                            )} />
-                            {item.category}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Info Section */}
-                      <div className={cn(
-                        "p-8 flex flex-col flex-1 gap-6",
-                        viewMode === "list" && "flex-row items-center justify-between p-6 gap-4"
-                      )}>
-                        <div className="space-y-3 min-w-0 flex-1">
-                          <div className="flex items-center gap-3">
-                             <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest bg-muted/50 px-2 py-0.5 rounded-md">
-                              {format(new Date(item.createdAt), "dd MMM yyyy", { locale: ptBR })}
-                            </span>
-                            <span className="w-1 h-1 rounded-full bg-border" />
-                            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+      {category === 'video' ? (
+        <div className="space-y-12">
+          {Object.entries(groupedMaterials).map(([folderName, filesInFolder]) => (
+            <div key={folderName} className="space-y-4">
+              <div className="flex items-center gap-3 px-2">
+                <div className="h-8 w-2 bg-indigo-600 rounded-full shadow-lg shadow-indigo-500/20"></div>
+                <h3 className="text-lg md:text-xl font-black text-foreground tracking-tight">{folderName}</h3>
+                <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md tracking-widest border border-indigo-100/50">{filesInFolder.length} VÍDEOS</span>
+              </div>
+              
+              <div className="flex overflow-x-auto pb-8 pt-2 -mx-4 px-4 md:-mx-8 md:px-8 snap-x gap-4 md:gap-6 hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {filesInFolder.map((item: any) => (
+                  <motion.div 
+                    key={item.id}
+                    whileHover={{ scale: 1.02, y: -4 }}
+                    onClick={() => handlePreview(item)}
+                    className="flex-none w-[280px] md:w-[340px] bg-card border border-border rounded-[1.5rem] md:rounded-[2rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/20 transition-all cursor-pointer relative snap-start shrink-0 flex flex-col"
+                  >
+                     <div className="aspect-video bg-muted/50 relative overflow-hidden flex flex-col items-center justify-center">
+                       {item.thumbnailUrl ? (
+                         <img 
+                           src={getFixedUrl(item.thumbnailUrl)} 
+                           alt={item.fileName}
+                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                         />
+                       ) : (
+                         <>
+                           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-20 transition-transform duration-700 group-hover:scale-110" />
+                           <div className="relative z-10 p-4 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-xl transition-transform duration-700 group-hover:scale-110 text-indigo-500">
+                             <Video className="w-10 h-10" />
+                           </div>
+                         </>
+                       )}
+                       
+                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                         <div className="w-14 h-14 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-2xl backdrop-blur-sm transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                           <div className="w-0 h-0 border-t-[8px] border-t-transparent border-l-[14px] border-l-white border-b-[8px] border-b-transparent ml-1" />
+                         </div>
+                       </div>
+                       
+                       <div className="absolute top-4 left-4 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[9px] text-white font-black tracking-widest flex items-center gap-1.5 shadow-xl">
+                          <Video size={10} /> VÍDEO AULA
+                       </div>
+                     </div>
+                     
+                     <div className="p-5 flex-1 flex flex-col bg-gradient-to-b from-card to-muted/10">
+                        <h4 className="text-sm font-black text-foreground tracking-tight line-clamp-2 leading-tight">{item.fileName}</h4>
+                        <div className="mt-auto pt-4 flex items-center justify-between">
+                           <span className="text-[10px] font-bold text-muted-foreground/60">
                               {(item.size ? (item.size / 1024 / 1024).toFixed(1) : 0)} MB
+                           </span>
+                           {item.viewedAt && (
+                             <span className="text-[9px] font-bold text-green-600 flex items-center gap-1">
+                               <Eye size={12} /> {format(new Date(item.viewedAt), "dd MMM")}
+                             </span>
+                           )}
+                        </div>
+                     </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        Object.entries(groupedMaterials).map(([folderName, filesInFolder]) => (
+          <div key={folderName} className="space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2 text-primary border-b pb-2">
+              <FileBox size={24} /> {folderName}
+            </h2>
+            <motion.div 
+              variants={container}
+              initial="hidden"
+              animate="show"
+              className={cn(
+                "grid gap-8",
+                viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+              )}
+            >
+              <AnimatePresence mode='popLayout'>
+                {filesInFolder.map((item: any) => (
+                  <motion.div 
+                    layout
+                    variants={item}
+                    key={item.id}
+                    className="group"
+                  >
+                    <Card className={cn(
+                      "h-full border border-border/50 shadow-xl bg-card/60 backdrop-blur-md hover:shadow-2xl hover:border-primary/30 transition-all duration-500 rounded-[2.5rem] overflow-hidden flex flex-col",
+                      viewMode === "list" && "flex-row h-32 items-center"
+                    )}>
+                      <CardContent className="p-0 flex flex-col h-full flex-1">
+                        {/* Media Section */}
+                        <div className={cn(
+                          "relative overflow-hidden shrink-0",
+                          viewMode === "grid" ? "aspect-[16/10] w-full" : "w-40 h-full border-r border-border/30"
+                        )}>
+                          {/* Background Pattern/Color */}
+                          {(item.category === 'imagem' || item.thumbnailUrl) ? (
+                            <img 
+                              src={getFixedUrl(item.thumbnailUrl || item.fileUrl)} 
+                              alt={item.fileName}
+                              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            />
+                          ) : (
+                            <>
+                              <div className={cn(
+                                "absolute inset-0 opacity-20 transition-transform duration-700 group-hover:scale-110",
+                                item.category === 'video' ? "bg-gradient-to-br from-pink-500 to-rose-600" :
+                                item.category === 'audio' ? "bg-gradient-to-br from-emerald-500 to-teal-600" :
+                                "bg-gradient-to-br from-blue-500 to-indigo-600"
+                              )} />
+                              {/* Icon Centered */}
+                              <div className="absolute inset-0 flex items-center justify-center opacity-40 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110">
+                                <div className={cn(
+                                  "p-6 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl transition-all group-hover:bg-white/20",
+                                  item.category === 'video' ? "text-pink-500" :
+                                  item.category === 'audio' ? "text-emerald-500" :
+                                  "text-blue-500"
+                                )}>
+                                  {getIcon(item.category)}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          
+                          {/* Floating Badge */}
+                          <div className="absolute top-4 left-4 z-10">
+                            <span className={cn(
+                              "text-[9px] font-black uppercase px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 backdrop-blur-md border",
+                              item.category === 'video' ? "bg-pink-500/10 text-pink-600 border-pink-500/20" :
+                              item.category === 'audio' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                              "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                            )}>
+                              <div className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                item.category === 'video' ? "bg-pink-500" :
+                                item.category === 'audio' ? "bg-emerald-500" :
+                                "bg-blue-500"
+                              )} />
+                              {item.category}
                             </span>
                           </div>
-                          
-                          <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors truncate tracking-tight leading-snug">
-                            {item.fileName}
-                          </h3>
-                          
                         </div>
-
+  
+                        {/* Info Section */}
                         <div className={cn(
-                          "flex items-center gap-3",
-                          viewMode === "grid" ? "w-full" : "shrink-0"
+                          "p-8 flex flex-col flex-1 gap-6",
+                          viewMode === "list" && "flex-row items-center justify-between p-6 gap-4"
                         )}>
-                          <Button 
-                            onClick={() => handlePreview(item)}
-                            className="flex-1 h-14 rounded-2xl bg-primary text-white font-bold text-xs shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all border-none gap-3"
-                          >
-                            {item.category === 'video' ? <Play size={18} fill="currentColor" /> : 
-                             item.category === 'audio' ? <Music size={18} /> : 
-                             <Eye size={18} />}
-                            {getActionLabel(item.category)}
-                          </Button>
-                          
-                          <Button 
-                            asChild
-                            variant="outline"
-                            className="w-14 h-14 rounded-2xl bg-background border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center shrink-0 shadow-sm"
-                          >
-                            <a href={getFixedUrl(item.fileUrl)} target="_blank" rel="noopener noreferrer" download={item.fileName}>
-                              <Download size={20} />
-                            </a>
-                          </Button>
+                          <div className="space-y-3 min-w-0 flex-1">
+                            <div className="flex items-center gap-3">
+                               <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest bg-muted/50 px-2 py-0.5 rounded-md">
+                                {format(new Date(item.createdAt), "dd MMM yyyy", { locale: ptBR })}
+                              </span>
+                              <span className="w-1 h-1 rounded-full bg-border" />
+                              <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                                {(item.size ? (item.size / 1024 / 1024).toFixed(1) : 0)} MB
+                              </span>
+                            </div>
+                            
+                            <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors truncate tracking-tight leading-snug">
+                              {item.fileName}
+                            </h3>
+                            
+                          </div>
+  
+                          <div className={cn(
+                            "flex items-center gap-3",
+                            viewMode === "grid" ? "w-full" : "shrink-0"
+                          )}>
+                            <Button 
+                              onClick={() => handlePreview(item)}
+                              className="flex-1 h-14 rounded-2xl bg-primary text-white font-bold text-xs shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all border-none gap-3"
+                            >
+                              {item.category === 'video' ? <Play size={18} fill="currentColor" /> : 
+                               item.category === 'audio' ? <Music size={18} /> : 
+                               <Eye size={18} />}
+                              {getActionLabel(item.category)}
+                            </Button>
+                            
+                            <Button 
+                              asChild
+                              variant="outline"
+                              className="w-14 h-14 rounded-2xl bg-background border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center shrink-0 shadow-sm"
+                            >
+                              <a href={getFixedUrl(item.fileUrl)} target="_blank" rel="noopener noreferrer" download={item.fileName}>
+                                <Download size={20} />
+                              </a>
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        </div>
-      ))}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          </div>
+        ))
+      )}
 
       {filteredMaterials.length === 0 && (
         <div className="text-center py-32 bg-card/20 rounded-[3rem] border-2 border-dashed border-border/50 col-span-full mt-10">

@@ -1550,6 +1550,33 @@ function WidgetCard({ title, icon: Icon, color, bg, children }: any) {
    );
 }
 
+const generateVideoThumbnail = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.playsInline = true;
+    video.muted = true;
+    video.src = URL.createObjectURL(file);
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(1, video.duration / 2);
+    };
+    video.onseeked = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      } else {
+        reject(new Error("Canvas context failed"));
+      }
+      URL.revokeObjectURL(video.src);
+    };
+    video.onerror = (e) => reject(e);
+  });
+};
+
 function BibliotecaMusical({ studentId }: { studentId: number }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("todos");
@@ -1608,16 +1635,26 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
         try {
           const base64Data = reader.result as string;
           
-          let fileCategory: 'imagem' | 'video' | 'pdf' | 'audio' = 'pdf';
+          let fileCategory: 'imagem' | 'video' | 'pdf' | 'audio' | 'documento' = 'documento';
           if (uploadFile.type.startsWith('image/')) fileCategory = 'imagem';
           else if (uploadFile.type.startsWith('video/')) fileCategory = 'video';
           else if (uploadFile.type.startsWith('audio/')) fileCategory = 'audio';
           else if (uploadFile.type === 'application/pdf') fileCategory = 'pdf';
 
-          const { url } = await uploadMutation.mutateAsync({
+          let thumbData: string | undefined = undefined;
+          if (fileCategory === 'video') {
+            try {
+              thumbData = await generateVideoThumbnail(uploadFile);
+            } catch (err) {
+              console.warn("Could not generate thumbnail for video", err);
+            }
+          }
+
+          const uploadResult = await uploadMutation.mutateAsync({
             fileName: uploadName,
             fileType: uploadFile.type,
             base64Data,
+            thumbnailData: thumbData,
           });
 
           await createMutation.mutateAsync({
@@ -1626,7 +1663,8 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
             fileType: uploadFile.type,
             category: fileCategory,
             folder: uploadFolder || undefined,
-            fileUrl: url,
+            fileUrl: uploadResult.url,
+            thumbnailUrl: uploadResult.thumbnailUrl,
             size: uploadFile.size,
             comments: uploadComments || undefined,
           });
@@ -1759,119 +1797,205 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
              </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-             {isLoading ? (
-               <div className="col-span-full py-20 flex justify-center"><Loader2 className="animate-spin text-indigo-500/20" /></div>
-             ) : files.length === 0 ? (
-               <div className="col-span-full py-20 text-center border border-dashed border-border rounded-[2rem] md:rounded-[3rem]">
-                  <Folder size={40} className="mx-auto text-slate-100 mb-4" />
-                  <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">Sua biblioteca está vazia</p>
-               </div>
-             ) : (
-               files.map((file) => (
-                 <motion.div 
-                   key={file.id}
-                   whileHover={{ y: -8 }}
-                   className="bg-card border border-border rounded-[2rem] md:rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col"
-                 >
-                     <div className="aspect-[4/3] bg-muted/50 relative flex items-center justify-center group-hover:bg-indigo-500/10/50 transition-colors overflow-hidden">
-                       {(file.category === 'imagem' || file.thumbnailUrl) ? (
-                         <img 
-                           src={getFixedUrl(file.thumbnailUrl || file.fileUrl)} 
-                           alt={file.fileName}
-                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                         />
-                       ) : (
-                         <>
-                           <div className={cn(
-                             "absolute inset-0 opacity-20 transition-transform duration-700 group-hover:scale-110",
-                             file.category === 'video' ? "bg-gradient-to-br from-pink-500 to-rose-600" :
-                             file.category === 'audio' ? "bg-gradient-to-br from-emerald-500 to-teal-600" :
-                             "bg-gradient-to-br from-blue-500 to-indigo-600"
-                           )} />
-                           <div className={cn(
-                             "relative z-10 p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl transition-transform duration-700 group-hover:scale-110",
-                             file.category === 'video' ? "text-pink-500" :
-                             file.category === 'audio' ? "text-emerald-500" :
-                             "text-blue-500"
-                           )}>
-                             {file.category === 'video' && <Video className="w-10 h-10 md:w-14 md:h-14" />}
-                             {file.category === 'pdf' && <FileText className="w-10 h-10 md:w-14 md:h-14" />}
-                             {file.category === 'audio' && <Music className="w-10 h-10 md:w-14 md:h-14" />}
-                             {file.category !== 'video' && file.category !== 'pdf' && file.category !== 'audio' && <FileBox className="w-10 h-10 md:w-14 md:h-14" />}
+          {category === 'video' ? (
+             <div className="space-y-12 mt-4">
+               {isLoading ? (
+                 <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-indigo-500/20" /></div>
+               ) : files.length === 0 ? (
+                 <div className="py-20 text-center border border-dashed border-border rounded-[2rem] md:rounded-[3rem]">
+                    <Video size={40} className="mx-auto text-slate-100 mb-4" />
+                    <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">Nenhum vídeo nesta biblioteca</p>
+                 </div>
+               ) : (
+                 Object.entries(files.reduce((acc: any, file: any) => {
+                   const folder = file.folder || "Sem Pasta";
+                   if (!acc[folder]) acc[folder] = [];
+                   acc[folder].push(file);
+                   return acc;
+                 }, {})).map(([folderName, folderFiles]: [string, any]) => (
+                   <div key={folderName} className="space-y-4">
+                      <div className="flex items-center gap-3 px-2">
+                        <div className="h-8 w-2 bg-indigo-600 rounded-full shadow-lg shadow-indigo-500/20"></div>
+                        <h3 className="text-lg md:text-xl font-black text-foreground tracking-tight">{folderName}</h3>
+                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md tracking-widest border border-indigo-100/50">{folderFiles.length} VÍDEOS</span>
+                      </div>
+                      
+                      <div className="flex overflow-x-auto pb-8 pt-2 -mx-4 px-4 md:-mx-8 md:px-8 snap-x gap-4 md:gap-6 hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                         {folderFiles.map((file: any) => (
+                           <motion.div 
+                             key={file.id}
+                             whileHover={{ scale: 1.02, y: -4 }}
+                             onClick={() => setPreviewFile(file)}
+                             className="flex-none w-[280px] md:w-[340px] bg-card border border-border rounded-[1.5rem] md:rounded-[2rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/20 transition-all cursor-pointer relative snap-start shrink-0 flex flex-col"
+                           >
+                              <div className="aspect-video bg-muted/50 relative overflow-hidden flex flex-col items-center justify-center">
+                                {file.thumbnailUrl ? (
+                                  <img 
+                                    src={getFixedUrl(file.thumbnailUrl)} 
+                                    alt={file.fileName}
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                  />
+                                ) : (
+                                  <>
+                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-20 transition-transform duration-700 group-hover:scale-110" />
+                                    <div className="relative z-10 p-4 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-xl transition-transform duration-700 group-hover:scale-110 text-indigo-500">
+                                      <Video className="w-10 h-10" />
+                                    </div>
+                                  </>
+                                )}
+                                
+                                {/* Overlay Play */}
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                  <div className="w-14 h-14 rounded-full bg-indigo-600/90 text-white flex items-center justify-center shadow-2xl backdrop-blur-sm transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                                    <div className="w-0 h-0 border-t-[8px] border-t-transparent border-l-[14px] border-l-white border-b-[8px] border-b-transparent ml-1" />
+                                  </div>
+                                </div>
+                                
+                                <div className="absolute top-4 left-4 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[9px] text-white font-black tracking-widest flex items-center gap-1.5 shadow-xl">
+                                   <Video size={10} /> VÍDEO AULA
+                                </div>
+                              </div>
+                              
+                              <div className="p-5 flex-1 flex flex-col bg-gradient-to-b from-card to-muted/10">
+                                 <h4 className="text-sm font-black text-foreground tracking-tight line-clamp-2 leading-tight">{file.fileName}</h4>
+                                 {file.comments && (
+                                   <p className="text-[10px] text-muted-foreground font-medium line-clamp-2 mt-2 leading-relaxed">{file.comments}</p>
+                                 )}
+                                 <div className="mt-auto pt-4 flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-muted-foreground/60">
+                                       {(file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.5")} MB
+                                    </span>
+                                    <Button 
+                                       variant="ghost" 
+                                       onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
+                                       disabled={deleteMutation.isPending}
+                                       className="h-8 w-8 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors p-0"
+                                    >
+                                       {deleteMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                    </Button>
+                                 </div>
+                              </div>
+                           </motion.div>
+                         ))}
+                      </div>
+                   </div>
+                 ))
+               )}
+             </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {isLoading ? (
+                <div className="col-span-full py-20 flex justify-center"><Loader2 className="animate-spin text-indigo-500/20" /></div>
+              ) : files.length === 0 ? (
+                <div className="col-span-full py-20 text-center border border-dashed border-border rounded-[2rem] md:rounded-[3rem]">
+                   <Folder size={40} className="mx-auto text-slate-100 mb-4" />
+                   <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">Sua biblioteca está vazia</p>
+                </div>
+              ) : (
+                files.map((file) => (
+                  <motion.div 
+                    key={file.id}
+                    whileHover={{ y: -8 }}
+                    className="bg-card border border-border rounded-[2rem] md:rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col"
+                  >
+                      <div className="aspect-[4/3] bg-muted/50 relative flex items-center justify-center group-hover:bg-indigo-500/10/50 transition-colors overflow-hidden">
+                        {(file.category === 'imagem' || file.thumbnailUrl) ? (
+                          <img 
+                            src={getFixedUrl(file.thumbnailUrl || file.fileUrl)} 
+                            alt={file.fileName}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                        ) : (
+                          <>
+                            <div className={cn(
+                              "absolute inset-0 opacity-20 transition-transform duration-700 group-hover:scale-110",
+                              file.category === 'pdf' ? "bg-gradient-to-br from-blue-500 to-indigo-600" :
+                              file.category === 'audio' ? "bg-gradient-to-br from-emerald-500 to-teal-600" :
+                              "bg-gradient-to-br from-slate-500 to-slate-600"
+                            )} />
+                            <div className={cn(
+                              "relative z-10 p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl transition-transform duration-700 group-hover:scale-110",
+                              file.category === 'pdf' ? "text-blue-500" :
+                              file.category === 'audio' ? "text-emerald-500" :
+                              "text-slate-500"
+                            )}>
+                              {file.category === 'pdf' && <FileText className="w-10 h-10 md:w-14 md:h-14" />}
+                              {file.category === 'audio' && <Music className="w-10 h-10 md:w-14 md:h-14" />}
+                              {file.category !== 'pdf' && file.category !== 'audio' && <FileBox className="w-10 h-10 md:w-14 md:h-14" />}
+                            </div>
+                          </>
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 p-4 text-center">
+                           <div className="flex gap-2">
+                              <Button 
+                                onClick={() => setPreviewFile(file)}
+                                className="h-10 px-4 rounded-xl bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl border-none"
+                              >
+                                 <Activity size={14} className="mr-2" /> Visualizar
+                              </Button>
+                              <Button 
+                                asChild
+                                variant="ghost" 
+                                className="h-10 px-4 rounded-xl bg-card text-foreground font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-500/10 transition-all shadow-xl border-none"
+                              >
+                                 <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" download={file.fileName}>
+                                    <Download size={14} className="mr-2" /> Download
+                                 </a>
+                              </Button>
                            </div>
-                         </>
-                       )}
-                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 p-4 text-center">
-                          <div className="flex gap-2">
-                             <Button 
-                               onClick={() => setPreviewFile(file)}
-                               className="h-10 px-4 rounded-xl bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl border-none"
-                             >
-                                <Activity size={14} className="mr-2" /> Visualizar
-                             </Button>
-                             <Button 
-                               asChild
-                               variant="ghost" 
-                               className="h-10 px-4 rounded-xl bg-card text-foreground font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-500/10 transition-all shadow-xl border-none"
-                             >
-                                <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" download={file.fileName}>
-                                   <Download size={14} className="mr-2" /> Download
-                                </a>
-                             </Button>
+                           <Button 
+                              variant="ghost" 
+                              onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
+                              disabled={deleteMutation.isPending}
+                              className="h-10 w-10 rounded-xl bg-card/10 text-white hover:bg-rose-500 hover:text-white backdrop-blur-md"
+                           >
+                              {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                           </Button>
+                        </div>
+                        
+                        <div className="absolute top-5 left-5 px-3 py-1.5 bg-card/90 backdrop-blur rounded-xl text-[8px] font-black uppercase tracking-widest shadow-sm">
+                           {format(new Date(file.createdAt), "dd MMM")}
+                        </div>
+                     </div>
+                     
+                     <div className="p-6 flex-1 flex flex-col">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                           <div className="min-w-0 flex-1">
+                              <h4 className="text-[11px] font-black text-foreground uppercase tracking-tight truncate">{file.fileName}</h4>
+                              <div className="flex items-center gap-2 mt-2">
+                                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-muted/50 border border-slate-100">
+                                    {file.category}
+                                 </span>
+                                 {file.folder && (
+                                   <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-100">
+                                     {file.folder}
+                                   </span>
+                                 )}
+                                 <span className="text-[9px] font-bold text-muted-foreground/40">
+                                    {(file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.5")} MB
+                                 </span>
+                                 {file.viewedAt && (
+                                   <span title="Visualizado pelo aluno" className="text-[9px] font-bold text-green-600 flex items-center gap-1 ml-auto">
+                                     👁️ {format(new Date(file.viewedAt), "dd/MM")}
+                                   </span>
+                                 )}
+                              </div>
+                           </div>
+                           <div className="shrink-0 h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground">
+                              <ExternalLink size={14} />
+                           </div>
+                        </div>
+                        {file.comments && (
+                          <div className="mt-4 p-3 bg-muted/30 rounded-xl border border-border/50 text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
+                            {file.comments}
                           </div>
-                          <Button 
-                             variant="ghost" 
-                             onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
-                             disabled={deleteMutation.isPending}
-                             className="h-10 w-10 rounded-xl bg-card/10 text-white hover:bg-rose-500 hover:text-white backdrop-blur-md"
-                          >
-                             {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                          </Button>
-                       </div>
-                       
-                       <div className="absolute top-5 left-5 px-3 py-1.5 bg-card/90 backdrop-blur rounded-xl text-[8px] font-black uppercase tracking-widest shadow-sm">
-                          {format(new Date(file.createdAt), "dd MMM")}
-                       </div>
-                    </div>
-                    
-                    <div className="p-6 flex-1 flex flex-col">
-                       <div className="flex items-start justify-between gap-3 mb-2">
-                          <div className="min-w-0 flex-1">
-                             <h4 className="text-[11px] font-black text-foreground uppercase tracking-tight truncate">{file.fileName}</h4>
-                             <div className="flex items-center gap-2 mt-2">
-                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-muted/50 border border-slate-100">
-                                   {file.category}
-                                </span>
-                                {file.folder && (
-                                  <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-100">
-                                    {file.folder}
-                                  </span>
-                                )}
-                                <span className="text-[9px] font-bold text-muted-foreground/40">
-                                   {(file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.5")} MB
-                                </span>
-                                {file.viewedAt && (
-                                  <span title="Visualizado pelo aluno" className="text-[9px] font-bold text-green-600 flex items-center gap-1 ml-auto">
-                                    👁️ {format(new Date(file.viewedAt), "dd/MM")}
-                                  </span>
-                                )}
-                             </div>
-                          </div>
-                          <div className="shrink-0 h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground">
-                             <ExternalLink size={14} />
-                          </div>
-                       </div>
-                       {file.comments && (
-                         <div className="mt-4 p-3 bg-muted/30 rounded-xl border border-border/50 text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
-                           {file.comments}
-                         </div>
-                       )}
-                    </div>
-                 </motion.div>
-               ))
-             )}
-          </div>
+                        )}
+                     </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          )}
        </div>
 
        {/* MODAL DE UPLOAD DE ARQUIVOS */}
