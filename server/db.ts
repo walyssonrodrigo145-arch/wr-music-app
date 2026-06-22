@@ -461,6 +461,7 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     status: students.status,
     monthlyFee: students.monthlyFee,
     startDate: students.startDate,
+    dueDay: students.dueDay,
     avatar: students.avatar,
     lessonType: students.lessonType,
     instrumentName: instruments.name,
