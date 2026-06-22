@@ -16,7 +16,9 @@ import {
   ExternalLink,
   Info,
   Loader2,
-  X
+  X,
+  MessageCircle,
+  Send
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,11 +28,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 const container = {
   hidden: { opacity: 0 },
@@ -48,17 +52,36 @@ const item = {
 };
 
 export default function StudentMaterials() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("todos");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [previewFile, setPreviewFile] = useState<any>(null);
-  const { data: materials, isLoading } = trpc.studentPortal.getMaterials.useQuery();
+  
+  // Comments UI state
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[40vh]">
-      <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-    </div>
+  const utils = trpc.useUtils();
+  const { data: materials, isLoading } = trpc.studentPortal.getMaterials.useQuery();
+  const markViewedMutation = trpc.studentPortal.markMaterialViewed.useMutation();
+
+  const { data: comments } = trpc.fileComments.list.useQuery(
+    { fileId: previewFile?.id },
+    { enabled: !!previewFile?.id && showComments }
   );
+  
+  const createCommentMutation = trpc.fileComments.create.useMutation({
+    onSuccess: () => {
+      utils.fileComments.list.invalidate({ fileId: previewFile?.id });
+      setNewComment("");
+    }
+  });
+
+  const handlePreview = (file: any) => {
+    setPreviewFile(file);
+    markViewedMutation.mutate({ fileId: file.id });
+  };
 
   const filteredMaterials = materials?.filter(m => {
     const matchesSearch = m.fileName.toLowerCase().includes(search.toLowerCase());
@@ -67,6 +90,17 @@ export default function StudentMaterials() {
                           m.category === category;
     return matchesSearch && matchesCategory;
   }) || [];
+
+  // Group by folder
+  const groupedMaterials = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    filteredMaterials.forEach(m => {
+      const folder = m.folder || "Outros";
+      if (!groups[folder]) groups[folder] = [];
+      groups[folder].push(m);
+    });
+    return groups;
+  }, [filteredMaterials]);
 
   const categories = [
     { id: 'todos', label: 'Todos', icon: FileBox },
@@ -92,6 +126,12 @@ export default function StudentMaterials() {
       default: return 'Visualizar';
     }
   };
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+    </div>
+  );
 
   return (
     <div className="space-y-10 pb-10 max-w-[1400px] mx-auto">
@@ -130,7 +170,7 @@ export default function StudentMaterials() {
         </div>
       </div>
 
-      {/* Filters and Search - Premium Bar */}
+      {/* Filters and Search */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-card/40 p-4 rounded-[2rem] border border-border/50 backdrop-blur-sm shadow-xl shadow-black/5">
         <div className="md:col-span-5 relative group">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
@@ -163,157 +203,150 @@ export default function StudentMaterials() {
         </div>
       </div>
 
-      {/* Materials Display */}
-      <motion.div 
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className={cn(
-          "grid gap-8",
-          viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-        )}
-      >
-        <AnimatePresence mode='popLayout'>
-          {filteredMaterials.map((item: any) => (
-            <motion.div 
-              layout
-              variants={item}
-              key={item.id}
-              className="group"
-            >
-              <Card className={cn(
-                "h-full border border-border/50 shadow-xl bg-card/60 backdrop-blur-md hover:shadow-2xl hover:border-primary/30 transition-all duration-500 rounded-[2.5rem] overflow-hidden flex flex-col",
-                viewMode === "list" && "flex-row h-32 items-center"
-              )}>
-                <CardContent className="p-0 flex flex-col h-full flex-1">
-                  {/* Media Section */}
-                  <div className={cn(
-                    "relative overflow-hidden shrink-0",
-                    viewMode === "grid" ? "aspect-[16/10] w-full" : "w-40 h-full border-r border-border/30"
+      {/* Materials Display Grouped by Folder */}
+      {Object.entries(groupedMaterials).map(([folderName, filesInFolder]) => (
+        <div key={folderName} className="space-y-4">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-primary border-b pb-2">
+            <FileBox size={24} /> {folderName}
+          </h2>
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className={cn(
+              "grid gap-8",
+              viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+            )}
+          >
+            <AnimatePresence mode='popLayout'>
+              {filesInFolder.map((item: any) => (
+                <motion.div 
+                  layout
+                  variants={item}
+                  key={item.id}
+                  className="group"
+                >
+                  <Card className={cn(
+                    "h-full border border-border/50 shadow-xl bg-card/60 backdrop-blur-md hover:shadow-2xl hover:border-primary/30 transition-all duration-500 rounded-[2.5rem] overflow-hidden flex flex-col",
+                    viewMode === "list" && "flex-row h-32 items-center"
                   )}>
-                    {/* Background Pattern/Color */}
-                    <div className={cn(
-                      "absolute inset-0 transition-transform duration-700 group-hover:scale-110",
-                      item.category === 'video' ? "bg-pink-500/5" :
-                      item.category === 'audio' ? "bg-emerald-500/5" :
-                      "bg-blue-500/5"
-                    )} />
-                    
-                    {/* Floating Badge */}
-                    <div className="absolute top-4 left-4 z-10">
-                      <span className={cn(
-                        "text-[9px] font-black uppercase px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 backdrop-blur-md border",
-                        item.category === 'video' ? "bg-pink-500/10 text-pink-600 border-pink-500/20" :
-                        item.category === 'audio' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                        "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                      )}>
-                        <div className={cn(
-                          "w-1.5 h-1.5 rounded-full",
-                          item.category === 'video' ? "bg-pink-500" :
-                          item.category === 'audio' ? "bg-emerald-500" :
-                          "bg-blue-500"
-                        )} />
-                        {item.category}
-                      </span>
-                    </div>
-
-                    {/* Icon Centered */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-40 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110">
+                    <CardContent className="p-0 flex flex-col h-full flex-1">
+                      {/* Media Section */}
                       <div className={cn(
-                        "p-6 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl transition-all group-hover:bg-white/20",
-                        item.category === 'video' ? "text-pink-500" :
-                        item.category === 'audio' ? "text-emerald-500" :
-                        "text-blue-500"
+                        "relative overflow-hidden shrink-0",
+                        viewMode === "grid" ? "aspect-[16/10] w-full" : "w-40 h-full border-r border-border/30"
                       )}>
-                        {getIcon(item.category)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Info Section */}
-                  <div className={cn(
-                    "p-8 flex flex-col flex-1 gap-6",
-                    viewMode === "list" && "flex-row items-center justify-between p-6 gap-4"
-                  )}>
-                    <div className="space-y-3 min-w-0 flex-1">
-                      <div className="flex items-center gap-3">
-                         <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest bg-muted/50 px-2 py-0.5 rounded-md">
-                          {format(new Date(item.createdAt), "dd MMM yyyy", { locale: ptBR })}
-                        </span>
-                        <span className="w-1 h-1 rounded-full bg-border" />
-                        <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-                          {(item.size ? (item.size / 1024 / 1024).toFixed(1) : 0)} MB
-                        </span>
-                      </div>
-                      
-                      <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors truncate tracking-tight leading-snug">
-                        {item.fileName}
-                      </h3>
-                      
-                      {viewMode === "grid" && (
-                        <div className="flex items-center gap-3 py-1">
-                          <div className="flex -space-x-2">
-                             {[1,2].map(i => (
-                               <div key={i} className="w-6 h-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[8px] font-bold text-muted-foreground overflow-hidden">
-                                 {i === 1 ? <Info size={10} /> : <FileText size={10} />}
-                               </div>
-                             ))}
-                          </div>
-                          <p className="text-[11px] font-semibold text-muted-foreground">
-                            Inclui exercícios e partituras
-                          </p>
+                        {/* Background Pattern/Color */}
+                        <div className={cn(
+                          "absolute inset-0 transition-transform duration-700 group-hover:scale-110",
+                          item.category === 'video' ? "bg-pink-500/5" :
+                          item.category === 'audio' ? "bg-emerald-500/5" :
+                          "bg-blue-500/5"
+                        )} />
+                        
+                        {/* Floating Badge */}
+                        <div className="absolute top-4 left-4 z-10">
+                          <span className={cn(
+                            "text-[9px] font-black uppercase px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 backdrop-blur-md border",
+                            item.category === 'video' ? "bg-pink-500/10 text-pink-600 border-pink-500/20" :
+                            item.category === 'audio' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                            "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          )}>
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              item.category === 'video' ? "bg-pink-500" :
+                              item.category === 'audio' ? "bg-emerald-500" :
+                              "bg-blue-500"
+                            )} />
+                            {item.category}
+                          </span>
                         </div>
-                      )}
-                    </div>
 
-                    <div className={cn(
-                      "flex items-center gap-3",
-                      viewMode === "grid" ? "w-full" : "shrink-0"
-                    )}>
-                      <Button 
-                        onClick={() => setPreviewFile(item)}
-                        className="flex-1 h-14 rounded-2xl bg-primary text-white font-bold text-xs shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all border-none gap-3"
-                      >
-                        {item.category === 'video' ? <Play size={18} fill="currentColor" /> : 
-                         item.category === 'audio' ? <Music size={18} /> : 
-                         <Eye size={18} />}
-                        {getActionLabel(item.category)}
-                      </Button>
-                      
-                      <Button 
-                        asChild
-                        variant="outline"
-                        className="w-14 h-14 rounded-2xl bg-background border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center shrink-0 shadow-sm"
-                      >
-                        <a href={getFixedUrl(item.fileUrl)} target="_blank" rel="noopener noreferrer" download={item.fileName}>
-                          <Download size={20} />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                        {/* Icon Centered */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-40 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110">
+                          <div className={cn(
+                            "p-6 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl transition-all group-hover:bg-white/20",
+                            item.category === 'video' ? "text-pink-500" :
+                            item.category === 'audio' ? "text-emerald-500" :
+                            "text-blue-500"
+                          )}>
+                            {getIcon(item.category)}
+                          </div>
+                        </div>
+                      </div>
 
-        {filteredMaterials.length === 0 && (
-          <div className="text-center py-32 bg-card/20 rounded-[3rem] border-2 border-dashed border-border/50 col-span-full">
-            <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-              <FileBox className="text-muted-foreground/30" size={48} />
-            </div>
-            <h3 className="text-2xl font-bold text-foreground">Nada por aqui ainda</h3>
-            <p className="text-muted-foreground font-medium mt-3 max-w-xs mx-auto">Não encontramos materiais com esses filtros. Tente buscar por outros termos.</p>
-            <Button 
-              variant="outline" 
-              onClick={() => { setSearch(""); setCategory("todos"); }}
-              className="mt-8 rounded-xl px-8 border-primary/30 text-primary hover:bg-primary/5 font-bold"
-            >
-              Limpar Filtros
-            </Button>
+                      {/* Info Section */}
+                      <div className={cn(
+                        "p-8 flex flex-col flex-1 gap-6",
+                        viewMode === "list" && "flex-row items-center justify-between p-6 gap-4"
+                      )}>
+                        <div className="space-y-3 min-w-0 flex-1">
+                          <div className="flex items-center gap-3">
+                             <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest bg-muted/50 px-2 py-0.5 rounded-md">
+                              {format(new Date(item.createdAt), "dd MMM yyyy", { locale: ptBR })}
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-border" />
+                            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                              {(item.size ? (item.size / 1024 / 1024).toFixed(1) : 0)} MB
+                            </span>
+                          </div>
+                          
+                          <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors truncate tracking-tight leading-snug">
+                            {item.fileName}
+                          </h3>
+                          
+                        </div>
+
+                        <div className={cn(
+                          "flex items-center gap-3",
+                          viewMode === "grid" ? "w-full" : "shrink-0"
+                        )}>
+                          <Button 
+                            onClick={() => handlePreview(item)}
+                            className="flex-1 h-14 rounded-2xl bg-primary text-white font-bold text-xs shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all border-none gap-3"
+                          >
+                            {item.category === 'video' ? <Play size={18} fill="currentColor" /> : 
+                             item.category === 'audio' ? <Music size={18} /> : 
+                             <Eye size={18} />}
+                            {getActionLabel(item.category)}
+                          </Button>
+                          
+                          <Button 
+                            asChild
+                            variant="outline"
+                            className="w-14 h-14 rounded-2xl bg-background border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center shrink-0 shadow-sm"
+                          >
+                            <a href={getFixedUrl(item.fileUrl)} target="_blank" rel="noopener noreferrer" download={item.fileName}>
+                              <Download size={20} />
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      ))}
+
+      {filteredMaterials.length === 0 && (
+        <div className="text-center py-32 bg-card/20 rounded-[3rem] border-2 border-dashed border-border/50 col-span-full mt-10">
+          <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+            <FileBox className="text-muted-foreground/30" size={48} />
           </div>
-        )}
-      </motion.div>
+          <h3 className="text-2xl font-bold text-foreground">Nada por aqui ainda</h3>
+          <p className="text-muted-foreground font-medium mt-3 max-w-xs mx-auto">Não encontramos materiais com esses filtros. Tente buscar por outros termos.</p>
+          <Button 
+            variant="outline" 
+            onClick={() => { setSearch(""); setCategory("todos"); }}
+            className="mt-8 rounded-xl px-8 border-primary/30 text-primary hover:bg-primary/5 font-bold"
+          >
+            Limpar Filtros
+          </Button>
+        </div>
+      )}
 
       {/* Footer / CTA Section */}
       <div className="pt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-border/30">
@@ -325,19 +358,11 @@ export default function StudentMaterials() {
             Exibindo <span className="text-primary font-bold">{filteredMaterials.length}</span> de <span className="font-bold">{materials?.length || 0}</span> arquivos
           </p>
         </div>
-        
-        <button 
-          onClick={() => window.location.href = '/aluno/mensagens'}
-          className="group flex items-center gap-3 px-6 py-3 rounded-2xl bg-primary/5 text-xs font-bold text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all shadow-sm"
-        >
-          Precisa de algo específico? <span className="opacity-60 group-hover:opacity-100 transition-opacity">Contatar Professor</span>
-          <ExternalLink size={14} className="group-hover:translate-x-0.5 transition-transform" />
-        </button>
       </div>
 
-      {/* PREVIEW DIALOG - Premium Redesign */}
-      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-         <DialogContent className="max-w-5xl p-0 overflow-hidden bg-background border-none rounded-[3rem] shadow-2xl">
+      {/* PREVIEW DIALOG */}
+      <Dialog open={!!previewFile} onOpenChange={() => { setPreviewFile(null); setShowComments(false); }}>
+         <DialogContent className={cn("p-0 overflow-hidden bg-background border-none rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[90vw] md:max-w-7xl" : "max-w-5xl")}>
             <DialogHeader className="p-8 bg-card/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-20">
                <div className="flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -355,16 +380,23 @@ export default function StudentMaterials() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Button 
+                      variant="outline"
+                      className="h-12 rounded-xl text-primary border-primary/20 bg-primary/5 text-xs font-bold px-6 shadow-sm hover:scale-105 active:scale-95"
+                      onClick={() => setShowComments(!showComments)}
+                    >
+                       <MessageCircle size={18} className="mr-2" /> Dúvidas e Comentários
+                    </Button>
+                    <Button 
                       asChild
-                      className="h-12 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold px-6 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95"
+                      className="h-12 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold px-6 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95 hidden md:flex"
                     >
                        <a href={getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
                           <Download size={18} className="mr-2" /> Baixar Arquivo
                        </a>
                     </Button>
                     <button 
-                      onClick={() => setPreviewFile(null)}
-                      className="w-12 h-12 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground flex items-center justify-center transition-all"
+                      onClick={() => { setPreviewFile(null); setShowComments(false); }}
+                      className="w-12 h-12 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground flex items-center justify-center transition-all shrink-0"
                     >
                       <X size={20} />
                     </button>
@@ -372,9 +404,9 @@ export default function StudentMaterials() {
                </div>
             </DialogHeader>
 
-            <div className="aspect-video w-full flex items-center justify-center bg-muted/30 relative overflow-hidden">
-               {/* Content Rendering (kept original logic but with container polish) */}
-               <div className="w-full h-full flex items-center justify-center relative z-10">
+            <div className="flex flex-col md:flex-row h-[70vh] bg-muted/30">
+               {/* Content Rendering */}
+               <div className={cn("h-full flex items-center justify-center relative z-10 transition-all", showComments ? "w-full md:w-2/3" : "w-full")}>
                  {previewFile?.category === 'video' && (
                     <video 
                       src={getFixedUrl(previewFile.fileUrl)} 
@@ -416,6 +448,52 @@ export default function StudentMaterials() {
                     />
                  )}
                </div>
+
+               {/* Comments Sidebar */}
+               {showComments && (
+                 <div className="w-full md:w-1/3 h-full bg-card border-l border-border/50 flex flex-col shadow-inner">
+                   <div className="p-4 border-b border-border/50 bg-muted/20 font-bold text-sm">
+                     Comentários e Dúvidas
+                   </div>
+                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                     {comments?.map((comment: any) => (
+                       <div key={comment.id} className={cn(
+                         "p-3 rounded-2xl max-w-[85%] text-sm",
+                         comment.userId === user?.id 
+                          ? "bg-primary text-white ml-auto rounded-tr-sm" 
+                          : "bg-muted text-foreground mr-auto rounded-tl-sm"
+                       )}>
+                         <div className="font-bold text-[10px] opacity-70 mb-1">{comment.userName}</div>
+                         <div>{comment.content}</div>
+                       </div>
+                     ))}
+                     {comments?.length === 0 && (
+                       <p className="text-center text-muted-foreground text-sm py-10">Nenhum comentário ainda. Faça uma pergunta sobre o material!</p>
+                     )}
+                   </div>
+                   <div className="p-4 bg-background border-t border-border/50 flex gap-2">
+                     <Input 
+                        value={newComment}
+                        onChange={e => setNewComment(e.target.value)}
+                        placeholder="Digite sua dúvida..."
+                        className="rounded-full bg-muted/50 border-none"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && newComment.trim()) {
+                            createCommentMutation.mutate({ fileId: previewFile.id, content: newComment });
+                          }
+                        }}
+                     />
+                     <Button 
+                       size="icon" 
+                       className="rounded-full shrink-0"
+                       disabled={!newComment.trim() || createCommentMutation.isPending}
+                       onClick={() => createCommentMutation.mutate({ fileId: previewFile.id, content: newComment })}
+                     >
+                       <Send size={16} />
+                     </Button>
+                   </div>
+                 </div>
+               )}
             </div>
          </DialogContent>
       </Dialog>

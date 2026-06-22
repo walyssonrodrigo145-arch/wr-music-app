@@ -321,12 +321,23 @@ export const studentFiles = pgTable("student_files", {
   fileName: varchar("fileName", { length: 255 }).notNull(),
   fileType: varchar("fileType", { length: 100 }).notNull(),
   category: fileCategoryEnum("category").notNull(),
+  folder: varchar("folder", { length: 100 }),
   fileUrl: text("fileUrl").notNull(),
   thumbnailUrl: text("thumbnailUrl"),
   comments: text("comments"),
   size: integer("size"),
+  viewedAt: timestamp("viewedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export const fileComments = pgTable("file_comments", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  fileId: integer("fileId").notNull(),
+  userId: integer("userId").notNull(), // can be student or professor
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export const announcements = pgTable("announcements", {
@@ -421,6 +432,8 @@ export type StudentTimeline = typeof studentTimeline.$inferSelect;
 export type InsertStudentTimeline = typeof studentTimeline.$inferInsert;
 export type StudentFile = typeof studentFiles.$inferSelect;
 export type InsertStudentFile = typeof studentFiles.$inferInsert;
+export type FileComment = typeof fileComments.$inferSelect;
+export type InsertFileComment = typeof fileComments.$inferInsert;
 
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertAnnouncement = typeof announcements.$inferInsert;
@@ -532,6 +545,7 @@ export const professorPayments = pgTable("professor_payments", {
   approvedAt: timestamp("approvedAt"),
   paidAt: timestamp("paidAt"),
   notes: text("notes"),
+  adjustments: text("adjustments"), // JSON array of manual adjustments: [{desc: string, value: number}]
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

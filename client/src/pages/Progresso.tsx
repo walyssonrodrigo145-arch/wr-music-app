@@ -1560,6 +1560,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadName, setUploadName] = useState("");
+  const [uploadFolder, setUploadFolder] = useState("");
   const [uploadComments, setUploadComments] = useState("");
   
   const utils = trpc.useUtils();
@@ -1589,6 +1590,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
 
     setUploadFile(file);
     setUploadName(file.name);
+    setUploadFolder("");
     setUploadComments("");
     setUploadModalOpen(true);
     
@@ -1623,6 +1625,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
             fileName: uploadName,
             fileType: uploadFile.type,
             category: fileCategory,
+            folder: uploadFolder || undefined,
             fileUrl: url,
             size: uploadFile.size,
             comments: uploadComments || undefined,
@@ -1632,6 +1635,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
           setUploadModalOpen(false);
           setUploadFile(null);
           setUploadName("");
+          setUploadFolder("");
           setUploadComments("");
         } catch (err: any) {
           toast.error("Erro no processamento: " + err.message, { id: toastId });
@@ -1819,9 +1823,19 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-muted/50 border border-slate-100">
                                    {file.category}
                                 </span>
+                                {file.folder && (
+                                  <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-100">
+                                    {file.folder}
+                                  </span>
+                                )}
                                 <span className="text-[9px] font-bold text-muted-foreground/40">
                                    {(file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.5")} MB
                                 </span>
+                                {file.viewedAt && (
+                                  <span title="Visualizado pelo aluno" className="text-[9px] font-bold text-green-600 flex items-center gap-1 ml-auto">
+                                    👁️ {format(new Date(file.viewedAt), "dd/MM")}
+                                  </span>
+                                )}
                              </div>
                           </div>
                           <div className="shrink-0 h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground">
@@ -1876,6 +1890,16 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                       value={uploadName} 
                       onChange={e => setUploadName(e.target.value)} 
                       placeholder="Nome para exibição..."
+                      className="h-12 bg-background border-border rounded-xl font-semibold"
+                   />
+                </div>
+
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Pasta / Módulo (Opcional)</label>
+                   <Input 
+                      value={uploadFolder} 
+                      onChange={e => setUploadFolder(e.target.value)} 
+                      placeholder="Ex: Módulo 1, Repertório..."
                       className="h-12 bg-background border-border rounded-xl font-semibold"
                    />
                 </div>

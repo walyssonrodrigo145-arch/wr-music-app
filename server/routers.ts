@@ -4890,6 +4890,23 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const orgId = ctx.user.organizationId!;
       return db.select().from(studentFiles).where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId))).orderBy(desc(studentFiles.createdAt));
     }),
+    markMaterialViewed: studentProcedure.input(z.object({ fileId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      
+      let studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      await db.update(studentFiles)
+        .set({ viewedAt: new Date() })
+        .where(and(
+          eq(studentFiles.id, input.fileId),
+          eq(studentFiles.organizationId, orgId),
+          eq(studentFiles.studentId, studentId)
+        ));
+      return { success: true };
+    }),
     getExercises: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -6444,6 +6461,127 @@ Instruções de análise:
           return handleDbError(error, "marcar pagamento como pago");
         }
       }),
+
+    getDetails: protectedProcedure
+      .input(z.object({ paymentId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return { lessons: [] };
+        const orgId = ctx.user.organizationId!;
+        
+        const [payment] = await db.select()
+          .from(professorPayments)
+          .where(and(
+            eq(professorPayments.id, input.paymentId),
+            eq(professorPayments.organizationId, orgId)
+          ))
+          .limit(1);
+          
+        if (!payment) throw new TRPCError({ code: "NOT_FOUND", message: "Pagamento não encontrado" });
+
+        const startDate = new Date(payment.year, payment.month - 1, 1);
+        const endDate = new Date(payment.year, payment.month, 1);
+
+        const profLessons = await db.select({
+          lesson: lessons,
+          studentName: students.name,
+        })
+          .from(lessons)
+          .leftJoin(students, eq(students.id, lessons.studentId))
+          .innerJoin(professores, eq(professores.userId, lessons.userId))
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            eq(professores.id, payment.professorId),
+            eq(lessons.status, "concluida"),
+            gte(lessons.scheduledAt, startDate),
+            lt(lessons.scheduledAt, endDate)
+          ))
+          .orderBy(asc(lessons.scheduledAt));
+
+        return { lessons: profLessons.map(p => ({ ...p.lesson, studentName: p.studentName })) };
+      }),
+
+    updateAdjustments: protectedProcedure
+      .input(z.object({
+        paymentId: z.number(),
+        adjustments: z.string(), // JSON string
+        totalAmount: z.number(),
+        totalCredits: z.number(),
+        totalDebits: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new Error("Database not available");
+          const orgId = ctx.user.organizationId!;
+
+          const [payment] = await db.select()
+            .from(professorPayments)
+            .where(and(
+              eq(professorPayments.id, input.paymentId),
+              eq(professorPayments.organizationId, orgId)
+            ))
+            .limit(1);
+
+          if (!payment) throw new TRPCError({ code: "NOT_FOUND", message: "Pagamento não encontrado" });
+          if (payment.status !== "aberto") {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Apenas pagamentos em aberto podem ser editados" });
+          }
+
+          await db.update(professorPayments)
+            .set({
+              adjustments: input.adjustments,
+              totalAmount: input.totalAmount.toFixed(2),
+              totalCredits: input.totalCredits.toFixed(2),
+              totalDebits: input.totalDebits.toFixed(2),
+              updatedAt: new Date(),
+            })
+            .where(eq(professorPayments.id, input.paymentId));
+
+          return { success: true };
+        } catch (error) {
+          if (error instanceof TRPCError) throw error;
+          return handleDbError(error, "atualizar ajustes do pagamento");
+        }
+      }),
+  }),
+
+  // ─── FILE COMMENTS ROUTER ──────────────────────────────────────
+  fileComments: router({
+    list: protectedProcedure.input(z.object({ fileId: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const orgId = ctx.user.organizationId!;
+      return db.select({
+        id: fileComments.id,
+        content: fileComments.content,
+        createdAt: fileComments.createdAt,
+        userId: fileComments.userId,
+        userName: users.name,
+      })
+      .from(fileComments)
+      .leftJoin(users, eq(users.id, fileComments.userId))
+      .where(and(
+        eq(fileComments.organizationId, orgId),
+        eq(fileComments.fileId, input.fileId)
+      ))
+      .orderBy(asc(fileComments.createdAt));
+    }),
+    create: protectedProcedure.input(z.object({ fileId: z.number(), content: z.string() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      
+      const [newComment] = await db.insert(fileComments).values({
+        organizationId: orgId,
+        fileId: input.fileId,
+        userId: ctx.user.id,
+        content: input.content,
+        createdAt: new Date(),
+      }).returning();
+      
+      return newComment;
+    }),
   }),
 
   // ─── PILAR 5: QR CODE ATTENDANCE ────────────────────────────────

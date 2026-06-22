@@ -131,6 +131,25 @@ async function ensureSchemaConsistency(db: any) {
   } catch (error: any) {
     console.warn(`[Database] Schema consistency check failed. Code: ${error.code}. Message: ${error.message}`);
   } finally {
+    // professor_payments adjustments
+    await db.execute(sql`ALTER TABLE "professor_payments" ADD COLUMN IF NOT EXISTS "adjustments" text`);
+
+    // student_files folder and viewedAt
+    await db.execute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "folder" text`);
+    await db.execute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "viewedAt" timestamp`);
+
+    // file_comments table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "file_comments" (
+        "id" serial PRIMARY KEY,
+        "organization_id" integer NOT NULL,
+        "file_id" integer NOT NULL,
+        "user_id" integer NOT NULL,
+        "content" text NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
   }

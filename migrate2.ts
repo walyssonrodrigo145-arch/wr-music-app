@@ -1,3 +1,4 @@
+import 'dotenv/config'; 
 import { getDb } from './server/db'; 
 async function run() { 
   try {
