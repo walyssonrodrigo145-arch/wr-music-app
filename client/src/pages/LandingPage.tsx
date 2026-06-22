@@ -62,6 +62,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
   const [step, setStep] = useState<ModalStep>('conta');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<SignupForm>({
     nome: '', email: '', senha: '', telefone: '',
     cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '',
@@ -114,9 +115,19 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
   };
 
   const handleNext = async () => {
-    if (step === 'conta') setStep('endereco');
-    else if (step === 'endereco') setStep('pagamento');
+    setError(null);
+    if (step === 'conta') {
+      if (!form.nome || !form.email || !form.senha || !form.telefone) return setError('Preencha todos os campos da conta.');
+      if (!form.email.includes('@')) return setError('E-mail inválido.');
+      if (form.senha.length < 8) return setError('A senha deve ter no mínimo 8 caracteres.');
+      setStep('endereco');
+    }
+    else if (step === 'endereco') {
+      if (!form.cep || !form.rua || !form.numero || !form.bairro || !form.cidade || !form.estado) return setError('Preencha todos os campos do endereço.');
+      setStep('pagamento');
+    }
     else if (step === 'pagamento') {
+      if (!form.cardNumber || !form.cardName || !form.cardExpiry || !form.cardCvv) return setError('Preencha todos os campos do pagamento.');
       setLoading(true);
       await new Promise(r => setTimeout(r, 1500));
       setLoading(false);
@@ -434,25 +445,32 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
 
           {/* Botão de avançar */}
           {step !== 'sucesso' && (
-            <motion.button
-              key={step}
-              onClick={handleNext}
-              disabled={loading}
-              className="mt-6 w-full py-4 bg-blue-600 text-white rounded-xl font-black text-sm hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-60"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : step === 'pagamento' ? (
-                <>
-                  <Shield size={16} />
-                  Ativar {TRIAL_DAYS} dias grátis — {planPrices[plan]}
-                </>
-              ) : (
-                <>
-                  Continuar <ChevronRight size={16} />
-                </>
+            <>
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold text-center border border-red-100">
+                  {error}
+                </div>
               )}
-            </motion.button>
+              <motion.button
+                key={step}
+                onClick={handleNext}
+                disabled={loading}
+                className="mt-6 w-full py-4 bg-blue-600 text-white rounded-xl font-black text-sm hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : step === 'pagamento' ? (
+                  <>
+                    <Shield size={16} />
+                    Ativar {TRIAL_DAYS} dias grátis — {planPrices[plan]}
+                  </>
+                ) : (
+                  <>
+                    Continuar <ChevronRight size={16} />
+                  </>
+                )}
+              </motion.button>
+            </>
           )}
 
           {step !== 'sucesso' && (
