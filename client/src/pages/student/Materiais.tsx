@@ -237,12 +237,33 @@ export default function StudentMaterials() {
                         viewMode === "grid" ? "aspect-[16/10] w-full" : "w-40 h-full border-r border-border/30"
                       )}>
                         {/* Background Pattern/Color */}
-                        <div className={cn(
-                          "absolute inset-0 transition-transform duration-700 group-hover:scale-110",
-                          item.category === 'video' ? "bg-pink-500/5" :
-                          item.category === 'audio' ? "bg-emerald-500/5" :
-                          "bg-blue-500/5"
-                        )} />
+                        {(item.category === 'imagem' || item.thumbnailUrl) ? (
+                          <img 
+                            src={getFixedUrl(item.thumbnailUrl || item.fileUrl)} 
+                            alt={item.fileName}
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                        ) : (
+                          <>
+                            <div className={cn(
+                              "absolute inset-0 opacity-20 transition-transform duration-700 group-hover:scale-110",
+                              item.category === 'video' ? "bg-gradient-to-br from-pink-500 to-rose-600" :
+                              item.category === 'audio' ? "bg-gradient-to-br from-emerald-500 to-teal-600" :
+                              "bg-gradient-to-br from-blue-500 to-indigo-600"
+                            )} />
+                            {/* Icon Centered */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-40 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110">
+                              <div className={cn(
+                                "p-6 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl transition-all group-hover:bg-white/20",
+                                item.category === 'video' ? "text-pink-500" :
+                                item.category === 'audio' ? "text-emerald-500" :
+                                "text-blue-500"
+                              )}>
+                                {getIcon(item.category)}
+                              </div>
+                            </div>
+                          </>
+                        )}
                         
                         {/* Floating Badge */}
                         <div className="absolute top-4 left-4 z-10">
@@ -260,18 +281,6 @@ export default function StudentMaterials() {
                             )} />
                             {item.category}
                           </span>
-                        </div>
-
-                        {/* Icon Centered */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-40 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110">
-                          <div className={cn(
-                            "p-6 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl transition-all group-hover:bg-white/20",
-                            item.category === 'video' ? "text-pink-500" :
-                            item.category === 'audio' ? "text-emerald-500" :
-                            "text-blue-500"
-                          )}>
-                            {getIcon(item.category)}
-                          </div>
                         </div>
                       </div>
 

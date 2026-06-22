@@ -1774,14 +1774,34 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                    whileHover={{ y: -8 }}
                    className="bg-card border border-border rounded-[2rem] md:rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col"
                  >
-                    <div className="aspect-[4/3] bg-muted/50 relative flex items-center justify-center group-hover:bg-indigo-500/10/50 transition-colors overflow-hidden">
-                       <div className="text-slate-200 group-hover:text-indigo-200 transition-colors group-hover:scale-125 transition-transform duration-700">
-                          {file.category === 'imagem' && <ImageIcon className="w-12 h-12 md:w-16 md:h-16" />}
-                          {file.category === 'video' && <Video className="w-12 h-12 md:w-16 md:h-16" />}
-                          {file.category === 'pdf' && <FileText className="w-12 h-12 md:w-16 md:h-16" />}
-                          {file.category === 'audio' && <Music className="w-12 h-12 md:w-16 md:h-16" />}
-                       </div>
-                       
+                     <div className="aspect-[4/3] bg-muted/50 relative flex items-center justify-center group-hover:bg-indigo-500/10/50 transition-colors overflow-hidden">
+                       {(file.category === 'imagem' || file.thumbnailUrl) ? (
+                         <img 
+                           src={getFixedUrl(file.thumbnailUrl || file.fileUrl)} 
+                           alt={file.fileName}
+                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                         />
+                       ) : (
+                         <>
+                           <div className={cn(
+                             "absolute inset-0 opacity-20 transition-transform duration-700 group-hover:scale-110",
+                             file.category === 'video' ? "bg-gradient-to-br from-pink-500 to-rose-600" :
+                             file.category === 'audio' ? "bg-gradient-to-br from-emerald-500 to-teal-600" :
+                             "bg-gradient-to-br from-blue-500 to-indigo-600"
+                           )} />
+                           <div className={cn(
+                             "relative z-10 p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl transition-transform duration-700 group-hover:scale-110",
+                             file.category === 'video' ? "text-pink-500" :
+                             file.category === 'audio' ? "text-emerald-500" :
+                             "text-blue-500"
+                           )}>
+                             {file.category === 'video' && <Video className="w-10 h-10 md:w-14 md:h-14" />}
+                             {file.category === 'pdf' && <FileText className="w-10 h-10 md:w-14 md:h-14" />}
+                             {file.category === 'audio' && <Music className="w-10 h-10 md:w-14 md:h-14" />}
+                             {file.category !== 'video' && file.category !== 'pdf' && file.category !== 'audio' && <FileBox className="w-10 h-10 md:w-14 md:h-14" />}
+                           </div>
+                         </>
+                       )}
                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 p-4 text-center">
                           <div className="flex gap-2">
                              <Button 
