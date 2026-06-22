@@ -12,10 +12,11 @@ const headers = (apiKey?: string) => ({
 
 // ─── Security Lock ────────────────────────────────────────────────────────────
 
-export const ASAAS_ENABLED_EMAIL = 'wrmusic762@gmail.com';
-
+// Remover o lock-in de email: faturamento deve rodar para todas as escolas
 export function isAsaasEnabled(email?: string | null): boolean {
-  return email === ASAAS_ENABLED_EMAIL;
+  // Retorna true em ambiente de produção configurado com API Key.
+  // Caso deseje desligar em homologação, bastaria checar ENV.asaasApiKey
+  return !!ENV.asaasApiKey;
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────

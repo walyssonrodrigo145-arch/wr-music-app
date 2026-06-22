@@ -145,7 +145,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 <Check size={36} className="text-white" strokeWidth={3} />
               </div>
               <h2 className="text-2xl font-black mb-1">Cadastro realizado!</h2>
-              <p className="text-blue-100 text-sm">Seus 30 dias grátis começam agora</p>
+              <p className="text-blue-100 text-sm">{TRIAL_DAYS} dias grátis começam agora</p>
             </div>
           ) : (
             <>
@@ -158,7 +158,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
               <h2 className="text-xl font-black mb-1">
                 Plano {planLabels[plan]} — <span className="text-blue-200">{planPrices[plan]}</span>
               </h2>
-              <p className="text-blue-100 text-xs">30 dias grátis • Cancele quando quiser</p>
+              <p className="text-blue-100 text-xs">{TRIAL_DAYS} dias grátis • Cancele quando quiser</p>
 
               {/* Steps indicator */}
               <div className="flex items-center gap-2 mt-5">
@@ -310,7 +310,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
                   <Shield size={18} className="text-blue-600 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-blue-800 text-xs font-bold">30 dias totalmente grátis</p>
+                    <p className="text-blue-800 text-xs font-bold">{TRIAL_DAYS} dias totalmente grátis</p>
                     <p className="text-blue-600 text-xs mt-0.5">Seu cartão só será cobrado após o período de trial. Cancele antes e não paga nada.</p>
                   </div>
                 </div>
@@ -376,7 +376,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                     Bem-vindo ao MusicPro{plan === 'premium' && ', Premium'}! 🎉
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    Sua conta foi criada com sucesso. Você tem 30 dias grátis para explorar tudo.
+                    Sua conta foi criada com sucesso. Você tem {TRIAL_DAYS} dias grátis para explorar tudo.
                   </p>
                 </div>
 
@@ -428,7 +428,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
               ) : step === 'pagamento' ? (
                 <>
                   <Shield size={16} />
-                  Ativar 30 dias grátis — {planPrices[plan]}
+                  Ativar {TRIAL_DAYS} dias grátis — {planPrices[plan]}
                 </>
               ) : (
                 <>
@@ -877,7 +877,7 @@ const LandingPage = () => {
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Planos simples e transparentes</h2>
             <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Escolha o plano ideal para sua escola</h3>
             <p className="text-lg text-muted-foreground font-medium">
-              Todos os planos incluem <strong className="text-foreground">30 dias grátis</strong> para você testar sem compromisso.
+              Todos os planos incluem <strong className="text-foreground">{TRIAL_DAYS} dias grátis</strong> para você testar sem compromisso.
             </p>
           </div>
 
@@ -959,7 +959,7 @@ const LandingPage = () => {
             <div className="inline-flex items-center gap-3 px-6 py-4 bg-card border border-border/50 rounded-2xl">
               <Shield size={20} className="text-primary" />
               <span className="text-sm font-semibold text-muted-foreground">
-                Garantia de 30 dias: se não gostar, cancele sem custo algum.
+                Garantia de {TRIAL_DAYS} dias: se não gostar, cancele sem custo algum.
               </span>
             </div>
           </motion.div>
@@ -976,7 +976,7 @@ const LandingPage = () => {
                 Pronto para levar sua escola para o <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">próximo nível?</span>
               </h2>
               <p className="text-xl text-muted-foreground font-medium mb-12 max-w-2xl mx-auto">
-                Comece agora mesmo seu teste grátis de 30 dias. Sem burocracia. Cancele quando quiser.
+                Comece agora mesmo seu teste grátis de {TRIAL_DAYS} dias. Sem burocracia. Cancele quando quiser.
               </p>
               <button
                 onClick={() => setSignupPlan('profissional')}

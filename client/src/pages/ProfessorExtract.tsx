@@ -346,7 +346,7 @@ export default function ProfessorExtract() {
             ) : detailsData?.lessons?.length === 0 ? (
               <p className="text-center text-zinc-500 py-8">Nenhuma aula encontrada para este período.</p>
             ) : (
-              <div className="space-y-2">
+              <div className="overflow-x-auto w-full">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-muted text-muted-foreground uppercase text-xs">
                     <tr>

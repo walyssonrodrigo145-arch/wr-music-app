@@ -234,11 +234,12 @@ export const appRouter = router({
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
-        // Create default organization for new admin with 7-day trial
+        // Create default organization for new admin with 33-day trial
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+        trialEndsAt.setDate(trialEndsAt.getDate() + 33);
+        trialEndsAt.setHours(23, 59, 59, 999);
         const org = await db.insert(organizations).values({
           name: `${input.name}'s School`,
           slug: uniqueSlug,
@@ -289,6 +290,7 @@ export const appRouter = router({
         // 33 days of physical access, but billed on day 30 (3 dias de carência)
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + 33);
+        trialEndsAt.setHours(23, 59, 59, 999);
         const nextDueDate = new Date();
         nextDueDate.setDate(nextDueDate.getDate() + 30);
 
@@ -314,24 +316,35 @@ export const appRouter = router({
         // Integração Asaas
         const { createAsaasCustomer, createAsaasSubscription } = await import('./utils/asaas');
         
-        const customerId = await createAsaasCustomer({
-          name: org.name || "Escola",
-          email: newUser.email ?? undefined,
-          cpfCnpj: input.cpfCnpj,
-        });
-        
-        const sub = await createAsaasSubscription({
-          customer: customerId,
-          billingType: 'UNDEFINED',
-          value: input.planType === "YEARLY" ? 499.00 : 49.90,
-          nextDueDate: nextDueDate.toISOString().slice(0, 10),
-          cycle: input.planType,
-          description: `Assinatura MusicPro - Plano ${input.planType}`
-        });
+        try {
+          const customerId = await createAsaasCustomer({
+            name: org.name || "Escola",
+            email: newUser.email ?? undefined,
+            cpfCnpj: input.cpfCnpj,
+          });
+          
+          const sub = await createAsaasSubscription({
+            customer: customerId,
+            billingType: 'UNDEFINED',
+            value: input.planType === "YEARLY" ? 499.00 : 49.90,
+            nextDueDate: nextDueDate.toISOString().slice(0, 10),
+            cycle: input.planType,
+            description: `Assinatura MusicPro - Plano ${input.planType}`
+          });
 
-        await db.update(organizations)
-          .set({ asaasCustomerId: customerId, asaasSubscriptionId: sub.id })
-          .where(eq(organizations.id, org.id));
+          await db.update(organizations)
+            .set({ asaasCustomerId: customerId, asaasSubscriptionId: sub.id })
+            .where(eq(organizations.id, org.id));
+        } catch (error: any) {
+          // If Asaas fails, we should delete the org/user so they can try again.
+          await db.delete(users).where(eq(users.id, newUser.id));
+          await db.delete(organizations).where(eq(organizations.id, org.id));
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Erro ao configurar faturamento. Verifique se o CPF/CNPJ é válido e tente novamente.",
+            cause: error
+          });
+        }
 
         // Create session token to log them in immediately
         const expiresInMs = 30 * 24 * 60 * 60 * 1000;
@@ -4899,7 +4912,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
-      return db.select().from(studentFiles).where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId))).orderBy(desc(studentFiles.createdAt));
+      return db.select().from(studentFiles).where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId))).orderBy(desc(studentFiles.createdAt)).limit(100);
     }),
     markMaterialViewed: studentProcedure.input(z.object({ fileId: z.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
