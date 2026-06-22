@@ -57,7 +57,10 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
     } catch (_) {}
 
     if (!res.ok) {
-      const errorMsg = responseData?.response?.message?.[0] || responseData?.error || `HTTP Error ${res.status}`;
+      let errorMsg = responseData?.response?.message || responseData?.message || responseData?.error || `HTTP Error ${res.status}`;
+      if (typeof errorMsg === 'object') {
+        errorMsg = JSON.stringify(errorMsg);
+      }
       return { success: false, error: `Falha na API (${res.status}): ${errorMsg}` };
     }
 
