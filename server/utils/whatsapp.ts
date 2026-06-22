@@ -1,8 +1,4 @@
-/**
- * Serviço de integração com a Evolution API hospedada no Fly.io.
- * Utiliza os endpoints nativos da Evolution API v2 para envio de mensagens
- * e gerenciamento de sessões WhatsApp via Baileys.
- */
+import crypto from "crypto";
 
 interface SendWhatsAppParams {
   url?: string;
@@ -12,11 +8,9 @@ interface SendWhatsAppParams {
   sessionId?: string;
 }
 
-// URL e chave da Evolution API hospedada no VPS
 const EVOLUTION_API_URL = "http://76.13.228.159:8080";
 const EVOLUTION_API_KEY = "minha_chave_secreta_123";
 
-// Nome da instância WhatsApp conectada (criada na Evolution API)
 const DEFAULT_INSTANCE = "prof_1";
 
 /**
@@ -35,32 +29,34 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
     }
 
     const payload = {
-      sessionId: sessionId || DEFAULT_INSTANCE,
       number: cleanPhone,
-      message: message,
-      apiKey: activeToken,
+      text: message,
+      delay: 1200 // 1.2s default delay for more natural sending
     };
 
-    const endpoint = `${baseUrl}/send-message`;
+    const instanceName = sessionId || DEFAULT_INSTANCE;
+    const endpoint = `${baseUrl}/message/sendText/${instanceName}`;
 
     const res = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": activeToken
+      },
       body: JSON.stringify(payload),
     });
 
-    const responseText = await res.text();
     let responseData: any = {};
     try {
-      responseData = JSON.parse(responseText);
+      responseData = await res.json();
     } catch (_) {}
 
-    if (!res.ok || !responseData.success) {
-      const errorMsg = responseData?.error || responseData?.details || responseText || `HTTP Error ${res.status}`;
+    if (!res.ok) {
+      const errorMsg = responseData?.response?.message?.[0] || responseData?.error || `HTTP Error ${res.status}`;
       return { success: false, error: `Falha na API (${res.status}): ${errorMsg}` };
     }
 
-    return { success: true, messageId: responseData?.messageId || `msg-${Date.now()}` };
+    return { success: true, messageId: responseData?.key?.id || `msg-${Date.now()}` };
   } catch (error: any) {
     return { success: false, error: `Erro de conexão com o robô: ${error.message}` };
   }
@@ -78,33 +74,49 @@ interface StartSessionParams {
 
 /**
  * Cria ou conecta uma instância WhatsApp na Evolution API.
- * Endpoint: POST /instance/create  (cria se não existir)
- * Endpoint: GET  /instance/connect/{instanceName}  (obtém QR Code)
+ * Evolution API v2:
+ * 1. POST /instance/create
+ * 2. GET /instance/connect/{instanceName}
  */
-export async function startWhatsAppSession({ url, token, sessionId, phoneNumber, mode }: StartSessionParams) {
+export async function startWhatsAppSession({ url, token, sessionId, phoneNumber }: StartSessionParams) {
   const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
   const activeToken = token || EVOLUTION_API_KEY;
 
   try {
-    const res = await fetch(`${baseUrl}/sessions/start`, {
+    // 1. Tentar criar a instância (se já existir, retornará erro que ignoramos ou conectamos direto)
+    const createRes = await fetch(`${baseUrl}/instance/create`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": activeToken
+      },
       body: JSON.stringify({
-        sessionId,
-        phoneNumber: phoneNumber || undefined,
-        apiKey: activeToken,
+        instanceName: sessionId,
+        qrcode: true,
+        integration: "WHATSAPP-BAILEYS"
       }),
     });
+    
+    // Ignoramos o json se falhar (ex: instância já existe)
+    await createRes.json().catch(() => ({}));
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Erro ao iniciar sessão");
+    // 2. Tentar conectar (pegar QRCode ou Pairing Code)
+    // Na v2, quando criamos já podemos receber o base64 qrcode no websocket,
+    // mas se pedirmos /instance/connect retorna o qr base64.
+    const connectRes = await fetch(`${baseUrl}/instance/connect/${sessionId}`, {
+      method: "GET",
+      headers: { "apikey": activeToken },
+    });
+
+    const data = await connectRes.json().catch(() => ({}));
+    if (!connectRes.ok) throw new Error(data.error || "Erro ao conectar sessão");
 
     return {
       success: true,
-      status: data.status || "PAIRING",
-      mode: data.mode || (phoneNumber ? "PAIRING_CODE" : "QR_CODE"),
-      pairingCode: data.pairingCode || "",
-      qr: data.qr || "",
+      status: data.instance?.state === "open" ? "CONNECTED" : "PAIRING",
+      mode: "QR_CODE",
+      pairingCode: "",
+      qr: data.base64 || "",
     };
   } catch (err: any) {
     return { success: false, status: "DISCONNECTED", mode: "NONE", pairingCode: "", qr: "", error: err.message };
@@ -126,21 +138,26 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
   const activeToken = token || EVOLUTION_API_KEY;
 
   try {
-    const res = await fetch(`${baseUrl}/sessions/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, apiKey: activeToken }),
+    const res = await fetch(`${baseUrl}/instance/connectionState/${sessionId}`, {
+      method: "GET",
+      headers: { "apikey": activeToken },
     });
 
     const data = await res.json().catch(() => ({})) as any;
+    
+    if (!res.ok) {
+      throw new Error("Instância não existe ou offline");
+    }
+
+    const state = data?.instance?.state;
 
     return {
       sessionId,
-      status: data.status || "DISCONNECTED",
-      phone: data.phone || "",
-      mode: data.mode || "QR_CODE",
-      qr: data.qr || "",
-      pairingCode: data.pairingCode || "",
+      status: state === "open" ? "CONNECTED" : (state === "connecting" ? "CONNECTING" : "DISCONNECTED"),
+      phone: data?.instance?.owner || "",
+      mode: "QR_CODE" as "QR_CODE",
+      qr: "",
+      pairingCode: "",
     };
   } catch (err: any) {
     return {
@@ -163,10 +180,9 @@ export async function logoutWhatsAppSession({ url, token, sessionId }: SessionSt
   const activeToken = token || EVOLUTION_API_KEY;
 
   try {
-    await fetch(`${baseUrl}/sessions/logout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, apiKey: activeToken }),
+    await fetch(`${baseUrl}/instance/logout/${sessionId}`, {
+      method: "DELETE",
+      headers: { "apikey": activeToken },
     });
   } catch (err) {}
 
@@ -174,27 +190,35 @@ export async function logoutWhatsAppSession({ url, token, sessionId }: SessionSt
 }
 
 /**
- * Força a reconexão de uma sessão existente sem novo pareamento.
- * Usa as credenciais salvas no disco do bot.
- * Endpoint: POST /sessions/reconnect
+ * Força a reconexão de uma sessão existente.
+ * Na Evolution API v2, se o connectionState estiver close, podemos deletar a sessão
+ * ou chamar /instance/connect novamente.
  */
 export async function reconnectWhatsAppSession({ url, token, sessionId }: SessionStatusParams) {
   const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
   const activeToken = token || EVOLUTION_API_KEY;
 
   try {
-    const res = await fetch(`${baseUrl}/sessions/reconnect`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, apiKey: activeToken }),
-      signal: AbortSignal.timeout(15_000), // timeout de 15s
+    const res = await fetch(`${baseUrl}/instance/connectionState/${sessionId}`, {
+      method: "GET",
+      headers: { "apikey": activeToken }
     });
 
     const data = await res.json().catch(() => ({})) as any;
+    if (data?.instance?.state === "open") {
+       return { success: true, status: "CONNECTED", message: "Já conectado." };
+    }
+
+    // Se estiver fechado, chama o connect
+    await fetch(`${baseUrl}/instance/connect/${sessionId}`, {
+      method: "GET",
+      headers: { "apikey": activeToken }
+    });
+
     return {
-      success: res.ok,
-      status: data.status || "RECONNECTING",
-      message: data.message || "",
+      success: true,
+      status: "RECONNECTING",
+      message: "Reconexão solicitada.",
     };
   } catch (err: any) {
     console.error(`[WhatsApp] Erro ao reconectar sessão ${sessionId}:`, err.message);
@@ -203,17 +227,16 @@ export async function reconnectWhatsAppSession({ url, token, sessionId }: Sessio
 }
 
 /**
- * Registra a URL de webhook do Render na Evolution API para receber as mensagens
+ * Registra a URL de webhook do app na Evolution API para receber eventos
  */
 export async function setupEvolutionWebhook(instanceName: string = DEFAULT_INSTANCE) {
   try {
     const activeToken = EVOLUTION_API_KEY;
     const baseUrl = EVOLUTION_API_URL.replace(/\/+$/, "");
 
-    // Pega a URL pública gerada automaticamente pelo Render ou via variável de ambiente
     const publicUrl = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
     if (!publicUrl) {
-      console.warn("[Evolution API] Não foi possível registrar webhook automaticamente: URL pública não definida (defina APP_URL ou RENDER_EXTERNAL_URL).");
+      console.warn("[Evolution API] Não foi possível registrar webhook automaticamente: URL pública não definida.");
       return;
     }
 
@@ -225,7 +248,7 @@ export async function setupEvolutionWebhook(instanceName: string = DEFAULT_INSTA
         url: webhookUrl,
         byEvents: false,
         base64: false,
-        events: ["MESSAGES_UPSERT"]
+        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"]
       }
     };
 
