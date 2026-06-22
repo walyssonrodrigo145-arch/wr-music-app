@@ -23,54 +23,67 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
     const activeToken = token || EVOLUTION_API_KEY;
 
     // Higienização do telefone: manter apenas dígitos
-    const cleanPhone = phone.replace(/\D/g, "");
+    let cleanPhone = phone.replace(/\D/g, "");
     if (!cleanPhone) {
       return { success: false, error: "Telefone inválido para envio." };
     }
 
-    const payload = {
-      number: cleanPhone,
-      options: {
-        delay: 1200,
-        presence: "composing"
-      },
-      textMessage: {
-        text: message
-      }
-    };
+    // Se o número tiver 10 ou 11 dígitos, provavelmente é do Brasil e o usuário esqueceu o 55
+    if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+      cleanPhone = "55" + cleanPhone;
+    }
 
     const instanceName = sessionId || DEFAULT_INSTANCE;
     const endpoint = `${baseUrl}/message/sendText/${instanceName}`;
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": activeToken
-      },
-      body: JSON.stringify(payload),
-    });
+    // Função auxiliar para tentar o envio
+    const trySend = async (phoneToTry: string) => {
+      const payload = {
+        number: phoneToTry,
+        options: { delay: 1200, presence: "composing" },
+        textMessage: { text: message }
+      };
 
-    let responseData: any = {};
-    try {
-      responseData = await res.json();
-    } catch (_) {}
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": activeToken },
+        body: JSON.stringify(payload),
+      });
 
-    if (!res.ok) {
-      let errorMsg = responseData?.response?.message || responseData?.message || responseData?.error || `HTTP Error ${res.status}`;
-      
-      // Tratamento específico para número não registrado no WhatsApp
-      if (Array.isArray(errorMsg) && errorMsg.length > 0 && errorMsg[0].exists === false) {
-        return { success: false, error: `O número informado não está registrado no WhatsApp.` };
+      let responseData: any = {};
+      try { responseData = await res.json(); } catch (_) {}
+
+      if (!res.ok) {
+        let errorMsg = responseData?.response?.message || responseData?.message || responseData?.error || `HTTP Error ${res.status}`;
+        
+        // Retorna um objeto com erro padronizado para tratamento
+        if (Array.isArray(errorMsg) && errorMsg.length > 0 && errorMsg[0].exists === false) {
+          return { success: false, notFound: true, error: `O número informado não está registrado no WhatsApp.` };
+        }
+
+        if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
+        return { success: false, error: `Falha na API (${res.status}): ${errorMsg}` };
       }
 
-      if (typeof errorMsg === 'object') {
-        errorMsg = JSON.stringify(errorMsg);
-      }
-      return { success: false, error: `Falha na API (${res.status}): ${errorMsg}` };
+      return { success: true, messageId: responseData?.key?.id || `msg-${Date.now()}` };
+    };
+
+    // Primeira tentativa com o número original
+    let result = await trySend(cleanPhone);
+
+    // Se falhou por número não encontrado E for um celular do Brasil com 9º dígito (13 caracteres: 55 + DDD + 9 + 8 dígitos)
+    if (!result.success && result.notFound && cleanPhone.length === 13 && cleanPhone.startsWith("55") && cleanPhone[4] === "9") {
+      // Cria a versão do número sem o 9º dígito (DDD's antigos que o WhatsApp ainda não atualizou internamente)
+      const phoneWithout9 = cleanPhone.substring(0, 4) + cleanPhone.substring(5);
+      result = await trySend(phoneWithout9);
     }
 
-    return { success: true, messageId: responseData?.key?.id || `msg-${Date.now()}` };
+    // Se ainda falhar por notFound (ou falhou direto e não era elegível para retry), limpamos a flag interna
+    if (!result.success && result.notFound) {
+      return { success: false, error: result.error };
+    }
+
+    return result;
   } catch (error: any) {
     return { success: false, error: `Erro de conexão com o robô: ${error.message}` };
   }
