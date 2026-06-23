@@ -64,6 +64,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [form, setForm] = useState<SignupForm>({
     nome: '', email: '', senha: '', telefone: '',
     cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '',
@@ -133,12 +134,19 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
       if (!form.cardNumber || !form.cardName || !form.cardExpiry || !form.cardCvv) return setError('Preencha todos os campos do pagamento.');
       setLoading(true);
       try {
-        await registerMutation.mutateAsync({
+        // Mapear plan string para planId aceito pelo backend
+        const validPlanIds = ['basico', 'profissional', 'premium', '30alunos', '20alunos', '10alunos'] as const;
+        type ValidPlanId = typeof validPlanIds[number];
+        const planId: ValidPlanId = validPlanIds.includes(plan as ValidPlanId) ? (plan as ValidPlanId) : 'profissional';
+        
+        const result = await registerMutation.mutateAsync({
           name: form.nome,
           email: form.email,
           password: form.senha,
-          planType: "MONTHLY"
+          planType: "MONTHLY",
+          planId,
         });
+        if (result.invoiceUrl) setInvoiceUrl(result.invoiceUrl);
         setStep('sucesso');
       } catch (err: any) {
         setError(err.message || "Erro ao configurar faturamento. Tente novamente.");
@@ -417,9 +425,31 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                     Bem-vindo ao MusicPro{plan === 'premium' && ', Premium'}! 🎉
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    Sua conta foi criada com sucesso. Efetue o pagamento para explorar tudo.
+                    Sua conta foi criada com sucesso!{invoiceUrl ? ' Finalize o pagamento para ativar o acesso.' : ' Seu acesso já foi ativado.'}
                   </p>
                 </div>
+
+                {/* Link de pagamento Asaas — aparece quando disponível */}
+                {invoiceUrl && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CreditCard size={16} className="text-amber-600 shrink-0" />
+                      <span className="font-black text-sm text-amber-800">Pagamento Pendente</span>
+                    </div>
+                    <p className="text-amber-700 text-xs leading-relaxed mb-3">
+                      Clique abaixo para efetuar o pagamento de forma segura. Você pode pagar com cartão, PIX ou boleto.
+                    </p>
+                    <a
+                      href={invoiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full bg-amber-500 text-white font-black py-3 rounded-xl text-sm hover:bg-amber-600 transition-colors shadow-lg"
+                    >
+                      <CreditCard size={16} />
+                      Efetuar Pagamento Agora
+                    </a>
+                  </div>
+                )}
 
                 {plan === 'premium' && (
                   <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-5 text-white text-left">
@@ -443,7 +473,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 )}
 
                 <div className="space-y-2">
-                  <Link href="/login?type=professor">
+                  <Link href="/dashboard">
                     <button className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
                       Acessar minha conta <ArrowRight size={16} />
                     </button>
@@ -454,6 +484,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 </div>
               </motion.div>
             )}
+
           </AnimatePresence>
 
           {/* Botão de avançar */}

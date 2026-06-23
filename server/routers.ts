@@ -267,7 +267,8 @@ export const appRouter = router({
         email: z.string().email(),
         password: z.string().min(6),
         planType: z.enum(["MONTHLY", "YEARLY"]),
-        cpfCnpj: z.string().min(11, "CPF/CNPJ inválido").optional(),
+        planId: z.enum(["basico", "profissional", "premium", "30alunos", "20alunos", "10alunos"]).default("profissional"),
+        cpfCnpj: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -283,19 +284,30 @@ export const appRouter = router({
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
-        // Criar organização (ativa imediatamente)
+        // Mapear valor correto por plano
+        const planValues: Record<string, number> = {
+          "basico": 29.99,
+          "profissional": 59.90,
+          "premium": 99.90,
+          "30alunos": 20.00,
+          "20alunos": 15.00,
+          "10alunos": 10.00,
+        };
+        const planValue = input.planType === "YEARLY"
+          ? (planValues[input.planId] ?? 59.90) * 10  // desconto anual (~2 meses grátis)
+          : (planValues[input.planId] ?? 59.90);
+
+        // Criar organização com status PENDING (aguardando pagamento)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         
-        // Fatura gerada hoje
-        const trialEndsAt = new Date();
-        const nextDueDate = new Date();
+        // Fatura para hoje
+        const nextDueDateStr = new Date().toISOString().slice(0, 10);
 
         const [org] = await db.insert(organizations).values({
           name: `${input.name}`,
           slug: uniqueSlug,
-          subscriptionStatus: "active",
-          trialEndsAt,
+          subscriptionStatus: "pending",  // Status correto: aguardando pagamento
           createdAt: new Date(),
         }).returning();
 
@@ -313,37 +325,55 @@ export const appRouter = router({
         // Integração Asaas
         const { createAsaasCustomer, createAsaasSubscription } = await import('./utils/asaas');
         
+        let invoiceUrl: string | null = null;
+
         try {
           const customerId = await createAsaasCustomer({
             name: org.name || "Escola",
             email: newUser.email ?? undefined,
-            cpfCnpj: input.cpfCnpj,
+            cpfCnpj: input.cpfCnpj || undefined,
           });
           
           const sub = await createAsaasSubscription({
             customer: customerId,
-            billingType: 'UNDEFINED',
-            value: input.planType === "YEARLY" ? 499.00 : 49.90,
-            nextDueDate: nextDueDate.toISOString().slice(0, 10),
+            billingType: 'UNDEFINED',  // Asaas gera link de checkout próprio
+            value: planValue,
+            nextDueDate: nextDueDateStr,
             cycle: input.planType,
-            description: `Assinatura MusicPro - Plano ${input.planType}`
+            description: `Assinatura MusicPro - Plano ${input.planId} (${input.planType})`,
+            successUrl: `${(ctx.req as any).headers?.origin || 'https://wrmusicpro.com.br'}/dashboard`
           });
 
+          // Salvar IDs do Asaas na organização
           await db.update(organizations)
             .set({ asaasCustomerId: customerId, asaasSubscriptionId: sub.id })
             .where(eq(organizations.id, org.id));
+
+          // Buscar o link de pagamento da primeira fatura
+          try {
+            const { getAsaasSubscriptionPayments } = await import('./utils/asaas');
+            const payments = await getAsaasSubscriptionPayments(sub.id);
+            if (payments?.length > 0 && payments[0].invoiceUrl) {
+              invoiceUrl = payments[0].invoiceUrl;
+            }
+          } catch {
+            // Se não conseguir o link, não bloqueia o cadastro
+          }
+
         } catch (error: any) {
-          // If Asaas fails, we should delete the org/user so they can try again.
+          // Se Asaas falhar, remove usuário e org para não deixar dados órfãos
           await db.delete(users).where(eq(users.id, newUser.id));
           await db.delete(organizations).where(eq(organizations.id, org.id));
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Erro ao configurar faturamento. Verifique se o CPF/CNPJ é válido e tente novamente.",
+            message: error?.message?.includes("[Asaas]")
+              ? "Erro ao configurar faturamento: " + error.message.replace("[Asaas] ", "")
+              : "Erro ao configurar faturamento. Verifique os dados e tente novamente.",
             cause: error
           });
         }
 
-        // Create session token to log them in immediately
+        // Criar sessão para login automático (org está pending, mas usuário pode acessar)
         const expiresInMs = 30 * 24 * 60 * 60 * 1000;
         const sessionToken = await sdk.createSessionToken(openId, {
           name: input.name,
@@ -356,8 +386,9 @@ export const appRouter = router({
           maxAge: expiresInMs 
         });
 
-        return { success: true };
+        return { success: true, invoiceUrl };
       }),
+
     verifyEmail: publicProcedure
       .input(z.object({ token: z.string() }))
       .mutation(async ({ ctx, input }) => {
