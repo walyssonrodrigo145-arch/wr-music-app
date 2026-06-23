@@ -7080,11 +7080,21 @@ Instruções de análise:
 
       if (org.asaasSubscriptionId) {
         const { updateAsaasSubscription } = await import('./utils/asaas');
-        await updateAsaasSubscription(org.asaasSubscriptionId, {
-          value: planValue,
-          description: `Assinatura MusicPro - Plano ${input.planId} (${input.planType})`,
-          cycle: input.planType
-        });
+        try {
+          await updateAsaasSubscription(org.asaasSubscriptionId, {
+            value: planValue,
+            description: `Assinatura MusicPro - Plano ${input.planId} (${input.planType})`,
+            cycle: input.planType
+          });
+        } catch (err: any) {
+          if (err.message?.includes('invalid_value') || err.message?.includes('faturas pagas')) {
+             throw new TRPCError({
+               code: "BAD_REQUEST",
+               message: "Como sua assinatura é via Cartão de Crédito, o gateway de pagamento (Asaas) não permite alteração automática de valor. Para mudar de plano, vá na opção 'Cancelar Assinatura', e em seguida assine novamente o novo plano."
+             });
+          }
+          throw err;
+        }
       }
 
       await db.update(organizations).set({ planId: input.planId }).where(eq(organizations.id, orgId));
