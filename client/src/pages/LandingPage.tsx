@@ -32,6 +32,7 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { BenefitsCarousel } from '@/components/BenefitsCarousel';
 import { HeroSlider } from '@/components/HeroSlider';
+import { trpc } from '@/lib/trpc';
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 export const TRIAL_DAYS = 30;
@@ -68,6 +69,8 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
     cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '',
     cardNumber: '', cardName: '', cardExpiry: '', cardCvv: '',
   });
+
+  const registerMutation = trpc.registerWithPlan.useMutation();
 
   const planLabels = { 
     basico: 'Básico', 
@@ -129,9 +132,19 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
     else if (step === 'pagamento') {
       if (!form.cardNumber || !form.cardName || !form.cardExpiry || !form.cardCvv) return setError('Preencha todos os campos do pagamento.');
       setLoading(true);
-      await new Promise(r => setTimeout(r, 1500));
-      setLoading(false);
-      setStep('sucesso');
+      try {
+        await registerMutation.mutateAsync({
+          name: form.nome,
+          email: form.email,
+          password: form.senha,
+          planType: "MONTHLY"
+        });
+        setStep('sucesso');
+      } catch (err: any) {
+        setError(err.message || "Erro ao configurar faturamento. Tente novamente.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
