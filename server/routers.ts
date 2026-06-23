@@ -1741,6 +1741,32 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const [existing] = await db.select().from(students).where(condition).limit(1);
         if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "Aluno não encontrado ou sem permissão" });
 
+        // --- Verificação de limite de plano na reativação ---
+        if (updateData.status === 'ativo' && existing.status !== 'ativo') {
+          const [org] = await db.select({ planId: organizations.planId }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
+          const planLimits: Record<string, number> = {
+            "basico": 50,
+            "profissional": 200,
+            "premium": 999999,
+            "30alunos": 30,
+            "20alunos": 20,
+            "10alunos": 10,
+          };
+          const limit = org ? (planLimits[org.planId] ?? 999999) : 999999;
+          
+          const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
+            .from(students)
+            .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
+          
+          if (activeStudentsCount >= limit) {
+            throw new TRPCError({ 
+              code: 'FORBIDDEN', 
+              message: `Limite de alunos atingido (${limit} alunos). Faça upgrade do seu plano para continuar crescendo!` 
+            });
+          }
+        }
+        // ---------------------------------------
+
         // Sincronizar e-mail com a tabela de usuários, se houver alteração
         if (updateData.email && updateData.email !== existing.email) {
           // Verifica se já existe outro usuário com este e-mail
@@ -1795,6 +1821,36 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
+
+        // --- Verificação de limite de plano na reativação ---
+        const [existing] = await db.select({ status: students.status }).from(students)
+          .where(and(eq(students.id, input.id), eq(students.organizationId, orgId))).limit(1);
+        
+        if (existing && input.status === 'ativo' && existing.status !== 'ativo') {
+          const [org] = await db.select({ planId: organizations.planId }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
+          const planLimits: Record<string, number> = {
+            "basico": 50,
+            "profissional": 200,
+            "premium": 999999,
+            "30alunos": 30,
+            "20alunos": 20,
+            "10alunos": 10,
+          };
+          const limit = org ? (planLimits[org.planId] ?? 999999) : 999999;
+          
+          const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
+            .from(students)
+            .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
+          
+          if (activeStudentsCount >= limit) {
+            throw new TRPCError({ 
+              code: 'FORBIDDEN', 
+              message: `Limite de alunos atingido (${limit} alunos). Faça upgrade do seu plano para continuar crescendo!` 
+            });
+          }
+        }
+        // ---------------------------------------
+
         await db.update(students).set({
           status: input.status,
           updatedAt: new Date(),
