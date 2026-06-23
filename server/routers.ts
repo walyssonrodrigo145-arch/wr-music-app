@@ -7079,7 +7079,7 @@ Instruções de análise:
         : (planValues[input.planId] ?? 59.90);
 
       if (org.asaasSubscriptionId) {
-        const { updateAsaasSubscription } = await import('./utils/asaas');
+        const { updateAsaasSubscription, getAsaasSubscription, deleteAsaasSubscription } = await import('./utils/asaas');
         try {
           await updateAsaasSubscription(org.asaasSubscriptionId, {
             value: planValue,
@@ -7088,10 +7088,27 @@ Instruções de análise:
           });
         } catch (err: any) {
           if (err.message?.includes('invalid_value') || err.message?.includes('faturas pagas')) {
-             throw new TRPCError({
-               code: "BAD_REQUEST",
-               message: "Como sua assinatura é via Cartão de Crédito, o gateway de pagamento (Asaas) não permite alteração automática de valor. Para mudar de plano, vá na opção 'Cancelar Assinatura', e em seguida assine novamente o novo plano."
-             });
+             try {
+               const asaasSub = await getAsaasSubscription(org.asaasSubscriptionId);
+               await deleteAsaasSubscription(org.asaasSubscriptionId);
+               
+               const nextDueDate = asaasSub.nextDueDate ? new Date(asaasSub.nextDueDate) : new Date();
+               
+               await db.update(organizations).set({ 
+                 planId: input.planId,
+                 asaasSubscriptionId: null,
+                 subscriptionStatus: "trialing",
+                 trialEndsAt: nextDueDate
+               }).where(eq(organizations.id, orgId));
+               
+               return { success: true, message: "Plano atualizado com sucesso! O novo valor será cobrado no mês que vem." };
+             } catch (cancelErr) {
+               console.error("Erro ao cancelar e converter subscrição:", cancelErr);
+               throw new TRPCError({
+                 code: "INTERNAL_SERVER_ERROR",
+                 message: "Não foi possível alterar o plano automaticamente devido à limitação do Cartão de Crédito. Vá em 'Cancelar Assinatura' e assine novamente."
+               });
+             }
           }
           throw err;
         }

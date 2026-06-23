@@ -208,6 +208,20 @@ export async function getAsaasSubscriptionPayments(subscriptionId: string, apiKe
   return data.data;
 }
 
+export async function getAsaasSubscription(subscriptionId: string, apiKey?: string) {
+  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`, {
+    method: "GET",
+    headers: headers(apiKey),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`[Asaas] Erro ao buscar assinatura: ${res.status} ${body}`);
+  }
+
+  return res.json() as Promise<{ id: string; status: string; nextDueDate: string }>;
+}
+
 export async function updateAsaasSubscription(subscriptionId: string, params: {
   value?: number;
   description?: string;
