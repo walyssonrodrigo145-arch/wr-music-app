@@ -6875,6 +6875,24 @@ Instruções de análise:
 
         return { success: true, paymentLink: pendingPayment.invoiceUrl };
       }),
+    getPendingInvoice: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const orgId = ctx.user.organizationId!;
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (!org || !org.asaasSubscriptionId) return null;
+
+      const { getAsaasSubscriptionPayments } = await import('./utils/asaas');
+      const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
+      const pendingPayment = payments.find((p: any) => p.status === 'PENDING' || p.status === 'OVERDUE');
+      
+      if (!pendingPayment) return null;
+      
+      return {
+        invoiceUrl: pendingPayment.invoiceUrl,
+        value: pendingPayment.value
+      };
+    }),
     syncSubscription: protectedProcedure.mutation(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
@@ -6898,7 +6916,15 @@ Instruções de análise:
         return { success: true, status: "active", message: "Assinatura ativada com sucesso!" };
       }
 
-      return { success: false, status: org.subscriptionStatus, message: "Nenhum pagamento confirmado encontrado." };
+      const pendingPayment = payments.find((p: any) => p.status === 'PENDING' || p.status === 'OVERDUE');
+      
+      return { 
+        success: false, 
+        status: org.subscriptionStatus, 
+        message: "Nenhum pagamento confirmado encontrado.",
+        invoiceUrl: pendingPayment?.invoiceUrl,
+        pendingValue: pendingPayment?.value
+      };
     }),
   }),
 

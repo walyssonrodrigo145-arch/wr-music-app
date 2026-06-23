@@ -10,6 +10,8 @@ export default function Checkout() {
   const { user, logout, refresh } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
 
+  const { data: pendingInvoice, isLoading: isLoadingInvoice } = trpc.platform.getPendingInvoice.useQuery();
+
   const checkoutMutation = trpc.platform.checkout.useMutation({
     onSuccess: (data) => {
       if (data.paymentLink) {
@@ -92,35 +94,69 @@ export default function Checkout() {
 
         {/* Pricing Side */}
         <div className="bg-card/80 backdrop-blur-xl border border-border rounded-[2.5rem] p-8 shadow-2xl flex flex-col gap-6">
-          <h2 className="text-xl font-black text-center mb-2">Escolha seu Plano</h2>
-          
-          <div className="grid grid-cols-2 gap-4 bg-muted/50 p-2 rounded-2xl border border-border">
-            <button 
-              onClick={() => setSelectedPlan("MONTHLY")}
-              className={`py-3 rounded-xl font-bold text-sm transition-all ${selectedPlan === "MONTHLY" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              Mensal
-            </button>
-            <button 
-              onClick={() => setSelectedPlan("YEARLY")}
-              className={`py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${selectedPlan === "YEARLY" ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              Anual <span className="bg-white/20 text-white px-2 py-0.5 rounded-md text-[10px] uppercase">Economize 15%</span>
-            </button>
-          </div>
+          {isLoadingInvoice ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
+              <p className="text-muted-foreground font-medium animate-pulse">Carregando dados da assinatura...</p>
+            </div>
+          ) : pendingInvoice ? (
+            <>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-center space-y-4">
+                <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-2 text-amber-500">
+                  <CreditCard size={24} />
+                </div>
+                <h2 className="text-2xl font-black text-foreground">Pagamento Pendente</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
+                  Você já tem uma assinatura aguardando pagamento. Finalize agora para liberar o seu acesso à plataforma.
+                </p>
+                <div className="py-4">
+                  <span className="text-4xl font-black text-foreground">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingInvoice.value)}
+                  </span>
+                </div>
+                <a 
+                  href={pendingInvoice.invoiceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-4 bg-amber-500 text-white font-black rounded-2xl uppercase tracking-[0.1em] hover:bg-amber-600 active:scale-[0.98] transition-all shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2"
+                >
+                  <ArrowRight size={18} /> Ir para o Pagamento
+                </a>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-black text-center mb-2">Escolha seu Plano</h2>
+              
+              <div className="grid grid-cols-2 gap-4 bg-muted/50 p-2 rounded-2xl border border-border">
+                <button 
+                  onClick={() => setSelectedPlan("MONTHLY")}
+                  className={`py-3 rounded-xl font-bold text-sm transition-all ${selectedPlan === "MONTHLY" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Mensal
+                </button>
+                <button 
+                  onClick={() => setSelectedPlan("YEARLY")}
+                  className={`py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${selectedPlan === "YEARLY" ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Anual <span className="bg-white/20 text-white px-2 py-0.5 rounded-md text-[10px] uppercase">Economize 15%</span>
+                </button>
+              </div>
 
-          <div className="text-center py-6">
-            <span className="text-5xl font-black text-foreground">R$ {selectedPlan === "YEARLY" ? "499" : "49"}</span>
-            <span className="text-muted-foreground font-bold">/{selectedPlan === "YEARLY" ? "ano" : "mês"}</span>
-          </div>
+              <div className="text-center py-6">
+                <span className="text-5xl font-black text-foreground">R$ {selectedPlan === "YEARLY" ? "499" : "49"}</span>
+                <span className="text-muted-foreground font-bold">/{selectedPlan === "YEARLY" ? "ano" : "mês"}</span>
+              </div>
 
-          <button 
-            onClick={() => checkoutMutation.mutate({ planType: selectedPlan })}
-            disabled={checkoutMutation.isPending}
-            className="w-full py-4 bg-foreground text-background font-black rounded-2xl uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {checkoutMutation.isPending ? "Gerando Link..." : "Assinar Agora"} <ArrowRight size={18} />
-          </button>
+              <button 
+                onClick={() => checkoutMutation.mutate({ planType: selectedPlan })}
+                disabled={checkoutMutation.isPending}
+                className="w-full py-4 bg-foreground text-background font-black rounded-2xl uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {checkoutMutation.isPending ? "Gerando Link..." : "Assinar Agora"} <ArrowRight size={18} />
+              </button>
+            </>
+          )}
 
           <p className="text-center text-xs text-muted-foreground font-medium flex items-center justify-center gap-1">
             <CreditCard size={14} /> Pagamento 100% seguro pelo Asaas
