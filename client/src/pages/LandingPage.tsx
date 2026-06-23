@@ -52,6 +52,7 @@ interface SignupForm {
   bairro: string;
   cidade: string;
   estado: string;
+  cpfCnpj: string;
   cardNumber: string;
   cardName: string;
   cardExpiry: string;
@@ -68,6 +69,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
   const [form, setForm] = useState<SignupForm>({
     nome: '', email: '', senha: '', telefone: '',
     cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '',
+    cpfCnpj: '',
     cardNumber: '', cardName: '', cardExpiry: '', cardCvv: '',
   });
 
@@ -102,6 +104,25 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
     const digits = v.replace(/\D/g, '').slice(0, 4);
     return digits.length >= 3 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits;
   };
+  const formatCpfCnpj = (v: string) => {
+    const digits = v.replace(/\D/g, '');
+    if (digits.length <= 11) {
+      // CPF: 000.000.000-00
+      return digits
+        .replace(/^(\d{3})(\d)/, '$1.$2')
+        .replace(/^(\d{3}\.\d{3})(\d)/, '$1.$2')
+        .replace(/^(\d{3}\.\d{3}\.\d{3})(\d)/, '$1-$2')
+        .slice(0, 14);
+    } else {
+      // CNPJ: 00.000.000/0000-00
+      return digits
+        .replace(/^(\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{2}\.\d{3})(\d)/, '$1.$2')
+        .replace(/^(\d{2}\.\d{3}\.\d{3})(\d)/, '$1/$2')
+        .replace(/^(\d{2}\.\d{3}\.\d{3}\/\d{4})(\d)/, '$1-$2')
+        .slice(0, 18);
+    }
+  };
 
   const lookupCep = async (cep: string) => {
     const clean = cep.replace(/\D/g, '');
@@ -131,7 +152,10 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
       setStep('pagamento');
     }
     else if (step === 'pagamento') {
-      if (!form.cardNumber || !form.cardName || !form.cardExpiry || !form.cardCvv) return setError('Preencha todos os campos do pagamento.');
+      if (!form.cpfCnpj) return setError('Informe seu CPF ou CNPJ.');
+      const cpfCnpjDigits = form.cpfCnpj.replace(/\D/g, '');
+      if (cpfCnpjDigits.length !== 11 && cpfCnpjDigits.length !== 14) return setError('CPF deve ter 11 dígitos ou CNPJ 14 dígitos.');
+      if (!form.cardNumber || !form.cardName || !form.cardExpiry || !form.cardCvv) return setError('Preencha todos os campos do cartão.');
       setLoading(true);
       try {
         // Mapear plan string para planId aceito pelo backend
@@ -145,6 +169,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
           password: form.senha,
           planType: "MONTHLY",
           planId,
+          cpfCnpj: form.cpfCnpj.replace(/\D/g, ''),
         });
         if (result.invoiceUrl) setInvoiceUrl(result.invoiceUrl);
         setStep('sucesso');
@@ -362,6 +387,23 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                     <p className="text-blue-800 text-xs font-bold">Acesso completo e ilimitado</p>
                     <p className="text-blue-600 text-xs mt-0.5">Seu cartão só será cobrado após o período de trial. Cancele antes e não paga nada.</p>
                   </div>
+                </div>
+
+                {/* ── CPF / CNPJ ── */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">CPF ou CNPJ</label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="000.000.000-00"
+                      value={form.cpfCnpj}
+                      onChange={e => set('cpfCnpj', formatCpfCnpj(e.target.value))}
+                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono tracking-wider"
+                      maxLength={18}
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">Obrigatório para emissão da cobrança (Asaas)</p>
                 </div>
 
                 <div>
