@@ -26,9 +26,60 @@ export const superAdminRouter = router({
       totalOrganizations: orgs.length,
       totalProfessors: profs.length,
       totalStudents: studs.length,
-      organizations: orgs.slice(0, 10), // only last 10 for quick view
+      organizations: orgs.slice(0, 10), // keep for backward compatibility in UI dashboard
     };
   }),
+
+  getOrganizations: isSuperAdmin.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    // Fetch orgs and attach user/student count
+    const orgsList = await db.select().from(organizations);
+    const allUsers = await db.select().from(users);
+    const allStudents = await db.select().from(students);
+
+    return orgsList.map(org => ({
+      ...org,
+      owner: allUsers.find(u => u.organizationId === org.id && u.role === 'admin'),
+      totalUsers: allUsers.filter(u => u.organizationId === org.id).length,
+      totalStudents: allStudents.filter(s => s.organizationId === org.id).length,
+    }));
+  }),
+
+  deleteOrganization: isSuperAdmin
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      
+      const { sql } = await import("drizzle-orm");
+      
+      // Delete everything related to this org to avoid FK errors (Brute force cascade)
+      // We use raw sql because Drizzle might not have all tables imported easily here
+      await db.execute(sql`DELETE FROM "ai_messages" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "ai_conversations" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "attendance_logs" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "chat_messages" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "daily_study_plans" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "expenses" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "lessons" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "notifications" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "payment_dues" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "professor_payments" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "reminders" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "settings" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "student_evolution" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "student_goals" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "student_timeline" WHERE "organizationId" = ${input.id}`);
+      
+      // Core tables
+      await db.execute(sql`DELETE FROM "students" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "users" WHERE "organizationId" = ${input.id}`);
+      await db.execute(sql`DELETE FROM "organizations" WHERE "id" = ${input.id}`);
+
+      return { success: true };
+    }),
 
   getPlans: isSuperAdmin.query(async () => {
     const db = await getDb();

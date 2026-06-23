@@ -11,7 +11,11 @@ import { Switch } from "@/components/ui/switch";
 export default function SuperAdmin() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "plans" | "coupons">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons">("dashboard");
+
+  // Escolas State
+  const [selectedSchool, setSelectedSchool] = useState<any>(null);
+  const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
 
   // Plan State
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
@@ -41,6 +45,18 @@ export default function SuperAdmin() {
 
   const { data: coupons, isLoading: loadingCoupons } = trpc.superAdmin.getCoupons.useQuery(undefined, {
     enabled: activeTab === "coupons"
+  });
+
+  const { data: orgs, isLoading: loadingOrgs } = trpc.superAdmin.getOrganizations.useQuery(undefined, {
+    enabled: activeTab === "escolas"
+  });
+
+  const deleteSchool = trpc.superAdmin.deleteOrganization.useMutation({
+    onSuccess: () => {
+      toast.success("Escola excluída permanentemente!");
+      utils.superAdmin.getOrganizations.invalidate();
+      setIsSchoolModalOpen(false);
+    }
   });
 
   const savePlan = trpc.superAdmin.savePlan.useMutation({
@@ -112,6 +128,12 @@ export default function SuperAdmin() {
           <ListFilter size={16} /> Visão Geral
         </button>
         <button 
+          onClick={() => setActiveTab("escolas")}
+          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === "escolas" ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+        >
+          <Building size={16} /> Escolas
+        </button>
+        <button 
           onClick={() => setActiveTab("plans")}
           className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === "plans" ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
         >
@@ -148,7 +170,10 @@ export default function SuperAdmin() {
               </div>
 
               <div className="bg-card border border-border rounded-2xl p-6">
-                <h2 className="text-lg font-black mb-4">Últimas Escolas Criadas</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-black">Últimas Escolas Criadas</h2>
+                  <button onClick={() => setActiveTab("escolas")} className="text-sm text-primary font-bold hover:underline">Ver todas</button>
+                </div>
                 <div className="space-y-3">
                   {stats?.organizations.map((org: any) => (
                     <div key={org.id} className="flex justify-between items-center p-3 border border-border/50 rounded-xl bg-muted/20">
@@ -160,6 +185,103 @@ export default function SuperAdmin() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {activeTab === "escolas" && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-black">Gestão de Escolas</h2>
+          </div>
+          
+          {loadingOrgs ? <Loader2 className="animate-spin text-primary mx-auto my-10" /> : (
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-muted text-muted-foreground font-bold">
+                  <tr>
+                    <th className="px-4 py-3">ID</th>
+                    <th className="px-4 py-3">Nome da Escola</th>
+                    <th className="px-4 py-3">Professores</th>
+                    <th className="px-4 py-3">Alunos</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {orgs?.map((org: any) => (
+                    <tr key={org.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 font-medium text-muted-foreground">{org.id}</td>
+                      <td className="px-4 py-3 font-bold">{org.name}</td>
+                      <td className="px-4 py-3">{org.totalUsers}</td>
+                      <td className="px-4 py-3">{org.totalStudents}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-bold">{org.subscriptionStatus}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button 
+                          onClick={() => { setSelectedSchool(org); setIsSchoolModalOpen(true); }} 
+                          className="bg-primary/10 text-primary hover:bg-primary hover:text-white px-3 py-1 rounded-lg text-xs font-bold transition-colors"
+                        >
+                          Ver Detalhes
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <Dialog open={isSchoolModalOpen} onOpenChange={setIsSchoolModalOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Detalhes da Escola</DialogTitle>
+              </DialogHeader>
+              {selectedSchool && (
+                <div className="space-y-4 pt-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground font-medium">Nome</p>
+                      <p className="font-bold text-lg">{selectedSchool.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground font-medium">Criada em</p>
+                      <p className="font-bold">{new Date(selectedSchool.createdAt).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <div className="col-span-2 bg-muted/50 p-3 rounded-lg">
+                      <p className="text-muted-foreground font-medium text-xs mb-1">Dono / Administrador Principal</p>
+                      <p className="font-bold">{selectedSchool.owner?.name || "Não encontrado"}</p>
+                      <p className="text-muted-foreground">{selectedSchool.owner?.email || "N/A"}</p>
+                    </div>
+                    <div className="bg-muted/50 p-3 rounded-lg text-center">
+                      <p className="text-3xl font-black text-primary">{selectedSchool.totalUsers}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase">Professores</p>
+                    </div>
+                    <div className="bg-muted/50 p-3 rounded-lg text-center">
+                      <p className="text-3xl font-black text-primary">{selectedSchool.totalStudents}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase">Alunos</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-border mt-6">
+                    <p className="text-xs text-red-500 font-bold text-center mb-3">ZONA DE PERIGO: Esta ação é irreversível.</p>
+                    <button 
+                      onClick={() => {
+                        if (confirm(`Tem certeza que deseja excluir a ${selectedSchool.name} e todos os seus alunos?`)) {
+                          deleteSchool.mutate({ id: selectedSchool.id });
+                        }
+                      }}
+                      disabled={deleteSchool.isPending}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                    >
+                      {deleteSchool.isPending ? <Loader2 className="animate-spin" size={18} /> : null}
+                      Excluir Escola e Todos os Dados
+                    </button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 
