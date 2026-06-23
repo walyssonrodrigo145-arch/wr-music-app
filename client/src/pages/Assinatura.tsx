@@ -6,12 +6,12 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 const PLANOS = [
-  { id: "10alunos", name: "10 Alunos", price: 10.00 },
-  { id: "20alunos", name: "20 Alunos", price: 15.00 },
-  { id: "30alunos", name: "30 Alunos", price: 20.00 },
-  { id: "basico", name: "Básico", price: 29.99 },
-  { id: "profissional", name: "Profissional", price: 59.90 },
-  { id: "premium", name: "Premium (Ilimitado)", price: 99.90 },
+  { id: "10alunos", name: "10 Alunos", price: 10.00, features: ["Gestão de até 10 alunos ativos", "Controle financeiro", "Gestão de aulas e agendamentos", "Acesso ao painel do aluno"] },
+  { id: "20alunos", name: "20 Alunos", price: 15.00, features: ["Gestão de até 20 alunos ativos", "Controle financeiro", "Gestão de aulas e agendamentos", "Acesso ao painel do aluno"] },
+  { id: "30alunos", name: "30 Alunos", price: 20.00, features: ["Gestão de até 30 alunos ativos", "Controle financeiro", "Gestão de aulas e agendamentos", "Acesso ao painel do aluno"] },
+  { id: "basico", name: "Básico", price: 29.99, features: ["Gestão de até 50 alunos ativos", "Painel Financeiro Completo", "Automações de WhatsApp (Básico)", "Contratos Digitais"] },
+  { id: "profissional", name: "Profissional", price: 59.90, features: ["Gestão de até 100 alunos ativos", "Todas as ferramentas", "Automações de WhatsApp Ilimitadas", "Relatórios e métricas", "Suporte prioritário"] },
+  { id: "premium", name: "Premium (Ilimitado)", price: 99.90, features: ["Alunos Ilimitados", "Acesso total e irrestrito", "Integrações avançadas", "Prioridade em novas funções", "Gerente de conta exclusivo"] },
 ];
 
 export default function Assinatura() {
@@ -25,6 +25,7 @@ export default function Assinatura() {
   const cancelMutation = trpc.platform.cancelSubscription.useMutation();
 
   const [selectedPlanType, setSelectedPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const trialEndsAt = mySub?.trialEndsAt ? new Date(mySub.trialEndsAt) : null;
@@ -178,10 +179,31 @@ export default function Assinatura() {
                   <h3 className="font-bold text-foreground">{p.name}</h3>
                   {isActive && <span className="px-2 py-1 bg-primary text-white text-[10px] font-bold rounded-full uppercase">Seu Plano</span>}
                 </div>
-                <div className="flex items-baseline gap-1 mb-4">
+                <div className="flex items-baseline gap-1 mb-2">
                   <span className="text-2xl font-black text-foreground">R$ {price.toFixed(2).replace('.',',')}</span>
                   <span className="text-muted-foreground text-xs font-medium">/{selectedPlanType === "YEARLY" ? 'ano' : 'mês'}</span>
                 </div>
+                
+                <div className="mb-5 border-t border-border/50 pt-3">
+                  <button 
+                    onClick={() => setExpandedPlanId(expandedPlanId === p.id ? null : p.id)}
+                    className="text-primary text-xs font-bold hover:underline"
+                  >
+                    {expandedPlanId === p.id ? "Ocultar detalhes" : "Ver diferenças"}
+                  </button>
+                  
+                  {expandedPlanId === p.id && (
+                    <ul className="mt-3 space-y-2 text-sm text-muted-foreground animate-in slide-in-from-top-2 duration-300">
+                      {p.features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <CheckCircle2 size={16} className="text-green-500 shrink-0 mt-0.5" /> 
+                          <span className="leading-tight">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
                 <button
                   onClick={() => handleChangePlan(p.id)}
                   disabled={isActive || changePlanMutation.isPending || isCanceled}

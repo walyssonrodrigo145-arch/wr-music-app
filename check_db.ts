@@ -1,19 +1,11 @@
-import postgres from 'postgres';
-import * as dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { db } from './server/db';
+import { organizations } from './shared/schema';
+import { desc } from 'drizzle-orm';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-
-const sql = postgres(process.env.DATABASE_URL as string);
-
-async function main() {
-  const res = await sql`SELECT id, "scheduledAt", title FROM lessons ORDER BY id DESC LIMIT 5`;
-  console.log(res);
-  await sql.end();
+async function check() {
+  const orgs = await db.select().from(organizations).orderBy(desc(organizations.id)).limit(1);
+  console.log(orgs);
+  process.exit(0);
 }
 
-main().catch(console.error);
+check();
