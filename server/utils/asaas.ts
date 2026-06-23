@@ -207,3 +207,36 @@ export async function getAsaasSubscriptionPayments(subscriptionId: string, apiKe
   const data = await res.json() as { data: AsaasCharge[] };
   return data.data;
 }
+
+export async function updateAsaasSubscription(subscriptionId: string, params: {
+  value?: number;
+  description?: string;
+  cycle?: "MONTHLY" | "YEARLY";
+}, apiKey?: string) {
+  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`, {
+    method: "POST",
+    headers: headers(apiKey),
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`[Asaas] Erro ao atualizar assinatura: ${res.status} ${body}`);
+  }
+
+  return res.json() as Promise<{ id: string; status: string }>;
+}
+
+export async function deleteAsaasSubscription(subscriptionId: string, apiKey?: string) {
+  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`, {
+    method: "DELETE",
+    headers: headers(apiKey),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`[Asaas] Erro ao cancelar assinatura: ${res.status} ${body}`);
+  }
+
+  return res.json() as Promise<{ deleted: boolean; id: string }>;
+}

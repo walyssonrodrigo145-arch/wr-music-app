@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight } from "lucide-react";
+import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -250,6 +250,17 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
               </div>
               Meu Perfil
             </DropdownMenuItem>
+            {user?.role !== 'aluno' && (
+              <DropdownMenuItem 
+                className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-amber-500 transition-all focus:bg-amber-500/5 focus:text-amber-500 group" 
+                onClick={() => navigate("/assinatura")}
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-all">
+                  <CreditCard size={18} />
+                </div>
+                Assinatura
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem 
               className="gap-4 rounded-2xl p-4 cursor-pointer text-sm font-bold text-muted-foreground hover:text-primary transition-all focus:bg-primary/5 focus:text-primary group" 
               onClick={() => navigate(user?.role === 'aluno' ? "/aluno/perfil" : "/configuracoes")}

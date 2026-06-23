@@ -238,7 +238,7 @@ export const appRouter = router({
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 33);
+        trialEndsAt.setDate(trialEndsAt.getDate() + 30);
         trialEndsAt.setHours(23, 59, 59, 999);
         const org = await db.insert(organizations).values({
           name: `${input.name}'s School`,
@@ -7010,6 +7010,67 @@ Instruções de análise:
         invoiceUrl: pendingPayment?.invoiceUrl,
         pendingValue: pendingPayment?.value
       };
+    }),
+    mySubscription: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const orgId = ctx.user.organizationId!;
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (!org) return null;
+      return {
+        planId: org.planId,
+        subscriptionStatus: org.subscriptionStatus,
+        trialEndsAt: org.trialEndsAt,
+      };
+    }),
+    changePlan: protectedProcedure.input(z.object({ planId: z.string(), planType: z.enum(["MONTHLY", "YEARLY"]) })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+      const orgId = ctx.user.organizationId!;
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada" });
+
+      const planValues: Record<string, number> = {
+        "basico": 29.99,
+        "profissional": 59.90,
+        "premium": 99.90,
+        "30alunos": 20.00,
+        "20alunos": 15.00,
+        "10alunos": 10.00,
+      };
+      const planValue = input.planType === "YEARLY"
+        ? (planValues[input.planId] ?? 59.90) * 10
+        : (planValues[input.planId] ?? 59.90);
+
+      if (org.asaasSubscriptionId) {
+        const { updateAsaasSubscription } = await import('./utils/asaas');
+        await updateAsaasSubscription(org.asaasSubscriptionId, {
+          value: planValue,
+          description: `Assinatura MusicPro - Plano ${input.planId} (${input.planType})`,
+          cycle: input.planType
+        });
+      }
+
+      await db.update(organizations).set({ planId: input.planId }).where(eq(organizations.id, orgId));
+      return { success: true };
+    }),
+    cancelSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+      const orgId = ctx.user.organizationId!;
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      
+      if (org?.asaasSubscriptionId) {
+        const { deleteAsaasSubscription } = await import('./utils/asaas');
+        await deleteAsaasSubscription(org.asaasSubscriptionId).catch(console.error);
+      }
+      
+      await db.update(organizations).set({ 
+        subscriptionStatus: "canceled",
+        asaasSubscriptionId: null 
+      }).where(eq(organizations.id, orgId));
+
+      return { success: true };
     }),
   }),
 

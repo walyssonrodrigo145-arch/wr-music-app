@@ -17,6 +17,7 @@ const Aulas = lazy(() => import("./pages/Aulas"));
 const Instrumentos = lazy(() => import("./pages/Instrumentos"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const Assinatura = lazy(() => import("./pages/Assinatura"));
 const Lembretes = lazy(() => import("./pages/Lembretes"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const Login = lazy(() => import("./pages/Login"));
@@ -146,6 +147,7 @@ function Router() {
           <Route path="/lembretes" component={Lembretes} />
           <Route path="/financeiro" component={Financeiro} />
           <Route path="/configuracoes" component={Configuracoes} />
+          <Route path="/assinatura" component={Assinatura} />
           <Route path="/progresso" component={Progresso} />
           <Route path="/comunicados" component={Comunicados} />
           <Route path="/mensagens" component={Mensagens} />

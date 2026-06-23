@@ -18,7 +18,8 @@ import {
   Inbox,
   MessageSquare,
   Sparkles,
-  Zap
+  Zap,
+  CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -56,6 +57,7 @@ const staticNavItems = [
 ];
 
 const bottomItems: NavItem[] = [
+  { label: "Assinatura", href: "/assinatura", icon: CreditCard },
   { label: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
