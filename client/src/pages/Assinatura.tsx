@@ -18,11 +18,11 @@ export default function Assinatura() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   
-  const { data: mySub, isLoading } = trpc.organizations.mySubscription.useQuery();
-  const { data: pendingInvoice, isLoading: loadingInvoice } = trpc.organizations.getPendingInvoice.useQuery();
+  const { data: mySub, isLoading } = trpc.platform.mySubscription.useQuery();
+  const { data: pendingInvoice, isLoading: loadingInvoice } = trpc.platform.getPendingInvoice.useQuery();
   
-  const changePlanMutation = trpc.organizations.changePlan.useMutation();
-  const cancelMutation = trpc.organizations.cancelSubscription.useMutation();
+  const changePlanMutation = trpc.platform.changePlan.useMutation();
+  const cancelMutation = trpc.platform.cancelSubscription.useMutation();
 
   const [selectedPlanType, setSelectedPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -35,7 +35,7 @@ export default function Assinatura() {
     try {
       await changePlanMutation.mutateAsync({ planId, planType: selectedPlanType });
       toast.success("Plano atualizado com sucesso! O novo valor virá na próxima fatura.");
-      utils.organizations.mySubscription.invalidate();
+      utils.platform.mySubscription.invalidate();
     } catch (error: any) {
       toast.error(error.message || "Erro ao alterar o plano");
     }
@@ -46,7 +46,7 @@ export default function Assinatura() {
       await cancelMutation.mutateAsync();
       toast.success("Assinatura cancelada com sucesso.");
       setShowCancelConfirm(false);
-      utils.organizations.mySubscription.invalidate();
+      utils.platform.mySubscription.invalidate();
       // Forçar refresh para derrubar o acesso
       setTimeout(() => window.location.href = "/checkout", 1500);
     } catch (error: any) {
