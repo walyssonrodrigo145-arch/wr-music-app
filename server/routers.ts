@@ -283,21 +283,18 @@ export const appRouter = router({
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
-        // Criar organização (com status pending)
+        // Criar organização (ativa imediatamente)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         
-        // 33 days of physical access, but billed on day 30 (3 dias de carência)
+        // Fatura gerada hoje
         const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 33);
-        trialEndsAt.setHours(23, 59, 59, 999);
         const nextDueDate = new Date();
-        nextDueDate.setDate(nextDueDate.getDate() + 30);
 
         const [org] = await db.insert(organizations).values({
           name: `${input.name}`,
           slug: uniqueSlug,
-          subscriptionStatus: "trialing",
+          subscriptionStatus: "active",
           trialEndsAt,
           createdAt: new Date(),
         }).returning();

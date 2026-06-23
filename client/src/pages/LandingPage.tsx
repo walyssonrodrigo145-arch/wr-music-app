@@ -173,7 +173,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 <Check size={36} className="text-white" strokeWidth={3} />
               </div>
               <h2 className="text-2xl font-black mb-1">Cadastro realizado!</h2>
-              <p className="text-blue-100 text-sm">{TRIAL_DAYS} dias grátis começam agora</p>
+              <p className="text-blue-100 text-sm">Sua assinatura começará em instantes</p>
             </div>
           ) : (
             <>
@@ -186,7 +186,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
               <h2 className="text-xl font-black mb-1">
                 Plano {planLabels[plan]} — <span className="text-blue-200">{planPrices[plan]}</span>
               </h2>
-              <p className="text-blue-100 text-xs">{TRIAL_DAYS} dias grátis • Cancele quando quiser</p>
+              <p className="text-blue-100 text-xs">Acesso total • Cancele quando quiser</p>
 
               {/* Steps indicator */}
               <div className="flex items-center gap-2 mt-5">
@@ -338,7 +338,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
                   <Shield size={18} className="text-blue-600 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-blue-800 text-xs font-bold">{TRIAL_DAYS} dias totalmente grátis</p>
+                    <p className="text-blue-800 text-xs font-bold">Acesso completo e ilimitado</p>
                     <p className="text-blue-600 text-xs mt-0.5">Seu cartão só será cobrado após o período de trial. Cancele antes e não paga nada.</p>
                   </div>
                 </div>
@@ -404,7 +404,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                     Bem-vindo ao MusicPro{plan === 'premium' && ', Premium'}! 🎉
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    Sua conta foi criada com sucesso. Você tem {TRIAL_DAYS} dias grátis para explorar tudo.
+                    Sua conta foi criada com sucesso. Efetue o pagamento para explorar tudo.
                   </p>
                 </div>
 
@@ -462,7 +462,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 ) : step === 'pagamento' ? (
                   <>
                     <Shield size={16} />
-                    Ativar {TRIAL_DAYS} dias grátis — {planPrices[plan]}
+                    Assinar Agora — {planPrices[plan]}
                   </>
                 ) : (
                   <>
@@ -687,7 +687,7 @@ const LandingPage = () => {
               onClick={() => setSignupPlan('profissional')}
               className="px-6 py-2.5 bg-primary text-primary-foreground rounded-full text-sm font-bold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:-translate-y-0.5 transition-all active:scale-95"
             >
-              Testar grátis
+              Assinar Agora
             </button>
           </div>
 
@@ -733,7 +733,7 @@ const LandingPage = () => {
                     onClick={() => { setMobileMenuOpen(false); setSignupPlan('profissional'); }}
                     className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold shadow-md hover:bg-primary/90 transition-all"
                   >
-                    Testar grátis
+                    Assinar Agora
                   </button>
                 </div>
               </div>
@@ -912,7 +912,7 @@ const LandingPage = () => {
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Planos simples e transparentes</h2>
             <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Escolha o plano ideal para sua escola</h3>
             <p className="text-lg text-muted-foreground font-medium">
-              Todos os planos incluem <strong className="text-foreground">{TRIAL_DAYS} dias grátis</strong> para você testar sem compromisso.
+              Todos os planos incluem <strong className="text-foreground">acesso imediato</strong> ao sistema completo.
             </p>
           </div>
 
@@ -983,7 +983,7 @@ const LandingPage = () => {
 
                 {/* Trial note */}
                 <p className={`text-center text-xs mt-3 ${plan.highlight ? 'text-gray-400' : 'text-muted-foreground'}`}>
-                  30 dias grátis • Cancele quando quiser
+                  Sem fidelidade • Cancele quando quiser
                 </p>
               </motion.div>
             ))}
@@ -1011,13 +1011,13 @@ const LandingPage = () => {
                 Pronto para levar sua escola para o <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">próximo nível?</span>
               </h2>
               <p className="text-xl text-muted-foreground font-medium mb-12 max-w-2xl mx-auto">
-                Comece agora mesmo seu teste grátis de {TRIAL_DAYS} dias. Sem burocracia. Cancele quando quiser.
+                Comece agora mesmo. Sem burocracia. Cancele quando quiser.
               </p>
               <button
                 onClick={() => setSignupPlan('profissional')}
                 className="px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-wider shadow-2xl hover:scale-105 hover:shadow-primary/50 transition-all flex items-center gap-2 mx-auto"
               >
-                Criar conta grátis agora <ArrowRight size={24} />
+                Criar conta agora <ArrowRight size={24} />
               </button>
             </div>
           </div>
