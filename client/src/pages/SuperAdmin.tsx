@@ -21,6 +21,16 @@ export default function SuperAdmin() {
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<any>(null);
 
+  const getFeaturesString = (plan: any) => {
+    if (!plan?.features) return "";
+    if (Array.isArray(plan.features)) return plan.features.join("; ");
+    try {
+      const parsed = JSON.parse(plan.features);
+      if (Array.isArray(parsed)) return parsed.join("; ");
+    } catch (e) {}
+    return plan.features;
+  };
+
   const { data: stats, isLoading: loadingStats } = trpc.superAdmin.getDashboardStats.useQuery(undefined, {
     enabled: activeTab === "dashboard"
   });
@@ -195,7 +205,7 @@ export default function SuperAdmin() {
                   </div>
                   <div className="space-y-2">
                     <Label>Funcionalidades (separe por ; ponto e vírgula)</Label>
-                    <Input name="features" defaultValue={editingPlan?.features?.join("; ")} required placeholder="App Alunos; Pagamento Asaas; IA Assistente" />
+                    <Input name="features" defaultValue={getFeaturesString(editingPlan)} required placeholder="App Alunos; Pagamento Asaas; IA Assistente" />
                   </div>
                   <div className="flex gap-6">
                     <div className="flex items-center gap-2">
