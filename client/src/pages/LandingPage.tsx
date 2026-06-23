@@ -467,7 +467,7 @@ const LandingPage = () => {
     return () => { document.body.style.overflow = ''; };
   }, [signupPlan]);
 
-  const { data: dbPlans } = trpc.publicData.getPlans.useQuery();
+  const { data: dbPlans, isLoading: loadingPlans } = trpc.publicData.getPlans.useQuery();
 
   const parseFeatures = (fStr: any) => {
     if (Array.isArray(fStr)) return fStr;
