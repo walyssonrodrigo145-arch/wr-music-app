@@ -7038,6 +7038,30 @@ Instruções de análise:
         "20alunos": 15.00,
         "10alunos": 10.00,
       };
+      
+      const planLimits: Record<string, number> = {
+        "10alunos": 10,
+        "20alunos": 20,
+        "30alunos": 30,
+        "basico": 999999,
+        "profissional": 999999,
+        "premium": 999999,
+      };
+      
+      const newMaxStudents = planLimits[input.planId] ?? 999999;
+      
+      const activeStudentsCountObj = await db.select({ count: sql<number>`count(*)` })
+        .from(students)
+        .where(and(eq(students.organizationId, orgId), eq(students.status, "ativo")));
+      const activeStudentsCount = Number(activeStudentsCountObj[0].count);
+
+      if (activeStudentsCount > newMaxStudents) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Você possui ${activeStudentsCount} alunos ativos. Exclua ou arquive ${activeStudentsCount - newMaxStudents} alunos para poder migrar para o plano de ${newMaxStudents} Alunos.`
+        });
+      }
+
       const planValue = input.planType === "YEARLY"
         ? (planValues[input.planId] ?? 59.90) * 10
         : (planValues[input.planId] ?? 59.90);
