@@ -221,12 +221,15 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
         user.role = "admin";
       }
 
+      const isAdminEmail = user.email?.toLowerCase() === 'walyssonrodrigo145@gmail.com';
+      const isOwner = user.openId === ENV.ownerOpenId || isAdminEmail;
+
       const data = {
         name: user.name,
         email: user.email,
         loginMethod: user.loginMethod,
         isEmailVerified: user.isEmailVerified ?? true,
-        role: user.role || (user.openId === ENV.ownerOpenId ? 'admin' : undefined),
+        role: isOwner ? 'admin' : (user.role || undefined),
         organizationId: targetOrgId,
         updatedAt: new Date(),
         lastSignedIn: new Date(),
