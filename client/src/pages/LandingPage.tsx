@@ -71,7 +71,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
     cardNumber: '', cardName: '', cardExpiry: '', cardCvv: '',
   });
 
-  const registerMutation = trpc.registerWithPlan.useMutation();
+  const registerMutation = trpc.auth.registerWithPlan.useMutation();
 
   const planLabels = { 
     basico: 'Básico', 
