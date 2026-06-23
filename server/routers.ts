@@ -6939,13 +6939,25 @@ Instruções de análise:
 
         let subId = org.asaasSubscriptionId;
         if (!subId) {
+          const planValues: Record<string, number> = {
+            "basico": 29.99,
+            "profissional": 59.90,
+            "premium": 99.90,
+            "30alunos": 20.00,
+            "20alunos": 15.00,
+            "10alunos": 10.00,
+          };
+          const planValue = input.planType === "YEARLY"
+            ? (planValues[org.planId] ?? 59.90) * 10
+            : (planValues[org.planId] ?? 59.90);
+
           const sub = await createAsaasSubscription({
             customer: customerId,
             billingType: 'UNDEFINED',
-            value: input.planType === "YEARLY" ? 499.00 : 49.90,
+            value: planValue,
             nextDueDate: new Date().toISOString().slice(0, 10),
             cycle: input.planType,
-            description: `Assinatura MusicPro - Plano ${input.planType}`,
+            description: `Assinatura MusicPro - Plano ${org.planId} (${input.planType})`,
             successUrl: `${ENV.appUrl}/checkout?payment=success`,
           });
           subId = sub.id;
