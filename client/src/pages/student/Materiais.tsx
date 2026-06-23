@@ -292,14 +292,14 @@ export default function StudentMaterials() {
                     className="group"
                   >
                     <Card className={cn(
-                      "h-full border border-border/50 shadow-xl bg-card/60 backdrop-blur-md hover:shadow-2xl hover:border-primary/30 transition-all duration-500 rounded-[2.5rem] overflow-hidden flex flex-col",
-                      viewMode === "list" && "flex-row h-32 items-center"
+                      "h-full border border-border/50 shadow-xl bg-card/60 backdrop-blur-md hover:shadow-2xl hover:border-primary/30 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden flex flex-col",
+                      viewMode === "list" && "flex-col sm:flex-row h-auto sm:h-32 items-start sm:items-center"
                     )}>
-                      <CardContent className="p-0 flex flex-col h-full flex-1">
+                      <CardContent className="p-0 flex flex-col sm:flex-row h-full flex-1 w-full">
                         {/* Media Section */}
                         <div className={cn(
                           "relative overflow-hidden shrink-0",
-                          viewMode === "grid" ? "aspect-[16/10] w-full" : "w-40 h-full border-r border-border/30"
+                          viewMode === "grid" ? "aspect-[16/10] w-full" : "w-full h-32 sm:w-40 sm:h-full border-b sm:border-b-0 sm:border-r border-border/30"
                         )}>
                           {/* Background Pattern/Color */}
                           {(item.category === 'imagem' || item.thumbnailUrl) ? (
@@ -319,7 +319,7 @@ export default function StudentMaterials() {
                               {/* Icon Centered */}
                               <div className="absolute inset-0 flex items-center justify-center opacity-40 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110">
                                 <div className={cn(
-                                  "p-6 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl transition-all group-hover:bg-white/20",
+                                  "p-4 md:p-6 rounded-[2rem] bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl transition-all group-hover:bg-white/20",
                                   item.category === 'video' ? "text-pink-500" :
                                   item.category === 'audio' ? "text-emerald-500" :
                                   "text-blue-500"
@@ -351,47 +351,47 @@ export default function StudentMaterials() {
   
                         {/* Info Section */}
                         <div className={cn(
-                          "p-8 flex flex-col flex-1 gap-6",
-                          viewMode === "list" && "flex-row items-center justify-between p-6 gap-4"
+                          "p-6 md:p-8 flex flex-col flex-1 gap-4 md:gap-6 min-w-0 w-full",
+                          viewMode === "list" && "flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 gap-3 sm:gap-4"
                         )}>
-                          <div className="space-y-3 min-w-0 flex-1">
+                          <div className="space-y-2 md:space-y-3 min-w-0 flex-1 w-full">
                             <div className="flex items-center gap-3">
-                               <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest bg-muted/50 px-2 py-0.5 rounded-md">
+                               <span className="text-[9px] md:text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest bg-muted/50 px-2 py-0.5 rounded-md">
                                 {format(new Date(item.createdAt), "dd MMM yyyy", { locale: ptBR })}
                               </span>
                               <span className="w-1 h-1 rounded-full bg-border" />
-                              <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                              <span className="text-[9px] md:text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
                                 {(item.size ? (item.size / 1024 / 1024).toFixed(1) : 0)} MB
                               </span>
                             </div>
                             
-                            <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors truncate tracking-tight leading-snug">
+                            <h3 className="text-lg md:text-xl font-bold text-foreground group-hover:text-primary transition-colors truncate tracking-tight leading-snug">
                               {item.fileName}
                             </h3>
                             
                           </div>
   
                           <div className={cn(
-                            "flex items-center gap-3",
-                            viewMode === "grid" ? "w-full" : "shrink-0"
+                            "flex items-center gap-2 md:gap-3 w-full sm:w-auto",
+                            viewMode === "grid" ? "w-full" : "shrink-0 mt-2 sm:mt-0"
                           )}>
                             <Button 
                               onClick={() => handlePreview(item)}
-                              className="flex-1 h-14 rounded-2xl bg-primary text-white font-bold text-xs shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all border-none gap-3"
+                              className="flex-1 sm:flex-none h-12 md:h-14 rounded-xl md:rounded-2xl bg-primary text-white font-bold text-xs shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all border-none gap-2 md:gap-3 px-4 md:px-6"
                             >
-                              {item.category === 'video' ? <Play size={18} fill="currentColor" /> : 
-                               item.category === 'audio' ? <Music size={18} /> : 
-                               <Eye size={18} />}
+                              {item.category === 'video' ? <Play size={16} fill="currentColor" /> : 
+                               item.category === 'audio' ? <Music size={16} /> : 
+                               <Eye size={16} />}
                               {getActionLabel(item.category)}
                             </Button>
                             
                             <Button 
                               asChild
                               variant="outline"
-                              className="w-14 h-14 rounded-2xl bg-background border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center shrink-0 shadow-sm"
+                              className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-background border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center shrink-0 shadow-sm"
                             >
                               <a href={getFixedUrl(item.fileUrl)} target="_blank" rel="noopener noreferrer" download={item.fileName}>
-                                <Download size={20} />
+                                <Download size={18} />
                               </a>
                             </Button>
                           </div>
@@ -437,43 +437,46 @@ export default function StudentMaterials() {
 
       {/* PREVIEW DIALOG */}
       <Dialog open={!!previewFile} onOpenChange={() => { setPreviewFile(null); setShowComments(false); }}>
-         <DialogContent className={cn("p-0 overflow-hidden bg-background border-none rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[90vw] md:max-w-7xl" : "max-w-5xl")}>
-            <DialogHeader className="p-8 bg-card/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-20">
-               <div className="flex items-center justify-between gap-4">
+         <DialogContent className={cn("p-0 overflow-hidden bg-background border-none rounded-[1.5rem] md:rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[95vw] md:max-w-7xl" : "max-w-[95vw] md:max-w-5xl")}>
+            <DialogHeader className="p-4 md:p-8 bg-card/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-20">
+               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                      <div className="flex items-center gap-2 mb-2">
                         <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-bold uppercase tracking-widest border border-primary/20">
                            {previewFile?.category}
                         </span>
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                        <span className="text-[9px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">
                            Visualização em Alta Definição
                         </span>
                      </div>
-                     <DialogTitle className="text-2xl font-black text-foreground tracking-tight truncate leading-none">
+                     <DialogTitle className="text-lg md:text-2xl font-black text-foreground tracking-tight truncate leading-none">
                         {previewFile?.fileName}
                      </DialogTitle>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 md:gap-3 self-end md:self-auto">
                     <Button 
                       variant="outline"
-                      className="h-12 rounded-xl text-primary border-primary/20 bg-primary/5 text-xs font-bold px-6 shadow-sm hover:scale-105 active:scale-95"
+                      className="h-10 md:h-12 rounded-xl text-primary border-primary/20 bg-primary/5 text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-sm hover:scale-105 active:scale-95"
                       onClick={() => setShowComments(!showComments)}
+                      title="Dúvidas e Comentários"
                     >
-                       <MessageCircle size={18} className="mr-2" /> Dúvidas e Comentários
+                       <MessageCircle size={16} className="md:mr-2" /> 
+                       <span className="hidden md:inline">Dúvidas e Comentários</span>
                     </Button>
                     <Button 
                       asChild
-                      className="h-12 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold px-6 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95 hidden md:flex"
+                      className="h-10 md:h-12 rounded-xl bg-primary hover:bg-primary/90 text-white text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95 hidden sm:flex"
                     >
                        <a href={getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
-                          <Download size={18} className="mr-2" /> Baixar Arquivo
+                          <Download size={16} className="md:mr-2" /> 
+                          <span className="hidden md:inline">Baixar Arquivo</span>
                        </a>
                     </Button>
                     <button 
                       onClick={() => { setPreviewFile(null); setShowComments(false); }}
-                      className="w-12 h-12 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground flex items-center justify-center transition-all shrink-0"
+                      className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground flex items-center justify-center transition-all shrink-0"
                     >
-                      <X size={20} />
+                      <X size={18} />
                     </button>
                   </div>
                </div>
@@ -481,29 +484,29 @@ export default function StudentMaterials() {
 
             <div className="flex flex-col md:flex-row h-[70vh] bg-muted/30">
                {/* Content Rendering */}
-               <div className={cn("h-full flex items-center justify-center relative z-10 transition-all", showComments ? "w-full md:w-2/3" : "w-full")}>
+               <div className={cn("h-full flex items-center justify-center relative z-10 transition-all p-4 md:p-0", showComments ? "w-full md:w-2/3" : "w-full")}>
                  {previewFile?.category === 'video' && (
                     <video 
                       src={getFixedUrl(previewFile.fileUrl)} 
                       controls 
-                      className="max-h-[90%] max-w-[95%] rounded-2xl shadow-2xl bg-black"
+                      className="max-h-[90%] max-w-[100%] md:max-w-[95%] rounded-xl md:rounded-2xl shadow-2xl bg-black"
                       autoPlay
                     />
                  )}
                  {previewFile?.category === 'audio' && (
-                    <div className="flex flex-col items-center gap-10 w-full max-w-2xl px-12 py-20 bg-card rounded-[3rem] shadow-2xl border border-border/50">
-                       <div className="w-40 h-40 rounded-[3rem] bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-primary/30 relative">
-                          <Music size={64} className="relative z-10" />
+                    <div className="flex flex-col items-center gap-6 md:gap-10 w-full max-w-2xl px-6 py-10 md:px-12 md:py-20 bg-card rounded-[2rem] md:rounded-[3rem] shadow-2xl border border-border/50">
+                       <div className="w-24 h-24 md:w-40 md:h-40 rounded-[2rem] md:rounded-[3rem] bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-primary/30 relative">
+                          <Music size={48} className="relative z-10 md:w-16 md:h-16" />
                           <div className="absolute inset-0 bg-white/20 rounded-full animate-ping opacity-20" />
                        </div>
-                       <div className="text-center space-y-2">
-                          <p className="text-sm font-bold text-primary uppercase tracking-[0.2em]">Reproduzindo Áudio</p>
-                          <p className="text-xl font-bold text-foreground">{previewFile.fileName}</p>
+                       <div className="text-center space-y-2 w-full px-2">
+                          <p className="text-xs md:text-sm font-bold text-primary uppercase tracking-[0.2em]">Reproduzindo Áudio</p>
+                          <p className="text-sm md:text-xl font-bold text-foreground truncate w-full">{previewFile.fileName}</p>
                        </div>
                        <audio 
                          src={getFixedUrl(previewFile.fileUrl)} 
                          controls 
-                         className="w-full h-14 custom-audio-player"
+                         className="w-full h-12 md:h-14 custom-audio-player"
                          autoPlay
                        />
                     </div>
@@ -519,7 +522,7 @@ export default function StudentMaterials() {
                     <img 
                       src={getFixedUrl(previewFile.fileUrl)} 
                       alt={previewFile.fileName}
-                      className="max-h-[90%] max-w-[95%] object-contain rounded-2xl shadow-2xl border border-border/50"
+                      className="max-h-[90%] max-w-[100%] md:max-w-[95%] object-contain rounded-xl md:rounded-2xl shadow-2xl border border-border/50"
                     />
                  )}
                </div>
