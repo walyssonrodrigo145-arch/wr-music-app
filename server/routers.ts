@@ -308,6 +308,7 @@ export const appRouter = router({
           name: `${input.name}`,
           slug: uniqueSlug,
           subscriptionStatus: "pending",  // Status correto: aguardando pagamento
+          planId: input.planId,
           createdAt: new Date(),
         }).returning();
 
@@ -1557,6 +1558,31 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (!db) throw new Error("Banco de dados não disponível");
         
         const orgId = ctx.user.organizationId!;
+
+        // --- Verificação de limite de plano ---
+        const [org] = await db.select({ planId: organizations.planId }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
+        const planLimits: Record<string, number> = {
+          "basico": 50,
+          "profissional": 200,
+          "premium": 999999, // ilimitado
+          "30alunos": 30,
+          "20alunos": 20,
+          "10alunos": 10,
+        };
+        const limit = org ? (planLimits[org.planId] ?? 999999) : 999999;
+        
+        const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
+          .from(students)
+          .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
+        
+        if (input.status === 'ativo' && activeStudentsCount >= limit) {
+          throw new TRPCError({ 
+            code: 'FORBIDDEN', 
+            message: `Limite de alunos atingido (${limit} alunos). Faça upgrade do seu plano para continuar crescendo!` 
+          });
+        }
+        // ---------------------------------------
+
         // 1. Criar o Aluno primeiro para ter o ID
         const [newStudent] = await db.insert(students).values({
           organizationId: orgId,

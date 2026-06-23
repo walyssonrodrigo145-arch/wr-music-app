@@ -13,6 +13,7 @@ export async function runAutoMigrations() {
   try {
     // Adicionar colunas uma por uma, ignorando se já existirem
     const migrations = [
+      { table: 'organizations', sql: 'ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "planId" varchar(50) DEFAULT \'premium\' NOT NULL' },
       { table: 'users', sql: 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "isEmailVerified" boolean DEFAULT false NOT NULL' },
       { table: 'users', sql: 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "verificationToken" text' },
       { table: 'users', sql: 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "verificationTokenExpiresAt" timestamp' },

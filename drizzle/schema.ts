@@ -42,6 +42,7 @@ export const organizations = pgTable("organizations", {
   currentPeriodEnd: timestamp("currentPeriodEnd"),
   asaasCustomerId: varchar("asaasCustomerId", { length: 100 }),
   asaasSubscriptionId: varchar("asaasSubscriptionId", { length: 100 }),
+  planId: varchar("planId", { length: 50 }).default("premium").notNull(),
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
