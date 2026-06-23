@@ -55,41 +55,26 @@ export const superAdminRouter = router({
       
       const { sql } = await import("drizzle-orm");
       
-      // Brute force cascade deletion of all tables with organizationId
-      await db.execute(sql`DELETE FROM "ai_messages" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "ai_conversations" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "ai_documents" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "attendance_logs" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "attendance_tokens" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "chat_messages" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "daily_study_plans" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "expenses" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "lessons" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "notifications" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "payment_dues" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "professor_payments" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "professores" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "reminders" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "reminder_templates" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "settings" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "student_evolution" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "student_goals" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "student_timeline" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "student_files" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "announcements" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "reschedule_requests" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "contracts" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "asaas_customers" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "asaas_signatures" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "asaas_webhook_logs" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "message_automation_rules" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "asaas_financial_transactions" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "instruments" WHERE "organizationId" = ${input.id}`);
+      const orgId = Number(input.id);
       
-      // Core tables
-      await db.execute(sql`DELETE FROM "students" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "users" WHERE "organizationId" = ${input.id}`);
-      await db.execute(sql`DELETE FROM "organizations" WHERE "id" = ${input.id}`);
+      // Dynamic cascade deletion: finds all tables that have organizationId and deletes the rows
+      await db.execute(sql.raw(`
+        DO $$ 
+        DECLARE 
+          t_name text;
+        BEGIN 
+          FOR t_name IN 
+            SELECT table_name 
+            FROM information_schema.columns 
+            WHERE column_name = 'organizationId' AND table_schema = 'public'
+          LOOP 
+            EXECUTE 'DELETE FROM "' || t_name || '" WHERE "organizationId" = ' || ${orgId}; 
+          END LOOP; 
+        END $$;
+      `));
+
+      // Finally, delete the organization itself
+      await db.execute(sql`DELETE FROM "organizations" WHERE "id" = ${orgId}`);
 
       return { success: true };
     }),

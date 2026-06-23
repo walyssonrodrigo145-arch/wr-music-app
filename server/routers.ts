@@ -299,7 +299,7 @@ export const appRouter = router({
         email: z.string().email(),
         password: z.string().min(6),
         planType: z.enum(["MONTHLY", "YEARLY"]),
-        planId: z.enum(["basico", "profissional", "premium", "30alunos", "20alunos", "10alunos"]).default("profissional"),
+        planId: z.string(),
         cpfCnpj: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -316,18 +316,17 @@ export const appRouter = router({
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
-        // Mapear valor correto por plano
-        const planValues: Record<string, number> = {
-          "basico": 29.99,
-          "profissional": 59.90,
-          "premium": 99.90,
-          "30alunos": 20.00,
-          "20alunos": 15.00,
-          "10alunos": 10.00,
-        };
+        const { systemPlans } = await import("../drizzle/schema");
+        const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, input.planId)).limit(1);
+        
+        if (!planInfo) {
+          throw new Error("O plano selecionado não é válido ou foi removido.");
+        }
+
         const planValue = input.planType === "YEARLY"
-          ? (planValues[input.planId] ?? 59.90) * 10  // desconto anual (~2 meses grátis)
-          : (planValues[input.planId] ?? 59.90);
+          ? Number(planInfo.priceYearly)
+          : Number(planInfo.priceMonthly);
+        const planName = planInfo.name;
 
         // Criar organização com status trialing (30 dias grátis)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
@@ -376,7 +375,7 @@ export const appRouter = router({
             value: planValue,
             nextDueDate: nextDueDateStr,
             cycle: input.planType,
-            description: `Assinatura MusicPro - Plano ${input.planId} (${input.planType})`,
+            description: `Assinatura MusicPro - Plano ${planName} (${input.planType})`,
             successUrl: `${(ctx.req as any).headers?.origin || 'https://wrmusicpro.com.br'}/dashboard`
           });
 

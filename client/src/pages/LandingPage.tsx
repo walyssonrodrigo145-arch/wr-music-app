@@ -56,7 +56,7 @@ interface SignupForm {
 }
 
 // ─── MODAL DE CADASTRO ────────────────────────────────────────────────────────
-const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void }) => {
+const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) => {
   const [step, setStep] = useState<ModalStep>('conta');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -68,23 +68,6 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
   });
 
   const registerMutation = trpc.auth.registerWithPlan.useMutation();
-
-  const planLabels = { 
-    basico: 'Básico', 
-    profissional: 'Profissional', 
-    premium: 'Premium',
-    '10alunos': '10 Alunos',
-    '20alunos': '20 Alunos',
-    '30alunos': '30 Alunos'
-  };
-  const planPrices = { 
-    basico: 'R$ 29,99/mês', 
-    profissional: 'R$ 59,90/mês', 
-    premium: 'R$ 99,90/mês',
-    '10alunos': 'R$ 10,00/mês',
-    '20alunos': 'R$ 15,00/mês',
-    '30alunos': 'R$ 20,00/mês'
-  };
 
   const steps: ModalStep[] = ['conta', 'endereco'];
   const stepLabels: Record<ModalStep, string> = { conta: 'Sua Conta', endereco: 'Endereço', sucesso: 'Concluído' };
@@ -144,16 +127,12 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
       // Registrar conta e redirecionar para o checkout do Asaas
       setLoading(true);
       try {
-        const validPlanIds = ['basico', 'profissional', 'premium', '30alunos', '20alunos', '10alunos'] as const;
-        type ValidPlanId = typeof validPlanIds[number];
-        const planId: ValidPlanId = validPlanIds.includes(plan as ValidPlanId) ? (plan as ValidPlanId) : 'profissional';
-
         const result = await registerMutation.mutateAsync({
           name: form.nome,
           email: form.email,
           password: form.senha,
           planType: "MONTHLY",
-          planId,
+          planId: plan,
           cpfCnpj: form.cpfCnpj.replace(/\D/g, ''),
         });
 
@@ -220,7 +199,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 <span className="font-bold text-sm opacity-90">MusicPro</span>
               </div>
               <h2 className="text-xl font-black mb-1">
-                Plano {planLabels[plan]} — <span className="text-blue-200">{planPrices[plan]}</span>
+                Cadastro
               </h2>
               <p className="text-blue-100 text-xs">Acesso total • Cancele quando quiser</p>
 
@@ -389,33 +368,12 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                     <Sparkles size={32} />
                   </div>
                   <h3 className="text-xl font-black text-gray-900 mb-2">
-                    Bem-vindo ao MusicPro{plan === 'premium' && ', Premium'}! 🎉
+                    Bem-vindo ao MusicPro! 🎉
                   </h3>
                   <p className="text-gray-500 text-sm">
                     Sua conta foi criada com sucesso! Você ganhou <strong className="text-blue-600">30 dias grátis</strong> para testar a plataforma.
                   </p>
                 </div>
-
-                {plan === 'premium' && (
-                  <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-5 text-white text-left">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles size={16} className="text-yellow-300" />
-                      <span className="font-black text-sm">Benefício exclusivo Premium</span>
-                    </div>
-                    <p className="text-blue-100 text-xs leading-relaxed mb-4">
-                      Como assinante Premium, você tem acesso direto ao desenvolvedor para solicitar melhorias personalizadas no sistema. Fale agora mesmo!
-                    </p>
-                    <a
-                      href="https://wa.me/5533984055949?text=Ol%C3%A1!%20Acabei%20de%20criar%20minha%20conta%20no%20plano%20Premium%20do%20MusicPro%20e%20gostaria%20de%20tirar%20algumas%20d%C3%BAvidas%20e%20conhecer%20as%20possibilidades%20de%20personaliza%C3%A7%C3%A3o%20do%20sistema."
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full bg-white text-blue-700 font-black py-3 rounded-xl text-sm hover:bg-blue-50 transition-colors shadow-lg"
-                    >
-                      <MessageCircle size={18} className="fill-current" />
-                      Conversar no WhatsApp agora
-                    </a>
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Link href="/dashboard">
@@ -451,7 +409,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                 ) : step === 'endereco' ? (
                   <>
                     <CreditCard size={16} />
-                    Efetuar Pagamento — {planPrices[plan]}
+                    Confirmar Assinatura
                   </>
                 ) : (
                   <>
@@ -477,7 +435,7 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
 const LandingPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [signupPlan, setSignupPlan] = useState<PlanType | null>(null);
+  const [signupPlan, setSignupPlan] = useState<string | null>(null);
   const [, setLocation] = useLocation();
   const { isAuthenticated, loading, user } = useAuth();
 
@@ -509,12 +467,34 @@ const LandingPage = () => {
     return () => { document.body.style.overflow = ''; };
   }, [signupPlan]);
 
-  const fadeIn = {
-    initial: { opacity: 0, y: 20 },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true },
-    transition: { duration: 0.6 }
+  const { data: dbPlans } = trpc.publicData.getPlans.useQuery();
+
+  const parseFeatures = (fStr: any) => {
+    if (Array.isArray(fStr)) return fStr;
+    try { 
+      const parsed = JSON.parse(fStr); 
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
   };
+
+  const plans = dbPlans?.filter(p => p.showOnLanding).map((p, index) => {
+    const priceStr = Number(p.priceMonthly).toFixed(2);
+    const [price, cents] = priceStr.split('.');
+    const isHighlight = index === 1;
+    
+    return {
+      id: p.id,
+      name: p.name,
+      subtitle: p.maxStudents >= 999999 ? 'Para escolas exigentes' : `Até ${p.maxStudents} alunos`,
+      price,
+      cents,
+      highlight: isHighlight,
+      badge: isHighlight ? 'Mais Escolhido' : null,
+      features: parseFeatures(p.features),
+      cta: 'Assinar Agora',
+      ctaStyle: isHighlight ? 'solid' : 'border',
+    };
+  }) || [];
 
   const navLinks = [
     { name: 'Recursos', href: '#features' },
@@ -523,104 +503,6 @@ const LandingPage = () => {
     { name: 'Contato', href: 'https://wa.me/5533984055949?text=ola%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20o%20sistema%20musicpro', target: '_blank' },
   ];
 
-  const plans = [
-    {
-      id: 'profissional' as PlanType,
-      name: 'Profissional',
-      subtitle: 'Para escolas em crescimento',
-      price: '59',
-      cents: '90',
-      highlight: true,
-      badge: 'Mais Escolhido',
-      features: [
-        'Até 200 alunos cadastrados',
-        'Todos os recursos liberados',
-        'Sistema completo funcionando',
-      ],
-      cta: 'Assinar Agora',
-      ctaStyle: 'solid',
-    },
-    {
-      id: 'premium' as PlanType,
-      name: 'Premium',
-      subtitle: 'Para escolas exigentes',
-      price: '99',
-      cents: '90',
-      highlight: false,
-      badge: null,
-      features: [
-        'Alunos ilimitados',
-        'Todos os recursos liberados',
-        'Opção de solicitar melhorias',
-      ],
-      cta: 'Assinar Agora',
-      ctaStyle: 'border',
-    },
-    {
-      id: 'basico' as PlanType,
-      name: 'Básico',
-      subtitle: 'Para pequenas escolas',
-      price: '29',
-      cents: '99',
-      highlight: false,
-      badge: null,
-      features: [
-        'Até 50 alunos cadastrados',
-        'Todos os recursos liberados',
-        'Sistema completo funcionando',
-      ],
-      cta: 'Assinar Agora',
-      ctaStyle: 'border',
-    },
-    {
-      id: '30alunos' as PlanType,
-      name: '30 Alunos',
-      subtitle: 'Professor independente',
-      price: '20',
-      cents: '00',
-      highlight: false,
-      badge: null,
-      features: [
-        'Até 30 alunos cadastrados',
-        'Todos os recursos liberados',
-        'Sistema completo funcionando',
-      ],
-      cta: 'Assinar Agora',
-      ctaStyle: 'border',
-    },
-    {
-      id: '20alunos' as PlanType,
-      name: '20 Alunos',
-      subtitle: 'Professor independente',
-      price: '15',
-      cents: '00',
-      highlight: false,
-      badge: null,
-      features: [
-        'Até 20 alunos cadastrados',
-        'Todos os recursos liberados',
-        'Sistema completo funcionando',
-      ],
-      cta: 'Assinar Agora',
-      ctaStyle: 'border',
-    },
-    {
-      id: '10alunos' as PlanType,
-      name: '10 Alunos',
-      subtitle: 'Professor independente',
-      price: '10',
-      cents: '00',
-      highlight: false,
-      badge: null,
-      features: [
-        'Até 10 alunos cadastrados',
-        'Todos os recursos liberados',
-        'Sistema completo funcionando',
-      ],
-      cta: 'Assinar Agora',
-      ctaStyle: 'border',
-    },
-  ];
 
   return (
     <div className="min-h-screen font-sans text-foreground bg-background selection:bg-primary/30 selection:text-primary">
@@ -905,9 +787,14 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 items-center">
-            {plans.map((plan, i) => (
-              <motion.div
+          {loadingPlans ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6 items-center">
+              {plans.map((plan, i) => (
+                <motion.div
                 key={plan.id}
                 {...fadeIn}
                 transition={{ delay: i * 0.15 }}
@@ -976,7 +863,8 @@ const LandingPage = () => {
                 </p>
               </motion.div>
             ))}
-          </div>
+            </div>
+          )}
 
           {/* Garantia */}
           <motion.div {...fadeIn} className="mt-16 text-center">
