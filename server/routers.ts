@@ -2813,6 +2813,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       schoolPhone: z.string().optional(),
       schoolWebsite: z.string().optional(),
       schoolDescription: z.string().optional(),
+      schoolHours: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
       await upsertSettings(orgId, ctx.user.id, input);
@@ -5339,11 +5340,45 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
         return { success: true };
       }),
-    requestReschedule: studentProcedure
+    getTeacherSchedule: studentProcedure
+      .input(z.object({ lessonId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        
+        // Find lesson
+        const [lesson] = await db.select().from(lessons).where(and(eq(lessons.id, input.lessonId), eq(lessons.organizationId, orgId))).limit(1);
+        if (!lesson) throw new Error("Lesson not found");
+
+        // Find teacher settings
+        const [teacherSettings] = await db.select({ schoolHours: settings.schoolHours, schoolPhone: settings.schoolPhone, phone: settings.phone })
+          .from(settings).where(eq(settings.userId, lesson.userId)).limit(1);
+        
+        const schoolHoursRaw = teacherSettings?.schoolHours || '{}';
+        let parsedHours = {};
+        try { parsedHours = JSON.parse(schoolHoursRaw); } catch(e) {}
+
+        // Get future booked slots for this teacher
+        const futureLessons = await db.select({ scheduledAt: lessons.scheduledAt })
+          .from(lessons)
+          .where(and(
+            eq(lessons.userId, lesson.userId),
+            sql`${lessons.scheduledAt} > NOW()`,
+            sql`${lessons.scheduledAt} < NOW() + INTERVAL '30 days'`
+          ));
+
+        return {
+          schoolHours: parsedHours,
+          bookedSlots: futureLessons.map(l => l.scheduledAt.toISOString()),
+          teacherPhone: teacherSettings?.schoolPhone || teacherSettings?.phone || '',
+        };
+      }),
+
+    autoReschedule: studentProcedure
       .input(z.object({
         lessonId: z.number(),
-        reason: z.string(),
-        preferredDates: z.string(),
+        newDateIso: z.string(), // e.g. "2024-05-10T14:00:00.000Z"
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -5357,15 +5392,28 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         }
         if (!studentId) throw new Error("Acesso não autorizado");
 
-        await db.insert(rescheduleRequests).values({
+        const [lesson] = await db.select().from(lessons).where(and(eq(lessons.id, input.lessonId), eq(lessons.studentId, studentId))).limit(1);
+        if (!lesson) throw new Error("Aula não encontrada ou não pertence a você");
+
+        const newDateObj = new Date(input.newDateIso);
+
+        // Update the lesson date
+        await db.update(lessons)
+          .set({ scheduledAt: newDateObj, status: "agendada" })
+          .where(eq(lessons.id, input.lessonId));
+
+        // Create a notification for the teacher
+        const [studentData] = await db.select({ name: students.name }).from(students).where(eq(students.id, studentId)).limit(1);
+        await db.insert(notifications).values({
           organizationId: orgId,
-          studentId: studentId,
-          lessonId: input.lessonId,
-          reason: input.reason,
-          preferredDates: input.preferredDates,
+          userId: lesson.userId,
+          title: "Aula Reagendada pelo Robô",
+          message: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${newDateObj.toLocaleString('pt-BR')}.`,
+          type: "INFO",
+          read: 0,
         });
 
-      return { success: true, message: "Solicitação enviada ao professor." };
+        return { success: true, message: "Aula reagendada com sucesso!" };
       }),
     verifyAndConfirmPayment: studentProcedure
       .input(z.object({

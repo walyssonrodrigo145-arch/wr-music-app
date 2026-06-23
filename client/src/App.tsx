@@ -28,7 +28,7 @@ const Cadastro = lazy(() => import("./pages/Cadastro"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const NovoAluno = lazy(() => import("./pages/NovoAluno"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
-const Mensagens = lazy(() => import("./pages/Mensagens"));
+
 const Solicitacoes = lazy(() => import("./pages/Solicitacoes"));
 const IAAssistente = lazy(() => import("./pages/IAAssistente"));
 const ProfessorExtract = lazy(() => import("./pages/ProfessorExtract"));
@@ -46,7 +46,7 @@ const StudentProgress = lazy(() => import("./pages/student/Progresso"));
 const StudentPayments = lazy(() => import("./pages/student/Pagamentos"));
 const StudentProfile = lazy(() => import("./pages/student/Perfil"));
 const StudentAgenda = lazy(() => import("./pages/student/Agenda"));
-const StudentMessages = lazy(() => import("./pages/student/Mensagens"));
+
 const StudentAnnouncements = lazy(() => import("./pages/student/Avisos"));
 const StudentRequestMakeUp = lazy(() => import("./pages/student/SolicitarReposicao"));
 const StudentRequestReschedule = lazy(() => import("./pages/student/SolicitarRemarcacao"));
@@ -91,7 +91,7 @@ function Router() {
             <Route path="/aluno/materiais" component={StudentMaterials} />
             <Route path="/aluno/exercicios" component={StudentExercises} />
             <Route path="/aluno/progresso" component={StudentProgress} />
-            <Route path="/aluno/mensagens" component={StudentMessages} />
+
             <Route path="/aluno/pagamentos" component={StudentPayments} />
             <Route path="/aluno/perfil" component={StudentProfile} />
             <Route path="/aluno/avisos" component={StudentAnnouncements} />
@@ -151,7 +151,7 @@ function Router() {
           <Route path="/assinatura" component={Assinatura} />
           <Route path="/progresso" component={Progresso} />
           <Route path="/comunicados" component={Comunicados} />
-          <Route path="/mensagens" component={Mensagens} />
+
           <Route path="/automacoes" component={Automacoes} />
           <Route path="/solicitacoes" component={Solicitacoes} />
           <Route path="/ia" component={IAAssistente} />

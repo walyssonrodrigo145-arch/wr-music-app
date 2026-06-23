@@ -197,6 +197,8 @@ export const settings = pgTable("settings", {
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
   // AI Integration (Gemini)
   geminiApiKey: varchar("geminiApiKey", { length: 255 }),
+  // School Operating Hours
+  schoolHours: text("schoolHours").default('{"monday":{"active":true,"start":"08:00","end":"18:00"},"tuesday":{"active":true,"start":"08:00","end":"18:00"},"wednesday":{"active":true,"start":"08:00","end":"18:00"},"thursday":{"active":true,"start":"08:00","end":"18:00"},"friday":{"active":true,"start":"08:00","end":"18:00"},"saturday":{"active":false,"start":"08:00","end":"12:00"},"sunday":{"active":false,"start":"08:00","end":"12:00"}}').notNull(),
   // ZapSign Integration (Digital Contracts)
   zapsignApiKey: text("zapsignApiKey"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

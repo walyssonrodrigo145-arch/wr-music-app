@@ -718,6 +718,16 @@ export default function Configuracoes() {
   const [schoolPhone, setSchoolPhone] = useState("");
   const [schoolWebsite, setSchoolWebsite] = useState("");
   const [schoolDescription, setSchoolDescription] = useState("");
+  const defaultHours = {
+    monday: { active: true, start: "08:00", end: "18:00" },
+    tuesday: { active: true, start: "08:00", end: "18:00" },
+    wednesday: { active: true, start: "08:00", end: "18:00" },
+    thursday: { active: true, start: "08:00", end: "18:00" },
+    friday: { active: true, start: "08:00", end: "18:00" },
+    saturday: { active: false, start: "08:00", end: "12:00" },
+    sunday: { active: false, start: "08:00", end: "12:00" }
+  };
+  const [schoolHours, setSchoolHours] = useState<any>(defaultHours);
 
   // ── Notificações state ──
   const [notifyLesson, setNotifyLesson] = useState(true);
@@ -757,6 +767,13 @@ export default function Configuracoes() {
       setSchoolPhone(settings.schoolPhone ?? "");
       setSchoolWebsite(settings.schoolWebsite ?? "");
       setSchoolDescription(settings.schoolDescription ?? "");
+      if (settings.schoolHours) {
+        try {
+          setSchoolHours(JSON.parse(settings.schoolHours));
+        } catch (e) {
+          setSchoolHours(defaultHours);
+        }
+      }
       setNotifyLesson(settings.notifyLessonReminder === 1);
       setNotifyPayment(settings.notifyPaymentDue === 1);
       setNotifyAbsence(settings.notifyStudentAbsence === 1);
@@ -781,9 +798,8 @@ export default function Configuracoes() {
     { label: "Instrumentos", href: "/instrumentos", desc: "Gestão de cursos/instrumentos" },
     { label: "Relatórios", href: "/relatorios", desc: "Métricas e gráficos" },
     { label: "Lembretes", href: "/lembretes", desc: "Alertas manuais e histórico" },
-    { label: "Automações", href: "/automacoes", desc: "Regras do Robô e Mensagens" },
+    { label: "Automações", href: "/automacoes", desc: "Regras do Robô" },
     { label: "Comunicados", href: "/comunicados", desc: "Mural de avisos" },
-    { label: "Mensagens", href: "/mensagens", desc: "Chat com alunos" },
     { label: "Solicitações", href: "/solicitacoes", desc: "Reposições e faltas" },
     { label: "IA Assistente", href: "/ia", desc: "Chat inteligente (Gemini)" },
     { label: "Progresso", href: "/progresso", desc: "Evolução dos alunos" },
@@ -1057,7 +1073,7 @@ export default function Configuracoes() {
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
                     disabled={updateSchool.isPending}
-                    onClick={() => updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription })}
+                    onClick={() => updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, schoolHours: JSON.stringify(schoolHours) })}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
@@ -1120,6 +1136,50 @@ export default function Configuracoes() {
                     className="w-full px-4 py-4 text-sm font-bold rounded-xl border border-border bg-muted focus:bg-card transition-all shadow-sm resize-none text-foreground outline-none"
                   />
                 </Field>
+
+                <div className="pt-6 border-t border-border">
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-4">Horário de Atendimento</h4>
+                  <p className="text-xs text-muted-foreground mb-4">Defina a grade de funcionamento. O robô inteligente de reagendamentos usará essa grade como base.</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries({
+                      monday: 'Segunda-feira',
+                      tuesday: 'Terça-feira',
+                      wednesday: 'Quarta-feira',
+                      thursday: 'Quinta-feira',
+                      friday: 'Sexta-feira',
+                      saturday: 'Sábado',
+                      sunday: 'Domingo'
+                    }).map(([day, label]) => (
+                      <div key={day} className="flex items-center gap-3 bg-muted p-3 rounded-xl border border-border">
+                        <Switch 
+                          checked={schoolHours[day]?.active} 
+                          onCheckedChange={(c) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], active: c}})}
+                        />
+                        <span className="text-xs font-bold w-24">{label}</span>
+                        {schoolHours[day]?.active ? (
+                          <div className="flex items-center gap-2">
+                            <Input 
+                              type="time" 
+                              className="h-8 text-xs px-2"
+                              value={schoolHours[day]?.start || "08:00"}
+                              onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], start: e.target.value}})}
+                            />
+                            <span className="text-xs text-muted-foreground">às</span>
+                            <Input 
+                              type="time" 
+                              className="h-8 text-xs px-2"
+                              value={schoolHours[day]?.end || "18:00"}
+                              onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], end: e.target.value}})}
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Fechado</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 

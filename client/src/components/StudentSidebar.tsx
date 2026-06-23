@@ -39,7 +39,6 @@ const mainNavItems: NavItem[] = [
   { label: "Exercícios", href: "/aluno/exercicios", icon: ClipboardCheck },
   { label: "Plano Diário", href: "/aluno/progresso", icon: Target },
   { label: "Financeiro", href: "/aluno/pagamentos", icon: DollarSign },
-  { label: "Mensagens", href: "/aluno/mensagens", icon: MessageSquare },
   { label: "Meu Perfil", href: "/aluno/perfil", icon: User },
 ];
 
@@ -78,7 +77,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
     if (item.href === "/aluno/materiais" && perms.canSeeFiles === false) return false;
     if (item.href === "/aluno/exercicios" && perms.canSeeProgress === false) return false;
     if (item.href === "/aluno/progresso" && perms.canSeeProgress === false) return false;
-    if (item.href === "/aluno/mensagens" && perms.canSeeMessages === false) return false;
+
     return true;
   });
 
@@ -170,11 +169,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
                   {!collapsed && (
                     <div className="flex-1 flex items-center justify-between min-w-0">
                       <span className="truncate tracking-tight animate-in fade-in duration-500">{item.label}</span>
-                      {item.href === "/aluno/mensagens" && messageCount > 0 && (
-                        <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg shadow-rose-500/20">
-                          {messageCount}
-                        </span>
-                      )}
+                      {item.href === "/aluno/mensagens" && messageCount > 0 && null}
                     </div>
                   )}
                   

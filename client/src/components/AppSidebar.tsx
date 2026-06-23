@@ -46,7 +46,7 @@ const staticNavItems = [
   { label: "Relatórios", href: "/relatorios", icon: BarChart3 },
   { label: "Lembretes", href: "/lembretes", icon: Bell },
   { label: "Comunicados", href: "/comunicados", icon: Megaphone },
-  { label: "Mensagens", href: "/mensagens", icon: MessageSquare },
+  { label: "Finanças", href: "/financeiro", icon: DollarSign },
   { label: "Automações", href: "/automacoes", icon: Zap },
   { label: "Solicitações", href: "/solicitacoes", icon: Inbox },
   { label: "IA Assistente", href: "/ia", icon: Sparkles },
@@ -90,7 +90,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     })
     .map(item => {
       if (item.href === "/lembretes") return { ...item, badge: reminderCount > 0 ? reminderCount : undefined };
-      if (item.href === "/mensagens") return { ...item, badge: messageCount > 0 ? messageCount : undefined };
+      if (item.href === "/financeiro") return { ...item, badge: undefined };
       if (item.href === "/solicitacoes") return { ...item, badge: requestCount > 0 ? requestCount : undefined };
       return item;
     });

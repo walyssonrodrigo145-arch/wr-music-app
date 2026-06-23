@@ -290,40 +290,7 @@ export default function StudentDashboard() {
               </Card>
             </motion.div>
 
-            {/* Mensagens */}
-            <motion.div variants={item}>
-              <Card className="border border-border/40 shadow-xl bg-card/40 backdrop-blur-md h-full rounded-[2rem] overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/30 mx-6 px-0">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                      <MessageSquare size={18} />
-                    </div>
-                    <CardTitle className="text-lg font-bold tracking-tight">Chat Direto</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  {dashboard?.messages?.map((msg: any) => (
-                    <Link key={msg.id} href="/aluno/mensagens">
-                      <div className="flex items-center gap-4 p-4 rounded-2xl bg-background/40 hover:bg-primary/5 transition-all cursor-pointer group border border-border/20 hover:border-primary/20">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform shrink-0">
-                           {msg.senderName.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <p className="text-sm font-black text-foreground truncate">Prof. {msg.senderName.split(' ')[0]}</p>
-                            <span className="text-[10px] font-bold text-muted-foreground opacity-60 uppercase">{format(new Date(msg.createdAt), "HH:mm")}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate font-medium">{msg.content}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                  <button onClick={() => navigate('/aluno/mensagens')} className="w-full mt-4 py-4 rounded-2xl border-2 border-dashed border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/5 transition-all">
-                     Nova Mensagem
-                  </button>
-                </CardContent>
-              </Card>
-            </motion.div>
+
           </div>
         </div>
 
