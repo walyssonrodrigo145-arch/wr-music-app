@@ -51,7 +51,7 @@ const staticNavItems = [
   { label: "Solicitações", href: "/solicitacoes", icon: Inbox },
   { label: "IA Assistente", href: "/ia", icon: Sparkles },
   { label: "Progresso", href: "/progresso", icon: Activity },
-  { label: "Financeiro", href: "/financeiro", icon: DollarSign },
+
   { label: "Folha de Pagto", href: "/folha", icon: DollarSign },
   { label: "Recepção QR", href: "/recepcao-qr", icon: LayoutDashboard },
 ];
