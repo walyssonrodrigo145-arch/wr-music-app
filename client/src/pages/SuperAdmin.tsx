@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Loader2, Plus, Edit, Check, X, Tag, ListFilter, Users, Building, ShieldAlert, Save } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -9,9 +10,20 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 export default function SuperAdmin() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons">("dashboard");
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        setLocation('/login');
+      } else if (user.email?.toLowerCase() !== 'walyssonrodrigo145@gmail.com') {
+        setLocation('/dashboard');
+      }
+    }
+  }, [user, loading, setLocation]);
 
   // Escolas State
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
