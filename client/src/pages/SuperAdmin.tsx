@@ -99,6 +99,8 @@ export default function SuperAdmin() {
       features: (formData.get("features") as string).split(";").map(f => f.trim()).filter(Boolean),
       isActive: formData.get("isActive") === "on",
       showOnLanding: formData.get("showOnLanding") === "on",
+      isPopular: formData.get("isPopular") === "on",
+      order: Number(formData.get("order")) || 0,
     });
   };
 
@@ -350,6 +352,14 @@ export default function SuperAdmin() {
                       <Switch name="showOnLanding" id="showOnLanding" defaultChecked={editingPlan ? editingPlan.showOnLanding : true} />
                       <Label htmlFor="showOnLanding">Mostrar na Landing Page</Label>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Switch name="isPopular" id="isPopular" defaultChecked={editingPlan ? editingPlan.isPopular : false} />
+                      <Label htmlFor="isPopular">Destaque "Mais Escolhido"</Label>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="order">Ordem de Exibição (menor = primeiro)</Label>
+                    <Input id="order" name="order" type="number" defaultValue={editingPlan?.order || 0} required />
                   </div>
                   <button type="submit" disabled={savePlan.isPending} className="w-full bg-primary text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
                     {savePlan.isPending ? <Loader2 className="animate-spin" /> : <Save size={18} />} Salvar Plano
@@ -370,10 +380,11 @@ export default function SuperAdmin() {
                   <p className="text-2xl font-black">R$ {Number(p.priceMonthly).toFixed(2)}<span className="text-xs text-muted-foreground font-medium">/mês</span></p>
                   <p className="text-sm text-muted-foreground mt-1">Limite: {p.maxStudents} alunos</p>
                   <div className="mt-4 pt-4 border-t border-border flex justify-between">
-                    <span className="text-xs flex items-center gap-1 font-medium">
-                      {p.showOnLanding ? <Check size={14} className="text-green-500"/> : <X size={14} className="text-red-500"/>} Landing Page
+                    <span className="text-xs flex flex-col gap-1 font-medium">
+                      <div className="flex items-center gap-1">{p.showOnLanding ? <Check size={14} className="text-green-500"/> : <X size={14} className="text-red-500"/>} Landing Page</div>
+                      {p.isPopular && <div className="flex items-center gap-1 text-primary"><Check size={14}/> Mais Escolhido</div>}
                     </span>
-                    <button onClick={() => { setEditingPlan(p); setIsPlanModalOpen(true); }} className="text-primary hover:underline text-xs font-bold">Editar</button>
+                    <button onClick={() => { setEditingPlan(p); setIsPlanModalOpen(true); }} className="text-primary hover:underline text-xs font-bold">Editar (Ordem: {p.order})</button>
                   </div>
                 </div>
               ))}

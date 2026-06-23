@@ -477,10 +477,10 @@ const LandingPage = () => {
     } catch { return []; }
   };
 
-  const plans = dbPlans?.filter(p => p.showOnLanding).map((p, index) => {
+  const plans = dbPlans?.filter(p => p.showOnLanding).sort((a, b) => (a.order || 0) - (b.order || 0)).map((p) => {
     const priceStr = Number(p.priceMonthly).toFixed(2);
     const [price, cents] = priceStr.split('.');
-    const isHighlight = index === 1;
+    const isHighlight = p.isPopular;
     
     return {
       id: p.id,

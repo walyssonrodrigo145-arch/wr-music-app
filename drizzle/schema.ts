@@ -613,6 +613,8 @@ export const systemPlans = pgTable("system_plans", {
   features: text("features").default("[]").notNull(), // JSON array
   isActive: boolean("is_active").default(true).notNull(),
   showOnLanding: boolean("show_on_landing").default(true).notNull(),
+  isPopular: boolean("is_popular").default(false).notNull(),
+  order: integer("order").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

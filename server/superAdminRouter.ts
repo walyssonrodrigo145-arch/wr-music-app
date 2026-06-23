@@ -95,6 +95,8 @@ export const superAdminRouter = router({
       features: z.array(z.string()),
       isActive: z.boolean(),
       showOnLanding: z.boolean(),
+      isPopular: z.boolean().default(false),
+      order: z.number().default(0),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
@@ -110,6 +112,8 @@ export const superAdminRouter = router({
           features: JSON.stringify(input.features),
           isActive: input.isActive,
           showOnLanding: input.showOnLanding,
+          isPopular: input.isPopular,
+          order: input.order,
         }).where(eq(systemPlans.id, input.id));
       } else {
         await db.insert(systemPlans).values({
@@ -121,6 +125,8 @@ export const superAdminRouter = router({
           features: JSON.stringify(input.features),
           isActive: input.isActive,
           showOnLanding: input.showOnLanding,
+          isPopular: input.isPopular,
+          order: input.order,
         });
       }
       return { success: true };
