@@ -35,6 +35,7 @@ const ProfessorExtract = lazy(() => import("./pages/ProfessorExtract"));
 const RecepcaoQRCode = lazy(() => import("./pages/RecepcaoQRCode"));
 const QRScanner = lazy(() => import("./pages/QRScanner"));
 const Automacoes = lazy(() => import("./pages/Automacoes"));
+const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -157,6 +158,7 @@ function Router() {
           <Route path="/folha" component={ProfessorExtract} />
           <Route path="/recepcao-qr" component={RecepcaoQRCode} />
           <Route path="/scanner" component={QRScanner} />
+          <Route path="/master-panel" component={SuperAdmin} />
           <Route path="/checkout" component={Checkout} />
           <Route>
             <Redirect to="/dashboard" />

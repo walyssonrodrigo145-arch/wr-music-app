@@ -602,3 +602,36 @@ export const messageAutomationRules = pgTable("message_automation_rules", {
 
 export type MessageAutomationRule = typeof messageAutomationRules.$inferSelect;
 export type InsertMessageAutomationRule = typeof messageAutomationRules.$inferInsert;
+
+// ─── SYSTEM PLANS & COUPONS (SUPER ADMIN) ─────────────────────
+export const systemPlans = pgTable("system_plans", {
+  id: varchar("id", { length: 50 }).primaryKey(), // e.g. "10alunos", "basico"
+  name: varchar("name", { length: 100 }).notNull(),
+  priceMonthly: decimal("price_monthly").notNull(),
+  priceYearly: decimal("price_yearly").notNull(),
+  maxStudents: integer("max_students").notNull(),
+  features: text("features").default("[]").notNull(), // JSON array
+  isActive: boolean("is_active").default(true).notNull(),
+  showOnLanding: boolean("show_on_landing").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type SystemPlan = typeof systemPlans.$inferSelect;
+export type InsertSystemPlan = typeof systemPlans.$inferInsert;
+
+export const systemCoupons = pgTable("system_coupons", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  discountType: varchar("discount_type", { length: 20 }).notNull(), // 'PERCENTAGE' | 'FIXED'
+  discountValue: decimal("discount_value").notNull(),
+  durationMonths: integer("duration_months"), // null = vitalicio
+  maxUses: integer("max_uses"),
+  currentUses: integer("current_uses").default(0).notNull(),
+  validUntil: timestamp("valid_until"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SystemCoupon = typeof systemCoupons.$inferSelect;
+export type InsertSystemCoupon = typeof systemCoupons.$inferInsert;

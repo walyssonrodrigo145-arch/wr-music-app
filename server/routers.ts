@@ -34,8 +34,40 @@ import { sdk } from "./_core/sdk";
 import { sendVerificationEmail } from "./_core/email";
 import { ENV } from "./_core/env";
 import { storagePut } from "./storage";
+import { superAdminRouter } from "./superAdminRouter";
 
 export const appRouter = router({
+  superAdmin: superAdminRouter,
+  publicData: router({
+    getPlans: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { systemPlans } = await import("../drizzle/schema");
+      const { asc, eq } = await import("drizzle-orm");
+      return await db.select().from(systemPlans).where(eq(systemPlans.isActive, true)).orderBy(asc(systemPlans.priceMonthly));
+    }),
+    validateCoupon: publicProcedure
+      .input(z.object({ code: z.string() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { systemCoupons } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const [coupon] = await db.select().from(systemCoupons).where(eq(systemCoupons.code, input.code.toUpperCase()));
+        
+        if (!coupon || !coupon.isActive) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Cupom inválido ou expirado." });
+        }
+        if (coupon.maxUses && coupon.currentUses >= coupon.maxUses) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este cupom atingiu o limite máximo de usos." });
+        }
+        if (coupon.validUntil && new Date() > coupon.validUntil) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este cupom já expirou." });
+        }
+        
+        return coupon;
+      })
+  }),
   system: router({
     status: publicProcedure.query(() => ({ status: "ok" })),
     checkSchema: protectedProcedure.query(async ({ ctx }) => {
