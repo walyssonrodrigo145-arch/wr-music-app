@@ -105,9 +105,9 @@ export default function Checkout() {
                 <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-2 text-amber-500">
                   <CreditCard size={24} />
                 </div>
-                <h2 className="text-2xl font-black text-foreground">Pagamento Pendente</h2>
+                <h2 className="text-2xl font-black text-destructive">Acesso Suspenso</h2>
                 <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-                  Você já tem uma assinatura aguardando pagamento. Finalize agora para liberar o seu acesso à plataforma.
+                  Seu prazo de pagamento expirou. <strong className="text-destructive font-black">Efetue o pagamento agora para restaurar seu acesso e evitar a exclusão permanente de todos os seus dados cadastrados!</strong>
                 </p>
                 <div className="py-4">
                   <span className="text-4xl font-black text-foreground">

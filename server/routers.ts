@@ -297,17 +297,20 @@ export const appRouter = router({
           ? (planValues[input.planId] ?? 59.90) * 10  // desconto anual (~2 meses grátis)
           : (planValues[input.planId] ?? 59.90);
 
-        // Criar organização com status PENDING (aguardando pagamento)
+        // Criar organização com status trialing (30 dias grátis)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         
-        // Fatura para hoje
-        const nextDueDateStr = new Date().toISOString().slice(0, 10);
+        // Fatura para daqui a 30 dias
+        const trialDays = 30;
+        const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+        const nextDueDateStr = trialEndsAt.toISOString().slice(0, 10);
 
         const [org] = await db.insert(organizations).values({
           name: `${input.name}`,
           slug: uniqueSlug,
-          subscriptionStatus: "pending",  // Status correto: aguardando pagamento
+          subscriptionStatus: "trialing",
+          trialEndsAt: trialEndsAt,
           planId: input.planId,
           createdAt: new Date(),
         }).returning();

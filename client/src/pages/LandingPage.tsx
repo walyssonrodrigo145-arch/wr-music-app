@@ -385,35 +385,16 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
             {step === 'sucesso' && (
               <motion.div key="sucesso" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-4 space-y-5">
                 <div>
+                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Sparkles size={32} />
+                  </div>
                   <h3 className="text-xl font-black text-gray-900 mb-2">
                     Bem-vindo ao MusicPro{plan === 'premium' && ', Premium'}! 🎉
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    Sua conta foi criada com sucesso!{invoiceUrl ? ' Finalize o pagamento para ativar o acesso.' : ' Seu acesso já foi ativado.'}
+                    Sua conta foi criada com sucesso! Você ganhou <strong className="text-blue-600">30 dias grátis</strong> para testar a plataforma.
                   </p>
                 </div>
-
-                {/* Link de pagamento Asaas — aparece quando disponível */}
-                {invoiceUrl && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CreditCard size={16} className="text-amber-600 shrink-0" />
-                      <span className="font-black text-sm text-amber-800">Pagamento Pendente</span>
-                    </div>
-                    <p className="text-amber-700 text-xs leading-relaxed mb-3">
-                      Clique abaixo para efetuar o pagamento de forma segura. Você pode pagar com cartão, PIX ou boleto.
-                    </p>
-                    <a
-                      href={invoiceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full bg-amber-500 text-white font-black py-3 rounded-xl text-sm hover:bg-amber-600 transition-colors shadow-lg"
-                    >
-                      <CreditCard size={16} />
-                      Efetuar Pagamento Agora
-                    </a>
-                  </div>
-                )}
 
                 {plan === 'premium' && (
                   <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-5 text-white text-left">

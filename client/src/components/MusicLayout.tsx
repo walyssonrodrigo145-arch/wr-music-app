@@ -60,6 +60,12 @@ export function MusicLayout({ children }: MusicLayoutProps) {
 
   if (!isAuthenticated) return null;
 
+  const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const isTrialExpired = trialEndsAt ? trialEndsAt < new Date() : false;
+  const isSubscriptionActive = user?.subscriptionStatus === "active";
+  const isGracePeriod = !isSubscriptionActive && isTrialExpired && trialEndsAt !== null;
+  const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() + 3 * 24 * 60 * 60 * 1000 - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile drawer overlay */}
@@ -94,6 +100,23 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <AppHeader onMobileMenuOpen={() => setMobileOpen(true)} />
+        
+        {isGracePeriod && (
+          <div className="bg-destructive/10 border-b border-destructive/20 p-3 sm:p-4 shrink-0 flex items-start gap-3 justify-center text-center sm:text-left z-30">
+            <div className="bg-destructive/20 p-1.5 rounded-full mt-0.5">
+              <span className="text-destructive font-black text-xs sm:text-sm">⚠️</span>
+            </div>
+            <div>
+              <h3 className="text-destructive font-black text-sm sm:text-base">
+                O seu período de teste grátis acabou!
+              </h3>
+              <p className="text-destructive/80 text-xs sm:text-sm mt-1 font-medium max-w-3xl">
+                Você tem <strong>{daysLeft} dia(s)</strong> para efetuar o pagamento. Caso contrário, o sistema será bloqueado e <strong className="underline">todos os seus dados poderão ser excluídos permanentemente</strong>. <a href="/checkout" className="text-destructive font-bold underline hover:text-red-700 ml-1">Pagar agora &rarr;</a>
+              </p>
+            </div>
+          </div>
+        )}
+
         <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar">
           <div className="max-w-[1600px] mx-auto w-full">
             {children}
