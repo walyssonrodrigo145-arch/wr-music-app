@@ -1074,7 +1074,16 @@ export default function Configuracoes() {
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
                     disabled={updateSchool.isPending}
-                    onClick={() => updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, schoolHours: JSON.stringify(schoolHours) })}
+                    onClick={() => {
+                      for (const [day, conf] of Object.entries(schoolHours)) {
+                         const c = conf as any;
+                         if (c.active && c.start > c.end) {
+                            toast.error(`O horário inicial não pode ser maior que o final.`);
+                            return;
+                         }
+                      }
+                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, schoolHours: JSON.stringify(schoolHours) });
+                    }}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     <span className="text-xs font-black uppercase tracking-widest">Salvar</span>

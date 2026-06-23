@@ -25,6 +25,7 @@ interface RescheduleModalProps {
 export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: RescheduleModalProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const utils = trpc.useContext();
 
   const { data: scheduleData, isLoading: isLoadingSchedule } = trpc.studentPortal.getTeacherSchedule.useQuery(
     { lessonId },
@@ -35,7 +36,7 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
     onSuccess: (data) => {
       toast.success(data.message);
       onOpenChange(false);
-      window.location.reload(); // Refresh the page to show new lesson date
+      utils.studentPortal.getDashboard.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "Erro ao reagendar aula");
@@ -138,9 +139,11 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
                <Bot size={24} />
                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse border-2 border-card"></div>
             </div>
-            <Button variant="outline" size="sm" onClick={handleWhatsApp} className="text-xs font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10 gap-2 rounded-xl">
-              <MessageCircle size={14} /> Falar com Professor
-            </Button>
+            {scheduleData?.teacherPhone && (
+              <Button variant="outline" size="sm" onClick={handleWhatsApp} className="text-xs font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10 gap-2 rounded-xl">
+                <MessageCircle size={14} /> Falar com Professor
+              </Button>
+            )}
           </div>
           <DialogTitle className="text-2xl font-black">Reagendamento Inteligente</DialogTitle>
           <DialogDescription className="font-medium text-muted-foreground/80">
