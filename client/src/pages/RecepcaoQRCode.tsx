@@ -25,7 +25,8 @@ const QR_SIZE = 380;
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function buildQrUrl(token: string): string {
   const payload = encodeURIComponent(token);
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${QR_SIZE}x${QR_SIZE}&data=${payload}&bgcolor=0f172a&color=ffffff&format=svg`;
+  // Using standard black on white for maximum camera readability
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${QR_SIZE}x${QR_SIZE}&data=${payload}&bgcolor=ffffff&color=000000&format=svg`;
 }
 
 function formatTime(seconds: number): string {
