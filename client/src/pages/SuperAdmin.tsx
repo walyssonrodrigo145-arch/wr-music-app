@@ -1,13 +1,25 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Plus, Edit, Check, X, Tag, ListFilter, Users, Building, ShieldAlert } from "lucide-react";
+import { Loader2, Plus, Edit, Check, X, Tag, ListFilter, Users, Building, ShieldAlert, Save } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 export default function SuperAdmin() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<"dashboard" | "plans" | "coupons">("dashboard");
+
+  // Plan State
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<any>(null);
+
+  // Coupon State
+  const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<any>(null);
 
   const { data: stats, isLoading: loadingStats } = trpc.superAdmin.getDashboardStats.useQuery(undefined, {
     enabled: activeTab === "dashboard"
@@ -25,6 +37,7 @@ export default function SuperAdmin() {
     onSuccess: () => {
       toast.success("Plano salvo com sucesso!");
       utils.superAdmin.getPlans.invalidate();
+      setIsPlanModalOpen(false);
     }
   });
 
@@ -32,8 +45,37 @@ export default function SuperAdmin() {
     onSuccess: () => {
       toast.success("Cupom salvo com sucesso!");
       utils.superAdmin.getCoupons.invalidate();
+      setIsCouponModalOpen(false);
     }
   });
+
+  const handleSavePlan = (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    savePlan.mutate({
+      id: formData.get("id") as string || "plano-" + Date.now(),
+      name: formData.get("name") as string,
+      priceMonthly: Number(formData.get("priceMonthly")),
+      priceYearly: Number(formData.get("priceYearly")),
+      maxStudents: Number(formData.get("maxStudents")),
+      features: (formData.get("features") as string).split(";").map(f => f.trim()).filter(Boolean),
+      isActive: formData.get("isActive") === "on",
+      showOnLanding: formData.get("showOnLanding") === "on",
+    });
+  };
+
+  const handleSaveCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    saveCoupon.mutate({
+      code: formData.get("code") as string,
+      discountType: formData.get("discountType") as "PERCENTAGE" | "FIXED",
+      discountValue: Number(formData.get("discountValue")),
+      durationMonths: formData.get("durationMonths") ? Number(formData.get("durationMonths")) : null,
+      maxUses: formData.get("maxUses") ? Number(formData.get("maxUses")) : null,
+      isActive: formData.get("isActive") === "on",
+    });
+  };
 
   if (user?.role !== 'admin' && user?.email !== 'walyssonrodrigo145@gmail.com') {
     return (
@@ -115,9 +157,62 @@ export default function SuperAdmin() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-black">Planos Ativos</h2>
-            <button className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary/90">
-              <Plus size={16} /> Criar Novo Plano
-            </button>
+            <Dialog open={isPlanModalOpen} onOpenChange={setIsPlanModalOpen}>
+              <DialogTrigger asChild>
+                <button 
+                  onClick={() => setEditingPlan(null)}
+                  className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary/90"
+                >
+                  <Plus size={16} /> Criar Novo Plano
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>{editingPlan ? "Editar Plano" : "Criar Novo Plano"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSavePlan} className="space-y-4 pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>ID do Plano (ex: plano_basico)</Label>
+                      <Input name="id" defaultValue={editingPlan?.id} required readOnly={!!editingPlan} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Nome do Plano (ex: Básico)</Label>
+                      <Input name="name" defaultValue={editingPlan?.name} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Preço Mensal (R$)</Label>
+                      <Input name="priceMonthly" type="number" step="0.01" defaultValue={editingPlan?.priceMonthly} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Preço Anual (R$)</Label>
+                      <Input name="priceYearly" type="number" step="0.01" defaultValue={editingPlan?.priceYearly} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Limite de Alunos</Label>
+                      <Input name="maxStudents" type="number" defaultValue={editingPlan?.maxStudents} required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Funcionalidades (separe por ; ponto e vírgula)</Label>
+                    <Input name="features" defaultValue={editingPlan?.features?.join("; ")} required placeholder="App Alunos; Pagamento Asaas; IA Assistente" />
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="flex items-center gap-2">
+                      <Switch name="isActive" id="isActive" defaultChecked={editingPlan ? editingPlan.isActive : true} />
+                      <Label htmlFor="isActive">Plano Ativo</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch name="showOnLanding" id="showOnLanding" defaultChecked={editingPlan ? editingPlan.showOnLanding : true} />
+                      <Label htmlFor="showOnLanding">Mostrar na Landing Page</Label>
+                    </div>
+                  </div>
+                  <button type="submit" disabled={savePlan.isPending} className="w-full bg-primary text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                    {savePlan.isPending ? <Loader2 className="animate-spin" /> : <Save size={18} />} Salvar Plano
+                  </button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
           
           {loadingPlans ? <Loader2 className="animate-spin text-primary mx-auto my-10" /> : (
@@ -134,7 +229,7 @@ export default function SuperAdmin() {
                     <span className="text-xs flex items-center gap-1 font-medium">
                       {p.showOnLanding ? <Check size={14} className="text-green-500"/> : <X size={14} className="text-red-500"/>} Landing Page
                     </span>
-                    <button className="text-primary hover:underline text-xs font-bold">Editar</button>
+                    <button onClick={() => { setEditingPlan(p); setIsPlanModalOpen(true); }} className="text-primary hover:underline text-xs font-bold">Editar</button>
                   </div>
                 </div>
               ))}
@@ -147,9 +242,55 @@ export default function SuperAdmin() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-black">Cupons Ativos</h2>
-            <button className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary/90">
-              <Plus size={16} /> Criar Novo Cupom
-            </button>
+            <Dialog open={isCouponModalOpen} onOpenChange={setIsCouponModalOpen}>
+              <DialogTrigger asChild>
+                <button 
+                  onClick={() => setEditingCoupon(null)}
+                  className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary/90"
+                >
+                  <Plus size={16} /> Criar Novo Cupom
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>{editingCoupon ? "Editar Cupom" : "Criar Novo Cupom"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSaveCoupon} className="space-y-4 pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Código do Cupom (ex: BLACKFRIDAY)</Label>
+                      <Input name="code" defaultValue={editingCoupon?.code} required readOnly={!!editingCoupon} className="uppercase" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de Desconto</Label>
+                      <select name="discountType" defaultValue={editingCoupon?.discountType || "PERCENTAGE"} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                        <option value="PERCENTAGE">Porcentagem (%)</option>
+                        <option value="FIXED">Valor Fixo (R$)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Valor do Desconto</Label>
+                      <Input name="discountValue" type="number" step="0.01" defaultValue={editingCoupon?.discountValue} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Duração (meses, deixe vazio para Vitalício)</Label>
+                      <Input name="durationMonths" type="number" defaultValue={editingCoupon?.durationMonths || ''} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Limite de Usos (deixe vazio para Ilimitado)</Label>
+                      <Input name="maxUses" type="number" defaultValue={editingCoupon?.maxUses || ''} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch name="isActive" id="couponActive" defaultChecked={editingCoupon ? editingCoupon.isActive : true} />
+                    <Label htmlFor="couponActive">Cupom Ativo</Label>
+                  </div>
+                  <button type="submit" disabled={saveCoupon.isPending} className="w-full bg-primary text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                    {saveCoupon.isPending ? <Loader2 className="animate-spin" /> : <Save size={18} />} Salvar Cupom
+                  </button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
           
           {loadingCoupons ? <Loader2 className="animate-spin text-primary mx-auto my-10" /> : (
@@ -182,7 +323,7 @@ export default function SuperAdmin() {
                         {c.isActive ? <span className="text-green-500 font-bold flex items-center gap-1"><Check size={14}/> Ativo</span> : <span className="text-red-500 font-bold flex items-center gap-1"><X size={14}/> Inativo</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button className="text-muted-foreground hover:text-primary transition-colors p-1"><Edit size={16} /></button>
+                        <button onClick={() => { setEditingCoupon(c); setIsCouponModalOpen(true); }} className="text-muted-foreground hover:text-primary transition-colors p-1"><Edit size={16} /></button>
                       </td>
                     </tr>
                   ))}
