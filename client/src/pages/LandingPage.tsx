@@ -39,24 +39,20 @@ export const TRIAL_DAYS = 30;
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 type PlanType = '10alunos' | '20alunos' | '30alunos' | 'basico' | 'profissional' | 'premium';
-type ModalStep = 'conta' | 'endereco' | 'pagamento' | 'sucesso';
+type ModalStep = 'conta' | 'endereco' | 'sucesso';
 
 interface SignupForm {
   nome: string;
   email: string;
   senha: string;
   telefone: string;
+  cpfCnpj: string;
   cep: string;
   rua: string;
   numero: string;
   bairro: string;
   cidade: string;
   estado: string;
-  cpfCnpj: string;
-  cardNumber: string;
-  cardName: string;
-  cardExpiry: string;
-  cardCvv: string;
 }
 
 // ─── MODAL DE CADASTRO ────────────────────────────────────────────────────────
@@ -67,10 +63,8 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
   const [error, setError] = useState<string | null>(null);
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [form, setForm] = useState<SignupForm>({
-    nome: '', email: '', senha: '', telefone: '',
+    nome: '', email: '', senha: '', telefone: '', cpfCnpj: '',
     cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '',
-    cpfCnpj: '',
-    cardNumber: '', cardName: '', cardExpiry: '', cardCvv: '',
   });
 
   const registerMutation = trpc.auth.registerWithPlan.useMutation();
@@ -92,29 +86,22 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
     '30alunos': 'R$ 20,00/mês'
   };
 
-  const steps: ModalStep[] = ['conta', 'endereco', 'pagamento'];
-  const stepLabels = { conta: 'Sua Conta', endereco: 'Endereço', pagamento: 'Pagamento' };
-  const currentStepIdx = steps.indexOf(step);
+  const steps: ModalStep[] = ['conta', 'endereco'];
+  const stepLabels: Record<ModalStep, string> = { conta: 'Sua Conta', endereco: 'Endereço', sucesso: 'Concluído' };
+  const currentStepIdx = steps.indexOf(step as any);
 
   const set = (key: keyof SignupForm, value: string) =>
     setForm(prev => ({ ...prev, [key]: value }));
 
-  const formatCard = (v: string) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-  const formatExpiry = (v: string) => {
-    const digits = v.replace(/\D/g, '').slice(0, 4);
-    return digits.length >= 3 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits;
-  };
   const formatCpfCnpj = (v: string) => {
     const digits = v.replace(/\D/g, '');
     if (digits.length <= 11) {
-      // CPF: 000.000.000-00
       return digits
         .replace(/^(\d{3})(\d)/, '$1.$2')
         .replace(/^(\d{3}\.\d{3})(\d)/, '$1.$2')
         .replace(/^(\d{3}\.\d{3}\.\d{3})(\d)/, '$1-$2')
         .slice(0, 14);
     } else {
-      // CNPJ: 00.000.000/0000-00
       return digits
         .replace(/^(\d{2})(\d)/, '$1.$2')
         .replace(/^(\d{2}\.\d{3})(\d)/, '$1.$2')
@@ -142,27 +129,25 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
   const handleNext = async () => {
     setError(null);
     if (step === 'conta') {
-      if (!form.nome || !form.email || !form.senha || !form.telefone) return setError('Preencha todos os campos da conta.');
+      if (!form.nome || !form.email || !form.senha || !form.telefone || !form.cpfCnpj)
+        return setError('Preencha todos os campos.');
       if (!form.email.includes('@')) return setError('E-mail inválido.');
       if (form.senha.length < 8) return setError('A senha deve ter no mínimo 8 caracteres.');
+      const cpfDigits = form.cpfCnpj.replace(/\D/g, '');
+      if (cpfDigits.length !== 11 && cpfDigits.length !== 14)
+        return setError('CPF deve ter 11 dígitos ou CNPJ 14 dígitos.');
       setStep('endereco');
     }
     else if (step === 'endereco') {
-      if (!form.cep || !form.rua || !form.numero || !form.bairro || !form.cidade || !form.estado) return setError('Preencha todos os campos do endereço.');
-      setStep('pagamento');
-    }
-    else if (step === 'pagamento') {
-      if (!form.cpfCnpj) return setError('Informe seu CPF ou CNPJ.');
-      const cpfCnpjDigits = form.cpfCnpj.replace(/\D/g, '');
-      if (cpfCnpjDigits.length !== 11 && cpfCnpjDigits.length !== 14) return setError('CPF deve ter 11 dígitos ou CNPJ 14 dígitos.');
-      if (!form.cardNumber || !form.cardName || !form.cardExpiry || !form.cardCvv) return setError('Preencha todos os campos do cartão.');
+      if (!form.cep || !form.rua || !form.numero || !form.bairro || !form.cidade || !form.estado)
+        return setError('Preencha todos os campos do endereço.');
+      // Registrar conta e redirecionar para o checkout do Asaas
       setLoading(true);
       try {
-        // Mapear plan string para planId aceito pelo backend
         const validPlanIds = ['basico', 'profissional', 'premium', '30alunos', '20alunos', '10alunos'] as const;
         type ValidPlanId = typeof validPlanIds[number];
         const planId: ValidPlanId = validPlanIds.includes(plan as ValidPlanId) ? (plan as ValidPlanId) : 'profissional';
-        
+
         const result = await registerMutation.mutateAsync({
           name: form.nome,
           email: form.email,
@@ -171,10 +156,15 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
           planId,
           cpfCnpj: form.cpfCnpj.replace(/\D/g, ''),
         });
-        if (result.invoiceUrl) setInvoiceUrl(result.invoiceUrl);
+
+        if (result.invoiceUrl) {
+          // Redirecionar diretamente para o checkout do Asaas
+          window.open(result.invoiceUrl, '_blank');
+          setInvoiceUrl(result.invoiceUrl);
+        }
         setStep('sucesso');
       } catch (err: any) {
-        setError(err.message || "Erro ao configurar faturamento. Tente novamente.");
+        setError(err.message || 'Erro ao configurar faturamento. Tente novamente.');
       } finally {
         setLoading(false);
       }
@@ -312,6 +302,19 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">CPF ou CNPJ</label>
+                  <div className="relative">
+                    <Shield size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text" placeholder="000.000.000-00" maxLength={18}
+                      value={form.cpfCnpj}
+                      onChange={e => set('cpfCnpj', formatCpfCnpj(e.target.value))}
+                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono tracking-wider"
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">Necessário para emissão da cobrança</p>
+                </div>
               </motion.div>
             )}
 
@@ -377,87 +380,6 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
               </motion.div>
             )}
 
-            {/* ── ETAPA 3: PAGAMENTO ── */}
-            {step === 'pagamento' && (
-              <motion.div key="pagamento" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                {/* Info Trial */}
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
-                  <Shield size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-blue-800 text-xs font-bold">Acesso completo e ilimitado</p>
-                    <p className="text-blue-600 text-xs mt-0.5">Seu cartão só será cobrado após o período de trial. Cancele antes e não paga nada.</p>
-                  </div>
-                </div>
-
-                {/* ── CPF / CNPJ ── */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">CPF ou CNPJ</label>
-                  <div className="relative">
-                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="000.000.000-00"
-                      value={form.cpfCnpj}
-                      onChange={e => set('cpfCnpj', formatCpfCnpj(e.target.value))}
-                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono tracking-wider"
-                      maxLength={18}
-                    />
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Obrigatório para emissão da cobrança (Asaas)</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Número do Cartão</label>
-                  <div className="relative">
-                    <CreditCard size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text" placeholder="0000 0000 0000 0000" maxLength={19}
-                      value={form.cardNumber}
-                      onChange={e => set('cardNumber', formatCard(e.target.value))}
-                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono tracking-wider"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Nome no Cartão</label>
-                  <input
-                    type="text" placeholder="Nome igual ao cartão"
-                    value={form.cardName} onChange={e => set('cardName', e.target.value.toUpperCase())}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white uppercase tracking-wider"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Validade</label>
-                    <input
-                      type="text" placeholder="MM/AA" maxLength={5}
-                      value={form.cardExpiry}
-                      onChange={e => set('cardExpiry', formatExpiry(e.target.value))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">CVV</label>
-                    <div className="relative">
-                      <input
-                        type="text" placeholder="000" maxLength={4}
-                        value={form.cardCvv}
-                        onChange={e => set('cardCvv', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Flags */}
-                <div className="flex items-center gap-2 pt-1">
-                  <span className="text-xs text-gray-400">Aceitamos:</span>
-                  {['VISA', 'MC', 'ELO', 'AMEX'].map(b => (
-                    <span key={b} className="px-2 py-0.5 bg-gray-100 rounded text-xs font-bold text-gray-500">{b}</span>
-                  ))}
-                </div>
-              </motion.div>
-            )}
 
             {/* ── SUCESSO ── */}
             {step === 'sucesso' && (
@@ -545,10 +467,10 @@ const SignupModal = ({ plan, onClose }: { plan: PlanType; onClose: () => void })
               >
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : step === 'pagamento' ? (
+                ) : step === 'endereco' ? (
                   <>
-                    <Shield size={16} />
-                    Assinar Agora — {planPrices[plan]}
+                    <CreditCard size={16} />
+                    Efetuar Pagamento — {planPrices[plan]}
                   </>
                 ) : (
                   <>
