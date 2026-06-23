@@ -332,8 +332,8 @@ export const appRouter = router({
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         
-        // Fatura para daqui a 30 dias
-        const trialDays = 30;
+        // Fatura para daqui a 33 dias (30 dias grátis + 3 dias de prazo para pagamento)
+        const trialDays = 33;
         const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
         const nextDueDateStr = trialEndsAt.toISOString().slice(0, 10);
 

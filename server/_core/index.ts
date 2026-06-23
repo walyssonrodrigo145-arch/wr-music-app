@@ -137,6 +137,14 @@ async function startServer() {
         console.log(`[Asaas Webhook] Cobrança removida/estornada (${payment.id})`);
       }
 
+      if (event === "PAYMENT_CREATED") {
+        await db
+          .update(paymentDues)
+          .set({ status: "pendente", updatedAt: new Date() })
+          .where(eq(paymentDues.asaasId, payment.id));
+        console.log(`[Asaas Webhook] Nova cobrança criada/registrada (${payment.id})`);
+      }
+
       return res.status(200).json({ ok: true });
     } catch (err) {
       console.error("[Asaas Webhook] Erro ao processar:", err);
