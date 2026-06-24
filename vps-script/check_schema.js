@@ -3,7 +3,7 @@ const conn = new Client();
 const config = { host: '76.13.228.159', port: 22, username: 'root', password: 'Walysson2003@', readyTimeout: 30000 };
 
 conn.on('ready', () => {
-  conn.exec(`docker exec wr-music-app-db-1 psql -U postgres -d wrmusic -c "SELECT column_name FROM information_schema.columns WHERE table_name='students' AND column_name='methodologyFilename';"`, (err, stream) => {
+  conn.exec(`docker exec wr-music-app-db-1 psql -U postgres -d wrmusic -c "\\d students"`, (err, stream) => {
     if (err) throw err;
     stream.on('data', (data) => process.stdout.write(data.toString()));
     stream.stderr.on('data', (data) => process.stderr.write(data.toString()));

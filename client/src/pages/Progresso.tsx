@@ -1367,8 +1367,10 @@ export default function Progresso() {
                            variant="ghost"
                            size="sm"
                            onClick={() => removeMethodologyMutation.mutate({ studentId: selectedStudentId! })}
-                           className="h-6 px-2 text-[10px] text-red-500 hover:bg-red-50 hover:text-red-600 uppercase tracking-widest"
+                           disabled={removeMethodologyMutation.isPending}
+                           className="h-6 px-2 text-[10px] text-red-500 hover:bg-red-50 hover:text-red-600 uppercase tracking-widest disabled:opacity-50"
                          >
+                           {removeMethodologyMutation.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
                            Remover PDF
                          </Button>
                        )}
