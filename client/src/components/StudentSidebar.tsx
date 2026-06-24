@@ -91,7 +91,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-sidebar/95 backdrop-blur-xl text-sidebar-foreground/70 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] relative border-r border-sidebar-border/50 shadow-[20px_0_40px_-20px_rgba(0,0,0,0.5)] z-20 overflow-hidden",
+        "flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out relative border-r border-sidebar-border z-20 overflow-hidden",
         collapsed ? "w-[90px]" : "w-[280px]",
         "lg:translate-x-0"
       )}
@@ -116,18 +116,18 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
         </div>
       </button>
 
-      {/* Logo Section - Premium Appearance */}
+      {/* Logo Section */}
       <div className={cn(
-        "flex items-center gap-4 px-7 py-10",
+        "flex items-center gap-3 px-6 py-8",
         collapsed && "justify-center px-2"
       )}>
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#7C3AED] via-[#6366F1] to-[#4F46E5] flex items-center justify-center flex-shrink-0 shadow-[0_8px_20px_-4px_rgba(124,58,237,0.5)] group-hover:rotate-6 transition-all duration-500">
-          <Music size={24} className="text-white" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#7C3AED] flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+          <Music size={20} className="text-white" />
         </div>
         {!collapsed && (
-          <div className="animate-in fade-in slide-in-from-left-4 duration-500 delay-100">
-            <p className="text-xl font-black text-white tracking-tight leading-none">MusicPro</p>
-            <p className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.25em] mt-1.5 opacity-80">Premium Portal</p>
+          <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+            <p className="text-base font-black text-white tracking-tight leading-none">MusicPro</p>
+            <p className="text-[10px] text-sidebar-foreground/50 font-bold uppercase tracking-widest mt-1">Premium Portal</p>
           </div>
         )}
       </div>
@@ -150,31 +150,31 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
                 <div
                   onClick={onNavigate}
                   className={cn(
-                    "flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-500 cursor-pointer group relative overflow-hidden",
+                    "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative overflow-hidden",
                     isActive
-                      ? "bg-gradient-to-r from-[#7C3AED] to-[#6366F1] text-white shadow-[0_10px_20px_-5px_rgba(124,58,237,0.5)]"
-                      : "text-sidebar-foreground/60 hover:bg-white/5 hover:text-white",
-                    collapsed && "justify-center px-0 h-14"
+                      ? "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                    collapsed && "justify-center px-0"
                   )}
                   title={collapsed ? item.label : undefined}
-                  style={{ animationDelay: `${idx * 40}ms` }}
+                  style={{ animationDelay: `${idx * 50}ms` }}
                 >
                   <Icon
-                    size={20}
+                    size={18}
                     className={cn(
-                      "flex-shrink-0 transition-all duration-500",
-                      isActive ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "group-hover:scale-110 group-hover:text-white"
+                      "flex-shrink-0 transition-transform duration-300 relative z-10",
+                      isActive ? "scale-110" : "group-hover:scale-110 group-hover:text-indigo-400"
                     )}
                   />
                   {!collapsed && (
-                    <div className="flex-1 flex items-center justify-between min-w-0">
-                      <span className="truncate tracking-tight animate-in fade-in duration-500">{item.label}</span>
+                    <div className="flex-1 flex items-center justify-between min-w-0 z-10 relative">
+                      <span className="truncate tracking-tight">{item.label}</span>
                       {item.href === "/aluno/mensagens" && messageCount > 0 && null}
                     </div>
                   )}
                   
                   {isActive && !collapsed && (
-                    <div className="absolute right-0 top-3 bottom-3 w-1 bg-white rounded-l-full shadow-[0_0_15px_#fff]" />
+                    <div className="absolute left-[-4px] top-1/4 bottom-1/4 w-1 bg-white rounded-full shadow-[0_0_10px_#fff] z-20" />
                   )}
                 </div>
               </Link>
@@ -199,23 +199,23 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
                   <div
                     onClick={onNavigate}
                     className={cn(
-                      "flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-500 cursor-pointer group relative overflow-hidden",
+                      "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative overflow-hidden",
                       isActive
-                        ? "bg-gradient-to-r from-[#7C3AED] to-[#6366F1] text-white shadow-[0_10px_20px_-5px_rgba(124,58,237,0.5)]"
-                        : "text-sidebar-foreground/60 hover:bg-white/5 hover:text-white",
-                      collapsed && "justify-center px-0 h-14"
+                        ? "bg-slate-800 text-white"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                      collapsed && "justify-center px-0"
                     )}
                     title={collapsed ? item.label : undefined}
                   >
                     <Icon
-                      size={20}
+                      size={18}
                       className={cn(
-                        "flex-shrink-0 transition-all duration-500",
-                        isActive ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "group-hover:scale-110"
+                        "flex-shrink-0 transition-transform duration-300 relative z-10",
+                        isActive ? "scale-110" : "group-hover:scale-110 group-hover:text-indigo-400"
                       )}
                     />
                     {!collapsed && (
-                      <span className="truncate tracking-tight animate-in fade-in duration-500">{item.label}</span>
+                      <span className="truncate tracking-tight relative z-10">{item.label}</span>
                     )}
                   </div>
                 </Link>
@@ -225,37 +225,35 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
         </div>
       </nav>
 
-      {/* User Footer - Premium Card Look */}
+      {/* User Footer */}
       <div className={cn(
-        "p-6 mt-auto",
+        "p-4 bg-sidebar-accent/30 border-t border-sidebar-border mt-auto",
         collapsed ? "flex justify-center" : ""
       )}>
         {collapsed ? (
-          <Avatar className="w-12 h-12 cursor-pointer border-2 border-sidebar-border/50 shadow-2xl hover:scale-110 transition-all ring-offset-2 ring-offset-sidebar ring-primary/20" title={user?.name ?? "Perfil"}>
-            <AvatarFallback className="bg-gradient-to-br from-[#7C3AED] to-[#2563EB] text-white text-sm font-black uppercase">
+          <Avatar className="w-10 h-10 cursor-pointer border-2 border-sidebar-border shadow-xl" title={user?.name ?? "Perfil"}>
+            <AvatarFallback className="bg-[#2563EB] text-white text-xs font-black">
               {initials}
             </AvatarFallback>
           </Avatar>
         ) : (
-          <div className="bg-sidebar-accent/20 p-4 rounded-[2rem] border border-sidebar-border/30 group/profile backdrop-blur-md shadow-xl transition-all hover:bg-sidebar-accent/30">
-            <div className="flex items-center gap-3">
-              <Avatar className="w-11 h-11 flex-shrink-0 border-2 border-sidebar-border shadow-lg group-hover/profile:rotate-3 transition-all duration-500">
-                <AvatarFallback className="bg-gradient-to-br from-[#7C3AED] to-[#2563EB] text-white text-sm font-black">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-white truncate tracking-tight">{user?.name ?? "Aluno"}</p>
-                <p className="text-[9px] text-indigo-400 font-black truncate uppercase tracking-[0.1em] mt-0.5">Membro Premium</p>
-              </div>
-              <button
-                className="w-10 h-10 rounded-xl bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-rose-400 hover:bg-rose-500/10 flex items-center justify-center flex-shrink-0 transition-all border border-transparent hover:border-rose-500/20 active:scale-90"
-                onClick={() => logoutMutation.mutate()}
-                title="Sair da conta"
-              >
-                <LogOut size={16} />
-              </button>
+          <div className="flex items-center gap-3 bg-sidebar-accent/50 p-3 rounded-2xl border border-sidebar-border/50 group/profile">
+            <Avatar className="w-9 h-9 flex-shrink-0 border border-sidebar-border shadow-lg group-hover/profile:scale-105 transition-transform">
+              <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-[#7C3AED] text-white text-xs font-black">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-white truncate tracking-tight">{user?.name ?? "Aluno"}</p>
+              <p className="text-[9px] text-sidebar-foreground/40 font-bold truncate uppercase tracking-tighter">Membro Premium</p>
             </div>
+            <button
+              className="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-400/10 flex items-center justify-center flex-shrink-0 transition-all"
+              onClick={() => logoutMutation.mutate()}
+              title="Sair da conta"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
         )}
       </div>
