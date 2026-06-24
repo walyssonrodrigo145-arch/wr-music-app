@@ -40,7 +40,7 @@ export async function callGemini(
         });
       }
       let safeModel = customModel || "llama-3.3-70b-versatile";
-      if (safeModel === "llama3-70b-8192" || safeModel === "llama3-8b-8192") {
+      if (safeModel.includes("8192") || safeModel === "llama3-70b-8192" || safeModel === "llama3-8b-8192") {
         safeModel = safeModel.includes("70b") ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
       }
 
