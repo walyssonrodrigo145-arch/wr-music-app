@@ -1926,7 +1926,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                             )}>
                               {file.category === 'pdf' && <FileText className="w-10 h-10 md:w-14 md:h-14" />}
                               {file.category === 'audio' && <Music className="w-10 h-10 md:w-14 md:h-14" />}
-                              {file.category !== 'pdf' && file.category !== 'audio' && <FileBox className="w-10 h-10 md:w-14 md:h-14" />}
+                              {file.category !== 'pdf' && file.category !== 'audio' && <File className="w-10 h-10 md:w-14 md:h-14" />}
                             </div>
                           </>
                         )}
