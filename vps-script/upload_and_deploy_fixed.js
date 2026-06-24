@@ -23,7 +23,10 @@ const filesToUpload = [
   'client/src/pages/student/Avisos.tsx',
   'client/src/pages/student/Progresso.tsx',
   'client/src/components/RescheduleModal.tsx',
-  'server/utils/gemini.ts'
+  'server/utils/gemini.ts',
+  'client/src/pages/Configuracoes.tsx',
+  'drizzle/schema.ts',
+  'server/_core/migrate.ts'
 ];
 
 conn.on('ready', () => {

@@ -1,7 +1,7 @@
 const { Client } = require('ssh2');
 const conn = new Client();
 conn.on('ready', () => {
-  conn.exec('cd /root/wr-music-app && docker compose exec -T db psql -U postgres -d wrmusic -c "SELECT id, name, \\"geminiApiKey\\" FROM users WHERE role = \'ADMIN\' OR \\"geminiApiKey\\" IS NOT NULL;"', (err, stream) => {
+  conn.exec('cd /root/wr-music-app && docker compose exec -T db psql -U postgres -d wrmusic -c "SELECT \\"userId\\", \\"geminiApiKey\\", \\"asaasApiKey\\" FROM settings WHERE \\"geminiApiKey\\" IS NOT NULL;"', (err, stream) => {
     if (err) throw err;
     stream.on('close', (code, signal) => {
       conn.end();
