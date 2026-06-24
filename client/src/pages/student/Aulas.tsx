@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { RescheduleModal } from "@/components/RescheduleModal";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "wouter";
 
 const container = {
   hidden: { opacity: 0 },
@@ -42,6 +43,7 @@ export default function StudentLessons() {
   const { data: profile } = trpc.studentPortal.getProfile.useQuery();
   const [activeTab, setActiveTab] = useState("proximas");
   const [selectedLesson, setSelectedLesson] = useState<{ id: number, title: string } | null>(null);
+  const [_, setLocation] = useLocation();
 
   if (isLoading) return (
     <div className="flex items-center justify-center min-h-[40vh]">
@@ -145,7 +147,7 @@ export default function StudentLessons() {
           <button className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all shadow-sm">
             <LayoutGrid size={20} />
           </button>
-          <button className="bg-white text-indigo-950 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+          <button onClick={() => setLocation('/aluno/agenda')} className="bg-white text-indigo-950 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
             <CalendarDays size={16} />
             Ver Agenda
           </button>
