@@ -124,6 +124,54 @@ export default function Progresso() {
     onError: (e) => toast.error("Erro ao gerar plano: " + e.message)
   });
 
+  const [isUploadingMethodology, setIsUploadingMethodology] = useState(false);
+  const methodologyFileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadMethodologyMutation = trpc.progress.uploadMethodologyPdf.useMutation({
+    onSuccess: () => {
+      utils.students.list.invalidate();
+      setIsUploadingMethodology(false);
+      toast.success("Metodologia importada com sucesso!");
+    },
+    onError: (e) => {
+      setIsUploadingMethodology(false);
+      toast.error("Erro ao importar metodologia: " + e.message);
+    }
+  });
+
+  const removeMethodologyMutation = trpc.progress.removeMethodology.useMutation({
+    onSuccess: () => {
+      utils.students.list.invalidate();
+      toast.success("Metodologia removida com sucesso!");
+    },
+    onError: (e) => toast.error("Erro ao remover metodologia: " + e.message)
+  });
+
+  const handleMethodologyUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      toast.error("Por favor, selecione um arquivo PDF.");
+      return;
+    }
+    setIsUploadingMethodology(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      uploadMethodologyMutation.mutate({
+        studentId: selectedStudentId!,
+        filename: file.name,
+        pdfBase64: base64
+      });
+    };
+    reader.onerror = () => {
+      setIsUploadingMethodology(false);
+      toast.error("Erro ao ler o arquivo PDF.");
+    };
+    reader.readAsDataURL(file);
+    if (methodologyFileInputRef.current) methodologyFileInputRef.current.value = "";
+  };
+
   const [isStudyPlanModalOpen, setIsStudyPlanModalOpen] = useState(false);
   const [studyPlanContent, setStudyPlanContent] = useState<string | null>(null);
   const [studyPlanId, setStudyPlanId] = useState<number | null>(null);
@@ -1310,6 +1358,50 @@ export default function Progresso() {
                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800">
                      <p className="text-sm font-bold text-indigo-800 dark:text-indigo-200 leading-relaxed">{suggestedTopic}</p>
                    </div>
+                   
+                   <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                     <div className="flex items-center justify-between mb-2">
+                       <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Metodologia Personalizada</h4>
+                       {students.find((s: any) => s.id === selectedStudentId)?.methodologyFilename && (
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => removeMethodologyMutation.mutate({ studentId: selectedStudentId! })}
+                           className="h-6 px-2 text-[10px] text-red-500 hover:bg-red-50 hover:text-red-600 uppercase tracking-widest"
+                         >
+                           Remover PDF
+                         </Button>
+                       )}
+                     </div>
+                     
+                     <div className="flex items-center gap-4">
+                       <input 
+                         type="file" 
+                         accept="application/pdf" 
+                         className="hidden" 
+                         ref={methodologyFileInputRef}
+                         onChange={handleMethodologyUpload}
+                       />
+                       <Button 
+                         variant="outline" 
+                         onClick={() => methodologyFileInputRef.current?.click()}
+                         disabled={isUploadingMethodology}
+                         className="flex-1 bg-white hover:bg-slate-50 text-slate-700 h-10 rounded-xl text-xs"
+                       >
+                         {isUploadingMethodology ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UploadCloud className="w-4 h-4 mr-2" />}
+                         {isUploadingMethodology ? "Enviando..." : "Importar PDF de Metodologia"}
+                       </Button>
+                       
+                       <div className="flex-1 text-xs font-medium text-slate-500 truncate">
+                         {students.find((s: any) => s.id === selectedStudentId)?.methodologyFilename ? (
+                           <span className="flex items-center text-indigo-600 font-bold"><FileText className="w-3 h-3 mr-1" /> {students.find((s: any) => s.id === selectedStudentId)?.methodologyFilename}</span>
+                         ) : (
+                           "Nenhum arquivo. A IA usará seu conhecimento geral."
+                         )}
+                       </div>
+                     </div>
+                   </div>
+
                    <div className="space-y-2">
                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Defina o Assunto Principal para a IA criar o plano</label>
                      <Textarea 

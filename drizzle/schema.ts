@@ -124,6 +124,8 @@ export const students = pgTable("students", {
   startDate: date("startDate"),
   notes: text("notes"),
   permissions: text("permissions"), // JSON string: { canSeeFinanceiro: boolean, etc }
+  methodologyFilename: varchar("methodologyFilename", { length: 255 }),
+  methodologyText: text("methodologyText"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

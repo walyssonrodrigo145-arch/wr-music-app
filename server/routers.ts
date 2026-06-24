@@ -663,6 +663,47 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
       }
     }),
 
+    uploadMethodologyPdf: protectedProcedure.input(z.object({
+      studentId: z.number(),
+      filename: z.string(),
+      pdfBase64: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      
+      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+      if (!student) throw new Error("Aluno não encontrado");
+
+      try {
+        const pdfParse = (await import('pdf-parse')).default;
+        const buffer = Buffer.from(input.pdfBase64.replace(/^data:application\/pdf;base64,/, ""), 'base64');
+        const data = await pdfParse(buffer);
+        
+        await db.update(students).set({
+          methodologyFilename: input.filename,
+          methodologyText: data.text
+        }).where(eq(students.id, student.id));
+
+        return { success: true };
+      } catch (e: any) {
+        throw new Error("Erro ao processar PDF: " + e.message);
+      }
+    }),
+
+    removeMethodology: protectedProcedure.input(z.object({
+      studentId: z.number()
+    })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return;
+      const orgId = ctx.user.organizationId!;
+      await db.update(students).set({
+        methodologyFilename: null,
+        methodologyText: null
+      }).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+      return { success: true };
+    }),
+
     generateNextLessonPlan: protectedProcedure.input(z.object({ studentId: z.number(), topic: z.string().optional() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -678,7 +719,7 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
       const prompt = `Você é um assistente educacional gerando planos de aula para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}). Utilize uma linguagem simples, didática e de fácil compreensão, focada em alunos iniciantes, sem jargões complexos.
-
+${student.methodologyText ? `\nMETODOLOGIA DE ENSINO DO PROFESSOR:\nBaseie seus exercícios rigorosamente nesta metodologia definida para este aluno:\n"""\n${student.methodologyText}\n"""\n` : ''}
 Histórico do Aluno:
 - Últimas ${pastLessons.length} aulas concluídas.
 - Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
@@ -784,6 +825,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         + "- Nome: " + student.name + "\n"
         + "- Nível: " + student.level + "\n"
         + "- Instrumento: " + instrumentName + "\n\n"
+        + (student.methodologyText ? "METODOLOGIA DE ENSINO DO PROFESSOR:\nBaseie seus exercícios diários rigorosamente nesta metodologia:\n\"\"\"\n" + student.methodologyText + "\n\"\"\"\n\n" : "")
         + "HISTÓRICO DE AULAS (mais recentes concluídas):\n"
         + lessonsText + "\n\n"
         + "METAS ATIVAS: " + (goals.map(g => g.title).join(", ") || "Nenhuma") + "\n"
