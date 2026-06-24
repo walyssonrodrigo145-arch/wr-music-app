@@ -748,6 +748,7 @@ export default function Configuracoes() {
 
   // ── IA state ──
   const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState("gemini-1.5-flash");
 
   // Populate from DB
   useEffect(() => {
@@ -787,6 +788,7 @@ export default function Configuracoes() {
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
       setGeminiApiKey(settings.geminiApiKey ?? "");
+      setGeminiModel(settings.geminiModel ?? "gemini-1.5-flash");
     }
   }, [settings]);
 
@@ -909,6 +911,7 @@ export default function Configuracoes() {
   const handleSaveIA = () => {
     updateIAMutation.mutate({
       geminiApiKey,
+      geminiModel,
     });
   };
 
@@ -1482,6 +1485,23 @@ export default function Configuracoes() {
                     placeholder="AIzaSy..."
                     className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
                   />
+                </Field>
+              </div>
+
+              <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                <Field 
+                  label="Modelo da IA (Gemini)"
+                  hint="Escolha qual versão da inteligência artificial você deseja utilizar."
+                >
+                  <select
+                    value={geminiModel}
+                    onChange={(e) => setGeminiModel(e.target.value)}
+                    className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recomendado - Mais Rápido)</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (Mais Inteligente)</option>
+                    <option value="gemini-1.0-pro">Gemini 1.0 Pro (Clássico)</option>
+                  </select>
                 </Field>
               </div>
 

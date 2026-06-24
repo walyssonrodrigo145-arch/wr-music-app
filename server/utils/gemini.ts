@@ -11,10 +11,11 @@ if (!defaultApiKey) {
 export const genAI = new GoogleGenerativeAI(defaultApiKey || "");
 
 export async function callGemini(
-  messages: { role: string; content: string }[], 
-  systemPrompt?: string, 
-  isJson?: boolean,
-  customApiKey?: string | null
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt?: string,
+  isJson: boolean = false,
+  customApiKey?: string | null,
+  customModel?: string | null
 ): Promise<string> {
   const apiKeyToUse = customApiKey || defaultApiKey;
 
@@ -25,7 +26,7 @@ export async function callGemini(
   try {
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse.trim());
     const model = localGenAI.getGenerativeModel({
-      model: "gemini-1.5-pro",
+      model: customModel || "gemini-1.5-pro",
       systemInstruction: systemPrompt,
       generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
     });
@@ -84,7 +85,7 @@ export async function callGeminiWithFiles(
   try {
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse.trim());
     const model = localGenAI.getGenerativeModel({
-      model: "gemini-1.5-pro", 
+      model: customModel || "gemini-1.5-pro", 
       systemInstruction: systemPrompt,
     });
 

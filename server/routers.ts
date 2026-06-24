@@ -654,7 +654,7 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
         const { callGemini } = await import("./utils/gemini");
         const { getSettingsByUserId } = await import("./db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, settingsData?.geminiApiKey);
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, settingsData?.geminiApiKey, settingsData?.geminiModel);
         return { suggestion: responseText.trim() };
       } catch (e: any) {
         throw new Error("Erro ao sugerir tópico com a IA: " + e.message);
@@ -724,7 +724,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const { callGemini } = await import("./utils/gemini");
         const { getSettingsByUserId } = await import("./db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, settingsData?.geminiApiKey);
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, settingsData?.geminiApiKey, settingsData?.geminiModel);
         return { plan: responseText };
       } catch (e: any) {
         throw new Error("Erro ao gerar plano de aula com a IA: " + e.message);
@@ -797,7 +797,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const { callGemini } = await import("./utils/gemini");
         const { getSettingsByUserId } = await import("./db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, true, settingsData?.geminiApiKey);
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, true, settingsData?.geminiApiKey, settingsData?.geminiModel);
 
         // Salva novo plano no banco como rascunho (não inativa os antigos ainda)
         const [inserted] = await db.insert(dailyStudyPlans).values({
@@ -5457,7 +5457,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const [teacher] = await db.select({
           name: users.name,
           pixKey: settings.pixKey,
-          geminiApiKey: settings.geminiApiKey
+          geminiApiKey: settings.geminiApiKey,
+          geminiModel: settings.geminiModel
         })
         .from(users)
         .leftJoin(settings, eq(users.id, settings.userId))
@@ -5663,7 +5664,7 @@ Instruções de análise:
         const settingsData = await getSettingsByUserId(ctx.user.organizationId!, student?.professorId || ctx.user.id);
 
         const { callGemini } = await import("./utils/gemini");
-        const explanation = await callGemini([{ role: "user", content: prompt }], undefined, false, settingsData?.geminiApiKey);
+        const explanation = await callGemini([{ role: "user", content: prompt }], undefined, false, settingsData?.geminiApiKey, settingsData?.geminiModel);
         return { explanation };
       } catch (e: any) {
         throw new Error("Não foi possível gerar a explicação: " + e.message);
@@ -5943,7 +5944,7 @@ Instruções de análise:
         const settingsData = await getSettingsByUserId(orgId, professorId);
 
         // Chama a IA
-        const aiResponseRaw = await callGemini(formattedHistory, systemPrompt, false, settingsData?.geminiApiKey);
+        const aiResponseRaw = await callGemini(formattedHistory, systemPrompt, false, settingsData?.geminiApiKey, settingsData?.geminiModel);
 
         // ── PROCESSAR ACTIONS DE CADASTRO DE ALUNO (Múltiplos permitidos) ────────
         const ACTION_REGEX = /<!--ACTION:CREATE_STUDENT\s+(\{[\s\S]*?\})-->/g;

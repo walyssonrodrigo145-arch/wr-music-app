@@ -78,6 +78,7 @@ export async function runAutoMigrations() {
       { table: 'settings', sql: 'ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "asaasApiKey" text' },
       { table: 'settings', sql: 'ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "asaasEnabled" integer DEFAULT 0 NOT NULL' },
       { table: 'settings', sql: 'ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "geminiApiKey" varchar(255)' },
+      { table: 'settings', sql: 'ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "geminiModel" varchar(255)' },
       { table: 'settings', sql: 'ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "zapsignApiKey" text' },
       { table: 'daily_study_plans', sql: `
         CREATE TABLE IF NOT EXISTS "daily_study_plans" (
