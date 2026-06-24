@@ -7371,6 +7371,9 @@ Instruções de análise:
         telefone: z.string().optional(),
         especialidade: z.string().optional(),
         permissions: z.array(z.string()).default([]),
+        paymentType: z.enum(["fixo", "porcentagem"]).optional().default("fixo"),
+        hourlyRate: z.string().optional(),
+        paymentPercentage: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -7413,6 +7416,9 @@ Instruções de análise:
           telefone: input.telefone,
           especialidade: input.especialidade,
           permissions: input.permissions,
+          paymentType: input.paymentType,
+          hourlyRate: input.hourlyRate,
+          paymentPercentage: input.paymentPercentage,
           createdAt: new Date(),
         }).returning();
 
@@ -7427,6 +7433,9 @@ Instruções de análise:
         especialidade: z.string().optional(),
         permissions: z.array(z.string()).optional(),
         password: z.string().optional(),
+        paymentType: z.enum(["fixo", "porcentagem"]).optional(),
+        hourlyRate: z.string().optional(),
+        paymentPercentage: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -7444,6 +7453,9 @@ Instruções de análise:
           .set({
             telefone: input.telefone,
             especialidade: input.especialidade,
+            paymentType: input.paymentType,
+            hourlyRate: input.hourlyRate,
+            paymentPercentage: input.paymentPercentage,
             ...(input.permissions ? { permissions: input.permissions } : {})
           })
           .where(eq(professores.id, input.id));

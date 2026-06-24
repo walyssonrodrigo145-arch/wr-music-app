@@ -41,6 +41,9 @@ export function ProfessoresTab() {
   const [telefone, setTelefone] = useState("");
   const [especialidade, setEspecialidade] = useState("");
   const [permissions, setPermissions] = useState<string[]>(["aulas", "progresso"]);
+  const [paymentType, setPaymentType] = useState<"fixo" | "porcentagem">("fixo");
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [paymentPercentage, setPaymentPercentage] = useState("");
 
   const utils = trpc.useUtils();
   const { data: professores, isLoading } = trpc.professores.list.useQuery();
@@ -80,6 +83,9 @@ export function ProfessoresTab() {
     setTelefone("");
     setEspecialidade("");
     setPermissions(["aulas", "progresso"]);
+    setPaymentType("fixo");
+    setHourlyRate("");
+    setPaymentPercentage("");
     setEditingId(null);
   };
 
@@ -91,6 +97,9 @@ export function ProfessoresTab() {
     setTelefone(prof.telefone || "");
     setEspecialidade(prof.especialidade || "");
     setPermissions(prof.permissions || []);
+    setPaymentType(prof.paymentType || "fixo");
+    setHourlyRate(prof.hourlyRate || "");
+    setPaymentPercentage(prof.paymentPercentage || "");
     setIsOpen(true);
   };
 
@@ -112,6 +121,9 @@ export function ProfessoresTab() {
         especialidade,
         password: password || undefined,
         permissions,
+        paymentType,
+        hourlyRate,
+        paymentPercentage,
       });
     } else {
       createMutation.mutate({
@@ -121,6 +133,9 @@ export function ProfessoresTab() {
         telefone,
         especialidade,
         permissions,
+        paymentType,
+        hourlyRate,
+        paymentPercentage,
       });
     }
   };
@@ -210,6 +225,56 @@ export function ProfessoresTab() {
                       <span>{perm.label}</span>
                     </label>
                   ))}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-border">
+                <label className="text-xs font-semibold mb-2 block">Acordo Financeiro</label>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input 
+                        type="radio" 
+                        checked={paymentType === "fixo"} 
+                        onChange={() => setPaymentType("fixo")}
+                        className="text-primary focus:ring-primary"
+                      />
+                      Valor Fixo por Aula/Hora
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input 
+                        type="radio" 
+                        checked={paymentType === "porcentagem"} 
+                        onChange={() => setPaymentType("porcentagem")}
+                        className="text-primary focus:ring-primary"
+                      />
+                      Porcentagem (%)
+                    </label>
+                  </div>
+                  
+                  {paymentType === "fixo" ? (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Valor da Hora (R$)</label>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        value={hourlyRate} 
+                        onChange={e => setHourlyRate(e.target.value)} 
+                        placeholder="Ex: 40.00" 
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">Porcentagem de Comissão (%)</label>
+                      <Input 
+                        type="number" 
+                        step="0.1"
+                        value={paymentPercentage} 
+                        onChange={e => setPaymentPercentage(e.target.value)} 
+                        placeholder="Ex: 50" 
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
