@@ -686,7 +686,8 @@ export default function Alunos() {
           <div className="lg:col-span-9 bg-card/40 backdrop-blur-xl md:rounded-[2rem] border-0 md:border border-white/10 shadow-2xl shadow-primary/5 overflow-hidden flex flex-col -mx-4 md:mx-0">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto no-scrollbar pb-2">
-              <table className="w-full text-left min-w-[900px]">
+              <div className="min-w-[1000px]">
+                <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-border">
                     <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Aluno</th>
@@ -751,18 +752,19 @@ export default function Alunos() {
                                     <MoreVertical size={18} />
                                  </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                 <DropdownMenuItem onClick={() => setLocation(`/alunos/${student.id}/editar`)}>
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    <span>Editar Aluno</span>
+                              <DropdownMenuContent align="end" className="w-48 rounded-xl border-white/10 shadow-xl backdrop-blur-xl bg-card/90">
+                                 <DropdownMenuItem onClick={() => setDetailsStudentId(student.id)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
+                                    <Eye size={14} className="text-muted-foreground" /> Ver Detalhes
                                  </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => { setGenerateAccessStudentId(student.id); }}>
-                                   <Activity className="mr-2 h-4 w-4" />
-                                   <span>Gerar Acesso Portal</span>
-                                </DropdownMenuItem>
-                                 <DropdownMenuItem variant="destructive" onClick={() => setDeleteStudent(student)}>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Excluir Aluno</span>
+                                 <DropdownMenuItem onClick={() => setEditData(student)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
+                                    <Edit size={14} className="text-muted-foreground" /> Editar Aluno
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => { setGenerateAccessStudentId(student.id); }} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
+                                   <Activity size={14} className="text-muted-foreground" /> Gerar Acesso
+                                 </DropdownMenuItem>
+                                 <DropdownMenuSeparator className="bg-border/50" />
+                                 <DropdownMenuItem onClick={() => setDeleteStudent(student)} className="text-xs font-bold text-rose-500 uppercase tracking-widest gap-2 cursor-pointer py-2.5 hover:text-rose-600 hover:bg-rose-500/10">
+                                    <Trash2 size={14} /> Excluir Aluno
                                  </DropdownMenuItem>
                               </DropdownMenuContent>
                            </DropdownMenu>
@@ -772,6 +774,7 @@ export default function Alunos() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Mobile Card View */}
