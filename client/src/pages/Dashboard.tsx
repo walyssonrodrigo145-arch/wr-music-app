@@ -25,7 +25,7 @@ function MetricCard({
   title: string; value: string | number; icon: any; color: string; sparkData?: any[]; trend: string 
 }) {
   return (
-    <div className="bg-card rounded-[1.25rem] p-6 border border-border shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 group cursor-default">
+    <div className="bg-card/40 backdrop-blur-xl rounded-[1.25rem] p-6 border border-white/10 shadow-2xl shadow-primary/5 hover:shadow-primary/15 hover:-translate-y-1.5 transition-all duration-500 group cursor-default">
       <div className="flex items-start justify-between mb-4">
         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-6 shadow-sm", color.replace('text-', 'bg-') + '/10')}>
           <Icon size={24} className={color} />
@@ -168,7 +168,7 @@ export default function Dashboard() {
       {/* ── Main Section (Chart + Summary) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Evolution Chart */}
-        <div className="lg:col-span-2 bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+        <div className="lg:col-span-2 bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
              <div>
                 <h3 className="text-base font-black text-foreground tracking-tight">Evolução Mensal</h3>
@@ -224,7 +224,7 @@ export default function Dashboard() {
         </div>
 
         {/* Daily Summary */}
-        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+        <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
            <h3 className="text-base font-black text-foreground tracking-tight">Resumo do dia</h3>
            <div className="space-y-4">
               {todaySummary.map((item, i) => (
@@ -246,7 +246,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
         {/* Upcoming Lessons */}
-        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+        <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Próximas Aulas</h3>
               <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-500/10" onClick={() => navigate('/aulas')}>Ver todas</Button>
@@ -283,14 +283,14 @@ export default function Dashboard() {
         </div>
 
         {/* Overdue Payments */}
-        <div className="bg-card rounded-[2rem] p-8 border border-border shadow-sm space-y-8">
+        <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Inadimplentes</h3>
               <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-500/10" onClick={() => navigate('/mensalidades')}>Ver todas</Button>
            </div>
            <div className="space-y-4">
               {overduePayments?.slice(0, 4).map((payment: any) => (
-                <div key={payment.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-transparent hover:border-border transition-all group">
+                <div key={payment.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-transparent hover:bg-card hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group">
                    <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center font-black text-xs">
                          {(payment.studentName || "A")[0]}
