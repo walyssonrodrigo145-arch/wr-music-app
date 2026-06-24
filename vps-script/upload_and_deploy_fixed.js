@@ -12,6 +12,8 @@ const config = {
 };
 
 const filesToUpload = [
+  'package.json',
+  'pnpm-lock.yaml',
   'server/routers.ts',
   'client/src/pages/ProfessorExtract.tsx',
   'client/src/pages/Progresso.tsx',

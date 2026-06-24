@@ -21,7 +21,40 @@ export async function callGemini(
   const apiKeyToUse = customApiKey || defaultApiKey;
 
   if (!apiKeyToUse) {
-    throw new Error("Chave da API do Gemini não configurada. Por favor, adicione sua chave nas Configurações.");
+    throw new Error("Chave da API não configurada. Por favor, adicione sua chave nas Configurações.");
+  }
+
+  const isGroq = apiKeyToUse.trim().startsWith("gsk_") || (customModel && (customModel.includes("llama") || customModel.includes("mixtral")));
+
+  if (isGroq) {
+    try {
+      const groq = new Groq({ apiKey: apiKeyToUse.trim() });
+      const groqMessages = messages.map(msg => ({
+        role: msg.role === "assistant" || msg.role === "model" ? "assistant" as const : "user" as const,
+        content: msg.content,
+      }));
+      if (systemPrompt) {
+        groqMessages.unshift({
+          role: "system",
+          content: systemPrompt,
+        });
+      }
+      const completion = await groq.chat.completions.create({
+        messages: groqMessages,
+        model: customModel || "llama3-70b-8192",
+        response_format: isJson ? { type: "json_object" } : undefined,
+      });
+      return completion.choices[0]?.message?.content || "";
+    } catch (groqError: any) {
+      console.error("[Groq API Error]:", groqError);
+      if (groqError.status === 401 || groqError.status === 403 || groqError.message?.toLowerCase().includes("api key") || groqError.message?.toLowerCase().includes("unauthorized")) {
+        throw new Error("A chave da API do Groq está incorreta ou é inválida. Verifique a chave informada nas Configurações.");
+      }
+      if (groqError.status === 429 || groqError.message?.toLowerCase().includes("rate limit") || groqError.message?.toLowerCase().includes("limit exceeded")) {
+        throw new Error("Limite de requisições excedido no Groq. Tente novamente em instantes.");
+      }
+      throw new Error(`Erro no Groq: ${groqError.message || "Falha na comunicação"}`);
+    }
   }
 
   try {
@@ -29,17 +62,6 @@ export async function callGemini(
       role: msg.role === "assistant" ? "model" : "user",
       parts: [{ text: msg.content }],
     }));
-
-    // Groq Handler
-    if (customModel && customModel.includes("llama")) {
-      const groq = new Groq({ apiKey: apiKeyToUse.trim() });
-      const completion = await groq.chat.completions.create({
-        messages: formattedMessages as any,
-        model: customModel,
-        response_format: isJson ? { type: "json_object" } : { type: "text" },
-      });
-      return completion.choices[0]?.message?.content || "";
-    }
 
     // Gemini Handler
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse.trim());
