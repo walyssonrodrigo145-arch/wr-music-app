@@ -173,19 +173,25 @@ function ExerciseDetailModal({ exercise, dayFocus, onClose }: ExerciseDetailModa
             </div>
           )}
 
-          {/* Explicação da IA */}
+          {/* Explicação da IA (Chat Bubble Style) */}
           <AnimatePresence>
             {aiExplanation && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-violet-50 border border-violet-100 rounded-2xl p-5"
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="mt-6 flex flex-col gap-2"
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles size={16} className="text-violet-500" />
-                  <p className="text-xs font-bold text-violet-600 uppercase tracking-wider">Explicação do Professor IA</p>
+                <div className="flex items-center gap-3 ml-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-md">
+                    <Sparkles size={14} className="text-white" />
+                  </div>
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Professor IA</p>
                 </div>
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{aiExplanation}</p>
+                <div className="bg-white border border-slate-200/60 shadow-lg shadow-slate-200/20 rounded-[2rem] rounded-tl-sm p-6 relative">
+                  <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-[15px]">
+                    {aiExplanation.replace(/\*\*/g, '').replace(/\*/g, '')}
+                  </p>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

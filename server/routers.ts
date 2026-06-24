@@ -775,23 +775,23 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         ]
       }, null, 2);
 
-      const prompt = "Voce e um professor especialista gerando um PLANO DE ESTUDO DIARIO personalizado.\n\n"
-        + "INFORMACOES DO ALUNO:\n"
+      const prompt = "Você é um professor de música acolhedor, prático e muito didático, gerando um PLANO DE ESTUDO DIÁRIO personalizado.\n\n"
+        + "INFORMAÇÕES DO ALUNO:\n"
         + "- Nome: " + student.name + "\n"
-        + "- Nivel: " + student.level + "\n"
+        + "- Nível: " + student.level + "\n"
         + "- Instrumento: " + instrumentName + "\n\n"
-        + "HISTORICO DE AULAS (mais recentes concluidas):\n"
+        + "HISTÓRICO DE AULAS (mais recentes concluídas):\n"
         + lessonsText + "\n\n"
         + "METAS ATIVAS: " + (goals.map(g => g.title).join(", ") || "Nenhuma") + "\n"
         + "TIMELINE: " + (timelineText || "Nenhum registro") + "\n\n"
-        + "REGRAS OBRIGATORIAS:\n"
-        + "1. O plano DEVE ser 100% especifico para o instrumento: " + instrumentName + ". NAO mencione nenhum outro instrumento.\n"
-        + "2. Todos os exercicios devem ser tecnicos e praticos para quem toca " + instrumentName + ".\n"
-        + "3. Gere exatamente 5 dias de pratica com atividades curtas.\n"
-        + "4. Use linguagem simples, motivadora e didatica.\n\n"
-        + "Retorne APENAS um JSON valido com esta estrutura (sem markdown ao redor):\n\n"
+        + "REGRAS OBRIGATÓRIAS:\n"
+        + "1. O plano DEVE ser 100% específico para o instrumento: " + instrumentName + ". NÃO mencione nenhum outro instrumento.\n"
+        + "2. Todos os exercícios devem ser práticos para quem toca " + instrumentName + ".\n"
+        + "3. Gere exatamente 5 dias de prática com atividades curtas.\n"
+        + "4. Use uma linguagem EXTREMAMENTE SIMPLES, humana, leve e de fácil entendimento. Evite qualquer tipo de jargão musical confuso ou acadêmico. Fale como um professor amigo ensinando do zero.\n\n"
+        + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
         + jsonTemplate + "\n\n"
-        + "Regras para o campo icon: use exatamente uma das opcoes: metronome, guitar, music, pen, star, play.";
+        + "Regras para o campo icon: use exatamente uma das opções: metronome, guitar, music, pen, star, play.";
       
       try {
         const { callGemini } = await import("./utils/gemini");
@@ -5638,19 +5638,22 @@ Instruções de análise:
       instrument: z.string().optional(),
       dayFocus: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
-      const prompt = "Você é um professor de música experiente e didático. "
-        + "Um aluno está pedindo uma explicação mais detalhada sobre um exercício do plano de estudos.\n\n"
+      const prompt = "Você é um professor de música humano, acolhedor e super didático. "
+        + "Seu aluno está pedindo uma explicação sobre um exercício do plano de estudos.\n\n"
         + "EXERCÍCIO: " + input.exerciseTitle + "\n"
         + (input.exerciseSubtitle ? "INSTRUÇÃO: " + input.exerciseSubtitle + "\n" : "")
         + (input.exercisePoints && input.exercisePoints.length > 0 ? "PONTOS DE ATENÇÃO: " + input.exercisePoints.join(", ") + "\n" : "")
         + (input.instrument ? "INSTRUMENTO DO ALUNO: " + input.instrument + "\n" : "")
         + (input.dayFocus ? "FOCO DO DIA: " + input.dayFocus + "\n" : "")
-        + "\nGere uma explicação detalhada e motivadora deste exercício para o aluno. Inclua:\n"
-        + "1. Por que este exercício é importante para o desenvolvimento musical\n"
-        + "2. Como executá-lo passo a passo de forma correta\n"
-        + "3. Dicas práticas e erros comuns a evitar\n"
-        + "4. Como saber se está fazendo certo\n"
-        + "Responda de forma clara, simples e encorajadora. Máximo de 300 palavras.";
+        + "\nGere uma explicação motivadora deste exercício. Inclua de forma muito breve e suave:\n"
+        + "1. Por que esse exercício ajuda na vida real da música.\n"
+        + "2. Como executá-lo passo a passo de forma simples.\n"
+        + "3. Um erro comum a evitar.\n\n"
+        + "REGRAS DE COMUNICAÇÃO (MUITO IMPORTANTE):\n"
+        + "- Use linguagem de iniciante, extremamente simples e humana. Zero complicação teórica.\n"
+        + "- NÃO UTILIZE MARKDOWN SOB NENHUMA HIPÓTESE. NÃO use asteriscos (**) para negrito nem caracteres especiais para listas. NUNCA use '##'.\n"
+        + "- Separe suas ideias usando APENAS quebras de linha normais (parágrafos limpos) para facilitar a leitura.\n"
+        + "- Seja conciso e direto, como um áudio de WhatsApp do professor. Máximo de 200 palavras.";
 
       try {
         const db = await getDb();
