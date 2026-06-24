@@ -719,7 +719,7 @@ export default function Progresso() {
                       { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500", bg: "bg-amber-500/10" },
                       { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-indigo-500", bg: "bg-indigo-500/10" },
                       { label: "Última", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500", bg: "bg-rose-500/10" },
-                      { label: "Tempo", value: "12h 40m", icon: Clock, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                      { label: "Tempo", value: summary?.totalTimeMinutes ? `${Math.floor(summary.totalTimeMinutes / 60)}h ${summary.totalTimeMinutes % 60}m` : "0h 0m", icon: Clock, color: "text-emerald-500", bg: "bg-emerald-500/10" },
                     ].map((stat, i) => (
                       <div key={i} className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col items-start justify-center min-w-[120px] md:min-w-0 h-[100px] sm:h-[140px] shrink-0 hover:border-indigo-500/30 transition-colors">
                         <div className={cn("w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 sm:mb-4", stat.bg)}>

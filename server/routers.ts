@@ -597,10 +597,13 @@ export const appRouter = router({
         ? (completedLessons.length / (completedLessons.length + missedLessons.length)) * 100 
         : 100;
         
+      const totalTimeMinutes = completedLessons.reduce((acc, lesson) => acc + (lesson.duration || 60), 0);
+        
       return {
         averageGrade: Number(averageGrade.toFixed(1)),
         completedCount: completedLessons.length,
         frequency: Math.round(frequency),
+        totalTimeMinutes,
         lastLesson: completedLessons.length > 0 ? completedLessons.sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())[0].scheduledAt : null
       };
     }),
