@@ -82,8 +82,8 @@ export default function StudentDashboard() {
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div>
-             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter drop-shadow-sm mb-2">Olá, {firstName}!</h1>
-             <p className="text-muted-foreground text-base md:text-lg font-medium max-w-xl">Pronto para dominar seu instrumento hoje? Aqui está o resumo da sua jornada musical.</p>
+             <h1 className="text-3xl md:text-4xl font-black tracking-tighter drop-shadow-sm mb-2 text-foreground">Olá, {firstName}!</h1>
+             <p className="text-muted-foreground text-sm md:text-base font-medium max-w-xl">Pronto para dominar seu instrumento hoje? Aqui está o resumo da sua jornada musical.</p>
           </div>
           <div className="flex flex-wrap md:flex-nowrap items-center gap-4">
              <button onClick={() => navigate('/aluno/scanner')} className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 w-full md:w-auto">
@@ -106,49 +106,46 @@ export default function StudentDashboard() {
       {/* Stats Cards Row - Modern & Refined */}
       <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
         {/* Aulas Realizadas */}
-        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem]">
-          <CardContent className="p-6 flex items-center gap-5">
-            <div className="w-12 h-12 rounded-[1.25rem] bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(147,51,234,0.3)] group-hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] group-hover:scale-105 transition-all">
-              <Calendar className="w-5 h-5" />
+        <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-6 border border-border/10 shadow-xl shadow-primary/5 flex flex-col justify-between group overflow-hidden relative transition-all duration-500 hover:-translate-y-1">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500 opacity-5 group-hover:opacity-10 transition-opacity duration-700 blur-2xl" />
+          <div className="flex justify-between items-start mb-6">
+            <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center bg-background/50 border border-border/50 shadow-inner text-purple-500">
+              <Calendar size={20} strokeWidth={2} />
             </div>
-            <div className="flex-1">
-              <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Aulas Feitas</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">{dashboard?.stats?.lessonsDone || 0}</h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="relative z-10">
+            <h3 className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-2">Aulas Feitas</h3>
+            <p className="text-3xl md:text-4xl font-black tracking-tighter text-foreground leading-none">{dashboard?.stats?.lessonsDone || 0}</p>
+          </div>
+        </div>
 
         {/* Exercícios Pendentes */}
-        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem]">
-          <CardContent className="p-6 flex items-center gap-5">
-            <div className="w-12 h-12 rounded-[1.25rem] bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] group-hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-all">
-              <ClipboardCheck className="w-5 h-5" />
+        <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-6 border border-border/10 shadow-xl shadow-primary/5 flex flex-col justify-between group overflow-hidden relative transition-all duration-500 hover:-translate-y-1">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 opacity-5 group-hover:opacity-10 transition-opacity duration-700 blur-2xl" />
+          <div className="flex justify-between items-start mb-6">
+            <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center bg-background/50 border border-border/50 shadow-inner text-emerald-500">
+              <ClipboardCheck size={20} strokeWidth={2} />
             </div>
-            <div className="flex-1">
-              <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Atividades</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">{dashboard?.stats?.pendingExercises || 0}</h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="relative z-10">
+            <h3 className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-2">Atividades</h3>
+            <p className="text-3xl md:text-4xl font-black tracking-tighter text-foreground leading-none">{dashboard?.stats?.pendingExercises || 0}</p>
+          </div>
+        </div>
 
         {/* Avisos */}
-        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem]">
-          <CardContent className="p-6 flex items-center gap-5">
-            <div className="w-12 h-12 rounded-[1.25rem] bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] group-hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] group-hover:scale-105 transition-all">
-              <Bell className="w-5 h-5" />
+        <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-6 border border-border/10 shadow-xl shadow-primary/5 flex flex-col justify-between group overflow-hidden relative transition-all duration-500 hover:-translate-y-1">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500 opacity-5 group-hover:opacity-10 transition-opacity duration-700 blur-2xl" />
+          <div className="flex justify-between items-start mb-6">
+            <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center bg-background/50 border border-border/50 shadow-inner text-orange-500">
+              <Bell size={20} strokeWidth={2} />
             </div>
-            <div className="flex-1">
-              <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Avisos</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">{dashboard?.stats?.unreadAnnouncements || 0}</h3>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="relative z-10">
+            <h3 className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-2">Avisos</h3>
+            <p className="text-3xl md:text-4xl font-black tracking-tighter text-foreground leading-none">{dashboard?.stats?.unreadAnnouncements || 0}</p>
+          </div>
+        </div>
       </motion.div>
 
       {/* Main Content Grid */}
