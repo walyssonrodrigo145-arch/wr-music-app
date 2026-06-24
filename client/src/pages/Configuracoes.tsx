@@ -751,7 +751,7 @@ export default function Configuracoes() {
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState("gemini-3.1-pro-preview");
   const [groqApiKey, setGroqApiKey] = useState("");
-  const [groqModel, setGroqModel] = useState("llama3-70b-8192");
+  const [groqModel, setGroqModel] = useState("llama-3.3-70b-versatile");
 
   // Populate from DB
   useEffect(() => {
@@ -794,7 +794,7 @@ export default function Configuracoes() {
       setGeminiApiKey(settings.geminiApiKey ?? "");
       setGeminiModel(settings.geminiModel ?? "gemini-3.1-pro-preview");
       setGroqApiKey(settings.groqApiKey ?? "");
-      setGroqModel(settings.groqModel ?? "llama3-70b-8192");
+      setGroqModel(settings.groqModel ?? "llama-3.3-70b-versatile");
     }
   }, [settings]);
 
@@ -1561,8 +1561,8 @@ export default function Configuracoes() {
                         onChange={(e) => setGroqModel(e.target.value)}
                         className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
-                        <option value="llama3-70b-8192">Llama 3 70B (Recomendado)</option>
-                        <option value="llama3-8b-8192">Llama 3 8B (Mais rápido)</option>
+                        <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Recomendado)</option>
+                        <option value="llama-3.1-8b-instant">Llama 3.1 8B (Mais rápido)</option>
                         <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
                       </select>
                     </Field>

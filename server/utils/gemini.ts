@@ -41,7 +41,7 @@ export async function callGemini(
       }
       const completion = await groq.chat.completions.create({
         messages: groqMessages,
-        model: customModel || "llama3-70b-8192",
+        model: customModel || "llama-3.3-70b-versatile",
         response_format: isJson ? { type: "json_object" } : undefined,
       });
       return completion.choices[0]?.message?.content || "";
