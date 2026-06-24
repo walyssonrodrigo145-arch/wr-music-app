@@ -39,9 +39,14 @@ export async function callGemini(
           content: systemPrompt,
         });
       }
+      let safeModel = customModel || "llama-3.3-70b-versatile";
+      if (safeModel === "llama3-70b-8192" || safeModel === "llama3-8b-8192") {
+        safeModel = safeModel.includes("70b") ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
+      }
+
       const completion = await groq.chat.completions.create({
         messages: groqMessages,
-        model: customModel || "llama-3.3-70b-versatile",
+        model: safeModel,
         response_format: isJson ? { type: "json_object" } : undefined,
       });
       return completion.choices[0]?.message?.content || "";
@@ -109,7 +114,8 @@ export async function callGeminiWithFiles(
   messages: { role: string; content: string }[], 
   files: { uri: string; mimeType: string }[],
   systemPrompt?: string,
-  customApiKey?: string | null
+  customApiKey?: string | null,
+  customModel?: string | null
 ): Promise<string> {
   const apiKeyToUse = customApiKey || defaultApiKey;
 
