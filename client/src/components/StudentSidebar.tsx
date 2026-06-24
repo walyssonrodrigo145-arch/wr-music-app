@@ -42,10 +42,6 @@ const mainNavItems: NavItem[] = [
   { label: "Meu Perfil", href: "/aluno/perfil", icon: User },
 ];
 
-const requestItems: NavItem[] = [
-  { label: "Solicitar Reposição", href: "/aluno/solicitar-reposicao", icon: PlusCircle },
-  { label: "Solicitar Remarcação", href: "/aluno/solicitar-remarcacao", icon: Clock },
-];
 
 interface StudentSidebarProps {
   collapsed: boolean;
@@ -81,12 +77,6 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
     return true;
   });
 
-  const filteredRequestItems = requestItems.filter(item => {
-    if (!profile?.permissions) return true;
-    const perms = profile.permissions as Record<string, boolean>;
-    if ((item.href === "/aluno/solicitar-reposicao" || item.href === "/aluno/solicitar-remarcacao") && perms.canSeeSchedule === false) return false;
-    return true;
-  });
 
   return (
     <aside
@@ -182,47 +172,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
           })}
         </div>
 
-        {/* Requests - More Visual Separation */}
-        <div className="pt-8 pb-4">
-          {!collapsed && (
-            <div className="flex items-center gap-4 px-3 mb-6 animate-in fade-in duration-700">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30">Suporte</p>
-              <div className="h-px flex-1 bg-sidebar-border/20" />
-            </div>
-          )}
-          <div className="space-y-1.5">
-            {filteredRequestItems.map((item, idx) => {
-              const Icon = item.icon;
-              const isActive = location === item.href;
-              return (
-                <Link key={item.href} href={item.href}>
-                  <div
-                    onClick={onNavigate}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative overflow-hidden",
-                      isActive
-                        ? "bg-slate-800 text-white"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                      collapsed && "justify-center px-0"
-                    )}
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <Icon
-                      size={18}
-                      className={cn(
-                        "flex-shrink-0 transition-transform duration-300 relative z-10",
-                        isActive ? "scale-110" : "group-hover:scale-110 group-hover:text-indigo-400"
-                      )}
-                    />
-                    {!collapsed && (
-                      <span className="truncate tracking-tight relative z-10">{item.label}</span>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+
       </nav>
 
       {/* User Footer */}
