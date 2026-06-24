@@ -132,7 +132,7 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-[450px] max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl bg-card/95 backdrop-blur-xl p-5 sm:p-6">
+      <DialogContent className="w-[95vw] sm:max-w-[550px] max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl bg-card/95 backdrop-blur-xl p-5 sm:p-8">
         <DialogHeader>
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4 relative">
@@ -164,19 +164,19 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
                 <Calendar size={14} className="text-primary" />
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Escolha a Nova Data</Label>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-2 snap-x scrollbar-hide">
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 sm:gap-3">
                 {availableDays.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic p-2">Nenhum dia disponível configurado.</p>
+                  <p className="text-sm text-muted-foreground italic p-2 col-span-full">Nenhum dia disponível configurado.</p>
                 ) : (
                   availableDays.map(day => (
                     <button
                       key={day.toISOString()}
                       type="button"
                       onClick={() => { setSelectedDate(day); setSelectedTime(null); }}
-                      className={`shrink-0 snap-start flex flex-col items-center justify-center w-16 h-20 rounded-2xl border transition-all ${selectedDate && isSameDay(selectedDate, day) ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-card border-border hover:border-primary/50 text-foreground'}`}
+                      className={`flex flex-col items-center justify-center w-full py-4 rounded-2xl border transition-all ${selectedDate && isSameDay(selectedDate, day) ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-card border-border hover:border-primary/50 text-foreground hover:scale-105'}`}
                     >
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{format(day, 'EEE', { locale: ptBR })}</span>
-                      <span className="text-xl font-black mt-1">{format(day, 'dd')}</span>
+                      <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest opacity-80">{format(day, 'EEE', { locale: ptBR })}</span>
+                      <span className="text-xl sm:text-2xl font-black mt-1">{format(day, 'dd')}</span>
                     </button>
                   ))
                 )}
