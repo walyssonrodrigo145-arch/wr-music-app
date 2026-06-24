@@ -6717,7 +6717,42 @@ Instruções de análise:
           ))
           .orderBy(asc(lessons.scheduledAt));
 
-        return { lessons: profLessons.map(p => ({ ...p.lesson, studentName: p.studentName })) };
+        const [prof] = await db.select().from(professores).where(eq(professores.id, payment.professorId)).limit(1);
+
+        let percentageDetails: Array<{ studentName: string; monthlyFee: number; commission: number }> = [];
+
+        if (prof?.paymentType === "porcentagem") {
+          const uniqueStudentIds = [...new Set(profLessons.map(l => l.lesson.studentId).filter(Boolean))] as number[];
+          if (uniqueStudentIds.length > 0) {
+            const studentList = await db.select({
+              id: students.id,
+              name: students.name,
+              monthlyFee: students.monthlyFee,
+            })
+              .from(students)
+              .where(and(
+                eq(students.organizationId, orgId),
+                inArray(students.id, uniqueStudentIds)
+              ));
+              
+            const percentage = parseFloat(prof.paymentPercentage || "0");
+            percentageDetails = studentList.map(s => {
+              const fee = parseFloat(s.monthlyFee || "0");
+              return {
+                studentName: s.name,
+                monthlyFee: fee,
+                commission: parseFloat(((fee * percentage) / 100).toFixed(2))
+              };
+            });
+          }
+        }
+
+        return { 
+          lessons: profLessons.map(p => ({ ...p.lesson, studentName: p.studentName })),
+          paymentType: prof?.paymentType || "fixo",
+          paymentPercentage: parseFloat(prof?.paymentPercentage || "0"),
+          percentageDetails 
+        };
       }),
 
     updateAdjustments: protectedProcedure

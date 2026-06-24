@@ -340,38 +340,71 @@ export default function ProfessorExtract() {
           <DialogHeader>
             <DialogTitle>Aulas Ministradas</DialogTitle>
           </DialogHeader>
-          <div className="mt-4">
+          <div className="mt-4 space-y-6">
             {detailsLoading ? (
               <div className="py-8 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin" /></div>
-            ) : detailsData?.lessons?.length === 0 ? (
-              <p className="text-center text-zinc-500 py-8">Nenhuma aula encontrada para este período.</p>
             ) : (
-              <div className="overflow-x-auto w-full">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-muted text-muted-foreground uppercase text-xs">
-                    <tr>
-                      <th className="px-4 py-2 rounded-tl-md">Data</th>
-                      <th className="px-4 py-2">Aluno</th>
-                      <th className="px-4 py-2">Título</th>
-                      <th className="px-4 py-2">Duração</th>
-                      <th className="px-4 py-2 rounded-tr-md">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detailsData?.lessons.map((lesson: any) => (
-                      <tr key={lesson.id} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="px-4 py-3">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}</td>
-                        <td className="px-4 py-3 font-medium">{lesson.studentName || "-"}</td>
-                        <td className="px-4 py-3 text-zinc-500">{lesson.title}</td>
-                        <td className="px-4 py-3">{lesson.duration}m</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">{lesson.status}</Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {detailsData?.paymentType === "porcentagem" && detailsData?.percentageDetails && detailsData.percentageDetails.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-primary">Relatório Analítico de Comissões ({detailsData.paymentPercentage}%)</h4>
+                    <div className="overflow-x-auto w-full border rounded-md">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-primary/10 text-primary uppercase text-xs">
+                          <tr>
+                            <th className="px-4 py-2 rounded-tl-md">Aluno Taught</th>
+                            <th className="px-4 py-2">Mensalidade (Base)</th>
+                            <th className="px-4 py-2 rounded-tr-md">Comissão Gerada</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailsData.percentageDetails.map((item: any, idx: number) => (
+                            <tr key={idx} className="border-b last:border-0 hover:bg-muted/50">
+                              <td className="px-4 py-3 font-medium">{item.studentName}</td>
+                              <td className="px-4 py-3 text-zinc-500">R$ {item.monthlyFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="px-4 py-3 font-bold text-green-600">R$ {item.commission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-foreground">Histórico de Aulas Concluídas</h4>
+                  {detailsData?.lessons?.length === 0 ? (
+                    <p className="text-center text-zinc-500 py-8">Nenhuma aula encontrada para este período.</p>
+                  ) : (
+                    <div className="overflow-x-auto w-full border rounded-md">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-muted text-muted-foreground uppercase text-xs">
+                          <tr>
+                            <th className="px-4 py-2 rounded-tl-md">Data</th>
+                            <th className="px-4 py-2">Aluno</th>
+                            <th className="px-4 py-2">Título</th>
+                            <th className="px-4 py-2">Duração</th>
+                            <th className="px-4 py-2 rounded-tr-md">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailsData?.lessons.map((lesson: any) => (
+                            <tr key={lesson.id} className="border-b last:border-0 hover:bg-muted/50">
+                              <td className="px-4 py-3">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}</td>
+                              <td className="px-4 py-3 font-medium">{lesson.studentName || "-"}</td>
+                              <td className="px-4 py-3 text-zinc-500">{lesson.title}</td>
+                              <td className="px-4 py-3">{lesson.duration}m</td>
+                              <td className="px-4 py-3">
+                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">{lesson.status}</Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </DialogContent>
