@@ -686,15 +686,14 @@ export default function Alunos() {
           <div className="lg:col-span-9 bg-card/40 backdrop-blur-xl md:rounded-[2rem] border-0 md:border border-white/10 shadow-2xl shadow-primary/5 overflow-hidden flex flex-col -mx-4 md:mx-0">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto no-scrollbar pb-2">
-              <div className="min-w-[1000px]">
-                <table className="w-full text-left">
+              <table className="w-full text-left table-fixed">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Aluno</th>
-                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Instrumento / Nível</th>
-                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Mensalidade</th>
-                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Status</th>
-                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right whitespace-nowrap w-[100px]">Ações</th>
+                    <th className="w-[32%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Aluno</th>
+                    <th className="w-[25%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Instrumento / Nível</th>
+                    <th className="w-[18%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Mensalidade</th>
+                    <th className="w-[15%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Status</th>
+                    <th className="w-[10%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right whitespace-nowrap">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -774,7 +773,6 @@ export default function Alunos() {
                   )}
                 </tbody>
               </table>
-              </div>
             </div>
 
             {/* Mobile Card View */}
