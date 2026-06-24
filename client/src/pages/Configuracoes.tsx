@@ -748,7 +748,7 @@ export default function Configuracoes() {
 
   // ── IA state ──
   const [geminiApiKey, setGeminiApiKey] = useState("");
-  const [geminiModel, setGeminiModel] = useState("gemini-3.5-flash");
+  const [geminiModel, setGeminiModel] = useState("gemini-3.1-pro-preview");
 
   // Populate from DB
   useEffect(() => {
@@ -788,7 +788,7 @@ export default function Configuracoes() {
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
       setGeminiApiKey(settings.geminiApiKey ?? "");
-      setGeminiModel(settings.geminiModel ?? "gemini-3.5-flash");
+      setGeminiModel(settings.geminiModel ?? "gemini-3.1-pro-preview");
     }
   }, [settings]);
 
@@ -1498,9 +1498,9 @@ export default function Configuracoes() {
                     onChange={(e) => setGeminiModel(e.target.value)}
                     className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (Sua Escolha - Recomendado)</option>
+                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Sua Escolha)</option>
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
                     <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                   </select>
                 </Field>
               </div>
