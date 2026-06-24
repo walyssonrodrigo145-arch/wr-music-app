@@ -626,16 +626,20 @@ export default function Progresso() {
             <div className="flex-1 flex flex-col overflow-hidden">
               
               {/* TOP ACTIONS */}
-              <div className="px-4 sm:px-8 py-4 shrink-0 flex justify-between items-center relative z-10 bg-transparent">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setSelectedStudentId(null)}
-                  className="md:hidden w-10 h-10 rounded-xl bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground"
-                >
-                  <ChevronLeft size={20} />
-                </Button>
-                <div className="flex justify-end gap-4 ml-auto">
+              <div className="px-4 sm:px-8 py-4 shrink-0 flex items-center justify-between relative z-10 bg-transparent">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setSelectedStudentId(null)}
+                    className="md:hidden w-10 h-10 rounded-xl bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground shrink-0"
+                  >
+                    <ChevronLeft size={20} />
+                  </Button>
+                  <h2 className="md:hidden text-lg font-black tracking-tight text-foreground truncate">{selectedStudent?.name}</h2>
+                </div>
+                
+                <div className="flex items-center gap-4 shrink-0 ml-2">
                   <div className="hidden xl:flex flex-col items-end justify-center">
                      <span className="text-[10px] font-bold text-muted-foreground mb-1">Status de Evolução</span>
                      <div className="flex items-center gap-1.5 px-2">
@@ -645,24 +649,24 @@ export default function Progresso() {
                   </div>
                   <Button 
                     onClick={() => { resetForm(); setIsModalOpen(true); }}
-                    className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all border-none flex items-center gap-2"
+                    className="h-10 px-3 sm:px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all border-none flex items-center gap-2"
                   >
                      <Plus size={16} />
-                     <span className="font-medium text-sm">Novo</span>
+                     <span className="font-medium text-sm hidden sm:inline">Novo</span>
                   </Button>
                 </div>
               </div>
 
               {/* STATS AND STUDENT INFO GRID */}
-              <div className="px-4 sm:px-8 pb-6 shrink-0">
+              <div className="px-4 sm:px-8 pb-4 sm:pb-6 shrink-0">
                 <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
                   {/* STUDENT CARD */}
-                  <div className="lg:w-1/3 bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm flex flex-col justify-between min-h-[100px] sm:min-h-[140px]">
+                  <div className="lg:w-1/3 bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm flex flex-col justify-between min-h-[90px] sm:min-h-[140px]">
                     <div className="flex items-center gap-3 sm:gap-4">
                       <div className="relative shrink-0">
-                        <Avatar className="w-10 h-10 sm:w-14 sm:h-14">
+                        <Avatar className="w-12 h-12 sm:w-14 sm:h-14 shadow-md">
                           <AvatarImage src={selectedStudent?.avatar} className="object-cover" />
-                          <AvatarFallback className="bg-indigo-600 text-white text-xl font-bold uppercase">
+                          <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xl font-bold uppercase">
                             {selectedStudent?.name.substring(0, 2)}
                           </AvatarFallback>
                         </Avatar>
@@ -686,19 +690,20 @@ export default function Progresso() {
                         </motion.div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-col items-start gap-0.5 sm:gap-1">
-                          <h2 className="text-xs sm:text-sm font-bold text-foreground leading-tight line-clamp-1 sm:line-clamp-none">{selectedStudent?.name}</h2>
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold uppercase rounded-md tracking-wider">
+                        <div className="flex flex-col items-start gap-1">
+                          <h2 className="hidden md:block text-sm font-bold text-foreground leading-tight truncate w-full">{selectedStudent?.name}</h2>
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase rounded-md tracking-wider">
                             {selectedStudent?.level || "Iniciante"}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="mt-3 sm:mt-4 flex flex-col gap-1.5">
-                      <div className="flex justify-end">
-                        <span className="text-[10px] font-medium text-muted-foreground">{summary?.frequency || 0}% de frequência</span>
+                    <div className="mt-4 flex flex-col gap-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Frequência</span>
+                        <span className="text-[10px] font-black text-indigo-600">{summary?.frequency || 0}%</span>
                       </div>
-                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${summary?.frequency || 0}%` }}
@@ -708,18 +713,20 @@ export default function Progresso() {
                     </div>
                   </div>
 
-                  {/* STATS CARDS */}
-                  <div className="lg:w-2/3 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                  {/* STATS CARDS - Scroll Horizontal on Mobile */}
+                  <div className="lg:w-2/3 flex md:grid overflow-x-auto md:overflow-visible md:grid-cols-4 gap-3 pb-2 md:pb-0 subtle-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
                     {[
-                      { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500" },
-                      { label: "Aulas Concluídas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-indigo-500" },
-                      { label: "Última Aula", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500" },
-                      { label: "Tempo Total", value: "12h 40m", icon: Clock, color: "text-slate-400" },
+                      { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500", bg: "bg-amber-500/10" },
+                      { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-indigo-500", bg: "bg-indigo-500/10" },
+                      { label: "Última", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500", bg: "bg-rose-500/10" },
+                      { label: "Tempo", value: "12h 40m", icon: Clock, color: "text-emerald-500", bg: "bg-emerald-500/10" },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-card p-2 sm:p-4 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center h-[80px] sm:h-[140px]">
-                        <stat.icon className={cn("w-4 h-4 sm:w-6 sm:h-6 mb-1 sm:mb-3", stat.color)} strokeWidth={1.5} />
-                        <p className="text-[9px] sm:text-[11px] font-medium text-muted-foreground mb-0.5 sm:mb-1">{stat.label}</p>
-                        <p className="text-base sm:text-xl font-bold text-foreground leading-none sm:leading-normal">{stat.value}</p>
+                      <div key={i} className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col items-start justify-center min-w-[120px] md:min-w-0 h-[100px] sm:h-[140px] shrink-0 hover:border-indigo-500/30 transition-colors">
+                        <div className={cn("w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-3 sm:mb-4", stat.bg)}>
+                           <stat.icon className={cn("w-4 h-4 sm:w-5 sm:h-5", stat.color)} strokeWidth={2.5} />
+                        </div>
+                        <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-muted-foreground mb-0.5 sm:mb-1 truncate w-full">{stat.label}</p>
+                        <p className="text-xl sm:text-2xl font-black text-foreground leading-none">{stat.value}</p>
                       </div>
                     ))}
                   </div>
@@ -727,14 +734,14 @@ export default function Progresso() {
               </div>
 
                {/* INTERNAL HEADER - TABS */}
-               <div className="shrink-0 border-b border-border">
-                  <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto subtle-scrollbar px-4 sm:px-8 pb-0">
+               <div className="shrink-0 border-b border-border bg-card/30">
+                  <div className="flex items-center gap-2 lg:gap-6 overflow-x-auto subtle-scrollbar px-4 sm:px-8 py-3 md:py-0">
                     {[
-                      { id: "jornada", label: "Jornada Musical", icon: Activity },
-                      { id: "biblioteca", label: "Biblioteca Musical", icon: Folder },
-                      { id: "observacoes", label: "Observações", icon: BookOpen },
+                      { id: "jornada", label: "Jornada", icon: Activity },
+                      { id: "biblioteca", label: "Biblioteca", icon: Folder },
+                      { id: "observacoes", label: "Notas", icon: BookOpen },
                       { id: "metas", label: "Metas", icon: Target },
-                      { id: "desempenho", label: "Desempenho", icon: TrendingUp },
+                      { id: "desempenho", label: "Métricas", icon: TrendingUp },
                     ].map((tab) => {
                       const isActive = activeTab === tab.id;
                       return (
@@ -742,18 +749,16 @@ export default function Progresso() {
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id as any)}
                           className={cn(
-                            "flex items-center gap-2 px-2 py-4 text-xs font-medium transition-all relative whitespace-nowrap shrink-0",
-                            isActive ? "text-indigo-600" : "text-muted-foreground hover:text-slate-600"
+                            "flex items-center gap-2 px-4 py-2.5 md:py-4 text-[11px] md:text-xs font-black uppercase tracking-widest transition-all relative whitespace-nowrap shrink-0 rounded-full md:rounded-none",
+                            isActive 
+                              ? "bg-indigo-600 text-white md:bg-transparent md:text-indigo-600 shadow-md shadow-indigo-500/20 md:shadow-none" 
+                              : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground md:bg-transparent"
                           )}
                         >
-                          <tab.icon size={16} className={cn("transition-colors", isActive ? "text-indigo-600" : "text-muted-foreground")} />
+                          <tab.icon size={14} className={cn("transition-colors", isActive ? "text-white md:text-indigo-600" : "text-muted-foreground")} />
                           {tab.label}
-                          {isActive && (
-                            <motion.div 
-                              layoutId="activeIndicator"
-                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"
-                            />
-                          )}
+                          {/* Desktop active border */}
+                          {isActive && <div className="hidden md:block absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-600 rounded-t-full" />}
                         </button>
                       );
                     })}
