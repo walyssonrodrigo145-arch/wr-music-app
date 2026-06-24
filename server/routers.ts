@@ -2843,8 +2843,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
     updateIA: protectedProcedure.input(z.object({
       geminiApiKey: z.string().optional(),
+      geminiModel: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
-      await upsertSettings(ctx.user.organizationId!, ctx.user.id, { geminiApiKey: input.geminiApiKey });
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, { 
+        geminiApiKey: input.geminiApiKey,
+        geminiModel: input.geminiModel
+      });
       return { success: true };
     }),
 
