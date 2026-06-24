@@ -25,15 +25,18 @@ export async function callGemini(
   try {
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse);
     const model = localGenAI.getGenerativeModel({
-      model: "gemini-1.5-flash-latest",
-      systemInstruction: systemPrompt,
+      model: "gemini-1.0-pro",
       generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
     });
 
-    const formattedMessages = messages.map(msg => ({
+    let formattedMessages = messages.map(msg => ({
       role: msg.role === "assistant" ? "model" : "user",
       parts: [{ text: msg.content }],
     }));
+
+    if (systemPrompt && formattedMessages.length > 0) {
+      formattedMessages[0].parts[0].text = `INSTRUÇÕES DO SISTEMA:\n${systemPrompt}\n\nMENSAGEM DO USUÁRIO:\n${formattedMessages[0].parts[0].text}`;
+    }
 
     const chat = model.startChat({
       history: formattedMessages.slice(0, -1),
@@ -84,14 +87,17 @@ export async function callGeminiWithFiles(
   try {
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse);
     const model = localGenAI.getGenerativeModel({
-      model: "gemini-1.5-flash-latest", // Using Flash which is faster for large context
-      systemInstruction: systemPrompt,
+      model: "gemini-1.0-pro-vision-latest", 
     });
 
-    const formattedMessages = messages.map(msg => ({
+    let formattedMessages = messages.map(msg => ({
       role: msg.role === "assistant" ? "model" : "user",
       parts: [{ text: msg.content }],
     }));
+
+    if (systemPrompt && formattedMessages.length > 0) {
+      formattedMessages[0].parts[0].text = `INSTRUÇÕES DO SISTEMA:\n${systemPrompt}\n\nMENSAGEM DO USUÁRIO:\n${formattedMessages[0].parts[0].text}`;
+    }
     
     // Add files to the last message
     const lastMessage = formattedMessages[formattedMessages.length - 1];
