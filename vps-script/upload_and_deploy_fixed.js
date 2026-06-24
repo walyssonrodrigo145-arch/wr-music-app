@@ -22,7 +22,8 @@ const filesToUpload = [
   'client/src/pages/student/Exercicios.tsx',
   'client/src/pages/student/Avisos.tsx',
   'client/src/pages/student/Progresso.tsx',
-  'client/src/components/RescheduleModal.tsx'
+  'client/src/components/RescheduleModal.tsx',
+  'server/utils/gemini.ts'
 ];
 
 conn.on('ready', () => {
