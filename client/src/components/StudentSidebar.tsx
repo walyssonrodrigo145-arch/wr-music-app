@@ -150,7 +150,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >
                   <Icon
-                    size={18}
+                    size={16}
                     className={cn(
                       "flex-shrink-0 transition-transform duration-300 relative z-10",
                       isActive ? "scale-110" : "group-hover:scale-110 group-hover:text-indigo-400"

@@ -38,7 +38,7 @@ export default function StudentAnnouncements() {
       </div>
 
       <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
         <input 
           type="text" 
           placeholder="Buscar comunicados..." 
@@ -63,7 +63,7 @@ export default function StudentAnnouncements() {
                     "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 shadow-sm",
                     aviso.important ? "bg-primary text-white" : "bg-muted text-muted-foreground"
                   )}>
-                    {aviso.important ? <Megaphone size={24} /> : <Bell size={24} />}
+                    {aviso.important ? <Megaphone size={20} /> : <Bell size={20} />}
                   </div>
                   
                   <div className="flex-1 space-y-2">
@@ -109,7 +109,7 @@ export default function StudentAnnouncements() {
 
         {filteredAnnouncements.length === 0 && (
           <div className="text-center py-20 bg-muted/50 rounded-3xl border-2 border-dashed border-border">
-            <Bell className="mx-auto text-muted-foreground mb-4 opacity-20" size={60} />
+            <Bell className="mx-auto text-muted-foreground mb-4 opacity-20" size={40} />
             <p className="text-muted-foreground font-bold">Nenhum comunicado encontrado.</p>
           </div>
         )}
@@ -118,7 +118,7 @@ export default function StudentAnnouncements() {
       {/* Security Tip */}
       <Card className="border-none shadow-md bg-secondary/30 rounded-2xl overflow-hidden mt-10">
         <CardContent className="p-4 flex items-center gap-3">
-          <Info size={16} className="text-primary" />
+          <Info size={14} className="text-primary" />
           <p className="text-[11px] font-medium text-muted-foreground">
             Dica: Mantenha suas notificações ativadas para não perder avisos importantes do seu professor.
           </p>

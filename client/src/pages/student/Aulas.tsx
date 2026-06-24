@@ -145,10 +145,10 @@ export default function StudentLessons() {
         </div>
         <div className="relative z-10 flex items-center gap-4">
           <button className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center text-foreground hover:bg-muted/80 transition-all shadow-sm">
-            <LayoutGrid size={20} />
+            <LayoutGrid size={16} />
           </button>
           <button onClick={() => setLocation('/aluno/agenda')} className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
-            <CalendarDays size={16} />
+            <CalendarDays size={14} />
             Ver Agenda
           </button>
         </div>
@@ -176,7 +176,7 @@ export default function StudentLessons() {
             ) : (
               <div className="text-center py-24 bg-background/40 backdrop-blur-md rounded-[2.5rem] border border-border/20 shadow-sm">
                 <div className="w-24 h-24 bg-primary/5 border border-primary/10 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
-                  <Calendar className="text-primary/50" size={40} />
+                  <Calendar className="text-primary/30" size={32} />
                 </div>
                 <h3 className="text-2xl font-black text-foreground tracking-tight">Tudo em dia!</h3>
                 <p className="text-muted-foreground font-medium mt-2 max-w-sm mx-auto">Sua rotina está limpa. Você não tem aulas agendadas para os próximos dias.</p>
@@ -193,7 +193,7 @@ export default function StudentLessons() {
             ) : (
               <div className="text-center py-24 bg-background/40 backdrop-blur-md rounded-[2.5rem] border border-border/20 shadow-sm">
                 <div className="w-24 h-24 bg-muted/50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-border/10">
-                  <History className="text-muted-foreground opacity-30" size={40} />
+                  <History className="text-muted-foreground opacity-20" size={32} />
                 </div>
                 <h3 className="text-2xl font-black text-foreground tracking-tight">Nada por aqui</h3>
                 <p className="text-muted-foreground font-medium mt-2">Seu histórico de aulas ainda está vazio e aparecerá aqui assim que você concluir uma sessão.</p>

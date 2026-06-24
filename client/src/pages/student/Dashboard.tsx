@@ -87,12 +87,12 @@ export default function StudentDashboard() {
           </div>
           <div className="flex flex-wrap md:flex-nowrap items-center gap-4">
              <button onClick={() => navigate('/aluno/scanner')} className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 w-full md:w-auto">
-               <QrCode size={20} />
+               <QrCode size={16} />
                <span>Marcar Presença</span>
              </button>
              <div className="flex items-center gap-4 bg-muted/50 backdrop-blur-md px-5 py-3 rounded-2xl border border-border w-full md:w-auto">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-300 flex items-center justify-center text-yellow-950 shadow-[0_0_20px_rgba(234,179,8,0.4)]">
-                  <TrendingUp size={24} />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-300 flex items-center justify-center text-yellow-950 shadow-[0_0_20px_rgba(234,179,8,0.4)]">
+                  <TrendingUp size={18} />
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Nível Atual</p>
@@ -108,8 +108,8 @@ export default function StudentDashboard() {
         {/* Aulas Realizadas */}
         <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
           <CardContent className="p-6 md:p-8 flex items-center gap-5">
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-[1.25rem] md:rounded-[1.5rem] bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(147,51,234,0.3)] group-hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] group-hover:scale-105 transition-all">
-              <Calendar className="w-7 h-7 md:w-8 md:h-8" />
+            <div className="w-12 h-12 rounded-[1rem] bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(147,51,234,0.3)] group-hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] group-hover:scale-105 transition-all">
+              <Calendar className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Aulas Feitas</p>
@@ -123,8 +123,8 @@ export default function StudentDashboard() {
         {/* Exercícios Pendentes */}
         <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
           <CardContent className="p-6 md:p-8 flex items-center gap-5">
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-[1.25rem] md:rounded-[1.5rem] bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] group-hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-all">
-              <ClipboardCheck className="w-7 h-7 md:w-8 md:h-8" />
+            <div className="w-12 h-12 rounded-[1rem] bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] group-hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-all">
+              <ClipboardCheck className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Atividades</p>
@@ -138,8 +138,8 @@ export default function StudentDashboard() {
         {/* Avisos */}
         <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
           <CardContent className="p-6 md:p-8 flex items-center gap-5">
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-[1.25rem] md:rounded-[1.5rem] bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] group-hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] group-hover:scale-105 transition-all">
-              <Bell className="w-7 h-7 md:w-8 md:h-8" />
+            <div className="w-12 h-12 rounded-[1rem] bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] group-hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] group-hover:scale-105 transition-all">
+              <Bell className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Avisos</p>
@@ -165,7 +165,7 @@ export default function StudentDashboard() {
                 <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/10 mx-6 px-0">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
-                      <Bell size={18} />
+                      <Bell size={16} />
                     </div>
                     <CardTitle className="text-base md:text-lg font-black tracking-tight">Mural de Avisos</CardTitle>
                   </div>
@@ -186,7 +186,7 @@ export default function StudentDashboard() {
                   ))}
                   {(!dashboard?.announcements || dashboard.announcements.length === 0) && (
                     <div className="py-12 flex flex-col items-center justify-center text-center opacity-50">
-                      <Bell size={32} className="mb-3" />
+                      <Bell size={24} className="mb-3 opacity-50" />
                       <p className="text-[10px] font-black uppercase tracking-[0.2em]">Sem novidades por aqui</p>
                     </div>
                   )}
@@ -200,7 +200,7 @@ export default function StudentDashboard() {
                 <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/10 mx-6 px-0">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
-                      <BookOpen size={18} />
+                      <BookOpen size={16} />
                     </div>
                     <CardTitle className="text-base md:text-lg font-black tracking-tight">Acervo Musical</CardTitle>
                   </div>
@@ -215,9 +215,9 @@ export default function StudentDashboard() {
                         mat.category === 'video' ? "bg-gradient-to-br from-pink-400 to-pink-600 text-white" : 
                         "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white"
                       )}>
-                        {mat.category === 'pdf' ? <FileText size={20} /> : 
-                         mat.category === 'video' ? <Video size={20} /> : 
-                         <Music size={20} />}
+                        {mat.category === 'pdf' ? <FileText size={16} /> : 
+                         mat.category === 'video' ? <Video size={16} /> : 
+                         <Music size={16} />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">{mat.fileName}</p>
@@ -244,7 +244,7 @@ export default function StudentDashboard() {
                 <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/10 mx-6 px-0">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
-                      <DollarSign size={18} />
+                      <DollarSign size={16} />
                     </div>
                     <CardTitle className="text-base md:text-lg font-black tracking-tight">Assinatura</CardTitle>
                   </div>
@@ -260,7 +260,7 @@ export default function StudentDashboard() {
                         <div key={payment.id} className="flex items-center justify-between p-4 rounded-[1.5rem] bg-background/40 hover:bg-background/80 transition-all shadow-sm group border border-transparent hover:border-primary/20">
                           <div className="flex items-center gap-4">
                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                <DollarSign size={18} />
+                                <DollarSign size={16} />
                              </div>
                              <div>
                                 <p className="text-sm font-black text-foreground">
@@ -340,7 +340,7 @@ export default function StudentDashboard() {
               <CardHeader className="p-8 pb-4 border-b border-border/10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
-                    <ClipboardCheck size={18} />
+                    <ClipboardCheck size={16} />
                   </div>
                   <CardTitle className="text-base md:text-lg font-black tracking-tight">Prática</CardTitle>
                 </div>
@@ -356,7 +356,7 @@ export default function StudentDashboard() {
                     {dashboard?.pendingGoals?.length === 0 ? (
                       <div className="text-center py-10 bg-muted/10 rounded-3xl border border-dashed border-border/50">
                         <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-4">
-                           <CheckCircle2 size={24} />
+                           <CheckCircle2 size={20} />
                         </div>
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] leading-relaxed">Missões Cumpridas!<br/>Você está em dia.</p>
                       </div>
@@ -365,7 +365,7 @@ export default function StudentDashboard() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-gradient-to-br group-hover:from-primary group-hover:to-purple-500 group-hover:text-white transition-all shadow-sm">
-                               <FileText size={18} />
+                               <FileText size={16} />
                             </div>
                             <div>
                               <p className="text-sm font-black text-foreground leading-tight group-hover:text-primary transition-colors">{ex.title}</p>
@@ -392,7 +392,7 @@ export default function StudentDashboard() {
               <CardHeader className="p-8 pb-4 border-b border-border/10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
-                    <LayoutDashboard size={18} />
+                    <LayoutDashboard size={16} />
                   </div>
                   <CardTitle className="text-base md:text-lg font-black tracking-tight">Central Rápida</CardTitle>
                 </div>
@@ -401,7 +401,7 @@ export default function StudentDashboard() {
                 <button onClick={() => navigate('/aluno/solicitar-reposicao')} className="w-full flex items-center justify-between p-4 rounded-2xl bg-background/40 hover:bg-background/80 transition-all group shadow-sm border border-transparent hover:border-primary/20">
                    <div className="flex items-center gap-4">
                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                       <PlusCircle size={20} />
+                       <PlusCircle size={16} />
                      </div>
                      <p className="text-sm font-black text-foreground">Solicitar Reposição</p>
                    </div>
@@ -411,7 +411,7 @@ export default function StudentDashboard() {
                 <button onClick={() => navigate('/aluno/solicitar-remarcacao')} className="w-full flex items-center justify-between p-4 rounded-2xl bg-background/40 hover:bg-background/80 transition-all group shadow-sm border border-transparent hover:border-primary/20">
                    <div className="flex items-center gap-4">
                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                       <Clock size={20} />
+                       <Clock size={16} />
                      </div>
                      <p className="text-sm font-black text-foreground">Agendar Remarcação</p>
                    </div>
@@ -427,7 +427,7 @@ export default function StudentDashboard() {
       <motion.div variants={item} className="pt-6">
         <div className="flex flex-col sm:flex-row items-center gap-6 p-8 rounded-[2.5rem] bg-emerald-500/5 border border-emerald-500/10 shadow-sm">
            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20 shrink-0 shadow-inner">
-             <ShieldCheck size={28} />
+             <ShieldCheck size={24} />
            </div>
            <div className="flex-1 text-center sm:text-left">
              <h4 className="text-sm font-black text-emerald-700 uppercase tracking-widest mb-1">Ambiente Seguro & Criptografado</h4>

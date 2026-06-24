@@ -70,7 +70,7 @@ export default function StudentExercises() {
               "w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner transition-transform group-hover:scale-110 group-hover:rotate-3",
               isCompleted ? "bg-green-100 text-green-600 dark:bg-green-500/10" : "bg-orange-100 text-orange-600 dark:bg-orange-500/10"
             )}>
-              <ClipboardList size={28} />
+              <ClipboardList size={24} />
             </div>
 
             <div className="flex-1 text-center sm:text-left space-y-2 min-w-0">
@@ -101,12 +101,12 @@ export default function StudentExercises() {
                   disabled={completeMutation.isPending}
                   className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary text-white px-2 sm:px-8 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all overflow-hidden disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <Send size={16} className={cn("shrink-0", completeMutation.isPending && "animate-pulse")} />
+                  <Send size={14} className={cn("shrink-0", completeMutation.isPending && "animate-pulse")} />
                   <span className="truncate">{completeMutation.isPending ? "Enviando..." : "Enviar Atividade"}</span>
                 </button>
               )}
               <button className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center">
-                <ChevronRight size={20} />
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
@@ -128,7 +128,7 @@ export default function StudentExercises() {
              <p className="text-sm font-black text-primary">85% Concluído</p>
            </div>
            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
-             <Star size={18} fill="currentColor" />
+             <Star size={16} fill="currentColor" />
            </div>
         </div>
       </div>
@@ -155,7 +155,7 @@ export default function StudentExercises() {
             ) : (
               <div className="text-center py-24 bg-card/30 rounded-[2rem] border-2 border-dashed border-border">
                 <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="text-green-500 opacity-30" size={40} />
+                  <CheckCircle2 className="text-green-500 opacity-30" size={32} />
                 </div>
                 <h3 className="text-xl font-black text-foreground">Tudo pronto!</h3>
                 <p className="text-muted-foreground font-medium mt-2">Você não tem exercícios pendentes no momento.</p>
@@ -169,7 +169,7 @@ export default function StudentExercises() {
             ) : (
               <div className="text-center py-24 bg-card/30 rounded-[2rem] border-2 border-dashed border-border">
                 <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
-                  <ClipboardList className="text-muted-foreground opacity-30" size={40} />
+                  <ClipboardList className="text-muted-foreground opacity-30" size={32} />
                 </div>
                 <h3 className="text-xl font-black text-foreground">Sem histórico</h3>
                 <p className="text-muted-foreground font-medium mt-2">Seus exercícios concluídos aparecerão aqui.</p>
@@ -182,7 +182,7 @@ export default function StudentExercises() {
       <Card className="border-none shadow-md bg-secondary/30 rounded-2xl overflow-hidden">
         <CardContent className="p-4 sm:p-5 flex items-start sm:items-center gap-3 sm:gap-4">
            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-             <Info size={20} />
+             <Info size={16} />
            </div>
            <div className="flex-1 min-w-0">
              <p className="text-[10px] sm:text-xs font-black text-primary uppercase tracking-wider sm:tracking-widest leading-tight">Dica do Professor</p>
