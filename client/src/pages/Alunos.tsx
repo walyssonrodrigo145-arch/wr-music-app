@@ -690,10 +690,10 @@ export default function Alunos() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="w-[32%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Aluno</th>
-                    <th className="w-[25%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Instrumento / Nível</th>
-                    <th className="w-[18%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Mensalidade</th>
-                    <th className="w-[15%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Status</th>
-                    <th className="w-[10%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right whitespace-nowrap">Ações</th>
+                    <th className="w-[24%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Instrumento / Nível</th>
+                    <th className="w-[16%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Mensalidade</th>
+                    <th className="w-[14%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Status</th>
+                    <th className="w-[14%] px-2 lg:px-4 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right whitespace-nowrap">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -744,7 +744,7 @@ export default function Alunos() {
                             onUpdate={(id, s) => updateStatusMutation.mutate({ id, status: s as any })}
                           />
                         </td>
-                        <td className="px-4 lg:px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                        <td className="px-2 lg:px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-muted-foreground">
