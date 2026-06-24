@@ -12,7 +12,7 @@ import {
   Play,
   Eye,
   MoreVertical,
-  FileBox,
+  Archive,
   ExternalLink,
   Info,
   Loader2,
@@ -103,7 +103,7 @@ export default function StudentMaterials() {
   }, [filteredMaterials]);
 
   const categories = [
-    { id: 'todos', label: 'Todos', icon: FileBox },
+    { id: 'todos', label: 'Todos', icon: Archive },
     { id: 'pdf', label: 'Apostilas', icon: FileText },
     { id: 'video', label: 'Vídeos', icon: Video },
     { id: 'audio', label: 'Áudios', icon: Music },
@@ -139,7 +139,7 @@ export default function StudentMaterials() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest border border-primary/20">
-            <FileBox size={12} />
+            <Archive size={12} />
             Biblioteca de Estudos
           </div>
           <h1 className="text-4xl font-black tracking-tight text-foreground">Meus Materiais</h1>
@@ -272,7 +272,7 @@ export default function StudentMaterials() {
         Object.entries(groupedMaterials).map(([folderName, filesInFolder]) => (
           <div key={folderName} className="space-y-4">
             <h2 className="text-xl font-bold flex items-center gap-2 text-primary border-b pb-2">
-              <FileBox size={24} /> {folderName}
+              <Archive size={24} /> {folderName}
             </h2>
             <motion.div 
               variants={container}
@@ -409,7 +409,7 @@ export default function StudentMaterials() {
       {filteredMaterials.length === 0 && (
         <div className="text-center py-32 bg-card/20 rounded-[3rem] border-2 border-dashed border-border/50 col-span-full mt-10">
           <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-            <FileBox className="text-muted-foreground/30" size={48} />
+            <Archive className="text-muted-foreground/30" size={48} />
           </div>
           <h3 className="text-2xl font-bold text-foreground">Nada por aqui ainda</h3>
           <p className="text-muted-foreground font-medium mt-3 max-w-xs mx-auto">Não encontramos materiais com esses filtros. Tente buscar por outros termos.</p>
