@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState } from "react";
-import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, addDays, isSameDay, addWeeks, subWeeks, addMonths, subMonths, addDays as addDaysFns, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,14 +32,31 @@ const item = {
 
 export default function StudentAgenda() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewType, setViewType] = useState<"mes" | "semana" | "dia">("semana");
   const { data: lessons, isLoading } = trpc.studentPortal.getSchedule.useQuery();
 
   const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  const startDate = startOfWeek(currentDate, { weekStartsOn: 0 });
-  const weekDays = [...Array(7)].map((_, i) => addDays(startDate, i));
+  const startDateWeek = startOfWeek(currentDate, { weekStartsOn: 0 });
+  const weekDays = [...Array(7)].map((_, i) => addDaysFns(startDateWeek, i));
 
-  const handlePrevWeek = () => setCurrentDate(subWeeks(currentDate, 1));
-  const handleNextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const startDateMonth = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const endDateMonth = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const monthDays = eachDayOfInterval({ start: startDateMonth, end: endDateMonth });
+
+  const handlePrev = () => {
+    if (viewType === "mes") setCurrentDate(subMonths(currentDate, 1));
+    else if (viewType === "semana") setCurrentDate(subWeeks(currentDate, 1));
+    else setCurrentDate(subDays(currentDate, 1));
+  };
+  
+  const handleNext = () => {
+    if (viewType === "mes") setCurrentDate(addMonths(currentDate, 1));
+    else if (viewType === "semana") setCurrentDate(addWeeks(currentDate, 1));
+    else setCurrentDate(addDaysFns(currentDate, 1));
+  };
+  
   const handleToday = () => setCurrentDate(new Date());
 
   if (isLoading) return (
@@ -57,9 +74,9 @@ export default function StudentAgenda() {
           <p className="text-white/70 font-medium mt-2 max-w-md">Consulte seus horários de aula e eventos musicais em um só lugar.</p>
         </div>
         <div className="relative z-10 flex items-center gap-2 bg-white/10 backdrop-blur-md p-1.5 rounded-2xl border border-white/20 shadow-sm">
-           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 rounded-xl transition-all">Mês</button>
-           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] bg-white text-indigo-900 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all">Semana</button>
-           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 rounded-xl transition-all">Dia</button>
+           <button onClick={() => setViewType("mes")} className={cn("px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all", viewType === "mes" ? "bg-white text-indigo-900 shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "hover:bg-white/10")}>Mês</button>
+           <button onClick={() => setViewType("semana")} className={cn("px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all", viewType === "semana" ? "bg-white text-indigo-900 shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "hover:bg-white/10")}>Semana</button>
+           <button onClick={() => setViewType("dia")} className={cn("px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all", viewType === "dia" ? "bg-white text-indigo-900 shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "hover:bg-white/10")}>Dia</button>
         </div>
       </div>
 
@@ -68,11 +85,11 @@ export default function StudentAgenda() {
           <div className="flex items-center justify-between p-6 border-b border-border/50 bg-card/30">
              <div className="flex items-center gap-6">
                 <div className="flex items-center gap-1">
-                  <button onClick={handlePrevWeek} className="p-2.5 hover:bg-muted rounded-xl transition-all active:scale-95"><ChevronLeft size={18} /></button>
-                  <button onClick={handleNextWeek} className="p-2.5 hover:bg-muted rounded-xl transition-all active:scale-95"><ChevronRight size={18} /></button>
+                  <button onClick={handlePrev} className="p-2.5 hover:bg-muted rounded-xl transition-all active:scale-95"><ChevronLeft size={18} /></button>
+                  <button onClick={handleNext} className="p-2.5 hover:bg-muted rounded-xl transition-all active:scale-95"><ChevronRight size={18} /></button>
                 </div>
                 <h2 className="text-xl font-black tracking-tight first-letter:uppercase">
-                  {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+                  {viewType === "dia" ? format(currentDate, "dd 'de' MMMM yyyy", { locale: ptBR }) : format(currentDate, "MMMM yyyy", { locale: ptBR })}
                 </h2>
              </div>
              <div className="flex items-center gap-3">
@@ -83,21 +100,28 @@ export default function StudentAgenda() {
              </div>
           </div>
 
-          <div className="grid grid-cols-7 border-b border-border/10 bg-background/80 shadow-sm">
-             {days.map(day => (
-               <div key={day} className="py-4 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80">{day}</div>
-             ))}
-          </div>
+          {viewType !== "dia" && (
+            <div className="grid grid-cols-7 border-b border-border/10 bg-background/80 shadow-sm">
+               {days.map(day => (
+                 <div key={day} className="py-4 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80">{day}</div>
+               ))}
+            </div>
+          )}
 
           <motion.div 
             variants={container}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-7 min-h-[600px] bg-background/40"
+            className={cn("grid min-h-[600px] bg-background/40", 
+              viewType === "mes" ? "grid-cols-7" : 
+              viewType === "semana" ? "grid-cols-7" : 
+              "grid-cols-1"
+            )}
           >
-             {weekDays.map((day, dayIdx) => {
+             {(viewType === "mes" ? monthDays : viewType === "semana" ? weekDays : [currentDate]).map((day, dayIdx) => {
                const dayLessons = lessons?.filter(l => isSameDay(new Date(l.scheduledAt), day)) || [];
                const isToday = isSameDay(day, new Date());
+               const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                
                return (
                  <motion.div 
@@ -105,6 +129,8 @@ export default function StudentAgenda() {
                    key={day.toString()} 
                    className={cn(
                      "border-r border-border/10 p-3 space-y-3 last:border-r-0 transition-colors relative group",
+                     viewType === "mes" && !isCurrentMonth ? "opacity-30 grayscale pointer-events-none" : "",
+                     viewType === "mes" ? "min-h-[140px] border-b" : "",
                      isToday ? "bg-primary/[0.03]" : "hover:bg-background/80"
                    )}
                  >
@@ -115,7 +141,7 @@ export default function StudentAgenda() {
                        {format(day, "dd")}
                     </div>
 
-                    <div className="space-y-3">
+                    <div className={cn("space-y-3", viewType === "dia" ? "max-w-2xl mx-auto" : "")}>
                       <AnimatePresence>
                         {dayLessons.map(lesson => (
                           <motion.div 
