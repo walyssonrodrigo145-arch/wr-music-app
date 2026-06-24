@@ -654,7 +654,9 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
         const { callGemini } = await import("./utils/gemini");
         const { getSettingsByUserId } = await import("./db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, settingsData?.geminiApiKey, settingsData?.geminiModel);
+        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
         return { suggestion: responseText.trim() };
       } catch (e: any) {
         throw new Error("Erro ao sugerir tópico com a IA: " + e.message);
@@ -724,7 +726,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const { callGemini } = await import("./utils/gemini");
         const { getSettingsByUserId } = await import("./db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, settingsData?.geminiApiKey, settingsData?.geminiModel);
+        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
         return { plan: responseText };
       } catch (e: any) {
         throw new Error("Erro ao gerar plano de aula com a IA: " + e.message);
@@ -797,7 +801,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const { callGemini } = await import("./utils/gemini");
         const { getSettingsByUserId } = await import("./db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, true, settingsData?.geminiApiKey, settingsData?.geminiModel);
+        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, true, apiKey, model);
 
         // Salva novo plano no banco como rascunho (não inativa os antigos ainda)
         const [inserted] = await db.insert(dailyStudyPlans).values({
@@ -2842,12 +2848,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
     }),
 
     updateIA: protectedProcedure.input(z.object({
+      aiProvider: z.string().optional(),
       geminiApiKey: z.string().optional(),
       geminiModel: z.string().optional(),
+      groqApiKey: z.string().optional(),
+      groqModel: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       await upsertSettings(ctx.user.organizationId!, ctx.user.id, { 
+        aiProvider: input.aiProvider,
         geminiApiKey: input.geminiApiKey,
-        geminiModel: input.geminiModel
+        geminiModel: input.geminiModel,
+        groqApiKey: input.groqApiKey,
+        groqModel: input.groqModel,
       });
       return { success: true };
     }),
@@ -5668,7 +5680,9 @@ Instruções de análise:
         const settingsData = await getSettingsByUserId(ctx.user.organizationId!, student?.professorId || ctx.user.id);
 
         const { callGemini } = await import("./utils/gemini");
-        const explanation = await callGemini([{ role: "user", content: prompt }], undefined, false, settingsData?.geminiApiKey, settingsData?.geminiModel);
+        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const explanation = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
         return { explanation };
       } catch (e: any) {
         throw new Error("Não foi possível gerar a explicação: " + e.message);
@@ -5948,7 +5962,9 @@ Instruções de análise:
         const settingsData = await getSettingsByUserId(orgId, professorId);
 
         // Chama a IA
-        const aiResponseRaw = await callGemini(formattedHistory, systemPrompt, false, settingsData?.geminiApiKey, settingsData?.geminiModel);
+        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const aiResponseRaw = await callGemini(formattedHistory, systemPrompt, false, apiKey, model);
 
         // ── PROCESSAR ACTIONS DE CADASTRO DE ALUNO (Múltiplos permitidos) ────────
         const ACTION_REGEX = /<!--ACTION:CREATE_STUDENT\s+(\{[\s\S]*?\})-->/g;

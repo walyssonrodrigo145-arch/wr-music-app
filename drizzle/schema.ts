@@ -195,9 +195,12 @@ export const settings = pgTable("settings", {
   // Asaas Integration
   asaasApiKey: text("asaasApiKey"),
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
-  // AI Integration (Gemini)
+  // AI Integration
+  aiProvider: varchar("aiProvider", { length: 50 }).default("gemini"),
   geminiApiKey: varchar("geminiApiKey", { length: 255 }),
   geminiModel: varchar("geminiModel", { length: 255 }),
+  groqApiKey: varchar("groqApiKey", { length: 255 }),
+  groqModel: varchar("groqModel", { length: 255 }),
   // School Operating Hours
   schoolHours: text("schoolHours").default('{"monday":{"active":true,"start":"08:00","end":"18:00"},"tuesday":{"active":true,"start":"08:00","end":"18:00"},"wednesday":{"active":true,"start":"08:00","end":"18:00"},"thursday":{"active":true,"start":"08:00","end":"18:00"},"friday":{"active":true,"start":"08:00","end":"18:00"},"saturday":{"active":false,"start":"08:00","end":"12:00"},"sunday":{"active":false,"start":"08:00","end":"12:00"}}').notNull(),
   // ZapSign Integration (Digital Contracts)

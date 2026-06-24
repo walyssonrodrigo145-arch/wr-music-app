@@ -747,8 +747,11 @@ export default function Configuracoes() {
   const [asaasEnabled, setAsaasEnabled] = useState(false);
 
   // ── IA state ──
+  const [aiProvider, setAiProvider] = useState("gemini");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState("gemini-3.1-pro-preview");
+  const [groqApiKey, setGroqApiKey] = useState("");
+  const [groqModel, setGroqModel] = useState("llama3-70b-8192");
 
   // Populate from DB
   useEffect(() => {
@@ -787,8 +790,11 @@ export default function Configuracoes() {
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
+      setAiProvider(settings.aiProvider ?? "gemini");
       setGeminiApiKey(settings.geminiApiKey ?? "");
       setGeminiModel(settings.geminiModel ?? "gemini-3.1-pro-preview");
+      setGroqApiKey(settings.groqApiKey ?? "");
+      setGroqModel(settings.groqModel ?? "llama3-70b-8192");
     }
   }, [settings]);
 
@@ -909,9 +915,11 @@ export default function Configuracoes() {
   };
 
   const handleSaveIA = () => {
-    updateIAMutation.mutate({
+      aiProvider,
       geminiApiKey,
       geminiModel,
+      groqApiKey,
+      groqModel,
     });
   };
 
@@ -1475,35 +1483,91 @@ export default function Configuracoes() {
 
               <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
                 <Field 
-                  label="Chave da API Gemini"
-                  hint="Esta chave é individual e será usada para gerar as respostas da inteligência artificial no seu painel."
-                >
-                  <Input
-                    type="password"
-                    value={geminiApiKey}
-                    onChange={(e) => setGeminiApiKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
-                  />
-                </Field>
-              </div>
-
-              <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
-                <Field 
-                  label="Modelo da IA (Gemini)"
-                  hint="Escolha qual versão da inteligência artificial você deseja utilizar."
+                  label="Provedor de Inteligência Artificial"
+                  hint="Escolha qual motor de IA você deseja utilizar para geração de textos e planos."
                 >
                   <select
-                    value={geminiModel}
-                    onChange={(e) => setGeminiModel(e.target.value)}
+                    value={aiProvider}
+                    onChange={(e) => setAiProvider(e.target.value)}
                     className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Sua Escolha)</option>
-                    <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="groq">Groq (Llama 3)</option>
                   </select>
                 </Field>
               </div>
+
+              {aiProvider === "gemini" && (
+                <>
+                  <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                    <Field 
+                      label="Chave da API Gemini"
+                      hint="Esta chave é individual e será usada para gerar as respostas da inteligência artificial no seu painel."
+                    >
+                      <Input
+                        type="password"
+                        value={geminiApiKey}
+                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                        placeholder="AIzaSy..."
+                        className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                    <Field 
+                      label="Modelo da IA (Gemini)"
+                      hint="Escolha qual versão da inteligência artificial você deseja utilizar."
+                    >
+                      <select
+                        value={geminiModel}
+                        onChange={(e) => setGeminiModel(e.target.value)}
+                        className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Sua Escolha)</option>
+                        <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                      </select>
+                    </Field>
+                  </div>
+                </>
+              )}
+
+              {aiProvider === "groq" && (
+                <>
+                  <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                    <Field 
+                      label="Chave da API Groq"
+                      hint="Crie sua chave em https://console.groq.com/keys para usar modelos ultrarrápidos como Llama 3."
+                    >
+                      <Input
+                        type="password"
+                        value={groqApiKey}
+                        onChange={(e) => setGroqApiKey(e.target.value)}
+                        placeholder="gsk_..."
+                        className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                    <Field 
+                      label="Modelo da IA (Groq)"
+                      hint="Llama 3 70B é recomendado para maior inteligência."
+                    >
+                      <select
+                        value={groqModel}
+                        onChange={(e) => setGroqModel(e.target.value)}
+                        className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option value="llama3-70b-8192">Llama 3 70B (Recomendado)</option>
+                        <option value="llama3-8b-8192">Llama 3 8B (Mais rápido)</option>
+                        <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                      </select>
+                    </Field>
+                  </div>
+                </>
+              )}
 
               <Button
                 onClick={handleSaveIA}

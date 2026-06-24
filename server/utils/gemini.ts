@@ -9,6 +9,7 @@ if (!defaultApiKey) {
 // Deprecated: Avoid using this global instance directly. 
 // Pass customApiKey to callGemini functions or instantiate locally.
 export const genAI = new GoogleGenerativeAI(defaultApiKey || "");
+import Groq from "groq-sdk";
 
 export async function callGemini(
   messages: Array<{ role: string; content: string }>,
@@ -24,6 +25,23 @@ export async function callGemini(
   }
 
   try {
+    const formattedMessages = messages.map(msg => ({
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: [{ text: msg.content }],
+    }));
+
+    // Groq Handler
+    if (customModel && customModel.includes("llama")) {
+      const groq = new Groq({ apiKey: apiKeyToUse.trim() });
+      const completion = await groq.chat.completions.create({
+        messages: formattedMessages as any,
+        model: customModel,
+        response_format: isJson ? { type: "json_object" } : { type: "text" },
+      });
+      return completion.choices[0]?.message?.content || "";
+    }
+
+    // Gemini Handler
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse.trim());
     const model = localGenAI.getGenerativeModel({
       model: customModel || "gemini-3.1-pro-preview",
@@ -31,15 +49,10 @@ export async function callGemini(
       generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
     });
 
-    const formattedMessages = messages.map(msg => ({
-      role: msg.role === "assistant" ? "model" : "user",
-      parts: [{ text: msg.content }],
-    }));
-
     const chat = model.startChat({
       history: formattedMessages.slice(0, -1),
     });
-
+    
     const lastMessage = formattedMessages[formattedMessages.length - 1];
     
     const result = await chat.sendMessage(lastMessage.parts[0].text);
