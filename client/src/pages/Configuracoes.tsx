@@ -915,6 +915,7 @@ export default function Configuracoes() {
   };
 
   const handleSaveIA = () => {
+    updateIAMutation.mutate({
       aiProvider,
       geminiApiKey,
       geminiModel,
