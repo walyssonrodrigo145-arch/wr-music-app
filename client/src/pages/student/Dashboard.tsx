@@ -106,45 +106,45 @@ export default function StudentDashboard() {
       {/* Stats Cards Row - Modern & Refined */}
       <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
         {/* Aulas Realizadas */}
-        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
-          <CardContent className="p-6 md:p-8 flex items-center gap-5">
-            <div className="w-12 h-12 rounded-[1rem] bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(147,51,234,0.3)] group-hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] group-hover:scale-105 transition-all">
+        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem]">
+          <CardContent className="p-6 flex items-center gap-5">
+            <div className="w-12 h-12 rounded-[1.25rem] bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(147,51,234,0.3)] group-hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] group-hover:scale-105 transition-all">
               <Calendar className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Aulas Feitas</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-4xl md:text-5xl font-black tracking-tighter text-foreground">{dashboard?.stats?.lessonsDone || 0}</h3>
+                <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">{dashboard?.stats?.lessonsDone || 0}</h3>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Exercícios Pendentes */}
-        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
-          <CardContent className="p-6 md:p-8 flex items-center gap-5">
-            <div className="w-12 h-12 rounded-[1rem] bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] group-hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-all">
+        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem]">
+          <CardContent className="p-6 flex items-center gap-5">
+            <div className="w-12 h-12 rounded-[1.25rem] bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] group-hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] group-hover:scale-105 transition-all">
               <ClipboardCheck className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Atividades</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-4xl md:text-5xl font-black tracking-tighter text-foreground">{dashboard?.stats?.pendingExercises || 0}</h3>
+                <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">{dashboard?.stats?.pendingExercises || 0}</h3>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Avisos */}
-        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem] md:rounded-[2.5rem]">
-          <CardContent className="p-6 md:p-8 flex items-center gap-5">
-            <div className="w-12 h-12 rounded-[1rem] bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] group-hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] group-hover:scale-105 transition-all">
+        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden group hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem]">
+          <CardContent className="p-6 flex items-center gap-5">
+            <div className="w-12 h-12 rounded-[1.25rem] bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] group-hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] group-hover:scale-105 transition-all">
               <Bell className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Avisos</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-4xl md:text-5xl font-black tracking-tighter text-foreground">{dashboard?.stats?.unreadAnnouncements || 0}</h3>
+                <h3 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">{dashboard?.stats?.unreadAnnouncements || 0}</h3>
               </div>
             </div>
           </CardContent>
@@ -152,17 +152,17 @@ export default function StudentDashboard() {
       </motion.div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column (Main Tasks/Info) */}
-        <div className="lg:col-span-2 space-y-10">
+        <div className="lg:col-span-2 space-y-8">
           
           {/* Próximas Aulas & Avisos Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             {/* Avisos Section */}
             <motion.div variants={item}>
-              <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl h-full rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/10 mx-6 px-0">
+              <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl h-full rounded-[2rem] overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/10 mx-6 px-0 mt-2">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
                       <Bell size={16} />
@@ -171,7 +171,7 @@ export default function StudentDashboard() {
                   </div>
                   <button onClick={() => navigate('/aluno/avisos')} className="text-[10px] font-black text-primary uppercase tracking-[0.2em] hover:text-primary/70 transition-all">Ver todos</button>
                 </CardHeader>
-                <CardContent className="p-4 md:p-6 space-y-2">
+                <CardContent className="p-6 space-y-2">
                   {dashboard?.announcements?.map((aviso: any) => (
                     <div key={aviso.id} className="flex items-start gap-4 p-4 rounded-2xl hover:bg-background/80 transition-all cursor-pointer group shadow-sm">
                       <div className={cn(
@@ -196,8 +196,8 @@ export default function StudentDashboard() {
 
             {/* Materiais Section */}
             <motion.div variants={item}>
-              <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl h-full rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/10 mx-6 px-0">
+              <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl h-full rounded-[2rem] overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/10 mx-6 px-0 mt-2">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
                       <BookOpen size={16} />
@@ -206,7 +206,7 @@ export default function StudentDashboard() {
                   </div>
                   <button onClick={() => navigate('/aluno/materiais')} className="text-[10px] font-black text-primary uppercase tracking-[0.2em] hover:text-primary/70 transition-all">Explorar</button>
                 </CardHeader>
-                <CardContent className="p-4 md:p-6 space-y-2">
+                <CardContent className="p-6 space-y-2">
                   {dashboard?.materials?.map((mat: any) => (
                     <div key={mat.id} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-background/80 transition-all cursor-pointer group shadow-sm">
                       <div className={cn(
@@ -236,7 +236,7 @@ export default function StudentDashboard() {
           </div>
 
           {/* Financeiro & Mensagens Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Financeiro */}
             {/* Financeiro */}
             <motion.div variants={item}>
@@ -249,7 +249,7 @@ export default function StudentDashboard() {
                     <CardTitle className="text-base md:text-lg font-black tracking-tight">Assinatura</CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6 md:p-8">
+                <CardContent className="p-6">
                   <Tabs defaultValue="mensalidades" className="w-full">
                     <TabsList className="grid w-full grid-cols-2 bg-background/80 p-1.5 rounded-2xl mb-8 h-12 shadow-inner">
                       <TabsTrigger value="mensalidades" className="rounded-xl text-[10px] font-black uppercase tracking-[0.2em] data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Faturas</TabsTrigger>
@@ -302,17 +302,17 @@ export default function StudentDashboard() {
           {/* Próxima Aula Card - Premium Highlight */}
           <motion.div variants={item}>
              {dashboard?.upcomingLessons[0] && (
-               <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden relative group rounded-[2rem] md:rounded-[2.5rem]">
+               <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden relative group rounded-[2rem]">
                  <div className="absolute top-0 right-0 p-6 md:p-8 opacity-5 dark:opacity-10 group-hover:opacity-10 dark:group-hover:opacity-20 transition-all duration-700 group-hover:scale-125 text-primary">
-                    <Music className="w-32 h-32 md:w-48 md:h-48" strokeWidth={1} />
+                    <Music className="w-24 h-24 md:w-32 md:h-32" strokeWidth={1} />
                  </div>
-                 <CardContent className="p-6 md:p-10 relative z-10">
+                 <CardContent className="p-6 md:p-8 relative z-10">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-4 md:mb-6">
                        <Clock size={12} className="animate-pulse" />
                        Falta Pouco!
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Sua Próxima Aula</p>
-                    <h3 className="text-2xl md:text-3xl font-black mt-2 md:mt-3 leading-tight tracking-tight text-foreground">
+                    <h3 className="text-xl md:text-2xl font-black mt-2 md:mt-3 leading-tight tracking-tight text-foreground">
                        {format(new Date(dashboard.upcomingLessons[0].scheduledAt), "EEEE, dd 'de' MMMM", { locale: ptBR })}
                     </h3>
                     <div className="mt-6 md:mt-8 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-10">
@@ -336,8 +336,8 @@ export default function StudentDashboard() {
 
           {/* Exercícios Card */}
           <motion.div variants={item}>
-            <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden">
-              <CardHeader className="p-8 pb-4 border-b border-border/10">
+            <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl rounded-[2rem] overflow-hidden">
+              <CardHeader className="p-6 pb-4 border-b border-border/10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
                     <ClipboardCheck size={16} />
@@ -345,7 +345,7 @@ export default function StudentDashboard() {
                   <CardTitle className="text-base md:text-lg font-black tracking-tight">Prática</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="p-8 pt-6">
+              <CardContent className="p-6 pt-4">
                 <Tabs defaultValue="pendentes" className="w-full">
                   <TabsList className="grid w-full grid-cols-3 bg-background/80 p-1 rounded-2xl mb-8 h-10 shadow-inner">
                     <TabsTrigger value="pendentes" className="rounded-xl text-[9px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-white transition-all">Missões</TabsTrigger>
@@ -388,8 +388,8 @@ export default function StudentDashboard() {
 
           {/* Atalhos Rápidos */}
           <motion.div variants={item}>
-            <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden">
-              <CardHeader className="p-8 pb-4 border-b border-border/10">
+            <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl rounded-[2rem] overflow-hidden">
+              <CardHeader className="p-6 pb-4 border-b border-border/10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-background/80 shadow-sm flex items-center justify-center text-primary">
                     <LayoutDashboard size={16} />
@@ -397,7 +397,7 @@ export default function StudentDashboard() {
                   <CardTitle className="text-base md:text-lg font-black tracking-tight">Central Rápida</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="p-6 md:p-8 space-y-3">
+              <CardContent className="p-6 space-y-3">
                 <button onClick={() => navigate('/aluno/solicitar-reposicao')} className="w-full flex items-center justify-between p-4 rounded-2xl bg-background/40 hover:bg-background/80 transition-all group shadow-sm border border-transparent hover:border-primary/20">
                    <div className="flex items-center gap-4">
                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
@@ -425,7 +425,7 @@ export default function StudentDashboard() {
 
       {/* Security Footer - Refined */}
       <motion.div variants={item} className="pt-6">
-        <div className="flex flex-col sm:flex-row items-center gap-6 p-8 rounded-[2.5rem] bg-emerald-500/5 border border-emerald-500/10 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center gap-6 p-6 md:p-8 rounded-[2rem] bg-emerald-500/5 border border-emerald-500/10 shadow-sm">
            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20 shrink-0 shadow-inner">
              <ShieldCheck size={24} />
            </div>

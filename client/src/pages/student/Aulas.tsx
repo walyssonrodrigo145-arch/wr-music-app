@@ -174,7 +174,7 @@ export default function StudentLessons() {
             {upcoming.length > 0 ? (
               upcoming.map(lesson => <LessonCard key={lesson.id} lesson={lesson} />)
             ) : (
-              <div className="text-center py-24 bg-background/40 backdrop-blur-md rounded-[2.5rem] border border-border/20 shadow-sm">
+              <div className="text-center py-16 bg-background/40 backdrop-blur-md rounded-[2rem] border border-border/20 shadow-sm">
                 <div className="w-24 h-24 bg-primary/5 border border-primary/10 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
                   <Calendar className="text-primary/30" size={32} />
                 </div>
@@ -191,7 +191,7 @@ export default function StudentLessons() {
             {completed.length > 0 ? (
               completed.map(lesson => <LessonCard key={lesson.id} lesson={lesson} />)
             ) : (
-              <div className="text-center py-24 bg-background/40 backdrop-blur-md rounded-[2.5rem] border border-border/20 shadow-sm">
+              <div className="text-center py-16 bg-background/40 backdrop-blur-md rounded-[2rem] border border-border/20 shadow-sm">
                 <div className="w-24 h-24 bg-muted/50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-border/10">
                   <History className="text-muted-foreground opacity-20" size={32} />
                 </div>
