@@ -14,6 +14,7 @@ const config = {
 const filesToUpload = [
   'server/routers.ts',
   'client/src/pages/ProfessorExtract.tsx',
+  'client/src/pages/Progresso.tsx',
   'client/src/pages/student/Dashboard.tsx',
   'client/src/pages/student/Aulas.tsx',
   'client/src/pages/student/Agenda.tsx',
@@ -22,6 +23,7 @@ const filesToUpload = [
   'client/src/pages/student/Exercicios.tsx',
   'client/src/pages/student/Avisos.tsx',
   'client/src/pages/student/Progresso.tsx',
+  'client/src/pages/student/Materiais.tsx',
   'client/src/components/RescheduleModal.tsx',
   'server/utils/gemini.ts',
   'client/src/pages/Configuracoes.tsx',

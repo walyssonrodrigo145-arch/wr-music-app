@@ -1930,32 +1930,40 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
                             </div>
                           </>
                         )}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 p-4 text-center">
-                           <div className="flex gap-2">
-                              <Button 
-                                onClick={() => setPreviewFile(file)}
-                                className="h-10 px-4 rounded-xl bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl border-none"
-                              >
-                                 <Activity size={14} className="mr-2" /> Visualizar
-                              </Button>
-                              <Button 
-                                asChild
-                                variant="ghost" 
-                                className="h-10 px-4 rounded-xl bg-card text-foreground font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-500/10 transition-all shadow-xl border-none"
-                              >
-                                 <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" download={file.fileName}>
-                                    <Download size={14} className="mr-2" /> Download
-                                 </a>
-                              </Button>
-                           </div>
-                           <Button 
-                              variant="ghost" 
-                              onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
-                              disabled={deleteMutation.isPending}
-                              className="h-10 w-10 rounded-xl bg-card/10 text-white hover:bg-rose-500 hover:text-white backdrop-blur-md"
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 z-20">
+                           {/* Central Play/View Button */}
+                           <button 
+                             onClick={() => setPreviewFile(file)}
+                             className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-indigo-500 transition-all border-none focus:outline-none"
                            >
-                              {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                           </Button>
+                              {file.category === 'audio' || file.category === 'video' ? (
+                                <Play fill="currentColor" size={24} className="ml-1" />
+                              ) : (
+                                <Activity size={24} />
+                              )}
+                           </button>
+
+                           {/* Top Right Quick Actions */}
+                           <div className="absolute top-3 right-3 flex gap-2">
+                              <a 
+                                href={file.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                download={file.fileName}
+                                className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white/90 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                                title="Download"
+                              >
+                                 <Download size={14} />
+                              </a>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
+                                disabled={deleteMutation.isPending}
+                                className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white/90 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                title="Excluir Arquivo"
+                              >
+                                 {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              </button>
+                           </div>
                         </div>
                         
                         <div className="absolute top-5 left-5 px-3 py-1.5 bg-card/90 backdrop-blur rounded-xl text-[8px] font-black uppercase tracking-widest shadow-sm">
