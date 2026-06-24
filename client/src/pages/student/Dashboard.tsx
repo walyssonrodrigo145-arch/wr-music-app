@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { 
@@ -25,7 +26,8 @@ import {
   LayoutDashboard,
   ClipboardCheck,
   Circle,
-  QrCode
+  QrCode,
+  Bot
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +35,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
+import { RescheduleModal } from "@/components/RescheduleModal";
 
 const container = {
   hidden: { opacity: 0 },
@@ -52,6 +55,7 @@ const item = {
 export default function StudentDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
   const { data: dashboard, isLoading } = trpc.studentPortal.getDashboard.useQuery();
 
   if (isLoading) {
@@ -323,9 +327,14 @@ export default function StudentDashboard() {
                           <p className="text-lg md:text-xl font-black text-foreground">{dashboard.teacherName.split(' ')[0]}</p>
                        </div>
                     </div>
-                    <button onClick={() => navigate('/aluno/aulas')} className="w-full mt-8 md:mt-10 py-4 md:py-5 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all">
-                       Ver Conteúdo da Aula
-                    </button>
+                    <div className="mt-8 md:mt-10 flex flex-col gap-3">
+                      <button onClick={() => navigate('/aluno/aulas')} className="w-full py-4 md:py-5 bg-foreground text-background rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all">
+                         Ver Conteúdo da Aula
+                      </button>
+                      <button onClick={() => setRescheduleModalOpen(true)} className="w-full py-4 md:py-5 bg-primary/10 text-primary rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-sm hover:bg-primary/20 transition-all flex items-center justify-center gap-2">
+                         <Bot size={14} /> Remarcar / Reposição
+                      </button>
+                    </div>
                  </CardContent>
                </Card>
              )}
@@ -395,22 +404,19 @@ export default function StudentDashboard() {
                 </div>
               </CardHeader>
               <CardContent className="p-6 space-y-3">
-                <button onClick={() => navigate('/aluno/solicitar-reposicao')} className="w-full flex items-center justify-between p-4 rounded-2xl bg-background/40 hover:bg-background/80 transition-all group shadow-sm border border-transparent hover:border-primary/20">
+                <button onClick={() => {
+                   if (dashboard?.upcomingLessons[0]) {
+                     setRescheduleModalOpen(true);
+                   } else {
+                     navigate('/aluno/aulas');
+                   }
+                }} className="w-full flex items-center justify-between p-4 rounded-2xl bg-background/40 hover:bg-background/80 transition-all group shadow-sm border border-transparent hover:border-primary/20">
                    <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                       <PlusCircle size={16} />
+                     <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm relative">
+                       <Bot size={16} />
+                       <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse border border-card"></div>
                      </div>
-                     <p className="text-sm font-black text-foreground">Solicitar Reposição</p>
-                   </div>
-                   <ChevronRight size={16} className="text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                </button>
-
-                <button onClick={() => navigate('/aluno/solicitar-remarcacao')} className="w-full flex items-center justify-between p-4 rounded-2xl bg-background/40 hover:bg-background/80 transition-all group shadow-sm border border-transparent hover:border-primary/20">
-                   <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                       <Clock size={16} />
-                     </div>
-                     <p className="text-sm font-black text-foreground">Agendar Remarcação</p>
+                     <p className="text-sm font-black text-foreground">Remarcação c/ Robô</p>
                    </div>
                    <ChevronRight size={16} className="text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                 </button>
@@ -436,6 +442,16 @@ export default function StudentDashboard() {
            </div>
         </div>
       </motion.div>
+
+      {/* Reschedule Modal */}
+      {dashboard?.upcomingLessons[0] && (
+        <RescheduleModal
+          open={rescheduleModalOpen}
+          onOpenChange={setRescheduleModalOpen}
+          lessonId={dashboard.upcomingLessons[0].id}
+          lessonTitle={dashboard.upcomingLessons[0].title}
+        />
+      )}
     </motion.div>
   );
 }

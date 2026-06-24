@@ -132,21 +132,21 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px] rounded-[32px] border-none shadow-2xl bg-card/95 backdrop-blur-xl">
+      <DialogContent className="w-[95vw] sm:max-w-[450px] max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl bg-card/95 backdrop-blur-xl p-5 sm:p-6">
         <DialogHeader>
           <div className="flex justify-between items-start">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4 relative">
-               <Bot size={24} />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4 relative">
+               <Bot size={20} className="sm:w-6 sm:h-6" />
                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse border-2 border-card"></div>
             </div>
             {scheduleData?.teacherPhone && (
-              <Button variant="outline" size="sm" onClick={handleWhatsApp} className="text-xs font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10 gap-2 rounded-xl">
-                <MessageCircle size={14} /> Falar com Professor
+              <Button variant="outline" size="sm" onClick={handleWhatsApp} className="text-[10px] sm:text-xs font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10 gap-1 sm:gap-2 rounded-xl h-8">
+                <MessageCircle size={12} /> Ajuda
               </Button>
             )}
           </div>
-          <DialogTitle className="text-2xl font-black">Reagendamento Inteligente</DialogTitle>
-          <DialogDescription className="font-medium text-muted-foreground/80">
+          <DialogTitle className="text-xl sm:text-2xl font-black leading-tight">Reagendamento Inteligente</DialogTitle>
+          <DialogDescription className="text-sm font-medium text-muted-foreground/80 mt-1">
             Eu sou o robô assistente. Escolha um dos horários livres na agenda para reagendar automaticamente a aula de <span className="text-foreground font-black">{lessonTitle}</span>.
           </DialogDescription>
         </DialogHeader>
@@ -189,9 +189,9 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
                   <Clock size={14} className="text-primary" />
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Horários Disponíveis</Label>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {availableTimes.length === 0 ? (
-                    <div className="col-span-4 p-4 text-center rounded-xl bg-rose-500/10 border border-rose-500/20">
+                    <div className="col-span-3 sm:col-span-4 p-4 text-center rounded-xl bg-rose-500/10 border border-rose-500/20">
                       <p className="text-xs font-bold text-rose-600">Nenhum horário livre neste dia.</p>
                     </div>
                   ) : (

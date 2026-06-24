@@ -20,7 +20,9 @@ const filesToUpload = [
   'client/src/components/StudentSidebar.tsx',
   'client/src/App.tsx',
   'client/src/pages/student/Exercicios.tsx',
-  'client/src/pages/student/Avisos.tsx'
+  'client/src/pages/student/Avisos.tsx',
+  'client/src/pages/student/Progresso.tsx',
+  'client/src/components/RescheduleModal.tsx'
 ];
 
 conn.on('ready', () => {
