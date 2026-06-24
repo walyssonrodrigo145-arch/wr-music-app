@@ -17,7 +17,7 @@ import { createRateLimiter } from "./rateLimiter";
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
-import { paymentDues, students } from "../../drizzle/schema";
+import { paymentDues, students, organizations } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { setupEvolutionWebhook } from "../utils/whatsapp";
 import { notifyUser } from "./notification";
