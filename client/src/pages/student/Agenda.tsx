@@ -49,20 +49,21 @@ export default function StudentAgenda() {
   );
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Minha Agenda</h1>
-          <p className="text-muted-foreground font-medium">Consulte seus horários de aula e eventos musicais.</p>
+    <div className="space-y-10 pb-10 max-w-[1400px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-8 md:p-10 rounded-[2.5rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+        <div className="relative z-10">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-md">Minha Agenda</h1>
+          <p className="text-white/70 font-medium mt-2 max-w-md">Consulte seus horários de aula e eventos musicais em um só lugar.</p>
         </div>
-        <div className="flex items-center gap-2 bg-card p-1 rounded-2xl border border-border shadow-sm">
-           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-muted rounded-xl transition-all">Mês</button>
-           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest bg-primary text-white rounded-xl shadow-lg shadow-primary/20">Semana</button>
-           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-muted rounded-xl transition-all">Dia</button>
+        <div className="relative z-10 flex items-center gap-2 bg-white/10 backdrop-blur-md p-1.5 rounded-2xl border border-white/20 shadow-sm">
+           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 rounded-xl transition-all">Mês</button>
+           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] bg-white text-indigo-900 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all">Semana</button>
+           <button className="px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 rounded-xl transition-all">Dia</button>
         </div>
       </div>
 
-      <Card className="border-none shadow-2xl bg-card/50 backdrop-blur-xl overflow-hidden">
+      <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl overflow-hidden rounded-[2.5rem]">
         <CardContent className="p-0">
           <div className="flex items-center justify-between p-6 border-b border-border/50 bg-card/30">
              <div className="flex items-center gap-6">
@@ -82,9 +83,9 @@ export default function StudentAgenda() {
              </div>
           </div>
 
-          <div className="grid grid-cols-7 border-b border-border/50 bg-muted/20">
+          <div className="grid grid-cols-7 border-b border-border/10 bg-background/80 shadow-sm">
              {days.map(day => (
-               <div key={day} className="py-4 text-center text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{day}</div>
+               <div key={day} className="py-4 text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80">{day}</div>
              ))}
           </div>
 
@@ -92,7 +93,7 @@ export default function StudentAgenda() {
             variants={container}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-7 min-h-[600px]"
+            className="grid grid-cols-7 min-h-[600px] bg-background/40"
           >
              {weekDays.map((day, dayIdx) => {
                const dayLessons = lessons?.filter(l => isSameDay(new Date(l.scheduledAt), day)) || [];
@@ -103,13 +104,13 @@ export default function StudentAgenda() {
                    variants={item}
                    key={day.toString()} 
                    className={cn(
-                     "border-r border-border/50 p-3 space-y-3 last:border-r-0 transition-colors relative group",
-                     isToday ? "bg-primary/[0.02]" : "hover:bg-muted/10"
+                     "border-r border-border/10 p-3 space-y-3 last:border-r-0 transition-colors relative group",
+                     isToday ? "bg-primary/[0.03]" : "hover:bg-background/80"
                    )}
                  >
                     <div className={cn(
-                      "w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black mx-auto mb-4 transition-transform group-hover:scale-110",
-                      isToday ? "bg-primary text-white shadow-xl shadow-primary/30" : "text-foreground bg-muted/30"
+                      "w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black mx-auto mb-4 transition-transform group-hover:scale-110",
+                      isToday ? "bg-gradient-to-tr from-primary to-purple-500 text-white shadow-[0_0_20px_rgba(124,58,237,0.4)]" : "text-foreground bg-background/80 shadow-sm"
                     )}>
                        {format(day, "dd")}
                     </div>
@@ -138,7 +139,7 @@ export default function StudentAgenda() {
                              <p className="text-foreground font-black truncate mb-1">{lesson.title}</p>
                              <div className="flex items-center gap-1.5 opacity-60">
                                <MapPin size={10} />
-                               <span className="truncate">Estúdio A</span>
+                                <span className="truncate max-w-[80%] inline-block">Estúdio A</span>
                              </div>
                              
                              <div className="absolute top-1 right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
@@ -150,8 +151,8 @@ export default function StudentAgenda() {
                     </div>
 
                     {dayLessons.length === 0 && (
-                      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none">
-                         <Music size={40} />
+                      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center opacity-0 group-hover:opacity-[0.03] transition-opacity pointer-events-none text-foreground">
+                         <Music size={48} />
                       </div>
                     )}
                  </motion.div>

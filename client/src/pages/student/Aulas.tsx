@@ -71,63 +71,59 @@ export default function StudentLessons() {
 
   const LessonCard = ({ lesson }: { lesson: any }) => (
     <motion.div variants={item}>
-      <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm group hover:shadow-2xl transition-all overflow-hidden relative">
+      <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl group hover:-translate-y-1 transition-all duration-300 overflow-hidden relative rounded-[2rem]">
         {lesson.status === 'agendada' && (
-           <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+           <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-primary to-purple-500" />
         )}
         <CardContent className="p-0">
           <div className="flex flex-col md:flex-row items-stretch md:items-center p-6 gap-6">
-            {/* Date Column */}
-            <div className="flex flex-row md:flex-col items-center justify-center md:w-24 md:border-r border-border pr-0 md:pr-6 gap-3">
-              <span className="text-4xl font-black text-foreground">
-                {format(new Date(lesson.scheduledAt), "dd")}
-              </span>
-              <div className="flex flex-col items-center md:items-start">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                  {format(new Date(lesson.scheduledAt), "MMMM", { locale: ptBR })}
-                </span>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                  {format(new Date(lesson.scheduledAt), "EEEE", { locale: ptBR })}
-                </span>
+            {/* Date Column - Glowing effect */}
+            <div className="flex flex-row md:flex-col items-center justify-center md:w-32 md:border-r border-border/20 pr-0 md:pr-6 gap-2">
+              <div className="flex flex-col items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-[1.5rem] bg-primary/10 text-primary shadow-[0_0_20px_rgba(124,58,237,0.1)] group-hover:shadow-[0_0_30px_rgba(124,58,237,0.3)] transition-all">
+                <span className="text-3xl md:text-4xl font-black leading-none">{format(new Date(lesson.scheduledAt), "dd")}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{format(new Date(lesson.scheduledAt), "MMM", { locale: ptBR })}</span>
               </div>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2 md:mt-3">
+                {format(new Date(lesson.scheduledAt), "EEEE", { locale: ptBR })}
+              </span>
             </div>
 
             {/* Info Column */}
             <div className="flex-1 space-y-3">
               <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full border border-border/10 shadow-sm">
                   <Clock size={12} className="text-primary" />
                   <span>{format(new Date(lesson.scheduledAt), "HH:mm")} — {format(new Date(new Date(lesson.scheduledAt).getTime() + (lesson.duration || 60) * 60000), "HH:mm")}</span>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full border border-border/10 shadow-sm">
                    <MapPin size={12} className="text-primary" />
-                   <span>Sala Online / Presencial</span>
+                   <span>Sala VIP / Presencial</span>
                 </div>
               </div>
-              <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">{lesson.title}</h3>
-              <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-black">
+              <h3 className="text-xl md:text-2xl font-black text-foreground group-hover:text-primary transition-colors tracking-tight">{lesson.title}</h3>
+              <div className="flex items-center gap-3 mt-4">
+                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white text-[10px] font-black shadow-sm">
                    {profile?.teacherName?.slice(0, 2).toUpperCase()}
                  </div>
-                 <p className="text-xs font-bold text-muted-foreground">Prof. {profile?.teacherName}</p>
+                 <p className="text-xs font-bold text-muted-foreground">Prof. <span className="text-foreground">{profile?.teacherName}</span></p>
               </div>
             </div>
 
             {/* Action Column */}
-            <div className="flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 border-t md:border-none pt-4 md:pt-0">
+            <div className="flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 border-t border-border/10 md:border-none pt-6 md:pt-0">
               <StatusBadge status={lesson.status} />
               <div className="flex items-center gap-2">
                 {lesson.status === 'agendada' && (
                   <button 
                     onClick={() => setSelectedLesson({ id: lesson.id, title: lesson.title })}
-                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary px-4 py-2.5 rounded-xl border border-border hover:border-primary/20 transition-all bg-card shadow-sm"
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary px-5 py-3 rounded-xl border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-all"
                   >
                     Remarcar
                   </button>
                 )}
-                <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 px-4 py-2.5 rounded-xl border border-primary/20 bg-primary/5 transition-all">
+                <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-background bg-foreground px-5 py-3 rounded-xl hover:scale-105 active:scale-95 transition-all shadow-md">
                   <ExternalLink size={12} />
-                  Detalhes
+                  Acessar
                 </button>
               </div>
             </div>
@@ -138,29 +134,30 @@ export default function StudentLessons() {
   );
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Minhas Aulas</h1>
-          <p className="text-muted-foreground font-medium">Gerencie seu cronograma e revise seu histórico musical.</p>
+    <div className="space-y-10 pb-10 max-w-[1200px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-8 md:p-10 rounded-[2.5rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+        <div className="relative z-10">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-md">Minhas Aulas</h1>
+          <p className="text-white/70 font-medium mt-2 max-w-md">Gerencie seu cronograma e revise seu histórico musical com facilidade.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
-            <LayoutGrid size={18} />
+        <div className="relative z-10 flex items-center gap-3">
+          <button className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all shadow-sm">
+            <LayoutGrid size={20} />
           </button>
-          <button className="bg-primary text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2">
+          <button className="bg-white text-indigo-950 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
             <CalendarDays size={16} />
-            Ver Agenda Completa
+            Ver Agenda
           </button>
         </div>
       </div>
 
       <Tabs defaultValue="proximas" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="bg-muted/50 p-1 rounded-2xl border border-border mb-8 max-w-md">
-          <TabsTrigger value="proximas" className="rounded-xl font-black text-[10px] uppercase tracking-widest px-8 data-[state=active]:bg-card data-[state=active]:shadow-md transition-all h-10">
+        <TabsList className="bg-background/60 backdrop-blur-md p-1.5 rounded-2xl mb-10 inline-flex shadow-inner border border-border/10">
+          <TabsTrigger value="proximas" className="rounded-xl font-black text-[10px] uppercase tracking-[0.2em] px-8 data-[state=active]:bg-primary data-[state=active]:text-white transition-all h-12">
             Próximas Aulas
           </TabsTrigger>
-          <TabsTrigger value="concluidas" className="rounded-xl font-black text-[10px] uppercase tracking-widest px-8 data-[state=active]:bg-card data-[state=active]:shadow-md transition-all h-10">
+          <TabsTrigger value="concluidas" className="rounded-xl font-black text-[10px] uppercase tracking-[0.2em] px-8 data-[state=active]:bg-primary data-[state=active]:text-white transition-all h-12">
             Histórico
           </TabsTrigger>
         </TabsList>
@@ -175,13 +172,15 @@ export default function StudentLessons() {
             {upcoming.length > 0 ? (
               upcoming.map(lesson => <LessonCard key={lesson.id} lesson={lesson} />)
             ) : (
-              <div className="text-center py-24 bg-card/30 rounded-[2rem] border-2 border-dashed border-border">
-                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Calendar className="text-muted-foreground opacity-30" size={40} />
+              <div className="text-center py-24 bg-background/40 backdrop-blur-md rounded-[2.5rem] border border-border/20 shadow-sm">
+                <div className="w-24 h-24 bg-primary/5 border border-primary/10 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                  <Calendar className="text-primary/50" size={40} />
                 </div>
-                <h3 className="text-xl font-black text-foreground">Tudo em dia!</h3>
-                <p className="text-muted-foreground font-medium mt-2">Você não tem aulas agendadas no momento.</p>
-                <button className="mt-8 text-primary font-black text-xs uppercase tracking-widest hover:underline">Solicitar aula extra</button>
+                <h3 className="text-2xl font-black text-foreground tracking-tight">Tudo em dia!</h3>
+                <p className="text-muted-foreground font-medium mt-2 max-w-sm mx-auto">Sua rotina está limpa. Você não tem aulas agendadas para os próximos dias.</p>
+                <button className="mt-8 px-6 py-3 bg-primary/10 text-primary font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-primary/20 transition-all">
+                  Solicitar aula extra
+                </button>
               </div>
             )}
           </TabsContent>
@@ -190,12 +189,12 @@ export default function StudentLessons() {
             {completed.length > 0 ? (
               completed.map(lesson => <LessonCard key={lesson.id} lesson={lesson} />)
             ) : (
-              <div className="text-center py-24 bg-card/30 rounded-[2rem] border-2 border-dashed border-border">
-                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="text-center py-24 bg-background/40 backdrop-blur-md rounded-[2.5rem] border border-border/20 shadow-sm">
+                <div className="w-24 h-24 bg-muted/50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-border/10">
                   <History className="text-muted-foreground opacity-30" size={40} />
                 </div>
-                <h3 className="text-xl font-black text-foreground">Nada por aqui</h3>
-                <p className="text-muted-foreground font-medium mt-2">Seu histórico de aulas aparecerá aqui.</p>
+                <h3 className="text-2xl font-black text-foreground tracking-tight">Nada por aqui</h3>
+                <p className="text-muted-foreground font-medium mt-2">Seu histórico de aulas ainda está vazio e aparecerá aqui assim que você concluir uma sessão.</p>
               </div>
             )}
           </TabsContent>
