@@ -25,7 +25,7 @@ export async function callGemini(
   try {
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse);
     const model = localGenAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-1.5-flash-latest",
       systemInstruction: systemPrompt,
       generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
     });
@@ -84,7 +84,7 @@ export async function callGeminiWithFiles(
   try {
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse);
     const model = localGenAI.getGenerativeModel({
-      model: "gemini-1.5-flash", // Using Flash which is faster for large context
+      model: "gemini-1.5-flash-latest", // Using Flash which is faster for large context
       systemInstruction: systemPrompt,
     });
 
