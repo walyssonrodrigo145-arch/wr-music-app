@@ -4,13 +4,14 @@ import { trpc } from "@/lib/trpc";
 import { format, isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
-  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp, Activity
+  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp, Activity, Eye, Edit
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { StudentDetailsModal } from "@/components/modals/StudentDetailsModal";
 import { GenerateAccessModal } from "@/components/modals/GenerateAccessModal";
