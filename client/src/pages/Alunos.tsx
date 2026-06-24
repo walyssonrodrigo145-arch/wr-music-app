@@ -685,15 +685,15 @@ export default function Alunos() {
           {/* TABLE / CARD SECTION */}
           <div className="lg:col-span-9 bg-card/40 backdrop-blur-xl md:rounded-[2rem] border-0 md:border border-white/10 shadow-2xl shadow-primary/5 overflow-hidden flex flex-col -mx-4 md:mx-0">
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto no-scrollbar">
-              <table className="w-full text-left">
+            <div className="hidden md:block overflow-x-auto no-scrollbar pb-2">
+              <table className="w-full text-left min-w-[800px]">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Aluno</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Instrumento / Nível</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mensalidade</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Status</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Ações</th>
+                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Aluno</th>
+                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Instrumento / Nível</th>
+                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mensalidade</th>
+                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Status</th>
+                    <th className="px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -704,7 +704,7 @@ export default function Alunos() {
                   ) : (
                     filtered.map((student: StudentRow) => (
                       <tr key={student.id} className="group hover:bg-primary/5 hover:shadow-inner transition-colors cursor-pointer border-b border-transparent hover:border-primary/10" onClick={() => setDetailsStudentId(student.id)}>
-                        <td className="px-8 py-4">
+                        <td className="px-4 lg:px-6 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
                               <AvatarFallback className="bg-blue-500/100/10 text-blue-600 text-xs font-bold uppercase">
@@ -722,7 +722,7 @@ export default function Alunos() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-4">
+                        <td className="px-4 lg:px-6 py-4">
                           <div className="flex flex-col gap-1.5">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full" style={{ background: student.instrumentColor || "#6366f1" }} />
@@ -731,20 +731,20 @@ export default function Alunos() {
                             <LevelBadge level={student.level} />
                           </div>
                         </td>
-                        <td className="px-8 py-4">
+                        <td className="px-4 lg:px-6 py-4">
                           <p className="text-sm font-bold text-foreground leading-none">
                             {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
                           </p>
                           <p className="text-[10px] text-muted-foreground font-medium mt-1.5 uppercase">Dia {student.dueDay || 10}</p>
                         </td>
-                        <td className="px-8 py-4 text-center">
+                        <td className="px-4 lg:px-6 py-4 text-center">
                           <StatusBadge
                             status={student.status}
                             id={student.id}
                             onUpdate={(id, s) => updateStatusMutation.mutate({ id, status: s as any })}
                           />
                         </td>
-                        <td className="px-8 py-4 text-right" onClick={e => e.stopPropagation()}>
+                        <td className="px-4 lg:px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-muted-foreground">
