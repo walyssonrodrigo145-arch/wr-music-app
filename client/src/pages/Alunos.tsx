@@ -658,9 +658,9 @@ export default function Alunos() {
               key={i}
               onClick={() => setStatusFilter(item.filterVal)}
               className={cn(
-                "relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden group shrink-0 cursor-pointer transition-all active:scale-[0.97] hover:shadow-md",
+                "relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl backdrop-blur-xl border shadow-xl shadow-primary/5 overflow-hidden group shrink-0 cursor-pointer transition-all hover:shadow-primary/15 hover:-translate-y-1 active:scale-[0.97]",
                 item.bg,
-                statusFilter === item.filterVal ? "ring-2 ring-primary/40 border-primary/30" : item.border
+                statusFilter === item.filterVal ? "ring-2 ring-primary/40 border-primary/30" : "border-white/10"
               )}
             >
               <div className="relative z-10">
@@ -683,7 +683,7 @@ export default function Alunos() {
         {/* MAIN CONTENT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* TABLE / CARD SECTION */}
-          <div className="lg:col-span-9 bg-card md:rounded-[2rem] border-0 md:border border-border md:shadow-sm overflow-hidden flex flex-col -mx-4 md:mx-0">
+          <div className="lg:col-span-9 bg-card/40 backdrop-blur-xl md:rounded-[2rem] border-0 md:border border-white/10 shadow-2xl shadow-primary/5 overflow-hidden flex flex-col -mx-4 md:mx-0">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto no-scrollbar">
               <table className="w-full text-left">
@@ -703,7 +703,7 @@ export default function Alunos() {
                     <tr><td colSpan={5} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhum aluno encontrado.</td></tr>
                   ) : (
                     filtered.map((student: StudentRow) => (
-                      <tr key={student.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailsStudentId(student.id)}>
+                      <tr key={student.id} className="group hover:bg-primary/5 hover:shadow-inner transition-colors cursor-pointer border-b border-transparent hover:border-primary/10" onClick={() => setDetailsStudentId(student.id)}>
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
