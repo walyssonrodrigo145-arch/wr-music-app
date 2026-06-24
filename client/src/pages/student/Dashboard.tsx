@@ -75,28 +75,28 @@ export default function StudentDashboard() {
       className="space-y-10 pb-10 max-w-[1600px] mx-auto"
     >
       {/* Welcome Section - Hero Banner */}
-      <motion.div variants={item} className="relative overflow-hidden rounded-[2.5rem] md:rounded-[3rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white shadow-2xl p-8 md:p-12 mb-4">
+      <motion.div variants={item} className="relative overflow-hidden rounded-[2.5rem] md:rounded-[3rem] bg-card text-card-foreground border border-border shadow-sm p-8 md:p-12 mb-4">
         {/* Abstract Glow Effects */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-500/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4 pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div>
-             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-white drop-shadow-sm mb-2">Olá, {firstName}!</h1>
-             <p className="text-white/70 text-base md:text-lg font-medium max-w-xl">Pronto para dominar seu instrumento hoje? Aqui está o resumo da sua jornada musical.</p>
+             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter drop-shadow-sm mb-2">Olá, {firstName}!</h1>
+             <p className="text-muted-foreground text-base md:text-lg font-medium max-w-xl">Pronto para dominar seu instrumento hoje? Aqui está o resumo da sua jornada musical.</p>
           </div>
           <div className="flex flex-wrap md:flex-nowrap items-center gap-4">
-             <button onClick={() => navigate('/aluno/scanner')} className="flex items-center justify-center gap-2 bg-white text-indigo-950 px-6 py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] hover:bg-white/90 transition-all hover:-translate-y-1 w-full md:w-auto">
+             <button onClick={() => navigate('/aluno/scanner')} className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 w-full md:w-auto">
                <QrCode size={20} />
                <span>Marcar Presença</span>
              </button>
-             <div className="flex items-center gap-4 bg-black/30 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 w-full md:w-auto">
+             <div className="flex items-center gap-4 bg-muted/50 backdrop-blur-md px-5 py-3 rounded-2xl border border-border w-full md:w-auto">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-300 flex items-center justify-center text-yellow-950 shadow-[0_0_20px_rgba(234,179,8,0.4)]">
                   <TrendingUp size={24} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Nível Atual</p>
-                  <p className="text-sm font-black text-white">Intermediário</p>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Nível Atual</p>
+                  <p className="text-sm font-black text-foreground">Intermediário</p>
                 </div>
              </div>
           </div>

@@ -137,17 +137,17 @@ export default function StudentLessons() {
 
   return (
     <div className="space-y-10 pb-10 max-w-[1200px] mx-auto">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-8 md:p-10 rounded-[2.5rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-8 md:p-10 rounded-[2.5rem] bg-card text-card-foreground shadow-sm border border-border relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
         <div className="relative z-10">
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-md">Minhas Aulas</h1>
-          <p className="text-white/70 font-medium mt-2 max-w-md">Gerencie seu cronograma e revise seu histórico musical com facilidade.</p>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter drop-shadow-sm">Minhas Aulas</h1>
+          <p className="text-muted-foreground font-medium mt-2 max-w-md">Gerencie seu cronograma e revise seu histórico musical.</p>
         </div>
-        <div className="relative z-10 flex items-center gap-3">
-          <button className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all shadow-sm">
+        <div className="relative z-10 flex items-center gap-4">
+          <button className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center text-foreground hover:bg-muted/80 transition-all shadow-sm">
             <LayoutGrid size={20} />
           </button>
-          <button onClick={() => setLocation('/aluno/agenda')} className="bg-white text-indigo-950 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+          <button onClick={() => setLocation('/aluno/agenda')} className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
             <CalendarDays size={16} />
             Ver Agenda
           </button>
