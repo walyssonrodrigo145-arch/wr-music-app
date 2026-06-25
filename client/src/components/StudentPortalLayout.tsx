@@ -108,7 +108,6 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
           <div className="max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
             {children}
           </div>
-          <div className="h-20 md:hidden" />
         </main>
       </div>
     </div>

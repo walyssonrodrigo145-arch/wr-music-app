@@ -121,8 +121,6 @@ export function MusicLayout({ children }: MusicLayoutProps) {
           <div className="max-w-[1600px] mx-auto w-full">
             {children}
           </div>
-          {/* Bottom padding for mobile to avoid content being hidden by floating buttons or safe areas */}
-          <div className="h-20 md:hidden" />
         </main>
       </div>
     </div>
