@@ -138,6 +138,11 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "folder" text`);
     await db.execute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "viewedAt" timestamp`);
 
+    // automations and students missing fields
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "allowAutoReminders" boolean DEFAULT true NOT NULL`);
+    await db.execute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToStudent" integer DEFAULT 1 NOT NULL`);
+    await db.execute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToGuardian" integer DEFAULT 0 NOT NULL`);
+
     // file_comments table
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "file_comments" (
