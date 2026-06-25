@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -94,9 +95,13 @@ export default function StudentAgenda() {
              </div>
              <div className="flex items-center gap-3">
                 <button onClick={handleToday} className="text-[10px] font-black uppercase tracking-widest text-primary px-5 py-2.5 bg-primary/5 rounded-xl border border-primary/10 hover:bg-primary/10 transition-colors">Hoje</button>
-                <button className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
-                  <Plus size={16} />
-                </button>
+                <button
+                   onClick={() => toast.info("Para solicitar um novo agendamento, entre em contato com seu professor! 📅")}
+                   className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all active:scale-95"
+                   title="Solicitar agendamento"
+                 >
+                   <Plus size={16} />
+                 </button>
              </div>
           </div>
 

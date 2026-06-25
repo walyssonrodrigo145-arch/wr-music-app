@@ -9,10 +9,18 @@ import {
   Trophy,
   Star,
   ChevronRight,
-  Info
+  Info,
+  X,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -37,6 +45,7 @@ export default function StudentExercises() {
   const utils = trpc.useContext();
   const { data: exercises, isLoading } = trpc.studentPortal.getExercises.useQuery();
   const [activeTab, setActiveTab] = useState("pendentes");
+  const [selectedExercise, setSelectedExercise] = useState<any | null>(null);
 
   const completeMutation = trpc.studentPortal.completeExercise.useMutation({
     onSuccess: () => {
@@ -105,7 +114,10 @@ export default function StudentExercises() {
                   <span className="truncate">{completeMutation.isPending ? "Enviando..." : "Enviar Atividade"}</span>
                 </button>
               )}
-              <button className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center">
+              <button 
+                onClick={() => setSelectedExercise(exercise)}
+                className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm flex items-center justify-center"
+              >
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -190,6 +202,84 @@ export default function StudentExercises() {
            </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!selectedExercise} onOpenChange={(open) => !open && setSelectedExercise(null)}>
+        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-border/50 bg-background/95 backdrop-blur-3xl shadow-2xl">
+          {selectedExercise && (
+            <>
+              <div className="p-6 md:p-8 space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className={cn(
+                    "w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner",
+                    selectedExercise.status === 'concluida' ? "bg-green-100 text-green-600 dark:bg-green-500/10" : "bg-orange-100 text-orange-600 dark:bg-orange-500/10"
+                  )}>
+                    <ClipboardList size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0 pt-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={cn(
+                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-full",
+                        selectedExercise.status === 'concluida' ? "bg-green-100 text-green-600" : "bg-orange-100 text-orange-600"
+                      )}>
+                        {selectedExercise.status === 'concluida' ? "Concluído" : "Pendente"}
+                      </span>
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-black text-foreground">{selectedExercise.title}</h2>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-2xl bg-muted/30 border border-border/50 space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <CalendarIcon size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Prazo</span>
+                    </div>
+                    <p className="font-bold text-foreground">
+                      {selectedExercise.targetDate ? format(new Date(selectedExercise.targetDate), "dd 'de' MMMM", { locale: ptBR }) : "Sem prazo definido"}
+                    </p>
+                  </div>
+                  {selectedExercise.status === 'concluida' && (
+                    <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/20 space-y-1">
+                      <div className="flex items-center gap-2 text-green-600">
+                        <Trophy size={14} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Nota</span>
+                      </div>
+                      <p className="font-bold text-green-600">9.5</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <FileText size={14} /> Descrição da Atividade
+                  </h3>
+                  <div className="p-5 rounded-2xl bg-muted/30 border border-border/50">
+                    <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">
+                      {selectedExercise.description || "O professor não incluiu instruções detalhadas adicionais para este exercício."}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedExercise.status !== 'concluida' && (
+                  <div className="pt-4 flex justify-end">
+                    <button 
+                      onClick={() => {
+                        completeMutation.mutate({ id: selectedExercise.id });
+                        setSelectedExercise(null);
+                      }}
+                      disabled={completeMutation.isPending}
+                      className="flex items-center gap-2 bg-primary text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
+                    >
+                      <Send size={16} className={cn(completeMutation.isPending && "animate-pulse")} />
+                      {completeMutation.isPending ? "Enviando..." : "Marcar como Concluído"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
