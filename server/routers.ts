@@ -5427,7 +5427,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         try { parsedHours = JSON.parse(schoolHoursRaw); } catch(e) {}
 
         // Get future booked slots for this teacher
-        const futureLessons = await db.select({ scheduledAt: lessons.scheduledAt })
+        const futureLessons = await db.select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
           .from(lessons)
           .where(and(
             eq(lessons.userId, lesson.userId),
@@ -5437,8 +5437,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
         return {
           schoolHours: parsedHours,
-          bookedSlots: futureLessons.map(l => l.scheduledAt.toISOString()),
+          bookedSlots: futureLessons.map(l => ({ scheduledAt: l.scheduledAt.toISOString(), duration: l.duration })),
           teacherPhone: teacherSettings?.schoolPhone || teacherSettings?.phone || '',
+          lessonDuration: lesson.duration || 60
         };
       }),
 

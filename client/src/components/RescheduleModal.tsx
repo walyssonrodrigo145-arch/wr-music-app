@@ -98,10 +98,18 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
     // Generate 30 mins slots
     while (isBefore(current, end)) {
       const timeStr = format(current, "HH:mm");
-      // Check if slot is booked
-      const isBooked = scheduleData.bookedSlots.some((isoDate: string) => {
-        const booked = parseISO(isoDate);
-        return isSameDay(booked, current) && format(booked, "HH:mm") === timeStr;
+      // Check if slot is booked (overlap detection)
+      const currentEnd = addMinutes(current, scheduleData.lessonDuration || 60);
+      const isBooked = scheduleData.bookedSlots.some((slot: any) => {
+        if (typeof slot === 'string') {
+          const booked = parseISO(slot);
+          return isSameDay(booked, current) && format(booked, "HH:mm") === timeStr;
+        }
+        const bookedStart = parseISO(slot.scheduledAt);
+        const bookedEnd = addMinutes(bookedStart, slot.duration || 60);
+        
+        return isSameDay(bookedStart, current) && 
+               (current < bookedEnd && currentEnd > bookedStart);
       });
       
       if (!isBooked) {
