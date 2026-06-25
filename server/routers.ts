@@ -4763,10 +4763,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       content: z.string(),
       important: z.boolean().default(false),
       targetStudentId: z.number().nullable().optional(),
+      sendViaWhatsApp: z.boolean().default(false).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
+      
       await db.insert(announcements).values({
         organizationId: orgId,
         userId: ctx.user.id,
@@ -4775,6 +4777,48 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         important: input.important,
         targetStudentId: input.targetStudentId ?? null,
       });
+
+      if (input.sendViaWhatsApp) {
+        // Formatar mensagem
+        const messageText = `*Novo Comunicado:* ${input.title}\n${input.important ? '🚨 *URGENTE*\n' : ''}\n${input.content}`;
+        const sessionId = `prof_${ctx.user.id}`;
+        
+        // Disparar assincronamente (background) para não travar o frontend
+        (async () => {
+          try {
+            if (input.targetStudentId) {
+              const student = await db.query.students.findFirst({
+                where: eq(students.id, input.targetStudentId)
+              });
+              if (student && student.phone) {
+                await sendWhatsAppMessage({
+                  phone: student.phone,
+                  message: messageText,
+                  sessionId
+                });
+              }
+            } else {
+              const allStudents = await db.query.students.findMany({
+                where: and(eq(students.organizationId, orgId), eq(students.active, true))
+              });
+              for (const student of allStudents) {
+                if (student.phone) {
+                  await sendWhatsAppMessage({
+                    phone: student.phone,
+                    message: messageText,
+                    sessionId
+                  });
+                  // Pequeno delay para envios em massa
+                  await new Promise(r => setTimeout(r, 1000));
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Erro no envio em massa de comunicados via WhatsApp:", err);
+          }
+        })();
+      }
+
       return { success: true };
     }),
     delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {

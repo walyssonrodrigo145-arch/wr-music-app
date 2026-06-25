@@ -70,6 +70,7 @@ export default function Comunicados() {
     title: "",
     content: "",
     important: false,
+    sendViaWhatsApp: false,
     targetStudentId: "all" as string | number,
   });
 
@@ -82,6 +83,7 @@ export default function Comunicados() {
       title: formData.title,
       content: formData.content,
       important: formData.important,
+      sendViaWhatsApp: formData.sendViaWhatsApp,
       targetStudentId: formData.targetStudentId === "all" ? null : Number(formData.targetStudentId),
     });
   };
@@ -268,6 +270,17 @@ export default function Comunicados() {
               <Switch 
                 checked={formData.important}
                 onCheckedChange={(val) => setFormData(prev => ({ ...prev, important: val }))}
+              />
+            </div>
+
+            <div className="flex items-center justify-between bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-black text-emerald-700 dark:text-emerald-400">Enviar também no WhatsApp</Label>
+                <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-medium uppercase tracking-widest">Dispara a mensagem via Evolution API</p>
+              </div>
+              <Switch 
+                checked={formData.sendViaWhatsApp}
+                onCheckedChange={(val) => setFormData(prev => ({ ...prev, sendViaWhatsApp: val }))}
               />
             </div>
           </div>
