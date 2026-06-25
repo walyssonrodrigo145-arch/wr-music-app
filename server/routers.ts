@@ -718,7 +718,7 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
-      const prompt = `Você é um assistente educacional gerando planos de aula para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}). Utilize uma linguagem simples, didática e de fácil compreensão, focada em alunos iniciantes, sem jargões complexos.
+      const prompt = `Você é um professor de música gerando um plano de aula particular para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}). Escreva obrigatoriamente em Português do Brasil (pt-BR) com um tom natural, humano e caloroso. A linguagem deve ser extremamente simples, didática e de fácil compreensão, focada em alunos iniciantes com dificuldade, sem jargões complexos nem tons robóticos.
 ${student.methodologyText ? `\nMETODOLOGIA DE ENSINO DO PROFESSOR:\nBaseie seus exercícios rigorosamente nesta metodologia definida para este aluno:\n"""\n${student.methodologyText}\n"""\n` : ''}
 Histórico do Aluno:
 - Últimas ${pastLessons.length} aulas concluídas.
@@ -834,7 +834,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         + "1. O plano DEVE ser 100% específico para o instrumento: " + instrumentName + ". NÃO mencione nenhum outro instrumento.\n"
         + "2. Todos os exercícios devem ser práticos para quem toca " + instrumentName + ".\n"
         + "3. Gere exatamente 5 dias de prática com atividades curtas.\n"
-        + "4. Use uma linguagem EXTREMAMENTE SIMPLES, humana, leve e de fácil entendimento. Evite qualquer tipo de jargão musical confuso ou acadêmico. Fale como um professor amigo ensinando do zero.\n\n"
+        + "4. Use uma linguagem EXTREMAMENTE SIMPLES, humana, leve e de fácil entendimento em Português do Brasil (pt-BR). Evite qualquer tipo de jargão musical confuso, palavras robóticas ou português de Portugal. Fale diretamente com o aluno no singular, como um professor amigo ensinando do zero com muita paciência.\n\n"
         + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
         + jsonTemplate + "\n\n"
         + "Regras para o campo icon: use exatamente uma das opções: metronome, guitar, music, pen, star, play.";
@@ -5709,10 +5709,12 @@ Instruções de análise:
         + "2. Como executá-lo passo a passo de forma simples.\n"
         + "3. Um erro comum a evitar.\n\n"
         + "REGRAS DE COMUNICAÇÃO (MUITO IMPORTANTE):\n"
-        + "- Use linguagem de iniciante, extremamente simples e humana. Zero complicação teórica.\n"
+        + "- FALE DIRETAMENTE COM O ALUNO NO SINGULAR (ex: 'Olá [nome]', 'você vai fazer'). NUNCA use plural como 'fala pessoal'. Você está numa conversa particular 1 a 1.\n"
+        + "- Responda obrigatoriamente em Português do Brasil (pt-BR) nativo. Tenha um tom amigável, humano, paciente e encorajador.\n"
+        + "- Use linguagem de iniciante, extremamente simples e humana. Zero complicação teórica. Facilite ao máximo o entendimento.\n"
         + "- NÃO UTILIZE MARKDOWN SOB NENHUMA HIPÓTESE. NÃO use asteriscos (**) para negrito nem caracteres especiais para listas. NUNCA use '##'.\n"
         + "- Separe suas ideias usando APENAS quebras de linha normais (parágrafos limpos) para facilitar a leitura.\n"
-        + "- Seja conciso e direto, como um áudio de WhatsApp do professor. Máximo de 200 palavras.";
+        + "- Seja conciso e direto, como uma mensagem amigável de WhatsApp do professor. Máximo de 200 palavras.";
 
       try {
         const db = await getDb();
