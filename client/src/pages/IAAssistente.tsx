@@ -316,7 +316,7 @@ export default function IAAssistente() {
             </TabsList>
           </div>
 
-          <TabsContent value="conversas" className="flex-1 overflow-hidden m-0 data-[state=active]:flex flex-col">
+          <TabsContent value="conversas" className="flex-1 min-h-0 overflow-hidden m-0 data-[state=active]:flex flex-col">
             <div className="px-4 pt-4 shrink-0">
               <Button
                 onClick={() => handleCreateConversation()}
@@ -327,7 +327,7 @@ export default function IAAssistente() {
                 Nova Conversa
               </Button>
             </div>
-            <ScrollArea className="flex-1 p-3 mt-2">
+            <ScrollArea className="flex-1 p-3 mt-2 h-full">
           {/* Sugestões Rápidas no Mobile */}
           <div className="block md:hidden mb-6 p-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 px-1">Sugestões Rápidas</p>
@@ -386,7 +386,7 @@ export default function IAAssistente() {
                         deleteConvMutation.mutate({ id: conv.id });
                       }
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-500/20 hover:text-rose-600 rounded-lg transition-all"
+                    className="opacity-100 md:opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-600 rounded-lg transition-all"
                   >
                     <Trash2 size={14} />
                   </button>
