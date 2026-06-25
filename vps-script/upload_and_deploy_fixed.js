@@ -17,6 +17,7 @@ const filesToUpload = [
   'server/routers.ts',
   'client/src/pages/ProfessorExtract.tsx',
   'client/src/pages/Progresso.tsx',
+  'client/src/pages/Dashboard.tsx',
   'client/src/pages/student/Dashboard.tsx',
   'client/src/pages/student/Aulas.tsx',
   'client/src/pages/student/Agenda.tsx',
@@ -30,7 +31,8 @@ const filesToUpload = [
   'server/utils/gemini.ts',
   'client/src/pages/Configuracoes.tsx',
   'drizzle/schema.ts',
-  'server/_core/migrate.ts'
+  'server/_core/migrate.ts',
+  'server/db.ts'
 ];
 
 conn.on('ready', () => {
