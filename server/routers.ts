@@ -17,7 +17,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -934,7 +934,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           organizationId: plan.organizationId,
           userId: plan.teacherId,
           title: "Treino Concluído! 🎸",
-          message: `O aluno ${ctx.user.name} concluiu o treino do dia (Plano: ${plan.title})!`,
+          message: `O aluno ${ctx.user.name} concluiu o treino do dia!`,
           type: "success",
           actionUrl: `/alunos/${ctx.user.studentId}`,
         });
@@ -942,7 +942,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         try {
           await notifyUser(plan.teacherId, {
             title: "Treino Concluído! 🎸",
-            content: `O aluno ${ctx.user.name} concluiu o treino do dia (Plano: ${plan.title})!`,
+            content: `O aluno ${ctx.user.name} concluiu o treino do dia!`,
           });
         } catch (e) {
           console.error("Falha ao enviar push notification:", e);
@@ -1677,26 +1677,26 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           organizationId: orgId,
           professorId: input.professorId || ctx.user.id,
           name: input.name,
-          socialName: input.socialName || null,
-          email: input.email || null,
+          socialName: input.socialName || undefined,
+          email: input.email || undefined,
           phone: input.phone,
-          birthDate: input.birthDate || null,
-          gender: input.gender || null,
-          cpf: input.cpf || null,
-          rg: input.rg || null,
-          address: input.address || null,
-          guardianName: input.guardianName || null,
-          guardianPhone: input.guardianPhone || null,
-          guardianEmail: input.guardianEmail || null,
-          avatar: input.avatar !== undefined ? input.avatar : null,
-          instrumentId: input.instrumentId || null,
+          birthDate: input.birthDate || undefined,
+          gender: input.gender || undefined,
+          cpf: input.cpf || undefined,
+          rg: input.rg || undefined,
+          address: input.address || undefined,
+          guardianName: input.guardianName || undefined,
+          guardianPhone: input.guardianPhone || undefined,
+          guardianEmail: input.guardianEmail || undefined,
+          avatar: input.avatar !== undefined ? input.avatar : undefined,
+          instrumentId: input.instrumentId || undefined,
           level: input.level,
           monthlyFee: String(input.monthlyFee),
           dueDay: input.dueDay,
           lessonType: input.lessonType,
-          onlineMeetingLink: input.onlineMeetingLink || null,
+          onlineMeetingLink: input.onlineMeetingLink || undefined,
           startDate: input.startDate || new Date().toISOString().slice(0, 10),
-          notes: input.notes || null,
+          notes: input.notes || undefined,
           status: input.status,
           allowAutoReminders: input.allowAutoReminders,
           userId: ctx.user.id,
@@ -4798,9 +4798,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         (async () => {
           try {
             if (input.targetStudentId) {
-              const student = await db.query.students.findFirst({
-                where: eq(students.id, input.targetStudentId)
-              });
+              const [student] = await db.select()
+                .from(students)
+                .where(eq(students.id, input.targetStudentId))
+                .limit(1);
               if (student && student.phone) {
                 await sendWhatsAppMessage({
                   phone: student.phone,
@@ -4809,9 +4810,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
                 });
               }
             } else {
-              const allStudents = await db.query.students.findMany({
-                where: and(eq(students.organizationId, orgId), eq(students.active, true))
-              });
+              const allStudents = await db.select()
+                .from(students)
+                .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
               for (const student of allStudents) {
                 if (student.phone) {
                   await sendWhatsAppMessage({
@@ -5533,7 +5534,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           title: "Aula Reagendada pelo Robô",
           message: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${newDateObj.toLocaleString('pt-BR')}.`,
           type: "INFO",
-          read: 0,
+          read: false,
         });
 
         return { success: true, message: "Aula reagendada com sucesso!" };
@@ -5827,7 +5828,7 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
       .mutation(async ({ ctx, input }) => {
         const { callGemini } = await import("./utils/gemini");
         const prompt = `Por favor, reescreva o texto a seguir para torná-lo mais profissional, claro, empático e livre de erros ortográficos ou gramaticais. É um comunicado de um professor de música para seus alunos/pais. Mantenha o sentido original, melhore o tom, mas não seja excessivamente formal. Não adicione saudações como "Olá" a menos que já estejam no original, devolva APENAS o texto reescrito.\n\nTexto original:\n"${input.text}"`;
-        const result = await callGemini(prompt, process.env.GROQ_API_KEY || "groq");
+        const result = await callGemini([{ role: "user", content: prompt }], process.env.GROQ_API_KEY || "groq");
         return { text: result };
       }),
 
@@ -6560,7 +6561,7 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
             totalCredits = (totalMinutes / 60) * hourlyRate;
           } else if (prof.paymentType === "porcentagem") {
             // Percentage: sum of monthly fees for students who had lessons * percentage / 100
-            const uniqueStudentIds = [...new Set(completedLessons.map(l => l.studentId).filter(Boolean))] as number[];
+            const uniqueStudentIds = Array.from(new Set(completedLessons.map(l => l.studentId).filter(Boolean))) as number[];
             if (uniqueStudentIds.length > 0) {
               const studentList = await db.select({
                 id: students.id,

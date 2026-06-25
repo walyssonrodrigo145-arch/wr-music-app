@@ -131,20 +131,28 @@ async function ensureSchemaConsistency(db: any) {
   } catch (error: any) {
     console.warn(`[Database] Schema consistency check failed. Code: ${error.code}. Message: ${error.message}`);
   } finally {
+    const safeExecute = async (query: any, description: string) => {
+      try {
+        await db.execute(query);
+      } catch (e: any) {
+        console.warn(`[Database] Failed to execute ${description}: ${e.message}`);
+      }
+    };
+
     // professor_payments adjustments
-    await db.execute(sql`ALTER TABLE "professor_payments" ADD COLUMN IF NOT EXISTS "adjustments" text`);
+    await safeExecute(sql`ALTER TABLE "professor_payments" ADD COLUMN IF NOT EXISTS "adjustments" text`, "professor_payments.adjustments");
 
     // student_files folder and viewedAt
-    await db.execute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "folder" text`);
-    await db.execute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "viewedAt" timestamp`);
+    await safeExecute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "folder" text`, "student_files.folder");
+    await safeExecute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "viewedAt" timestamp`, "student_files.viewedAt");
 
     // automations and students missing fields
-    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "allowAutoReminders" boolean DEFAULT true NOT NULL`);
-    await db.execute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToStudent" integer DEFAULT 1 NOT NULL`);
-    await db.execute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToGuardian" integer DEFAULT 0 NOT NULL`);
+    await safeExecute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "allowAutoReminders" boolean DEFAULT true NOT NULL`, "students.allowAutoReminders");
+    await safeExecute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToStudent" integer DEFAULT 1 NOT NULL`, "message_automation_rules.sendToStudent");
+    await safeExecute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToGuardian" integer DEFAULT 0 NOT NULL`, "message_automation_rules.sendToGuardian");
 
     // file_comments table
-    await db.execute(sql`
+    await safeExecute(sql`
       CREATE TABLE IF NOT EXISTS "file_comments" (
         "id" serial PRIMARY KEY,
         "organization_id" integer NOT NULL,
@@ -153,7 +161,7 @@ async function ensureSchemaConsistency(db: any) {
         "content" text NOT NULL,
         "created_at" timestamp DEFAULT now() NOT NULL
       )
-    `);
+    `, "create file_comments");
 
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
