@@ -334,6 +334,7 @@ export async function getDashboardStats(organizationId: number, userId?: number)
     [activeStudents],
     [weekLessons],
     [completedLessons],
+    [scheduledLessons],
     [totalLessons],
     [revenueResult]
   ] = await Promise.all([
@@ -346,6 +347,14 @@ export async function getDashboardStats(organizationId: number, userId?: number)
         lessonOrgFilter,
         lessonUserFilter, 
         eq(lessons.status, 'concluida'),
+        gte(lessons.scheduledAt, startOfWeek),
+        lte(lessons.scheduledAt, endOfWeek)
+      )),
+    db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
+      .where(and(
+        lessonOrgFilter,
+        lessonUserFilter, 
+        eq(lessons.status, 'agendada'),
         gte(lessons.scheduledAt, startOfWeek),
         lte(lessons.scheduledAt, endOfWeek)
       )),
@@ -377,6 +386,8 @@ export async function getDashboardStats(organizationId: number, userId?: number)
     totalStudents: totalStudents.count,
     activeStudents: activeStudents.count,
     weekLessons: weekLessons.count,
+    completedLessons: completedLessons.count,
+    scheduledLessons: scheduledLessons.count,
     completionRate,
     monthlyRevenue: Number(revenueResult?.total ?? 0),
   };

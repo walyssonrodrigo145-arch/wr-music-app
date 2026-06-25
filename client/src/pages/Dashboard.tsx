@@ -142,7 +142,7 @@ export default function Dashboard() {
         />
         <MetricCard 
           title="Aulas Realizadas" 
-          value={statsLoading ? "..." : stats?.weekLessons ?? 0} 
+          value={statsLoading ? "..." : stats?.completedLessons ?? 0} 
           icon={CheckCircle2} 
           color="text-emerald-500" 
           trend={trends.aulas} 
@@ -150,10 +150,9 @@ export default function Dashboard() {
         />
         <MetricCard 
           title="Aulas Agendadas" 
-          value={statsLoading ? "..." : stats?.weekLessons ?? 0} 
+          value={statsLoading ? "..." : stats?.scheduledLessons ?? 0} 
           icon={Clock} 
           color="text-orange-500" 
-          sparkData={sparkAulas}
         />
         <MetricCard 
           title="Receita do Mês" 
