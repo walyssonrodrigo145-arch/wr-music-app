@@ -1818,7 +1818,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         
         // Converte strings vazias para null para evitar erros do Postgres (como em datas ou email)
         const cleanData = Object.fromEntries(
-          Object.entries(data).map(([k, v]) => [k, v === "" ? null : v])
+          Object.entries(data).map(([k, v]) => {
+            if ((k === "phone" || k === "name") && v === "") return [k, ""];
+            return [k, v === "" ? null : v];
+          })
         );
 
         const updateData: any = { ...cleanData, updatedAt: new Date() };
