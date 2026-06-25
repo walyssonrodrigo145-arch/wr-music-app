@@ -470,7 +470,7 @@ export default function IAAssistente() {
             <CooldownBanner />
 
             {/* Chat Box */}
-            <div className="flex-1 overflow-hidden p-3 sm:p-6 lg:p-8">
+            <div className="flex-1 overflow-hidden p-2 sm:p-6 lg:p-8">
               <AIChatBox
                 messages={messages}
                 onSendMessage={handleSendMessage}

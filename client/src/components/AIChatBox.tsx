@@ -268,21 +268,21 @@ export function AIChatBox({
           </div>
         ) : (
           <ScrollArea className="h-full">
-            <div className="flex flex-col space-y-4 p-4">
+            <div className="flex flex-col space-y-4 p-2 sm:p-4">
               {displayMessages.map((message, index) => {
                 const isLastMessage = index === displayMessages.length - 1;
                 const shouldApplyMinHeight =
                   isLastMessage && !isLoading && minHeightForLastMessage > 0;
 
                 return (
-                  <div
-                    key={index}
-                    className={cn(
-                      "flex gap-3",
-                      message.role === "user"
-                        ? "justify-end items-start"
-                        : "justify-start items-start"
-                    )}
+                    <div
+                      key={index}
+                      className={cn(
+                        "flex gap-3 w-full",
+                        message.role === "user"
+                          ? "justify-end items-start"
+                          : "justify-start items-start"
+                      )}
                     style={
                       shouldApplyMinHeight
                         ? { minHeight: `${minHeightForLastMessage}px` }
@@ -297,10 +297,10 @@ export function AIChatBox({
 
                     <div
                       className={cn(
-                        "max-w-[80%] rounded-lg px-4 py-2.5",
+                        "max-w-[90%] md:max-w-[80%] rounded-2xl px-4 py-3 min-w-0 overflow-x-auto break-words shadow-sm",
                         message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
+                          ? "bg-indigo-600 text-white rounded-tr-sm shadow-indigo-500/20"
+                          : "bg-card border border-border/50 text-foreground rounded-tl-sm"
                       )}
                     >
                       {message.role === "assistant" ? (
