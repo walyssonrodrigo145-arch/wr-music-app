@@ -307,7 +307,6 @@ export default function IAAssistente() {
               </div>
               <div>
                 <h2 className="font-bold text-foreground leading-tight">IA Assistente</h2>
-                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Gemini 2.0</p>
               </div>
             </div>
 

@@ -25,6 +25,7 @@ const filesToUpload = [
   'client/src/App.tsx',
   'client/src/pages/NovoAluno.tsx',
   'client/src/pages/Alunos.tsx',
+  'client/src/pages/IAAssistente.tsx',
   'client/src/pages/student/Exercicios.tsx',
   'client/src/pages/student/Avisos.tsx',
   'client/src/pages/student/Progresso.tsx',
