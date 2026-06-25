@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
   Users, Calendar, TrendingUp, DollarSign,
-  ArrowUpRight, Clock, CheckCircle2,
+  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
   XCircle, ChevronRight, Bell,
   Search, MinusCircle, RefreshCcw, BarChart as LucideBarChart
 } from "lucide-react";
@@ -20,10 +20,15 @@ import { ptBR } from "date-fns/locale";
 
 // ─── Stat Card ───────────────────────────────────────────────────────────────
 function MetricCard({ 
-  title, value, icon: Icon, color, sparkData, trend 
+  title, value, icon: Icon, color, sparkData, trend, isLoading
 }: { 
-  title: string; value: string | number; icon: any; color: string; sparkData?: any[]; trend: string 
+  title: string; value: string | number; icon: any; color: string; sparkData?: any[]; trend?: string; isLoading?: boolean
 }) {
+  // BUG-004: trend dinâmico — seta e cor corretas conforme positivo/negativo
+  const isNegative = trend?.startsWith('-');
+  const TrendIcon = isNegative ? ArrowDownRight : ArrowUpRight;
+  const trendColor = trend ? (isNegative ? 'text-rose-500' : 'text-emerald-500') : 'text-muted-foreground';
+
   return (
     <div className="bg-card/40 backdrop-blur-xl rounded-[1.25rem] p-6 border border-white/10 shadow-2xl shadow-primary/5 hover:shadow-primary/15 hover:-translate-y-1.5 transition-all duration-500 group cursor-default">
       <div className="flex items-start justify-between mb-4">
@@ -31,15 +36,24 @@ function MetricCard({
           <Icon size={24} className={color} />
         </div>
         <div className="flex flex-col items-end">
-          <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest">
-            <ArrowUpRight size={12} />
-            {trend}
-          </div>
+          {trend ? (
+            <div className={cn("flex items-center gap-1 text-[10px] font-black uppercase tracking-widest", trendColor)}>
+              <TrendIcon size={12} />
+              {trend}
+            </div>
+          ) : (
+            <div className="h-4" />
+          )}
           <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">este mês</p>
         </div>
       </div>
       <div>
-        <h3 className="text-2xl font-black text-foreground tracking-tight">{value}</h3>
+        {/* MH-003: Skeleton loader em vez de "..." */}
+        {isLoading ? (
+          <div className="h-8 w-20 rounded-lg bg-muted animate-pulse mb-1" />
+        ) : (
+          <h3 className="text-2xl font-black text-foreground tracking-tight">{value}</h3>
+        )}
         <p className="text-xs font-bold text-muted-foreground mt-1">{title}</p>
       </div>
       {sparkData && sparkData.length > 0 && (
@@ -72,13 +86,22 @@ function MetricCard({
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  // BUG-003: Estado para controlar período do gráfico
+  const [chartPeriod, setChartPeriod] = useState<'6m' | '12m'>('6m');
   
-  // Queries
-  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
-  const { data: monthlyData } = trpc.dashboard.monthlyStats.useQuery();
-  const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery();
-  const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery();
-  const { data: allLessons = [] } = trpc.lessons.list.useQuery();
+  // Queries — MH-002: cache de 5 minutos para reduzir chamadas
+  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: monthlyDataRaw } = trpc.dashboard.monthlyStats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
+  const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
+  const { data: allLessons = [] } = trpc.lessons.list.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
+
+  // BUG-003: Filtrar dados do gráfico pelo período selecionado
+  const monthlyData = useMemo(() => {
+    if (!monthlyDataRaw) return monthlyDataRaw;
+    if (chartPeriod === '6m') return monthlyDataRaw.slice(-6);
+    return monthlyDataRaw; // 12m = todos
+  }, [monthlyDataRaw, chartPeriod]);
 
   // Real sparkline data from monthlyStats
   const sparkAlunos = useMemo(() => monthlyData?.map(d => ({ value: d.alunos })) || [], [monthlyData]);
@@ -134,33 +157,40 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard 
           title="Alunos Ativos" 
-          value={statsLoading ? "..." : stats?.activeStudents ?? 0} 
+          value={stats?.activeStudents ?? 0} 
           icon={Users} 
           color="text-blue-600" 
           trend={trends.alunos} 
           sparkData={sparkAlunos}
+          isLoading={statsLoading}
         />
         <MetricCard 
           title="Aulas Realizadas" 
-          value={statsLoading ? "..." : stats?.completedLessons ?? 0} 
+          value={stats?.completedLessons ?? 0} 
           icon={CheckCircle2} 
           color="text-emerald-500" 
           trend={trends.aulas} 
           sparkData={sparkAulas}
+          isLoading={statsLoading}
         />
+        {/* BUG-005: Agendadas agora com sparkline e trend */}
         <MetricCard 
           title="Aulas Agendadas" 
-          value={statsLoading ? "..." : stats?.scheduledLessons ?? 0} 
+          value={stats?.scheduledLessons ?? 0} 
           icon={Clock} 
-          color="text-orange-500" 
+          color="text-orange-500"
+          trend={trends.aulas}
+          sparkData={sparkAulas}
+          isLoading={statsLoading}
         />
         <MetricCard 
           title="Receita do Mês" 
-          value={statsLoading ? "..." : formatCurrency(stats?.monthlyRevenue ?? 0)} 
+          value={statsLoading ? 0 : stats?.monthlyRevenue ?? 0} 
           icon={DollarSign} 
           color="text-purple-600" 
           trend={trends.receita} 
           sparkData={sparkReceita}
+          isLoading={statsLoading}
         />
       </div>
 
@@ -182,9 +212,13 @@ export default function Dashboard() {
                    </div>
                 </div>
              </div>
-             <select className="bg-muted border border-border rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground focus:outline-none">
-                <option>Últimos 6 meses</option>
-                <option>Este ano</option>
+             <select
+               value={chartPeriod}
+               onChange={(e) => setChartPeriod(e.target.value as '6m' | '12m')}
+               className="bg-muted border border-border rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground focus:outline-none cursor-pointer"
+             >
+               <option value="6m">Últimos 6 meses</option>
+               <option value="12m">Este ano (12 meses)</option>
              </select>
           </div>
 

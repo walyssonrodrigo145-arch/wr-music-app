@@ -199,6 +199,7 @@ function RuleEditorModal({ rule, onClose, onSave }: {
   const [isActive, setIsActive] = useState((rule?.isActive ?? 1) === 1);
   const [sendToStudent, setSendToStudent] = useState((rule as any)?.sendToStudent === 1 || (rule as any)?.sendToStudent === undefined);
   const [sendToGuardian, setSendToGuardian] = useState((rule as any)?.sendToGuardian === 1);
+  const [copiedVar, setCopiedVar] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const info = getTriggerInfo(trigger);
@@ -223,6 +224,9 @@ function RuleEditorModal({ rule, onClose, onSave }: {
     const newValue = messageTemplate.slice(0, start) + variable + messageTemplate.slice(end);
     setMessageTemplate(newValue);
     setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + variable.length; ta.focus(); }, 0);
+    // MH-005: Feedback visual de "variável inserida"
+    setCopiedVar(variable);
+    setTimeout(() => setCopiedVar(null), 1200);
   };
 
   const handleSave = () => {
@@ -412,8 +416,16 @@ function RuleEditorModal({ rule, onClose, onSave }: {
                 <div className="flex flex-wrap gap-2">
                   {VARIABLES.map(v => (
                     <button key={v.label} onClick={() => insertVariable(v.label)} title={v.desc}
-                      className="px-2.5 py-1.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[11px] font-black rounded-lg hover:bg-indigo-500/20 transition-colors border border-indigo-500/20"
-                    >{v.label}</button>
+                      className={cn(
+                        "px-2.5 py-1.5 text-[11px] font-black rounded-lg transition-all border flex items-center gap-1",
+                        copiedVar === v.label
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 scale-95"
+                          : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20"
+                      )}
+                    >
+                      {copiedVar === v.label && <CheckCircle2 size={10} />}
+                      {v.label}
+                    </button>
                   ))}
                 </div>
                 <p className="text-[10px] text-muted-foreground">Clique em uma variável para inserir no texto</p>

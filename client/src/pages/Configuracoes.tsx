@@ -900,9 +900,19 @@ export default function Configuracoes() {
   });
 
   const handleSaveWhatsApp = () => {
+    // BUG-013: Validar URL se preenchida
+    if (whatsappBotUrl.trim()) {
+      try {
+        new URL(whatsappBotUrl.trim());
+      } catch (e) {
+        toast.error("URL do WhatsApp inválida. Certifique-se de incluir http:// ou https://");
+        return;
+      }
+    }
+    
     updateWhatsAppMutation.mutate({
-      whatsappBotUrl,
-      whatsappBotToken,
+      whatsappBotUrl: whatsappBotUrl.trim(),
+      whatsappBotToken: whatsappBotToken.trim(),
       whatsappAutoSend,
     });
   };

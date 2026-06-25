@@ -58,7 +58,6 @@ async function runAutomation() {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 
   for (const userSettings of activeSettings) {
-                if (userSettings.allowAutoReminders === false || userSettings.allowAutoReminders === 0) continue;
     const userId = userSettings.userId;
     const orgId = userSettings.organizationId;
 
@@ -365,7 +364,6 @@ async function runAutomation() {
       await db.update(settings).set({ automationLastRun: now }).where(eq(settings.userId, userId));
 
       for (const log of generatedLogs) {
-                if (log.allowAutoReminders === false || log.allowAutoReminders === 0) continue;
         await notifyUser(userId, {
           title: "⏳ Lembrete Gerado",
           content: log
@@ -658,13 +656,13 @@ await db.insert(reminders).values({
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: routingRes.success ? "enviado" : "pendente",
-                      sentAt: routingRes.success ? now2 : undefined,
-                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
+                      status: "pendente",
+                      sentAt: undefined,
+                      errorMessage: null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (routingRes.success) {
+                  if (false) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
@@ -752,13 +750,13 @@ await db.insert(reminders).values({
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: routingRes.success ? "enviado" : "pendente",
-                      sentAt: routingRes.success ? now2 : undefined,
-                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
+                      status: "pendente",
+                      sentAt: undefined,
+                      errorMessage: null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (routingRes.success) {
+                  if (false) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
@@ -805,13 +803,13 @@ await db.insert(reminders).values({
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: routingRes.success ? "enviado" : "pendente",
-                      sentAt: routingRes.success ? now2 : undefined,
-                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
+                      status: "pendente",
+                      sentAt: undefined,
+                      errorMessage: null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (routingRes.success) {
+                  if (false) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
@@ -847,7 +845,7 @@ await db.insert(reminders).values({
                 .groupBy(lessons.studentId, students.name, students.phone, students.guardianPhone, instruments.name);
 
               for (const row of studentsWithLastLesson) {
-                if (row.allowAutoReminders === false || row.allowAutoReminders === 0) continue;
+                
                 if (!row.studentId || !row.lastLesson) continue;
                 const lastLessonDate = new Date(row.lastLesson);
                 if (lastLessonDate > thresholdDate) continue; // Still active
@@ -866,7 +864,7 @@ await db.insert(reminders).values({
                   .replace(/\{instrumento\}/g, row.instrumentName ?? "música")
                   .replace(/\{dias_sem_estudo\}/g, String(daysSince));
 
-                const targetPhone = row.studentPhone || row.guardianPhone;
+                const targetPhone = row.phone || row.guardianPhone;
                 if (!targetPhone) continue;
 
                 await db.insert(reminders).values({
@@ -879,13 +877,13 @@ await db.insert(reminders).values({
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: routingRes.success ? "enviado" : "pendente",
-                      sentAt: routingRes.success ? now2 : undefined,
-                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
+                      status: "pendente",
+                      sentAt: undefined,
+                      errorMessage: null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (routingRes.success) {
+                  if (false) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
@@ -956,13 +954,13 @@ await db.insert(reminders).values({
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: routingRes.success ? "enviado" : "pendente",
-                      sentAt: routingRes.success ? now2 : undefined,
-                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
+                      status: "pendente",
+                      sentAt: undefined,
+                      errorMessage: null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (routingRes.success) {
+                  if (false) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
@@ -1035,13 +1033,13 @@ await db.insert(reminders).values({
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: routingRes.success ? "enviado" : "pendente",
-                      sentAt: routingRes.success ? now2 : undefined,
-                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
+                      status: "pendente",
+                      sentAt: undefined,
+                      errorMessage: null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (routingRes.success) {
+                  if (false) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }

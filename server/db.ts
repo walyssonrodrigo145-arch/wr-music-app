@@ -151,6 +151,50 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToStudent" integer DEFAULT 1 NOT NULL`, "message_automation_rules.sendToStudent");
     await safeExecute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToGuardian" integer DEFAULT 0 NOT NULL`, "message_automation_rules.sendToGuardian");
 
+    // BUG-002: Corrigir UNIQUE(email) sem organizationId em students
+    // Dropar constraint antigo (se existir) e recriar com (email, organizationId)
+    await safeExecute(sql`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'students_email_unique' AND conrelid = 'students'::regclass
+        ) THEN
+          ALTER TABLE "students" DROP CONSTRAINT "students_email_unique";
+        END IF;
+      END $$;
+    `, "drop students_email_unique constraint");
+    await safeExecute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS "students_email_org_unique"
+      ON "students" ("email", "organizationId")
+      WHERE "email" IS NOT NULL AND "email" <> ''
+    `, "students email+org unique index");
+
+    // BUG-007: Adicionar valor 'estudo' ao enum reminder_type
+    await safeExecute(sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_enum
+          WHERE enumlabel = 'estudo' AND enumtypid = (
+            SELECT oid FROM pg_type WHERE typname = 'reminder_type'
+          )
+        ) THEN
+          ALTER TYPE "reminder_type" ADD VALUE 'estudo';
+        END IF;
+      END $$;
+    `, "add 'estudo' to reminder_type enum");
+
+    // MH-001: Índice composto em students(organizationId, status) para melhorar performance
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_status" ON "students" ("organizationId", "status")`, "idx_students_org_status");
+    // Índice em lessons(scheduledAt) para queries de calendário
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_lessons_scheduled_at" ON "lessons" ("scheduledAt", "userId")`, "idx_lessons_scheduled_at");
+    // Índice em payment_dues(dueDate, status) para queries financeiras
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_payment_dues_date_status" ON "payment_dues" ("dueDate", "status", "organizationId")`, "idx_payment_dues_date_status");
+    // Índice em reminders(status, scheduledAt) para o job de automação
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_reminders_status_scheduled" ON "reminders" ("status", "scheduledAt", "organizationId")`, "idx_reminders_status_scheduled");
+
+
     // file_comments table
     await safeExecute(sql`
       CREATE TABLE IF NOT EXISTS "file_comments" (

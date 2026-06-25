@@ -35,7 +35,7 @@ export async function callGemini(
       }));
       if (systemPrompt) {
         groqMessages.unshift({
-          role: "system",
+          role: "user",
           content: systemPrompt,
         });
       }

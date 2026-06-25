@@ -36,6 +36,9 @@ import { ENV } from "./_core/env";
 import { storagePut } from "./storage";
 import { superAdminRouter } from "./superAdminRouter";
 
+// MH-004: Rate limiting — controle de tentativas de login por IP+email
+const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
+
 export const appRouter = router({
   superAdmin: superAdminRouter,
   publicData: router({
@@ -175,13 +178,23 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         
-        const salt = crypto.randomBytes(16).toString("hex");
-        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
+        const salt = require("crypto").randomBytes(16).toString("hex");
+        const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString("hex");
         const passwordHash = `${salt}:${derivedKey}`;
         
         await db.update(users)
           .set({ passwordHash, mustChangePassword: false })
           .where(eq(users.id, ctx.user.id));
+          
+        // MH-008: Notificar usuário que a senha foi alterada
+        try {
+          const [user] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+          if (user?.email) {
+            await sendVerificationEmail(user.email, 
+              "Senha alterada com sucesso — MusicPro",
+              `<p>Olá ${user.name ?? ''},</p><p>Sua senha no <strong>MusicPro</strong> foi alterada com sucesso em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.</p><p>Se não foi você, entre em contato imediatamente.</p>`);
+          }
+        } catch { /* e-mail de confirmação é best-effort */ }
           
         return { success: true };
       }),
@@ -193,8 +206,23 @@ export const appRouter = router({
         loginType: z.enum(['aluno', 'professor']).nullish()
       }))
       .mutation(async ({ ctx, input }) => {
+        // MH-004: Rate limiting — máx 5 tentativas por e-mail por minuto
+        const ip = (ctx.req.headers['x-forwarded-for'] as string || (ctx.req as any).socket?.remoteAddress || 'unknown').split(',')[0].trim();
+        const rateLimitKey = `${ip}:${input.email}`;
+        const now = Date.now();
+        const rlWindow = 60_000; // 1 minuto
+        const maxAttempts = 5;
+        const attempt = loginAttempts.get(rateLimitKey);
+        if (attempt && now < attempt.resetAt) {
+          if (attempt.count >= maxAttempts) {
+            throw new Error(`Muitas tentativas de login. Aguarde ${Math.ceil((attempt.resetAt - now) / 1000)} segundos e tente novamente.`);
+          }
+          loginAttempts.set(rateLimitKey, { count: attempt.count + 1, resetAt: attempt.resetAt });
+        } else {
+          loginAttempts.set(rateLimitKey, { count: 1, resetAt: now + rlWindow });
+        }
         const db = await getDb();
-        if (!db) throw new Error("Database not available");
+        if (!db) throw new Error("Database não disponível");
         const [user] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
         
         if (!user) {
@@ -214,7 +242,7 @@ export const appRouter = router({
         }
         
         const [salt, key] = user.passwordHash.split(":");
-        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
+        const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString("hex");
         if (key !== derivedKey) {
           throw new Error("Credenciais inválidas");
         }
@@ -261,14 +289,14 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
         
-        const salt = crypto.randomBytes(16).toString("hex");
-        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
+        const salt = require("crypto").randomBytes(16).toString("hex");
+        const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString("hex");
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
         // Create default organization for new admin with 33-day trial
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
-        const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
+        const uniqueSlug = `${baseSlug}-${require("crypto").randomBytes(4).toString('hex')}`;
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + 30);
         trialEndsAt.setHours(23, 59, 59, 999);
@@ -311,8 +339,8 @@ export const appRouter = router({
           throw new Error("Este e-mail já está em uso.");
         }
 
-        const salt = crypto.randomBytes(16).toString("hex");
-        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
+        const salt = require("crypto").randomBytes(16).toString("hex");
+        const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString("hex");
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
@@ -330,7 +358,7 @@ export const appRouter = router({
 
         // Criar organização com status trialing (30 dias grátis)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
-        const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
+        const uniqueSlug = `${baseSlug}-${require("crypto").randomBytes(4).toString('hex')}`;
         
         // Fatura para daqui a 33 dias (30 dias grátis + 3 dias de prazo para pagamento)
         const trialDays = 33;
@@ -1541,8 +1569,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (existingEmail) throw new TRPCError({ code: 'CONFLICT', message: "Este e-mail já está em uso por outro usuário." });
       }
 
-      const salt = crypto.randomBytes(16).toString("hex");
-      const derivedKey = crypto.scryptSync(password, salt, 64).toString("hex");
+      const salt = require("crypto").randomBytes(16).toString("hex");
+      const derivedKey = require("crypto").scryptSync(password, salt, 64).toString("hex");
       const passwordHash = `${salt}:${derivedKey}`;
       
       if (existingStudentUser) {
@@ -1715,8 +1743,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             if (isGoogle) {
               loginMethod = 'google';
             } else if (input.temporaryPassword) {
-              const salt = crypto.randomBytes(16).toString("hex");
-              const derivedKey = crypto.scryptSync(input.temporaryPassword, salt, 64).toString("hex");
+              const salt = require("crypto").randomBytes(16).toString("hex");
+              const derivedKey = require("crypto").scryptSync(input.temporaryPassword, salt, 64).toString("hex");
               passwordHash = `${salt}:${derivedKey}`;
             }
 
@@ -1984,6 +2012,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         await db.delete(studentGoals).where(and(eq(studentGoals.studentId, input.id), eq(studentGoals.organizationId, orgId)));
         await db.delete(studentTimeline).where(and(eq(studentTimeline.studentId, input.id), eq(studentTimeline.organizationId, orgId)));
         await db.delete(studentFiles).where(and(eq(studentFiles.studentId, input.id), eq(studentFiles.organizationId, orgId)));
+        // BUG-009: Também limpar contracts e announcements específicos do aluno
+        await db.delete(contracts).where(and(eq(contracts.studentId, input.id), eq(contracts.organizationId, orgId)));
+        await db.delete(announcements).where(and(eq(announcements.targetStudentId, input.id), eq(announcements.organizationId, orgId)));
         
         if (student.studentUserId) {
           await db.delete(chatMessages).where(and(or(eq(chatMessages.senderId, student.studentUserId), eq(chatMessages.receiverId, student.studentUserId)), eq(chatMessages.organizationId, orgId)));
@@ -4958,7 +4989,11 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       let studentId = ctx.user.studentId;
 
       if (!studentId) {
-        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        // BUG-008: Busca com filtro de org para prevenir IDOR
+        const [found] = await db.select({ id: students.id })
+          .from(students)
+          .where(and(eq(students.studentUserId, ctx.user.id), eq(students.organizationId, ctx.user.organizationId!)))
+          .limit(1);
         if (found) studentId = found.id;
       }
 
@@ -4969,7 +5004,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const orgId = ctx.user.organizationId!;
       const now = new Date();
       
-      const [student] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
+      // BUG-008: Filtra por org para garantir isolamento multi-tenant
+      const [student] = await db.select().from(students)
+        .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+        .limit(1);
       
       // Parse permissions
       let permissions = {
@@ -5455,8 +5493,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const userUpdates: any = {};
         if (input.email) userUpdates.email = input.email;
         if (input.password) {
-           const salt = crypto.randomBytes(16).toString('hex');
-           const derivedKey = crypto.scryptSync(input.password, salt, 64).toString('hex');
+           const salt = require("crypto").randomBytes(16).toString('hex');
+           const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString('hex');
            userUpdates.passwordHash = salt + ':' + derivedKey;
         }
 
@@ -7001,7 +7039,7 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
             return { success: true, token: active.token, expiresAt: active.expiresAt };
           }
 
-          const token = crypto.randomBytes(16).toString('hex');
+          const token = require("crypto").randomBytes(16).toString('hex');
           const expiresAt = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000); // 100 anos
 
           const [created] = await db.insert(attendanceTokens).values({
