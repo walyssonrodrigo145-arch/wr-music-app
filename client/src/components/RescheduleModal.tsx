@@ -86,7 +86,7 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
     const [endH, endM] = hoursConfig.end.split(':').map(Number);
     end.setHours(endH, endM, 0, 0);
     
-    // Generate 1 hour slots
+    // Generate 30 mins slots
     while (isBefore(current, end)) {
       const timeStr = format(current, "HH:mm");
       // Check if slot is booked
@@ -98,7 +98,7 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
       if (!isBooked) {
         times.push(timeStr);
       }
-      current = addMinutes(current, 60);
+      current = addMinutes(current, 30);
     }
     
     return times;
