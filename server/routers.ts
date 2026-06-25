@@ -5703,29 +5703,27 @@ Instruções de análise:
       instrument: z.string().optional(),
       dayFocus: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
-      const prompt = "Você é um professor de música humano, acolhedor e super didático. "
-        + "Seu aluno está pedindo uma explicação sobre um exercício do plano de estudos.\n\n"
-        + "EXERCÍCIO: " + input.exerciseTitle + "\n"
-        + (input.exerciseSubtitle ? "INSTRUÇÃO: " + input.exerciseSubtitle + "\n" : "")
-        + (input.exercisePoints && input.exercisePoints.length > 0 ? "PONTOS DE ATENÇÃO: " + input.exercisePoints.join(", ") + "\n" : "")
-        + (input.instrument ? "INSTRUMENTO DO ALUNO: " + input.instrument + "\n" : "")
-        + (input.dayFocus ? "FOCO DO DIA: " + input.dayFocus + "\n" : "")
-        + "\nGere uma explicação motivadora deste exercício. Inclua de forma muito breve e suave:\n"
-        + "1. Por que esse exercício ajuda na vida real da música.\n"
-        + "2. Como executá-lo passo a passo de forma simples.\n"
-        + "3. Um erro comum a evitar.\n\n"
-        + "REGRAS DE COMUNICAÇÃO (MUITO IMPORTANTE):\n"
-        + "- FALE DIRETAMENTE COM O ALUNO NO SINGULAR (ex: 'Olá [nome]', 'você vai fazer'). NUNCA use plural como 'fala pessoal'. Você está numa conversa particular 1 a 1.\n"
-        + "- Responda obrigatoriamente em Português do Brasil (pt-BR) nativo. Tenha um tom amigável, humano, paciente e encorajador.\n"
-        + "- Use linguagem de iniciante, extremamente simples e humana. Zero complicação teórica. Facilite ao máximo o entendimento.\n"
-        + "- NÃO UTILIZE MARKDOWN SOB NENHUMA HIPÓTESE. NÃO use asteriscos (**) para negrito nem caracteres especiais para listas. NUNCA use '##'.\n"
-        + "- Separe suas ideias usando APENAS quebras de linha normais (parágrafos limpos) para facilitar a leitura.\n"
-        + "- Seja conciso e direto, como uma mensagem amigável de WhatsApp do professor. Máximo de 200 palavras.";
-
       try {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
-        const [student] = await db.select({ professorId: students.professorId }).from(students).where(eq(students.id, ctx.user.studentId!));
+        const [student] = await db.select({ professorId: students.professorId, name: students.name }).from(students).where(eq(students.id, ctx.user.studentId!));
+        
+        const firstName = student?.name ? student.name.split(" ")[0] : "Aluno";
+
+        const prompt = `Aja estritamente como o professor de música particular do ${firstName}. Você vai explicar uma dúvida sobre o plano de estudos de forma leve, natural e descontraída, como se fosse uma mensagem de WhatsApp.
+
+DÚVIDA DO ALUNO NO EXERCÍCIO:
+Exercício: ${input.exerciseTitle}
+${input.exerciseSubtitle ? "Instrução: " + input.exerciseSubtitle + "\n" : ""}${input.exercisePoints && input.exercisePoints.length > 0 ? "Focar em: " + input.exercisePoints.join(", ") + "\n" : ""}${input.instrument ? "Instrumento: " + input.instrument + "\n" : ""}${input.dayFocus ? "Objetivo hoje: " + input.dayFocus + "\n" : ""}
+O QUE VOCÊ DEVE FAZER:
+Explique rapidamente (1) por que esse exercício é legal e ajuda na prática, (2) como executá-lo passo a passo e (3) um errinho muito comum que ele deve evitar.
+
+REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
+1. FALE DIRETAMENTE COM O ALUNO NO SINGULAR. Chame ele pelo nome ("E aí ${firstName}!", "Olá ${firstName}"). É TERMINANTEMENTE PROIBIDO usar plural como "fala pessoal", "olá a todos" ou "vamos lá galera".
+2. SEJA MUITO DIDÁTICO E SIMPLES. O ${firstName} é iniciante. Evite palavras complexas, jargões difíceis ou explicações muito teóricas. Use uma linguagem do dia a dia.
+3. PAREÇA HUMANO. Nada de respostas que gritem "Sou uma IA!". Seja acolhedor e encorajador.
+4. TEXTO LIMPO E CURTO. PROIBIDO o uso de Markdown, negrito (**), listas com asteriscos, etc. Use apenas quebras de linhas normais para separar as frases. Seja direto.`;
+
         const { getSettingsByUserId } = await import("./db");
         const settingsData = await getSettingsByUserId(ctx.user.organizationId!, student?.professorId || ctx.user.id);
 
