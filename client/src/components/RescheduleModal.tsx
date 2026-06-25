@@ -79,7 +79,16 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
     
     const times = [];
     let current = new Date(selectedDate);
-    const [startH, startM] = hoursConfig.start.split(':').map(Number);
+    let [startH, startM] = hoursConfig.start.split(':').map(Number);
+    
+    // Arredondar para o bloco de 30 mins mais próximo
+    if (startM > 0 && startM <= 30) {
+      startM = 30;
+    } else if (startM > 30) {
+      startM = 0;
+      startH += 1;
+    }
+    
     current.setHours(startH, startM, 0, 0);
     
     const end = new Date(selectedDate);
