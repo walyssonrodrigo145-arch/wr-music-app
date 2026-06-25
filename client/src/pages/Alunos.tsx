@@ -757,7 +757,7 @@ export default function Alunos() {
                                  <DropdownMenuItem onClick={() => setDetailsStudentId(student.id)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
                                     <Eye size={14} className="text-muted-foreground" /> Ver Detalhes
                                  </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => setEditData(student)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
+                                 <DropdownMenuItem onClick={() => setLocation(`/alunos/${student.id}/editar`)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
                                     <Edit size={14} className="text-muted-foreground" /> Editar Aluno
                                  </DropdownMenuItem>
                                  <DropdownMenuItem onClick={() => { setGenerateAccessStudentId(student.id); }} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
