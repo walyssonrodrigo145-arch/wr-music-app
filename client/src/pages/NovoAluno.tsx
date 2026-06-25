@@ -514,27 +514,27 @@ export default function NovoAluno() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
             {isEditMode && (
               <Button 
                 variant="outline" 
-                className="rounded-xl border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 h-11 px-6 flex items-center gap-2"
+                className="rounded-xl border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 h-11 px-4 md:px-6 flex items-center gap-2 flex-1 md:flex-none"
                 onClick={() => generateContractMutation.mutate({ studentId: studentId! })}
                 disabled={generateContractMutation.isPending}
               >
                 {generateContractMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
-                Gerar Contrato
+                <span className="whitespace-nowrap">Gerar Contrato</span>
               </Button>
             )}
             <Button 
               variant="outline" 
-              className="rounded-xl border-border font-bold text-slate-600 hover:bg-slate-50 h-11 px-6"
+              className="rounded-xl border-border font-bold text-slate-600 hover:bg-slate-50 h-11 px-4 md:px-6 flex-1 md:flex-none"
               onClick={() => setLocation("/alunos")}
             >
               Cancelar
             </Button>
             <Button 
-              className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold h-11 px-8 shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center gap-2 group"
+              className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold h-11 px-6 md:px-8 shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 group w-full md:w-auto"
               onClick={handleSave}
               disabled={isSaving}
             >
