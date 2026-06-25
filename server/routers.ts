@@ -1255,7 +1255,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
     monthlyStats: protectedProcedure.query(async ({ ctx }) => {
       const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const stats = await getMonthlyStats(ctx.user.organizationId!, isUserAdmin ? undefined : ctx.user.id, 12);
-      return stats.reverse();
+      return stats;
     }),
     experimentalStats: protectedProcedure
       .input(z.object({
