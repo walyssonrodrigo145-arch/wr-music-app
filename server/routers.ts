@@ -1630,7 +1630,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
       monthlyFee: z.number().default(0),
       dueDay: z.number().default(15),
-      lessonType: z.enum(['individual','turma']).default('individual'),
+      lessonType: z.enum(['individual','turma','online']).default('individual'),
+      onlineMeetingLink: z.string().url().optional().nullable(),
       notes: z.string().optional(),
       status: z.enum(['ativo','inativo','pausado']).default('ativo'),
       startDate: z.string().optional().nullable(),
@@ -1691,6 +1692,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           monthlyFee: String(input.monthlyFee),
           dueDay: input.dueDay,
           lessonType: input.lessonType,
+          onlineMeetingLink: input.onlineMeetingLink || null,
           startDate: input.startDate || new Date().toISOString().slice(0, 10),
           notes: input.notes || null,
           status: input.status,
@@ -1795,6 +1797,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       monthlyFee: z.number().optional(),
       dueDay: z.number().optional(),
       status: z.enum(['ativo', 'inativo', 'pausado']).optional(),
+      lessonType: z.enum(['individual', 'turma', 'online']).optional(),
+      onlineMeetingLink: z.string().url().optional().nullable(),
       notes: z.string().optional(),
       startDate: z.string().optional().nullable(),
       updateFutureDues: z.boolean().optional(),
@@ -5108,7 +5112,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
-      return db.select().from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId))).orderBy(desc(lessons.scheduledAt)).limit(50);
+      const lessonRows = await db.select().from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId))).orderBy(desc(lessons.scheduledAt)).limit(50);
+      // Buscar o link de reunião online do aluno
+      const [studentRow] = await db.select({ onlineMeetingLink: students.onlineMeetingLink, lessonType: students.lessonType }).from(students).where(eq(students.id, studentId)).limit(1);
+      return lessonRows.map(l => ({ ...l, onlineMeetingLink: studentRow?.onlineMeetingLink || null, studentLessonType: studentRow?.lessonType || 'individual' }));
     }),
     getMaterials: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();

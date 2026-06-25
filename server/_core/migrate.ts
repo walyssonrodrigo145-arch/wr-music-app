@@ -148,7 +148,10 @@ export async function runAutoMigrations() {
           "createdAt" timestamp DEFAULT now() NOT NULL,
           "updatedAt" timestamp DEFAULT now() NOT NULL
         );`
-      }
+      },
+      // Modalidade Online — expande enum e adiciona coluna de link
+      { table: 'enum', sql: "ALTER TYPE lesson_type ADD VALUE IF NOT EXISTS 'online'" },
+      { table: 'students', sql: 'ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "onlineMeetingLink" text' },
     ];
 
     for (const m of migrations) {

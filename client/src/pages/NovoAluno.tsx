@@ -73,6 +73,7 @@ export default function NovoAluno() {
     monthlyFee: "",
     dueDay: "10",
     lessonType: "individual",
+    onlineMeetingLink: "",
     guardianName: "",
     guardianPhone: "",
     guardianEmail: "",
@@ -102,6 +103,7 @@ export default function NovoAluno() {
         monthlyFee: studentData.monthlyFee ? String(Number(studentData.monthlyFee)) : "",
         dueDay: studentData.dueDay ? String(studentData.dueDay) : "10",
         lessonType: (studentData as any).lessonType ?? "individual",
+        onlineMeetingLink: (studentData as any).onlineMeetingLink ?? "",
         guardianName: (studentData as any).guardianName ?? "",
         guardianPhone: (studentData as any).guardianPhone ?? "",
         guardianEmail: (studentData as any).guardianEmail ?? "",
@@ -404,6 +406,7 @@ export default function NovoAluno() {
       monthlyFee: parseFee(form.monthlyFee),
       dueDay: Number(form.dueDay) || 10,
       lessonType: form.lessonType as any,
+      onlineMeetingLink: form.onlineMeetingLink?.trim() || undefined,
       startDate: form.startDate,
       notes: form.notes,
       temporaryPassword: form.temporaryPassword || undefined,
@@ -877,9 +880,22 @@ export default function NovoAluno() {
                       <SelectContent className="rounded-xl border-border shadow-2xl p-1">
                         <SelectItem value="individual" className="rounded-lg font-medium">Individual</SelectItem>
                         <SelectItem value="turma" className="rounded-lg font-medium">Turma / Coletiva</SelectItem>
+                        <SelectItem value="online" className="rounded-lg font-medium">🌐 Online (Zoom, Meet, etc.)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {form.lessonType === 'online' && (
+                     <div className="space-y-2 md:col-span-2">
+                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Link da Reunião Online</label>
+                       <Input
+                         placeholder="https://meet.google.com/xxx ou https://zoom.us/j/xxx"
+                         value={form.onlineMeetingLink || ''}
+                         onChange={(e) => handleInputChange('onlineMeetingLink', e.target.value)}
+                         className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold"
+                       />
+                       <p className="text-[10px] text-muted-foreground ml-1">Cole o link fixo da sua sala de videoconferência. Ele aparecerá para o aluno na aba de Aulas.</p>
+                     </div>
+                   )}
                 </div>
               </div>
             </motion.div>

@@ -44,7 +44,7 @@ interface FormData {
   dueDay: string;
   notes: string;
   status: "ativo" | "inativo" | "pausado";
-  lessonType: "individual" | "turma";
+  lessonType: "individual" | "turma" | "online";
   avatar: string;
 }
 
@@ -612,6 +612,7 @@ export default function Alunos() {
                 { value: "todos",      label: "Todas",      count: students.length },
                 { value: "individual", label: "Individual",  count: students.filter((s: any) => s.lessonType === 'individual' || !s.lessonType).length },
                 { value: "turma",      label: "Turma",       count: students.filter((s: any) => s.lessonType === 'turma').length },
+                { value: "online",     label: "Online",      count: students.filter((s: any) => s.lessonType === 'online').length },
               ] as const).map(({ value, label, count }) => (
                 <button
                   key={value}

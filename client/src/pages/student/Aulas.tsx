@@ -1,4 +1,4 @@
-import { trpc } from "@/lib/trpc";
+import { trpc } from \"@/lib/trpc\";
 import { 
   Calendar, 
   Clock, 
@@ -11,7 +11,7 @@ import {
   CalendarDays,
   MoreVertical,
   MapPin,
-  ExternalLink
+  Video
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -115,18 +115,23 @@ export default function StudentLessons() {
             <div className="flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 border-t border-border/10 md:border-none pt-6 md:pt-0">
               <StatusBadge status={lesson.status} />
               <div className="flex items-center gap-2">
-                {lesson.status === 'agendada' && (
-                  <button 
-                    onClick={() => setSelectedLesson({ id: lesson.id, title: lesson.title })}
-                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary px-5 py-3 rounded-xl border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-all"
-                  >
-                    Remarcar
-                  </button>
-                )}
-                <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-background bg-foreground px-5 py-3 rounded-xl hover:scale-105 active:scale-95 transition-all shadow-md">
-                  <ExternalLink size={12} />
-                  Acessar
-                </button>
+                 {lesson.status === 'agendada' && (
+                   <button 
+                     onClick={() => setSelectedLesson({ id: lesson.id, title: lesson.title })}
+                     className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary px-5 py-3 rounded-xl border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-all"
+                   >
+                     Remarcar
+                   </button>
+                 )}
+                 {lesson.studentLessonType === 'online' && lesson.onlineMeetingLink && (
+                   <button 
+                     onClick={() => window.open(lesson.onlineMeetingLink!, '_blank')}
+                     className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-background bg-foreground px-5 py-3 rounded-xl hover:scale-105 active:scale-95 transition-all shadow-md"
+                   >
+                     <Video size={12} />
+                     Entrar na Aula
+                   </button>
+                 )}
               </div>
             </div>
           </div>

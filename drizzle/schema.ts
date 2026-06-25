@@ -23,7 +23,7 @@ export const goalStatusEnum = pgEnum('goal_status', ["pendente", "concluida"]);
 export const timelineCategoryEnum = pgEnum('timeline_category', ["tecnica", "teoria", "repertorio", "geral"]);
 export const fileCategoryEnum = pgEnum('file_category', ["imagem", "video", "pdf", "audio", "documento"]);
 export const rescheduleStatusEnum = pgEnum('reschedule_status', ["pendente", "aprovada", "recusada"]);
-export const lessonTypeEnum = pgEnum('lesson_type', ["individual", "turma"]);
+export const lessonTypeEnum = pgEnum('lesson_type', ["individual", "turma", "online"]);
 export const contractStatusEnum = pgEnum('contract_status', ["rascunho", "enviado", "assinado", "cancelado"]);
 export const professorPaymentTypeEnum = pgEnum('professor_payment_type', ["fixo", "porcentagem"]);
 export const professorPaymentStatusEnum = pgEnum('professor_payment_status', ["aberto", "aprovado", "pago"]);
@@ -121,6 +121,7 @@ export const students = pgTable("students", {
   monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }).default("0.00").notNull(),
   dueDay: integer("dueDay").default(10).notNull(),
   lessonType: lessonTypeEnum("lessonType").default("individual").notNull(),
+  onlineMeetingLink: text("onlineMeetingLink"),
   startDate: date("startDate"),
   notes: text("notes"),
   permissions: text("permissions"), // JSON string: { canSeeFinanceiro: boolean, etc }
