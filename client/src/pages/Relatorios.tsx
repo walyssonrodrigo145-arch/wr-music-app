@@ -146,7 +146,7 @@ const Relatorios: React.FC = () => {
       } else {
         csvContent += "Indicador,Valor\n";
         csvContent += `Total de alunos,${statsQuery.data?.totalStudents || 0}\n`;
-        csvContent += `Aulas realizadas,${statsQuery.data?.weekLessons || 0}\n`;
+        csvContent += `Aulas realizadas,${statsQuery.data?.monthLessons || 0}\n`;
         csvContent += `Receita mensal,${statsQuery.data?.monthlyRevenue || 0}\n`;
       }
 
@@ -255,8 +255,8 @@ const Relatorios: React.FC = () => {
                   <GraduationCap className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-on-surface-variant uppercase">Aulas Semanais</p>
-                  <p className="text-xl font-bold text-on-surface">{statsQuery.data?.weekLessons || 0}</p>
+                  <p className="text-xs font-semibold text-on-surface-variant uppercase">Aulas Mensais</p>
+                  <p className="text-xl font-bold text-on-surface">{statsQuery.data?.monthLessons || 0}</p>
                 </div>
               </div>
               <span className="text-on-surface-variant font-medium text-sm">~85% cap.</span>

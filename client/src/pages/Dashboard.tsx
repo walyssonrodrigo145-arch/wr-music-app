@@ -133,8 +133,8 @@ export default function Dashboard() {
       {/* ── Metrics Grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard 
-          title="Total de Alunos" 
-          value={statsLoading ? "..." : stats?.totalStudents ?? 0} 
+          title="Alunos Ativos" 
+          value={statsLoading ? "..." : stats?.activeStudents ?? 0} 
           icon={Users} 
           color="text-blue-600" 
           trend={trends.alunos} 

@@ -319,6 +319,9 @@ export async function getDashboardStats(organizationId: number, userId?: number)
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 6);
   endOfWeek.setHours(23, 59, 59, 999);
+  
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
   const lessonOrgFilter = eq(lessons.organizationId, organizationId);
   const lessonUserFilter = userId ? eq(lessons.userId, userId) : undefined;
@@ -332,7 +335,7 @@ export async function getDashboardStats(organizationId: number, userId?: number)
   const [
     [totalStudents],
     [activeStudents],
-    [weekLessons],
+    [monthLessons],
     [completedLessons],
     [scheduledLessons],
     [totalLessons],
@@ -341,30 +344,30 @@ export async function getDashboardStats(organizationId: number, userId?: number)
     db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(orgFilter, userFilter)),
     db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(students).where(and(orgFilter, userFilter, eq(students.status, 'ativo'))),
     db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
-      .where(and(lessonOrgFilter, lessonUserFilter, gte(lessons.scheduledAt, startOfWeek), lte(lessons.scheduledAt, endOfWeek))),
+      .where(and(lessonOrgFilter, lessonUserFilter, gte(lessons.scheduledAt, startOfMonth), lte(lessons.scheduledAt, endOfMonth))),
     db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
       .where(and(
         lessonOrgFilter,
         lessonUserFilter, 
         eq(lessons.status, 'concluida'),
-        gte(lessons.scheduledAt, startOfWeek),
-        lte(lessons.scheduledAt, endOfWeek)
+        gte(lessons.scheduledAt, startOfMonth),
+        lte(lessons.scheduledAt, endOfMonth)
       )),
     db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
       .where(and(
         lessonOrgFilter,
         lessonUserFilter, 
         eq(lessons.status, 'agendada'),
-        gte(lessons.scheduledAt, startOfWeek),
-        lte(lessons.scheduledAt, endOfWeek)
+        gte(lessons.scheduledAt, startOfMonth),
+        lte(lessons.scheduledAt, endOfMonth)
       )),
     db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
       .where(and(
         lessonOrgFilter,
         lessonUserFilter, 
         sql`status != 'agendada'`,
-        gte(lessons.scheduledAt, startOfWeek),
-        lte(lessons.scheduledAt, endOfWeek)
+        gte(lessons.scheduledAt, startOfMonth),
+        lte(lessons.scheduledAt, endOfMonth)
       )),
     db.select({
       total: sql<number>`CAST(COALESCE(SUM(${paymentDues.amount}), 0) AS DECIMAL)`
@@ -385,7 +388,7 @@ export async function getDashboardStats(organizationId: number, userId?: number)
   return {
     totalStudents: totalStudents.count,
     activeStudents: activeStudents.count,
-    weekLessons: weekLessons.count,
+    monthLessons: monthLessons.count,
     completedLessons: completedLessons.count,
     scheduledLessons: scheduledLessons.count,
     completionRate,
