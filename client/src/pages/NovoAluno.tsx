@@ -18,7 +18,8 @@ import {
   MapPin,
   Mail,
   UserCheck,
-  Pencil
+  Pencil,
+  Bot
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { differenceInYears, parseISO, isValid } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 
 const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
 
@@ -80,6 +82,7 @@ export default function NovoAluno() {
     notes: "",
     temporaryPassword: "",
     avatar: "",
+    allowAutoReminders: true,
   });
 
   // Pre-populate form when editing
@@ -110,6 +113,7 @@ export default function NovoAluno() {
         notes: (studentData as any).notes ?? "",
         temporaryPassword: "",
         avatar: studentData.avatar ?? "",
+        allowAutoReminders: (studentData as any).allowAutoReminders ?? true,
       });
 
       const bd = (studentData as any).birthDate;
@@ -1009,6 +1013,30 @@ export default function NovoAluno() {
                     {form.notes.length} / 500
                   </span>
                 </div>
+              </div>
+            </motion.div>
+
+            {/* CARD 5.5 — Automações */}
+            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 hover:shadow-xl hover:shadow-slate-500/5 transition-all duration-500 relative group">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-110 transition-transform">
+                  <Bot size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-foreground tracking-tight">Lembretes Automáticos</h3>
+                  <p className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.2em]">WhatsApp & Robô</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50">
+                <div>
+                  <p className="text-sm font-bold text-foreground">Permitir mensagens automáticas</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Se desativado, o aluno não receberá lembretes automáticos de cobrança, aula ou treinos via WhatsApp.</p>
+                </div>
+                <Switch 
+                  checked={form.allowAutoReminders}
+                  onCheckedChange={(checked) => handleInputChange('allowAutoReminders', checked)}
+                />
               </div>
             </motion.div>
 

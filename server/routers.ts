@@ -1351,6 +1351,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         notes: students.notes,
         startDate: students.startDate,
         professorId: students.professorId,
+        allowAutoReminders: students.allowAutoReminders,
       }).from(students)
         .where(and(
           eq(students.id, input.id), 
@@ -1408,6 +1409,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         instrumentIcon: instruments.icon,
         professorId: students.professorId,
         permissions: students.permissions,
+        allowAutoReminders: students.allowAutoReminders,
       }).from(students)
         .leftJoin(instruments, eq(students.instrumentId, instruments.id))
         .where(and(eq(students.id, input.id), eq(students.organizationId, orgId)))
@@ -1638,6 +1640,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       temporaryPassword: z.string().optional(),
       professorId: z.number().optional(),
       avatar: z.string().optional(),
+      allowAutoReminders: z.boolean().default(true),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -1695,6 +1698,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           startDate: input.startDate || new Date().toISOString().slice(0, 10),
           notes: input.notes || null,
           status: input.status,
+          allowAutoReminders: input.allowAutoReminders,
           userId: ctx.user.id,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -1803,6 +1807,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       updateFutureDues: z.boolean().optional(),
       professorId: z.number().optional(),
       avatar: z.string().optional(),
+      allowAutoReminders: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -3694,6 +3699,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         type: z.enum(["aula", "cobranca", "inadimplencia", "manual"]),
         body: z.string().min(1),
         isDefault: z.boolean().optional(),
+        sendToStudent: z.boolean().optional(),
+        sendToGuardian: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         try {
@@ -3713,6 +3720,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             type: input.type,
             body: input.body,
             isDefault: input.isDefault ? 1 : 0,
+            sendToStudent: input.sendToStudent ?? true,
+            sendToGuardian: input.sendToGuardian ?? false,
             createdAt: new Date(),
           });
           return { success: true };
@@ -3728,6 +3737,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         type: z.enum(["aula", "cobranca", "inadimplencia", "manual"]).optional(),
         body: z.string().min(1).optional(),
         isDefault: z.boolean().optional(),
+        sendToStudent: z.boolean().optional(),
+        sendToGuardian: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         try {
@@ -7698,6 +7709,8 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
           messageTemplate: z.string().min(1),
           channel: z.string().default("whatsapp"),
           isActive: z.number().default(1),
+          sendToStudent: z.boolean().default(true),
+          sendToGuardian: z.boolean().default(false),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -7726,9 +7739,10 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
               offsetDays: input.offsetDays,
               offsetHours: input.offsetHours,
               conditions: input.conditions ?? null,
-              actions: input.actions ?? null,
               messageTemplate: input.messageTemplate,
               channel: input.channel,
+              sendToStudent: input.sendToStudent ? 1 : 0,
+              sendToGuardian: input.sendToGuardian ? 1 : 0,
             })
             .returning({ id: messageAutomationRules.id });
 

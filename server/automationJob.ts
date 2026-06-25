@@ -9,6 +9,7 @@ import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
 import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession } from "./utils/whatsapp";
+import { sendSmartWhatsAppNotification } from "./utils/whatsappRouting";
 
 // Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
 let isAutomationRunning = false;
@@ -57,6 +58,7 @@ async function runAutomation() {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 
   for (const userSettings of activeSettings) {
+                if (userSettings.allowAutoReminders === false || userSettings.allowAutoReminders === 0) continue;
     const userId = userSettings.userId;
     const orgId = userSettings.organizationId;
 
@@ -184,6 +186,7 @@ async function runAutomation() {
         );
 
       for (const lesson of upcomingLessons) {
+                if (lesson.allowAutoReminders === false || lesson.allowAutoReminders === 0) continue;
         const diffMinutes = Math.round((new Date(lesson.scheduledAt).getTime() - now.getTime()) / (60 * 1000));
         
         // Alerta de 1 hora (entre 50 e 70 minutos para tolerância)
@@ -241,6 +244,7 @@ async function runAutomation() {
           );
 
         for (const lesson of expLessons) {
+                if (lesson.allowAutoReminders === false || lesson.allowAutoReminders === 0) continue;
           if (!lesson.experimentalPhone) continue;
 
           const diffHours = (new Date(lesson.scheduledAt).getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -311,6 +315,7 @@ async function runAutomation() {
           );
 
         for (const plan of activeStudyPlans) {
+                if (plan.allowAutoReminders === false || plan.allowAutoReminders === 0) continue;
           try {
             // Verificar se o plano ainda possui dias marcados como false
             const parsedDays = JSON.parse(plan.daysCompleted as string);
@@ -360,6 +365,7 @@ async function runAutomation() {
       await db.update(settings).set({ automationLastRun: now }).where(eq(settings.userId, userId));
 
       for (const log of generatedLogs) {
+                if (log.allowAutoReminders === false || log.allowAutoReminders === 0) continue;
         await notifyUser(userId, {
           title: "⏳ Lembrete Gerado",
           content: log
@@ -380,6 +386,7 @@ async function runAutomation() {
             studentPhone: students.phone,
             guardianPhone: students.guardianPhone,
             birthDate: students.birthDate,
+                  allowAutoReminders: students.allowAutoReminders,
             studentName: students.name,
           })
           .from(reminders)
@@ -433,6 +440,7 @@ async function runAutomation() {
         const MAX_MESSAGES_PER_MINUTE = 1;
 
         for (const rem of pendingReminders) {
+                if (rem.allowAutoReminders === false || rem.allowAutoReminders === 0) continue;
           if (messagesSentThisCycle >= MAX_MESSAGES_PER_MINUTE) {
             console.log(`[Automation] Limite de ${MAX_MESSAGES_PER_MINUTE} mensagem/min atingido. Fila continua no próximo ciclo.`);
             break;
@@ -526,6 +534,7 @@ async function runAutomation() {
         .where(eq(settings.automationEnabled, 1));
 
       for (const userSet of activeSettingsForRules) {
+                if (userSet.allowAutoReminders === false || userSet.allowAutoReminders === 0) continue;
         const userId = userSet.userId;
         const orgId = userSet.organizationId;
         if (!orgId) continue;
@@ -553,6 +562,7 @@ async function runAutomation() {
         const todayStr2 = now2.toISOString().slice(0, 10);
 
         for (const rule of activeRules) {
+                if (rule.allowAutoReminders === false || rule.allowAutoReminders === 0) continue;
           try {
             if (rule.trigger === "payment_due" || rule.trigger === "payment_overdue") {
               // ── MENSALIDADES ──────────────────────────────────────────────────
@@ -569,6 +579,7 @@ async function runAutomation() {
                   studentPhone: students.phone,
                   guardianPhone: students.guardianPhone,
                   birthDate: students.birthDate,
+                  allowAutoReminders: students.allowAutoReminders,
                   instrumentName: instruments.name,
                   asaasPaymentLink: paymentDues.asaasPaymentLink,
                 })
@@ -587,6 +598,7 @@ async function runAutomation() {
                 );
 
               for (const due of pendingDues) {
+                if (due.allowAutoReminders === false || due.allowAutoReminders === 0) continue;
                 const dueDate = new Date(due.dueDate + "T12:00:00");
                 const dueDateStr = String(due.dueDate).slice(0, 10);
                 const isOverdue = dueDateStr < todayStr2;
@@ -623,43 +635,40 @@ async function runAutomation() {
                   message += `\n\n💳 *PIX:* ${userSet.pixKey}`;
                 }
 
-                let targetPhone = due.studentPhone;
-                if (due.birthDate) {
-                  const bd = new Date(due.birthDate);
-                  let age = now2.getFullYear() - bd.getFullYear();
-                  if (now2.getMonth() < bd.getMonth() || (now2.getMonth() === bd.getMonth() && now2.getDate() < bd.getDate())) age--;
-                  if (age < 18 && due.guardianPhone) targetPhone = due.guardianPhone;
-                }
-                if (!targetPhone) continue;
+                
+                const routingRes = await sendSmartWhatsAppNotification({
+                  sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,
+                  sendToGuardian: (rule as any).sendToGuardian === 1,
+                  student: { phone: due.studentPhone || due.phone, guardianPhone: due.guardianPhone },
+                  message,
+                  sessionId: `prof_${userId}`,
+                  whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
+                });
 
-                await db.insert(reminders).values({
+                if (!routingRes.success && (!routingRes.errors || routingRes.errors[0] === "Nenhum telefone válido encontrado para envio.")) continue;
+
+await db.insert(reminders).values({
                   organizationId: orgId, userId, studentId: due.studentId, paymentDueId: due.id,
                   type: "cobranca", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
                 });
 
                 // If auto-send enabled, send immediately
+                
                 if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
-                  const sendRes = await sendWhatsAppMessage({
-                    url: userSet.whatsappBotUrl,
-                    token: userSet.whatsappBotToken,
-                    phone: targetPhone,
-                    message,
-                    sessionId: `prof_${userId}`,
-                  });
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: sendRes.success ? "enviado" : "pendente",
-                      sentAt: sendRes.success ? now2 : undefined,
-                      externalMessageId: sendRes.messageId ?? null,
-                      errorMessage: sendRes.error ?? null,
+                      status: routingRes.success ? "enviado" : "pendente",
+                      sentAt: routingRes.success ? now2 : undefined,
+                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (sendRes.success) {
+                  if (routingRes.success) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
+
               }
 
             } else if (rule.trigger === "lesson_scheduled") {
@@ -680,6 +689,7 @@ async function runAutomation() {
                   studentPhone: students.phone,
                   guardianPhone: students.guardianPhone,
                   birthDate: students.birthDate,
+                  allowAutoReminders: students.allowAutoReminders,
                   instrumentName: instruments.name,
                 })
                 .from(lessons)
@@ -697,6 +707,7 @@ async function runAutomation() {
                 );
 
               for (const lesson of upcomingLessons2) {
+                if (lesson.allowAutoReminders === false || lesson.allowAutoReminders === 0) continue;
                 const lessonTime = new Date(lesson.scheduledAt);
                 const triggerTime = new Date(lessonTime.getTime() + offsetMs); // offsetHours=-24 → 24h before
                 if (triggerTime > now2) continue;
@@ -719,49 +730,52 @@ async function runAutomation() {
                   .replace(/\{data_aula\}/g, dataAula)
                   .replace(/\{hora_aula\}/g, horaAula);
 
-                let targetPhone = lesson.studentPhone;
-                if (lesson.birthDate) {
-                  const bd = new Date(lesson.birthDate);
-                  let age = now2.getFullYear() - bd.getFullYear();
-                  if (now2.getMonth() < bd.getMonth() || (now2.getMonth() === bd.getMonth() && now2.getDate() < bd.getDate())) age--;
-                  if (age < 18 && lesson.guardianPhone) targetPhone = lesson.guardianPhone;
-                }
-                if (!targetPhone) continue;
+                
+                const routingRes = await sendSmartWhatsAppNotification({
+                  sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,
+                  sendToGuardian: (rule as any).sendToGuardian === 1,
+                  student: { phone: lesson.studentPhone || lesson.phone, guardianPhone: lesson.guardianPhone },
+                  message,
+                  sessionId: `prof_${userId}`,
+                  whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
+                });
 
-                await db.insert(reminders).values({
+                if (!routingRes.success && (!routingRes.errors || routingRes.errors[0] === "Nenhum telefone válido encontrado para envio.")) continue;
+
+await db.insert(reminders).values({
                   organizationId: orgId, userId, studentId: lesson.studentId, lessonId: lesson.id,
                   type: "aula", message, scheduledAt: triggerTime, status: "pendente", autoGenerated: 1, refId,
                 });
 
+                
                 if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
-                  const sendRes = await sendWhatsAppMessage({
-                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
-                    phone: targetPhone, message, sessionId: `prof_${userId}`,
-                  });
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: sendRes.success ? "enviado" : "pendente",
-                      sentAt: sendRes.success ? now2 : undefined,
-                      errorMessage: sendRes.error ?? null,
+                      status: routingRes.success ? "enviado" : "pendente",
+                      sentAt: routingRes.success ? now2 : undefined,
+                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (sendRes.success) {
+                  if (routingRes.success) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
+
               }
 
             } else if (rule.trigger === "birthday") {
               // ── ANIVERSÁRIOS ─────────────────────────────────────────────────
               const allStudents = await db
-                .select({ id: students.id, name: students.name, phone: students.phone, guardianPhone: students.guardianPhone, birthDate: students.birthDate, instrumentName: instruments.name })
+                .select({ id: students.id, name: students.name, phone: students.phone, guardianPhone: students.guardianPhone, birthDate: students.birthDate,
+                  allowAutoReminders: students.allowAutoReminders, instrumentName: instruments.name })
                 .from(students)
                 .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
                 .where(and(eq(students.organizationId, orgId), eq(students.userId, userId), eq(students.status, "ativo")));
 
               for (const student of allStudents) {
+                if (student.allowAutoReminders === false || student.allowAutoReminders === 0) continue;
                 if (!student.birthDate) continue;
                 const bd = new Date(student.birthDate);
                 if (bd.getMonth() !== now2.getMonth() || bd.getDate() !== now2.getDate()) continue;
@@ -786,24 +800,22 @@ async function runAutomation() {
                   type: "manual", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
                 });
 
+                
                 if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
-                  const sendRes = await sendWhatsAppMessage({
-                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
-                    phone: targetPhone, message, sessionId: `prof_${userId}`,
-                  });
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: sendRes.success ? "enviado" : "pendente",
-                      sentAt: sendRes.success ? now2 : undefined,
-                      errorMessage: sendRes.error ?? null,
+                      status: routingRes.success ? "enviado" : "pendente",
+                      sentAt: routingRes.success ? now2 : undefined,
+                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (sendRes.success) {
+                  if (routingRes.success) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
+
               }
 
             } else if (rule.trigger === "student_inactive") {
@@ -835,6 +847,7 @@ async function runAutomation() {
                 .groupBy(lessons.studentId, students.name, students.phone, students.guardianPhone, instruments.name);
 
               for (const row of studentsWithLastLesson) {
+                if (row.allowAutoReminders === false || row.allowAutoReminders === 0) continue;
                 if (!row.studentId || !row.lastLesson) continue;
                 const lastLessonDate = new Date(row.lastLesson);
                 if (lastLessonDate > thresholdDate) continue; // Still active
@@ -861,24 +874,22 @@ async function runAutomation() {
                   type: "manual", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
                 });
 
+                
                 if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
-                  const sendRes = await sendWhatsAppMessage({
-                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
-                    phone: targetPhone, message, sessionId: `prof_${userId}`,
-                  });
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: sendRes.success ? "enviado" : "pendente",
-                      sentAt: sendRes.success ? now2 : undefined,
-                      errorMessage: sendRes.error ?? null,
+                      status: routingRes.success ? "enviado" : "pendente",
+                      sentAt: routingRes.success ? now2 : undefined,
+                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (sendRes.success) {
+                  if (routingRes.success) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
+
               }
 
             } else if (rule.trigger === "new_student") {
@@ -891,6 +902,7 @@ async function runAutomation() {
                   phone: students.phone,
                   guardianPhone: students.guardianPhone,
                   birthDate: students.birthDate,
+                  allowAutoReminders: students.allowAutoReminders,
                   createdAt: students.createdAt,
                   instrumentName: instruments.name,
                 })
@@ -906,6 +918,7 @@ async function runAutomation() {
                 );
 
               for (const student of newStudents2) {
+                if (student.allowAutoReminders === false || student.allowAutoReminders === 0) continue;
                 const triggerDate = new Date(student.createdAt.getTime() + offsetMs2);
                 if (triggerDate > now2) continue;
 
@@ -921,38 +934,39 @@ async function runAutomation() {
                   .replace(/\{curso\}/g, student.instrumentName ?? "música")
                   .replace(/\{instrumento\}/g, student.instrumentName ?? "música");
 
-                let targetPhone = student.phone;
-                if (student.birthDate) {
-                  const bd = new Date(student.birthDate);
-                  let age = now2.getFullYear() - bd.getFullYear();
-                  if (now2.getMonth() < bd.getMonth() || (now2.getMonth() === bd.getMonth() && now2.getDate() < bd.getDate())) age--;
-                  if (age < 18 && student.guardianPhone) targetPhone = student.guardianPhone;
-                }
-                if (!targetPhone) continue;
+                
+                const routingRes = await sendSmartWhatsAppNotification({
+                  sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,
+                  sendToGuardian: (rule as any).sendToGuardian === 1,
+                  student: { phone: student.studentPhone || student.phone, guardianPhone: student.guardianPhone },
+                  message,
+                  sessionId: `prof_${userId}`,
+                  whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
+                });
 
-                await db.insert(reminders).values({
+                if (!routingRes.success && (!routingRes.errors || routingRes.errors[0] === "Nenhum telefone válido encontrado para envio.")) continue;
+
+await db.insert(reminders).values({
                   organizationId: orgId, userId, studentId: student.id,
                   type: "manual", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
                 });
 
+                
                 if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
-                  const sendRes = await sendWhatsAppMessage({
-                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
-                    phone: targetPhone, message, sessionId: `prof_${userId}`,
-                  });
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: sendRes.success ? "enviado" : "pendente",
-                      sentAt: sendRes.success ? now2 : undefined,
-                      errorMessage: sendRes.error ?? null,
+                      status: routingRes.success ? "enviado" : "pendente",
+                      sentAt: routingRes.success ? now2 : undefined,
+                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (sendRes.success) {
+                  if (routingRes.success) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
+
               }
 
             } else if (rule.trigger === "payment_confirmed") {
@@ -969,6 +983,7 @@ async function runAutomation() {
                   studentPhone: students.phone,
                   guardianPhone: students.guardianPhone,
                   birthDate: students.birthDate,
+                  allowAutoReminders: students.allowAutoReminders,
                   instrumentName: instruments.name,
                 })
                 .from(paymentDues)
@@ -984,6 +999,7 @@ async function runAutomation() {
                 );
 
               for (const payment of confirmedToday) {
+                if (payment.allowAutoReminders === false || payment.allowAutoReminders === 0) continue;
                 const refId = `auto-rule-${rule.id}-paid-${payment.id}-${todayStr2}`;
                 const existing = await db.select({ id: reminders.id }).from(reminders)
                   .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
@@ -997,38 +1013,39 @@ async function runAutomation() {
                   .replace(/\{curso\}/g, payment.instrumentName ?? "música")
                   .replace(/\{valor_mensalidade\}/g, valor);
 
-                let targetPhone = payment.studentPhone;
-                if (payment.birthDate) {
-                  const bd = new Date(payment.birthDate);
-                  let age = now2.getFullYear() - bd.getFullYear();
-                  if (now2.getMonth() < bd.getMonth() || (now2.getMonth() === bd.getMonth() && now2.getDate() < bd.getDate())) age--;
-                  if (age < 18 && payment.guardianPhone) targetPhone = payment.guardianPhone;
-                }
-                if (!targetPhone) continue;
+                
+                const routingRes = await sendSmartWhatsAppNotification({
+                  sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,
+                  sendToGuardian: (rule as any).sendToGuardian === 1,
+                  student: { phone: payment.studentPhone || payment.phone, guardianPhone: payment.guardianPhone },
+                  message,
+                  sessionId: `prof_${userId}`,
+                  whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
+                });
 
-                await db.insert(reminders).values({
+                if (!routingRes.success && (!routingRes.errors || routingRes.errors[0] === "Nenhum telefone válido encontrado para envio.")) continue;
+
+await db.insert(reminders).values({
                   organizationId: orgId, userId, studentId: payment.studentId, paymentDueId: payment.id,
                   type: "cobranca", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
                 });
 
+                
                 if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl) {
-                  const sendRes = await sendWhatsAppMessage({
-                    url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken,
-                    phone: targetPhone, message, sessionId: `prof_${userId}`,
-                  });
                   const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
                   if (newRem) {
                     await db.update(reminders).set({
-                      status: sendRes.success ? "enviado" : "pendente",
-                      sentAt: sendRes.success ? now2 : undefined,
-                      errorMessage: sendRes.error ?? null,
+                      status: routingRes.success ? "enviado" : "pendente",
+                      sentAt: routingRes.success ? now2 : undefined,
+                      errorMessage: routingRes.errors ? routingRes.errors.join(', ') : null,
                       updatedAt: new Date(),
                     }).where(eq(reminders.id, newRem.id));
                   }
-                  if (sendRes.success) {
+                  if (routingRes.success) {
                     await db.update(messageAutomationRules).set({ totalSent: (rule.totalSent ?? 0) + 1, lastExecutedAt: now2, updatedAt: new Date() }).where(eq(messageAutomationRules.id, rule.id));
                   }
                 }
+
               }
             }
           } catch (ruleErr) {
@@ -1044,6 +1061,7 @@ async function runAutomation() {
   // --- RELATÓRIO DIÁRIO DE TREINOS ---
   try {
     for (const userSettings of activeSettings) {
+                if (userSettings.allowAutoReminders === false || userSettings.allowAutoReminders === 0) continue;
       const orgId = userSettings.organizationId;
       const userId = userSettings.userId;
       if (!orgId) continue;
@@ -1082,6 +1100,7 @@ async function runAutomation() {
             let anyStudent = false;
 
             for (const p of plans) {
+                if (p.allowAutoReminders === false || p.allowAutoReminders === 0) continue;
               if (!p.studentName) continue;
               anyStudent = true;
               // Se updatedAt >= startOfDay, o aluno interagiu com o plano hoje

@@ -127,6 +127,7 @@ export const students = pgTable("students", {
   permissions: text("permissions"), // JSON string: { canSeeFinanceiro: boolean, etc }
   methodologyFilename: varchar("methodologyFilename", { length: 255 }),
   methodologyText: text("methodologyText"),
+  allowAutoReminders: boolean("allowAutoReminders").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -244,6 +245,8 @@ export const reminderTemplates = pgTable("reminder_templates", {
   type: reminderTypeEnum("type").default("manual").notNull(),
   body: text("body").notNull(),
   isDefault: integer("isDefault").default(0).notNull(),
+  sendToStudent: boolean("sendToStudent").default(true).notNull(),
+  sendToGuardian: boolean("sendToGuardian").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -603,6 +606,8 @@ export const messageAutomationRules = pgTable("message_automation_rules", {
   actions: text("actions"),                               // JSON: [{type: 'whatsapp'|'notification'|'task'}]
   messageTemplate: text("messageTemplate").notNull(),
   channel: varchar("channel", { length: 50 }).default("whatsapp").notNull(),
+  sendToStudent: integer("sendToStudent").default(1).notNull(), // 1 = true, 0 = false (sqlite style boolean mapping for pg)
+  sendToGuardian: integer("sendToGuardian").default(0).notNull(),
   totalSent: integer("totalSent").default(0).notNull(),
   lastExecutedAt: timestamp("lastExecutedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

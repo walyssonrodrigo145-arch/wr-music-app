@@ -197,6 +197,8 @@ function RuleEditorModal({ rule, onClose, onSave }: {
   const [offsetHours, setOffsetHours] = useState(rule?.offsetHours ?? 0);
   const [messageTemplate, setMessageTemplate] = useState(rule?.messageTemplate ?? "");
   const [isActive, setIsActive] = useState((rule?.isActive ?? 1) === 1);
+  const [sendToStudent, setSendToStudent] = useState((rule as any)?.sendToStudent === 1 || (rule as any)?.sendToStudent === undefined);
+  const [sendToGuardian, setSendToGuardian] = useState((rule as any)?.sendToGuardian === 1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const info = getTriggerInfo(trigger);
@@ -236,6 +238,8 @@ function RuleEditorModal({ rule, onClose, onSave }: {
       messageTemplate: messageTemplate.trim(),
       channel: "whatsapp",
       isActive: isActive ? 1 : 0,
+      sendToStudent,
+      sendToGuardian,
     });
   };
 
@@ -443,6 +447,27 @@ function RuleEditorModal({ rule, onClose, onSave }: {
                   </div>
                 </div>
               )}
+
+              <div className="pt-4 border-t border-border mt-4">
+                <label className="text-xs font-semibold text-foreground block mb-4">Destinatários do WhatsApp</label>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50">
+                    <div>
+                      <p className="text-sm font-bold text-foreground">Enviar para o Aluno</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Envia a mensagem para o número do aluno cadastrado</p>
+                    </div>
+                    <Toggle checked={sendToStudent} onChange={setSendToStudent} />
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50">
+                    <div>
+                      <p className="text-sm font-bold text-foreground">Enviar para o Responsável</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Envia a mensagem para o número do responsável financeiro do aluno (menores de idade)</p>
+                    </div>
+                    <Toggle checked={sendToGuardian} onChange={setSendToGuardian} />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
