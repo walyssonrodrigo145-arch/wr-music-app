@@ -10,7 +10,8 @@ import {
   Loader2,
   CheckCircle2,
   X,
-  Circle
+  Circle,
+  Wand2
 } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -63,6 +64,16 @@ export default function Comunicados() {
     onSuccess: () => {
       toast.success("Comunicado excluído.");
       utils.announcements.list.invalidate();
+    }
+  });
+
+  const enhanceMutation = trpc.ai.enhanceText.useMutation({
+    onSuccess: (data) => {
+      setFormData(prev => ({ ...prev, content: data.text }));
+      toast.success("Texto melhorado com sucesso!");
+    },
+    onError: () => {
+      toast.error("Falha ao melhorar o texto. Tente novamente.");
     }
   });
 
@@ -252,8 +263,20 @@ export default function Comunicados() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Conteúdo da Mensagem</Label>
+            <div className="space-y-2 relative">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Conteúdo da Mensagem</Label>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={!formData.content || enhanceMutation.isPending}
+                  onClick={() => enhanceMutation.mutate({ text: formData.content })}
+                  className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 px-2 rounded-lg transition-all"
+                >
+                  {enhanceMutation.isPending ? <Loader2 size={12} className="animate-spin mr-1" /> : <Wand2 size={12} className="mr-1" />}
+                  Melhorar com IA
+                </Button>
+              </div>
               <Textarea 
                 placeholder="Escreva aqui os detalhes do comunicado..." 
                 className="min-h-[120px] rounded-2xl bg-muted/30 border-border/40 font-medium resize-none p-4"

@@ -5811,6 +5811,15 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
         return conversation;
       }),
 
+    enhanceText: protectedProcedure
+      .input(z.object({ text: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const { callGemini } = await import("./utils/gemini");
+        const prompt = `Por favor, reescreva o texto a seguir para torná-lo mais profissional, claro, empático e livre de erros ortográficos ou gramaticais. É um comunicado de um professor de música para seus alunos/pais. Mantenha o sentido original, melhore o tom, mas não seja excessivamente formal. Não adicione saudações como "Olá" a menos que já estejam no original, devolva APENAS o texto reescrito.\n\nTexto original:\n"${input.text}"`;
+        const result = await callGemini(prompt, process.env.GROQ_API_KEY || "groq");
+        return { text: result };
+      }),
+
     listConversations: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];
