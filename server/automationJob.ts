@@ -655,7 +655,7 @@ async function runAutomation() {
                   const routingRes = await sendSmartWhatsAppNotification({
                     sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,
                     sendToGuardian: (rule as any).sendToGuardian === 1,
-                    student: { phone: due.studentPhone || (due as any).phone, guardianPhone: due.guardianPhone },
+                    student: { phone: due.studentPhone || (due as any).phone, guardianPhone: due.guardianPhone, birthDate: due.birthDate },
                     message,
                     sessionId: `prof_${userId}`,
                     whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
@@ -767,7 +767,7 @@ async function runAutomation() {
                   const routingRes = await sendSmartWhatsAppNotification({
                     sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,
                     sendToGuardian: (rule as any).sendToGuardian === 1,
-                    student: { phone: lesson.studentPhone || (lesson as any).phone, guardianPhone: lesson.guardianPhone },
+                    student: { phone: lesson.studentPhone || (lesson as any).phone, guardianPhone: lesson.guardianPhone, birthDate: lesson.birthDate },
                     message,
                     sessionId: `prof_${userId}`,
                     whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
