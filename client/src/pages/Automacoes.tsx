@@ -649,9 +649,31 @@ export default function Automacoes() {
 
   const handleSaveRule = (data: Partial<AutomationRule>) => {
     if (data.id) {
-      updateMutation.mutate({ id: data.id, name: data.name, description: data.description ?? undefined, offsetDays: data.offsetDays, offsetHours: data.offsetHours, messageTemplate: data.messageTemplate, channel: data.channel });
+      updateMutation.mutate({
+        id: data.id,
+        name: data.name,
+        description: data.description ?? undefined,
+        offsetDays: data.offsetDays,
+        offsetHours: data.offsetHours,
+        messageTemplate: data.messageTemplate,
+        channel: data.channel,
+        isActive: data.isActive,
+        sendToStudent: (data as any).sendToStudent === true || (data as any).sendToStudent === 1,
+        sendToGuardian: (data as any).sendToGuardian === true || (data as any).sendToGuardian === 1,
+      });
     } else {
-      createMutation.mutate({ name: data.name!, description: data.description ?? undefined, trigger: data.trigger!, offsetDays: data.offsetDays ?? 0, offsetHours: data.offsetHours ?? 0, messageTemplate: data.messageTemplate!, channel: data.channel ?? "whatsapp", isActive: data.isActive ?? 1 });
+      createMutation.mutate({
+        name: data.name!,
+        description: data.description ?? undefined,
+        trigger: data.trigger!,
+        offsetDays: data.offsetDays ?? 0,
+        offsetHours: data.offsetHours ?? 0,
+        messageTemplate: data.messageTemplate!,
+        channel: data.channel ?? "whatsapp",
+        isActive: data.isActive ?? 1,
+        sendToStudent: (data as any).sendToStudent === true || (data as any).sendToStudent === undefined,
+        sendToGuardian: (data as any).sendToGuardian === true,
+      });
     }
   };
 

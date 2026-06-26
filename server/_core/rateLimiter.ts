@@ -1,38 +1,51 @@
 import { Request, Response, NextFunction } from "express";
 
-interface RateLimitStore {
-  [ip: string]: {
-    count: number;
-    resetTime: number;
-  };
+interface RateLimitEntry {
+  count: number;
+  resetTime: number;
 }
-
-const store: RateLimitStore = {};
 
 /**
  * Filtro básico de Rate Limiting (Anti-DDoS / Brute Force)
  * @param windowMs Janela de tempo em milissegundos
  * @param max Máximo de requisições por janela
  * @param message Mensagem de erro amigável
+ *
+ * CORREÇÃO: cada chamada a createRateLimiter cria seu próprio store isolado
+ * (store não é mais um singleton global compartilhado entre todos os limiters).
+ * Isso evita contaminação cruzada entre apiLimiter, loginLimiter e registerLimiter.
  */
 export const createRateLimiter = (windowMs: number, max: number, message: string) => {
+  // ✅ FIX: store isolado por closure — cada limiter tem o seu próprio
+  const store: Record<string, RateLimitEntry> = {};
+
   return (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown";
+    // ✅ FIX: identificar usuário pelo session cookie quando disponível,
+    // evitando que todos os usuários atrás do proxy Caddy/Docker sejam contados como UM só
+    const sessionId =
+      (req.cookies && (req.cookies["sessionId"] || req.cookies["connect.sid"])) ||
+      req.headers["authorization"] ||
+      null;
+
+    const ip =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.ip ||
+      "unknown";
+
+    // Chave composta: se há sessão usa ela (mais precisa), senão usa só o IP
+    const key = sessionId ? `sess_${sessionId}_${ip}` : `ip_${ip}`;
+
     const now = Date.now();
 
-    if (!store[ip] || now > store[ip].resetTime) {
-      store[ip] = {
-        count: 1,
-        resetTime: now + windowMs,
-      };
+    if (!store[key] || now > store[key].resetTime) {
+      store[key] = { count: 1, resetTime: now + windowMs };
       return next();
     }
 
-    store[ip].count++;
+    store[key].count++;
 
-    if (store[ip].count > max) {
+    if (store[key].count > max) {
       // Formata a resposta de erro exatamente como o tRPC + SuperJSON espera
-      // Isso evita o erro "Unable to transform response from server" no cliente
       return res.status(429).json({
         error: {
           json: {
@@ -62,3 +75,4 @@ export const registerLimiter = createRateLimiter(
   5,              // limite de 5 registros por IP
   "Limite de criação de contas excedido. Tente novamente mais tarde."
 );
+

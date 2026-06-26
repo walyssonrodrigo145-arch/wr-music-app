@@ -7811,6 +7811,9 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
           actions: z.string().optional(),
           messageTemplate: z.string().optional(),
           channel: z.string().optional(),
+          isActive: z.number().optional(),
+          sendToStudent: z.boolean().optional(),
+          sendToGuardian: z.boolean().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -7830,6 +7833,9 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
         if (fields.actions !== undefined) updateData.actions = fields.actions;
         if (fields.messageTemplate !== undefined) updateData.messageTemplate = fields.messageTemplate;
         if (fields.channel !== undefined) updateData.channel = fields.channel;
+        if (fields.isActive !== undefined) updateData.isActive = fields.isActive;
+        if (fields.sendToStudent !== undefined) updateData.sendToStudent = fields.sendToStudent ? 1 : 0;
+        if (fields.sendToGuardian !== undefined) updateData.sendToGuardian = fields.sendToGuardian ? 1 : 0;
         updateData.updatedAt = new Date();
 
         await db

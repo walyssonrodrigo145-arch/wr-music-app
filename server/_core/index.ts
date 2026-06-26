@@ -218,7 +218,10 @@ async function startServer() {
   }));
 
   // Rate Limiting para a API (Global)
-  const apiLimiter = createRateLimiter(60 * 1000, 1200, "Muitas requisições. Tente novamente em um minuto.");
+  // Limite elevado para 3000 req/min — a identificação por usuário é feita via
+  // session cookie dentro do rateLimiter, evitando que o proxy Caddy/Docker
+  // faça todos os usuários compartilharem o mesmo contador.
+  const apiLimiter = createRateLimiter(60 * 1000, 3000, "Muitas requisições. Tente novamente em um minuto.");
   app.use("/api/trpc", apiLimiter);
 
 

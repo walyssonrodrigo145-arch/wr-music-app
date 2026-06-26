@@ -15,6 +15,8 @@ const filesToUpload = [
   'package.json',
   'pnpm-lock.yaml',
   'server/routers.ts',
+  'server/_core/rateLimiter.ts',
+  'server/_core/index.ts',
   'client/src/pages/ProfessorExtract.tsx',
   'client/src/pages/Progresso.tsx',
   'client/src/pages/Dashboard.tsx',
