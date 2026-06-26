@@ -1,6 +1,11 @@
 /**
  * Asaas Payment Service
  * Handles all communication with the Asaas API (PIX & Credit Card)
+ *
+ * FIXES aplicados:
+ * - ALTO-1: Timeout de 15s em todas as chamadas fetch (AbortController)
+ * - ALTO-3: updateAsaasSubscription faz merge com estado atual antes de atualizar
+ * - Logging estruturado com tempo de execução em todos os endpoints
  */
 
 import { ENV } from "../_core/env";
@@ -10,16 +15,47 @@ const headers = (apiKey?: string) => ({
   access_token: apiKey || ENV.asaasApiKey,
 });
 
-// ─── Security Lock ────────────────────────────────────────────────────────────
+// ─── ALTO-1 FIX: fetch com timeout de 15 segundos ────────────────────────────
+function asaasFetch(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15_000); // 15s
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+}
 
-// Remover o lock-in de email: faturamento deve rodar para todas as escolas
+// ─── Logging estruturado ──────────────────────────────────────────────────────
+async function asaasRequest(
+  method: string,
+  url: string,
+  body?: object,
+  apiKey?: string
+): Promise<Response> {
+  const start = Date.now();
+  const shortUrl = url.replace(ENV.asaasBaseUrl, "");
+  console.log(`[Asaas] → ${method} ${shortUrl}`, body ? JSON.stringify(body) : "");
+  try {
+    const res = await asaasFetch(url, {
+      method,
+      headers: headers(apiKey),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    console.log(`[Asaas] ← ${res.status} ${shortUrl} (${Date.now() - start}ms)`);
+    return res;
+  } catch (err: any) {
+    const isTimeout = err?.name === "AbortError";
+    console.error(`[Asaas] ✗ ${method} ${shortUrl} — ${isTimeout ? "TIMEOUT (15s)" : err.message} (${Date.now() - start}ms)`);
+    throw isTimeout
+      ? new Error(`[Asaas] Timeout ao chamar ${shortUrl}. A API do Asaas não respondeu em 15 segundos.`)
+      : err;
+  }
+}
+
+// ─── Security Lock ─────────────────────────────────────────────────────────────
 export function isAsaasEnabled(email?: string | null): boolean {
-  // Retorna true em ambiente de produção configurado com API Key.
-  // Caso deseje desligar em homologação, bastaria checar ENV.asaasApiKey
   return !!ENV.asaasApiKey;
 }
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export type AsaasBillingType = "PIX" | "CREDIT_CARD" | "UNDEFINED";
 
@@ -43,7 +79,18 @@ export interface AsaasCharge {
   description?: string;
 }
 
-// ─── Customer ────────────────────────────────────────────────────────────────
+export interface AsaasSubscription {
+  id: string;
+  status: string;
+  nextDueDate: string;
+  billingType: AsaasBillingType;
+  value: number;
+  cycle: "MONTHLY" | "YEARLY";
+  description: string;
+  checkoutUrl?: string;
+}
+
+// ─── Customer ─────────────────────────────────────────────────────────────────
 
 /**
  * Creates a new customer on Asaas.
@@ -55,18 +102,18 @@ export async function createAsaasCustomer(params: {
   phone?: string;
   cpfCnpj?: string;
 }, apiKey?: string): Promise<string> {
-  console.log(`[Asaas] Criando cliente no ambiente: ${ENV.asaasBaseUrl}`);
-  const res = await fetch(`${ENV.asaasBaseUrl}/customers`, {
-    method: "POST",
-    headers: headers(apiKey),
-    body: JSON.stringify({
+  const res = await asaasRequest(
+    "POST",
+    `${ENV.asaasBaseUrl}/customers`,
+    {
       name: params.name,
       email: params.email,
       phone: params.phone,
       cpfCnpj: params.cpfCnpj,
       notificationDisabled: false,
-    }),
-  });
+    },
+    apiKey
+  );
 
   if (!res.ok) {
     const body = await res.text();
@@ -77,7 +124,7 @@ export async function createAsaasCustomer(params: {
   return data.id;
 }
 
-// ─── Charge ──────────────────────────────────────────────────────────────────
+// ─── Charge ───────────────────────────────────────────────────────────────────
 
 /**
  * Creates a charge (PIX or Credit Card) on Asaas.
@@ -89,19 +136,18 @@ export async function createAsaasCharge(params: {
   dueDate: string; // "YYYY-MM-DD"
   description?: string;
 }, apiKey?: string): Promise<AsaasCharge> {
-  console.log(`[Asaas] Criando cobrança no ambiente: ${ENV.asaasBaseUrl}`);
-  const res = await fetch(`${ENV.asaasBaseUrl}/payments`, {
-    method: "POST",
-    headers: headers(apiKey),
-    body: JSON.stringify({
+  const res = await asaasRequest(
+    "POST",
+    `${ENV.asaasBaseUrl}/payments`,
+    {
       customer: params.asaasCustomerId,
       billingType: params.billingType,
       value: params.value,
       dueDate: params.dueDate,
       description: params.description ?? "Mensalidade MusicPro",
-      // PIX expires in 30 days; credit card shows payment link
-    }),
-  });
+    },
+    apiKey
+  );
 
   if (!res.ok) {
     const body = await res.text();
@@ -119,10 +165,12 @@ export async function getAsaasPixQrCode(asaasPaymentId: string, apiKey?: string)
   payload: string;
   expirationDate: string;
 }> {
-  const res = await fetch(`${ENV.asaasBaseUrl}/payments/${asaasPaymentId}/pixQrCode`, {
-    method: "GET",
-    headers: headers(apiKey),
-  });
+  const res = await asaasRequest(
+    "GET",
+    `${ENV.asaasBaseUrl}/payments/${asaasPaymentId}/pixQrCode`,
+    undefined,
+    apiKey
+  );
 
   if (!res.ok) {
     const body = await res.text();
@@ -134,13 +182,17 @@ export async function getAsaasPixQrCode(asaasPaymentId: string, apiKey?: string)
 
 /**
  * Deletes/cancels an existing charge on Asaas.
+ * 404 is treated as success (already deleted).
  */
 export async function deleteAsaasCharge(asaasPaymentId: string, apiKey?: string): Promise<void> {
-  const res = await fetch(`${ENV.asaasBaseUrl}/payments/${asaasPaymentId}`, {
-    method: "DELETE",
-    headers: headers(apiKey),
-  });
+  const res = await asaasRequest(
+    "DELETE",
+    `${ENV.asaasBaseUrl}/payments/${asaasPaymentId}`,
+    undefined,
+    apiKey
+  );
 
+  // 404 = já foi deletado anteriormente, considerar como sucesso
   if (!res.ok && res.status !== 404) {
     const body = await res.text();
     throw new Error(`[Asaas] Erro ao cancelar cobrança: ${res.status} ${body}`);
@@ -148,18 +200,22 @@ export async function deleteAsaasCharge(asaasPaymentId: string, apiKey?: string)
 }
 
 export async function getAsaasChargeStatus(asaasPaymentId: string, apiKey?: string): Promise<string> {
-  const res = await fetch(`${ENV.asaasBaseUrl}/payments/${asaasPaymentId}`, {
-    method: "GET",
-    headers: headers(apiKey),
-  });
+  const res = await asaasRequest(
+    "GET",
+    `${ENV.asaasBaseUrl}/payments/${asaasPaymentId}`,
+    undefined,
+    apiKey
+  );
 
   if (!res.ok) {
-    throw new Error(`[Asaas] Erro ao buscar status: ${res.status}`);
+    throw new Error(`[Asaas] Erro ao buscar status da cobrança: ${res.status}`);
   }
 
   const data = await res.json() as AsaasCharge;
   return data.status;
 }
+
+// ─── Subscription ─────────────────────────────────────────────────────────────
 
 export async function createAsaasSubscription(params: {
   customer: string;
@@ -170,34 +226,36 @@ export async function createAsaasSubscription(params: {
   description: string;
   successUrl?: string;
 }, apiKey?: string) {
-  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions`, {
-    method: "POST",
-    headers: headers(apiKey),
-    body: JSON.stringify({
+  const res = await asaasRequest(
+    "POST",
+    `${ENV.asaasBaseUrl}/subscriptions`,
+    {
       customer: params.customer,
       billingType: params.billingType,
       value: params.value,
       nextDueDate: params.nextDueDate,
       cycle: params.cycle,
       description: params.description,
-      // Redireciona o professor de volta ao sistema após o pagamento
       successUrl: params.successUrl,
-    }),
-  });
+    },
+    apiKey
+  );
 
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`[Asaas] Erro ao criar assinatura: ${res.status} ${body}`);
   }
 
-  return res.json() as Promise<{ id: string; status: string }>;
+  return res.json() as Promise<AsaasSubscription>;
 }
 
 export async function getAsaasSubscriptionPayments(subscriptionId: string, apiKey?: string): Promise<AsaasCharge[]> {
-  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}/payments`, {
-    method: "GET",
-    headers: headers(apiKey),
-  });
+  const res = await asaasRequest(
+    "GET",
+    `${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}/payments`,
+    undefined,
+    apiKey
+  );
 
   if (!res.ok) {
     const body = await res.text();
@@ -205,47 +263,74 @@ export async function getAsaasSubscriptionPayments(subscriptionId: string, apiKe
   }
 
   const data = await res.json() as { data: AsaasCharge[] };
-  return data.data;
+  return data.data ?? [];
 }
 
-export async function getAsaasSubscription(subscriptionId: string, apiKey?: string) {
-  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`, {
-    method: "GET",
-    headers: headers(apiKey),
-  });
+export async function getAsaasSubscription(subscriptionId: string, apiKey?: string): Promise<AsaasSubscription> {
+  const res = await asaasRequest(
+    "GET",
+    `${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`,
+    undefined,
+    apiKey
+  );
 
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`[Asaas] Erro ao buscar assinatura: ${res.status} ${body}`);
   }
 
-  return res.json() as Promise<{ id: string; status: string; nextDueDate: string }>;
+  return res.json() as Promise<AsaasSubscription>;
 }
 
+/**
+ * ALTO-3 FIX: Busca o estado atual antes de atualizar para não zerar campos não enviados.
+ */
 export async function updateAsaasSubscription(subscriptionId: string, params: {
   value?: number;
   description?: string;
   cycle?: "MONTHLY" | "YEARLY";
 }, apiKey?: string) {
-  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`, {
-    method: "POST",
-    headers: headers(apiKey),
-    body: JSON.stringify(params),
-  });
+  // Buscar estado atual para fazer merge seguro
+  let currentSub: Partial<AsaasSubscription> = {};
+  try {
+    currentSub = await getAsaasSubscription(subscriptionId, apiKey);
+  } catch {
+    // Se não conseguir buscar, tenta atualizar com o que tem
+    console.warn(`[Asaas] Não foi possível buscar estado atual da assinatura ${subscriptionId} para merge`);
+  }
+
+  // Merge: preserva campos existentes, sobrescreve apenas os enviados
+  const mergedBody = {
+    billingType: currentSub.billingType,
+    value: currentSub.value,
+    cycle: currentSub.cycle,
+    description: currentSub.description,
+    nextDueDate: currentSub.nextDueDate,
+    ...params, // sobrescreve com os novos valores
+  };
+
+  const res = await asaasRequest(
+    "POST",
+    `${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`,
+    mergedBody,
+    apiKey
+  );
 
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`[Asaas] Erro ao atualizar assinatura: ${res.status} ${body}`);
   }
 
-  return res.json() as Promise<{ id: string; status: string }>;
+  return res.json() as Promise<AsaasSubscription>;
 }
 
 export async function deleteAsaasSubscription(subscriptionId: string, apiKey?: string) {
-  const res = await fetch(`${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`, {
-    method: "DELETE",
-    headers: headers(apiKey),
-  });
+  const res = await asaasRequest(
+    "DELETE",
+    `${ENV.asaasBaseUrl}/subscriptions/${subscriptionId}`,
+    undefined,
+    apiKey
+  );
 
   if (!res.ok) {
     const body = await res.text();

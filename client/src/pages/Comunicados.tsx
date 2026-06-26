@@ -221,8 +221,8 @@ export default function Comunicados() {
 
       {/* Create Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-0 overflow-hidden bg-card border-border/40 shadow-2xl">
-          <DialogHeader className="p-8 pb-0">
+        <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-[2.5rem] p-0 overflow-hidden bg-card border-border/40 shadow-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="p-8 pb-0 shrink-0">
             <DialogTitle className="text-3xl font-black tracking-tight text-foreground flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                 <Plus size={24} />
@@ -234,7 +234,7 @@ export default function Comunicados() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-8 space-y-6">
+          <div className="p-8 space-y-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Título do Aviso</Label>
               <Input 
@@ -308,7 +308,7 @@ export default function Comunicados() {
             </div>
           </div>
 
-          <DialogFooter className="p-8 pt-0 flex gap-3">
+          <DialogFooter className="p-8 pt-0 flex gap-3 shrink-0">
             <Button 
               variant="ghost" 
               onClick={() => setIsModalOpen(false)}

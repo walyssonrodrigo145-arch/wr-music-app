@@ -83,6 +83,21 @@ async function startServer() {
       const db = await getDb();
       if (!db) return res.status(500).json({ error: "DB unavailable" });
 
+      // ── ALTO-2 FIX: Idempotência — evita reprocessamento de webhook duplicado ──
+      // O Asaas faz retry automático se não receber 200 em tempo hábil.
+      // Se PAYMENT_RECEIVED/CONFIRMED e o registro já está "pago" no banco, é retry — ignorar.
+      if ((event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") && payment?.id) {
+        const [alreadyPaid] = await db
+          .select({ status: paymentDues.status })
+          .from(paymentDues)
+          .where(and(eq(paymentDues.asaasId, payment.id), eq(paymentDues.status, "pago")))
+          .limit(1);
+        if (alreadyPaid) {
+          console.log(`[Asaas Webhook] Evento duplicado ignorado (já pago): ${event} ${payment.id}`);
+          return res.status(200).json({ ok: true });
+        }
+      }
+
       if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
         // Fetch payment details and student name before updating
         const [paymentDetails] = await db
@@ -121,6 +136,7 @@ async function startServer() {
         }
       }
 
+
       if (event === "PAYMENT_OVERDUE") {
         await db
           .update(paymentDues)
@@ -156,6 +172,14 @@ async function startServer() {
   // Recebe notificações sobre a assinatura do próprio professor (SaaS)
   app.post("/api/webhooks/asaas/platform", async (req, res) => {
     try {
+      // ── BUG 1 FIX: Validação de token (igual ao webhook de mensalidades) ──
+      const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
+      const requestToken = req.headers["asaas-access-token"];
+      if (webhookToken && requestToken !== webhookToken) {
+        console.warn("[Asaas Platform Webhook] Token de autenticação inválido ou não fornecido.");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       const { event, payment } = req.body as {
         event: string;
         payment?: { id: string; status: string; customer: string; subscription?: string };
@@ -170,15 +194,21 @@ async function startServer() {
       const db = await getDb();
       if (!db) return res.status(500).json({ error: "DB unavailable" });
 
+      // ── MÉDIO-3 FIX: Preencher currentPeriodEnd ao ativar assinatura ──
       if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
+        // Calcular próximo período (default mensal — webhooks de assinatura anual são raros)
+        const nextPeriodEnd = new Date();
+        nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
         await db
           .update(organizations)
           .set({ 
             subscriptionStatus: "active",
+            trialEndsAt: null,         // usuário é assinante — não está mais em trial
+            currentPeriodEnd: nextPeriodEnd, // registrar próximo vencimento
             updatedAt: new Date()
           })
           .where(eq(organizations.asaasCustomerId, payment.customer));
-        console.log(`[Asaas Platform Webhook] Assinatura ativada para customer ${payment.customer}`);
+        console.log(`[Asaas Platform Webhook] Assinatura ATIVADA para customer ${payment.customer} | próximo vencimento: ${nextPeriodEnd.toISOString().slice(0,10)}`);
       }
 
       if (event === "PAYMENT_OVERDUE") {
@@ -186,7 +216,20 @@ async function startServer() {
           .update(organizations)
           .set({ subscriptionStatus: "past_due", updatedAt: new Date() })
           .where(eq(organizations.asaasCustomerId, payment.customer));
-        console.log(`[Asaas Platform Webhook] Assinatura atrasada para customer ${payment.customer}`);
+        console.log(`[Asaas Platform Webhook] Assinatura ATRASADA para customer ${payment.customer}`);
+      }
+
+      // ── BUG 2 FIX: Tratar cancelamento de assinatura pelo portal Asaas ───
+      if (event === "SUBSCRIPTION_CANCELED" || event === "SUBSCRIPTION_DELETED" || event === "PAYMENT_REFUNDED") {
+        await db
+          .update(organizations)
+          .set({ 
+            subscriptionStatus: "canceled",
+            asaasSubscriptionId: null,
+            updatedAt: new Date()
+          })
+          .where(eq(organizations.asaasCustomerId, payment.customer));
+        console.log(`[Asaas Platform Webhook] Assinatura CANCELADA para customer ${payment.customer}`);
       }
 
       return res.status(200).json({ ok: true });
@@ -195,6 +238,7 @@ async function startServer() {
       return res.status(500).json({ error: "Internal error" });
     }
   });
+
   // ─────────────────────────────────────────────────────────────────────────
 
   app.use("/api/webhooks/whatsapp", whatsappWebhookRouter);

@@ -361,9 +361,11 @@ export const appRouter = router({
         const uniqueSlug = `${baseSlug}-${require("crypto").randomBytes(4).toString('hex')}`;
         
         // Fatura para daqui a 33 dias (30 dias grátis + 3 dias de prazo para pagamento)
-        const trialDays = 33;
-        const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
-        const nextDueDateStr = trialEndsAt.toISOString().slice(0, 10);
+        // trialEndsAt mostra ao usuário quando o trial termina (30 dias)
+        // nextDueDateStr é quando o Asaas vai gerar a 1ª cobrança (33 dias)
+        const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        trialEndsAt.setHours(23, 59, 59, 999);
+        const nextDueDateStr = new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
         const [org] = await db.insert(organizations).values({
           name: `${input.name}`,
@@ -862,7 +864,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         + "1. O plano DEVE ser 100% específico para o instrumento: " + instrumentName + ". NÃO mencione nenhum outro instrumento.\n"
         + "2. Todos os exercícios devem ser práticos para quem toca " + instrumentName + ".\n"
         + "3. Gere exatamente 5 dias de prática com atividades curtas.\n"
-        + "4. Use uma linguagem EXTREMAMENTE SIMPLES, humana, leve e de fácil entendimento em Português do Brasil (pt-BR). Evite qualquer tipo de jargão musical confuso, palavras robóticas ou português de Portugal. Fale diretamente com o aluno no singular, como um professor amigo ensinando do zero com muita paciência.\n\n"
+        + "4. Use uma linguagem EXTREMAMENTE SIMPLES, humana, leve e de fácil entendimento em Português do Brasil (pt-BR). Evite qualquer tipo de jargão musical confuso, palavras robóticas ou português de Portugal. Fale diretamente com o aluno no singular, como um professor amigo ensinando do zero com muita paciência.\n"
+        + "5. IMPORTANTE: Use apenas termos musicais corretos em Português (ex: dedilhado, palhetada, escala, acorde, pestana). NUNCA invente palavras, traduções literais estranhas (como 'arte culminar', 'dobro cromático') ou nomes de músicas irreais. Mantenha os exercícios práticos e coerentes.\n\n"
         + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
         + jsonTemplate + "\n\n"
         + "Regras para o campo icon: use exatamente uma das opções: metronome, guitar, music, pen, star, play.";
@@ -3977,6 +3980,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
           
+          // Buscar a mensalidade completa (incluindo asaasId e status)
+          const [due] = await db.select()
+            .from(paymentDues)
+            .where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId)))
+            .limit(1);
+
           const [paymentDetails] = await db
             .select({
               studentName: students.name,
@@ -3986,6 +3995,28 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             .leftJoin(students, eq(paymentDues.studentId, students.id))
             .where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId)))
             .limit(1);
+
+          // ── CRÍTICO-2 FIX: Cancelar cobrança aberta no Asaas ao dar baixa manual ──
+          // Evita que o aluno pague novamente pelo link que ficou ativo
+          if (due?.asaasId && due.status !== 'pago') {
+            try {
+              const [settingsData] = await db
+                .select({ asaasApiKey: settings.asaasApiKey })
+                .from(settings)
+                .where(eq(settings.userId, ctx.user.id))
+                .limit(1);
+              const { deleteAsaasCharge } = await import('./utils/asaas');
+              await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ?? undefined);
+              console.log(`[MarkPaid] Cobrança Asaas cancelada (${due.asaasId}) — pagamento manual registrado`);
+            } catch (e) {
+              // Não bloqueia a baixa manual se o cancelamento falhar
+              console.error(`[MarkPaid] Falha ao cancelar cobrança Asaas ${due?.asaasId}:`, e);
+            }
+            // Limpar referências Asaas — não espera mais webhook desta cobrança
+            await db.update(paymentDues)
+              .set({ asaasId: null, asaasPaymentLink: null, asaasBillingType: null })
+              .where(eq(paymentDues.id, input.id));
+          }
 
           await db.update(paymentDues)
             .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
@@ -4149,6 +4180,29 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           const whereClause = isAdmin
             ? and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId))
             : and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id));
+
+          // ── CRÍTICO-1 FIX: Cancelar cobrança no Asaas ANTES de deletar do banco ──
+          // Sem isso, o link continua ativo e o aluno pode pagar uma cobrança que
+          // não existe mais no sistema (webhook chega mas não encontra o asaasId)
+          const [due] = await db.select({ asaasId: paymentDues.asaasId, status: paymentDues.status, userId: paymentDues.userId })
+            .from(paymentDues).where(whereClause).limit(1);
+
+          if (due?.asaasId && due.status !== 'pago') {
+            try {
+              const [settingsData] = await db
+                .select({ asaasApiKey: settings.asaasApiKey })
+                .from(settings)
+                .where(eq(settings.userId, due.userId ?? ctx.user.id))
+                .limit(1);
+              const { deleteAsaasCharge } = await import('./utils/asaas');
+              await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ?? undefined);
+              console.log(`[DeletePayment] Cobrança Asaas cancelada (${due.asaasId}) antes da exclusão`);
+            } catch (e) {
+              console.error(`[DeletePayment] Falha ao cancelar cobrança Asaas ${due?.asaasId}:`, e);
+              // Não bloqueia a exclusão se o cancelamento falhar
+            }
+          }
+
           await db.delete(paymentDues).where(whereClause);
           return { success: true };
         } catch (error) {
@@ -4274,6 +4328,21 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           eq(students.status, 'ativo')
         ));
 
+        // ALTO-4 FIX: Buscar todos os pagamentos existentes de uma vez (elimina loop N+1)
+        // Antes: 1 query por aluno por mês (ex: 50 alunos × 3 meses = 150 queries)
+        // Agora: 1 única query + lookup O(1) via Set
+        const existingPayments = await db.select({
+          studentId: paymentDues.studentId,
+          month: paymentDues.month,
+          year: paymentDues.year,
+        }).from(paymentDues).where(and(
+          eq(paymentDues.organizationId, orgId),
+          eq(paymentDues.userId, ctx.user.id),
+        ));
+        const existingSet = new Set(
+          existingPayments.map(p => `${p.studentId}_${p.month}_${p.year}`)
+        );
+
         const rows: any[] = [];
         
         for (const student of activeStudents) {
@@ -4287,16 +4356,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             const dueDate = new Date(y, m, student.dueDay);
             const month = m + 1;
 
-            const existing = await db.select({ id: paymentDues.id }).from(paymentDues)
-              .where(and(
-                eq(paymentDues.organizationId, orgId),
-                eq(paymentDues.studentId, student.id),
-                eq(paymentDues.month, month),
-                eq(paymentDues.year, y),
-                eq(paymentDues.userId, ctx.user.id),
-              )).limit(1);
-            
-            if (existing.length > 0) continue;
+            // Verificação O(1) sem query adicional
+            if (existingSet.has(`${student.id}_${month}_${y}`)) continue;
 
             rows.push({
               organizationId: orgId,
@@ -4650,7 +4711,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
         if (!due.asaasId) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade não possui cobrança no Asaas" });
 
-        await deleteAsaasCharge(due.asaasId);
+        // MÉDIO-2 FIX: usar chave do professor, não a chave global da plataforma
+        const [settingsData] = await db
+          .select({ asaasApiKey: settings.asaasApiKey })
+          .from(settings)
+          .where(eq(settings.userId, ctx.user.id))
+          .limit(1);
+        await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ?? undefined);
 
         await db.update(paymentDues)
           .set({ asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
@@ -5868,8 +5935,31 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
       .input(z.object({ text: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const { callGemini } = await import("./utils/gemini");
-        const prompt = `Por favor, reescreva o texto a seguir para torná-lo mais profissional, claro, empático e livre de erros ortográficos ou gramaticais. É um comunicado de um professor de música para seus alunos/pais. Mantenha o sentido original, melhore o tom, mas não seja excessivamente formal. Não adicione saudações como "Olá" a menos que já estejam no original, devolva APENAS o texto reescrito.\n\nTexto original:\n"${input.text}"`;
-        const result = await callGemini([{ role: "user", content: prompt }], process.env.GROQ_API_KEY || "groq");
+        const { getSettingsByUserId } = await import("./db");
+        const orgId = ctx.user.organizationId!;
+        const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
+        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+
+        const prompt = `Você é um excelente e prestativo assistente de escrita.
+Sua tarefa é reescrever o aviso abaixo, enviado por um professor de música para seus alunos/pais.
+
+OBJETIVO:
+O texto deve ser polido, simpático, respeitoso e direto ao ponto.
+
+O QUE EVITAR ABSOLUTAMENTE:
+1. Linguagem burocrática, robótica ou jurídica (Ex: "Prezados", "Venho por meio desta", "Atenciosamente", "Espero ansiosamente").
+2. Linguagem excessivamente informal, gírias ou expressões estranhas (Ex: "E acredita", "E aí galera", "Mano").
+3. Não invente informações que não estão no texto original (se não falou de reunião, não invente).
+
+COMO DEVE SER:
+- Claro, empático e caloroso. Como um bom professor falando educadamente no WhatsApp.
+- Corrija eventuais erros de português.
+- Devolva APENAS o texto reescrito e finalizado, sem adicionar aspas extras, sem comentários.
+
+Texto original para reescrever:
+"${input.text}"`;
+        const result = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
         return { text: result };
       }),
 
@@ -7338,15 +7428,13 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
       const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
       if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada" });
 
-      const planValues: Record<string, number> = {
-        "basico": 29.99,
-        "profissional": 59.90,
-        "premium": 99.90,
-        "30alunos": 20.00,
-        "20alunos": 15.00,
-        "10alunos": 10.00,
-      };
-      
+      // BUG 5 FIX: Buscar preço real do banco de dados em vez de usar valores hardcoded
+      const { systemPlans } = await import("../drizzle/schema");
+      const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, input.planId)).limit(1);
+      if (!planInfo) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Plano selecionado não encontrado." });
+      }
+
       const planLimits: Record<string, number> = {
         "10alunos": 10,
         "20alunos": 20,
@@ -7356,7 +7444,7 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
         "premium": 999999,
       };
       
-      const newMaxStudents = planLimits[input.planId] ?? 999999;
+      const newMaxStudents = planLimits[input.planId] ?? (planInfo.maxStudents ?? 999999);
       
       const activeStudentsCountObj = await db.select({ count: sql<number>`count(*)` })
         .from(students)
@@ -7370,9 +7458,10 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
         });
       }
 
+      // Preço real vindo do banco de dados
       const planValue = input.planType === "YEARLY"
-        ? (planValues[input.planId] ?? 59.90) * 10
-        : (planValues[input.planId] ?? 59.90);
+        ? Number(planInfo.priceYearly)
+        : Number(planInfo.priceMonthly);
 
       if (org.asaasSubscriptionId) {
         const { updateAsaasSubscription, getAsaasSubscription, deleteAsaasSubscription } = await import('./utils/asaas');

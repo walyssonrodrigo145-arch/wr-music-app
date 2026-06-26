@@ -47,6 +47,7 @@ export async function callGemini(
       const completion = await groq.chat.completions.create({
         messages: groqMessages,
         model: safeModel,
+        temperature: 0.3,
         response_format: isJson ? { type: "json_object" } : undefined,
       });
       return completion.choices[0]?.message?.content || "";

@@ -41,7 +41,8 @@ const filesToUpload = [
   'server/automationJob.ts',
   'client/src/pages/Aulas.tsx',
   'client/src/pages/Automacoes.tsx',
-  'server/utils/whatsappRouting.ts'
+  'server/utils/whatsappRouting.ts',
+  'client/src/pages/Comunicados.tsx'
 ];
 
 conn.on('ready', () => {
