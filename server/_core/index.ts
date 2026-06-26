@@ -217,11 +217,32 @@ async function startServer() {
     credentials: true
   }));
 
-  // Rate Limiting para a API (Global)
-  // Limite elevado para 3000 req/min — a identificação por usuário é feita via
-  // session cookie dentro do rateLimiter, evitando que o proxy Caddy/Docker
-  // faça todos os usuários compartilharem o mesmo contador.
-  const apiLimiter = createRateLimiter(60 * 1000, 3000, "Muitas requisições. Tente novamente em um minuto.");
+  // ─── Rate Limiting para a API (Global) ────────────────────────────────────
+  // Limite de 5000 req/min por usuário autenticado (identificado pelo cookie
+  // app_session_id) ou por IP quando não autenticado.
+  //
+  // Rotas de automações (list, update, toggle, create, stats, history, etc.)
+  // ficam isentas do rate limit global pois são chamadas em cascata legítimas
+  // (salvar 1 automação dispara ~4 invalidações do React Query) e já são
+  // protegidas por autenticação JWT (protectedProcedure).
+  const AUTOMATION_SKIP_ROUTES = [
+    "automations.list",
+    "automations.update",
+    "automations.toggle",
+    "automations.create",
+    "automations.delete",
+    "automations.stats",
+    "automations.history",
+    "automations.seedDefaults",
+    "settings.getAutomation",
+    "settings.toggleAutomation",
+  ];
+  const apiLimiter = createRateLimiter(
+    60 * 1000,
+    5000,
+    "Muitas requisições. Tente novamente em um minuto.",
+    AUTOMATION_SKIP_ROUTES
+  );
   app.use("/api/trpc", apiLimiter);
 
 

@@ -35,6 +35,8 @@ type AutomationRule = {
   lastExecutedAt: Date | string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
+  sendToStudent?: boolean | number;
+  sendToGuardian?: boolean | number;
 };
 
 // ─── Trigger config ───────────────────────────────────────────────────────────
@@ -586,32 +588,40 @@ export default function Automacoes() {
   const { data: rules = [], isLoading } = trpc.automations.list.useQuery();
   const { data: stats } = trpc.automations.stats.useQuery();
 
+  // Função centralizada de refresh do painel de automações.
+  // Usar uma única chamada de invalidate por "namespace" agrupa os re-fetches,
+  // evitando rajadas de requisições que poderiam acionar o rate limiter.
+  const refreshAutomations = () => {
+    utils.automations.list.invalidate();
+    utils.automations.stats.invalidate();
+  };
+
   const seedMutation = trpc.automations.seedDefaults.useMutation({
     onSuccess: (res) => {
       if (res.seeded) {
         toast.success(`${res.count} regras padrão criadas com sucesso!`);
-        utils.automations.list.invalidate();
+        refreshAutomations();
       }
     },
   });
 
   const toggleMutation = trpc.automations.toggle.useMutation({
-    onSuccess: () => { utils.automations.list.invalidate(); utils.automations.stats.invalidate(); },
+    onSuccess: () => refreshAutomations(),
     onError: (e) => toast.error("Erro ao atualizar regra: " + e.message),
   });
 
   const createMutation = trpc.automations.create.useMutation({
-    onSuccess: () => { toast.success("Automação criada! ✅"); setEditorRule(null); utils.automations.list.invalidate(); utils.automations.stats.invalidate(); },
+    onSuccess: () => { toast.success("Automação criada! ✅"); setEditorRule(null); refreshAutomations(); },
     onError: (e) => toast.error("Erro ao criar: " + e.message),
   });
 
   const updateMutation = trpc.automations.update.useMutation({
-    onSuccess: () => { toast.success("Automação atualizada!"); setEditorRule(null); utils.automations.list.invalidate(); },
+    onSuccess: () => { toast.success("Automação atualizada! ✅"); setEditorRule(null); refreshAutomations(); },
     onError: (e) => toast.error("Erro ao atualizar: " + e.message),
   });
 
   const deleteMutation = trpc.automations.delete.useMutation({
-    onSuccess: () => { toast.success("Automação removida."); utils.automations.list.invalidate(); utils.automations.stats.invalidate(); },
+    onSuccess: () => { toast.success("Automação removida."); refreshAutomations(); },
     onError: (e) => toast.error("Erro ao excluir: " + e.message),
   });
 
