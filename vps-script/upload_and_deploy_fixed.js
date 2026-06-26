@@ -35,7 +35,11 @@ const filesToUpload = [
   'client/src/pages/Configuracoes.tsx',
   'drizzle/schema.ts',
   'server/_core/migrate.ts',
-  'server/db.ts'
+  'server/db.ts',
+  'server/automationJob.ts',
+  'client/src/pages/Aulas.tsx',
+  'client/src/pages/Automacoes.tsx',
+  'server/utils/whatsappRouting.ts'
 ];
 
 conn.on('ready', () => {
