@@ -8088,6 +8088,16 @@ REGRAS INQUEBRÁVEIS (LEIA COM ATENÇÃO):
           messageTemplate: "Olá {nome_aluno}! 🎵 Sentimos sua falta! Você está há {dias_sem_estudo} dias sem registrar atividades. Que tal voltar à sua jornada musical? Estamos aqui para te apoiar na {nome_escola}!",
           channel: "whatsapp",
         },
+        {
+          name: "Lembrete de Estudo Diário",
+          description: "Envia lembrete motivacional para os alunos praticarem. Configure os dias da semana e o horário na aba de configurações da regra.",
+          trigger: "daily_study",
+          offsetDays: 0,
+          offsetHours: 0,
+          conditions: JSON.stringify({ daysOfWeek: [1, 2, 3, 4, 5], sendTime: "08:00" }),
+          messageTemplate: "🎵 Olá {nome_aluno}! Hora de praticar {instrumento}!\nSeu professor {nome_professor} da {nome_escola} está torcendo por você.\nMesmo 15 minutinhos por dia fazem uma grande diferença. Vamos lá! 💪",
+          channel: "whatsapp",
+        },
       ];
 
       for (const rule of systemRules) {

@@ -8,7 +8,7 @@ import {
   MessageSquare, Bell, Star, TrendingUp, Users,
   Edit3, X, Search,
   Calendar, DollarSign, Gift, UserX, Loader2, Sparkles,
-  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing
+  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing, BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +40,7 @@ type AutomationRule = {
 };
 
 // ─── Trigger config ───────────────────────────────────────────────────────────
-const TRIGGERS: { value: string; label: string; icon: React.ElementType; color: string; unit: "days" | "hours" }[] = [
+const TRIGGERS: { value: string; label: string; icon: React.ElementType; color: string; unit: "days" | "hours" | "time" }[] = [
   { value: "new_student",       label: "Novo aluno matriculado",           icon: Users,        color: "text-emerald-500", unit: "days"  },
   { value: "lesson_scheduled",  label: "Aula agendada",                    icon: Calendar,     color: "text-blue-500",    unit: "hours" },
   { value: "payment_due",       label: "Mensalidade próxima do vencimento",icon: DollarSign,   color: "text-amber-500",   unit: "days"  },
@@ -48,6 +48,17 @@ const TRIGGERS: { value: string; label: string; icon: React.ElementType; color: 
   { value: "payment_confirmed", label: "Pagamento confirmado",             icon: CheckCircle2, color: "text-teal-500",    unit: "days"  },
   { value: "birthday",          label: "Aniversário do aluno",             icon: Gift,         color: "text-pink-500",    unit: "days"  },
   { value: "student_inactive",  label: "Aluno inativo (sem aulas)",        icon: UserX,        color: "text-violet-500",  unit: "days"  },
+  { value: "daily_study",       label: "Lembrete de estudo diário",        icon: BookOpen,     color: "text-green-500",   unit: "time"  },
+];
+
+const DAYS_OF_WEEK = [
+  { label: "Dom", value: 0 },
+  { label: "Seg", value: 1 },
+  { label: "Ter", value: 2 },
+  { label: "Qua", value: 3 },
+  { label: "Qui", value: 4 },
+  { label: "Sex", value: 5 },
+  { label: "Sáb", value: 6 },
 ];
 
 const VARIABLES = [
@@ -67,8 +78,26 @@ function getTriggerInfo(trigger: string) {
   return TRIGGERS.find(t => t.value === trigger) ?? { label: trigger, icon: Zap, color: "text-indigo-500", unit: "days" as const };
 }
 
+function parseDailyStudyConditions(conditions: string | null | undefined): { daysOfWeek: number[]; sendTime: string } {
+  try {
+    if (conditions) {
+      const parsed = JSON.parse(conditions);
+      return {
+        daysOfWeek: Array.isArray(parsed.daysOfWeek) ? parsed.daysOfWeek : [1,2,3,4,5],
+        sendTime: typeof parsed.sendTime === "string" ? parsed.sendTime : "08:00",
+      };
+    }
+  } catch { /* ignore */ }
+  return { daysOfWeek: [1,2,3,4,5], sendTime: "08:00" };
+}
+
 function getTimingLabel(rule: AutomationRule): string {
   const info = getTriggerInfo(rule.trigger);
+  if (rule.trigger === "daily_study") {
+    const { daysOfWeek, sendTime } = parseDailyStudyConditions(rule.conditions);
+    const dayNames = daysOfWeek.map(d => DAYS_OF_WEEK.find(x => x.value === d)?.label ?? "").filter(Boolean);
+    return `${dayNames.join(", ")} às ${sendTime}`;
+  }
   if (info.unit === "hours") {
     const h = rule.offsetHours ?? 0;
     if (h === 0) return "No momento da aula";
@@ -203,6 +232,10 @@ function RuleEditorModal({ rule, onClose, onSave }: {
   const [sendToGuardian, setSendToGuardian] = useState((rule as any)?.sendToGuardian === 1);
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // daily_study specific state
+  const initDailyStudy = parseDailyStudyConditions(rule?.conditions as string | null);
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>(initDailyStudy.daysOfWeek);
+  const [sendTime, setSendTime] = useState<string>(initDailyStudy.sendTime);
 
   const info = getTriggerInfo(trigger);
   const unit = info.unit;
@@ -234,6 +267,7 @@ function RuleEditorModal({ rule, onClose, onSave }: {
   const handleSave = () => {
     if (!name.trim()) { toast.error("Digite um nome para a regra"); return; }
     if (!messageTemplate.trim()) { toast.error("Digite o texto da mensagem"); return; }
+    if (trigger === "daily_study" && daysOfWeek.length === 0) { toast.error("Selecione pelo menos um dia da semana"); return; }
     onSave({
       ...(rule?.id ? { id: rule.id } : {}),
       name: name.trim(),
@@ -241,6 +275,7 @@ function RuleEditorModal({ rule, onClose, onSave }: {
       trigger,
       offsetDays: unit === "days" ? (isNaN(offsetDays) ? 0 : offsetDays) : 0,
       offsetHours: unit === "hours" ? (isNaN(offsetHours) ? 0 : offsetHours) : 0,
+      conditions: trigger === "daily_study" ? JSON.stringify({ daysOfWeek, sendTime }) : undefined,
       messageTemplate: messageTemplate.trim(),
       channel: "whatsapp",
       isActive: isActive ? 1 : 0,
@@ -340,73 +375,128 @@ function RuleEditorModal({ rule, onClose, onSave }: {
               </div>
 
               {/* Timing */}
-              <div className="p-5 bg-gradient-to-br from-indigo-500/5 to-violet-500/5 rounded-2xl border border-indigo-500/20 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Clock size={16} className="text-indigo-500" />
-                  <p className="text-sm font-black text-foreground">Quando enviar?</p>
-                </div>
+              {trigger === "daily_study" ? (
+                <div className="p-5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-2xl border border-green-500/20 space-y-5">
+                  <div className="flex items-center gap-2">
+                    <BookOpen size={16} className="text-green-500" />
+                    <p className="text-sm font-black text-foreground">Configuração do Lembrete Diário</p>
+                  </div>
 
-                {unit === "hours" ? (
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Quantas horas</label>
-                      <Input type="number" value={Math.abs(offsetHours)}
-                        onChange={e => { const v = parseInt(e.target.value) || 0; setOffsetHours(offsetHours >= 0 ? v : -v); }}
-                        min={0} className="w-24 h-11 rounded-xl text-center font-black text-lg border-border bg-card"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Direção</label>
-                      <div className="flex gap-2">
-                        {[
-                          { label: "Antes", action: () => setOffsetHours(h => -Math.abs(h || 1)), active: offsetHours < 0 },
-                          { label: "Na hora", action: () => setOffsetHours(0), active: offsetHours === 0 },
-                          { label: "Depois", action: () => setOffsetHours(h => Math.abs(h || 1)), active: offsetHours > 0 },
-                        ].map(btn => (
-                          <button key={btn.label} onClick={btn.action}
-                            className={cn("px-3 py-2 rounded-xl text-xs font-black border transition-all",
-                              btn.active ? "bg-indigo-500 text-white border-transparent" : "border-border text-muted-foreground hover:bg-muted"
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Dias da semana para enviar</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {DAYS_OF_WEEK.map(day => {
+                        const isSelected = daysOfWeek.includes(day.value);
+                        return (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => setDaysOfWeek(prev =>
+                              isSelected ? prev.filter(d => d !== day.value) : [...prev, day.value].sort()
                             )}
-                          >{btn.label}</button>
-                        ))}
+                            className={cn(
+                              "px-3 py-2 rounded-xl text-xs font-black border transition-all",
+                              isSelected
+                                ? "bg-green-500 text-white border-transparent shadow-md shadow-green-500/20"
+                                : "border-border text-muted-foreground hover:bg-muted"
+                            )}
+                          >
+                            {day.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {daysOfWeek.length === 0 && (
+                      <p className="text-[11px] text-red-500 font-medium">Selecione pelo menos um dia</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Horário de envio</label>
+                    <input
+                      type="time"
+                      value={sendTime}
+                      onChange={e => setSendTime(e.target.value)}
+                      className="h-11 px-4 rounded-xl border border-border bg-card text-sm font-black text-foreground focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-xl">
+                    <Info size={14} className="text-green-600 flex-shrink-0" />
+                    <p className="text-xs font-semibold text-green-700 dark:text-green-300">
+                      Lembrete enviado às <strong>{sendTime}</strong> nos dias: <strong>{daysOfWeek.map(d => DAYS_OF_WEEK.find(x => x.value === d)?.label).join(", ")}</strong>
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-5 bg-gradient-to-br from-indigo-500/5 to-violet-500/5 rounded-2xl border border-indigo-500/20 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Clock size={16} className="text-indigo-500" />
+                    <p className="text-sm font-black text-foreground">Quando enviar?</p>
+                  </div>
+
+                  {unit === "hours" ? (
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Quantas horas</label>
+                        <Input type="number" value={Math.abs(offsetHours)}
+                          onChange={e => { const v = parseInt(e.target.value) || 0; setOffsetHours(offsetHours >= 0 ? v : -v); }}
+                          min={0} className="w-24 h-11 rounded-xl text-center font-black text-lg border-border bg-card"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Direção</label>
+                        <div className="flex gap-2">
+                          {[
+                            { label: "Antes", action: () => setOffsetHours(h => -Math.abs(h || 1)), active: offsetHours < 0 },
+                            { label: "Na hora", action: () => setOffsetHours(0), active: offsetHours === 0 },
+                            { label: "Depois", action: () => setOffsetHours(h => Math.abs(h || 1)), active: offsetHours > 0 },
+                          ].map(btn => (
+                            <button key={btn.label} onClick={btn.action}
+                              className={cn("px-3 py-2 rounded-xl text-xs font-black border transition-all",
+                                btn.active ? "bg-indigo-500 text-white border-transparent" : "border-border text-muted-foreground hover:bg-muted"
+                              )}
+                            >{btn.label}</button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Quantos dias</label>
-                      <Input type="number" value={Math.abs(offsetDays)}
-                        onChange={e => { const v = parseInt(e.target.value) || 0; setOffsetDays(offsetDays >= 0 ? v : -v); }}
-                        min={0} className="w-24 h-11 rounded-xl text-center font-black text-lg border-border bg-card"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Direção</label>
-                      <div className="flex gap-2">
-                        {[
-                          { label: "Antes", action: () => setOffsetDays(d => -Math.abs(d || 1)), active: offsetDays < 0 },
-                          { label: "No dia", action: () => setOffsetDays(0), active: offsetDays === 0 },
-                          { label: "Depois", action: () => setOffsetDays(d => Math.abs(d || 1)), active: offsetDays > 0 },
-                        ].map(btn => (
-                          <button key={btn.label} onClick={btn.action}
-                            className={cn("px-3 py-2 rounded-xl text-xs font-black border transition-all",
-                              btn.active ? "bg-indigo-500 text-white border-transparent" : "border-border text-muted-foreground hover:bg-muted"
-                            )}
-                          >{btn.label}</button>
-                        ))}
+                  ) : (
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Quantos dias</label>
+                        <Input type="number" value={Math.abs(offsetDays)}
+                          onChange={e => { const v = parseInt(e.target.value) || 0; setOffsetDays(offsetDays >= 0 ? v : -v); }}
+                          min={0} className="w-24 h-11 rounded-xl text-center font-black text-lg border-border bg-card"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Direção</label>
+                        <div className="flex gap-2">
+                          {[
+                            { label: "Antes", action: () => setOffsetDays(d => -Math.abs(d || 1)), active: offsetDays < 0 },
+                            { label: "No dia", action: () => setOffsetDays(0), active: offsetDays === 0 },
+                            { label: "Depois", action: () => setOffsetDays(d => Math.abs(d || 1)), active: offsetDays > 0 },
+                          ].map(btn => (
+                            <button key={btn.label} onClick={btn.action}
+                              className={cn("px-3 py-2 rounded-xl text-xs font-black border transition-all",
+                                btn.active ? "bg-indigo-500 text-white border-transparent" : "border-border text-muted-foreground hover:bg-muted"
+                              )}
+                            >{btn.label}</button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div className="flex items-center gap-2 p-3 bg-indigo-500/10 rounded-xl">
-                  <Info size={14} className="text-indigo-500 flex-shrink-0" />
-                  <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                    A mensagem <strong>{timingPreview}</strong>.
-                  </p>
+                  <div className="flex items-center gap-2 p-3 bg-indigo-500/10 rounded-xl">
+                    <Info size={14} className="text-indigo-500 flex-shrink-0" />
+                    <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                      A mensagem <strong>{timingPreview}</strong>.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
