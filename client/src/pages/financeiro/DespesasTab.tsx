@@ -375,7 +375,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
   const itemsPerPage = 10;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: allExpenses = [] } = trpc.expenses.list.useQuery({ month: -1 });
+  const { data: allExpenses = [] } = trpc.expenses.list.useQuery({ all: true });
 
   const updateStatusMutation = trpc.expenses.update.useMutation({
     onSuccess: () => { 

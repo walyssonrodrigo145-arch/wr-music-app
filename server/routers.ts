@@ -4064,9 +4064,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               .where(eq(paymentDues.id, input.id));
           }
 
+          // BUG#3 FIX: Admin bypass — admin pode dar baixa em mensalidades de qualquer professor
+          const isAdminMarkPaid = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+          const markPaidWhere = isAdminMarkPaid
+            ? and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId))
+            : and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id));
           await db.update(paymentDues)
             .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
-            .where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id)));
+            .where(markPaidWhere);
           
           // Cancelar lembretes pendentes desta mensalidade
           await db.update(reminders)
@@ -4104,10 +4109,16 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           const orgId = ctx.user.organizationId!;
           const { id, updateFutureDues, ...data } = input;
           
+          // BUG#4 FIX: Admin bypass — admin pode editar mensalidades de qualquer professor
+          const isAdminUpdate = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+          const updateWhere = isAdminUpdate
+            ? and(eq(paymentDues.id, id), eq(paymentDues.organizationId, orgId))
+            : and(eq(paymentDues.id, id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id));
+
           // Buscar registro atual para obter o studentId se necessário
           const currentPayment = await db.select()
             .from(paymentDues)
-            .where(and(eq(paymentDues.id, id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id)))
+            .where(updateWhere)
             .limit(1)
             .then(res => res[0]);
 
@@ -4128,7 +4139,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
           await db.update(paymentDues)
             .set(updateData)
-            .where(and(eq(paymentDues.id, id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id)));
+            .where(updateWhere);
 
           // Sincronizar vencimentos futuros se solicitado
           if (updateFutureDues && data.dueDate) {
@@ -6403,8 +6414,11 @@ Texto original para reescrever:
   expenses: router({
     list: protectedProcedure
       .input(z.object({
+        // BUG#2 FIX: month:-1 era passado para EXTRACT(MONTH) = -1, retornando sempre 0 linhas
+        // Agora: undefined = sem filtro de mês (retorna todos); número válido = filtra pelo mês
         month: z.number().optional(),
-        year: z.number().optional()
+        year: z.number().optional(),
+        all: z.boolean().optional(), // true = sem filtro de data (para cálculo de comparativo)
       }).optional())
       .query(async ({ ctx, input }) => {
         const db = await getDb();
@@ -6413,7 +6427,10 @@ Texto original para reescrever:
         const m = input?.month ?? new Date().getMonth() + 1;
         const y = input?.year ?? new Date().getFullYear();
         
-        const dateFilter = input?.month === -1 ? undefined : sql`EXTRACT(MONTH FROM ${expenses.date}) = ${m} AND EXTRACT(YEAR FROM ${expenses.date}) = ${y}`;
+        // Se all=true ou month não informado, não aplica filtro de data
+        const dateFilter = (input?.all || input?.month === undefined)
+          ? undefined
+          : sql`EXTRACT(MONTH FROM ${expenses.date}) = ${m} AND EXTRACT(YEAR FROM ${expenses.date}) = ${y}`;
         
         return db.select()
           .from(expenses)

@@ -46,7 +46,7 @@ function StatusBadge({ status }: { status: string }) {
     pago:     { label: "Paga",     cls: "bg-emerald-500/10 text-emerald-600" },
     pendente: { label: "A vencer", cls: "bg-amber-500/10 text-amber-600" },
     atrasado: { label: "Vencida", cls: "bg-rose-500/10 text-rose-600" },
-    agendada: { label: "Agendada", cls: "bg-blue-500/100/10 text-blue-600" },
+    agendada: { label: "Agendada", cls: "bg-blue-500/10 text-blue-600" },
   };
   const c = map[status] ?? map.pendente;
   return (
@@ -409,7 +409,7 @@ function NovaModal({ open, onClose, students }: {
       >
         <div className="flex items-center justify-between p-6 border-b border-border">
            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/100/10 text-blue-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
                  <DollarSign size={20} />
               </div>
               <h3 className="text-lg font-bold text-foreground tracking-tight">Nova Mensalidade</h3>
@@ -527,6 +527,8 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
   const [detailsPaymentId, setDetailsPaymentId] = useState<number | null>(null);
   const [asaasPayment, setAsaasPayment] = useState<PaymentRow | null>(null);
   const [uploadingFor, setUploadingFor] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: students = [] } = trpc.students.list.useQuery();
@@ -602,6 +604,16 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
     });
   }, [payments, search, filterStatus, lessonTypeFilter]);
 
+  // BUG#5 FIX: paginação real (antes os botões eram decorativos sem onClick)
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+
+  // Resetar para página 1 quando filtros mudam
+  useEffect(() => { setCurrentPage(1); }, [search, filterStatus, lessonTypeFilter]);
+
   const stats = useMemo(() => {
     const sum = (arr: any[]) => arr.reduce((acc, p) => acc + Number(p.amount), 0);
     const validPaymentsForForecast = payments.filter(p => 
@@ -667,7 +679,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
              { label: "Recebido", amount: stats.recebido, color: "text-emerald-600", bg: "from-emerald-500/10 to-background", border: "border-emerald-100/50" },
              { label: "Pendente", amount: stats.pendente, color: "text-amber-600", bg: "from-amber-500/10 to-background", border: "border-amber-100/50" },
              { label: "Atrasado", amount: stats.atrasado, color: "text-rose-600", bg: "from-rose-500/10 to-background", border: "border-rose-100/50" },
-             { label: "Previsto", amount: stats.total, color: "text-blue-600", bg: "from-blue-500/10 to-background", border: "border-blue-500/20/50" },
+             { label: "Previsto", amount: stats.total, color: "text-blue-600", bg: "from-blue-500/10 to-background", border: "border-blue-500/20" },
            ].map((item, i) => (
              <div key={i} className={cn("relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden shrink-0", item.bg, item.border)}>
                <div className="relative z-10">
@@ -683,7 +695,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
         {/* FLOW BY DUE DATE (Day 5, 10, 15, 20) */}
         <div className="bg-card rounded-[2rem] border border-border p-6 lg:p-8 shadow-sm space-y-6">
            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/100/10 text-indigo-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
                  <TrendingUp size={20} />
               </div>
               <div>
@@ -764,12 +776,12 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                   ) : filtered.length === 0 ? (
                     <tr><td colSpan={5} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhuma mensalidade encontrada.</td></tr>
                   ) : (
-                    filtered.map((payment) => (
+                    paginated.map((payment) => (
                       <tr key={payment.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailsPaymentId(payment.id)}>
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-9 h-9 border-2 border-background shadow-sm shrink-0">
-                              <AvatarFallback className="bg-blue-500/100/10 text-blue-600 text-[10px] font-black uppercase">
+                              <AvatarFallback className="bg-blue-500/10 text-blue-600 text-[10px] font-black uppercase">
                                 {payment.studentName?.substring(0, 2) || "?"}
                               </AvatarFallback>
                             </Avatar>
@@ -799,14 +811,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                         </td>
                         <td className="px-8 py-4">
                            <div className="flex items-center justify-center gap-2">
-                              <div className="flex items-center gap-2">
-                        <StatusBadge status={payment.status} />
-                        {payment.asaasId && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
-                            <Zap size={9} /> Asaas
-                          </span>
-                        )}
-                      </div>
+                              <StatusBadge status={payment.status} />
                               {payment.asaasId && (
                                 <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
                                   <Zap size={9} /> Asaas
@@ -901,7 +906,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
               ) : filtered.length === 0 ? (
                 <div className="py-10 text-center text-xs text-muted-foreground font-medium italic">Nenhuma mensalidade encontrada.</div>
               ) : (
-                filtered.map((payment) => (
+                paginated.map((payment) => (
                   <div 
                     key={payment.id} 
                     className="bg-card rounded-2xl p-4 border border-border shadow-sm active:scale-[0.98] transition-all"
@@ -1006,13 +1011,35 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
               )}
            </div>
 
-           {/* Pagination UI - Adjusted for mobile */}
+           {/* Pagination - funcional */}
            <div className="p-4 lg:p-6 border-t border-border flex items-center justify-between bg-muted/20">
-               <p className="hidden sm:block text-[11px] text-muted-foreground font-medium">Mostrando {filtered.length} registros</p>
+               <p className="hidden sm:block text-[11px] text-muted-foreground font-medium">
+                 Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, filtered.length)}–{Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length} registros
+               </p>
                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ChevronDown className="rotate-90" size={14} /></Button>
-                  <Button variant="ghost" className="h-8 w-8 text-xs font-bold bg-primary text-white hover:bg-primary">1</Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ChevronDown className="-rotate-90" size={14} /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>
+                    <ChevronDown className="rotate-90" size={14} />
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                    .reduce((acc: (number | string)[], p, idx, arr) => {
+                      if (idx > 0 && (arr[idx - 1] as number) < p - 1) acc.push('...');
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, i) => p === '...' ? (
+                      <span key={`ellipsis-${i}`} className="h-8 w-8 flex items-center justify-center text-xs text-muted-foreground">…</span>
+                    ) : (
+                      <Button key={p} variant="ghost"
+                        className={`h-8 w-8 text-xs font-bold ${currentPage === p ? 'bg-primary text-white hover:bg-primary' : 'text-muted-foreground'}`}
+                        onClick={() => setCurrentPage(p as number)}>
+                        {p}
+                      </Button>
+                    ))
+                  }
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>
+                    <ChevronDown className="-rotate-90" size={14} />
+                  </Button>
                </div>
            </div>
         </div>

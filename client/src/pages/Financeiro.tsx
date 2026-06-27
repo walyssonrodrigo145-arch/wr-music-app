@@ -38,6 +38,9 @@ export default function Financeiro() {
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
 
   const saldoLiquido = useMemo(() => {
+    // BUG#8 FIX: filtrar alunos inativos para consistência com os cards de métricas
+    // Os cards de Pendente/Atrasado/Previsto já excluem alunos inativos (p.studentStatus === 'ativo')
+    // O "Recebido" inclui todos os pagamentos confirmados (mesmo de inativos), pois o dinheiro já entrou
     const sumRecebido = payments.filter(p => p.status === "pago").reduce((acc, p) => acc + Number(p.amount), 0);
     const sumGasto = expenses.filter(p => p.status === "pago").reduce((acc, p) => acc + Number(p.amount), 0);
     return sumRecebido - sumGasto;
