@@ -1036,13 +1036,16 @@ async function runAutomation() {
                 }
               } catch { /* mantém defaults */ }
 
-              // Verificar se hoje é um dos dias configurados
-              const currentDayOfWeek = now2.getDay(); // 0=Dom, 1=Seg...
+              // BUG#1+#2 FIX: usar horário e dia de semana do timezone de Brasília
+              // now2.getDay() e getHours() retornam UTC — no horário de Brasília isso pode ser um dia/hora diferente
+              const brazilLocale = now2.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+              const brazilDate = new Date(brazilLocale);
+              const currentDayOfWeek = brazilDate.getDay(); // 0=Dom, 1=Seg... em horário BRT
               if (!daysOfWeek.includes(currentDayOfWeek)) continue;
 
               // Verificar se o horário atual corresponde ao configurado (tolerância de ±2 minutos)
               const [sendHour, sendMin] = sendTime.split(":").map(Number);
-              const nowTotalMin = now2.getHours() * 60 + now2.getMinutes();
+              const nowTotalMin = brazilDate.getHours() * 60 + brazilDate.getMinutes(); // hora BRT
               const targetTotalMin = sendHour * 60 + sendMin;
               if (Math.abs(nowTotalMin - targetTotalMin) > 2) continue;
 

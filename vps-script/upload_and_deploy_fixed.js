@@ -45,7 +45,8 @@ const filesToUpload = [
   'client/src/pages/Comunicados.tsx',
   'client/src/pages/Financeiro.tsx',
   'client/src/pages/financeiro/MensalidadesTab.tsx',
-  'client/src/pages/financeiro/DespesasTab.tsx'
+  'client/src/pages/financeiro/DespesasTab.tsx',
+  'client/src/pages/Dashboard.tsx'
 ];
 
 conn.on('ready', () => {

@@ -7989,10 +7989,11 @@ Texto original para reescrever:
         z.object({
           id: z.number(),
           name: z.string().min(1).optional(),
-          description: z.string().optional(),
+          description: z.string().optional().nullable(),
+          trigger: z.string().optional(), // BUG#4 FIX: permite atualizar o trigger
           offsetDays: z.number().optional(),
           offsetHours: z.number().optional(),
-          conditions: z.string().optional(),
+          conditions: z.string().optional().nullable(), // BUG#3 FIX: persistir daysOfWeek+sendTime do daily_study
           actions: z.string().optional(),
           messageTemplate: z.string().optional(),
           channel: z.string().optional(),
@@ -8012,9 +8013,11 @@ Texto original para reescrever:
         const updateData: Record<string, any> = {};
         if (fields.name !== undefined) updateData.name = fields.name;
         if (fields.description !== undefined) updateData.description = fields.description;
+        if (fields.trigger !== undefined) updateData.trigger = fields.trigger;
         if (fields.offsetDays !== undefined) updateData.offsetDays = fields.offsetDays;
         if (fields.offsetHours !== undefined) updateData.offsetHours = fields.offsetHours;
-        if (fields.conditions !== undefined) updateData.conditions = fields.conditions;
+        // BUG#3+#4 FIX: conditions agora é persistido corretamente (null limpa, string salva)
+        if (fields.conditions !== undefined) updateData.conditions = fields.conditions ?? null;
         if (fields.actions !== undefined) updateData.actions = fields.actions;
         if (fields.messageTemplate !== undefined) updateData.messageTemplate = fields.messageTemplate;
         if (fields.channel !== undefined) updateData.channel = fields.channel;

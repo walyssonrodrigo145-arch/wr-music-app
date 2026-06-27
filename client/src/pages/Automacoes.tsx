@@ -753,6 +753,9 @@ export default function Automacoes() {
         id: data.id,
         name: data.name,
         description: data.description ?? undefined,
+        // BUG#3 FIX: conditions contém daysOfWeek + sendTime do daily_study
+        // Sem esse campo, editar uma regra apagava a configuração do banco
+        conditions: (data as any).conditions ?? undefined,
         offsetDays: data.offsetDays,
         offsetHours: data.offsetHours,
         messageTemplate: data.messageTemplate,
