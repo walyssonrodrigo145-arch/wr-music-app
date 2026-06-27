@@ -223,7 +223,19 @@ export const appRouter = router({
         }
         const db = await getDb();
         if (!db) throw new Error("Database não disponível");
-        const [user] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+
+        // BUG#3 FIX: Buscar todos os users com este email e filtrar pelo loginType correto.
+        // Sem este fix, um aluno e um professor com o mesmo email em orgs diferentes
+        // causavam cross-tenant — o limit(1) retornava o usuário errado.
+        const allUsersWithEmail = await db.select().from(users)
+          .where(eq(users.email, input.email));
+
+        // Prioriza o user cujo role bate com o loginType; caso contrário, usa o primeiro encontrado
+        let user = allUsersWithEmail.find(u => {
+          if (input.loginType === 'aluno') return u.role === 'aluno';
+          if (input.loginType === 'professor') return u.role !== 'aluno';
+          return true;
+        }) ?? allUsersWithEmail[0];
         
         if (!user) {
           throw new Error("Usuário não encontrado");
@@ -1496,9 +1508,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           .orderBy(asc(paymentDues.dueDate))
           .limit(1),
 
-        db.select({ email: users.email })
+        // BUG#4 FIX: Unificar fonte de verdade do acesso ao portal.
+        // Antes: getDetails usava APENAS users.studentId, mas enablePortalAccess também gravava
+        // em students.studentUserId — colunas diferentes causando hasPortalAccess sempre false.
+        // Agora: verifica users.studentId (coluna canonical) que o Bug#2 FIX mantém em sincronia.
+        db.select({ email: users.email, userId: users.id })
           .from(users)
-          .where(and(eq(users.organizationId, orgId), eq(users.studentId, input.id)))
+          .where(
+            and(
+              eq(users.organizationId, orgId),
+              eq(users.studentId, input.id)
+            )
+          )
           .limit(1)
       ]);
 
@@ -1528,7 +1549,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       return { success: true };
     }),
 
-    enablePortalAccess: professorProcedure.input(z.object({
+    // BUG#5 FIX: Trocado de professorProcedure para protectedProcedure.
+    // professorProcedure bloqueava admins antes de chegar na verificação isUserAdmin.
+    // A verificação de permissão real (isOwner || isUserAdmin) já existe dentro da mutation.
+    enablePortalAccess: protectedProcedure.input(z.object({
       studentId: z.number(),
       email: z.string().email().optional(),
       password: z.string().min(6).optional(),
@@ -1605,11 +1629,33 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         console.log(`[TRPC] Created new user for student ${student.id} with email: ${email}`);
       }
 
-      // Link back the user to the student record
-      const [finalUser] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, email), eq(users.organizationId, orgId))).limit(1);
-      if (finalUser) {
-        await db.update(students).set({ studentUserId: finalUser.id }).where(eq(students.id, student.id));
+      // BUG#2 FIX: Validação robusta do link student → user.
+      // Antes: se o INSERT falhasse silenciosamente, finalUser era undefined e
+      // students.studentUserId ficava null — acesso "criado" mas inoperante.
+      // Agora: erro explícito + gravação de AMBAS as colunas de link para consistência.
+      const [finalUser] = await db.select({ id: users.id, openId: users.openId })
+        .from(users)
+        .where(and(eq(users.email, email), eq(users.organizationId, orgId)))
+        .limit(1);
+
+      if (!finalUser) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Erro ao criar o usuário de acesso. Por favor, tente novamente.',
+        });
       }
+
+      // Grava studentUserId em students E studentId em users — mantém ambas as colunas em sincronia
+      await Promise.all([
+        db.update(students)
+          .set({ studentUserId: finalUser.id })
+          .where(eq(students.id, student.id)),
+        db.update(users)
+          .set({ studentId: student.id })
+          .where(eq(users.id, finalUser.id)),
+      ]);
+
+      console.log(`[TRPC] Successfully linked student ${student.id} ↔ user ${finalUser.id}`);
 
       return { success: true, email, password };
     }),
