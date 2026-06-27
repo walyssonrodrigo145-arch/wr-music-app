@@ -42,7 +42,10 @@ const filesToUpload = [
   'client/src/pages/Aulas.tsx',
   'client/src/pages/Automacoes.tsx',
   'server/utils/whatsappRouting.ts',
-  'client/src/pages/Comunicados.tsx'
+  'client/src/pages/Comunicados.tsx',
+  'client/src/pages/Financeiro.tsx',
+  'client/src/pages/financeiro/MensalidadesTab.tsx',
+  'client/src/pages/financeiro/DespesasTab.tsx'
 ];
 
 conn.on('ready', () => {

@@ -2101,11 +2101,44 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
   }),
 
   lessons: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
-      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-      const orgId = ctx.user.organizationId!;
-      return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 500);
-    }),
+    list: protectedProcedure
+      .input(z.object({
+        // BUG#5 FIX: filtro opcional de data para reduzir payload
+        // Usado pelo Dashboard para buscar apenas aulas de hoje em vez de todo o histórico
+        date: z.string().optional(), // formato YYYY-MM-DD
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        const orgId = ctx.user.organizationId!;
+
+        // Se date informada, busca apenas aulas daquele dia no banco
+        if (input?.date) {
+          const db = await getDb();
+          if (!db) return [];
+          const startOfDay = new Date(input.date + 'T00:00:00.000Z');
+          const endOfDay = new Date(input.date + 'T23:59:59.999Z');
+          return db.select({
+            id: lessons.id,
+            title: lessons.title,
+            scheduledAt: lessons.scheduledAt,
+            duration: lessons.duration,
+            status: lessons.status,
+            isExperimental: lessons.isExperimental,
+            experimentalName: lessons.experimentalName,
+            studentName: students.name,
+          }).from(lessons)
+            .leftJoin(students, eq(lessons.studentId, students.id))
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
+              gte(lessons.scheduledAt, startOfDay),
+              lte(lessons.scheduledAt, endOfDay),
+            ))
+            .orderBy(asc(lessons.scheduledAt));
+        }
+
+        return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 500);
+      }),
     upcoming: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];

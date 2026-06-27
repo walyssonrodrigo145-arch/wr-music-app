@@ -94,7 +94,13 @@ export default function Dashboard() {
   const { data: monthlyDataRaw } = trpc.dashboard.monthlyStats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
   const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
-  const { data: allLessons = [] } = trpc.lessons.list.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
+  // BUG#5 FIX: filtrar apenas aulas do dia de hoje no servidor — antes buscava TODAS sem filtro
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const { data: allLessons = [] } = trpc.lessons.list.useQuery(
+    { date: todayStr },
+    { staleTime: 2 * 60 * 1000 }
+  );
 
   // BUG-003: Filtrar dados do gráfico pelo período selecionado
   const monthlyData = useMemo(() => {
@@ -107,7 +113,9 @@ export default function Dashboard() {
   const sparkAlunos = useMemo(() => monthlyData?.map(d => ({ value: d.alunos })) || [], [monthlyData]);
   const sparkAulas = useMemo(() => monthlyData?.map(d => ({ value: d.aulas })) || [], [monthlyData]);
   const sparkReceita = useMemo(() => monthlyData?.map(d => ({ value: d.receita })) || [], [monthlyData]);
-  
+  // BUG#4 FIX: sparkline de receita já existia, mas a linha de receita não era plotada no gráfico principal
+  // A correção foi adicionar o terceiro <Area> no AreaChart abaixo
+
   // Today's summary calculation
   const todaySummary = useMemo(() => {
     const today = new Date();
@@ -173,19 +181,19 @@ export default function Dashboard() {
           sparkData={sparkAulas}
           isLoading={statsLoading}
         />
-        {/* BUG-005: Agendadas agora com sparkline e trend */}
+        {/* BUG#2 FIX: removido trend e sparkData de 'Aulas Realizadas' deste card — dado incorreto */}
         <MetricCard 
           title="Aulas Agendadas" 
           value={stats?.scheduledLessons ?? 0} 
           icon={Clock} 
           color="text-orange-500"
-          trend={trends.aulas}
-          sparkData={sparkAulas}
           isLoading={statsLoading}
         />
+        {/* BUG#1 FIX: value agora usa formatCurrency — antes exibia o número cru sem R$ */}
+        {/* BUG#3 FIX: removido ternário statsLoading?0:... redundante — isLoading já controla o skeleton */}
         <MetricCard 
           title="Receita do Mês" 
-          value={statsLoading ? 0 : stats?.monthlyRevenue ?? 0} 
+          value={formatCurrency(stats?.monthlyRevenue ?? 0)}
           icon={DollarSign} 
           color="text-purple-600" 
           trend={trends.receita} 
@@ -194,24 +202,26 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* ── Main Section (Chart + Summary) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Evolution Chart */}
         <div className="lg:col-span-2 bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
-             <div>
-                <h3 className="text-base font-black text-foreground tracking-tight">Evolução Mensal</h3>
-                <div className="flex items-center gap-4 mt-2">
-                   <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-sm" />
-                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Aulas realizadas</span>
-                   </div>
-                   <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
-                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Novos alunos</span>
-                   </div>
-                </div>
-             </div>
+              <div>
+                 <h3 className="text-base font-black text-foreground tracking-tight">Evolução Mensal</h3>
+                 <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-1.5">
+                       <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-sm" />
+                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Aulas realizadas</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
+                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Novos alunos</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                       <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm" />
+                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Receita (R$)</span>
+                    </div>
+                 </div>
+              </div>
              <select
                value={chartPeriod}
                onChange={(e) => setChartPeriod(e.target.value as '6m' | '12m')}
@@ -240,6 +250,11 @@ export default function Dashboard() {
                       <stop offset="5%" stopColor="#10B981" stopOpacity={0.1} />
                       <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                     </linearGradient>
+                    {/* BUG#4 FIX: gradient roxo para linha de receita */}
+                    <linearGradient id="chartPurple" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#7C3AED" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: 'currentColor' }} opacity={0.5} dy={10} />
@@ -250,6 +265,8 @@ export default function Dashboard() {
                   />
                   <Area type="monotone" dataKey="aulas" name="Aulas" stroke="#2563EB" strokeWidth={3} fill="url(#chartBlue)" dot={{ r: 4, strokeWidth: 2, fill: 'var(--background)' }} activeDot={{ r: 6, strokeWidth: 0 }} />
                   <Area type="monotone" dataKey="alunos" name="Alunos" stroke="#10B981" strokeWidth={3} fill="url(#chartEmerald)" dot={{ r: 4, strokeWidth: 2, fill: 'var(--background)' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  {/* BUG#4 FIX: linha de receita — dado já existia em monthlyData mas não era plotado */}
+                  <Area type="monotone" dataKey="receita" name="Receita" stroke="#7C3AED" strokeWidth={2} strokeDasharray="4 2" fill="url(#chartPurple)" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
