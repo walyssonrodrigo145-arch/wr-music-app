@@ -1115,6 +1115,68 @@ async function runAutomation() {
                   }
                 }
               }
+            } else if (rule.trigger === "daily_report") {
+              // ── RELATÓRIO DIÁRIO DE TREINOS CUSTOMIZADO ──────────────────────────────────
+              let daysOfWeek: number[] = [1, 2, 3, 4, 5]; 
+              let sendTime = "20:00";
+              try {
+                if (rule.conditions) {
+                  const cond = JSON.parse(rule.conditions);
+                  if (Array.isArray(cond.daysOfWeek)) daysOfWeek = cond.daysOfWeek;
+                  if (typeof cond.sendTime === "string") sendTime = cond.sendTime;
+                }
+              } catch { /* mantém defaults */ }
+
+              const brazilLocale = now2.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+              const brazilDate = new Date(brazilLocale);
+              const currentDayOfWeek = brazilDate.getDay(); 
+              if (!daysOfWeek.includes(currentDayOfWeek)) continue;
+
+              const [sendHour, sendMin] = sendTime.split(":").map(Number);
+              const nowTotalMin = brazilDate.getHours() * 60 + brazilDate.getMinutes(); 
+              const targetTotalMin = sendHour * 60 + sendMin;
+              if (Math.abs(nowTotalMin - targetTotalMin) > 2) continue;
+
+              const { dailyStudyPlans, notifications } = await import("../drizzle/schema");
+              
+              const existingReport = await db.select({ id: notifications.id }).from(notifications)
+                .where(and(eq(notifications.organizationId, orgId), eq(notifications.title, "Relatório Diário de Treinos 📊"), gte(notifications.createdAt, startOfDay))).limit(1);
+              
+              if (existingReport.length === 0) {
+                const plans = await db.select({ studentName: students.name, updatedAt: dailyStudyPlans.updatedAt })
+                  .from(dailyStudyPlans)
+                  .leftJoin(students, eq(dailyStudyPlans.studentId, students.id))
+                  .where(and(eq(dailyStudyPlans.organizationId, orgId), eq(dailyStudyPlans.status, 'ativo'), eq(dailyStudyPlans.publishedStatus, 'publicado')));
+
+                if (plans.length > 0) {
+                  let resumo = "";
+                  let anyStudent = false;
+
+                  for (const p of plans) {
+                    if (!p.studentName) continue;
+                    anyStudent = true;
+                    const updatedToday = p.updatedAt && new Date(p.updatedAt).getTime() >= startOfDay.getTime();
+                    resumo += `\n${updatedToday ? '✅' : '❌'} ${p.studentName.split(' ')[0]}`;
+                  }
+
+                  if (anyStudent) {
+                    const message = (rule.messageTemplate ?? "")
+                      .replace(/\{nome_professor\}/g, professorName)
+                      .replace(/\{nome_escola\}/g, schoolName)
+                      .replace(/\{resumo_treinos\}/g, resumo);
+
+                    await db.insert(notifications).values({
+                      organizationId: orgId, userId, title: "Relatório Diário de Treinos 📊", message: message, type: "info", actionUrl: "/progresso",
+                    });
+
+                    try {
+                      await notifyUser(userId, { title: "Relatório Diário de Treinos 📊", content: message });
+                    } catch (e) {
+                      console.error("[Automation] Erro ao enviar push de relatório:", e);
+                    }
+                  }
+                }
+              }
             }
           } catch (ruleErr) {
             console.error(`[Automation] Error processing rule ID ${rule.id} (${rule.name}):`, ruleErr);
@@ -1126,87 +1188,7 @@ async function runAutomation() {
     console.error("[Automation] Error in automation rules processing:", automationRulesErr);
   }
 
-  // --- RELATÓRIO DIÁRIO DE TREINOS ---
-  try {
-    for (const userSettings of activeSettings) {
-                if (userSettings.allowAutoReminders === false || userSettings.allowAutoReminders === 0) continue;
-      const orgId = userSettings.organizationId;
-      const userId = userSettings.userId;
-      if (!orgId) continue;
 
-      if (now.getHours() >= 20) {
-        const { dailyStudyPlans, students, notifications } = await import("../drizzle/schema");
-        
-        // Verifica se já enviou o relatório hoje
-        const [existingReport] = await db
-          .select({ id: notifications.id })
-          .from(notifications)
-          .where(and(
-            eq(notifications.organizationId, orgId),
-            eq(notifications.title, "Relatório Diário de Treinos 📊"),
-            gte(notifications.createdAt, startOfDay)
-          ))
-          .limit(1);
-
-        if (!existingReport) {
-          const plans = await db
-            .select({
-              studentName: students.name,
-              updatedAt: dailyStudyPlans.updatedAt,
-              daysCompleted: dailyStudyPlans.daysCompleted
-            })
-            .from(dailyStudyPlans)
-            .leftJoin(students, eq(dailyStudyPlans.studentId, students.id))
-            .where(and(
-              eq(dailyStudyPlans.organizationId, orgId),
-              eq(dailyStudyPlans.status, 'ativo'),
-              eq(dailyStudyPlans.publishedStatus, 'publicado')
-            ));
-
-          if (plans.length > 0) {
-            let messageContent = "Resumo dos treinos de hoje:\n";
-            let anyStudent = false;
-
-            for (const p of plans) {
-                if (p.allowAutoReminders === false || p.allowAutoReminders === 0) continue;
-              if (!p.studentName) continue;
-              anyStudent = true;
-              // Se updatedAt >= startOfDay, o aluno interagiu com o plano hoje
-              const updatedToday = p.updatedAt && new Date(p.updatedAt).getTime() >= startOfDay.getTime();
-              
-              if (updatedToday) {
-                messageContent += `\n✅ ${p.studentName.split(' ')[0]}`;
-              } else {
-                messageContent += `\n❌ ${p.studentName.split(' ')[0]}`;
-              }
-            }
-
-            if (anyStudent) {
-              await db.insert(notifications).values({
-                organizationId: orgId,
-                userId: userId,
-                title: "Relatório Diário de Treinos 📊",
-                message: messageContent,
-                type: "info",
-                actionUrl: "/progresso",
-              });
-
-              try {
-                await notifyUser(userId, {
-                  title: "Relatório Diário de Treinos 📊",
-                  content: messageContent,
-                });
-              } catch (e) {
-                console.error("[Automation] Erro ao enviar push de relatório:", e);
-              }
-            }
-          }
-        }
-      }
-    }
-  } catch (reportErr) {
-    console.error("[Automation] Error in daily practice report:", reportErr);
-  }
 
   isAutomationRunning = false;
 

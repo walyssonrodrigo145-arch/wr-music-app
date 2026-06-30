@@ -8,7 +8,7 @@ import {
   ChevronRight, Music, CreditCard,
   CalendarDays, Search, UserPlus, Target, Clock,
   LayoutGrid, PieChart as PieIcon, TrendingDown, Wallet, LineChart as LineIcon,
-  Layers, GraduationCap, BarChart2, Sparkles, FileText, AlertCircle
+  Layers, GraduationCap, BarChart2, Sparkles, FileText, AlertCircle, Activity
 } from 'lucide-react';
 import { trpc } from '../lib/trpc';
 import { format } from 'date-fns';
@@ -28,6 +28,7 @@ const TAB_CONFIG = [
   { key: 'instrumentos', label: 'Instrumentos',  icon: Music },
   { key: 'mensalidades', label: 'Mensalidades',  icon: FileText },
   { key: 'modalidades',  label: 'Modalidades',   icon: Layers },
+  { key: 'engajamento',  label: 'Acessos',       icon: Activity },
 ] as const;
 
 type TabKey = typeof TAB_CONFIG[number]['key'];
@@ -166,6 +167,7 @@ const Relatorios: React.FC = () => {
   const frequencyQuery      = trpc.reports.getFrequencyDetails.useQuery({ month: selectedMonth, year: selectedYear });
   const alunosReportQuery   = trpc.reports.getAlunosReport.useQuery();
   const modalidadeStatsQuery = trpc.reports.getModalidadeStats.useQuery({ month: selectedMonth, year: selectedYear });
+  const acessosQuery        = trpc.dashboard.getStudentAccessReport.useQuery();
 
   // ── Computed values ────────────────────────────────────────────────────────
   const currentMonthName = getMonthName(selectedMonth, selectedYear);
@@ -873,6 +875,102 @@ const Relatorios: React.FC = () => {
   };
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  RENDER: ENGAJAMENTO E ACESSOS
+  // ══════════════════════════════════════════════════════════════════════════
+  const renderEngajamento = () => {
+    const data = acessosQuery.data || [];
+    const filtered = data.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const totalAcessos = data.filter(d => d.hasAccess).length;
+    const taxaAcesso = data.length > 0 ? ((totalAcessos / data.length) * 100).toFixed(1) : "0.0";
+    const totalTreinos = data.reduce((acc, d) => acc + d.completedPracticeCount, 0);
+
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <ReportMetricCard title="Alunos com Acesso" value={totalAcessos} trend="0%" gradient="bg-indigo-500" icon={Users} delay={0.05} subtitle="já logaram no painel" />
+          <ReportMetricCard title="Taxa de Acesso" value={`${taxaAcesso}%`} trend="0%" gradient="bg-emerald-500" icon={Activity} delay={0.1} subtitle="do total de alunos" />
+          <ReportMetricCard title="Treinos Concluídos" value={totalTreinos} trend="0%" gradient="bg-purple-500" icon={Target} delay={0.15} subtitle="no mês selecionado" />
+        </div>
+
+        <ChartCard>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <SectionTitle icon={Activity} title="Engajamento Mensal" badge={currentMonthName} color="text-indigo-600 dark:text-indigo-400" />
+              <p className="text-xs text-muted-foreground mt-1">Status de acesso e conclusão de treinos no período.</p>
+            </div>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder="Buscar aluno..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-3 bg-muted border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary/40 focus:border-primary w-full md:w-72 text-foreground placeholder:text-muted-foreground transition-all outline-none"
+              />
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <EmptyState message={searchTerm ? 'Nenhum aluno encontrado.' : 'Sem dados de acesso.'} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-border">
+                    {['Aluno', 'Último Acesso', 'Treinos Concluídos', 'Status'].map((h) => (
+                      <th key={h} className="pb-4 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {filtered.map((d, i) => (
+                    <motion.tr
+                      key={d.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="group hover:bg-muted/50 transition-colors"
+                    >
+                      <td className="py-5 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm shrink-0 group-hover:scale-110 transition-transform">
+                            {d.name.charAt(0)}
+                          </div>
+                          <span className="font-bold text-foreground text-sm">{d.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-5 px-4 text-muted-foreground text-xs font-semibold">
+                        {d.lastSignedIn ? format(new Date(d.lastSignedIn), "dd/MM/yyyy 'às' HH:mm") : 'Nunca acessou'}
+                      </td>
+                      <td className="py-5 px-4 font-black text-foreground text-sm font-outfit">
+                        {d.completedPracticeCount}
+                      </td>
+                      <td className="py-5 px-4">
+                        <span className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest",
+                          d.hasAccess && d.completedPracticeCount > 0
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : d.hasAccess
+                              ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                              : "bg-muted text-muted-foreground"
+                        )}>
+                          {d.hasAccess && d.completedPracticeCount > 0 ? 'Engajado' : d.hasAccess ? 'Apenas Acesso' : 'Sem Acesso'}
+                        </span>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </ChartCard>
+      </div>
+    );
+  };
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  MAIN RENDER
   // ══════════════════════════════════════════════════════════════════════════
   return (
@@ -1011,6 +1109,7 @@ const Relatorios: React.FC = () => {
             {activeTab === 'aulas'        && renderAulas()}
             {activeTab === 'instrumentos' && renderInstrumentos()}
             {activeTab === 'mensalidades' && renderMensalidades()}
+            {activeTab === 'engajamento'  && renderEngajamento()}
           </motion.div>
         </AnimatePresence>
       </div>

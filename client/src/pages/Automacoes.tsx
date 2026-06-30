@@ -49,6 +49,7 @@ const TRIGGERS: { value: string; label: string; icon: React.ElementType; color: 
   { value: "birthday",          label: "Aniversário do aluno",             icon: Gift,         color: "text-pink-500",    unit: "days"  },
   { value: "student_inactive",  label: "Aluno inativo (sem aulas)",        icon: UserX,        color: "text-violet-500",  unit: "days"  },
   { value: "daily_study",       label: "Lembrete de estudo diário",        icon: BookOpen,     color: "text-green-500",   unit: "time"  },
+  { value: "daily_report",      label: "Relatório diário de treinos",      icon: BarChart2,    color: "text-blue-500",    unit: "time"  },
 ];
 
 const DAYS_OF_WEEK = [
@@ -71,7 +72,9 @@ const VARIABLES = [
   { label: "{hora_aula}",         desc: "Horário da aula"         },
   { label: "{valor_mensalidade}", desc: "Valor da mensalidade"    },
   { label: "{data_vencimento}",   desc: "Data de vencimento"      },
+  { label: "{data_vencimento}",   desc: "Data de vencimento"      },
   { label: "{dias_sem_estudo}",   desc: "Dias sem estudo"         },
+  { label: "{resumo_treinos}",    desc: "Lista de status de treinos de hoje" },
 ];
 
 function getTriggerInfo(trigger: string) {
@@ -93,7 +96,7 @@ function parseDailyStudyConditions(conditions: string | null | undefined): { day
 
 function getTimingLabel(rule: AutomationRule): string {
   const info = getTriggerInfo(rule.trigger);
-  if (rule.trigger === "daily_study") {
+  if (info.unit === "time") {
     const { daysOfWeek, sendTime } = parseDailyStudyConditions(rule.conditions);
     const dayNames = daysOfWeek.map(d => DAYS_OF_WEEK.find(x => x.value === d)?.label ?? "").filter(Boolean);
     return `${dayNames.join(", ")} às ${sendTime}`;
@@ -267,7 +270,7 @@ function RuleEditorModal({ rule, onClose, onSave }: {
   const handleSave = () => {
     if (!name.trim()) { toast.error("Digite um nome para a regra"); return; }
     if (!messageTemplate.trim()) { toast.error("Digite o texto da mensagem"); return; }
-    if (trigger === "daily_study" && daysOfWeek.length === 0) { toast.error("Selecione pelo menos um dia da semana"); return; }
+    if (unit === "time" && daysOfWeek.length === 0) { toast.error("Selecione pelo menos um dia da semana"); return; }
     onSave({
       ...(rule?.id ? { id: rule.id } : {}),
       name: name.trim(),
@@ -275,7 +278,7 @@ function RuleEditorModal({ rule, onClose, onSave }: {
       trigger,
       offsetDays: unit === "days" ? (isNaN(offsetDays) ? 0 : offsetDays) : 0,
       offsetHours: unit === "hours" ? (isNaN(offsetHours) ? 0 : offsetHours) : 0,
-      conditions: trigger === "daily_study" ? JSON.stringify({ daysOfWeek, sendTime }) : undefined,
+      conditions: unit === "time" ? JSON.stringify({ daysOfWeek, sendTime }) : undefined,
       messageTemplate: messageTemplate.trim(),
       channel: "whatsapp",
       isActive: isActive ? 1 : 0,
@@ -375,11 +378,11 @@ function RuleEditorModal({ rule, onClose, onSave }: {
               </div>
 
               {/* Timing */}
-              {trigger === "daily_study" ? (
+              {unit === "time" ? (
                 <div className="p-5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-2xl border border-green-500/20 space-y-5">
                   <div className="flex items-center gap-2">
                     <BookOpen size={16} className="text-green-500" />
-                    <p className="text-sm font-black text-foreground">Configuração do Lembrete Diário</p>
+                    <p className="text-sm font-black text-foreground">Configuração do Lembrete</p>
                   </div>
 
                   <div className="space-y-2">
@@ -547,7 +550,8 @@ function RuleEditorModal({ rule, onClose, onSave }: {
                       .replace(/\{hora_aula\}/g, "14:00")
                       .replace(/\{valor_mensalidade\}/g, "R$ 250,00")
                       .replace(/\{data_vencimento\}/g, "23 de junho de 2026")
-                      .replace(/\{dias_sem_estudo\}/g, "12")}
+                      .replace(/\{dias_sem_estudo\}/g, "12")
+                      .replace(/\{resumo_treinos\}/g, "\n✅ João\n❌ Maria\n✅ Pedro")}
                   </div>
                 </div>
               )}

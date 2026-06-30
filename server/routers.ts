@@ -1350,6 +1350,72 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         .orderBy(asc(lessons.scheduledAt))
         .limit(8);
     }),
+    getStudentAccessReport: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const orgId = ctx.user.organizationId!;
+      const profId = isUserAdmin ? undefined : ctx.user.id;
+
+      let studentFilter = eq(students.organizationId, orgId);
+      if (profId) {
+        studentFilter = and(studentFilter, eq(students.professorId, profId)) as any;
+      }
+
+      const allStudents = await db.select({
+        id: students.id,
+        name: students.name,
+        avatar: students.avatar,
+        studentUserId: students.studentUserId,
+      }).from(students).where(studentFilter);
+
+      const userIds = allStudents.map(s => s.studentUserId).filter(Boolean) as number[];
+      let usersData: any[] = [];
+      if (userIds.length > 0) {
+        usersData = await db.select({
+          id: users.id,
+          lastSignedIn: users.lastSignedIn,
+        }).from(users).where(inArray(users.id, userIds));
+      }
+
+      const studentIds = allStudents.map(s => s.id);
+      let plansData: any[] = [];
+      if (studentIds.length > 0) {
+        plansData = await db.select({
+          studentId: dailyStudyPlans.studentId,
+          daysCompleted: dailyStudyPlans.daysCompleted,
+          updatedAt: dailyStudyPlans.updatedAt,
+        }).from(dailyStudyPlans).where(and(
+          eq(dailyStudyPlans.organizationId, orgId), 
+          eq(dailyStudyPlans.publishedStatus, 'publicado'), 
+          inArray(dailyStudyPlans.studentId, studentIds)
+        ));
+      }
+
+      return allStudents.map(student => {
+        const u = usersData.find(user => user.id === student.studentUserId);
+        const p = plansData.filter(plan => plan.studentId === student.id);
+        
+        let completedCount = 0;
+        p.forEach(plan => {
+          try {
+            const arr = JSON.parse(plan.daysCompleted || "[]");
+            if (Array.isArray(arr)) {
+              completedCount += arr.filter(Boolean).length;
+            }
+          } catch(e) {}
+        });
+
+        return {
+          id: student.id,
+          name: student.name,
+          avatar: student.avatar,
+          lastSignedIn: u?.lastSignedIn ? new Date(u.lastSignedIn).toISOString() : null,
+          hasAccess: !!u?.lastSignedIn,
+          completedPracticeCount: completedCount,
+        };
+      }).sort((a, b) => b.completedPracticeCount - a.completedPracticeCount);
+    }),
   }),
 
   students: router({
