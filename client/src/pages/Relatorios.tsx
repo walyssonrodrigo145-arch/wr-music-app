@@ -628,7 +628,7 @@ const Relatorios: React.FC = () => {
               {pieData.length === 0 ? <EmptyState /> : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={95} paddingAngle={5} dataKey="studentCountNum" nameKey="name" label={({ name, percent }) => percent > 0 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''}>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={5} dataKey="studentCountNum" nameKey="name" label={({ name, percent }) => percent > 0 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''}>
                       {pieData.map((instr, index) => (
                         <Cell key={`cell-${index}`} fill={instr.fillColor} />
                       ))}
@@ -684,7 +684,7 @@ const Relatorios: React.FC = () => {
               {studentData.length === 0 ? <EmptyState /> : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={studentData} innerRadius={65} outerRadius={95} paddingAngle={6} dataKey="value" label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}>
+                    <Pie data={studentData} innerRadius={55} outerRadius={80} paddingAngle={6} dataKey="value" label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}>
                       <Cell fill="#6366f1" />
                       <Cell fill="#a855f7" />
                     </Pie>
@@ -998,7 +998,7 @@ const Relatorios: React.FC = () => {
                 <span className="text-white/70 text-xs font-bold uppercase tracking-widest">Relatórios</span>
               </div>
               <h1 className="text-3xl md:text-4xl font-black text-white font-outfit leading-tight">
-                Central de Análises
+                Central de Relatórios
               </h1>
               <p className="text-white/70 text-sm font-medium mt-2">
                 Dados em tempo real · {currentMonthName} de {selectedYear}
@@ -1008,7 +1008,7 @@ const Relatorios: React.FC = () => {
             {/* KPIs rápidos no hero */}
             <div className="flex flex-wrap gap-3">
               {[
-                { label: 'Alunos', value: statsQuery.data?.totalStudents ?? '—' },
+                { label: 'Alunos (Ativos)', value: statsQuery.data?.activeStudents ?? '—' },
                 { label: 'Aulas/Mês', value: statsQuery.data?.monthLessons ?? '—' },
                 { label: 'Receita', value: financeiroQuery.data?.total != null ? currencyFormat(financeiroQuery.data.total) : '—' },
               ].map(kpi => (
