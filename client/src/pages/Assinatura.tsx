@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { CreditCard, AlertTriangle, CheckCircle2, ArrowRight, Loader2, Calendar, Zap, ShieldAlert } from "lucide-react";
-import { motion } from "framer-motion";
+import { CreditCard, AlertTriangle, CheckCircle2, ArrowRight, Loader2, Calendar, Zap, ShieldAlert, X, TrendingDown, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 const PLANOS = [
@@ -27,6 +27,7 @@ export default function Assinatura() {
   const [selectedPlanType, setSelectedPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
 
   const trialEndsAt = mySub?.trialEndsAt ? new Date(mySub.trialEndsAt) : null;
   const isTrial = mySub?.subscriptionStatus === "trialing";
@@ -68,9 +69,18 @@ export default function Assinatura() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-black text-foreground tracking-tight">Gerenciar Assinatura</h1>
-        <p className="text-muted-foreground mt-1 text-sm font-medium">Acompanhe seu plano, faturas e opções da conta.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">Gerenciar Assinatura</h1>
+          <p className="text-muted-foreground mt-1 text-sm font-medium">Acompanhe seu plano, faturas e opções da conta.</p>
+        </div>
+        <button
+          onClick={() => setShowRulesModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-xl font-bold text-sm transition-colors border border-indigo-100 dark:border-indigo-500/20 shadow-sm"
+        >
+          <ShieldAlert size={18} />
+          Regras da Assinatura
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -315,6 +325,119 @@ export default function Assinatura() {
           </motion.div>
         )}
       </div>
+
+      {/* Rules Modal */}
+      <AnimatePresence>
+        {showRulesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+              onClick={() => setShowRulesModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-card border border-border shadow-2xl rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="shrink-0 p-6 sm:p-8 bg-gradient-to-br from-indigo-600 to-violet-800 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/3"></div>
+                <div className="relative z-10 flex items-start justify-between text-white">
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/10">
+                        <ShieldAlert size={20} />
+                      </div>
+                      <h2 className="text-2xl font-black tracking-tight">Regras da Assinatura</h2>
+                    </div>
+                    <p className="text-indigo-100 text-sm font-medium">Informações importantes sobre a gestão do seu plano no MusicPro e integração com o Asaas.</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowRulesModal(false)}
+                    className="p-2 bg-black/10 hover:bg-black/20 rounded-full transition-colors backdrop-blur-sm text-white"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-foreground font-black text-lg">
+                    <Calendar className="text-blue-500" size={20} />
+                    <h3>Período de Teste e Prazos</h3>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/10 p-4 rounded-2xl text-sm text-muted-foreground leading-relaxed">
+                    Você tem <strong className="text-foreground">30 dias gratuitos</strong> de teste ao se cadastrar. O Asaas, nossa operadora de pagamentos, exige <strong className="text-foreground">3 dias de antecedência</strong> para processar pagamentos via cartão/boleto. Portanto, o prazo total que aparece no seu sistema pode chegar a 33 dias na primeira assinatura.
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-foreground font-black text-lg">
+                    <TrendingDown className="text-amber-500" size={20} />
+                    <h3>Downgrade (Redução de Plano)</h3>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/10 p-4 rounded-2xl text-sm text-muted-foreground leading-relaxed">
+                    Para reduzir seu plano, seu número atual de alunos ativos não pode ser maior do que o limite do novo plano desejado. Caso isso aconteça, o sistema <strong className="text-foreground">bloqueará a alteração</strong>. Você deverá ir na aba <strong className="text-foreground">Alunos</strong> e excluir ou arquivar a quantidade excedente antes de realizar o downgrade.
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-foreground font-black text-lg">
+                    <TrendingUp className="text-emerald-500" size={20} />
+                    <h3>Upgrade (Aumento de Plano)</h3>
+                  </div>
+                  <div className="bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 p-4 rounded-2xl text-sm text-muted-foreground leading-relaxed">
+                    Ao aumentar seu plano, os novos limites entram em vigor <strong className="text-foreground">imediatamente</strong>. O valor só será atualizado e cobrado na <strong className="text-foreground">próxima fatura</strong> do seu ciclo atual.
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-foreground font-black text-lg">
+                    <CreditCard className="text-violet-500" size={20} />
+                    <h3>Troca de Plano e Recusa de Cartão</h3>
+                  </div>
+                  <div className="bg-violet-50 dark:bg-violet-500/5 border border-violet-100 dark:border-violet-500/10 p-4 rounded-2xl text-sm text-muted-foreground leading-relaxed">
+                    <p className="mb-2">Por questões de segurança contra fraudes no Asaas, se você alterar seu plano (valor) e a operadora do seu cartão recusar a atualização automática da fatura já gerada, nosso sistema utilizará um <strong>Mecanismo de Proteção</strong>:</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Sua assinatura atual é cancelada preventivamente;</li>
+                      <li>Você <strong>não perde seu dinheiro!</strong> Os dias que restavam do ciclo pago viram <strong className="text-foreground">Dias Restantes de Teste</strong>;</li>
+                      <li>Você precisará assinar novamente passando o cartão no novo plano desejado para regularizar os próximos meses.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-foreground font-black text-lg">
+                    <AlertTriangle className="text-destructive" size={20} />
+                    <h3>Cancelamento</h3>
+                  </div>
+                  <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-2xl text-sm text-muted-foreground leading-relaxed">
+                    O cancelamento via sistema exibe a opção de <strong>exclusão total</strong> (apaga todos os seus dados da escola, contratos e faturas imediatamente). Se a intenção for apenas parar a cobrança sem perder os dados, solicite a pausa diretamente ao nosso suporte.
+                  </div>
+                </div>
+
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="shrink-0 p-4 sm:p-6 border-t border-border bg-muted/30 flex justify-end">
+                <button
+                  onClick={() => setShowRulesModal(false)}
+                  className="px-6 py-2.5 bg-foreground text-background hover:bg-foreground/90 rounded-xl font-black text-sm uppercase tracking-widest transition-colors shadow-md"
+                >
+                  Entendi
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
