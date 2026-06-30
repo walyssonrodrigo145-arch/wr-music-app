@@ -327,7 +327,6 @@ export default function QRScanner() {
                         setCameraError("Não foi possível acessar a câmera. Verifique as permissões.");
                       }}
                       components={{
-                        tracker: true,
                         audio: false,
                         finder: false
                       }}

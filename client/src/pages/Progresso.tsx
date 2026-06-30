@@ -1142,7 +1142,7 @@ export default function Progresso() {
                                          <p className="text-xs text-muted-foreground font-medium leading-relaxed mb-6">{event.description}</p>
                                          
                                          <div className="flex items-center justify-between pt-4 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-[10px] font-bold text-muted-foreground">Registrado por: Professor Aladim</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground">Registrado no sistema</span>
                                             <div className="flex gap-2">
                                                 <Button 
                                                   variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-indigo-600 hover:bg-indigo-500/10"
@@ -1806,7 +1806,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
              <div className="hidden lg:flex flex-col items-end mr-4">
                 <div className="flex items-center gap-2 mb-1">
                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Armazenamento</span>
-                   <span className="text-[9px] font-black text-indigo-600">12.4 GB / ILIMITADO</span>
+                   <span className="text-[9px] font-black text-indigo-600">ILIMITADO</span>
                 </div>
                 <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden border border-border/50">
                    <div className="h-full bg-indigo-600 w-1/3" />

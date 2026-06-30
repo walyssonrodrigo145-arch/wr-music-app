@@ -129,11 +129,11 @@ function StudentModal({
           name: editData.name,
           email: editData.email,
           phone: editData.phone ?? "",
-          instrumentId: "", 
+          instrumentId: String(editData.instrumentId || ""), 
           level: editData.level as FormData["level"],
           monthlyFee: String(Number(editData.monthlyFee)),
           dueDay: String(editData.dueDay || 10),
-          notes: "",
+          notes: editData.notes || "",
           status: editData.status as FormData["status"],
           lessonType: (editData as any).lessonType as FormData["lessonType"] || "individual",
           avatar: editData.avatar || "",
@@ -844,15 +844,10 @@ export default function Alunos() {
               )}
             </div>
             
-            {/* Pagination UI - Adjusted for mobile */}
+            {/* Registros Count - Adjusted for mobile */}
             <div className="p-4 lg:p-6 border-t border-border flex items-center justify-between bg-muted/20">
-               <p className="hidden sm:block text-[11px] text-muted-foreground font-medium">Mostrando 1 a {filtered.length} de {stats.total} alunos</p>
+               <p className="hidden sm:block text-[11px] text-muted-foreground font-medium">Mostrando {filtered.length} de {stats.total} alunos ativos</p>
                <p className="sm:hidden text-[11px] text-muted-foreground font-medium">{filtered.length} registros</p>
-               <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => toast.info("Funcionalidade em desenvolvimento")}><ChevronDown className="rotate-90" size={14} /></Button>
-                  <Button variant="ghost" className="h-8 w-8 text-xs font-bold bg-primary text-white hover:bg-primary">1</Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => toast.info("Funcionalidade em desenvolvimento")}><ChevronDown className="-rotate-90" size={14} /></Button>
-               </div>
             </div>
           </div>
 

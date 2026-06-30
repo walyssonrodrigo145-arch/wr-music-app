@@ -25,8 +25,8 @@ const QR_SIZE = 380;
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function buildQrUrl(token: string): string {
   const payload = encodeURIComponent(token);
-  // Using standard black on white for maximum camera readability
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${QR_SIZE}x${QR_SIZE}&data=${payload}&bgcolor=ffffff&color=000000&format=svg`;
+  // Using PNG format instead of SVG for better compatibility with standard QR scanner libraries
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${QR_SIZE}x${QR_SIZE}&data=${payload}&bgcolor=ffffff&color=000000&format=png`;
 }
 
 function formatTime(seconds: number): string {
@@ -176,7 +176,7 @@ export default function RecepcaoQRCode() {
   }, []);
 
   const lastScans = (recentLogs ?? []).slice(0, 5);
-  const schoolName = user?.organizationName || "MusicPro";
+  const schoolName = "MusicPro";
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col relative w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-[2.5rem] overflow-hidden select-none shadow-2xl border border-white/5">

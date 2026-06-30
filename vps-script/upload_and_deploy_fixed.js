@@ -51,7 +51,11 @@ const filesToUpload = [
   'server/automationJob.ts',
   'client/src/pages/Relatorios.tsx',
   'client/src/index.css',
-  'client/src/pages/Assinatura.tsx'
+  'client/src/pages/Assinatura.tsx',
+  'client/src/pages/Alunos.tsx',
+  'client/src/pages/Progresso.tsx',
+  'client/src/pages/RecepcaoQRCode.tsx',
+  'client/src/pages/QRScanner.tsx'
 ];
 
 conn.on('ready', () => {
