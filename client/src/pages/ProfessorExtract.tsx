@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
-import { Clock, Calculator, CheckCircle2, DollarSign, RefreshCw, AlertCircle, Calendar, FileText, Settings2, Plus, Trash2 } from "lucide-react";
+import { Clock, Calculator, CheckCircle2, DollarSign, RefreshCw, AlertCircle, Calendar, FileText, Settings2, Plus, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -350,9 +350,40 @@ export default function ProfessorExtract() {
 
       {/* Modal: Ver Aulas */}
       <Dialog open={!!detailsPaymentId} onOpenChange={(o) => !o && setDetailsPaymentId(null)}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl bg-card/95 backdrop-blur-xl border-white/10">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[85vh] overflow-y-auto rounded-2xl bg-card/95 backdrop-blur-xl border-white/10">
+          <DialogHeader className="flex flex-row items-center justify-between mt-4">
             <DialogTitle className="font-outfit text-2xl text-primary">Aulas Ministradas</DialogTitle>
+            <Button 
+              variant="outline" 
+              className="hidden sm:flex gap-2 items-center" 
+              onClick={() => {
+                if (!detailsData) return;
+                let csv = "data:text/csv;charset=utf-8,";
+                if (detailsData.paymentType === "porcentagem" && detailsData.percentageDetails) {
+                  csv += "Relatório Analítico de Comissões\nAluno,Mensalidade Base,Comissão Gerada\n";
+                  detailsData.percentageDetails.forEach((i: any) => {
+                    csv += `"${i.studentName}","R$ ${i.monthlyFee}","R$ ${i.commission}"\n`;
+                  });
+                  csv += "\n\n";
+                }
+                csv += "Histórico de Aulas Concluídas\nData,Aluno,Título,Duração,Status\n";
+                if (detailsData.lessons) {
+                  detailsData.lessons.forEach((l: any) => {
+                    const date = format(new Date(l.scheduledAt), "dd/MM/yyyy HH:mm");
+                    csv += `"${date}","${l.studentName || '-'}","${l.title}","${l.duration}m","${l.status}"\n`;
+                  });
+                }
+                const link = document.createElement("a");
+                link.href = encodeURI(csv);
+                link.download = "relatorio_aulas.csv";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+              }}
+            >
+              <Download className="w-4 h-4" />
+              Exportar CSV
+            </Button>
           </DialogHeader>
           <div className="mt-6 space-y-8">
             {detailsLoading ? (
