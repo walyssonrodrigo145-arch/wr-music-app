@@ -5,7 +5,8 @@ import {
   Users, Calendar, TrendingUp, DollarSign,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
   XCircle, ChevronRight, Bell,
-  Search, MinusCircle, RefreshCcw, BarChart as LucideBarChart
+  Search, MinusCircle, RefreshCcw, BarChart as LucideBarChart,
+  AlertCircle, Target, Star
 } from "lucide-react";
 import {
   XAxis, YAxis, CartesianGrid,
@@ -99,13 +100,7 @@ export default function Dashboard() {
   const { data: monthlyDataRaw } = trpc.dashboard.monthlyStats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
   const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
-  // BUG#5 FIX: filtrar apenas aulas do dia de hoje no servidor — antes buscava TODAS sem filtro
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const { data: allLessons = [] } = trpc.lessons.list.useQuery(
-    { date: todayStr },
-    { staleTime: 2 * 60 * 1000 }
-  );
+  const { data: todaySummaryData } = trpc.dashboard.todaySummary.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
 
   // BUG-003: Filtrar dados do gráfico pelo período selecionado
   const monthlyData = useMemo(() => {
@@ -123,22 +118,18 @@ export default function Dashboard() {
 
   // Today's summary calculation
   const todaySummary = useMemo(() => {
-    const today = new Date();
-    const todays = allLessons.filter(l => {
-      const lessonDate = new Date(l.scheduledAt);
-      return lessonDate.getDate() === today.getDate() &&
-             lessonDate.getMonth() === today.getMonth() &&
-             lessonDate.getFullYear() === today.getFullYear();
-    });
-
+    if (!todaySummaryData) return [];
+    const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+    
     return [
-      { label: "Aulas agendadas", count: todays.length, color: "bg-blue-500/10 text-blue-600", icon: Calendar },
-      { label: "Concluídas", count: todays.filter(l => l.status === "concluida").length, color: "bg-emerald-500/10 text-emerald-600", icon: CheckCircle2 },
-      { label: "Faltas", count: todays.filter(l => l.status === "falta").length, color: "bg-orange-500/10 text-orange-600", icon: MinusCircle },
-      { label: "Remarcadas", count: todays.filter(l => l.status === "remarcada").length, color: "bg-purple-500/10 text-purple-600", icon: RefreshCcw },
-      { label: "Canceladas", count: todays.filter(l => l.status === "cancelada").length, color: "bg-rose-500/10 text-rose-600", icon: XCircle },
+      { label: "AULAS DE HOJE", count: todaySummaryData.aulasHoje, color: "bg-blue-500/10 text-blue-600", icon: Calendar },
+      { label: "CHECK-INS REALIZADOS", count: todaySummaryData.checkins, color: "bg-emerald-500/10 text-emerald-600", icon: CheckCircle2 },
+      { label: "RECEBIDO HOJE", count: formatCurrency(todaySummaryData.recebidoHoje), color: "bg-purple-500/10 text-purple-600", icon: DollarSign },
+      { label: "PAGAMENTOS PENDENTES", count: todaySummaryData.pagamentosPendentes, color: "bg-rose-500/10 text-rose-600", icon: AlertCircle },
+      { label: "AULAS EXPERIMENTAIS", count: todaySummaryData.experimentais, color: "bg-orange-500/10 text-orange-600", icon: Target },
+      { label: "PROFESSOR DESTAQUE", count: todaySummaryData.professorDestaque, color: "bg-amber-500/10 text-amber-600", icon: Star },
     ];
-  }, [allLessons]);
+  }, [todaySummaryData]);
 
   // Trend calculations
   const trends = useMemo(() => {

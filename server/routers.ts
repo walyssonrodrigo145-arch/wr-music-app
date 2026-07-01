@@ -1294,6 +1294,123 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
   }),
 
   dashboard: router({
+    todaySummary: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const userId = ctx.user.id;
+      const isProfessor = ctx.user.role === 'professor';
+
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+      
+      const startOfWeek = new Date(now);
+      startOfWeek.setHours(0, 0, 0, 0);
+      startOfWeek.setDate(now.getDate() - now.getDay()); // Domingo
+
+      let professorStudentIds: number[] | undefined = undefined;
+      if (isProfessor) {
+        const profStudents = await db
+          .select({ id: students.id })
+          .from(students)
+          .where(and(
+            eq(students.organizationId, orgId),
+            eq(students.professorId, userId),
+            eq(students.status, 'ativo')
+          ));
+        professorStudentIds = profStudents.map(s => s.id);
+      }
+
+      const baseLessonCondition = professorStudentIds
+        ? (professorStudentIds.length > 0 ? inArray(lessons.studentId, professorStudentIds) : sql`false`)
+        : (isUserAdmin ? undefined : eq(lessons.userId, userId));
+
+      const aulasHojeRes = await db.select({ count: sql<number>`count(*)` })
+        .from(lessons)
+        .where(and(
+          eq(lessons.organizationId, orgId),
+          baseLessonCondition,
+          gte(lessons.scheduledAt, startOfDay),
+          lte(lessons.scheduledAt, endOfDay)
+        ));
+      
+      const checkinsRes = await db.select({ count: sql<number>`count(*)` })
+        .from(lessons)
+        .where(and(
+          eq(lessons.organizationId, orgId),
+          baseLessonCondition,
+          eq(lessons.status, 'concluida'),
+          gte(lessons.scheduledAt, startOfDay),
+          lte(lessons.scheduledAt, endOfDay)
+        ));
+
+      const experimentaisRes = await db.select({ count: sql<number>`count(*)` })
+        .from(lessons)
+        .where(and(
+          eq(lessons.organizationId, orgId),
+          baseLessonCondition,
+          eq(lessons.isExperimental, true),
+          gte(lessons.scheduledAt, startOfDay),
+          lte(lessons.scheduledAt, endOfDay)
+        ));
+
+      const basePaymentCondition = professorStudentIds
+        ? (professorStudentIds.length > 0 ? inArray(paymentDues.studentId, professorStudentIds) : sql`false`)
+        : (isUserAdmin ? undefined : eq(paymentDues.userId, userId));
+
+      const recebidoRes = await db.select({ total: sql<number>`sum(${paymentDues.amount})` })
+        .from(paymentDues)
+        .where(and(
+          eq(paymentDues.organizationId, orgId),
+          basePaymentCondition,
+          eq(paymentDues.status, 'pago'),
+          gte(paymentDues.paidAt, startOfDay),
+          lte(paymentDues.paidAt, endOfDay)
+        ));
+      
+      const pendentesRes = await db.select({ count: sql<number>`count(*)` })
+        .from(paymentDues)
+        .where(and(
+          eq(paymentDues.organizationId, orgId),
+          basePaymentCondition,
+          eq(paymentDues.status, 'pendente')
+        ));
+
+      let professorDestaque = "Nenhum definido";
+      if (isUserAdmin) {
+        const destRes = await db.select({ 
+            profName: users.name, 
+            count: sql<number>`count(${lessons.id})`.as('count') 
+          })
+          .from(lessons)
+          .innerJoin(students, eq(lessons.studentId, students.id))
+          .innerJoin(users, eq(students.professorId, users.id))
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            eq(lessons.status, 'concluida'),
+            gte(lessons.scheduledAt, startOfWeek),
+            lte(lessons.scheduledAt, endOfDay)
+          ))
+          .groupBy(users.name)
+          .orderBy(desc(sql`count`))
+          .limit(1);
+
+        if (destRes.length > 0) {
+          professorDestaque = destRes[0].profName;
+        }
+      }
+
+      return {
+        aulasHoje: Number(aulasHojeRes[0].count) || 0,
+        checkins: Number(checkinsRes[0].count) || 0,
+        experimentais: Number(experimentaisRes[0].count) || 0,
+        recebidoHoje: Number(recebidoRes[0].total) || 0,
+        pagamentosPendentes: Number(pendentesRes[0].count) || 0,
+        professorDestaque
+      };
+    }),
     stats: protectedProcedure.query(async ({ ctx }) => {
       const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       return getDashboardStats(ctx.user.organizationId!, isUserAdmin ? undefined : ctx.user.id);
