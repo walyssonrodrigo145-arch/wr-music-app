@@ -118,8 +118,18 @@ export default function Dashboard() {
 
   // Today's summary calculation
   const todaySummary = useMemo(() => {
-    if (!todaySummaryData) return [];
     const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+    if (!todaySummaryData) {
+      return [
+        { label: "AULAS DE HOJE", count: "...", color: "bg-blue-500/10 text-blue-600", icon: Calendar },
+        { label: "CHECK-INS REALIZADOS", count: "...", color: "bg-emerald-500/10 text-emerald-600", icon: CheckCircle2 },
+        { label: "RECEBIDO HOJE", count: "...", color: "bg-purple-500/10 text-purple-600", icon: DollarSign },
+        { label: "PAGAMENTOS PENDENTES", count: "...", color: "bg-rose-500/10 text-rose-600", icon: AlertCircle },
+        { label: "AULAS EXPERIMENTAIS", count: "...", color: "bg-orange-500/10 text-orange-600", icon: Target },
+        { label: "PROFESSOR DESTAQUE", count: "...", color: "bg-amber-500/10 text-amber-600", icon: Star },
+      ];
+    }
     
     return [
       { label: "AULAS DE HOJE", count: todaySummaryData.aulasHoje, color: "bg-blue-500/10 text-blue-600", icon: Calendar },
