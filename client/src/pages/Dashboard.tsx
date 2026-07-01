@@ -288,16 +288,16 @@ export default function Dashboard() {
         {/* Daily Summary */}
         <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
            <h3 className="text-base font-black text-foreground tracking-tight">Resumo do dia</h3>
-           <div className="space-y-4">
+           <div className="space-y-3">
               {todaySummary.map((item, i) => (
-                <div key={i} className="flex items-center justify-between group cursor-default">
+                <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-muted/40 border border-transparent hover:bg-card/80 hover:border-white/10 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 group cursor-default">
                   <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border border-card", item.color)}>
-                      <item.icon size={18} />
+                    <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:-rotate-3 shadow-sm border border-white/5", item.color)}>
+                      <item.icon size={22} className="opacity-80 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{item.label}</span>
+                    <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-foreground/80 transition-colors">{item.label}</span>
                   </div>
-                  <span className="text-base font-black text-foreground">{item.count}</span>
+                  <span className="text-xl font-black text-foreground tracking-tight">{item.count}</span>
                 </div>
               ))}
            </div>
