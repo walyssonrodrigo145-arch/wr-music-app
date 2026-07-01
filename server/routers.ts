@@ -1375,7 +1375,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         .where(and(
           eq(paymentDues.organizationId, orgId),
           basePaymentCondition,
-          eq(paymentDues.status, 'pendente')
+          eq(paymentDues.status, 'pendente'),
+          gte(paymentDues.dueDate, startOfDay),
+          lte(paymentDues.dueDate, endOfDay)
         ));
 
       let professorDestaque = "Nenhum definido";
@@ -1390,7 +1392,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           .where(and(
             eq(lessons.organizationId, orgId),
             eq(lessons.status, 'concluida'),
-            gte(lessons.scheduledAt, startOfWeek),
+            gte(lessons.scheduledAt, startOfDay),
             lte(lessons.scheduledAt, endOfDay)
           ))
           .groupBy(users.name)
