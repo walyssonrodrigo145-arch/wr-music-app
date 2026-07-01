@@ -7051,7 +7051,7 @@ Texto original para reescrever:
           // Get students for this professor
           const profStudents = await db.select({ id: students.id }).from(students).where(and(
             eq(students.organizationId, orgId),
-            eq(students.professorId, prof.id)
+            eq(students.professorId, prof.userId)
           ));
           const professorStudentIds = profStudents.map(s => s.id);
 
@@ -7177,7 +7177,7 @@ Texto original para reescrever:
             // Get students for this professor
             const profStudents = await db.select({ id: students.id }).from(students).where(and(
               eq(students.organizationId, orgId),
-              eq(students.professorId, prof.id)
+              eq(students.professorId, prof.userId)
             ));
             const professorStudentIds = profStudents.map(s => s.id);
 
