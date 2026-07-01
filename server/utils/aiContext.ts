@@ -1,19 +1,23 @@
 import { and, eq, lte, gte, asc, desc, sql, inArray } from "drizzle-orm";
 import { students, lessons, paymentDues, reminders, settings, expenses } from "../../drizzle/schema";
 
-export async function buildUserContext(db: any, userId: number, orgId: number): Promise<string> {
+export async function buildUserContext(db: any, userId: number, orgId: number, isUserAdmin: boolean = false): Promise<string> {
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
 
   try {
     // 1. Busca configurações básicas
     const [userSettings] = await db.select().from(settings).where(
-      and(eq(settings.userId, userId), eq(settings.organizationId, orgId))
+      and(eq(settings.organizationId, orgId))
     ).limit(1);
 
     // 2. Busca total de alunos ativos
     const activeStudents = await db.select({ id: students.id }).from(students).where(
-      and(eq(students.status, "ativo"), eq(students.professorId, userId), eq(students.organizationId, orgId))
+      and(
+        eq(students.status, "ativo"),
+        eq(students.organizationId, orgId),
+        isUserAdmin ? undefined : eq(students.professorId, userId)
+      )
     );
 
     // 3. Busca aulas agendadas para os próximos 7 dias a partir do início de hoje
@@ -27,8 +31,8 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
       .leftJoin(students, eq(lessons.studentId, students.id))
       .where(
         and(
-          eq(lessons.userId, userId),
           eq(lessons.organizationId, orgId),
+          isUserAdmin ? undefined : eq(lessons.userId, userId),
           inArray(lessons.status, ["agendada", "remarcada"]),
           gte(lessons.scheduledAt, startOfDay),
           lte(lessons.scheduledAt, nextWeek),
@@ -47,8 +51,8 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
       .leftJoin(students, eq(paymentDues.studentId, students.id))
       .where(
         and(
-          eq(paymentDues.userId, userId),
           eq(paymentDues.organizationId, orgId),
+          isUserAdmin ? undefined : eq(paymentDues.userId, userId),
           eq(paymentDues.status, "pendente"),
           sql`${paymentDues.dueDate} < ${todayStr}::date`,
           eq(students.status, "ativo")
@@ -68,8 +72,8 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
       .leftJoin(students, eq(paymentDues.studentId, students.id))
       .where(
       and(
-        eq(paymentDues.userId, userId),
         eq(paymentDues.organizationId, orgId),
+        isUserAdmin ? undefined : eq(paymentDues.userId, userId),
         eq(paymentDues.month, currentMonth),
         eq(paymentDues.year, currentYear)
       )
@@ -92,8 +96,8 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
     }).from(expenses)
       .where(
         and(
-          eq(expenses.userId, userId),
           eq(expenses.organizationId, orgId),
+          isUserAdmin ? undefined : eq(expenses.userId, userId),
           sql`EXTRACT(MONTH FROM ${expenses.date}) = ${currentMonth}`,
           sql`EXTRACT(YEAR FROM ${expenses.date}) = ${currentYear}`
         )
@@ -106,12 +110,20 @@ export async function buildUserContext(db: any, userId: number, orgId: number): 
 
     // 7. Busca receita base recorrente e despesa base recorrente para projeções
     const activeStudentsList = await db.select({ monthlyFee: students.monthlyFee }).from(students).where(
-      and(eq(students.status, "ativo"), eq(students.professorId, userId), eq(students.organizationId, orgId))
+      and(
+        eq(students.status, "ativo"),
+        eq(students.organizationId, orgId),
+        isUserAdmin ? undefined : eq(students.professorId, userId)
+      )
     );
     const receitaRecorrente = activeStudentsList.reduce((acc: number, s: any) => acc + Number(s.monthlyFee || 0), 0);
 
     const recurringExpensesList = await db.select({ amount: expenses.amount }).from(expenses).where(
-      and(eq(expenses.userId, userId), eq(expenses.organizationId, orgId), eq(expenses.recurrence, "mensal"))
+      and(
+        eq(expenses.organizationId, orgId),
+        eq(expenses.recurrence, "mensal"),
+        isUserAdmin ? undefined : eq(expenses.userId, userId)
+      )
     );
     const despesaRecorrente = recurringExpensesList.reduce((acc: number, e: any) => acc + Number(e.amount || 0), 0);
 

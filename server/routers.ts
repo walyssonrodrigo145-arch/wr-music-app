@@ -6532,7 +6532,8 @@ Texto original para reescrever:
         const formattedHistory = history.reverse();
 
         // Constrói contexto e prompt do sistema
-        const userDataContext = await buildUserContext(db, ctx.user.id, orgId);
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        const userDataContext = await buildUserContext(db, ctx.user.id, orgId, isUserAdmin);
         let systemPrompt = getSystemPrompt(userDataContext);
 
         // Fetch AI documents to use as context
