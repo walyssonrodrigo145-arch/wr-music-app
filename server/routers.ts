@@ -2182,6 +2182,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
     updateStatus: protectedProcedure.input(z.object({
       id: z.number(),
       status: z.enum(['ativo', 'inativo', 'pausado']),
+      deletePendingData: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -2217,10 +2218,30 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         }
         // ---------------------------------------
 
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
         await db.update(students).set({
           status: input.status,
           updatedAt: new Date(),
-        }).where(and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(students.userId, ctx.user.id)));
+        }).where(and(
+          eq(students.id, input.id), 
+          eq(students.organizationId, orgId), 
+          isAdmin ? undefined : eq(students.professorId, ctx.user.id)
+        ));
+
+        if (input.deletePendingData && (input.status === 'inativo' || input.status === 'pausado')) {
+          await db.delete(lessons).where(and(
+            eq(lessons.studentId, input.id), 
+            eq(lessons.organizationId, orgId), 
+            eq(lessons.status, 'agendada')
+          ));
+          await db.delete(paymentDues).where(and(
+            eq(paymentDues.studentId, input.id), 
+            eq(paymentDues.organizationId, orgId), 
+            eq(paymentDues.status, 'pendente')
+          ));
+        }
+
         return { success: true };
       } catch (error) {
         return handleDbError(error, "atualizar o status do aluno");
