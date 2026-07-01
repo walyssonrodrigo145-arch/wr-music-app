@@ -1370,14 +1370,15 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           lte(paymentDues.paidAt, endOfDay)
         ));
       
+      const todayDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
       const pendentesRes = await db.select({ count: sql<number>`count(*)` })
         .from(paymentDues)
         .where(and(
           eq(paymentDues.organizationId, orgId),
           basePaymentCondition,
           eq(paymentDues.status, 'pendente'),
-          gte(paymentDues.dueDate, startOfDay),
-          lte(paymentDues.dueDate, endOfDay)
+          eq(paymentDues.dueDate, todayDateString)
         ));
 
       let professorDestaque = "Nenhum definido";
