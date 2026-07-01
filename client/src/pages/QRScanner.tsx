@@ -317,6 +317,9 @@ export default function QRScanner() {
                 ) : (
                   <>
                     <Scanner
+                      formats={["qr_code"] as any}
+                      allowMultiple={true}
+                      scanDelay={2000}
                       onScan={(result: IDetectedBarcode[]) => {
                         if (result && result.length > 0) {
                           handleScan(result[0].rawValue);
