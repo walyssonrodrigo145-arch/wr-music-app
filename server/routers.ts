@@ -7854,10 +7854,8 @@ Texto original para reescrever:
           throw new TRPCError({ code: "CONFLICT", message: "E-mail já cadastrado no sistema" });
         }
 
-        const { crypto } = await import("crypto");
-        const cryptoLib = crypto || require("crypto");
-        const salt = cryptoLib.randomBytes(16).toString("hex");
-        const derivedKey = cryptoLib.scryptSync(input.password, salt, 64).toString("hex");
+        const salt = crypto.randomBytes(16).toString("hex");
+        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
         const passwordHash = `${salt}:${derivedKey}`;
 
         const openId = `prof_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -7928,10 +7926,8 @@ Texto original para reescrever:
         const userUpdates: any = { name: input.name, updatedAt: new Date() };
 
         if (input.password) {
-          const { crypto } = await import("crypto");
-          const cryptoLib = crypto || require("crypto");
-          const salt = cryptoLib.randomBytes(16).toString("hex");
-          const derivedKey = cryptoLib.scryptSync(input.password, salt, 64).toString("hex");
+          const salt = crypto.randomBytes(16).toString("hex");
+          const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
           userUpdates.passwordHash = `${salt}:${derivedKey}`;
         }
 
