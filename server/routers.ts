@@ -2178,6 +2178,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       }).optional())
       .query(async ({ ctx, input }) => {
         const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        const isProfessor = ctx.user.role === 'professor';
         const orgId = ctx.user.organizationId!;
 
         // Se date informada, busca apenas aulas daquele dia no banco
@@ -2186,6 +2187,39 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           if (!db) return [];
           const startOfDay = new Date(input.date + 'T00:00:00.000Z');
           const endOfDay = new Date(input.date + 'T23:59:59.999Z');
+
+          // Para professor: buscar pelos alunos dele
+          if (isProfessor) {
+            const profStudents = await db
+              .select({ id: students.id })
+              .from(students)
+              .where(and(
+                eq(students.organizationId, orgId),
+                eq(students.professorId, ctx.user.id),
+                eq(students.status, 'ativo'),
+              ));
+            const studentIds = profStudents.map(s => s.id);
+            if (studentIds.length === 0) return [];
+            return db.select({
+              id: lessons.id,
+              title: lessons.title,
+              scheduledAt: lessons.scheduledAt,
+              duration: lessons.duration,
+              status: lessons.status,
+              isExperimental: lessons.isExperimental,
+              experimentalName: lessons.experimentalName,
+              studentName: students.name,
+            }).from(lessons)
+              .leftJoin(students, eq(lessons.studentId, students.id))
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                inArray(lessons.studentId, studentIds),
+                gte(lessons.scheduledAt, startOfDay),
+                lte(lessons.scheduledAt, endOfDay),
+              ))
+              .orderBy(asc(lessons.scheduledAt));
+          }
+
           return db.select({
             id: lessons.id,
             title: lessons.title,
@@ -2206,17 +2240,37 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             .orderBy(asc(lessons.scheduledAt));
         }
 
+        // Sem filtro de data: passa professorId para getRecentLessons se for professor
+        if (isProfessor) {
+          return getRecentLessons(orgId, undefined, 500, ctx.user.id);
+        }
         return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 500);
       }),
     upcoming: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];
       const orgId = ctx.user.organizationId!;
+      const isProfessor = ctx.user.role === 'professor';
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
       const now = new Date();
       now.setHours(0, 0, 0, 0); // Mostrar aulas a partir do início de hoje
       
       const twoWeeksLater = new Date(now);
       twoWeeksLater.setDate(now.getDate() + 14);
+
+      let professorStudentIds: number[] | undefined = undefined;
+      if (isProfessor) {
+        const profStudents = await db
+          .select({ id: students.id })
+          .from(students)
+          .where(and(
+            eq(students.organizationId, orgId),
+            eq(students.professorId, ctx.user.id),
+            eq(students.status, 'ativo'),
+          ));
+        professorStudentIds = profStudents.map(s => s.id);
+      }
 
       return db.select({
         id: lessons.id,
@@ -2233,7 +2287,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         .where(and(
           eq(lessons.organizationId, orgId),
           eq(lessons.status, 'agendada'), 
-          eq(lessons.userId, ctx.user.id),
+          professorStudentIds
+            ? (professorStudentIds.length > 0
+                ? inArray(lessons.studentId, professorStudentIds)
+                : sql`false`
+              )
+            : (isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)),
           gte(lessons.scheduledAt, new Date()),
           lte(lessons.scheduledAt, twoWeeksLater)
         ))

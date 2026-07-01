@@ -1,4 +1,4 @@
-import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull } from "drizzle-orm";
+import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -555,7 +555,12 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
 }
 
 // Recent lessons with student info — fetches a date range suitable for the full calendar
-export async function getRecentLessons(organizationId: number, userId?: number, limit = 500) {
+export async function getRecentLessons(
+  organizationId: number,
+  userId?: number,
+  limit = 500,
+  professorId?: number  // quando definido, busca aulas dos alunos do professor (independente de quem criou)
+) {
   const db = await getDb();
   if (!db) return [];
 
@@ -567,6 +572,21 @@ export async function getRecentLessons(organizationId: number, userId?: number, 
   const rangeEnd = new Date();
   rangeEnd.setMonth(rangeEnd.getMonth() + 12);
   rangeEnd.setHours(23, 59, 59, 999);
+
+  // Para professores: buscar pelos alunos que são seus, independente de quem criou a aula
+  // Isso resolve o caso onde o admin cria aulas para alunos de um professor
+  let professorStudentIds: number[] | undefined = undefined;
+  if (professorId) {
+    const profStudents = await db
+      .select({ id: students.id })
+      .from(students)
+      .where(and(
+        eq(students.organizationId, organizationId),
+        eq(students.professorId, professorId),
+        eq(students.status, 'ativo'),
+      ));
+    professorStudentIds = profStudents.map(s => s.id);
+  }
 
   return db.select({
     id: lessons.id,
@@ -588,7 +608,14 @@ export async function getRecentLessons(organizationId: number, userId?: number, 
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
     .where(and(
         eq(lessons.organizationId, organizationId),
-        userId ? eq(lessons.userId, userId) : undefined,
+        // Se for professor: filtra pelos alunos dele (ignora userId do criador)
+        // Se for admin/sem filtro: sem restrição de usuário
+        professorStudentIds
+          ? (professorStudentIds.length > 0
+              ? inArray(lessons.studentId, professorStudentIds)
+              : sql`false`  // professor sem alunos não vê nada
+            )
+          : (userId ? eq(lessons.userId, userId) : undefined),
         gte(lessons.scheduledAt, rangeStart),
         lte(lessons.scheduledAt, rangeEnd)
     ))
