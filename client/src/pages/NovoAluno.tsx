@@ -842,7 +842,7 @@ export default function NovoAluno() {
                            <span className="font-medium text-muted-foreground">Nenhum</span>
                         </SelectItem>
                         {professores.map((prof: any) => (
-                          <SelectItem key={prof.id} value={String(prof.id)} className="rounded-lg">
+                          <SelectItem key={prof.id} value={String(prof.userId)} className="rounded-lg">
                             <span className="font-medium">{prof.name}</span>
                           </SelectItem>
                         ))}

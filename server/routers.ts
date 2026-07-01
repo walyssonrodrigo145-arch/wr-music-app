@@ -153,7 +153,10 @@ export const appRouter = router({
             .where(eq(professores.userId, ctx.user.id))
             .limit(1);
           if (prof?.permissions) {
-            permissions = prof.permissions as string[];
+            // Normaliza permissões: garante que todas tenham prefixo '/' para compatibilidade
+            // com o AppSidebar que filtra por item.href (ex: '/aulas')
+            const rawPerms = prof.permissions as string[];
+            permissions = rawPerms.map(p => p.startsWith('/') ? p : `/${p}`);
           }
         }
 
