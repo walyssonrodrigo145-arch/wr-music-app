@@ -89,6 +89,11 @@ export default function Dashboard() {
   // BUG-003: Estado para controlar período do gráfico
   const [chartPeriod, setChartPeriod] = useState<'6m' | '12m'>('6m');
   
+  // ── Bloqueio / Tela de Boas-Vindas para Professores ──
+  const isProfessor = user?.role === 'professor';
+  const userPerms: string[] = (user as any)?.permissions || [];
+  const hasDashboardAccess = !isProfessor || userPerms.includes('/dashboard');
+
   // Queries — MH-002: cache de 5 minutos para reduzir chamadas
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const { data: monthlyDataRaw } = trpc.dashboard.monthlyStats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
@@ -157,6 +162,22 @@ export default function Dashboard() {
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+  if (!hasDashboardAccess) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[70vh] animate-in fade-in duration-700">
+        <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center mb-6 shadow-sm border border-primary/10">
+          <span className="text-5xl">👋</span>
+        </div>
+        <h2 className="text-3xl font-black tracking-tight text-foreground mb-3 text-center">
+          Bem-vindo(a), {user?.name?.split(' ')[0]}!
+        </h2>
+        <p className="text-muted-foreground text-sm font-medium text-center max-w-sm">
+          Utilize o menu lateral para navegar entre seus alunos, horários e outras ferramentas disponíveis para o seu perfil.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">

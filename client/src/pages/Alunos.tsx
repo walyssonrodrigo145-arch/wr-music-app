@@ -776,8 +776,7 @@ export default function Alunos() {
                             </span>
                           )}
                         </td>
-                        {/* Ações: professor sem permissão só vê detalhes */}
-                        {canEdit ? (
+                        {canEdit && (
                           <td className="px-2 lg:px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -801,12 +800,6 @@ export default function Alunos() {
                                    </DropdownMenuItem>
                                 </DropdownMenuContent>
                              </DropdownMenu>
-                          </td>
-                        ) : (
-                          <td className="px-2 lg:px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setDetailsStudentId(student.id)}>
-                              <Eye size={16} />
-                            </Button>
                           </td>
                         )}
                       </tr>
