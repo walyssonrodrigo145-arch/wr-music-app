@@ -1382,25 +1382,29 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
       let professorDestaque = "Nenhum definido";
       if (isUserAdmin) {
-        const destRes = await db.select({ 
-            profName: users.name, 
-            count: sql<number>`count(${lessons.id})`.as('count') 
-          })
-          .from(lessons)
-          .innerJoin(students, eq(lessons.studentId, students.id))
-          .innerJoin(users, eq(students.professorId, users.id))
-          .where(and(
-            eq(lessons.organizationId, orgId),
-            eq(lessons.status, 'concluida'),
-            gte(lessons.scheduledAt, startOfDay),
-            lte(lessons.scheduledAt, endOfDay)
-          ))
-          .groupBy(users.name)
-          .orderBy(desc(sql`count`))
-          .limit(1);
+        try {
+          const destRes = await db.select({ 
+              profName: users.name, 
+              count: sql<number>`count(${lessons.id})`
+            })
+            .from(lessons)
+            .innerJoin(students, eq(lessons.studentId, students.id))
+            .innerJoin(users, eq(students.professorId, users.id))
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.status, 'concluida'),
+              gte(lessons.scheduledAt, startOfDay),
+              lte(lessons.scheduledAt, endOfDay)
+            ))
+            .groupBy(users.name)
+            .orderBy(desc(sql<number>`count(${lessons.id})`))
+            .limit(1);
 
-        if (destRes.length > 0) {
-          professorDestaque = destRes[0].profName;
+          if (destRes.length > 0) {
+            professorDestaque = destRes[0].profName;
+          }
+        } catch (e) {
+          console.error("Dashboard todaySummary - professorDestaque error:", e);
         }
       }
 

@@ -100,7 +100,7 @@ export default function Dashboard() {
   const { data: monthlyDataRaw } = trpc.dashboard.monthlyStats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
   const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
-  const { data: todaySummaryData } = trpc.dashboard.todaySummary.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
+  const { data: todaySummaryData, error: todaySummaryError } = trpc.dashboard.todaySummary.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
 
   // BUG-003: Filtrar dados do gráfico pelo período selecionado
   const monthlyData = useMemo(() => {
