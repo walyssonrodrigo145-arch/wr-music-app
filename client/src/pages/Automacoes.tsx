@@ -8,7 +8,7 @@ import {
   MessageSquare, Bell, Star, TrendingUp, Users,
   Edit3, X, Search,
   Calendar, DollarSign, Gift, UserX, Loader2, Sparkles,
-  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing, BookOpen
+  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing, BookOpen, BarChart2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
