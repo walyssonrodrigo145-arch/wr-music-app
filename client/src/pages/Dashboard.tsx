@@ -336,7 +336,7 @@ export default function Dashboard() {
         <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Inadimplentes</h3>
-              <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-500/10" onClick={() => navigate('/mensalidades')}>Ver todas</Button>
+              <Button variant="ghost" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-500/10" onClick={() => navigate('/financeiro')}>Ver todas</Button>
            </div>
            <div className="space-y-4">
               {overduePayments?.slice(0, 4).map((payment: any) => (
