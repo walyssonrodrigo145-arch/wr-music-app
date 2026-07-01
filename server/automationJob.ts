@@ -33,8 +33,9 @@ async function runAutomation() {
   }
   isAutomationRunning = true;
 
-  const db = await getDb();
-  if (!db) { isAutomationRunning = false; return; }
+  try {
+    const db = await getDb();
+    if (!db) return;
 
   const activeSettings = await db
     .select({
@@ -494,7 +495,6 @@ async function runAutomation() {
         const todayStr2 = now2.toISOString().slice(0, 10);
 
         for (const rule of activeRules) {
-                if (rule.allowAutoReminders === false || rule.allowAutoReminders === 0) continue;
           try {
             if (rule.trigger === "payment_due" || rule.trigger === "payment_overdue") {
               // ── MENSALIDADES ──────────────────────────────────────────────────
@@ -1188,10 +1188,9 @@ async function runAutomation() {
     console.error("[Automation] Error in automation rules processing:", automationRulesErr);
   }
 
-
-
-  isAutomationRunning = false;
-
+  } finally {
+    isAutomationRunning = false;
+  }
 }
 
 export function startAutomationJob() {
