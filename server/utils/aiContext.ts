@@ -1,5 +1,5 @@
 import { and, eq, lte, gte, asc, desc, sql, inArray } from "drizzle-orm";
-import { students, lessons, paymentDues, reminders, settings, expenses } from "../../drizzle/schema";
+import { students, lessons, paymentDues, reminders, settings, expenses, organizations } from "../../drizzle/schema";
 
 export async function buildUserContext(db: any, userId: number, orgId: number, isUserAdmin: boolean = false): Promise<string> {
   const now = new Date();
@@ -10,6 +10,14 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
     const [userSettings] = await db.select().from(settings).where(
       and(eq(settings.organizationId, orgId))
     ).limit(1);
+
+    // 1.5. Verifica se é dono da organização
+    if (!isUserAdmin) {
+      const [org] = await db.select({ ownerId: organizations.ownerId }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      if (org?.ownerId === userId) {
+        isUserAdmin = true;
+      }
+    }
 
     // 2. Busca total de alunos ativos
     const activeStudents = await db.select({ id: students.id }).from(students).where(

@@ -142,7 +142,7 @@ function StatusBadge({ status, id, onUpdate }: { status: string; id: number; onU
       )}
 
       <AlertDialog open={confirmModal.open} onOpenChange={(v) => !v && setConfirmModal({ open: false, newStatus: "" })}>
-        <AlertDialogContent className="bg-card border-white/5 shadow-2xl">
+        <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-card border-white/5 shadow-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="text-amber-500" size={20} />
