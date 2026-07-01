@@ -350,7 +350,7 @@ export default function ProfessorExtract() {
 
       {/* Modal: Ver Aulas */}
       <Dialog open={!!detailsPaymentId} onOpenChange={(o) => !o && setDetailsPaymentId(null)}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-5xl max-h-[85vh] overflow-y-auto rounded-2xl bg-card/95 backdrop-blur-xl border-white/10">
+        <DialogContent className="w-[95vw] sm:w-[95vw] md:w-full sm:max-w-5xl max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card/95 backdrop-blur-xl border-white/10">
           <DialogHeader className="flex flex-row items-center justify-between mt-4">
             <DialogTitle className="font-outfit text-2xl text-primary">Aulas Ministradas</DialogTitle>
             <Button 
