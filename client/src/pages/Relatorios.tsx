@@ -16,6 +16,8 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { downloadBase64File } from '../utils/downloadReport';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -140,6 +142,7 @@ function EmptyState({ message = 'Nenhum dado disponível para o período.' }: { 
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 const Relatorios: React.FC = () => {
+  const generateReport = trpc.reportEngine.generate.useMutation();
   const [activeTab, setActiveTab] = useState<TabKey>('financeiro');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -194,65 +197,66 @@ const Relatorios: React.FC = () => {
   };
 
   // ── Export ─────────────────────────────────────────────────────────────────
-  const handleExport = () => {
+  const handleExport = (format: 'csv' | 'excel') => {
     try {
-      let csvContent = "data:text/csv;charset=utf-8,";
-      
+      let columns: string[] = [];
+      let rows: any[][] = [];
+      const title = `Relatório ${activeTab} — ${currentMonthName}/${selectedYear}`;
+
       if (activeTab === 'financeiro') {
-        // BUG 2 CORRIGIDO: usar dados reais de payments via financeiroQuery
-        csvContent += `Relatório Financeiro — ${currentMonthName}/${selectedYear}\n`;
-        csvContent += `Status,Valor\n`;
-        csvContent += `Recebido,${financeiroQuery.data?.pago || 0}\n`;
-        csvContent += `Pendente,${financeiroQuery.data?.pendente || 0}\n`;
-        csvContent += `Inadimplente,${financeiroQuery.data?.atrasado || 0}\n`;
-        csvContent += `Total Projetado,${financeiroQuery.data?.total || 0}\n`;
+        columns = ['Status', 'Valor'];
+        rows = [
+          ['Recebido', financeiroQuery.data?.pago || 0],
+          ['Pendente', financeiroQuery.data?.pendente || 0],
+          ['Inadimplente', financeiroQuery.data?.atrasado || 0],
+          ['Total Projetado', financeiroQuery.data?.total || 0],
+        ];
       } else if (activeTab === 'despesas') {
-        csvContent += `Categoria,Valor\n`;
-        despesasQuery.data?.categories.forEach(c => {
-          csvContent += `${c.name},${c.value}\n`;
-        });
-        csvContent += `Total Despesas,${despesasQuery.data?.total || 0}\n`;
-        csvContent += `Receita Total,${financeiroQuery.data?.total || 0}\n`;
+        columns = ['Categoria', 'Valor'];
+        despesasQuery.data?.categories.forEach(c => rows.push([c.name, c.value]));
+        rows.push(['Total Despesas', despesasQuery.data?.total || 0]);
+        rows.push(['Receita Total', financeiroQuery.data?.total || 0]);
         const lucro = (financeiroQuery.data?.total || 0) - (despesasQuery.data?.total || 0);
-        csvContent += `Lucro Líquido,${lucro}\n`;
+        rows.push(['Lucro Líquido', lucro]);
       } else if (activeTab === 'projecao') {
-        csvContent += "Mês,Receita Projetada,Despesa Projetada,Lucro Projetado\n";
-        projecaoQuery.data?.projection.forEach(p => {
-          csvContent += `${p.monthName},${p.receita},${p.despesa},${p.lucro}\n`;
-        });
+        columns = ["Mês", "Receita Projetada", "Despesa Projetada", "Lucro Projetado"];
+        projecaoQuery.data?.projection.forEach(p => rows.push([p.monthName, p.receita, p.despesa, p.lucro]));
       } else if (activeTab === 'alunos') {
-        csvContent += "ID,Nome,Professor,Instrumento,Mensalidade,Status\n";
-        alunosReportQuery.data?.forEach(s => {
-          csvContent += `${s.id},${s.name},${s.professorName || ''},${s.instrumentName || ''},${s.monthlyFee},${s.status}\n`;
-        });
+        columns = ["ID", "Nome", "Professor", "Instrumento", "Mensalidade", "Status"];
+        alunosReportQuery.data?.forEach(s => rows.push([s.id, s.name, s.professorName || '', s.instrumentName || '', s.monthlyFee, s.status]));
       } else if (activeTab === 'aulas') {
-        csvContent += "Data,Aluno,Professor,Status,Observação\n";
+        columns = ["Data", "Aluno", "Professor", "Status", "Observação"];
         frequencyQuery.data?.forEach(f => {
           const presence = f.status === 'concluida' ? 'Presente' : f.status === 'cancelada' ? 'Falta' : 'Reposição';
-          csvContent += `${format(new Date(f.date), 'dd/MM/yyyy')},${f.studentName},${f.professorName},${presence},${f.observation || ''}\n`;
+          rows.push([format(new Date(f.date), 'dd/MM/yyyy'), f.studentName, f.professorName, presence, f.observation || '']);
         });
       } else if (activeTab === 'mensalidades') {
-        csvContent += "Aluno,Vencimento,Valor,Status\n";
+        columns = ["Aluno", "Vencimento", "Valor", "Status"];
         overduePaymentsQuery.data?.forEach(p => {
-          csvContent += `${p.studentName},${format(new Date(p.dueDate), 'dd/MM/yyyy')},${p.amount},${p.status}\n`;
+          rows.push([p.studentName, format(new Date(p.dueDate), 'dd/MM/yyyy'), p.amount, p.status]);
         });
       } else {
-        csvContent += "Indicador,Valor\n";
-        csvContent += `Total de alunos,${statsQuery.data?.totalStudents || 0}\n`;
-        csvContent += `Aulas realizadas,${statsQuery.data?.monthLessons || 0}\n`;
-        csvContent += `Receita mensal,${statsQuery.data?.monthlyRevenue || 0}\n`;
+        columns = ["Indicador", "Valor"];
+        rows.push(["Total de alunos", statsQuery.data?.totalStudents || 0]);
+        rows.push(["Aulas realizadas", statsQuery.data?.monthLessons || 0]);
+        rows.push(["Receita mensal", statsQuery.data?.monthlyRevenue || 0]);
       }
 
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `relatorio_${activeTab}_${currentMonthName}_${selectedYear}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Relatório exportado com sucesso!');
+      toast.loading(`Gerando relatório ${format.toUpperCase()}...`, { id: 'export-loading' });
+      generateReport.mutate({ format, title, columns, rows, period: `${currentMonthName}/${selectedYear}` }, {
+        onSuccess: (data) => {
+          toast.dismiss('export-loading');
+          downloadBase64File(data.data, format as 'csv' | 'excel', `relatorio_${activeTab}`);
+          toast.success('Relatório exportado com sucesso!');
+        },
+        onError: () => {
+          toast.dismiss('export-loading');
+          toast.error('Erro ao exportar no servidor.');
+        }
+      });
     } catch {
-      toast.error('Erro ao exportar.');
+      toast.dismiss('export-loading');
+      toast.error('Erro local ao exportar.');
     }
   };
 
@@ -1084,12 +1088,22 @@ const Relatorios: React.FC = () => {
             </select>
           </div>
 
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all shadow-md shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <Download size={15} /> Exportar CSV
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all shadow-md shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] outline-none">
+              <Download size={15} /> Exportar
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport('excel')} className="font-semibold text-xs cursor-pointer">
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('csv')} className="font-semibold text-xs cursor-pointer">
+                CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled className="font-semibold text-xs text-muted-foreground cursor-not-allowed">
+                PDF (em breve)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* ── Tab Content ──────────────────────────────────────────────── */}
