@@ -30,6 +30,12 @@ const AVAILABLE_PERMISSIONS = [
   { id: "/configuracoes", label: "Configurações" },
 ];
 
+// Permissões granulares de dados (não são rotas, controlam o que o professor pode VER/FAZER)
+const DATA_PERMISSIONS = [
+  { id: "alunos_editar", label: "Editar dados dos alunos", desc: "Permite editar, excluir e alterar status dos alunos" },
+  { id: "alunos_mensalidade", label: "Ver valor da mensalidade", desc: "Exibe a coluna de mensalidade na lista de alunos" },
+];
+
 export function ProfessoresTab() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -212,7 +218,7 @@ export function ProfessoresTab() {
               </div>
               
               <div className="pt-4 border-t border-border">
-                <label className="text-xs font-semibold mb-2 block">Permissões de Acesso</label>
+                <label className="text-xs font-semibold mb-2 block">Permissões de Acesso às Páginas</label>
                 <div className="grid grid-cols-2 gap-2">
                   {AVAILABLE_PERMISSIONS.map(perm => (
                     <label key={perm.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors">
@@ -223,6 +229,28 @@ export function ProfessoresTab() {
                         className="rounded border-gray-300 text-primary focus:ring-primary"
                       />
                       <span>{perm.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Permissões Granulares de Dados */}
+              <div className="pt-4 border-t border-border">
+                <label className="text-xs font-semibold mb-1 block">Permissões de Dados</label>
+                <p className="text-[11px] text-muted-foreground mb-3">Controla o que o professor pode ver e fazer dentro das páginas</p>
+                <div className="space-y-2">
+                  {DATA_PERMISSIONS.map(perm => (
+                    <label key={perm.id} className="flex items-start gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={permissions.includes(perm.id)}
+                        onChange={() => togglePermission(perm.id)}
+                        className="rounded border-gray-300 text-primary focus:ring-primary mt-0.5"
+                      />
+                      <div>
+                        <span className="text-sm font-medium block">{perm.label}</span>
+                        <span className="text-[11px] text-muted-foreground">{perm.desc}</span>
+                      </div>
                     </label>
                   ))}
                 </div>

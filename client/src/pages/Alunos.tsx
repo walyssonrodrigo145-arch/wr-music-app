@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { format, isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
@@ -478,6 +479,14 @@ export default function Alunos() {
   const { data: students = [], isLoading } = trpc.students.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
 
+  // ── Controle de Acesso ──────────────────────────────────────────────────────
+  const { user } = useAuth();
+  const isProfessor = user?.role === 'professor';
+  const userPerms: string[] = (user as any)?.permissions || [];
+  const canEdit = !isProfessor || userPerms.includes('alunos_editar');
+  const canSeeMensalidade = !isProfessor || userPerms.includes('alunos_mensalidade');
+  // ────────────────────────────────────────────────────────────────────────────
+
   const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery();
   const { data: upcomingLessons = [] } = trpc.lessons.upcoming.useQuery();
 
@@ -501,13 +510,15 @@ export default function Alunos() {
   const filtered = useMemo(() => {
     return students
       .filter((s: StudentRow) => {
+        // Professores só vêem alunos ATIVOS (nunca pausados ou inativos)
+        if (isProfessor && s.status !== 'ativo') return false;
         const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || (s.instrumentName ?? "").toLowerCase().includes(search.toLowerCase());
         const matchStatus = statusFilter === "todos" || s.status === statusFilter;
         const matchLessonType = lessonTypeFilter === "todos" || s.lessonType === lessonTypeFilter;
         return matchSearch && matchStatus && matchLessonType;
       })
       .sort((a: StudentRow, b: StudentRow) => a.name.localeCompare(b.name, 'pt-BR'));
-  }, [students, search, statusFilter, lessonTypeFilter]);
+  }, [students, search, statusFilter, lessonTypeFilter, isProfessor]);
 
   const stats = {
     total: students.length,
@@ -556,14 +567,16 @@ export default function Alunos() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
              </div>
-             <Button 
-               onClick={() => setLocation("/alunos/novo")}
-               className="h-10 rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
-             >
-
-               <Plus size={18} />
-               <span className="hidden sm:inline">Novo aluno</span>
-             </Button>
+             {/* Ocultar botão "Novo aluno" para professores sem permissão de editar */}
+             {canEdit && (
+               <Button 
+                onClick={() => setLocation("/alunos/novo")}
+                className="h-10 rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
+               >
+                 <Plus size={18} />
+                 <span className="hidden sm:inline">Novo aluno</span>
+               </Button>
+             )}
           </div>
         </div>
 
@@ -691,11 +704,15 @@ export default function Alunos() {
               <table className="w-full text-left table-fixed">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="w-[32%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Aluno</th>
-                    <th className="w-[24%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Instrumento / Nível</th>
-                    <th className="w-[16%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Mensalidade</th>
+                    <th className="w-[36%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Aluno</th>
+                    <th className="w-[26%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Instrumento / Nível</th>
+                    {canSeeMensalidade && (
+                      <th className="w-[18%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Mensalidade</th>
+                    )}
                     <th className="w-[14%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Status</th>
-                    <th className="w-[14%] px-2 lg:px-4 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right whitespace-nowrap">Ações</th>
+                    {canEdit && (
+                      <th className="w-[14%] px-2 lg:px-4 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right whitespace-nowrap">Ações</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -733,43 +750,65 @@ export default function Alunos() {
                             <LevelBadge level={student.level} />
                           </div>
                         </td>
-                        <td className="px-4 lg:px-6 py-4">
-                          <p className="text-sm font-bold text-foreground leading-none">
-                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground font-medium mt-1.5 uppercase">Dia {student.dueDay || 10}</p>
-                        </td>
+                        {/* Mensalidade: oculta para professor sem permissão */}
+                        {canSeeMensalidade && (
+                          <td className="px-4 lg:px-6 py-4">
+                            <p className="text-sm font-bold text-foreground leading-none">
+                              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground font-medium mt-1.5 uppercase">Dia {student.dueDay || 10}</p>
+                          </td>
+                        )}
                         <td className="px-4 lg:px-6 py-4 text-center">
-                          <StatusBadge
-                            status={student.status}
-                            id={student.id}
-                            onUpdate={(id, s) => updateStatusMutation.mutate({ id, status: s as any })}
-                          />
+                          {/* Status: professor sem permissão só vê, não altera */}
+                          {canEdit ? (
+                            <StatusBadge
+                              status={student.status}
+                              id={student.id}
+                              onUpdate={(id, s) => updateStatusMutation.mutate({ id, status: s as any })}
+                            />
+                          ) : (
+                            <span className={cn(
+                              "inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded border",
+                              student.status === 'ativo' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                            )}>
+                              {student.status}
+                            </span>
+                          )}
                         </td>
-                        <td className="px-2 lg:px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
-                           <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-muted-foreground">
-                                    <MoreVertical size={18} />
-                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 rounded-xl border-white/10 shadow-xl backdrop-blur-xl bg-card/90">
-                                 <DropdownMenuItem onClick={() => setDetailsStudentId(student.id)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
-                                    <Eye size={14} className="text-muted-foreground" /> Ver Detalhes
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => setLocation(`/alunos/${student.id}/editar`)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
-                                    <Edit size={14} className="text-muted-foreground" /> Editar Aluno
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => { setGenerateAccessStudentId(student.id); }} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
-                                   <Activity size={14} className="text-muted-foreground" /> Gerar Acesso
-                                 </DropdownMenuItem>
-                                 <DropdownMenuSeparator className="bg-border/50" />
-                                 <DropdownMenuItem onClick={() => setDeleteStudent(student)} className="text-xs font-bold text-rose-500 uppercase tracking-widest gap-2 cursor-pointer py-2.5 hover:text-rose-600 hover:bg-rose-500/10">
-                                    <Trash2 size={14} /> Excluir Aluno
-                                 </DropdownMenuItem>
-                              </DropdownMenuContent>
-                           </DropdownMenu>
-                        </td>
+                        {/* Ações: professor sem permissão só vê detalhes */}
+                        {canEdit ? (
+                          <td className="px-2 lg:px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                   <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-muted-foreground">
+                                      <MoreVertical size={18} />
+                                   </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 rounded-xl border-white/10 shadow-xl backdrop-blur-xl bg-card/90">
+                                   <DropdownMenuItem onClick={() => setDetailsStudentId(student.id)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
+                                      <Eye size={14} className="text-muted-foreground" /> Ver Detalhes
+                                   </DropdownMenuItem>
+                                   <DropdownMenuItem onClick={() => setLocation(`/alunos/${student.id}/editar`)} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
+                                      <Edit size={14} className="text-muted-foreground" /> Editar Aluno
+                                   </DropdownMenuItem>
+                                   <DropdownMenuItem onClick={() => { setGenerateAccessStudentId(student.id); }} className="text-xs font-bold uppercase tracking-widest gap-2 cursor-pointer py-2.5">
+                                     <Activity size={14} className="text-muted-foreground" /> Gerar Acesso
+                                   </DropdownMenuItem>
+                                   <DropdownMenuSeparator className="bg-border/50" />
+                                   <DropdownMenuItem onClick={() => setDeleteStudent(student)} className="text-xs font-bold text-rose-500 uppercase tracking-widest gap-2 cursor-pointer py-2.5 hover:text-rose-600 hover:bg-rose-500/10">
+                                      <Trash2 size={14} /> Excluir Aluno
+                                   </DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                          </td>
+                        ) : (
+                          <td className="px-2 lg:px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setDetailsStudentId(student.id)}>
+                              <Eye size={16} />
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}
@@ -816,29 +855,33 @@ export default function Alunos() {
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 py-3 border-y border-border">
-                      <div>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Mensalidade</p>
-                        <p className="text-xs font-black text-foreground">
-                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
-                        </p>
-                      </div>
+                      {canSeeMensalidade && (
+                        <div>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Mensalidade</p>
+                          <p className="text-xs font-black text-foreground">
+                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
+                          </p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Nível</p>
                         <LevelBadge level={student.level} />
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-4">
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase">Vencimento: Dia {student.dueDay || 10}</p>
-                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground" onClick={() => setLocation(`/alunos/${student.id}/editar`)}>
-                          <Pencil size={14} />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-500/10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteStudent(student); }}>
-                          <Trash2 size={14} />
-                        </Button>
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Vencimento: Dia {student.dueDay || 10}</p>
+                        {canEdit && (
+                          <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground" onClick={() => setLocation(`/alunos/${student.id}/editar`)}>
+                              <Pencil size={14} />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-500/10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteStudent(student); }}>
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                    </div>
                   </div>
                 ))
               )}
