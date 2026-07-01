@@ -1300,7 +1300,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const orgId = ctx.user.organizationId!;
       const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const userId = ctx.user.id;
-      const isProfessor = ctx.user.role === 'professor';
+      const isProfessor = ctx.user.role === 'professor' && !isUserAdmin;
 
       const now = new Date();
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
