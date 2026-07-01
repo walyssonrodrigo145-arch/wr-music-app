@@ -120,6 +120,12 @@ export default function Dashboard() {
   const todaySummary = useMemo(() => {
     const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+    if (todaySummaryError) {
+      return [
+        { label: "ERRO AO CARREGAR", count: todaySummaryError.message || "Erro", color: "bg-red-500/10 text-red-600", icon: AlertCircle },
+      ];
+    }
+
     if (!todaySummaryData) {
       return [
         { label: "AULAS DE HOJE", count: "...", color: "bg-blue-500/10 text-blue-600", icon: Calendar },
@@ -139,7 +145,7 @@ export default function Dashboard() {
       { label: "AULAS EXPERIMENTAIS", count: todaySummaryData.experimentais, color: "bg-orange-500/10 text-orange-600", icon: Target },
       { label: "PROFESSOR DESTAQUE", count: todaySummaryData.professorDestaque, color: "bg-amber-500/10 text-amber-600", icon: Star },
     ];
-  }, [todaySummaryData]);
+  }, [todaySummaryData, todaySummaryError]);
 
   // Trend calculations
   const trends = useMemo(() => {
