@@ -7373,23 +7373,33 @@ Texto original para reescrever:
         const startDate = new Date(payment.year, payment.month - 1, 1);
         const endDate = new Date(payment.year, payment.month, 1);
 
+        const [prof] = await db.select().from(professores).where(eq(professores.id, payment.professorId)).limit(1);
+        if (!prof) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
+
+        const profStudents = await db.select({ id: students.id }).from(students).where(and(
+          eq(students.organizationId, orgId),
+          eq(students.professorId, prof.userId)
+        ));
+        const professorStudentIds = profStudents.map(s => s.id);
+
+        const lessonCondition = professorStudentIds.length > 0
+          ? or(eq(lessons.userId, prof.userId), inArray(lessons.studentId, professorStudentIds))
+          : eq(lessons.userId, prof.userId);
+
         const profLessons = await db.select({
           lesson: lessons,
           studentName: students.name,
         })
           .from(lessons)
           .leftJoin(students, eq(students.id, lessons.studentId))
-          .innerJoin(professores, eq(professores.userId, lessons.userId))
           .where(and(
             eq(lessons.organizationId, orgId),
-            eq(professores.id, payment.professorId),
+            lessonCondition,
             eq(lessons.status, "concluida"),
             gte(lessons.scheduledAt, startDate),
             lt(lessons.scheduledAt, endDate)
           ))
           .orderBy(asc(lessons.scheduledAt));
-
-        const [prof] = await db.select().from(professores).where(eq(professores.id, payment.professorId)).limit(1);
 
         let percentageDetails: Array<{ studentName: string; monthlyFee: number; commission: number }> = [];
 
