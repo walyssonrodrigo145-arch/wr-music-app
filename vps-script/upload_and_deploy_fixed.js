@@ -55,7 +55,8 @@ const filesToUpload = [
   'client/src/pages/Alunos.tsx',
   'client/src/pages/Progresso.tsx',
   'client/src/pages/RecepcaoQRCode.tsx',
-  'client/src/pages/QRScanner.tsx'
+  'client/src/pages/QRScanner.tsx',
+  'client/src/pages/ProfessoresTab.tsx'
 ];
 
 conn.on('ready', () => {

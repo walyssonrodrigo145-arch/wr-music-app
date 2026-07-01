@@ -40,7 +40,7 @@ export function ProfessoresTab() {
   const [password, setPassword] = useState("");
   const [telefone, setTelefone] = useState("");
   const [especialidade, setEspecialidade] = useState("");
-  const [permissions, setPermissions] = useState<string[]>(["aulas", "progresso"]);
+  const [permissions, setPermissions] = useState<string[]>(["/dashboard", "/alunos", "/aulas"]);
   const [paymentType, setPaymentType] = useState<"fixo" | "porcentagem">("fixo");
   const [hourlyRate, setHourlyRate] = useState("");
   const [paymentPercentage, setPaymentPercentage] = useState("");

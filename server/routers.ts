@@ -178,8 +178,8 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         
-        const salt = require("crypto").randomBytes(16).toString("hex");
-        const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString("hex");
+        const salt = crypto.randomBytes(16).toString("hex");
+        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
         const passwordHash = `${salt}:${derivedKey}`;
         
         await db.update(users)
@@ -254,7 +254,7 @@ export const appRouter = router({
         }
         
         const [salt, key] = user.passwordHash.split(":");
-        const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString("hex");
+        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
         if (key !== derivedKey) {
           throw new Error("Credenciais inválidas");
         }
@@ -301,14 +301,14 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Banco de dados não disponível");
         
-        const salt = require("crypto").randomBytes(16).toString("hex");
-        const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString("hex");
+        const salt = crypto.randomBytes(16).toString("hex");
+        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
         // Create default organization for new admin with 33-day trial
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
-        const uniqueSlug = `${baseSlug}-${require("crypto").randomBytes(4).toString('hex')}`;
+        const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + 30);
         trialEndsAt.setHours(23, 59, 59, 999);
@@ -351,8 +351,8 @@ export const appRouter = router({
           throw new Error("Este e-mail já está em uso.");
         }
 
-        const salt = require("crypto").randomBytes(16).toString("hex");
-        const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString("hex");
+        const salt = crypto.randomBytes(16).toString("hex");
+        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
@@ -370,7 +370,7 @@ export const appRouter = router({
 
         // Criar organização com status trialing (30 dias grátis)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
-        const uniqueSlug = `${baseSlug}-${require("crypto").randomBytes(4).toString('hex')}`;
+        const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         
         // Fatura para daqui a 33 dias (30 dias grátis + 3 dias de prazo para pagamento)
         // trialEndsAt mostra ao usuário quando o trial termina (30 dias)
@@ -1662,8 +1662,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (existingEmail) throw new TRPCError({ code: 'CONFLICT', message: "Este e-mail já está em uso por outro usuário." });
       }
 
-      const salt = require("crypto").randomBytes(16).toString("hex");
-      const derivedKey = require("crypto").scryptSync(password, salt, 64).toString("hex");
+      const salt = crypto.randomBytes(16).toString("hex");
+      const derivedKey = crypto.scryptSync(password, salt, 64).toString("hex");
       const passwordHash = `${salt}:${derivedKey}`;
       
       if (existingStudentUser) {
@@ -1858,8 +1858,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             if (isGoogle) {
               loginMethod = 'google';
             } else if (input.temporaryPassword) {
-              const salt = require("crypto").randomBytes(16).toString("hex");
-              const derivedKey = require("crypto").scryptSync(input.temporaryPassword, salt, 64).toString("hex");
+              const salt = crypto.randomBytes(16).toString("hex");
+              const derivedKey = crypto.scryptSync(input.temporaryPassword, salt, 64).toString("hex");
               passwordHash = `${salt}:${derivedKey}`;
             }
 
@@ -5716,8 +5716,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const userUpdates: any = {};
         if (input.email) userUpdates.email = input.email;
         if (input.password) {
-           const salt = require("crypto").randomBytes(16).toString('hex');
-           const derivedKey = require("crypto").scryptSync(input.password, salt, 64).toString('hex');
+           const salt = crypto.randomBytes(16).toString('hex');
+           const derivedKey = crypto.scryptSync(input.password, salt, 64).toString('hex');
            userUpdates.passwordHash = salt + ':' + derivedKey;
         }
 
@@ -7291,7 +7291,7 @@ Texto original para reescrever:
             return { success: true, token: active.token, expiresAt: active.expiresAt };
           }
 
-          const token = require("crypto").randomBytes(16).toString('hex');
+          const token = crypto.randomBytes(16).toString('hex');
           const expiresAt = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000); // 100 anos
 
           const [created] = await db.insert(attendanceTokens).values({
@@ -7849,9 +7849,9 @@ Texto original para reescrever:
           throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem criar professores" });
         }
 
-        const existingUser = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+        const existingUser = await db.select().from(users).where(and(eq(users.email, input.email), eq(users.organizationId, orgId))).limit(1);
         if (existingUser.length > 0) {
-          throw new TRPCError({ code: "CONFLICT", message: "E-mail já cadastrado no sistema" });
+          throw new TRPCError({ code: "CONFLICT", message: "E-mail já cadastrado nesta organização" });
         }
 
         const salt = crypto.randomBytes(16).toString("hex");
