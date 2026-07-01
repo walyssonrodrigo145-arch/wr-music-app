@@ -1604,7 +1604,7 @@ export default function Configuracoes() {
                   <div>
                     <p className="text-xs font-black text-indigo-900 uppercase tracking-widest mb-1">Conta Verificada</p>
                     <p className="text-[11px] text-indigo-800/70 font-medium leading-relaxed">
-                      Sua conta está vinculada ao Manus OAuth. A autenticação é gerenciada de forma centralizada para máxima segurança.
+                      Sua conta está protegida. A autenticação é gerenciada de forma centralizada para máxima segurança.
                     </p>
                   </div>
                 </div>
