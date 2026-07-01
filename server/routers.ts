@@ -7873,19 +7873,32 @@ Texto original para reescrever:
           updatedAt: new Date(),
         }).returning({ id: users.id });
 
-        const [newProfessor] = await db.insert(professores).values({
-          organizationId: orgId,
-          userId: newUser.id,
-          telefone: input.telefone,
-          especialidade: input.especialidade,
-          permissions: input.permissions,
-          paymentType: input.paymentType,
-          hourlyRate: input.hourlyRate,
-          paymentPercentage: input.paymentPercentage,
-          createdAt: new Date(),
-        }).returning();
+        // Sanitiza campos numéricos: string vazia quebra coluna decimal no postgres
+        const sanitizedHourlyRate = input.hourlyRate && input.hourlyRate.trim() !== "" ? input.hourlyRate : null;
+        const sanitizedPaymentPercentage = input.paymentPercentage && input.paymentPercentage.trim() !== "" ? input.paymentPercentage : null;
 
-        return { success: true, professor: newProfessor };
+        try {
+          const [newProfessor] = await db.insert(professores).values({
+            organizationId: orgId,
+            userId: newUser.id,
+            telefone: input.telefone,
+            especialidade: input.especialidade,
+            permissions: input.permissions,
+            paymentType: input.paymentType,
+            hourlyRate: sanitizedHourlyRate,
+            paymentPercentage: sanitizedPaymentPercentage,
+            createdAt: new Date(),
+          }).returning();
+
+          return { success: true, professor: newProfessor };
+        } catch (profError: any) {
+          // Rollback: deleta o usuário criado para não deixar registro órfão
+          await db.delete(users).where(eq(users.id, newUser.id));
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Erro ao criar professor. O cadastro foi revertido. Detalhe: ${profError?.message ?? profError}`,
+          });
+        }
       }),
 
     update: protectedProcedure
@@ -7912,13 +7925,17 @@ Texto original para reescrever:
         const [prof] = await db.select().from(professores).where(and(eq(professores.id, input.id), eq(professores.organizationId, orgId))).limit(1);
         if (!prof) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
 
+        // Sanitiza campos numéricos: string vazia quebra coluna decimal no postgres
+        const sanitizedHourlyRate = input.hourlyRate && input.hourlyRate.trim() !== "" ? input.hourlyRate : null;
+        const sanitizedPaymentPercentage = input.paymentPercentage && input.paymentPercentage.trim() !== "" ? input.paymentPercentage : null;
+
         await db.update(professores)
           .set({
             telefone: input.telefone,
             especialidade: input.especialidade,
             paymentType: input.paymentType,
-            hourlyRate: input.hourlyRate,
-            paymentPercentage: input.paymentPercentage,
+            hourlyRate: sanitizedHourlyRate,
+            paymentPercentage: sanitizedPaymentPercentage,
             ...(input.permissions ? { permissions: input.permissions } : {})
           })
           .where(eq(professores.id, input.id));
