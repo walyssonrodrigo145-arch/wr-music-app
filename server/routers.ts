@@ -7048,6 +7048,17 @@ Texto original para reescrever:
           const startDate = new Date(input.year, input.month - 1, 1);
           const endDate = new Date(input.year, input.month, 1);
 
+          // Get students for this professor
+          const profStudents = await db.select({ id: students.id }).from(students).where(and(
+            eq(students.organizationId, orgId),
+            eq(students.professorId, prof.id)
+          ));
+          const professorStudentIds = profStudents.map(s => s.id);
+
+          const lessonCondition = professorStudentIds.length > 0
+            ? or(eq(lessons.userId, prof.userId), inArray(lessons.studentId, professorStudentIds))
+            : eq(lessons.userId, prof.userId);
+
           // Get completed lessons for this professor in the given month
           const completedLessons = await db.select({
             id: lessons.id,
@@ -7057,7 +7068,7 @@ Texto original para reescrever:
             .from(lessons)
             .where(and(
               eq(lessons.organizationId, orgId),
-              eq(lessons.userId, prof.userId),
+              lessonCondition,
               eq(lessons.status, "concluida"),
               gte(lessons.scheduledAt, startDate),
               lt(lessons.scheduledAt, endDate),
@@ -7163,6 +7174,17 @@ Texto original para reescrever:
           const endDate = new Date(input.year, input.month, 1);
 
           for (const prof of allProfessors) {
+            // Get students for this professor
+            const profStudents = await db.select({ id: students.id }).from(students).where(and(
+              eq(students.organizationId, orgId),
+              eq(students.professorId, prof.id)
+            ));
+            const professorStudentIds = profStudents.map(s => s.id);
+
+            const lessonCondition = professorStudentIds.length > 0
+              ? or(eq(lessons.userId, prof.userId), inArray(lessons.studentId, professorStudentIds))
+              : eq(lessons.userId, prof.userId);
+
             const completedLessons = await db.select({
               id: lessons.id,
               duration: lessons.duration,
@@ -7171,7 +7193,7 @@ Texto original para reescrever:
               .from(lessons)
               .where(and(
                 eq(lessons.organizationId, orgId),
-                eq(lessons.userId, prof.userId),
+                lessonCondition,
                 eq(lessons.status, "concluida"),
                 gte(lessons.scheduledAt, startDate),
                 lt(lessons.scheduledAt, endDate),

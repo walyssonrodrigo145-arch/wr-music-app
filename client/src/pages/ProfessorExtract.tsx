@@ -163,17 +163,25 @@ export default function ProfessorExtract() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-8 font-sans">
+      {/* Header Premium */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card/40 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-2xl shadow-primary/5"
+      >
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Folha de Pagamento</h1>
-          <p className="text-zinc-500">Gestão e extratos de pagamento de professores</p>
+          <h1 className="font-outfit text-3xl md:text-4xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
+            Folha de Pagamento
+          </h1>
+          <p className="text-zinc-500 mt-1">Gestão e extratos de pagamento de professores</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           {isAdmin && (
             <Button 
               variant="outline" 
+              className="hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full sm:w-auto"
               onClick={() => calculateMutation.mutate({ month: viewMonth, year: viewYear })}
               disabled={calculateMutation.isPending}
             >
@@ -182,9 +190,9 @@ export default function ProfessorExtract() {
             </Button>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Select value={viewMonth.toString()} onValueChange={(v) => setViewMonth(parseInt(v))}>
-              <SelectTrigger className="w-[140px] capitalize">
+              <SelectTrigger className="w-full sm:w-[150px] capitalize bg-background/50 backdrop-blur-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -196,7 +204,7 @@ export default function ProfessorExtract() {
               </SelectContent>
             </Select>
             <Select value={viewYear.toString()} onValueChange={(v) => setViewYear(parseInt(v))}>
-              <SelectTrigger className="w-[100px]">
+              <SelectTrigger className="w-[110px] bg-background/50 backdrop-blur-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -209,126 +217,132 @@ export default function ProfessorExtract() {
             </Select>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {isLoading ? (
         <div className="h-64 flex items-center justify-center">
-          <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+          <RefreshCw className="w-10 h-10 text-primary animate-spin" />
         </div>
       ) : displayPayments.length === 0 ? (
-        <Card className="border-dashed border-2">
-          <CardContent className="h-64 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
-              <Calendar className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Nenhum registro encontrado</h3>
-            <p className="text-zinc-500 max-w-sm">
-              Nenhum pagamento calculado para este mês ainda. 
-              {isAdmin && " Clique no botão 'Calcular Mês' acima para gerar os extratos."}
-            </p>
-          </CardContent>
-        </Card>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-card/30 backdrop-blur-sm border-dashed border-2 border-primary/20 rounded-2xl p-12 flex flex-col items-center justify-center text-center"
+        >
+          <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-6 shadow-inner">
+            <Calendar className="w-10 h-10" />
+          </div>
+          <h3 className="font-outfit text-2xl font-semibold mb-2">Nenhum registro encontrado</h3>
+          <p className="text-zinc-500 max-w-md text-lg">
+            Nenhum pagamento calculado para este mês ainda. 
+            {isAdmin && " Clique no botão 'Calcular Mês' acima para gerar os extratos."}
+          </p>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-8">
           {displayPayments.map((payment, i) => (
             <motion.div
               key={payment.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: i * 0.1, duration: 0.4 }}
+              className="bg-card/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-primary/5 hover:shadow-primary/10 transition-all duration-300"
             >
-              <Card className="overflow-hidden border-border/50 shadow-sm hover:shadow-md transition-shadow">
-                <div className="bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800/50 p-4 border-b">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-lg">
-                        {payment.professorName?.charAt(0) || "P"}
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">{payment.professorName}</h3>
-                        <p className="text-sm text-zinc-500">
-                          {format(new Date(payment.year, payment.month - 1), "MMMM 'de' yyyy", { locale: ptBR })}
-                        </p>
-                      </div>
+              {/* Card Header Premium */}
+              <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent dark:from-primary/10 p-6 border-b border-white/5">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center font-outfit font-bold text-2xl shadow-lg shadow-primary/30">
+                      {payment.professorName?.charAt(0) || "P"}
                     </div>
+                    <div>
+                      <h3 className="font-outfit text-2xl font-bold text-foreground">{payment.professorName}</h3>
+                      <p className="text-sm text-zinc-500 font-medium mt-1">
+                        {format(new Date(payment.year, payment.month - 1), "MMMM 'de' yyyy", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant={payment.status === "pago" ? "default" : payment.status === "aprovado" ? "secondary" : "outline"}
+                      className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider ${
+                        payment.status === "pago" ? "bg-green-500 hover:bg-green-600 text-white border-none shadow-md shadow-green-500/20" : 
+                        payment.status === "aprovado" ? "bg-blue-500 hover:bg-blue-600 text-white border-none shadow-md shadow-blue-500/20" : 
+                        "bg-background/50 backdrop-blur-md"
+                      }`}
+                    >
+                      {payment.status === "aberto" && "Em Aberto"}
+                      {payment.status === "aprovado" && "Aprovado"}
+                      {payment.status === "pago" && "Pago"}
+                    </Badge>
                     
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={payment.status === "pago" ? "default" : payment.status === "aprovado" ? "secondary" : "outline"}
-                        className={payment.status === "pago" ? "bg-green-500 hover:bg-green-600 text-white" : payment.status === "aprovado" ? "bg-blue-500 hover:bg-blue-600 text-white" : ""}
-                      >
-                        {payment.status === "aberto" && "Em Aberto"}
-                        {payment.status === "aprovado" && "Aprovado"}
-                        {payment.status === "pago" && "Pago"}
-                      </Badge>
-                      
-                      <Button size="sm" variant="ghost" onClick={() => handlePrint(payment)}>
-                        <FileText className="w-4 h-4 mr-2" /> Recibo
+                    <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 hover:-translate-y-0.5 transition-transform" onClick={() => handlePrint(payment)}>
+                      <FileText className="w-4 h-4 mr-2 text-primary" /> Recibo
+                    </Button>
+
+                    <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 hover:-translate-y-0.5 transition-transform" onClick={() => setDetailsPaymentId(payment.id)}>
+                      Ver Aulas
+                    </Button>
+
+                    {isAdmin && payment.status === "aberto" && (
+                      <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 hover:-translate-y-0.5 transition-transform" onClick={() => setAdjustPayment({
+                        ...payment, 
+                        adjs: payment.adjustments ? JSON.parse(payment.adjustments) : []
+                      })}>
+                        <Settings2 className="w-4 h-4 mr-2" /> Ajustes
                       </Button>
+                    )}
 
-                      <Button size="sm" variant="ghost" onClick={() => setDetailsPaymentId(payment.id)}>
-                        Ver Aulas
+                    {isAdmin && payment.status === "aberto" && (
+                      <Button size="sm" className="hover:-translate-y-0.5 shadow-lg shadow-primary/20 transition-transform" onClick={() => approveMutation.mutate({ id: payment.id })} disabled={approveMutation.isPending}>
+                        Aprovar
                       </Button>
-
-                      {isAdmin && payment.status === "aberto" && (
-                        <Button size="sm" variant="ghost" onClick={() => setAdjustPayment({
-                          ...payment, 
-                          adjs: payment.adjustments ? JSON.parse(payment.adjustments) : []
-                        })}>
-                          <Settings2 className="w-4 h-4 mr-2" /> Ajustes
-                        </Button>
-                      )}
-
-                      {isAdmin && payment.status === "aberto" && (
-                        <Button size="sm" variant="default" onClick={() => approveMutation.mutate({ id: payment.id })} disabled={approveMutation.isPending}>
-                          Aprovar Pagamento
-                        </Button>
-                      )}
-                      
-                      {isAdmin && payment.status === "aprovado" && (
-                        <Button size="sm" onClick={() => markPaidMutation.mutate({ id: payment.id })} disabled={markPaidMutation.isPending}>
-                          <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar Pago
-                        </Button>
-                      )}
-                    </div>
+                    )}
+                    
+                    {isAdmin && payment.status === "aprovado" && (
+                      <Button size="sm" className="bg-green-500 hover:bg-green-600 hover:-translate-y-0.5 shadow-lg shadow-green-500/20 transition-transform" onClick={() => markPaidMutation.mutate({ id: payment.id })} disabled={markPaidMutation.isPending}>
+                        <CheckCircle2 className="w-4 h-4 mr-2" /> Pagar
+                      </Button>
+                    )}
                   </div>
                 </div>
-                
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-zinc-500 flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4" /> Aulas Concluídas
-                      </p>
-                      <p className="text-2xl font-bold">{payment.totalClasses}</p>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-zinc-500 flex items-center gap-2">
-                        <Clock className="w-4 h-4" /> Total Minutos
-                      </p>
-                      <p className="text-2xl font-bold">{payment.totalMinutes}m</p>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-zinc-500 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4" /> Descontos
-                      </p>
-                      <p className="text-2xl font-bold text-red-500">
-                        -R$ {Number(payment.totalDebits || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-1 bg-primary/5 p-3 rounded-lg border border-primary/10">
-                      <p className="text-sm font-medium text-primary flex items-center gap-2">
-                        <DollarSign className="w-4 h-4" /> Líquido a Receber
-                      </p>
-                      <p className="text-3xl font-bold text-primary">
-                        R$ {Number(payment.totalAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
+              </div>
+              
+              <div className="p-6 md:p-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+                  <div className="space-y-2 p-4 rounded-2xl bg-muted/20 border border-border/30">
+                    <p className="text-sm font-semibold text-zinc-500 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary" /> Aulas Concluídas
+                    </p>
+                    <p className="font-outfit text-3xl font-bold text-foreground">{payment.totalClasses}</p>
                   </div>
-                </CardContent>
-              </Card>
+                  
+                  <div className="space-y-2 p-4 rounded-2xl bg-muted/20 border border-border/30">
+                    <p className="text-sm font-semibold text-zinc-500 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-primary" /> Total Minutos
+                    </p>
+                    <p className="font-outfit text-3xl font-bold text-foreground">{payment.totalMinutes}m</p>
+                  </div>
+                  
+                  <div className="space-y-2 p-4 rounded-2xl bg-red-500/5 border border-red-500/10">
+                    <p className="text-sm font-semibold text-red-500/80 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" /> Descontos
+                    </p>
+                    <p className="font-outfit text-3xl font-bold text-red-500">
+                      -R$ {Number(payment.totalDebits || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2 bg-primary/10 p-5 rounded-2xl border border-primary/20 shadow-inner">
+                    <p className="text-sm font-semibold text-primary flex items-center gap-2 uppercase tracking-wide">
+                      <DollarSign className="w-4 h-4" /> Líquido a Receber
+                    </p>
+                    <p className="font-outfit text-4xl font-black text-primary drop-shadow-sm">
+                      R$ {Number(payment.totalAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -336,33 +350,36 @@ export default function ProfessorExtract() {
 
       {/* Modal: Ver Aulas */}
       <Dialog open={!!detailsPaymentId} onOpenChange={(o) => !o && setDetailsPaymentId(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl bg-card/95 backdrop-blur-xl border-white/10">
           <DialogHeader>
-            <DialogTitle>Aulas Ministradas</DialogTitle>
+            <DialogTitle className="font-outfit text-2xl text-primary">Aulas Ministradas</DialogTitle>
           </DialogHeader>
-          <div className="mt-4 space-y-6">
+          <div className="mt-6 space-y-8">
             {detailsLoading ? (
-              <div className="py-8 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+              <div className="py-12 flex justify-center"><RefreshCw className="w-8 h-8 text-primary animate-spin" /></div>
             ) : (
-              <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
                 {detailsData?.paymentType === "porcentagem" && detailsData?.percentageDetails && detailsData.percentageDetails.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-primary">Relatório Analítico de Comissões ({detailsData.paymentPercentage}%)</h4>
-                    <div className="overflow-x-auto w-full border rounded-md">
+                  <div className="space-y-4">
+                    <h4 className="font-outfit font-semibold text-lg flex items-center gap-2 text-foreground">
+                      <div className="w-2 h-6 bg-primary rounded-full"></div>
+                      Relatório Analítico de Comissões ({detailsData.paymentPercentage}%)
+                    </h4>
+                    <div className="overflow-hidden w-full border border-border/50 rounded-xl shadow-sm">
                       <table className="w-full text-sm text-left">
-                        <thead className="bg-primary/10 text-primary uppercase text-xs">
+                        <thead className="bg-primary/5 text-primary text-xs font-semibold tracking-wider uppercase">
                           <tr>
-                            <th className="px-4 py-2 rounded-tl-md">Aluno Taught</th>
-                            <th className="px-4 py-2">Mensalidade (Base)</th>
-                            <th className="px-4 py-2 rounded-tr-md">Comissão Gerada</th>
+                            <th className="px-5 py-4">Aluno Taught</th>
+                            <th className="px-5 py-4">Mensalidade (Base)</th>
+                            <th className="px-5 py-4">Comissão Gerada</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-border/30 bg-background/50">
                           {detailsData.percentageDetails.map((item: any, idx: number) => (
-                            <tr key={idx} className="border-b last:border-0 hover:bg-muted/50">
-                              <td className="px-4 py-3 font-medium">{item.studentName}</td>
-                              <td className="px-4 py-3 text-zinc-500">R$ {item.monthlyFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                              <td className="px-4 py-3 font-bold text-green-600">R$ {item.commission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            <tr key={idx} className="hover:bg-primary/5 transition-colors">
+                              <td className="px-5 py-4 font-medium text-foreground">{item.studentName}</td>
+                              <td className="px-5 py-4 text-zinc-500">R$ {item.monthlyFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="px-5 py-4 font-bold text-green-600">R$ {item.commission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -371,30 +388,35 @@ export default function ProfessorExtract() {
                   </div>
                 )}
                 
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground">Histórico de Aulas Concluídas</h4>
+                <div className="space-y-4">
+                  <h4 className="font-outfit font-semibold text-lg flex items-center gap-2 text-foreground">
+                    <div className="w-2 h-6 bg-zinc-400 rounded-full"></div>
+                    Histórico de Aulas Concluídas
+                  </h4>
                   {detailsData?.lessons?.length === 0 ? (
-                    <p className="text-center text-zinc-500 py-8">Nenhuma aula encontrada para este período.</p>
+                    <div className="bg-muted/30 rounded-xl p-8 text-center text-zinc-500 border border-dashed border-border">
+                      Nenhuma aula encontrada para este período.
+                    </div>
                   ) : (
-                    <div className="overflow-x-auto w-full border rounded-md">
+                    <div className="overflow-hidden w-full border border-border/50 rounded-xl shadow-sm">
                       <table className="w-full text-sm text-left">
-                        <thead className="bg-muted text-muted-foreground uppercase text-xs">
+                        <thead className="bg-muted/50 text-muted-foreground text-xs font-semibold tracking-wider uppercase">
                           <tr>
-                            <th className="px-4 py-2 rounded-tl-md">Data</th>
-                            <th className="px-4 py-2">Aluno</th>
-                            <th className="px-4 py-2">Título</th>
-                            <th className="px-4 py-2">Duração</th>
-                            <th className="px-4 py-2 rounded-tr-md">Status</th>
+                            <th className="px-5 py-4">Data</th>
+                            <th className="px-5 py-4">Aluno</th>
+                            <th className="px-5 py-4">Título</th>
+                            <th className="px-5 py-4">Duração</th>
+                            <th className="px-5 py-4">Status</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-border/30 bg-background/50">
                           {detailsData?.lessons.map((lesson: any) => (
-                            <tr key={lesson.id} className="border-b last:border-0 hover:bg-muted/50">
-                              <td className="px-4 py-3">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}</td>
-                              <td className="px-4 py-3 font-medium">{lesson.studentName || "-"}</td>
-                              <td className="px-4 py-3 text-zinc-500">{lesson.title}</td>
-                              <td className="px-4 py-3">{lesson.duration}m</td>
-                              <td className="px-4 py-3">
+                            <tr key={lesson.id} className="hover:bg-muted transition-colors">
+                              <td className="px-5 py-4 font-medium text-zinc-600 dark:text-zinc-400">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}</td>
+                              <td className="px-5 py-4 font-semibold text-foreground">{lesson.studentName || "-"}</td>
+                              <td className="px-5 py-4 text-zinc-500">{lesson.title}</td>
+                              <td className="px-5 py-4 font-medium">{lesson.duration}m</td>
+                              <td className="px-5 py-4">
                                 <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">{lesson.status}</Badge>
                               </td>
                             </tr>
@@ -404,7 +426,7 @@ export default function ProfessorExtract() {
                     </div>
                   )}
                 </div>
-              </>
+              </motion.div>
             )}
           </div>
         </DialogContent>
@@ -412,15 +434,15 @@ export default function ProfessorExtract() {
 
       {/* Modal: Ajustes Manuais */}
       <Dialog open={!!adjustPayment} onOpenChange={(o) => !o && setAdjustPayment(null)}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="w-[95vw] sm:w-full max-w-xl rounded-2xl bg-card/95 backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle>Ajustes Manuais</DialogTitle>
+            <DialogTitle className="font-outfit text-2xl text-foreground">Ajustes Manuais</DialogTitle>
           </DialogHeader>
           {adjustPayment && (
             <div className="space-y-6 mt-4">
               <div className="space-y-4">
                 {adjustPayment.adjs.map((adj: any, idx: number) => (
-                  <div key={idx} className="flex gap-2 items-center">
+                  <div key={idx} className="flex gap-3 items-center bg-muted/20 p-2 rounded-xl border border-border/30">
                     <Input 
                       placeholder="Descrição (ex: Bônus, Falta)" 
                       value={adj.desc} 
@@ -429,7 +451,7 @@ export default function ProfessorExtract() {
                         newAdjs[idx].desc = e.target.value;
                         setAdjustPayment({...adjustPayment, adjs: newAdjs});
                       }}
-                      className="flex-1"
+                      className="flex-1 bg-background/50"
                     />
                     <Input 
                       type="number" 
@@ -440,58 +462,51 @@ export default function ProfessorExtract() {
                         newAdjs[idx].value = parseFloat(e.target.value) || 0;
                         setAdjustPayment({...adjustPayment, adjs: newAdjs});
                       }}
-                      className="w-32"
+                      className="w-32 bg-background/50 font-outfit"
                     />
-                    <Button variant="ghost" size="icon" onClick={() => {
+                    <Button variant="ghost" size="icon" className="hover:bg-red-500/10 hover:text-red-500 rounded-lg" onClick={() => {
                       const newAdjs = adjustPayment.adjs.filter((_:any, i:number) => i !== idx);
                       setAdjustPayment({...adjustPayment, adjs: newAdjs});
                     }}>
-                      <Trash2 className="w-4 h-4 text-red-500" />
+                      <Trash2 className="w-5 h-5" />
                     </Button>
                   </div>
                 ))}
                 
-                <Button variant="outline" className="w-full" onClick={() => {
+                <Button variant="outline" className="w-full border-dashed border-2 hover:bg-primary/5 hover:text-primary transition-colors py-6 rounded-xl" onClick={() => {
                   setAdjustPayment({...adjustPayment, adjs: [...adjustPayment.adjs, { desc: "", value: 0 }]});
                 }}>
-                  <Plus className="w-4 h-4 mr-2" /> Adicionar Ajuste
+                  <Plus className="w-5 h-5 mr-2" /> Adicionar Novo Ajuste
                 </Button>
               </div>
 
-              <div className="bg-muted p-4 rounded-lg space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Créditos de Aulas:</span>
-                  <span>R$ {Number(adjustPayment.totalCredits).toFixed(2)}</span>
+              <div className="bg-primary/5 p-6 rounded-2xl border border-primary/10 space-y-3 text-sm">
+                <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-400">
+                  <span className="font-medium">Créditos Base:</span>
+                  <span className="font-outfit text-base">R$ {Number(adjustPayment.totalCredits).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-green-600">
-                  <span>Ajustes (+):</span>
-                  <span>R$ {adjustPayment.adjs.filter((a:any)=>a.value>0).reduce((sum:number,a:any)=>sum+a.value,0).toFixed(2)}</span>
+                <div className="flex justify-between items-center text-green-600">
+                  <span className="font-medium">Ajustes (+):</span>
+                  <span className="font-outfit text-base">+ R$ {adjustPayment.adjs.filter((a:any)=>a.value>0).reduce((sum:number,a:any)=>sum+a.value,0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-red-500">
-                  <span>Ajustes (-):</span>
-                  <span>-R$ {Math.abs(adjustPayment.adjs.filter((a:any)=>a.value<0).reduce((sum:number,a:any)=>sum+a.value,0)).toFixed(2)}</span>
+                <div className="flex justify-between items-center text-red-500">
+                  <span className="font-medium">Ajustes (-):</span>
+                  <span className="font-outfit text-base">- R$ {Math.abs(adjustPayment.adjs.filter((a:any)=>a.value<0).reduce((sum:number,a:any)=>sum+a.value,0)).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between font-bold border-t pt-2 mt-2">
-                  <span>Total Líquido:</span>
-                  <span>R$ {(
+                <div className="flex justify-between items-center font-bold border-t border-primary/20 pt-4 mt-2">
+                  <span className="text-foreground text-base">Total Líquido:</span>
+                  <span className="font-outfit text-2xl text-primary">R$ {(
                     Number(adjustPayment.totalCredits) + 
                     adjustPayment.adjs.reduce((sum:number,a:any)=>sum+a.value,0)
                   ).toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setAdjustPayment(null)}>Cancelar</Button>
-                <Button disabled={updateAdjustmentsMutation.isPending} onClick={() => {
-                  const baseCredits = Number(payments?.find(p => p.id === adjustPayment.id)?.totalCredits || 0); // Need actual base, but totalCredits is overwritten... wait, totalCredits should be baseCredits + adjs(+). 
-                  // Let's just calculate:
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="ghost" className="rounded-xl" onClick={() => setAdjustPayment(null)}>Cancelar</Button>
+                <Button className="rounded-xl shadow-lg shadow-primary/20" disabled={updateAdjustmentsMutation.isPending} onClick={() => {
                   const manualCredits = adjustPayment.adjs.filter((a:any)=>a.value>0).reduce((sum:number,a:any)=>sum+a.value,0);
                   const manualDebits = Math.abs(adjustPayment.adjs.filter((a:any)=>a.value<0).reduce((sum:number,a:any)=>sum+a.value,0));
-                  
-                  // Wait, original calculate mutation set totalCredits to base. 
-                  // If we don't have original base stored separately, we can guess it's `payment.totalCredits - oldManualCredits` or we just say `payment.totalCredits` is the class total. Let's fix that.
-                  // For simplicity, totalAmount = adjustPayment.totalCredits + sum(adjs)
-                  // totalDebits = sum(negative adjs)
                   
                   const totalAmount = Number(adjustPayment.totalCredits) + adjustPayment.adjs.reduce((sum:number,a:any)=>sum+a.value, 0);
 
@@ -504,7 +519,7 @@ export default function ProfessorExtract() {
                   });
                 }}>
                   {updateAdjustmentsMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Salvar Ajustes
+                  Salvar Alterações
                 </Button>
               </div>
             </div>
