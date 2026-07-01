@@ -3420,7 +3420,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (input?.studentId) conditions.push(eq(reminders.studentId, input.studentId));
         if (input?.type)      conditions.push(eq(reminders.type, input.type));
         if (input?.status)    conditions.push(eq(reminders.status, input.status));
-        if (input?.dateFrom)  conditions.push(gte(reminders.scheduledAt, new Date(input.dateFrom)));
+        if (input?.dateFrom)  {
+          conditions.push(gte(reminders.scheduledAt, new Date(input.dateFrom)));
+        } else {
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          conditions.push(
+            or(
+              eq(reminders.status, "pendente"),
+              gte(reminders.createdAt, sevenDaysAgo)
+            )
+          );
+        }
         if (input?.dateTo)    conditions.push(lte(reminders.scheduledAt, new Date(input.dateTo)));
 
         const rows = await db
