@@ -57,7 +57,8 @@ const filesToUpload = [
   'client/src/pages/RecepcaoQRCode.tsx',
   'client/src/pages/QRScanner.tsx',
   'client/src/pages/ProfessoresTab.tsx',
-  'client/src/components/modals/AgendarModal.tsx'
+  'client/src/components/modals/AgendarModal.tsx',
+  'server/reportEngineRouter.ts'
 ];
 
 conn.on('ready', () => {

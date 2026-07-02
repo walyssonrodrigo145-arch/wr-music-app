@@ -8,7 +8,7 @@ import {
   ChevronRight, Music, CreditCard,
   CalendarDays, Search, UserPlus, Target, Clock,
   LayoutGrid, PieChart as PieIcon, TrendingDown, Wallet, LineChart as LineIcon,
-  Layers, GraduationCap, BarChart2, Sparkles, FileText, AlertCircle, Activity
+  Layers, GraduationCap, BarChart2, Sparkles, FileText, AlertCircle, Activity, Loader2
 } from 'lucide-react';
 import { trpc } from '../lib/trpc';
 import { format } from 'date-fns';
@@ -200,11 +200,12 @@ const Relatorios: React.FC = () => {
   };
 
   // ── Export ─────────────────────────────────────────────────────────────────
-  const handleExport = (format: 'csv' | 'excel') => {
+  const handleExport = (format: 'csv' | 'excel', forceAi = false) => {
     try {
       let columns: string[] = [];
       let rows: any[][] = [];
       const title = `Relatório ${activeTab} — ${currentMonthName}/${selectedYear}`;
+      const shouldUseAi = forceAi || includeAi;
 
       if (activeTab === 'financeiro') {
         columns = ['Data Vencimento', 'Aluno/Descrição', 'Valor', 'Status', 'Data Pagamento'];
@@ -252,8 +253,8 @@ const Relatorios: React.FC = () => {
         rows.push(["Receita mensal", statsQuery.data?.monthlyRevenue || 0]);
       }
 
-      toast.loading(`Gerando relatório ${format.toUpperCase()}${includeAi ? ' com IA' : ''}...`, { id: 'export-loading' });
-      generateReport.mutate({ format, title, columns, rows, period: `${currentMonthName}/${selectedYear}`, includeAiInsights: includeAi }, {
+      toast.loading(`Gerando relatório ${format.toUpperCase()}${shouldUseAi ? ' com IA' : ''}...`, { id: 'export-loading' });
+      generateReport.mutate({ format, title, columns, rows, period: `${currentMonthName}/${selectedYear}`, includeAiInsights: shouldUseAi }, {
         onSuccess: (data) => {
           toast.dismiss('export-loading');
           downloadBase64File(data.data, format as 'csv' | 'excel', `relatorio_${activeTab}`);
@@ -322,7 +323,7 @@ const Relatorios: React.FC = () => {
             <p className="text-xs text-muted-foreground mb-5 mt-1">Visão geral da estrutura atual</p>
             <div className="flex flex-col gap-3">
               {[
-                { label: 'Alunos Ativos', value: statsQuery.data?.totalStudents || 0, icon: Users, color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
+                { label: 'Alunos Ativos', value: activeStudents || 0, icon: Users, color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
                 { label: 'Aulas do Mês', value: statsQuery.data?.monthLessons || 0, icon: GraduationCap, color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
                 { label: 'Instrumentos', value: instrumentStatsQuery.data?.length || 0, icon: Music, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
               ].map((item, i) => (
@@ -1022,7 +1023,7 @@ const Relatorios: React.FC = () => {
             {/* KPIs rápidos no hero */}
             <div className="flex flex-wrap gap-3">
               {[
-                { label: 'Alunos (Ativos)', value: statsQuery.data?.activeStudents ?? '—' },
+                { label: 'Alunos (Ativos)', value: activeStudents ?? '—' },
                 { label: 'Aulas/Mês', value: statsQuery.data?.monthLessons ?? '—' },
                 { label: 'Receita', value: financeiroQuery.data?.total != null ? currencyFormat(financeiroQuery.data.total) : '—' },
               ].map(kpi => (
@@ -1103,14 +1104,19 @@ const Relatorios: React.FC = () => {
               <Download size={15} /> Exportar
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuCheckboxItem checked={includeAi} onCheckedChange={setIncludeAi} className="text-xs text-primary font-bold cursor-pointer bg-purple-50">
-                ✨ Gerar Análise com IA
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleExport('excel')} className="font-semibold text-xs cursor-pointer">
-                Excel (.xlsx)
+              <DropdownMenuItem 
+                onClick={() => handleExport('excel', true)} 
+                disabled={generateReport.isPending} 
+                className="text-xs text-primary font-bold cursor-pointer bg-purple-50 flex items-center"
+              >
+                {generateReport.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : "✨ "}
+                Gerar Análise com IA (Excel)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('csv')} className="font-semibold text-xs cursor-pointer">
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExport('excel', false)} className="font-semibold text-xs cursor-pointer">
+                Excel Normal (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('csv', false)} className="font-semibold text-xs cursor-pointer">
                 CSV
               </DropdownMenuItem>
               <DropdownMenuItem disabled className="font-semibold text-xs text-muted-foreground cursor-not-allowed">
