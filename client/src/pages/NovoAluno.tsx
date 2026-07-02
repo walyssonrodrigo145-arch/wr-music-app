@@ -415,6 +415,7 @@ export default function NovoAluno() {
       notes: form.notes,
       temporaryPassword: form.temporaryPassword || undefined,
       avatar: form.avatar || undefined,
+      allowAutoReminders: form.allowAutoReminders,
     };
 
     if (isEditMode) {
