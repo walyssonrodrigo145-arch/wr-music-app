@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { 
   DollarSign, Plus, X, Loader2, Trash2, Pencil, Search, 
@@ -201,6 +201,22 @@ function EditDespesaModal({ open, onClose, expense }: { open: boolean; onClose: 
     status: expense?.status || "pendente",
     notes: expense?.notes || ""
   });
+
+  useEffect(() => {
+    if (expense) {
+      setForm({
+        description: expense.description || "",
+        supplier: expense.supplier || "",
+        account: expense.account || "",
+        amount: expense.amount ? String(expense.amount) : "",
+        date: expense.date || new Date().toISOString().slice(0, 10),
+        category: expense.category || "Outros",
+        recurrence: expense.recurrence || "unica",
+        status: expense.status || "pendente",
+        notes: expense.notes || ""
+      });
+    }
+  }, [expense]);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
