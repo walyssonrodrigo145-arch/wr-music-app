@@ -679,7 +679,15 @@ async function runAutomation() {
                 if (lesson.allowAutoReminders === false || lesson.allowAutoReminders === 0) continue;
                 const lessonTime = new Date(lesson.scheduledAt);
                 const triggerTime = new Date(lessonTime.getTime() + offsetMs); // offsetHours=-24 → 24h before
+                
+                // Só dispara se o tempo já passou...
                 if (triggerTime > now2) continue;
+                
+                // E só dispara se AINDA for o mesmo dia calendário (BRT) planejado para o disparo.
+                // Se virar a meia-noite, a mensagem perderia o contexto (ex: falaria 'amanhã' no dia da aula).
+                const triggerDayStr = triggerTime.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+                const nowDayStr = now2.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+                if (triggerDayStr !== nowDayStr) continue;
 
                 const lessonDateStr = lessonTime.toISOString().slice(0, 10);
                 // ✅ FIX: Lock exclusivo por Regra. Permite que o usuário tenha múltiplas automações para a mesma aula (ex: 24h antes E 1h antes).
