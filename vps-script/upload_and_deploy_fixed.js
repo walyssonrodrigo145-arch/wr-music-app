@@ -58,7 +58,8 @@ const filesToUpload = [
   'client/src/pages/QRScanner.tsx',
   'client/src/pages/ProfessoresTab.tsx',
   'client/src/components/modals/AgendarModal.tsx',
-  'server/reportEngineRouter.ts'
+  'server/reportEngineRouter.ts',
+  'server/report_engine/excelExporter.ts'
 ];
 
 conn.on('ready', () => {
