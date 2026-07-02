@@ -429,6 +429,8 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
     }
   });
 
+  const generateReport = trpc.reportEngine.generate.useMutation();
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uploadingFor) return;
@@ -547,16 +549,34 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
   const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#6b7280'];
 
   const exportCSV = () => {
-    let csv = "ID,Descrição,Fornecedor,Conta,Categoria,Valor,Data,Recorrência,Status\n";
+    let columns = ["ID", "Descrição", "Fornecedor", "Conta", "Categoria", "Valor", "Data", "Recorrência", "Status"];
+    let rows: any[][] = [];
     filtered.forEach((e: any) => {
-      csv += `${e.id},"${e.description}","${e.supplier || ''}","${e.account || ''}","${e.category}",${e.amount},${e.date},"${e.recurrence}","${e.status}"\n`;
+      rows.push([e.id, e.description, e.supplier || '-', e.account || '-', e.category, Number(e.amount), format(new Date(e.date + "T12:00:00"), 'dd/MM/yyyy'), e.recurrence, e.status.toUpperCase()]);
     });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `despesas_${viewMonth}_${viewYear}.csv`);
-    link.click();
+
+    toast.loading("Gerando relatório em Excel com IA...", { id: 'export-despesas' });
+    generateReport.mutate({ 
+      format: 'excel', 
+      title: `Despesas — ${MONTHS_PT[viewMonth-1]}/${viewYear}`, 
+      columns, 
+      rows, 
+      period: `${MONTHS_PT[viewMonth-1]}/${viewYear}`, 
+      includeAiInsights: true 
+    }, {
+      onSuccess: (data) => {
+        toast.dismiss('export-despesas');
+        const link = document.createElement("a");
+        link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${data.data}`;
+        link.download = `relatorio_despesas_${MONTHS_PT[viewMonth-1]}_${viewYear}.xlsx`;
+        link.click();
+        toast.success("Relatório Premium gerado com sucesso!");
+      },
+      onError: (e) => {
+        toast.dismiss('export-despesas');
+        toast.error("Erro ao gerar relatório: " + e.message);
+      }
+    });
   };
 
   return (
