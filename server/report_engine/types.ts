@@ -8,6 +8,8 @@ export interface ReportConfig {
   sheet_name?: string;
   columns: string[];
   rows: any[][];
+  includeAiInsights?: boolean;
+  aiInsightsText?: string;
 }
 
 export type ExportFormat = 'csv' | 'excel' | 'pdf';

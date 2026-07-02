@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadBase64File } from '../utils/downloadReport';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -147,6 +147,7 @@ const Relatorios: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState('');
+  const [includeAi, setIncludeAi] = useState(false);
 
   // ── Previous month helpers ─────────────────────────────────────────────────
   const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
@@ -167,6 +168,8 @@ const Relatorios: React.FC = () => {
   const projecaoQuery       = trpc.reports.getProjecao6Meses.useQuery({ month: selectedMonth, year: selectedYear });
   const studentsQuery       = trpc.students.list.useQuery();
   const overduePaymentsQuery = trpc.paymentDues.overdue.useQuery();
+  const paymentDuesQuery    = trpc.paymentDues.list.useQuery({ month: selectedMonth, year: selectedYear });
+  const expensesQuery       = trpc.expenses.list.useQuery({ month: selectedMonth, year: selectedYear });
   const frequencyQuery      = trpc.reports.getFrequencyDetails.useQuery({ month: selectedMonth, year: selectedYear });
   const alunosReportQuery   = trpc.reports.getAlunosReport.useQuery();
   const modalidadeStatsQuery = trpc.reports.getModalidadeStats.useQuery({ month: selectedMonth, year: selectedYear });
@@ -204,20 +207,27 @@ const Relatorios: React.FC = () => {
       const title = `Relatório ${activeTab} — ${currentMonthName}/${selectedYear}`;
 
       if (activeTab === 'financeiro') {
-        columns = ['Status', 'Valor'];
-        rows = [
-          ['Recebido', financeiroQuery.data?.pago || 0],
-          ['Pendente', financeiroQuery.data?.pendente || 0],
-          ['Inadimplente', financeiroQuery.data?.atrasado || 0],
-          ['Total Projetado', financeiroQuery.data?.total || 0],
-        ];
+        columns = ['Data Vencimento', 'Aluno/Descrição', 'Valor', 'Status', 'Data Pagamento'];
+        paymentDuesQuery.data?.forEach(p => {
+          rows.push([
+            formatDate(new Date(p.dueDate), 'dd/MM/yyyy'),
+            p.studentName || p.notes || 'Mensalidade',
+            p.amount,
+            p.status.toUpperCase(),
+            p.paidAt ? formatDate(new Date(p.paidAt), 'dd/MM/yyyy') : '-'
+          ]);
+        });
       } else if (activeTab === 'despesas') {
-        columns = ['Categoria', 'Valor'];
-        despesasQuery.data?.categories.forEach(c => rows.push([c.name, c.value]));
-        rows.push(['Total Despesas', despesasQuery.data?.total || 0]);
-        rows.push(['Receita Total', financeiroQuery.data?.total || 0]);
-        const lucro = (financeiroQuery.data?.total || 0) - (despesasQuery.data?.total || 0);
-        rows.push(['Lucro Líquido', lucro]);
+        columns = ['Data', 'Descrição', 'Categoria', 'Valor', 'Status'];
+        expensesQuery.data?.forEach(e => {
+          rows.push([
+            formatDate(new Date(e.date), 'dd/MM/yyyy'),
+            e.description,
+            e.category || '-',
+            e.amount,
+            e.isPaid ? 'PAGO' : 'PENDENTE'
+          ]);
+        });
       } else if (activeTab === 'projecao') {
         columns = ["Mês", "Receita Projetada", "Despesa Projetada", "Lucro Projetado"];
         projecaoQuery.data?.projection.forEach(p => rows.push([p.monthName, p.receita, p.despesa, p.lucro]));
@@ -228,12 +238,12 @@ const Relatorios: React.FC = () => {
         columns = ["Data", "Aluno", "Professor", "Status", "Observação"];
         frequencyQuery.data?.forEach(f => {
           const presence = f.status === 'concluida' ? 'Presente' : f.status === 'cancelada' ? 'Falta' : 'Reposição';
-          rows.push([format(new Date(f.date), 'dd/MM/yyyy'), f.studentName, f.professorName, presence, f.observation || '']);
+          rows.push([formatDate(new Date(f.date), 'dd/MM/yyyy'), f.studentName, f.professorName, presence, f.observation || '']);
         });
       } else if (activeTab === 'mensalidades') {
         columns = ["Aluno", "Vencimento", "Valor", "Status"];
         overduePaymentsQuery.data?.forEach(p => {
-          rows.push([p.studentName, format(new Date(p.dueDate), 'dd/MM/yyyy'), p.amount, p.status]);
+          rows.push([p.studentName, formatDate(new Date(p.dueDate), 'dd/MM/yyyy'), p.amount, p.status]);
         });
       } else {
         columns = ["Indicador", "Valor"];
@@ -242,8 +252,8 @@ const Relatorios: React.FC = () => {
         rows.push(["Receita mensal", statsQuery.data?.monthlyRevenue || 0]);
       }
 
-      toast.loading(`Gerando relatório ${format.toUpperCase()}...`, { id: 'export-loading' });
-      generateReport.mutate({ format, title, columns, rows, period: `${currentMonthName}/${selectedYear}` }, {
+      toast.loading(`Gerando relatório ${format.toUpperCase()}${includeAi ? ' com IA' : ''}...`, { id: 'export-loading' });
+      generateReport.mutate({ format, title, columns, rows, period: `${currentMonthName}/${selectedYear}`, includeAiInsights: includeAi }, {
         onSuccess: (data) => {
           toast.dismiss('export-loading');
           downloadBase64File(data.data, format as 'csv' | 'excel', `relatorio_${activeTab}`);
@@ -1093,6 +1103,10 @@ const Relatorios: React.FC = () => {
               <Download size={15} /> Exportar
             </DropdownMenuTrigger>
             <DropdownMenuContent>
+              <DropdownMenuCheckboxItem checked={includeAi} onCheckedChange={setIncludeAi} className="text-xs text-primary font-bold cursor-pointer bg-purple-50">
+                ✨ Gerar Análise com IA
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleExport('excel')} className="font-semibold text-xs cursor-pointer">
                 Excel (.xlsx)
               </DropdownMenuItem>
