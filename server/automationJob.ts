@@ -681,18 +681,12 @@ async function runAutomation() {
                 if (triggerTime > now2) continue;
 
                 const lessonDateStr = lessonTime.toISOString().slice(0, 10);
-                // ✅ FIX: Unificado com padrão do routers.ts — travas cruzadas agora funcionam entre os dois sistemas
-                const refId = `lesson-${lesson.id}-${lessonDateStr}`;
-                const oldRefId = `auto-rule-${rule.id}-lesson-${lesson.id}-${lessonDateStr}`; // padrão legado
+                // ✅ FIX: Lock exclusivo por Regra. Permite que o usuário tenha múltiplas automações para a mesma aula (ex: 24h antes E 1h antes).
+                const refId = `auto-rule-${rule.id}-lesson-${lesson.id}-${lessonDateStr}`;
                 const existing = await db.select({ id: reminders.id }).from(reminders)
                   .where(and(
                     eq(reminders.organizationId, orgId),
-                    or(
-                      eq(reminders.refId, refId),
-                      eq(reminders.refId, oldRefId),
-                      // Trava por lessonId: se qualquer lembrete já existe para esta aula, pula
-                      eq(reminders.lessonId, lesson.id)
-                    )
+                    eq(reminders.refId, refId)
                   )).limit(1);
                 if (existing.length > 0) continue;
 
