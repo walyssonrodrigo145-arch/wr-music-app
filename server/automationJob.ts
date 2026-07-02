@@ -493,7 +493,8 @@ async function runAutomation() {
         .where(eq(settings.automationEnabled, 1));
 
       for (const userSet of activeSettingsForRules) {
-                if (userSet.allowAutoReminders === false || userSet.allowAutoReminders === 0) continue;
+        // Nota: o controle de allowAutoReminders é POR ALUNO (students.allowAutoReminders),
+        // verificado dentro de cada loop de aluno mais abaixo. Não existe allowAutoReminders na tabela settings.
         const userId = userSet.userId;
         const orgId = userSet.organizationId;
         if (!orgId) continue;
