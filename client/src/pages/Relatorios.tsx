@@ -200,7 +200,7 @@ const Relatorios: React.FC = () => {
   };
 
   // ── Export ─────────────────────────────────────────────────────────────────
-  const handleExport = (format: 'csv' | 'excel', forceAi = false) => {
+  const handleExport = (fileFormat: 'csv' | 'excel', forceAi = false) => {
     try {
       let columns: string[] = [];
       let rows: any[][] = [];
@@ -231,7 +231,7 @@ const Relatorios: React.FC = () => {
         });
       } else if (activeTab === 'projecao') {
         columns = ["Mês", "Receita Projetada", "Despesa Projetada", "Lucro Projetado"];
-        projecaoQuery.data?.projection.forEach(p => rows.push([p.monthName, p.receita, p.despesa, p.lucro]));
+        projecaoQuery.data?.projection?.forEach(p => rows.push([p.monthName, p.receita, p.despesa, p.lucro]));
       } else if (activeTab === 'alunos') {
         columns = ["ID", "Nome", "Professor", "Instrumento", "Mensalidade", "Status"];
         alunosReportQuery.data?.forEach(s => rows.push([s.id, s.name, s.professorName || '', s.instrumentName || '', s.monthlyFee, s.status]));
@@ -253,11 +253,11 @@ const Relatorios: React.FC = () => {
         rows.push(["Receita mensal", statsQuery.data?.monthlyRevenue || 0]);
       }
 
-      toast.loading(`Gerando relatório ${format.toUpperCase()}${shouldUseAi ? ' com IA' : ''}...`, { id: 'export-loading' });
-      generateReport.mutate({ format, title, columns, rows, period: `${currentMonthName}/${selectedYear}`, includeAiInsights: shouldUseAi }, {
+      toast.loading(`Gerando relatório ${fileFormat.toUpperCase()}${shouldUseAi ? ' com IA' : ''}...`, { id: 'export-loading' });
+      generateReport.mutate({ format: fileFormat, title, columns, rows, period: `${currentMonthName}/${selectedYear}`, includeAiInsights: shouldUseAi }, {
         onSuccess: (data) => {
           toast.dismiss('export-loading');
-          downloadBase64File(data.data, format as 'csv' | 'excel', `relatorio_${activeTab}`);
+          downloadBase64File(data.data, fileFormat as 'csv' | 'excel', `relatorio_${activeTab}`);
           toast.success('Relatório exportado com sucesso!');
         },
         onError: () => {
