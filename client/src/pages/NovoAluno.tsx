@@ -1049,7 +1049,7 @@ export default function NovoAluno() {
                 </div>
                 <Switch 
                   checked={form.allowAutoReminders}
-                  onCheckedChange={(checked) => handleInputChange('allowAutoReminders', checked)}
+                  onCheckedChange={(checked) => setForm(prev => ({ ...prev, allowAutoReminders: checked }))}
                 />
               </div>
             </motion.div>
