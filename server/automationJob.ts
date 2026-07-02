@@ -1063,11 +1063,14 @@ async function runAutomation() {
               const currentDayOfWeek = brazilDate.getDay(); // 0=Dom, 1=Seg... em horário BRT
               if (!daysOfWeek.includes(currentDayOfWeek)) continue;
 
-              // Verificar se o horário atual corresponde ao configurado (tolerância de ±2 minutos)
+              // Verificar se o horário atual já passou do horário configurado (com tolerância de até 30 minutos)
+              // Isso é muito mais robusto que ±2min — protege contra ciclos lentos ou reinicios do servidor.
+              // O refId por hora garante que só dispara UMA vez mesmo com a janela maior.
               const [sendHour, sendMin] = sendTime.split(":").map(Number);
               const nowTotalMin = brazilDate.getHours() * 60 + brazilDate.getMinutes(); // hora BRT
               const targetTotalMin = sendHour * 60 + sendMin;
-              if (Math.abs(nowTotalMin - targetTotalMin) > 2) continue;
+              // Só dispara depois do horário configurado (0 a +30 min de tolerância)
+              if (nowTotalMin < targetTotalMin || nowTotalMin > targetTotalMin + 30) continue;
 
               // Buscar todos os alunos ativos do professor
               const activeStudentsList = await db
@@ -1152,10 +1155,10 @@ async function runAutomation() {
               const currentDayOfWeek = brazilDate.getDay(); 
               if (!daysOfWeek.includes(currentDayOfWeek)) continue;
 
-              const [sendHour, sendMin] = sendTime.split(":").map(Number);
-              const nowTotalMin = brazilDate.getHours() * 60 + brazilDate.getMinutes(); 
-              const targetTotalMin = sendHour * 60 + sendMin;
-              if (Math.abs(nowTotalMin - targetTotalMin) > 2) continue;
+              const [sendHour2, sendMin2] = sendTime.split(":").map(Number);
+              const nowTotalMin2 = brazilDate.getHours() * 60 + brazilDate.getMinutes(); 
+              const targetTotalMin2 = sendHour2 * 60 + sendMin2;
+              if (nowTotalMin2 < targetTotalMin2 || nowTotalMin2 > targetTotalMin2 + 30) continue;
 
               const { dailyStudyPlans, notifications } = await import("../drizzle/schema");
               
