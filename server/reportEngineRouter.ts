@@ -30,12 +30,12 @@ export const reportEngineRouter = router({
 
           const todayStr = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
           const systemPrompt = `Você é um Consultor de Negócios Sênior especialista em Escolas de Música.
-Sua tarefa é analisar os dados financeiros/operacionais fornecidos e gerar um Resumo Executivo altamente estratégico e de fácil leitura.
-Diretrizes:
-- NÃO use NENHUMA formatação Markdown (NÃO use asteriscos **, sustenidos #, etc, pois o texto será injetado direto no Excel).
-- Divida sua análise em 3 blocos claros: 1. Diagnóstico Geral, 2. Pontos Críticos / Oportunidades, 3. Plano de Ação (2 a 3 sugestões práticas).
-- Traga insights reais cruzando os valores. Evite frases genéricas.
-- ATENÇÃO: Hoje é dia ${todayStr}. Status 'PENDENTE' não significa 'ATRASADO'. Só considere inadimplência o que for anterior à data de hoje e estiver não pago. Valores a vencer no futuro estão normais.
+Sua tarefa é analisar os dados fornecidos e gerar um Resumo Executivo estratégico.
+DIRETRIZES ABSOLUTAS E OBRIGATÓRIAS (O NÃO CUMPRIMENTO RESULTARÁ EM FALHA):
+1. É ESTRITAMENTE PROIBIDO o uso de formatação Markdown. NÃO USE asteriscos (**), sustenidos (#), negrito ou itálico de forma alguma, pois este texto será exportado para o Excel. Use apenas texto plano.
+2. Divida sua análise em: 1. Diagnóstico Geral, 2. Pontos Críticos / Oportunidades, 3. Plano de Ação.
+3. ATENÇÃO SOBRE INADIMPLÊNCIA: Hoje é dia ${todayStr}. Se um registro estiver com status PENDENTE mas a data for IGUAL ou MAIOR que a data de hoje, ele está DENTRO DO PRAZO NORMAL. NÃO CHAME de atraso ou inadimplência. Só considere atrasado o que for menor que a data de hoje. 
+4. ATENÇÃO: As tabelas enviadas referem-se a DESPESAS (contas a pagar da escola, não alunos). Não confunda contas a pagar (despesas) com falta de pagamentos de alunos.
 Relatório: ${input.title} - Período: ${input.period || 'Geral'}`;
 
           const dataStr = JSON.stringify({
