@@ -211,18 +211,18 @@ const Relatorios: React.FC = () => {
         columns = ['Data Vencimento', 'Aluno/Descrição', 'Valor', 'Status', 'Data Pagamento'];
         paymentDuesQuery.data?.forEach(p => {
           rows.push([
-            formatDate(new Date(p.dueDate), 'dd/MM/yyyy'),
+            format(new Date(p.dueDate), 'dd/MM/yyyy'),
             p.studentName || p.notes || 'Mensalidade',
             p.amount,
             p.status.toUpperCase(),
-            p.paidAt ? formatDate(new Date(p.paidAt), 'dd/MM/yyyy') : '-'
+            p.paidAt ? format(new Date(p.paidAt), 'dd/MM/yyyy') : '-'
           ]);
         });
       } else if (activeTab === 'despesas') {
         columns = ['Data', 'Descrição', 'Categoria', 'Valor', 'Status'];
         expensesQuery.data?.forEach(e => {
           rows.push([
-            formatDate(new Date(e.date), 'dd/MM/yyyy'),
+            format(new Date(e.date), 'dd/MM/yyyy'),
             e.description,
             e.category || '-',
             e.amount,
@@ -239,12 +239,12 @@ const Relatorios: React.FC = () => {
         columns = ["Data", "Aluno", "Professor", "Status", "Observação"];
         frequencyQuery.data?.forEach(f => {
           const presence = f.status === 'concluida' ? 'Presente' : f.status === 'cancelada' ? 'Falta' : 'Reposição';
-          rows.push([formatDate(new Date(f.date), 'dd/MM/yyyy'), f.studentName, f.professorName, presence, f.observation || '']);
+          rows.push([format(new Date(f.date), 'dd/MM/yyyy'), f.studentName, f.professorName, presence, f.observation || '']);
         });
       } else if (activeTab === 'mensalidades') {
         columns = ["Aluno", "Vencimento", "Valor", "Status"];
         overduePaymentsQuery.data?.forEach(p => {
-          rows.push([p.studentName, formatDate(new Date(p.dueDate), 'dd/MM/yyyy'), p.amount, p.status]);
+          rows.push([p.studentName, format(new Date(p.dueDate), 'dd/MM/yyyy'), p.amount, p.status]);
         });
       } else {
         columns = ["Indicador", "Valor"];
