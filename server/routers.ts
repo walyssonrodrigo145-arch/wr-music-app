@@ -36,6 +36,7 @@ import { ENV } from "./_core/env";
 import { storagePut } from "./storage";
 import { superAdminRouter } from "./superAdminRouter";
 import { reportEngineRouter } from "./reportEngineRouter";
+import { pairingActiveSessions } from "./automationJob";
 
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
@@ -3999,13 +4000,26 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
 
         const sessionId = `prof_${ctx.user.id}`;
-        return await startWhatsAppSession({
+
+        // ── MARCAR SESSÃO COMO EM PAREAMENTO ────────────────────────────────────
+        // Isso blinda o Keep-Alive do automationJob de destruir a sessão
+        // enquanto o usuário está tentando escanear o QR Code ou inserir o código.
+        pairingActiveSessions.set(sessionId, Date.now());
+
+        const result = await startWhatsAppSession({
           url: userSet?.whatsappBotUrl || "",
           token: userSet?.whatsappBotToken || "",
           sessionId,
           phoneNumber: input.phoneNumber || "",
           mode: input.mode,
         });
+
+        // Se falhou, remove o flag de pareamento imediatamente
+        if (!result.success) {
+          pairingActiveSessions.delete(sessionId);
+        }
+
+        return result;
       }),
 
     getStatus: protectedProcedure
@@ -4020,11 +4034,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
         const sessionId = `prof_${ctx.user.id}`;
         try {
-          return await getWhatsAppSessionStatus({
+          const statusResult = await getWhatsAppSessionStatus({
             url: userSet?.whatsappBotUrl || "",
             token: userSet?.whatsappBotToken || "",
             sessionId,
           });
+
+          // Se conectou com sucesso, remove o flag de pareamento ativo
+          if (statusResult.status === "CONNECTED") {
+            pairingActiveSessions.delete(sessionId);
+          }
+
+          return statusResult;
         } catch (err: any) {
           return { sessionId, status: "DISCONNECTED", phone: "" };
         }
@@ -4041,6 +4062,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
 
         const sessionId = `prof_${ctx.user.id}`;
+
+        // Limpa o flag de pareamento ao desconectar manualmente
+        pairingActiveSessions.delete(sessionId);
+
         return await logoutWhatsAppSession({
           url: userSet?.whatsappBotUrl || "",
           token: userSet?.whatsappBotToken || "",

@@ -83,13 +83,16 @@ export async function sendSmartWhatsAppNotification({
 
   for (const phone of uniquePhones) {
     try {
-      await sendWhatsAppMessage({ 
+      const res = await sendWhatsAppMessage({ 
         url: whatsappConfig.url,
         token: whatsappConfig.token,
         phone, 
         message, 
         sessionId 
       });
+      if (!res.success) {
+        errors.push(`Erro ao enviar para ${phone}: ${res.error || 'Desconhecido'}`);
+      }
       // pequeno delay para não bloquear a API e evitar Anti-Spam
       await new Promise(r => setTimeout(r, 800));
     } catch (err: any) {

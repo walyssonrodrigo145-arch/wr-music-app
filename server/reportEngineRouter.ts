@@ -1,7 +1,7 @@
 import { router, protectedProcedure } from './_core/trpc';
 import { z } from 'zod';
 import { ReportGenerator } from './report_engine';
-import { db } from './db';
+import { getDb } from './db';
 import { callGemini } from './utils/gemini';
 
 export const reportEngineRouter = router({
@@ -21,32 +21,36 @@ export const reportEngineRouter = router({
       let aiInsightsText: string | undefined = undefined;
 
       if (input.includeAiInsights && input.format === 'excel') {
-        const settings = await db.query.settings.findFirst();
-        const apiKey = settings?.geminiApiKey;
-        const model = settings?.geminiModel;
+        const db = await getDb();
+        if (db) {
+          const { getSettingsByUserId } = await import('./db');
+          const settings = await getSettingsByUserId(ctx.user.organizationId!, ctx.user.id);
+          const apiKey = settings?.aiProvider === 'groq' ? settings?.groqApiKey : settings?.geminiApiKey;
+          const model = settings?.aiProvider === 'groq' ? settings?.groqModel : settings?.geminiModel;
 
-        const systemPrompt = `Você é um Consultor Sênior em uma escola/estúdio de música. 
+          const systemPrompt = `Você é um Consultor Sênior em uma escola/estúdio de música. 
 Sua tarefa é analisar os dados do relatório fornecido e gerar um Resumo Executivo Premium.
 Identifique tendências, anomalias, picos de inadimplência, melhores números, e dê 2 a 3 sugestões de melhoria acionáveis.
 Seja direto, corporativo, e use formatação limpa (tópicos, sem markdown excessivo que quebre no excel).
 Relatório: ${input.title} - Período: ${input.period || 'Geral'}`;
 
-        const dataStr = JSON.stringify({
-          columns: input.columns,
-          rows: input.rows.slice(0, 500) // Limite de 500 linhas para não estourar o token limit
-        });
+          const dataStr = JSON.stringify({
+            columns: input.columns,
+            rows: input.rows.slice(0, 500) // Limite de 500 linhas para não estourar o token limit
+          });
 
-        try {
-          aiInsightsText = await callGemini(
-            [{ role: 'user', content: `Analise estes dados: ${dataStr}` }],
-            systemPrompt,
-            false,
-            apiKey,
-            model
-          );
-        } catch (error) {
-          console.error("Falha ao gerar AI Insights para o relatório:", error);
-          aiInsightsText = "A Inteligência Artificial não conseguiu gerar o relatório devido a uma falha na API ou falta de chave configurada.";
+          try {
+            aiInsightsText = await callGemini(
+              [{ role: 'user', content: `Analise estes dados: ${dataStr}` }],
+              systemPrompt,
+              false,
+              apiKey,
+              model
+            );
+          } catch (error) {
+            console.error("Falha ao gerar AI Insights para o relatório:", error);
+            aiInsightsText = "A Inteligência Artificial não conseguiu gerar o relatório devido a uma falha na API ou falta de chave configurada.";
+          }
         }
       }
 

@@ -41,14 +41,19 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
       const payload = {
         number: phoneToTry,
         options: { delay: 1200, presence: "composing" },
-        textMessage: { text: message }
+        text: message
       };
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", "apikey": activeToken },
         body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
 
       let responseData: any = {};
       try { responseData = await res.json(); } catch (_) {}
@@ -100,56 +105,91 @@ interface StartSessionParams {
 }
 
 /**
- * Cria ou conecta uma instância WhatsApp na Evolution API.
- * Evolution API v2:
- * 1. POST /instance/create
- * 2. GET /instance/connect/{instanceName}
+ * Cria ou conecta uma instância WhatsApp na Evolution API v2.3.7+.
+ *
+ * Comportamento confirmado via testes na v2.3.7:
+ * - Criar com qrcode:true sempre inicializa o Baileys corretamente
+ * - GET /instance/connect/{name}              → retorna QR code (base64)
+ * - GET /instance/connect/{name}?number=55XX  → tenta pairing code (pode retornar null na v2.3.7)
+ * - Se pairing code vier null mas base64 existir, usamos QR como fallback automático
  */
-export async function startWhatsAppSession({ url, token, sessionId, phoneNumber }: StartSessionParams) {
+export async function startWhatsAppSession({ url, token, sessionId, phoneNumber, mode }: StartSessionParams) {
   const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
   const activeToken = token || EVOLUTION_API_KEY;
 
-  try {
-    // 1. Tentar criar a instância (se já existir, retornará erro que ignoramos ou conectamos direto)
-    const createRes = await fetch(`${baseUrl}/instance/create`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": activeToken
-      },
-      body: JSON.stringify({
-        instanceName: sessionId,
-        qrcode: true,
-        integration: "WHATSAPP-BAILEYS"
-      }),
-    });
-    
-    // Pegar o qr code que pode vir direto do create na v1.6.1
-    const createData = await createRes.json().catch(() => ({}));
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-    // 2. Tentar conectar (pegar QRCode ou Pairing Code)
-    // Na v1/v2, se a instância já existe, pedimos /instance/connect
-    const connectRes = await fetch(`${baseUrl}/instance/connect/${sessionId}`, {
+  try {
+    // ── PASSO 1: Deletar instância anterior ──────────────────────────────────────
+    await fetch(`${baseUrl}/instance/delete/${sessionId}`, {
+      method: "DELETE",
+      headers: { "apikey": activeToken },
+    }).catch(() => {});
+    await sleep(2000);
+
+    // ── PASSO 2: Número limpo ─────────────────────────────────────────────────────
+    let cleanPhone = "";
+    if (phoneNumber) {
+      cleanPhone = phoneNumber.replace(/\D/g, "");
+      if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+        cleanPhone = "55" + cleanPhone;
+      }
+    }
+
+    // ── PASSO 3: Criar instância (sempre qrcode:true para Baileys inicializar) ───
+    await fetch(`${baseUrl}/instance/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": activeToken },
+      body: JSON.stringify({ instanceName: sessionId, qrcode: true, integration: "WHATSAPP-BAILEYS" }),
+    }).catch(() => {});
+
+    // ── PASSO 4: Aguardar state = connecting ─────────────────────────────────────
+    for (let i = 0; i < 10; i++) {
+      await sleep(1000);
+      const stateData = await fetch(`${baseUrl}/instance/connectionState/${sessionId}`, {
+        headers: { "apikey": activeToken },
+      }).then(r => r.json()).catch(() => ({})) as any;
+      const state = stateData?.instance?.state;
+      if (state === "connecting" || state === "open") break;
+    }
+
+    // ── PASSO 5: Obter QR ou Pairing Code via /connect ───────────────────────────
+    let connectUrl = `${baseUrl}/instance/connect/${sessionId}`;
+    if (mode === "PAIRING_CODE" && cleanPhone) {
+      connectUrl += `?number=${cleanPhone}`;
+    }
+
+    const connectData = await fetch(connectUrl, {
       method: "GET",
       headers: { "apikey": activeToken },
-    });
+    }).then(r => r.json()).catch(() => ({})) as any;
 
-    const data = await connectRes.json().catch(() => ({}));
-    
-    // O erro pode ser retornado se já está conectada, mas ignoramos se tivermos um qrcode ou sucesso
-    // if (!connectRes.ok && !createData.qrcode) throw new Error(data.error || "Erro ao conectar sessão");
+    const pairingCode = connectData?.pairingCode || "";
+    const qrBase64   = connectData?.base64 || "";
 
-    const qrCodeBase64 = data?.base64 || data?.qrcode?.base64 || createData?.qrcode?.base64 || "";
-    
-    return {
-      success: true,
-      status: data.instance?.state === "open" ? "CONNECTED" : "PAIRING",
-      mode: "QR_CODE",
-      pairingCode: "",
-      qr: qrCodeBase64,
-    };
+    if (mode === "PAIRING_CODE") {
+      if (pairingCode) {
+        return { success: true, status: "PAIRING" as const, mode: "PAIRING_CODE" as const, pairingCode, qr: "" };
+      }
+      // v2.3.7: pairing code retorna null → fallback automático para QR Code
+      if (qrBase64) {
+        console.warn(`[WhatsApp] Pairing code indisponível (v2) — usando QR Code como fallback para sessão ${sessionId}.`);
+        return { success: true, status: "PAIRING" as const, mode: "QR_CODE" as const, pairingCode: "", qr: qrBase64 };
+      }
+      throw new Error("Falha ao obter código de conexão. Tente novamente em instantes.");
+    }
+
+    return { success: true, status: "PAIRING" as const, mode: "QR_CODE" as const, pairingCode: "", qr: qrBase64 };
+
   } catch (err: any) {
-    return { success: false, status: "DISCONNECTED", mode: "NONE", pairingCode: "", qr: "", error: err.message };
+    return {
+      success: false,
+      status: "DISCONNECTED" as const,
+      mode: (mode || "NONE") as any,
+      pairingCode: "",
+      qr: "",
+      error: err.message,
+    };
   }
 }
 
@@ -160,18 +200,28 @@ interface SessionStatusParams {
 }
 
 /**
- * Verifica o estado de conexão de uma instância na Evolution API.
+ * Verifica o estado de conexão de uma instância na Evolution API v2.
  * Endpoint: GET /instance/connectionState/{instanceName}
+ *
+ * Estados da v2:
+ * - "open"       → conectado com sucesso
+ * - "connecting" → inicializando / aguardando scan do QR ou código
+ * - "close"      → desconectado
  */
 export async function getWhatsAppSessionStatus({ url, token, sessionId }: SessionStatusParams) {
   const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
   const activeToken = token || EVOLUTION_API_KEY;
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    
     const res = await fetch(`${baseUrl}/instance/connectionState/${sessionId}`, {
       method: "GET",
       headers: { "apikey": activeToken },
+      signal: controller.signal
     });
+    clearTimeout(timeout);
 
     const data = await res.json().catch(() => ({})) as any;
     
@@ -181,20 +231,46 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
 
     const state = data?.instance?.state;
 
+    // state=open → conectado com sucesso
+    if (state === "open") {
+      return {
+        sessionId,
+        status: "CONNECTED" as const,
+        phone: data?.instance?.owner || "",
+        mode: "QR_CODE" as const,
+        qr: "",
+        pairingCode: "",
+      };
+    }
+
+    // state=connecting → instância inicializando (Baileys conectando ao WA)
+    // Retorna PAIRING para o frontend NÃO derrubar a sessão durante o fluxo de pareamento
+    if (state === "connecting") {
+      return {
+        sessionId,
+        status: "PAIRING" as const,
+        phone: "",
+        mode: "QR_CODE" as const,
+        qr: "",
+        pairingCode: "",
+      };
+    }
+
+    // state=close ou qualquer outro → desconectado
     return {
       sessionId,
-      status: state === "open" ? "CONNECTED" : (state === "connecting" ? "CONNECTING" : "DISCONNECTED"),
-      phone: data?.instance?.owner || "",
-      mode: "QR_CODE" as "QR_CODE",
+      status: "DISCONNECTED" as const,
+      phone: "",
+      mode: "QR_CODE" as const,
       qr: "",
       pairingCode: "",
     };
   } catch (err: any) {
     return {
       sessionId,
-      status: "DISCONNECTED",
+      status: "DISCONNECTED" as const,
       phone: "",
-      mode: "QR_CODE" as "QR_CODE",
+      mode: "QR_CODE" as const,
       qr: "",
       pairingCode: "",
     };
@@ -221,18 +297,21 @@ export async function logoutWhatsAppSession({ url, token, sessionId }: SessionSt
 
 /**
  * Força a reconexão de uma sessão existente.
- * Na Evolution API v2, se o connectionState estiver close, podemos deletar a sessão
- * ou chamar /instance/connect novamente.
+ * Na Evolution API v2, se o connectionState estiver close, chamamos /instance/connect.
  */
 export async function reconnectWhatsAppSession({ url, token, sessionId }: SessionStatusParams) {
   const baseUrl = (url || EVOLUTION_API_URL).replace(/\/+$/, "");
   const activeToken = token || EVOLUTION_API_KEY;
 
   try {
+    const controller1 = new AbortController();
+    const timeout1 = setTimeout(() => controller1.abort(), 10000);
     const res = await fetch(`${baseUrl}/instance/connectionState/${sessionId}`, {
       method: "GET",
-      headers: { "apikey": activeToken }
+      headers: { "apikey": activeToken },
+      signal: controller1.signal
     });
+    clearTimeout(timeout1);
 
     const data = await res.json().catch(() => ({})) as any;
     if (data?.instance?.state === "open") {
@@ -240,10 +319,14 @@ export async function reconnectWhatsAppSession({ url, token, sessionId }: Sessio
     }
 
     // Se estiver fechado, chama o connect
+    const controller2 = new AbortController();
+    const timeout2 = setTimeout(() => controller2.abort(), 10000);
     await fetch(`${baseUrl}/instance/connect/${sessionId}`, {
       method: "GET",
-      headers: { "apikey": activeToken }
+      headers: { "apikey": activeToken },
+      signal: controller2.signal
     });
+    clearTimeout(timeout2);
 
     return {
       success: true,

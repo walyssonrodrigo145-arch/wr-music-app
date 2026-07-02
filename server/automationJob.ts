@@ -26,6 +26,15 @@ const autoReconnectAttempts = new Map<string, { count: number; lastAt: number }>
 const MAX_AUTO_RECONNECT = 3;
 const AUTO_RECONNECT_COOLDOWN_MS = 15 * 60 * 1000; // 15 min entre tentativas
 
+/**
+ * Sessões atualmente em processo de PAREAMENTO (QR Code ou Código Numérico).
+ * Enquanto uma sessão está neste mapa, o Keep-Alive NÃO tenta reconectar,
+ * pois isso destruiria o QR Code/Pairing Code que o usuário está tentando usar.
+ * A sessão é removida quando: conecta com sucesso, usuário cancela, ou timeout de 3 minutos.
+ */
+export const pairingActiveSessions = new Map<string, number>(); // sessionId → timestamp de início
+const PAIRING_SESSION_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutos
+
 async function runAutomation() {
   if (isAutomationRunning) {
     console.log("[Automation] Skipping — execução anterior ainda em andamento.");
@@ -76,8 +85,25 @@ async function runAutomation() {
       const timeSinceLastPing = now.getTime() - lastPing;
 
       if (timeSinceLastPing >= KEEP_ALIVE_INTERVAL_MS) {
+        // ── PROTEÇÃO DE PAREAMENTO ──────────────────────────────────────────────
+        // Se a sessão está em processo de pareamento ativo, NÃO interrompemos.
+        const pairingStartedAt = pairingActiveSessions.get(sessionId);
+        if (pairingStartedAt) {
+          const elapsed = now.getTime() - pairingStartedAt;
+          if (elapsed < PAIRING_SESSION_TIMEOUT_MS) {
+            // Ainda dentro do tempo de pareamento → pula o keep-alive
+            console.log(`[Keep-Alive] Sessão ${sessionId} em pareamento ativo — ignorando reconexão automática.`);
+            lastKeepAliveBySession.set(sessionId, now.getTime());
+            continue; // ← pula para o próximo usuário
+          } else {
+            // Timeout expirado → limpa o flag de pareamento
+            pairingActiveSessions.delete(sessionId);
+          }
+        }
+        // ───────────────────────────────────────────────────────────────────────
+
         try {
-          const statusResult = await getWhatsAppSessionStatus({
+          console.log('[Trace] Calling getWhatsAppSessionStatus'); const statusResult = await getWhatsAppSessionStatus({
             url: userSettings.whatsappBotUrl || undefined,
             token: userSettings.whatsappBotToken || undefined,
             sessionId,
@@ -266,7 +292,7 @@ async function runAutomation() {
           }
 
           if (refType) {
-            const existingExp = await db.select({ id: reminders.id }).from(reminders)
+            console.log('[Trace] Calling db.select for existingExp'); const existingExp = await db.select({ id: reminders.id }).from(reminders)
               .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refType))).limit(1);
 
             if (existingExp.length === 0) {
@@ -404,7 +430,7 @@ async function runAutomation() {
             continue;
           }
 
-          const sendRes = await sendWhatsAppMessage({
+          console.log('[Trace] Calling sendWhatsAppMessage for ', targetPhone); const sendRes = await sendWhatsAppMessage({
             url: userSettings.whatsappBotUrl,
             token: userSettings.whatsappBotToken,
             phone: targetPhone,

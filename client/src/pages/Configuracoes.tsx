@@ -246,7 +246,7 @@ function WhatsAppSessionManager() {
   const [pairingCode, setPairingCode] = useState("");
   const [qrString, setQrString] = useState("");
   const [connectedPhone, setConnectedPhone] = useState("");
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(120);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -259,46 +259,29 @@ function WhatsAppSessionManager() {
 
   const [testingConnection, setTestingConnection] = useState(false);
 
-  // Atualizar estado baseado na query
+  // Atualizar estado baseado na query - SÓ age quando conectado com sucesso
+  // Nunca derruba o passo PAIRING enquanto o usuário está escaneando
   useEffect(() => {
-    if (getStatusQuery.data) {
-      if (getStatusQuery.data.status === "CONNECTED") {
-        setStep("CONNECTED");
-        setConnectedPhone(getStatusQuery.data.phone || phoneNumber || "Conectado");
-      } else if (getStatusQuery.data.status === "DISCONNECTED") {
-        // Se o status da query for DISCONNECTED, só voltamos para o passo DISCONNECTED
-        // se não estivermos no meio de um pareamento ativo (evita race condition ao gerar QR Code).
-        if (step !== "DISCONNECTED" && step !== "PAIRING") {
-          setStep("DISCONNECTED");
-        }
-      } else if (getStatusQuery.data.status === "PAIRING") {
-        const pairingData = getStatusQuery.data as any;
-        if (pairingData.qr && !qrString) {
-          // O Baileys v7 agora retorna uma URL (https://wa.me/settings/linked_devices#...)
-          // Precisamos limpar isso para o gerador de QR Code não quebrar e o WhatsApp conseguir ler.
-          let rawQr = pairingData.qr;
-          if (rawQr.includes("#")) {
-            rawQr = rawQr.split("#")[1];
-          }
-          setQrString(rawQr);
-        }
-        if (pairingData.pairingCode && !pairingCode) setPairingCode(pairingData.pairingCode);
-        if (step !== "PAIRING") {
-          setStep("PAIRING");
-        }
-      }
+    if (!getStatusQuery.data) return;
+    const s = getStatusQuery.data.status;
+    if (s === "CONNECTED") {
+      setStep("CONNECTED");
+      setConnectedPhone((getStatusQuery.data as any).phone || phoneNumber || "Conectado");
     }
-  }, [getStatusQuery.data, step]);
+    // INTENCIONALMENTE não reseta para DISCONNECTED durante PAIRING
+    // O timer de 120s cuida disso.
+  }, [getStatusQuery.data]);
 
-  // Timer de 60 segundos no modo PAIRING
+  // Timer de 120 segundos no modo PAIRING (tempo suficiente para abrir o celular e escanear)
   useEffect(() => {
     if (step !== "PAIRING") return;
+    setTimeLeft(120);
     const timer = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) {
           setStep("DISCONNECTED");
           toast.error("O tempo de pareamento expirou. Tente novamente.");
-          return 60;
+          return 120;
         }
         return t - 1;
       });
@@ -312,6 +295,9 @@ function WhatsAppSessionManager() {
       return;
     }
     setLoading(true);
+    // Limpar estado anterior
+    setPairingCode("");
+    setQrString("");
     try {
       const res = await startSession.mutateAsync({ 
         phoneNumber: modeTab === "PAIRING_CODE" ? phoneNumber : undefined,
@@ -321,11 +307,10 @@ function WhatsAppSessionManager() {
         if (res.qr) setQrString(res.qr);
         if (res.pairingCode) setPairingCode(res.pairingCode);
         setStep("PAIRING");
-        setTimeLeft(60);
-        toast.success(modeTab === "QR_CODE" ? "QR Code gerado com sucesso!" : "Código gerado com sucesso!");
+        toast.success(modeTab === "QR_CODE" ? "QR Code gerado! Escaneie com seu celular." : "Código gerado! Digite no WhatsApp.");
         getStatusQuery.refetch();
       } else {
-        toast.error("Falha ao iniciar pareamento.");
+        toast.error((res as any).error || "Falha ao iniciar pareamento.");
       }
     } catch (err: any) {
       toast.error(err.message || "Erro ao iniciar conexão.");
@@ -576,7 +561,7 @@ function WhatsAppSessionManager() {
 
             <div className="mt-8 flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground">
               <Loader2 size={16} className="animate-spin text-indigo-500" />
-              Aguardando confirmação do celular ({timeLeft}s)...
+              Aguardando confirmação do celular ({timeLeft}s restantes)...
             </div>
           </div>
 
