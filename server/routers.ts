@@ -515,9 +515,14 @@ export const appRouter = router({
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
 
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       // Security: verify student ownership
       const [ownedStudent] = await db.select({ id: students.id }).from(students)
-        .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+        .where(and(
+          eq(students.id, input.studentId as number), 
+          eq(students.organizationId, orgId), 
+          isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+        ))
         .limit(1);
       
       if (!ownedStudent) {
@@ -583,9 +588,14 @@ export const appRouter = router({
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
 
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       // Security: verify student ownership
       const [ownedStudent] = await db.select({ id: students.id }).from(students)
-        .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+        .where(and(
+          eq(students.id, input.studentId as number), 
+          eq(students.organizationId, orgId), 
+          isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+        ))
         .limit(1);
       
       if (!ownedStudent) {
@@ -1189,9 +1199,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
 
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       // Security: verify student ownership
       const [ownedStudent] = await db.select({ id: students.id }).from(students)
-        .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+        .where(and(
+          eq(students.id, input.studentId as number), 
+          eq(students.organizationId, orgId), 
+          isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+        ))
         .limit(1);
       
       if (!ownedStudent) {
@@ -2471,8 +2486,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         // Segurança: Verificar se o aluno pertence ao usuário logado (se não for experimental)
         if (!input.isExperimental) {
           if (!input.studentId) throw new Error("O campo aluno é obrigatório para aulas comuns.");
+          const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const [ownedStudent] = await db.select({ id: students.id }).from(students)
-            .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+            .where(and(
+              eq(students.id, input.studentId as number), 
+              eq(students.organizationId, orgId), 
+              isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+            ))
             .limit(1);
             
           if (!ownedStudent) {
@@ -2999,9 +3019,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (!db) throw new Error("Banco de dados não disponível");
 
         const orgId = ctx.user.organizationId!;
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         // Segurança: Verificar se o aluno pertence ao usuário logado
         const [ownedStudent] = await db.select({ id: students.id }).from(students)
-          .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+          .where(and(
+            eq(students.id, input.studentId as number), 
+            eq(students.organizationId, orgId), 
+            isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+          ))
           .limit(1);
 
         if (!ownedStudent) {
@@ -4280,9 +4305,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           if (!db) throw new Error("Database not available");
           const orgId = ctx.user.organizationId!;
    
+          const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           // Security: verify student ownership
           const [ownedStudent] = await db.select({ id: students.id, name: students.name, email: students.email, phone: students.phone, cpf: students.cpf }).from(students)
-              .where(and(eq(students.id, input.studentId as number), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+              .where(and(
+                eq(students.id, input.studentId as number), 
+                eq(students.organizationId, orgId), 
+                isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+              ))
               .limit(1);
           
           if (!ownedStudent) {
