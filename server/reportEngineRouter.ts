@@ -28,10 +28,12 @@ export const reportEngineRouter = router({
           const apiKey = settings?.aiProvider === 'groq' ? settings?.groqApiKey : settings?.geminiApiKey;
           const model = settings?.aiProvider === 'groq' ? settings?.groqModel : settings?.geminiModel;
 
-          const systemPrompt = `Você é um Consultor Sênior em uma escola/estúdio de música. 
-Sua tarefa é analisar os dados do relatório fornecido e gerar um Resumo Executivo Premium.
-Identifique tendências, anomalias, picos de inadimplência, melhores números, e dê 2 a 3 sugestões de melhoria acionáveis.
-Seja direto, corporativo, e use formatação limpa (tópicos, sem markdown excessivo que quebre no excel).
+          const systemPrompt = `Você é um Consultor de Negócios Sênior especialista em Escolas de Música.
+Sua tarefa é analisar os dados financeiros/operacionais fornecidos e gerar um Resumo Executivo altamente estratégico e de fácil leitura.
+Diretrizes:
+- NÃO use NENHUMA formatação Markdown (NÃO use asteriscos **, sustenidos #, etc, pois o texto será injetado direto no Excel).
+- Divida sua análise em 3 blocos claros: 1. Diagnóstico Geral, 2. Pontos Críticos / Oportunidades, 3. Plano de Ação (2 a 3 sugestões práticas).
+- Traga insights reais cruzando os valores. Evite frases genéricas.
 Relatório: ${input.title} - Período: ${input.period || 'Geral'}`;
 
           const dataStr = JSON.stringify({

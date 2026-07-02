@@ -213,7 +213,7 @@ const Relatorios: React.FC = () => {
           rows.push([
             format(new Date(p.dueDate), 'dd/MM/yyyy'),
             p.studentName || p.notes || 'Mensalidade',
-            p.amount,
+            Number(p.amount),
             p.status.toUpperCase(),
             p.paidAt ? format(new Date(p.paidAt), 'dd/MM/yyyy') : '-'
           ]);
@@ -225,16 +225,16 @@ const Relatorios: React.FC = () => {
             format(new Date(e.date), 'dd/MM/yyyy'),
             e.description,
             e.category || '-',
-            e.amount,
+            Number(e.amount),
             e.isPaid ? 'PAGO' : 'PENDENTE'
           ]);
         });
       } else if (activeTab === 'projecao') {
         columns = ["Mês", "Receita Projetada", "Despesa Projetada", "Lucro Projetado"];
-        projecaoQuery.data?.projection?.forEach(p => rows.push([p.monthName, p.receita, p.despesa, p.lucro]));
+        projecaoQuery.data?.projection?.forEach(p => rows.push([p.monthName, Number(p.receita), Number(p.despesa), Number(p.lucro)]));
       } else if (activeTab === 'alunos') {
         columns = ["ID", "Nome", "Professor", "Instrumento", "Mensalidade", "Status"];
-        alunosReportQuery.data?.forEach(s => rows.push([s.id, s.name, s.professorName || '', s.instrumentName || '', s.monthlyFee, s.status]));
+        alunosReportQuery.data?.forEach(s => rows.push([s.id, s.name, s.professorName || '', s.instrumentName || '', Number(s.monthlyFee), s.status]));
       } else if (activeTab === 'aulas') {
         columns = ["Data", "Aluno", "Professor", "Status", "Observação"];
         frequencyQuery.data?.forEach(f => {
@@ -244,7 +244,7 @@ const Relatorios: React.FC = () => {
       } else if (activeTab === 'mensalidades') {
         columns = ["Aluno", "Vencimento", "Valor", "Status"];
         overduePaymentsQuery.data?.forEach(p => {
-          rows.push([p.studentName, format(new Date(p.dueDate), 'dd/MM/yyyy'), p.amount, p.status]);
+          rows.push([p.studentName, format(new Date(p.dueDate), 'dd/MM/yyyy'), Number(p.amount), p.status]);
         });
       } else {
         columns = ["Indicador", "Valor"];

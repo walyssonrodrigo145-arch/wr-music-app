@@ -77,7 +77,7 @@ export async function generateExcel(config: ReportConfig): Promise<Buffer> {
     addCard('Valor Médio', avgAll, true);
   }
   addCard('Período', period);
-  addCard('Gerado em', config.generated_at || new Date().toLocaleString('pt-BR'));
+  addCard('Gerado em', config.generated_at || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }));
   
   summarySheet.getColumn('B').width = 25;
   summarySheet.getColumn('C').width = 25;
@@ -89,7 +89,7 @@ export async function generateExcel(config: ReportConfig): Promise<Buffer> {
   // Cabeçalho Corporativo
   worksheet.mergeCells('A1:E4');
   const headerCell = worksheet.getCell('A1');
-  headerCell.value = `${company}\n${config.title}\nPeríodo: ${period}\nGerado por: ${workbook.creator} em ${config.generated_at || new Date().toLocaleString('pt-BR')}`;
+  headerCell.value = `${company}\n${config.title}\nPeríodo: ${period}\nGerado por: ${workbook.creator} em ${config.generated_at || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
   headerCell.font = { name: FONT_BASE.name, size: 12, bold: true, color: { argb: COLORS.textWhite } };
   headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
   headerCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
