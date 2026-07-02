@@ -28,12 +28,14 @@ export const reportEngineRouter = router({
           const apiKey = settings?.aiProvider === 'groq' ? settings?.groqApiKey : settings?.geminiApiKey;
           const model = settings?.aiProvider === 'groq' ? settings?.groqModel : settings?.geminiModel;
 
+          const todayStr = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
           const systemPrompt = `Você é um Consultor de Negócios Sênior especialista em Escolas de Música.
 Sua tarefa é analisar os dados financeiros/operacionais fornecidos e gerar um Resumo Executivo altamente estratégico e de fácil leitura.
 Diretrizes:
 - NÃO use NENHUMA formatação Markdown (NÃO use asteriscos **, sustenidos #, etc, pois o texto será injetado direto no Excel).
 - Divida sua análise em 3 blocos claros: 1. Diagnóstico Geral, 2. Pontos Críticos / Oportunidades, 3. Plano de Ação (2 a 3 sugestões práticas).
 - Traga insights reais cruzando os valores. Evite frases genéricas.
+- ATENÇÃO: Hoje é dia ${todayStr}. Status 'PENDENTE' não significa 'ATRASADO'. Só considere inadimplência o que for anterior à data de hoje e estiver não pago. Valores a vencer no futuro estão normais.
 Relatório: ${input.title} - Período: ${input.period || 'Geral'}`;
 
           const dataStr = JSON.stringify({
