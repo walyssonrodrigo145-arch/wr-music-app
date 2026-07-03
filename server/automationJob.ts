@@ -562,16 +562,21 @@ async function runAutomation() {
                 const dueDateStr = String(due.dueDate).slice(0, 10);
                 const isOverdue = dueDateStr < todayStr2;
 
-                // For payment_due: check if trigger date (dueDate + offsetDays) <= today
-                // offsetDays is negative for "before" e.g. -3 means 3 days before
+                // Check trigger date for both payment_due and payment_overdue
+                const triggerDate = new Date(dueDate);
                 if (rule.trigger === "payment_due") {
                   if (isOverdue) continue; // Already overdue, skip
-                  const triggerDate = new Date(dueDate);
                   triggerDate.setDate(triggerDate.getDate() + (rule.offsetDays ?? 0));
-                  if (triggerDate > now2) continue; // Not yet time
+                } else if (rule.trigger === "payment_overdue") {
+                  // For overdue, offsetDays is usually positive (e.g. 1 day after)
+                  triggerDate.setDate(triggerDate.getDate() + Math.abs(rule.offsetDays ?? 0));
                 }
+                
+                if (triggerDate > now2) continue; // Not yet time
 
-                const refId = `auto-rule-${rule.id}-${due.id}-${todayStr2}`;
+                // ✅ FIX: Remove `todayStr2` from refId so the rule only triggers EXACTLY ONCE per payment.
+                // Previously, it included the current date, causing it to send again every single day.
+                const refId = `auto-rule-${rule.id}-payment-${due.id}`;
                 const existingReminder = await db.select({ id: reminders.id }).from(reminders)
                   .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
                 if (existingReminder.length > 0) continue;
