@@ -45,16 +45,21 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
         {/* Animated Background Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
         
-        <div className="flex flex-col items-center gap-8 relative z-10">
-          <motion.div 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary via-indigo-600 to-violet-600 flex items-center justify-center shadow-[0_20px_50px_rgba(124,58,237,0.3)] relative group"
-          >
-            <Music size={40} className="text-white group-hover:scale-110 transition-transform duration-500" />
+        <div className="flex flex-col items-center gap-6 relative z-10 animate-in zoom-in duration-500">
+          <div className="relative group">
+            <div className="absolute -inset-4 bg-gradient-to-br from-primary/30 to-violet-500/30 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500" />
+            <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-2xl border border-white/10 overflow-hidden">
+              <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-3xl flex items-center justify-center relative z-10">
+                <div className="flex items-center gap-[5px] h-8">
+                  <div className="w-2 bg-white/90 rounded-full h-4 group-hover:scale-110 transition-transform duration-500" />
+                  <div className="w-2 bg-white/90 rounded-full h-8 group-hover:scale-110 transition-transform duration-500" />
+                  <div className="w-2 bg-white rounded-full h-full shadow-[0_0_12px_rgba(255,255,255,0.8)] group-hover:scale-110 transition-transform duration-500" />
+                  <div className="w-2 bg-white/90 rounded-full h-6 group-hover:scale-110 transition-transform duration-500" />
+                </div>
+              </div>
+            </div>
             <div className="absolute inset-0 rounded-[2rem] border-2 border-white/20 animate-ping opacity-20" />
-          </motion.div>
+          </div>
           
           <div className="flex flex-col items-center gap-3">
             <h2 className="text-white text-xl font-black tracking-tight">MusicPro Portal</h2>
