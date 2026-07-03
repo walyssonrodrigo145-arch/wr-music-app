@@ -12,6 +12,7 @@ const config = {
 };
 
 const filesToUpload = [
+  'docker-compose.yml',
   'package.json',
   'pnpm-lock.yaml',
   'server/routers.ts',
