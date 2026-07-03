@@ -2504,8 +2504,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
         // Segurança: Verificar se o instrumento pertence ao usuário logado
         if (input.instrumentId) {
+          const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const [ownedInstrument] = await db.select({ id: instruments.id }).from(instruments)
-            .where(and(eq(instruments.id, input.instrumentId), eq(instruments.organizationId, orgId), eq(instruments.userId, ctx.user.id)))
+            .where(and(
+              eq(instruments.id, input.instrumentId), 
+              eq(instruments.organizationId, orgId), 
+              isUserAdmin ? undefined : eq(instruments.userId, ctx.user.id)
+            ))
             .limit(1);
           if (!ownedInstrument) {
             throw new Error("O instrumento selecionado não pertence ao seu perfil.");
@@ -2588,16 +2593,26 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
         // Segurança: Verificar propriedade do aluno se estiver sendo alterado
         if (data.studentId) {
+          const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const [ownedStudent] = await db.select({ id: students.id }).from(students)
-            .where(and(eq(students.id, data.studentId), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+            .where(and(
+              eq(students.id, data.studentId), 
+              eq(students.organizationId, orgId), 
+              isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+            ))
             .limit(1);
           if (!ownedStudent) throw new Error("O aluno selecionado não pertence ao seu perfil.");
         }
 
         // Segurança: Verificar propriedade do instrumento se estiver sendo alterado
         if (data.instrumentId) {
+          const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const [ownedInstrument] = await db.select({ id: instruments.id }).from(instruments)
-            .where(and(eq(instruments.id, data.instrumentId), eq(instruments.organizationId, orgId), eq(instruments.userId, ctx.user.id)))
+            .where(and(
+              eq(instruments.id, data.instrumentId), 
+              eq(instruments.organizationId, orgId), 
+              isUserAdmin ? undefined : eq(instruments.userId, ctx.user.id)
+            ))
             .limit(1);
           if (!ownedInstrument) throw new Error("O instrumento selecionado não pertence ao seu perfil.");
         }
@@ -3096,11 +3111,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const orgId = ctx.user.organizationId!;
         
         // Segurança: Verificar se todos os alunos pertencem ao usuário logado
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const ownedStudents = await db.select({ id: students.id, name: students.name }).from(students)
           .where(and(
             inArray(students.id, input.studentIds),
             eq(students.organizationId, orgId),
-            eq(students.professorId, ctx.user.id)
+            isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
           ));
 
         if (ownedStudents.length !== input.studentIds.length) {
