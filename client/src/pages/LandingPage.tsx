@@ -168,7 +168,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[95vh] overflow-y-auto"
+        className="relative w-full max-w-lg bg-card text-card-foreground rounded-3xl shadow-2xl border border-border/50 overflow-hidden max-h-[95vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header azul */}
@@ -235,9 +235,9 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
             {step === 'conta' && (
               <motion.div key="conta" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Nome completo</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Nome completo</label>
                   <div className="relative">
-                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
                       type="text" placeholder="Seu nome completo"
                       value={form.nome} onChange={e => set('nome', e.target.value)}
@@ -246,9 +246,9 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">E-mail</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">E-mail</label>
                   <div className="relative">
-                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
                       type="email" placeholder="seu@email.com"
                       value={form.email} onChange={e => set('email', e.target.value)}
@@ -257,23 +257,23 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Senha</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Senha</label>
                   <div className="relative">
-                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
                       type={showPassword ? 'text' : 'password'} placeholder="Mínimo 8 caracteres"
                       value={form.senha} onChange={e => set('senha', e.target.value)}
                       className="w-full pl-10 pr-10 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
                     />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground">
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Telefone / WhatsApp</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Telefone / WhatsApp</label>
                   <div className="relative">
-                    <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
                       type="tel" placeholder="(00) 00000-0000"
                       value={form.telefone} onChange={e => set('telefone', e.target.value)}
@@ -282,9 +282,9 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">CPF ou CNPJ</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">CPF ou CNPJ</label>
                   <div className="relative">
-                    <Shield size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Shield size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
                       type="text" placeholder="000.000.000-00" maxLength={18}
                       value={form.cpfCnpj}
@@ -292,7 +292,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                       className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono tracking-wider"
                     />
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Necessário para emissão da cobrança</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-1">Necessário para emissão da cobrança</p>
                 </div>
               </motion.div>
             )}
@@ -302,9 +302,9 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
               <motion.div key="endereco" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">CEP</label>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">CEP</label>
                     <div className="relative">
-                      <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                       <input
                         type="text" placeholder="00000-000" maxLength={9}
                         value={form.cep}
@@ -314,7 +314,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                     </div>
                   </div>
                   <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Estado</label>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Estado</label>
                     <input
                       type="text" placeholder="UF" maxLength={2}
                       value={form.estado} onChange={e => set('estado', e.target.value)}
@@ -323,7 +323,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Rua / Logradouro</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Rua / Logradouro</label>
                   <input
                     type="text" placeholder="Rua, Avenida..."
                     value={form.rua} onChange={e => set('rua', e.target.value)}
@@ -332,7 +332,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Número</label>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Número</label>
                     <input
                       type="text" placeholder="Nº"
                       value={form.numero} onChange={e => set('numero', e.target.value)}
@@ -340,7 +340,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Bairro</label>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Bairro</label>
                     <input
                       type="text" placeholder="Bairro"
                       value={form.bairro} onChange={e => set('bairro', e.target.value)}
@@ -349,7 +349,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wider">Cidade</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Cidade</label>
                   <input
                     type="text" placeholder="Sua cidade"
                     value={form.cidade} onChange={e => set('cidade', e.target.value)}
@@ -367,7 +367,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                   <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Sparkles size={32} />
                   </div>
-                  <h3 className="text-xl font-black text-gray-900 mb-2">
+                  <h3 className="text-xl font-outfit font-black text-foreground mb-2">
                     Bem-vindo ao MusicPro! 🎉
                   </h3>
                   <p className="text-gray-500 text-sm">
@@ -381,7 +381,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                       Acessar minha conta <ArrowRight size={16} />
                     </button>
                   </Link>
-                  <button onClick={onClose} className="w-full py-2.5 text-gray-400 text-xs hover:text-gray-600 transition-colors">
+                  <button onClick={onClose} className="w-full py-2.5 text-muted-foreground/50 text-xs hover:text-muted-foreground transition-colors">
                     Fechar
                   </button>
                 </div>
@@ -421,7 +421,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
           )}
 
           {step !== 'sucesso' && (
-            <p className="text-center text-xs text-gray-400 mt-3 flex items-center justify-center gap-1">
+            <p className="text-center text-xs text-muted-foreground/50 mt-3 flex items-center justify-center gap-1">
               <Shield size={11} /> Dados protegidos com criptografia SSL
             </p>
           )}
@@ -636,7 +636,7 @@ const LandingPage = () => {
                 <span>Sistema completo para escolas de música</span>
               </div>
               
-              <h1 className="text-5xl md:text-7xl font-extrabold text-foreground leading-tight mb-6 tracking-tight">
+              <h1 className="text-5xl md:text-7xl font-outfit font-extrabold text-foreground leading-tight mb-6 tracking-tight">
                 Gestão total para <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">escolas de música</span>
               </h1>
               
@@ -704,7 +704,7 @@ const LandingPage = () => {
         <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Tudo que você precisa</h2>
-            <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Funcionalidades pensadas para músicos</h3>
+            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">Funcionalidades pensadas para músicos</h3>
             <p className="text-lg text-muted-foreground font-medium">
               Desenvolvido por quem entende a rotina de uma escola de música. Simples de usar, poderoso nos resultados.
             </p>
@@ -723,7 +723,7 @@ const LandingPage = () => {
                 key={feature.title}
                 {...fadeIn}
                 transition={{ delay: i * 0.1 }}
-                className="group p-8 bg-card border border-border/50 rounded-[32px] hover:border-primary/30 hover:shadow-xl transition-all duration-300"
+                className="group p-8 bg-card/40 backdrop-blur-xl border border-border/50 rounded-[32px] hover:border-primary/30 shadow-2xl shadow-primary/5 hover:shadow-primary/20 transition-all duration-300"
               >
                 <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                   <feature.icon size={22} />
@@ -748,7 +748,7 @@ const LandingPage = () => {
         <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Depoimentos</h2>
-            <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Quem já usa, aprova</h3>
+            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">Quem já usa, aprova</h3>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -757,7 +757,7 @@ const LandingPage = () => {
               { name: 'Carlos Mendes', role: 'Professor - Studio Ritmo', text: 'Os lembretes automáticos reduziram em 80% as faltas dos alunos. Resultado incrível!' },
               { name: 'Patricia Souza', role: 'Fundadora - Acorde Music', text: 'O controle financeiro é fantástico. Antes era tudo planilha, agora tenho tudo automatizado.' },
             ].map((t, i) => (
-              <motion.div key={t.name} {...fadeIn} transition={{ delay: i * 0.15 }} className="p-8 bg-card border border-border/50 rounded-[32px]">
+              <motion.div key={t.name} {...fadeIn} transition={{ delay: i * 0.15 }} className="p-8 bg-card/40 backdrop-blur-xl shadow-2xl shadow-primary/5 border border-border/50 rounded-[32px]">
                 <div className="flex gap-1 mb-4">
                   {Array.from({ length: 5 }).map((_, j) => (
                     <Star key={j} size={14} className="text-yellow-400 fill-current" />
@@ -787,7 +787,7 @@ const LandingPage = () => {
         <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Planos simples e transparentes</h2>
-            <h3 className="text-4xl md:text-5xl font-extrabold text-foreground mb-6">Escolha o plano ideal para sua escola</h3>
+            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">Escolha o plano ideal para sua escola</h3>
             <p className="text-lg text-muted-foreground font-medium">
               Todos os planos incluem <strong className="text-foreground">acesso imediato</strong> ao sistema completo.
             </p>
@@ -806,8 +806,8 @@ const LandingPage = () => {
                 transition={{ delay: i * 0.15 }}
                 className={`relative flex flex-col rounded-[40px] transition-all duration-300 ${
                   plan.highlight
-                    ? 'bg-white border-2 border-blue-500 shadow-2xl shadow-blue-500/20 md:-translate-y-4 p-10'
-                    : 'bg-card border border-border/50 hover:border-primary/30 hover:shadow-xl p-10'
+                    ? 'bg-card text-card-foreground border-2 border-blue-500 shadow-2xl shadow-blue-500/20 md:-translate-y-4 p-10'
+                    : 'bg-card/40 backdrop-blur-xl shadow-2xl shadow-primary/5 border border-border/50 hover:border-primary/30 hover:shadow-primary/20 p-10'
                 }`}
               >
                 {/* Badge */}
@@ -819,16 +819,16 @@ const LandingPage = () => {
 
                 {/* Plan Info */}
                 <div className="mb-6">
-                  <h4 className={`text-2xl font-extrabold mb-1 ${plan.highlight ? 'text-gray-900' : 'text-foreground'}`}>
+                  <h4 className={`text-2xl font-outfit font-extrabold mb-1 ${plan.highlight ? 'text-primary' : 'text-foreground'}`}>
                     {plan.name}
                   </h4>
-                  <p className={`text-sm font-medium ${plan.highlight ? 'text-gray-500' : 'text-muted-foreground'}`}>
+                  <p className={`text-sm font-medium ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
                     {plan.subtitle}
                   </p>
                 </div>
 
                 {/* Price */}
-                <div className={`flex items-baseline gap-1 mb-8 ${plan.highlight ? 'text-gray-900' : 'text-foreground'}`}>
+                <div className={`flex items-baseline gap-1 mb-8 ${plan.highlight ? 'text-primary' : 'text-foreground'}`}>
                   <span className="text-base font-bold text-gray-500">R$</span>
                   <span className="text-5xl font-black tracking-tight">{plan.price}</span>
                   <span className="text-2xl font-black">,{plan.cents}</span>
@@ -838,7 +838,7 @@ const LandingPage = () => {
                 {/* Features */}
                 <ul className="space-y-4 mb-10 flex-1">
                   {plan.features.map(feat => (
-                    <li key={feat} className={`flex items-center gap-3 text-sm font-medium ${plan.highlight ? 'text-gray-700' : 'text-muted-foreground'}`}>
+                    <li key={feat} className={`flex items-center gap-3 text-sm font-medium ${plan.highlight ? 'text-foreground' : 'text-muted-foreground'}`}>
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
                         plan.highlight ? 'bg-blue-600 text-white' : 'bg-primary/10 text-primary'
                       }`}>
@@ -864,7 +864,7 @@ const LandingPage = () => {
                 </button>
 
                 {/* Trial note */}
-                <p className={`text-center text-xs mt-3 ${plan.highlight ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                <p className={`text-center text-xs mt-3 ${plan.highlight ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                   Sem fidelidade • Cancele quando quiser
                 </p>
               </motion.div>
@@ -884,13 +884,56 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* FAQ SECTION */}
+      <section className="relative py-24 bg-muted/20 border-y border-border/50">
+        <div className="container max-w-4xl">
+          <div className="text-center mb-16">
+            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Perguntas Frequentes</h2>
+            <h3 className="text-4xl font-outfit font-extrabold text-foreground mb-6">Tirando suas dúvidas</h3>
+          </div>
+          
+          <div className="space-y-4">
+            {[
+              {
+                q: "Preciso de cartão de crédito para os 30 dias grátis?",
+                a: "Não! Você pode testar o sistema completo por 30 dias sem informar nenhum dado de pagamento. Só cobramos se você decidir continuar."
+              },
+              {
+                q: "Como funciona a emissão de cobranças?",
+                a: "Nós integramos com o Asaas e Mercado Pago. Você pode gerar boletos, PIX e cartões diretamente pelo sistema. A baixa no pagamento é automática."
+              },
+              {
+                q: "Os lembretes do WhatsApp têm custo extra?",
+                a: "Não cobramos pelos envios, pois o sistema conecta diretamente com o seu próprio WhatsApp! Apenas escaneie o QRCode e seus lembretes usarão seu número de forma gratuita e ilimitada."
+              },
+              {
+                q: "Consigo acessar pelo celular?",
+                a: "Sim, todo o sistema é 100% responsivo. Você e seus alunos podem acessar pelo navegador de qualquer dispositivo, funcionando como um aplicativo nativo."
+              }
+            ].map((faq, i) => (
+              <details key={i} className="group bg-card/40 backdrop-blur-md border border-border/50 rounded-2xl overflow-hidden shadow-sm">
+                <summary className="flex items-center justify-between p-6 cursor-pointer font-bold text-foreground hover:text-primary transition-colors list-none">
+                  <span>{faq.q}</span>
+                  <div className="w-8 h-8 flex items-center justify-center bg-primary/10 rounded-full text-primary group-open:-rotate-180 transition-transform duration-300">
+                    <ChevronRight size={16} className="rotate-90" />
+                  </div>
+                </summary>
+                <div className="px-6 pb-6 pt-2 text-muted-foreground font-medium leading-relaxed border-t border-border/30">
+                  {faq.a}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* FINAL CTA */}
       <section className="py-24 bg-background">
         <div className="container">
           <div className="relative bg-card border border-border rounded-[48px] p-12 md:p-24 overflow-hidden shadow-2xl">
             
             <div className="relative z-10 text-center max-w-4xl mx-auto">
-              <h2 className="text-4xl md:text-6xl font-black text-foreground mb-8 leading-tight tracking-tight">
+              <h2 className="text-4xl md:text-6xl font-outfit font-black text-foreground mb-8 leading-tight tracking-tight">
                 Pronto para levar sua escola para o <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">próximo nível?</span>
               </h2>
               <p className="text-xl text-muted-foreground font-medium mb-12 max-w-2xl mx-auto">

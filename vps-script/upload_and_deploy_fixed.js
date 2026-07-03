@@ -18,6 +18,7 @@ const filesToUpload = [
   'server/routers.ts',
   'server/_core/rateLimiter.ts',
   'server/_core/index.ts',
+  'client/src/pages/LandingPage.tsx',
   'client/src/pages/ProfessorExtract.tsx',
   'client/src/pages/Progresso.tsx',
   'client/src/pages/Dashboard.tsx',
