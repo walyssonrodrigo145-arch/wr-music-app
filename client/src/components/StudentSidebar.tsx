@@ -111,8 +111,15 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
         "flex items-center gap-3 px-6 py-8",
         collapsed && "justify-center px-2"
       )}>
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#7C3AED] flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
-          <Music size={20} className="text-white" />
+        <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-primary/30 flex-shrink-0 overflow-hidden">
+          <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-xl flex items-center justify-center relative z-10">
+            <div className="flex items-center gap-[3px] h-4">
+              <div className="w-1 bg-white/90 rounded-full h-2" />
+              <div className="w-1 bg-white/90 rounded-full h-4" />
+              <div className="w-1 bg-white rounded-full h-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+              <div className="w-1 bg-white/90 rounded-full h-3" />
+            </div>
+          </div>
         </div>
         {!collapsed && (
           <div className="animate-in fade-in slide-in-from-left-2 duration-300">
