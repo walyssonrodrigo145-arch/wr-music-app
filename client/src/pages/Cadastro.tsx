@@ -17,6 +17,9 @@ export default function Cadastro() {
   const [password, setPassword] = useState("");
   const [planType, setPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
 
+  const { data: plans } = trpc.publicData.getPlans.useQuery();
+  const mainPlan = plans?.find(p => p.showOnLanding) || plans?.[0];
+
   const registerMutation = trpc.auth.registerWithPlan.useMutation({
     onSuccess: () => {
       setSuccessMsg("Conta criada com sucesso! Redirecionando...");
@@ -40,13 +43,15 @@ export default function Cadastro() {
     if (!cpfCnpj.trim() || cpfCnpj.replace(/\D/g, '').length < 11) return setErrorMsg("Por favor, insira um CPF/CNPJ válido com pelo menos 11 dígitos.");
     if (!password) return setErrorMsg("Crie uma senha.");
     if (password.length < 6) return setErrorMsg("A senha deve ter pelo menos 6 caracteres.");
+    if (!mainPlan) return setErrorMsg("Nenhum plano disponível para cadastro no momento.");
     
     registerMutation.mutate({ 
       name: name.trim(), 
       email: email.trim(), 
       cpfCnpj: cpfCnpj.replace(/\D/g, ''),
       password,
-      planType
+      planType,
+      planId: mainPlan.id
     });
   };
 
@@ -170,9 +175,12 @@ export default function Cadastro() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <RadioGroupItem value="MONTHLY" id="plan-monthly" className="border-white/50 text-primary" />
-                      <span className="text-white font-bold text-base">Plano Mensal</span>
+                      <span className="text-white font-bold text-base">{mainPlan ? `${mainPlan.name} Mensal` : 'Plano Mensal'}</span>
                     </div>
-                    <span className="text-primary font-black text-lg">R$ 49,90<span className="text-xs text-white/50 font-normal">/mês</span></span>
+                    <span className="text-primary font-black text-lg">
+                      R$ {mainPlan ? Number(mainPlan.priceMonthly).toFixed(2).replace('.', ',') : '49,90'}
+                      <span className="text-xs text-white/50 font-normal">/mês</span>
+                    </span>
                   </div>
                   <p className="text-white/60 text-xs mt-2 pl-7">Acesso total à plataforma com cobrança mensal.</p>
                 </Label>
@@ -188,11 +196,18 @@ export default function Cadastro() {
                   <div className="flex items-center justify-between relative z-0">
                     <div className="flex items-center space-x-3">
                       <RadioGroupItem value="YEARLY" id="plan-yearly" className="border-white/50 text-primary" />
-                      <span className="text-white font-bold text-base">Plano Anual</span>
+                      <span className="text-white font-bold text-base">{mainPlan ? `${mainPlan.name} Anual` : 'Plano Anual'}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-white/40 line-through text-xs block">R$ 598,80</span>
-                      <span className="text-emerald-400 font-black text-lg">R$ 499,00<span className="text-xs text-white/50 font-normal">/ano</span></span>
+                      {mainPlan && (
+                        <span className="text-white/40 line-through text-xs block">
+                          R$ {(Number(mainPlan.priceMonthly) * 12).toFixed(2).replace('.', ',')}
+                        </span>
+                      )}
+                      <span className="text-emerald-400 font-black text-lg">
+                        R$ {mainPlan ? Number(mainPlan.priceYearly).toFixed(2).replace('.', ',') : '499,00'}
+                        <span className="text-xs text-white/50 font-normal">/ano</span>
+                      </span>
                     </div>
                   </div>
                   <p className="text-white/60 text-xs mt-2 pl-7">Economize com a assinatura anual completa.</p>
