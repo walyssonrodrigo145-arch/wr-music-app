@@ -193,8 +193,15 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
           ) : (
             <>
               <div className="flex items-center gap-3 mb-1">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <Music size={16} />
+                <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-md overflow-hidden">
+                  <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-lg flex items-center justify-center relative z-10">
+                    <div className="flex items-center gap-[2px] h-3">
+                      <div className="w-[3px] bg-white/90 rounded-full h-1.5" />
+                      <div className="w-[3px] bg-white/90 rounded-full h-3" />
+                      <div className="w-[3px] bg-white rounded-full h-full shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
+                      <div className="w-[3px] bg-white/90 rounded-full h-2" />
+                    </div>
+                  </div>
                 </div>
                 <span className="font-bold text-sm opacity-90">MusicPro</span>
               </div>
@@ -529,8 +536,15 @@ const LandingPage = () => {
       >
         <div className="container flex items-center justify-between">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-              <Music size={24} />
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-primary/30 group-hover:scale-105 transition-transform duration-300 overflow-hidden">
+              <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-xl flex items-center justify-center relative z-10">
+                <div className="flex items-center gap-[3px] h-4">
+                  <div className="w-1 bg-white/90 rounded-full h-2" />
+                  <div className="w-1 bg-white/90 rounded-full h-4" />
+                  <div className="w-1 bg-white rounded-full h-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                  <div className="w-1 bg-white/90 rounded-full h-3" />
+                </div>
+              </div>
             </div>
             <span className="text-2xl font-bold tracking-tight text-foreground">Music<span className="text-primary">Pro</span></span>
           </div>
@@ -956,8 +970,15 @@ const LandingPage = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 mb-20">
             <div className="col-span-2">
               <div className="flex items-center gap-2 mb-6 cursor-default">
-                <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-md">
-                  <Music size={22} />
+                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-primary/30 overflow-hidden">
+                  <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-xl flex items-center justify-center relative z-10">
+                    <div className="flex items-center gap-[3px] h-4">
+                      <div className="w-1 bg-white/90 rounded-full h-2" />
+                      <div className="w-1 bg-white/90 rounded-full h-4" />
+                      <div className="w-1 bg-white rounded-full h-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                      <div className="w-1 bg-white/90 rounded-full h-3" />
+                    </div>
+                  </div>
                 </div>
                 <span className="text-2xl font-black text-foreground tracking-tight">Music<span className="text-primary">Pro</span></span>
               </div>
