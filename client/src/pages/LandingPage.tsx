@@ -150,9 +150,9 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
     }
   };
 
-  // Overlay click handler
+  // Overlay click handler (desativado o fechamento ao clicar fora para não perder dados)
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && step !== 'sucesso') onClose();
+    // if (e.target === e.currentTarget && step !== 'sucesso') onClose();
   };
 
   return (
