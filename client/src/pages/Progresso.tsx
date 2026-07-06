@@ -68,6 +68,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function Progresso() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showOnlyActive, setShowOnlyActive] = useState(() => localStorage.getItem("progresso_showOnlyActive") === "true");
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
@@ -519,8 +520,9 @@ export default function Progresso() {
   const filteredStudents = useMemo(() => {
     return students
       .filter((s: any) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .filter((s: any) => showOnlyActive ? s.status === "ativo" : true)
       .sort((a: any, b: any) => a.name.localeCompare(b.name));
-  }, [students, searchQuery]);
+  }, [students, searchQuery, showOnlyActive]);
 
   const selectedStudent = useMemo(() => {
     return students.find((s: any) => s.id === selectedStudentId);
@@ -558,15 +560,29 @@ export default function Progresso() {
              </div>
              
              {!isListCollapsed ? (
-                <div className="relative group animate-in fade-in duration-300">
-                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" size={14} />
-                   <Input
-                     placeholder="Buscar..."
-                     className="pl-10 h-11 text-xs rounded-xl border-border bg-muted/50 focus:bg-card transition-all shadow-sm focus:ring-2 focus:ring-indigo-500/10"
-                     value={searchQuery}
-                     onChange={(e) => setSearchQuery(e.target.value)}
-                   />
-                </div>
+                  <div className="flex items-center gap-2 animate-in fade-in duration-300">
+                    <div className="relative group flex-1">
+                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" size={14} />
+                       <Input
+                         placeholder="Buscar..."
+                         className="pl-10 h-11 text-xs rounded-xl border-border bg-muted/50 focus:bg-card transition-all shadow-sm focus:ring-2 focus:ring-indigo-500/10"
+                         value={searchQuery}
+                         onChange={(e) => setSearchQuery(e.target.value)}
+                       />
+                    </div>
+                    <Button
+                      variant={showOnlyActive ? "default" : "outline"}
+                      className={cn("h-11 w-11 p-0 shrink-0 rounded-xl transition-all", showOnlyActive ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "text-muted-foreground")}
+                      onClick={() => {
+                        const nextValue = !showOnlyActive;
+                        setShowOnlyActive(nextValue);
+                        localStorage.setItem("progresso_showOnlyActive", String(nextValue));
+                      }}
+                      title="Mostrar somente alunos ativos"
+                    >
+                      <Filter size={16} />
+                    </Button>
+                  </div>
              ) : (
                 <button 
                   onClick={() => setIsListCollapsed(false)}
