@@ -153,8 +153,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         "#tour-finance-cards", 
         "#tour-students-list", 
         "#tour-dashboard-charts",
+        "#tour-dashboard-stats",
         "#tour-calendar-view",
-        "#tour-auto-rules"
+        "#tour-auto-rules",
+        "#tour-auto-stats"
       ];
       
       if (typeof step.target === 'string' && largeElements.includes(step.target)) {
