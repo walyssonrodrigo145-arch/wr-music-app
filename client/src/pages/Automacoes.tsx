@@ -903,8 +903,8 @@ export default function Automacoes() {
       </div>
 
       {/* System Rules */}
-      <section id="tour-auto-rules">
-        <div className="flex items-center gap-3 mb-5">
+      <section>
+        <div id="tour-auto-rules" className="flex items-center gap-3 mb-5">
           <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
             <Sparkles size={16} className="text-indigo-500" />
           </div>
