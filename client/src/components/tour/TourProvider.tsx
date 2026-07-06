@@ -3,6 +3,7 @@ import { Joyride, EventData, EVENTS, STATUS, ACTIONS, Step } from "react-joyride
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { tourSteps } from "./tourSteps";
+import { useIsMobile } from "@/hooks/useMobile";
 
 interface TourContextType {
   runTour: boolean;
@@ -15,6 +16,7 @@ interface TourContextType {
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export function TourProvider({ children }: { children: React.ReactNode }) {
+  const isMobile = useIsMobile();
   const [runTour, setRunTour] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [hasSeenTutorial, setHasSeenTutorial] = useState(true);
@@ -125,6 +127,29 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Processa steps dinamicamente para o Mobile
+  const processedSteps = tourSteps.map(step => {
+    if (isMobile) {
+      if (step.target === ".tour-sidebar-desktop #tour-sidebar" || step.target === "#tour-sidebar") {
+        return {
+          ...step,
+          target: "#tour-mobile-menu",
+          placement: "bottom" as any,
+          content: "Aqui você abre o menu para acessar todas as áreas do sistema.",
+        };
+      }
+      if (step.target === "#tour-user-menu") {
+        return {
+          ...step,
+          target: "#tour-mobile-user-menu",
+          placement: "bottom" as any,
+          content: "Aqui você acessa o seu perfil, configurações e a opção de sair.",
+        };
+      }
+    }
+    return step;
+  });
+
   // O tour só roda quando não está navegando
   const shouldRun = runTour && !isNavigating;
 
@@ -132,7 +157,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     <TourContext.Provider value={{ runTour, startTour, stopTour, hasSeenTutorial, setHasSeenTutorial }}>
       {children}
       <Joyride
-        steps={tourSteps}
+        steps={processedSteps}
         run={shouldRun}
         stepIndex={stepIndex}
         onEvent={handleJoyrideCallback}
@@ -174,7 +199,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           tooltip: {
             borderRadius: '12px',
             padding: '20px',
-            maxWidth: '380px',
+            maxWidth: isMobile ? '90vw' : '380px',
           },
           tooltipContainer: {
             textAlign: 'left',

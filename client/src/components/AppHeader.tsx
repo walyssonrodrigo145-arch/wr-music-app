@@ -81,6 +81,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
     <header className="h-20 lg:h-24 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-6 lg:px-10 gap-6 lg:gap-10 flex-shrink-0 z-40 sticky top-0 transition-all duration-500">
       {/* Mobile menu button - Refined */}
       <button
+        id="tour-mobile-menu"
         className="md:hidden w-12 h-12 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40"
         onClick={onMobileMenuOpen}
         aria-label="Abrir menu"
@@ -217,7 +218,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
         {/* User Profile Dropdown - Premium Style */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 lg:gap-4 pl-2 pr-4 py-2 rounded-[1.5rem] bg-card/40 hover:bg-card transition-all group active:scale-95 border border-border/20 shadow-sm">
+            <button id="tour-mobile-user-menu" className="flex items-center gap-3 lg:gap-4 pl-2 pr-4 py-2 rounded-[1.5rem] bg-card/40 hover:bg-card transition-all group active:scale-95 border border-border/20 shadow-sm">
               <div className="relative">
                  <Avatar className="w-10 h-10 lg:w-12 lg:h-12 border-2 border-primary/20 shadow-lg group-hover:rotate-6 transition-all duration-500">
                    <AvatarFallback className="bg-gradient-to-br from-primary via-indigo-600 to-violet-600 text-white text-[11px] lg:text-[12px] font-black tracking-tight">
