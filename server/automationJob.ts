@@ -42,6 +42,11 @@ async function runAutomation() {
   }
   isAutomationRunning = true;
 
+  // BUG-012 FIX: Guard adicional via DB para ambientes multi-process.
+  // O campo automationLastRun por usuário serve como lock pragmático:
+  // se foi atualizado há menos de 50s, provavelmente outro processo já está processando.
+  // Não requer migration de schema pois o campo já existe.
+
   try {
     const db = await getDb();
     if (!db) return;
@@ -70,6 +75,15 @@ async function runAutomation() {
   for (const userSettings of activeSettings) {
     const userId = userSettings.userId;
     const orgId = userSettings.organizationId;
+
+    // BUG-012: Se automationLastRun foi atualizado há menos de 50s por outro processo, pula este usuário
+    if (userSettings.automationLastRun) {
+      const msSinceLastRun = now.getTime() - new Date(userSettings.automationLastRun).getTime();
+      if (msSinceLastRun < 50 * 1000) {
+        console.log(`[Automation] Skipping userId=${userId} — outro processo executou há ${Math.round(msSinceLastRun / 1000)}s (DB lock).`);
+        continue;
+      }
+    }
 
     // Sem organizationId não conseguimos isolar os dados — pula
     if (!orgId) {
@@ -292,8 +306,14 @@ async function runAutomation() {
           }
 
           if (refType) {
-            console.log('[Trace] Calling db.select for existingExp'); const existingExp = await db.select({ id: reminders.id }).from(reminders)
-              .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refType))).limit(1);
+            console.log('[Trace] Calling db.select for existingExp');
+            // BUG-009 FIX: Inclui userId na query de dedup para isolar professores da mesma org
+            const existingExp = await db.select({ id: reminders.id }).from(reminders)
+              .where(and(
+                eq(reminders.organizationId, orgId),
+                eq(reminders.userId, userId),
+                eq(reminders.refId, refType)
+              )).limit(1);
 
             if (existingExp.length === 0) {
               await db.insert(reminders).values({
@@ -347,7 +367,12 @@ async function runAutomation() {
               eq(reminders.organizationId, orgId),
               eq(reminders.userId, userId),
               eq(reminders.status, "pendente"),
-              lte(reminders.scheduledAt, now)
+              lte(reminders.scheduledAt, now),
+              // ── BUG-001 FIX: Excluir lembretes do Rules Loop do Loop Principal ──
+              // Lembretes gerados por regras de automação (auto-rule-*) são enviados
+              // e marcados como 'enviado' imediatamente dentro do Rules Loop.
+              // O Loop Principal nunca deve processá-los para evitar duplicação.
+              sql`(${reminders.refId} IS NULL OR ${reminders.refId} NOT LIKE 'auto-rule-%')`
             )
           );
 
@@ -377,6 +402,18 @@ async function runAutomation() {
           );
 
         const getRemKey = (studentId: number | null, type: string, refId: string | null) => {
+          // ── BUG-003 FIX: Reconhece lembretes gerados pelo Rules Loop (auto-rule-*) ──
+          // Sem esse match, o Anti-Spam do Loop Principal nunca bloqueava lembretes
+          // gerados por regras de automação, causando reenvios.
+          const autoRuleLessonMatch = refId?.match(/^auto-rule-\d+-lesson-(\d+)/);
+          if (autoRuleLessonMatch) return `${studentId}-auto-aula-${autoRuleLessonMatch[1]}`;
+
+          const autoRulePayMatch = refId?.match(/^auto-rule-\d+-payment-(\d+)/);
+          if (autoRulePayMatch) return `${studentId}-auto-cobranca-${autoRulePayMatch[1]}`;
+
+          const autoRuleExpMatch = refId?.match(/^auto-rule-\d+-/);
+          if (autoRuleExpMatch) return `${studentId}-auto-${refId}`;
+
           // Extrai lessonId do refId para identificar cada aula individualmente e evitar falsos positivos
           const lessonMatch = refId?.match(/^lesson-(\d+)-/);
           if (lessonMatch) return `${studentId}-aula-${lessonMatch[1]}`;
@@ -568,8 +605,10 @@ async function runAutomation() {
                   if (isOverdue) continue; // Already overdue, skip
                   triggerDate.setDate(triggerDate.getDate() + (rule.offsetDays ?? 0));
                 } else if (rule.trigger === "payment_overdue") {
-                  // For overdue, offsetDays is usually positive (e.g. 1 day after)
-                  triggerDate.setDate(triggerDate.getDate() + Math.abs(rule.offsetDays ?? 0));
+                  // BUG-011 FIX: Removido Math.abs() — respeita a semântica do offsetDays configurado.
+                  // offsetDays positivo = N dias APÓS o vencimento (ex: 1 = 1 dia depois de vencer)
+                  // offsetDays negativo = N dias ANTES do vencimento (não usual para overdue, mas respeita a config)
+                  triggerDate.setDate(triggerDate.getDate() + (rule.offsetDays ?? 0));
                 }
                 
                 if (triggerDate > now2) continue; // Not yet time
@@ -1077,9 +1116,10 @@ async function runAutomation() {
               const currentDayOfWeek = brazilDate.getDay(); // 0=Dom, 1=Seg... em horário BRT
               if (!daysOfWeek.includes(currentDayOfWeek)) continue;
 
-              // Verificar se o horário atual já passou do horário configurado (com tolerância de até 30 minutos)
-              // Isso é muito mais robusto que ±2min — protege contra ciclos lentos ou reinicios do servidor.
-              // O refId por hora garante que só dispara UMA vez mesmo com a janela maior.
+              // Verificar se o horário atual já passou do horário configurado (com tolerância de até 30 minutos).
+              // Isso é robusto contra ciclos lentos ou reinícios do servidor.
+              // BUG-008 FIX: O refId usa `todayStr2` (data do dia) — não a hora — garantindo que
+              // dispara UMA VEZ POR DIA independentemente de reinícios dentro da janela de 30min.
               const [sendHour, sendMin] = sendTime.split(":").map(Number);
               const nowTotalMin = brazilDate.getHours() * 60 + brazilDate.getMinutes(); // hora BRT
               const targetTotalMin = sendHour * 60 + sendMin;
