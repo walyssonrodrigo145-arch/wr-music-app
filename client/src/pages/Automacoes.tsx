@@ -801,7 +801,7 @@ export default function Automacoes() {
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div id="tour-auto-header" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Zap size={22} className="text-white" />
@@ -819,7 +819,7 @@ export default function Automacoes() {
         </Button>
       </div>
 
-      <div className={cn(
+      <div id="tour-auto-toggle" className={cn(
         "relative overflow-hidden p-6 rounded-[2rem] border transition-all duration-300",
         autoEnabled
           ? "bg-gradient-to-br from-indigo-600 to-indigo-800 border-indigo-700 shadow-xl shadow-indigo-500/20 text-white"
@@ -882,7 +882,7 @@ export default function Automacoes() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div id="tour-auto-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Mensagens Enviadas" value={stats?.totalSent ?? 0} icon={Send} color="bg-gradient-to-br from-emerald-500 to-teal-600" />
         <StatCard label="Automações Ativas" value={stats?.activeRules ?? 0} icon={Zap} color="bg-gradient-to-br from-indigo-500 to-violet-600" />
         <StatCard label="Taxa de Entrega" value={`${stats?.deliveryRate ?? 0}%`} icon={TrendingUp} color="bg-gradient-to-br from-blue-500 to-indigo-600" sub="Mensagens confirmadas" />
@@ -903,7 +903,7 @@ export default function Automacoes() {
       </div>
 
       {/* System Rules */}
-      <section>
+      <section id="tour-auto-rules">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
             <Sparkles size={16} className="text-indigo-500" />

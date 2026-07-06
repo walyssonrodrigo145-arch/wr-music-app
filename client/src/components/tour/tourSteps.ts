@@ -131,22 +131,66 @@ export const tourSteps: Step[] = [
   // Alunos Steps
   // ─────────────────────────────────────────────
   {
+    // Mudado de "top" para "right" — o elemento ocupa a parte superior da tela
+    // e "top" fazia o tooltip sair do viewport (cortado no topo)
     target: "#tour-students-list",
-    placement: "top",
+    placement: "right",
     content: "Nesta tabela ficam todos os seus alunos. Você pode pesquisar pelo nome e filtrar por status.",
     title: "Lista de Alunos",
     skipBeacon: true,
   },
   {
-    // Usa placement "bottom" em vez de "left" para garantir que o tooltip
-    // apareça abaixo do botão, que fica no topo da página de Alunos.
-    // isFixed: true evita recálculo de posição se o botão rolar fora do viewport.
     target: "#tour-new-student",
     placement: "bottom",
     content: "Para cadastrar um novo aluno e enviar o acesso ao aplicativo, utilize este botão.",
     title: "Novo Aluno",
     skipBeacon: true,
     isFixed: true,
+  },
+
+  // ─────────────────────────────────────────────
+  // Transição → Automações
+  // ─────────────────────────────────────────────
+  {
+    target: "body",
+    placement: "center",
+    content: "Agora vamos ver uma das áreas mais poderosas do sistema: as Automações de mensagens! Clique em 'Próximo' para continuar.",
+    title: "Automações ⚡",
+    skipBeacon: true,
+    isFixed: true,
+    data: { navigateTo: "/automacoes" },
+  },
+
+  // ─────────────────────────────────────────────
+  // Automações Steps
+  // ─────────────────────────────────────────────
+  {
+    target: "#tour-auto-header",
+    placement: "bottom",
+    content: "Aqui você gerencia todas as mensagens automáticas do sistema. Use o botão 'Criar Nova Regra' para personalizar seus próprios gatilhos.",
+    title: "Automações de Mensagens",
+    skipBeacon: true,
+  },
+  {
+    target: "#tour-auto-toggle",
+    placement: "bottom",
+    content: "Este é o coração das automações: o Robô. Quando ligado, ele varre automaticamente todas as regras e dispara as mensagens no horário certo para os seus alunos.",
+    title: "Robô de Automação 🤖",
+    skipBeacon: true,
+  },
+  {
+    target: "#tour-auto-stats",
+    placement: "bottom",
+    content: "Aqui você acompanha o desempenho das automações: total de mensagens enviadas, automações ativas e a taxa de entrega.",
+    title: "Estatísticas",
+    skipBeacon: true,
+  },
+  {
+    target: "#tour-auto-rules",
+    placement: "top",
+    content: "Estas são as regras padrão do sistema. Cada uma é um gatilho automático — como cobranças vencidas, aniversários e lembretes de aula. Você pode editar o texto e o timing de cada uma.",
+    title: "Regras de Automação",
+    skipBeacon: true,
   },
 
   // ─────────────────────────────────────────────
