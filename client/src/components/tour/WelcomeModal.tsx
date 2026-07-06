@@ -21,13 +21,16 @@ export function WelcomeModal() {
   });
 
   const handleStart = () => {
+    // Marca localmente para fechar o modal imediatamente
     setHasSeenTutorial(true);
+    // Aguarda a animação de fechamento do Radix UI (~300ms) + margem de segurança
     setTimeout(() => {
       startTour();
-    }, 400); // Aguarda a animação do Radix UI fechar o modal
+    }, 500);
   };
 
   const handleSkip = () => {
+    // Marca no banco que o usuário não quer ver o tutorial
     completeTutorial.mutate();
   };
 
