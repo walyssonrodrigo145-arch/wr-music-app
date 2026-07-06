@@ -43,7 +43,15 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setStepIndex(0);
     setIsNavigating(false);
     pendingStepIndex.current = null;
-    setRunTour(true);
+    
+    // Garante que o tour sempre inicie no Dashboard para não pular os steps 2 e 3
+    if (window.location.pathname !== "/") {
+      setLocation("/");
+      pendingStepIndex.current = 0;
+      setIsNavigating(true);
+    } else {
+      setRunTour(true);
+    }
   };
 
   const stopTour = () => {
