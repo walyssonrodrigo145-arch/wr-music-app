@@ -13,7 +13,7 @@ import { useTour } from "./TourProvider";
 import { trpc } from "@/lib/trpc";
 
 export function WelcomeModal() {
-  const { hasSeenTutorial, setHasSeenTutorial, startTour } = useTour();
+  const { hasSeenTutorial, setHasSeenTutorial, startTour, runTour } = useTour();
   const completeTutorial = trpc.auth.completeTutorial.useMutation({
     onSuccess: () => {
       setHasSeenTutorial(true);
@@ -29,7 +29,7 @@ export function WelcomeModal() {
   };
 
   return (
-    <AlertDialog open={!hasSeenTutorial}>
+    <AlertDialog open={!hasSeenTutorial && !runTour}>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-2xl font-bold flex items-center gap-2">
