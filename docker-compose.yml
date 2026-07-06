@@ -30,7 +30,7 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
-      - ./landpage:/srv/landpage   # <- ADICIONE ESSA LINHA
+      - ./landpage:/srv/landpage
       - caddy_data:/data
       - caddy_config:/config
 
