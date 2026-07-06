@@ -626,7 +626,7 @@ export default function Progresso() {
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md",
-                          selectedStudentId === student.id ? "bg-card/10 text-white/80" : "bg-slate-200/50 text-muted-foreground"
+                          selectedStudentId === student.id ? "bg-card/10 text-white/80" : "bg-muted text-muted-foreground"
                         )}>
                           {student.level || "Iniciante"}
                         </span>
@@ -1430,7 +1430,7 @@ export default function Progresso() {
 
             <DialogFooter className="p-6 bg-muted/30 border-t border-border flex flex-col sm:flex-row justify-between gap-3">
                <div className="flex gap-2">
-                 <Button type="button" variant="ghost" onClick={() => setIsAILessonModalOpen(false)} className="h-11 rounded-xl px-6 text-xs font-black uppercase tracking-widest hover:bg-slate-200">
+                 <Button type="button" variant="ghost" onClick={() => setIsAILessonModalOpen(false)} className="h-11 rounded-xl px-6 text-xs font-black uppercase tracking-widest hover:bg-muted">
                     Fechar
                  </Button>
                  {lessonPlanContent && (
