@@ -595,7 +595,7 @@ async function runAutomation() {
 
               for (const due of pendingDues) {
                 if (due.allowAutoReminders === false || due.allowAutoReminders === 0) continue;
-                const dueDate = new Date(due.dueDate + "T12:00:00");
+                const dueDate = new Date(due.dueDate + "T08:00:00");
                 const dueDateStr = String(due.dueDate).slice(0, 10);
                 const isOverdue = dueDateStr < todayStr2;
 
