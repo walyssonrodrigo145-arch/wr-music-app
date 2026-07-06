@@ -225,31 +225,19 @@ export default function ProfessorExtract() {
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card/40 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-2xl shadow-primary/5"
+        className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
       >
         <div>
-          <h1 className="font-outfit text-3xl md:text-4xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
+          <h1 className="font-outfit text-4xl md:text-5xl font-black text-foreground tracking-tight">
             Folha de Pagamento
           </h1>
-          <p className="text-zinc-500 mt-1">Gestão e extratos de pagamento de professores</p>
+          <p className="text-muted-foreground mt-2 font-medium">Gestão e extratos de pagamento de professores</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          {isAdmin && (
-            <Button 
-              variant="outline" 
-              className="hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full sm:w-auto"
-              onClick={() => calculateMutation.mutate({ month: viewMonth, year: viewYear })}
-              disabled={calculateMutation.isPending}
-            >
-              {calculateMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
-              Calcular Mês
-            </Button>
-          )}
-
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto bg-card/50 backdrop-blur-md p-2 rounded-2xl border border-white/10 shadow-xl shadow-primary/5">
           <div className="flex gap-2 w-full sm:w-auto">
             <Select value={viewMonth.toString()} onValueChange={(v) => setViewMonth(parseInt(v))}>
-              <SelectTrigger className="w-full sm:w-[150px] capitalize bg-background/50 backdrop-blur-sm">
+              <SelectTrigger className="w-full sm:w-[150px] capitalize bg-background border-white/5 font-semibold rounded-xl h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -261,7 +249,7 @@ export default function ProfessorExtract() {
               </SelectContent>
             </Select>
             <Select value={viewYear.toString()} onValueChange={(v) => setViewYear(parseInt(v))}>
-              <SelectTrigger className="w-[110px] bg-background/50 backdrop-blur-sm">
+              <SelectTrigger className="w-[110px] bg-background border-white/5 font-semibold rounded-xl h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -273,6 +261,17 @@ export default function ProfessorExtract() {
               </SelectContent>
             </Select>
           </div>
+          
+          {isAdmin && (
+            <Button 
+              className="hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 w-full sm:w-auto rounded-xl font-bold h-11"
+              onClick={() => calculateMutation.mutate({ month: viewMonth, year: viewYear })}
+              disabled={calculateMutation.isPending}
+            >
+              {calculateMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
+              Calcular Mês
+            </Button>
+          )}
         </div>
       </motion.div>
 
@@ -305,100 +304,120 @@ export default function ProfessorExtract() {
               transition={{ delay: i * 0.1, duration: 0.4 }}
               className="bg-card/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-primary/5 hover:shadow-primary/10 transition-all duration-300"
             >
-              {/* Card Header Premium */}
-              <div className="bg-gradient-to-r from-primary/5 via-transparent to-transparent dark:from-primary/10 p-6 border-b border-white/5">
+              {/* Card Header Premium - Holerite */}
+              <div className="bg-gradient-to-r from-muted/50 via-transparent to-transparent p-6 md:p-8 border-b border-border/50">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center font-outfit font-bold text-2xl shadow-lg shadow-primary/30">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl flex items-center justify-center font-outfit font-black text-3xl shadow-xl shadow-indigo-500/30 ring-4 ring-background shrink-0">
                       {payment.professorName?.charAt(0) || "P"}
                     </div>
                     <div>
-                      <h3 className="font-outfit text-2xl font-bold text-foreground">{payment.professorName}</h3>
-                      <p className="text-sm text-zinc-500 font-medium mt-1">
-                        {format(new Date(payment.year, payment.month - 1), "MMMM 'de' yyyy", { locale: ptBR })}
-                      </p>
+                      <h3 className="font-outfit text-2xl md:text-3xl font-black text-foreground tracking-tight">{payment.professorName}</h3>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">
+                          Referência: {format(new Date(payment.year, payment.month - 1), "MMMM 'de' yyyy", { locale: ptBR })}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Badge variant={payment.status === "pago" ? "default" : payment.status === "aprovado" ? "secondary" : "outline"}
-                      className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider ${
-                        payment.status === "pago" ? "bg-green-500 hover:bg-green-600 text-white border-none shadow-md shadow-green-500/20" : 
-                        payment.status === "aprovado" ? "bg-blue-500 hover:bg-blue-600 text-white border-none shadow-md shadow-blue-500/20" : 
-                        "bg-background/50 backdrop-blur-md"
-                      }`}
-                    >
-                      {payment.status === "aberto" && "Em Aberto"}
-                      {payment.status === "aprovado" && "Aprovado"}
-                      {payment.status === "pago" && "Pago"}
-                    </Badge>
-                    
-                    <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 hover:-translate-y-0.5 transition-transform" onClick={() => handlePrint(payment)}>
-                      <FileText className="w-4 h-4 mr-2 text-primary" /> Recibo
-                    </Button>
-
-                    <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 hover:-translate-y-0.5 transition-transform" onClick={() => setDetailsPaymentId(payment.id)}>
-                      Ver Aulas
-                    </Button>
-
-                    {isAdmin && payment.status === "aberto" && (
-                      <Button size="sm" variant="outline" className="bg-background/50 hover:bg-background/80 hover:-translate-y-0.5 transition-transform" onClick={() => setAdjustPayment({
-                        ...payment, 
-                        adjs: payment.adjustments ? JSON.parse(payment.adjustments) : []
-                      })}>
-                        <Settings2 className="w-4 h-4 mr-2" /> Ajustes
-                      </Button>
-                    )}
-
-                    {isAdmin && payment.status === "aberto" && (
-                      <Button size="sm" className="hover:-translate-y-0.5 shadow-lg shadow-primary/20 transition-transform" onClick={() => approveMutation.mutate({ id: payment.id })} disabled={approveMutation.isPending}>
-                        Aprovar
-                      </Button>
-                    )}
-                    
-                    {isAdmin && payment.status === "aprovado" && (
-                      <Button size="sm" className="bg-green-500 hover:bg-green-600 hover:-translate-y-0.5 shadow-lg shadow-green-500/20 transition-transform" onClick={() => markPaidMutation.mutate({ id: payment.id })} disabled={markPaidMutation.isPending}>
-                        <CheckCircle2 className="w-4 h-4 mr-2" /> Pagar
-                      </Button>
-                    )}
-                  </div>
+                  <Badge variant={payment.status === "pago" ? "default" : payment.status === "aprovado" ? "secondary" : "outline"}
+                    className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-xl ${
+                      payment.status === "pago" ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20" : 
+                      payment.status === "aprovado" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20" : 
+                      "bg-muted text-muted-foreground border-border"
+                    }`}
+                  >
+                    {payment.status === "aberto" && "Status: Em Aberto"}
+                    {payment.status === "aprovado" && "Status: Aprovado"}
+                    {payment.status === "pago" && "Status: Pago"}
+                  </Badge>
                 </div>
               </div>
               
-              <div className="p-6 md:p-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-                  <div className="space-y-2 p-4 rounded-2xl bg-muted/20 border border-border/30">
-                    <p className="text-sm font-semibold text-zinc-500 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-primary" /> Aulas Concluídas
-                    </p>
-                    <p className="font-outfit text-3xl font-bold text-foreground">{payment.totalClasses}</p>
-                  </div>
+              {/* Card Body - 2 Columns */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border/50">
+                {/* Atividades */}
+                <div className="p-6 md:p-8 space-y-6 bg-card/30">
+                  <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" /> Resumo de Atividades
+                  </h4>
                   
-                  <div className="space-y-2 p-4 rounded-2xl bg-muted/20 border border-border/30">
-                    <p className="text-sm font-semibold text-zinc-500 flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-primary" /> Total Minutos
-                    </p>
-                    <p className="font-outfit text-3xl font-bold text-foreground">{payment.totalMinutes}m</p>
-                  </div>
-                  
-                  <div className="space-y-2 p-4 rounded-2xl bg-red-500/5 border border-red-500/10">
-                    <p className="text-sm font-semibold text-red-500/80 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" /> Descontos
-                    </p>
-                    <p className="font-outfit text-3xl font-bold text-red-500">
-                      -R$ {Number(payment.totalDebits || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2 bg-primary/10 p-5 rounded-2xl border border-primary/20 shadow-inner">
-                    <p className="text-sm font-semibold text-primary flex items-center gap-2 uppercase tracking-wide">
-                      <DollarSign className="w-4 h-4" /> Líquido a Receber
-                    </p>
-                    <p className="font-outfit text-4xl font-black text-primary drop-shadow-sm">
-                      R$ {Number(payment.totalAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase">Aulas Concluídas</p>
+                      <p className="font-outfit text-3xl font-bold text-foreground">{payment.totalClasses}</p>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase">Tempo Total</p>
+                      <p className="font-outfit text-3xl font-bold text-foreground">{payment.totalMinutes}<span className="text-lg text-muted-foreground font-medium ml-1">min</span></p>
+                    </div>
                   </div>
                 </div>
+
+                {/* Financeiro */}
+                <div className="p-6 md:p-8 space-y-6 bg-muted/10">
+                  <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" /> Resumo Financeiro
+                  </h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-end border-b border-border/50 pb-4">
+                      <p className="text-sm font-semibold text-muted-foreground">Proventos Brutos</p>
+                      <p className="font-outfit text-xl font-bold text-foreground">
+                        R$ {Number(payment.totalCredits || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+
+                    <div className="flex justify-between items-end border-b border-border/50 pb-4">
+                      <p className="text-sm font-semibold text-red-500/80">Descontos</p>
+                      <p className="font-outfit text-xl font-bold text-red-500">
+                        - R$ {Number(payment.totalDebits || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    
+                    <div className="flex justify-between items-end pt-2">
+                      <p className="text-sm font-black text-primary uppercase tracking-wider">Líquido a Receber</p>
+                      <p className="font-outfit text-4xl md:text-5xl font-black text-primary drop-shadow-sm">
+                        <span className="text-2xl mr-1 text-primary/80">R$</span>{Number(payment.totalAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Footer */}
+              <div className="bg-muted/30 p-4 md:p-6 border-t border-border/50 flex flex-wrap items-center justify-end gap-3">
+                <Button size="sm" variant="outline" className="h-10 rounded-xl font-semibold bg-background hover:bg-muted" onClick={() => handlePrint(payment)}>
+                  <FileText className="w-4 h-4 mr-2 text-muted-foreground" /> Recibo
+                </Button>
+
+                <Button size="sm" variant="outline" className="h-10 rounded-xl font-semibold bg-background hover:bg-muted" onClick={() => setDetailsPaymentId(payment.id)}>
+                  <Clock className="w-4 h-4 mr-2 text-muted-foreground" /> Ver Aulas
+                </Button>
+
+                {isAdmin && payment.status === "aberto" && (
+                  <Button size="sm" variant="outline" className="h-10 rounded-xl font-semibold bg-background hover:bg-muted" onClick={() => setAdjustPayment({
+                    ...payment, 
+                    adjs: payment.adjustments ? JSON.parse(payment.adjustments) : []
+                  })}>
+                    <Settings2 className="w-4 h-4 mr-2 text-muted-foreground" /> Ajustes
+                  </Button>
+                )}
+
+                {isAdmin && payment.status === "aberto" && (
+                  <Button size="sm" className="h-10 rounded-xl font-bold shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all" onClick={() => approveMutation.mutate({ id: payment.id })} disabled={approveMutation.isPending}>
+                    Aprovar Pagamento
+                  </Button>
+                )}
+                
+                {isAdmin && payment.status === "aprovado" && (
+                  <Button size="sm" className="h-10 rounded-xl font-bold bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20 hover:-translate-y-0.5 transition-all" onClick={() => markPaidMutation.mutate({ id: payment.id })} disabled={markPaidMutation.isPending}>
+                    <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Pago
+                  </Button>
+                )}
               </div>
             </motion.div>
           ))}
