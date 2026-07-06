@@ -63,8 +63,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Novo Lembrete';
   const options = {
     body: data.content || 'Você tem um novo aviso no sistema de música.',
-    icon: 'https://cdn-icons-png.flaticon.com/512/3844/3844724.png',
-    badge: 'https://cdn-icons-png.flaticon.com/512/3844/3844724.png',
+    icon: '/icon-192.png',
+    badge: '/icon-badge.png',
   };
 
   event.waitUntil(self.registration.showNotification(title, options));

@@ -40,7 +40,7 @@ export async function sendPushNotification(token: string, title: string, body: s
       webpush: {
         notification: {
           icon: opts?.icon || 'https://wrmusicpro.com.br/icon-192.png',
-          badge: opts?.badge || 'https://wrmusicpro.com.br/icon-192.png',
+          badge: opts?.badge || 'https://wrmusicpro.com.br/icon-badge.png',
           vibrate: [200, 100, 200],
         },
         fcmOptions: {
