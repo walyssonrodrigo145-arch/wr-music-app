@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2, Edit2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit2, Mail, GraduationCap } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "/dashboard", label: "Dashboard" },
@@ -156,16 +158,19 @@ export function ProfessoresTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/30 p-6 rounded-2xl border border-border/50">
         <div>
-          <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Equipe de Professores</h3>
-          <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Gerencie os acessos dos professores</p>
+          <h3 className="text-xl lg:text-2xl font-outfit font-black text-foreground uppercase tracking-widest flex items-center gap-3">
+            <span className="w-2 h-8 bg-primary rounded-full"></span>
+            Equipe de Professores
+          </h3>
+          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-widest mt-1 ml-5">Gerencie os acessos e permissões dos membros</p>
         </div>
         
         <Dialog open={isOpen} onOpenChange={(val) => { setIsOpen(val); if (!val) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2">
-              <Plus size={16} />
+            <Button className="bg-primary hover:bg-primary/90 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all">
+              <Plus size={18} className="mr-2" />
               Novo Professor
             </Button>
           </DialogTrigger>
@@ -318,50 +323,67 @@ export function ProfessoresTab() {
         </Dialog>
       </div>
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
-              <tr>
-                <th className="px-6 py-3 font-semibold">Nome</th>
-                <th className="px-6 py-3 font-semibold">Email</th>
-                <th className="px-6 py-3 font-semibold">Especialidade</th>
-                <th className="px-6 py-3 font-semibold text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {professores?.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
-                    Nenhum professor cadastrado ainda.
-                  </td>
-                </tr>
-              ) : (
-                professores?.map((prof) => (
-                  <tr key={prof.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-6 py-4 font-medium text-foreground">{prof.name}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{prof.email}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{prof.especialidade || "-"}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50" onClick={() => handleOpenEdit(prof)}>
-                          <Edit2 size={14} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => {
-                          if (confirm("Tem certeza que deseja remover este professor? O acesso dele será bloqueado.")) {
-                            deleteMutation.mutate({ id: prof.id });
-                          }
-                        }}>
-                          {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="grid grid-cols-1 gap-4">
+        {professores?.length === 0 ? (
+          <div className="bg-card border border-border rounded-2xl p-12 text-center flex flex-col items-center">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+              <GraduationCap className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h4 className="font-outfit text-lg font-bold">Nenhum professor cadastrado</h4>
+            <p className="text-sm text-muted-foreground mt-1">Clique em "Novo Professor" para adicionar membros à equipe.</p>
+          </div>
+        ) : (
+          professores?.map((prof) => {
+            const initials = prof.name?.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() || "P";
+            const especialidades = prof.especialidade ? prof.especialidade.split(",").map((s: string) => s.trim()) : [];
+            
+            return (
+              <div key={prof.id} className="bg-card hover:bg-muted/30 border border-border rounded-2xl p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:shadow-md">
+                <div className="flex items-center gap-5">
+                  <Avatar className="h-14 w-14 ring-2 ring-primary/20 shadow-md">
+                    <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-white font-outfit font-black text-xl">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h4 className="font-outfit text-xl font-black text-foreground">{prof.name}</h4>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium mt-1">
+                      <Mail className="w-3.5 h-3.5" />
+                      {prof.email}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:items-end gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {especialidades.length > 0 ? (
+                      especialidades.map((esp: string, i: number) => (
+                        <Badge key={i} variant="secondary" className="bg-primary/10 text-primary border-primary/20 font-semibold px-3 py-1 rounded-lg">
+                          {esp}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic bg-muted px-3 py-1 rounded-lg">Sem especialidade</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-9 rounded-lg font-semibold hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors" onClick={() => handleOpenEdit(prof)}>
+                      <Edit2 size={14} className="mr-2" /> Editar
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-9 rounded-lg font-semibold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors" onClick={() => {
+                      if (confirm("Tem certeza que deseja remover este professor? O acesso dele será bloqueado.")) {
+                        deleteMutation.mutate({ id: prof.id });
+                      }
+                    }}>
+                      {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} className="mr-2" />} Excluir
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

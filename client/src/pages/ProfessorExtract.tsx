@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { downloadBase64File } from "../utils/downloadReport";
 
 export default function ProfessorExtract() {
   const { user } = useAuth();
@@ -34,6 +36,8 @@ export default function ProfessorExtract() {
     month: viewMonth,
     year: viewYear,
   });
+
+  const generateReport = trpc.reportEngine.generate.useMutation();
 
   const calculateMutation = trpc.professorPayments.calculateAll.useMutation({
     onSuccess: (data) => {
@@ -217,6 +221,57 @@ export default function ProfessorExtract() {
         printWindow.print();
       }, 600);
     }
+  };
+
+  const handleAiExport = (includeAi: boolean) => {
+    if (!detailsData) return;
+    
+    const rows: any[][] = [];
+    const columns = ["Data", "Aluno", "Título", "Duração", "Status", "Comissão/Valor"];
+    
+    if (detailsData.lessons) {
+      detailsData.lessons.forEach((l: any) => {
+        const date = format(new Date(l.scheduledAt), "dd/MM/yyyy HH:mm");
+        
+        let comissao = "R$ 0,00";
+        if (detailsData.paymentType === "porcentagem" && detailsData.percentageDetails) {
+          const detail = detailsData.percentageDetails.find((d: any) => d.studentName === l.studentName);
+          if (detail) comissao = `R$ ${detail.commission}`;
+        } else if (detailsData.paymentType === "fixo") {
+          comissao = `R$ ${detailsData.hourlyRate}`;
+        }
+        
+        rows.push([
+          date,
+          l.studentName || '-',
+          l.title,
+          `${l.duration}m`,
+          l.status,
+          comissao
+        ]);
+      });
+    }
+
+    toast.loading(`Gerando relatório ${includeAi ? 'com IA' : 'Excel'}...`, { id: 'export-loading' });
+    
+    generateReport.mutate({
+      format: 'excel',
+      title: `Relatório de Aulas - ${detailsData.professorName}`,
+      columns,
+      rows,
+      period: `${viewMonth}/${viewYear}`,
+      includeAiInsights: includeAi
+    }, {
+      onSuccess: (data) => {
+        toast.dismiss('export-loading');
+        downloadBase64File(data.data, 'excel', `relatorio_aulas_${detailsData.professorName.replace(/\s+/g, '_')}`);
+        toast.success('Relatório exportado com sucesso!');
+      },
+      onError: () => {
+        toast.dismiss('export-loading');
+        toast.error('Erro ao gerar relatório.');
+      }
+    });
   };
 
   return (
@@ -429,41 +484,52 @@ export default function ProfessorExtract() {
         <DialogContent className="w-[95vw] sm:w-[95vw] md:w-full sm:max-w-5xl max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card/95 backdrop-blur-xl border-white/10">
           <DialogHeader className="flex flex-row items-center justify-between mt-4">
             <DialogTitle className="font-outfit text-2xl text-primary">Aulas Ministradas</DialogTitle>
-            <Button 
-              variant="outline" 
-              className="hidden sm:flex gap-2 items-center" 
-              onClick={() => {
-                if (!detailsData) return;
-                // Add BOM for Excel UTF-8 support
-                let csv = "data:text/csv;charset=utf-8,\uFEFF";
-                
-                if (detailsData.paymentType === "porcentagem" && detailsData.percentageDetails) {
-                  csv += "Relatório Analítico de Comissões\nAluno;Mensalidade Base;Comissão Gerada\n";
-                  detailsData.percentageDetails.forEach((i: any) => {
-                    csv += `"${i.studentName}";"R$ ${i.monthlyFee}";"R$ ${i.commission}"\n`;
-                  });
-                  csv += "\n\n";
-                }
-                
-                csv += "Histórico de Aulas Concluídas\nData;Aluno;Título;Duração;Status\n";
-                if (detailsData.lessons) {
-                  detailsData.lessons.forEach((l: any) => {
-                    const date = format(new Date(l.scheduledAt), "dd/MM/yyyy HH:mm");
-                    csv += `"${date}";"${l.studentName || '-'}";"${l.title}";"${l.duration}m";"${l.status}"\n`;
-                  });
-                }
-                
-                const link = document.createElement("a");
-                link.href = encodeURI(csv);
-                link.download = "relatorio_aulas.csv";
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-              }}
-            >
-              <Download className="w-4 h-4" />
-              Exportar CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="hidden sm:flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-primary/20 transition-all outline-none">
+                <Download className="w-4 h-4" />
+                Exportar Relatório
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem 
+                  disabled={generateReport.isPending}
+                  className="text-xs text-primary font-bold cursor-pointer bg-purple-50 flex items-center py-2"
+                  onClick={() => handleAiExport(true)}
+                >
+                  {generateReport.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : "✨ "}
+                  Gerar Análise com IA (Excel)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-xs font-semibold cursor-pointer py-2" onClick={() => handleAiExport(false)}>
+                  Excel Normal (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-xs font-semibold cursor-pointer py-2" onClick={() => {
+                  if (!detailsData) return;
+                  let csv = "data:text/csv;charset=utf-8,\uFEFF";
+                  if (detailsData.paymentType === "porcentagem" && detailsData.percentageDetails) {
+                    csv += "Relatório Analítico de Comissões\nAluno;Mensalidade Base;Comissão Gerada\n";
+                    detailsData.percentageDetails.forEach((i: any) => {
+                      csv += `"${i.studentName}";"R$ ${i.monthlyFee}";"R$ ${i.commission}"\n`;
+                    });
+                    csv += "\n\n";
+                  }
+                  csv += "Histórico de Aulas Concluídas\nData;Aluno;Título;Duração;Status\n";
+                  if (detailsData.lessons) {
+                    detailsData.lessons.forEach((l: any) => {
+                      const date = format(new Date(l.scheduledAt), "dd/MM/yyyy HH:mm");
+                      csv += `"${date}";"${l.studentName || '-'}";"${l.title}";"${l.duration}m";"${l.status}"\n`;
+                    });
+                  }
+                  const link = document.createElement("a");
+                  link.href = encodeURI(csv);
+                  link.download = "relatorio_aulas.csv";
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                }}>
+                  CSV Simples
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </DialogHeader>
           <div className="mt-6 space-y-8">
             {detailsLoading ? (
