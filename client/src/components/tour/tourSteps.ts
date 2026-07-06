@@ -185,6 +185,7 @@ export const tourSteps: Step[] = [
     title: "Estatísticas",
     skipBeacon: true,
   },
+  {
     target: "#tour-auto-rules",
     placement: "bottom",
     content: "Estas são as regras padrão do sistema. Cada uma é um gatilho automático — como cobranças vencidas, aniversários e lembretes de aula. Você pode editar o texto e o timing de cada uma.",
