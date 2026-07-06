@@ -62,7 +62,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     return () => document.body.classList.remove('tour-active');
   }, [runTour]);
 
-  // Quando isNavigating, aguarda 700ms para o DOM da nova página renderizar, depois retoma
+  // Quando isNavigating, aguarda 900ms para o DOM da nova página renderizar, depois retoma
   useEffect(() => {
     if (!isNavigating) return;
 
@@ -71,10 +71,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       if (pendingStepIndex.current !== null) {
         setStepIndex(pendingStepIndex.current);
         pendingStepIndex.current = null;
-        // Reativa o tour após a página ter renderizado
         setRunTour(true);
       }
-    }, 750);
+    }, 900);
 
     return () => clearTimeout(timer);
   }, [isNavigating]);
@@ -98,16 +97,18 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
       const nextStepIndex = index + (action === ACTIONS.PREV ? -1 : 1);
 
+      // TARGET_NOT_FOUND: pula step automaticamente sem travar
+      if (type === EVENTS.TARGET_NOT_FOUND) {
+        setStepIndex(nextStepIndex);
+        return;
+      }
+
       // Se o próximo step requer navegação para outra página
       if (action === ACTIONS.NEXT && (step as Step & { data?: { navigateTo?: string } }).data?.navigateTo) {
         const navigateTo = (step as Step & { data?: { navigateTo?: string } }).data!.navigateTo!;
-        // 1. Pausa o Joyride — evita tela cinza sem spotlight
         setRunTour(false);
-        // 2. Navega para a nova rota
         setLocation(navigateTo);
-        // 3. Guarda qual step deve ser exibido após a navegação
         pendingStepIndex.current = nextStepIndex;
-        // 4. Ativa o estado de navegação — o useEffect acima vai reativar após 750ms
         setIsNavigating(true);
         return;
       }
@@ -136,30 +137,67 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           next: 'Próximo',
           skip: 'Pular Tutorial',
         }}
+        floatingOptions={{
+          // Desabilita recálculo contínuo de posição — elimina o "salto" ao mover o mouse
+          autoUpdate: {
+            animationFrame: false,
+            ancestorScroll: false,
+            elementResize: false,
+            layoutShift: false,
+          },
+        }}
         options={{
           primaryColor: '#8b5cf6',
           textColor: '#333',
           zIndex: 10000,
-          overlayColor: 'rgba(0, 0, 0, 0.55)',
+          overlayColor: 'rgba(0, 0, 0, 0.5)',
           overlayClickAction: false,
           showProgress: true,
           spotlightRadius: 8,
+          spotlightPadding: 6,
           skipBeacon: true,
           buttons: ['back', 'primary', 'skip'],
+          // Aguarda até 3s pelo target aparecer no DOM antes de emitir TARGET_NOT_FOUND
+          targetWaitTimeout: 3000,
+          // Scroll suave até o target antes de mostrar o tooltip
+          scrollOffset: 100,
         }}
         styles={{
+          tooltip: {
+            borderRadius: '12px',
+            padding: '20px',
+            maxWidth: '380px',
+          },
           tooltipContainer: {
             textAlign: 'left',
           },
+          tooltipTitle: {
+            fontSize: '16px',
+            fontWeight: '700',
+            marginBottom: '8px',
+          },
+          tooltipContent: {
+            fontSize: '14px',
+            lineHeight: '1.6',
+            color: '#374151',
+          },
           buttonPrimary: {
             backgroundColor: '#8b5cf6',
-            borderRadius: '6px',
+            borderRadius: '8px',
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: '600',
           },
           buttonBack: {
             color: '#8b5cf6',
+            fontSize: '13px',
           },
           buttonSkip: {
-            color: '#6b7280',
+            color: '#9ca3af',
+            fontSize: '12px',
+          },
+          overlay: {
+            mixBlendMode: 'normal',
           },
         }}
       />

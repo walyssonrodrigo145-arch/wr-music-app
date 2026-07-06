@@ -10,6 +10,7 @@ export const tourSteps: Step[] = [
     content: "Vamos começar o nosso tour guiado! Aqui você terá uma visão geral de toda a plataforma MusicPro.",
     title: "Bem-vindo ao Tour! 🚀",
     skipBeacon: true,
+    isFixed: true,
   },
   {
     target: ".tour-sidebar-desktop #tour-sidebar",
@@ -17,11 +18,12 @@ export const tourSteps: Step[] = [
     content: "Aqui no menu lateral você encontra todas as áreas do sistema, como Dashboard, Alunos, Financeiro e muito mais.",
     title: "Menu Principal",
     skipBeacon: true,
+    isFixed: true,
   },
   {
     target: "#tour-dashboard-stats",
     placement: "bottom",
-    content: "Estes são os seus indicadores principais. Eles resumem como está a saúde da sua escola, como o total de alunos ativos e inadimplentes.",
+    content: "Estes são os seus indicadores principais. Resumem como está a saúde da sua escola, como total de alunos ativos e inadimplentes.",
     title: "Visão Geral",
     skipBeacon: true,
   },
@@ -38,6 +40,7 @@ export const tourSteps: Step[] = [
     content: "Aqui você acessa o seu perfil, configurações do sistema e a opção de sair.",
     title: "Seu Perfil",
     skipBeacon: true,
+    isFixed: true,
   },
 
   // ─────────────────────────────────────────────
@@ -49,6 +52,7 @@ export const tourSteps: Step[] = [
     content: "Agora vamos conhecer a área Financeira. Clique em 'Próximo' para mudarmos de tela.",
     title: "Vamos para o Financeiro? 💰",
     skipBeacon: true,
+    isFixed: true,
     data: { navigateTo: "/financeiro" },
   },
 
@@ -71,10 +75,11 @@ export const tourSteps: Step[] = [
   },
   {
     target: "#tour-new-charge",
-    placement: "left",
+    placement: "bottom",
     content: "Use este botão sempre que precisar gerar uma nova cobrança ou lançamento de mensalidade.",
     title: "Nova Cobrança",
     skipBeacon: true,
+    isFixed: true,
   },
 
   // ─────────────────────────────────────────────
@@ -86,6 +91,7 @@ export const tourSteps: Step[] = [
     content: "Excelente! Que tal vermos como funciona a Agenda de aulas? Clique em 'Próximo' para ir até lá.",
     title: "Hora da Agenda 📅",
     skipBeacon: true,
+    isFixed: true,
     data: { navigateTo: "/aulas" },
   },
 
@@ -95,16 +101,17 @@ export const tourSteps: Step[] = [
   {
     target: "#tour-calendar-view",
     placement: "right",
-    content: "Aqui fica o seu calendário. Você pode visualizar por dia, semana ou mês.",
+    content: "Aqui fica o seu calendário de aulas. Você pode visualizar por dia, semana ou mês.",
     title: "Calendário",
     skipBeacon: true,
   },
   {
     target: "#tour-new-lesson",
-    placement: "left",
+    placement: "top",
     content: "Para marcar uma nova aula, basta clicar neste botão ou clicar diretamente em um horário vazio no calendário.",
     title: "Agendar Aula",
     skipBeacon: true,
+    isFixed: true,
   },
 
   // ─────────────────────────────────────────────
@@ -116,6 +123,7 @@ export const tourSteps: Step[] = [
     content: "Vamos dar uma olhada na gestão de Alunos agora? Clique em 'Próximo' para continuar.",
     title: "Gestão de Alunos 🎓",
     skipBeacon: true,
+    isFixed: true,
     data: { navigateTo: "/alunos" },
   },
 
@@ -130,11 +138,15 @@ export const tourSteps: Step[] = [
     skipBeacon: true,
   },
   {
+    // Usa placement "bottom" em vez de "left" para garantir que o tooltip
+    // apareça abaixo do botão, que fica no topo da página de Alunos.
+    // isFixed: true evita recálculo de posição se o botão rolar fora do viewport.
     target: "#tour-new-student",
-    placement: "left",
-    content: "Para cadastrar um novo aluno e enviá-lo o acesso ao aplicativo, utilize este botão.",
+    placement: "bottom",
+    content: "Para cadastrar um novo aluno e enviar o acesso ao aplicativo, utilize este botão.",
     title: "Novo Aluno",
     skipBeacon: true,
+    isFixed: true,
   },
 
   // ─────────────────────────────────────────────
@@ -146,5 +158,6 @@ export const tourSteps: Step[] = [
     content: "Isso é tudo por enquanto! Explore a plataforma e, se precisar rever este tour, você pode acessá-lo na área de Configurações > Ajuda.",
     title: "Tour Concluído! 🎉",
     skipBeacon: true,
+    isFixed: true,
   },
 ];
