@@ -20,6 +20,7 @@ export async function runAutoMigrations() {
       { table: 'users', sql: 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resetPasswordToken" text' },
       { table: 'users', sql: 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "resetPasswordTokenExpiresAt" timestamp' },
       { table: 'users', sql: 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "organizationId" integer' },
+      { table: 'users', sql: 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "hasSeenTutorial" boolean DEFAULT false NOT NULL' },
       { table: 'professores', sql: 'ALTER TABLE "professores" ADD COLUMN IF NOT EXISTS "permissions" jsonb DEFAULT \'["aulas", "progresso", "recepcao", "ia", "lembretes", "relatorios"]\'::jsonb' },
       { table: 'lessons', sql: 'ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "rating" integer' },
       { table: 'lessons', sql: 'ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "instrumentId" integer' },
