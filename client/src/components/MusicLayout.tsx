@@ -84,7 +84,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       />
 
       {/* Sidebar - Desktop & Tablet */}
-      <div className="hidden md:flex flex-shrink-0 transition-all duration-300">
+      <div className="hidden md:flex flex-shrink-0 transition-all duration-300 tour-sidebar-desktop">
         <AppSidebar 
           collapsed={collapsed} 
           onToggle={() => setCollapsed(!collapsed)} 

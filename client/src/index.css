@@ -307,3 +307,7 @@
   0% { transform: translateY(-10px); }
   100% { transform: translateY(200px); }
 }
+/* Correção para React Joyride vs Backdrop Filter */
+.tour-active .backdrop-blur-xl {
+  backdrop-filter: none !important;
+}

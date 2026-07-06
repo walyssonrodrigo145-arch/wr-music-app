@@ -21,7 +21,10 @@ export function WelcomeModal() {
   });
 
   const handleStart = () => {
-    startTour();
+    setHasSeenTutorial(true);
+    setTimeout(() => {
+      startTour();
+    }, 400); // Aguarda a animação do Radix UI fechar o modal
   };
 
   const handleSkip = () => {

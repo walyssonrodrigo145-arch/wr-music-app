@@ -46,6 +46,15 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setStepIndex(0);
   };
 
+  useEffect(() => {
+    if (runTour) {
+      document.body.classList.add('tour-active');
+    } else {
+      document.body.classList.remove('tour-active');
+    }
+    return () => document.body.classList.remove('tour-active');
+  }, [runTour]);
+
   const handleJoyrideCallback = (data: CallBackProps) => {
     const { action, index, status, type, step } = data;
 

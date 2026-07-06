@@ -3,14 +3,14 @@ import { Step } from "react-joyride";
 export const tourSteps: Step[] = [
   // Dashboard Steps
   {
-    target: "body",
+    target: "main",
     placement: "center",
     content: "Vamos começar o nosso tour guiado! Aqui você terá uma visão geral de toda a plataforma MusicPro.",
     title: "Bem-vindo ao Tour! 🚀",
     disableBeacon: true,
   },
   {
-    target: "#tour-sidebar",
+    target: ".tour-sidebar-desktop #tour-sidebar",
     placement: "right",
     content: "Aqui no menu lateral você encontra todas as áreas do sistema, como Dashboard, Alunos, Financeiro e muito mais.",
     title: "Menu Principal",
