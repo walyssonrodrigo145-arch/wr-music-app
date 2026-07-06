@@ -19,6 +19,18 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+// ─── Color map — usa variáveis CSS Tailwind para consistência entre temas ─────
+const COLOR_MAP: Record<string, string> = {
+  blue:    '#2563EB',
+  emerald: '#10B981',
+  orange:  '#F59E0B',
+  purple:  '#7C3AED',
+};
+function resolveColor(color: string): string {
+  const match = Object.keys(COLOR_MAP).find((k) => color.includes(k));
+  return match ? COLOR_MAP[match] : COLOR_MAP['purple'];
+}
+
 // ─── Stat Card ───────────────────────────────────────────────────────────────
 function MetricCard({ 
   title, value, icon: Icon, color, sparkData, trend, isLoading
@@ -29,6 +41,8 @@ function MetricCard({
   const isNegative = trend?.startsWith('-');
   const TrendIcon = isNegative ? ArrowDownRight : ArrowUpRight;
   const trendColor = trend ? (isNegative ? 'text-rose-500' : 'text-emerald-500') : 'text-muted-foreground';
+  const strokeColor = resolveColor(color);
+  const gradientId = `gradient-${title.replace(/\s+/g, '')}`;
 
   return (
     <div className="bg-card/40 backdrop-blur-xl rounded-[1.25rem] p-6 border border-white/10 shadow-2xl shadow-primary/5 hover:shadow-primary/15 hover:-translate-y-1.5 transition-all duration-500 group cursor-default">
@@ -62,17 +76,17 @@ function MetricCard({
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={sparkData}>
               <defs>
-                <linearGradient id={`gradient-${title.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color.includes('blue') ? '#2563EB' : color.includes('emerald') ? '#10B981' : color.includes('orange') ? '#F59E0B' : '#7C3AED'} stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor={color.includes('blue') ? '#2563EB' : color.includes('emerald') ? '#10B981' : color.includes('orange') ? '#F59E0B' : '#7C3AED'} stopOpacity={0}/>
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={strokeColor} stopOpacity={0.12}/>
+                  <stop offset="95%" stopColor={strokeColor} stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <Area 
                 type="monotone" 
                 dataKey="value" 
-                stroke={color.includes('blue') ? '#2563EB' : color.includes('emerald') ? '#10B981' : color.includes('orange') ? '#F59E0B' : '#7C3AED'} 
+                stroke={strokeColor}
                 strokeWidth={2} 
-                fill={`url(#gradient-${title.replace(/\s+/g, '')})`}
+                fill={`url(#${gradientId})`}
                 dot={false}
               />
             </AreaChart>

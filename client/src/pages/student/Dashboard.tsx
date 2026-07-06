@@ -100,7 +100,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Nível Atual</p>
-                  <p className="text-sm font-black text-foreground">Intermediário</p>
+                  <p className="text-sm font-black text-foreground">{dashboard?.stats?.level ? dashboard.stats.level.charAt(0).toUpperCase() + dashboard.stats.level.slice(1) : "Iniciante"}</p>
                 </div>
              </div>
           </div>

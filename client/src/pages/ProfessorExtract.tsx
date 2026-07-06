@@ -87,78 +87,135 @@ export default function ProfessorExtract() {
   }) || [];
 
   const handlePrint = (payment: any) => {
-    // A simple window.print approach
-    const printContent = `
-      <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #000;">
-        <div style="text-align: center; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 30px;">
-          <h1 style="margin: 0; font-size: 24px;">RECIBO DE PAGAMENTO</h1>
-          <p style="margin: 5px 0; color: #666;">Folha Mensal de Professores</p>
+    const adjustments: any[] = payment.adjustments ? JSON.parse(payment.adjustments) : [];
+    const totalCredits = Number(payment.totalCredits).toFixed(2);
+    const totalDebits = Number(payment.totalDebits).toFixed(2);
+    const totalAmount = Number(payment.totalAmount).toFixed(2);
+    const refDate = format(new Date(payment.year, payment.month - 1), "MMMM 'de' yyyy", { locale: ptBR });
+    const emitDate = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+    const adjustRows = adjustments.map((adj: any) => `
+      <tr>
+        <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;">${adj.desc}</td>
+        <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:right;color:#16a34a;font-weight:700;">${adj.value > 0 ? 'R$ ' + Number(adj.value).toFixed(2) : '—'}</td>
+        <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;text-align:right;color:#dc2626;font-weight:700;">${adj.value < 0 ? 'R$ ' + Math.abs(adj.value).toFixed(2) : '—'}</td>
+      </tr>
+    `).join('');
+
+    const printContent = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Recibo — ${payment.professorName}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .page{max-width:760px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,.08);}
+    .header{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 60%,#4f46e5 100%);padding:36px 40px;display:flex;justify-content:space-between;align-items:center;}
+    .header-title{color:#fff;font-size:22px;font-weight:900;letter-spacing:-0.5px;}
+    .header-sub{color:#a5b4fc;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;margin-top:4px;}
+    .badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 16px;color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;}
+    .body{padding:36px 40px;}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;}
+    .info-block{background:#f8fafc;border-radius:10px;padding:16px;}
+    .info-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-bottom:4px;}
+    .info-value{font-size:14px;font-weight:700;color:#0f172a;}
+    table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+    thead tr{background:#f1f5f9;}
+    th{padding:12px 16px;text-align:left;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;}
+    th:not(:first-child){text-align:right;}
+    td{padding:12px 16px;font-size:13px;border-bottom:1px solid #f1f5f9;}
+    .total-row td{background:#f8fafc;font-weight:700;font-size:13px;}
+    .net-row td{background:linear-gradient(90deg,#1e1b4b,#312e81);color:#fff;font-weight:900;font-size:15px;padding:16px;}
+    .net-row td:last-child{text-align:right;}
+    .signature{margin-top:48px;display:flex;justify-content:center;}
+    .sig-block{text-align:center;}
+    .sig-line{width:280px;border-top:2px solid #1e1b4b;margin-bottom:8px;}
+    .sig-name{font-weight:700;font-size:14px;}
+    .sig-label{font-size:11px;color:#94a3b8;margin-top:2px;}
+    .footer{background:#f8fafc;padding:16px 40px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;}
+    @media print{body{background:#fff;}.page{box-shadow:none;border-radius:0;margin:0;max-width:100%;}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div>
+        <div class="header-title">🎵 MusicPro</div>
+        <div class="header-sub">Recibo de Pagamento — Professores</div>
+      </div>
+      <div class="badge">${payment.status?.toUpperCase() || 'CALCULADO'}</div>
+    </div>
+    <div class="body">
+      <div class="info-grid">
+        <div class="info-block">
+          <div class="info-label">Professor</div>
+          <div class="info-value">${payment.professorName}</div>
         </div>
-        
-        <table style="width: 100%; margin-bottom: 30px; font-size: 14px;">
-          <tr>
-            <td style="padding: 8px 0;"><strong>Professor:</strong> ${payment.professorName}</td>
-            <td style="padding: 8px 0; text-align: right;"><strong>Referência:</strong> ${format(new Date(payment.year, payment.month - 1), "MM/yyyy")}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0;"><strong>Status:</strong> ${payment.status.toUpperCase()}</td>
-            <td style="padding: 8px 0; text-align: right;"><strong>Data de Emissão:</strong> ${format(new Date(), "dd/MM/yyyy")}</td>
-          </tr>
-        </table>
-
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-          <thead>
-            <tr style="background: #f8f9fa;">
-              <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Descrição</th>
-              <th style="padding: 12px; border: 1px solid #ddd; text-align: right;">Proventos (+)</th>
-              <th style="padding: 12px; border: 1px solid #ddd; text-align: right;">Descontos (-)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding: 12px; border: 1px solid #ddd;">Total de Aulas (${payment.totalClasses} concluídas / ${payment.totalMinutes} min)</td>
-              <td style="padding: 12px; border: 1px solid #ddd; text-align: right;">R$ ${Number(payment.totalCredits).toFixed(2)}</td>
-              <td style="padding: 12px; border: 1px solid #ddd; text-align: right;">-</td>
-            </tr>
-            ${(payment.adjustments ? JSON.parse(payment.adjustments) : []).map((adj: any) => `
-              <tr>
-                <td style="padding: 12px; border: 1px solid #ddd;">${adj.desc}</td>
-                <td style="padding: 12px; border: 1px solid #ddd; text-align: right;">${adj.value > 0 ? 'R$ ' + Number(adj.value).toFixed(2) : '-'}</td>
-                <td style="padding: 12px; border: 1px solid #ddd; text-align: right;">${adj.value < 0 ? 'R$ ' + Math.abs(adj.value).toFixed(2) : '-'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td style="padding: 12px; border: 1px solid #ddd; text-align: right;"><strong>TOTAIS</strong></td>
-              <td style="padding: 12px; border: 1px solid #ddd; text-align: right;"><strong>R$ ${Number(payment.totalCredits).toFixed(2)}</strong></td>
-              <td style="padding: 12px; border: 1px solid #ddd; text-align: right;"><strong>R$ ${Number(payment.totalDebits).toFixed(2)}</strong></td>
-            </tr>
-            <tr style="background: #f8f9fa; font-size: 16px;">
-              <td colspan="2" style="padding: 15px; border: 1px solid #ddd; text-align: right;"><strong>VALOR LÍQUIDO A RECEBER</strong></td>
-              <td style="padding: 15px; border: 1px solid #ddd; text-align: right;"><strong>R$ ${Number(payment.totalAmount).toFixed(2)}</strong></td>
-            </tr>
-          </tfoot>
-        </table>
-
-        <div style="margin-top: 80px; text-align: center;">
-          <div style="border-top: 1px solid #000; width: 300px; margin: 0 auto; padding-top: 10px;">
-            ${payment.professorName}
-          </div>
-          <p style="margin-top: 5px; color: #666; font-size: 12px;">Assinatura do Recebedor</p>
+        <div class="info-block">
+          <div class="info-label">Referência</div>
+          <div class="info-value">${refDate.charAt(0).toUpperCase() + refDate.slice(1)}</div>
+        </div>
+        <div class="info-block">
+          <div class="info-label">Total de Aulas</div>
+          <div class="info-value">${payment.totalClasses} aulas / ${payment.totalMinutes} min</div>
+        </div>
+        <div class="info-block">
+          <div class="info-label">Data de Emissão</div>
+          <div class="info-value">${emitDate.charAt(0).toUpperCase() + emitDate.slice(1)}</div>
         </div>
       </div>
-    `;
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição</th>
+            <th>Proventos (+)</th>
+            <th>Descontos (−)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Valor base das aulas concluídas</td>
+            <td style="text-align:right;color:#16a34a;font-weight:700;">R$ ${totalCredits}</td>
+            <td style="text-align:right;">—</td>
+          </tr>
+          ${adjustRows}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="1"><strong>Totais</strong></td>
+            <td style="text-align:right;color:#16a34a;"><strong>R$ ${totalCredits}</strong></td>
+            <td style="text-align:right;color:#dc2626;"><strong>R$ ${totalDebits}</strong></td>
+          </tr>
+          <tr class="net-row">
+            <td colspan="2"><strong>💰 VALOR LÍQUIDO A RECEBER</strong></td>
+            <td><strong>R$ ${totalAmount}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="signature">
+        <div class="sig-block">
+          <div class="sig-line"></div>
+          <div class="sig-name">${payment.professorName}</div>
+          <div class="sig-label">Assinatura do Recebedor</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">Documento gerado automaticamente pelo MusicPro • ${emitDate}</div>
+  </div>
+</body>
+</html>`;
 
-    const printWindow = window.open('', '', 'width=800,height=600');
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (printWindow) {
       printWindow.document.write(printContent);
       printWindow.document.close();
       printWindow.focus();
       setTimeout(() => {
         printWindow.print();
-        printWindow.close();
-      }, 250);
+      }, 600);
     }
   };
 

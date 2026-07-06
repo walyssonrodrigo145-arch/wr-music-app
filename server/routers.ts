@@ -5669,6 +5669,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           unreadAnnouncements: dbAnnouncements.length,
           frequency,
           generalProgress: 85,
+          level: student.level || 'iniciante',
         }
       };
     }),
