@@ -29,7 +29,7 @@ export const tourSteps: Step[] = [
   },
   {
     target: "#tour-dashboard-charts",
-    placement: "top",
+    placement: "center",
     content: "Acompanhe o crescimento da sua escola mês a mês através destes gráficos financeiros e de retenção.",
     title: "Gráficos",
     skipBeacon: true,
