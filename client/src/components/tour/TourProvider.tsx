@@ -146,6 +146,23 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           content: "Aqui você acessa o seu perfil, configurações e a opção de sair.",
         };
       }
+
+      // Para elementos muito grandes no mobile, forçamos o tooltip no centro 
+      // para evitar que ele seja "flipado" para o topo e acabe cortado fora da tela.
+      const largeElements = [
+        "#tour-finance-cards", 
+        "#tour-students-list", 
+        "#tour-dashboard-charts",
+        "#tour-calendar-view",
+        "#tour-auto-rules"
+      ];
+      
+      if (typeof step.target === 'string' && largeElements.includes(step.target)) {
+        return {
+          ...step,
+          placement: "center" as any,
+        };
+      }
     }
     return step;
   });
