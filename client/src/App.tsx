@@ -165,6 +165,9 @@ function Router() {
   );
 }
 
+import { TourProvider } from "./components/tour/TourProvider";
+import { WelcomeModal } from "./components/tour/WelcomeModal";
+
 function App() {
   // Escuta eventos SSE do bot e exibe toast quando a sessão WhatsApp cair
   useBotStatusSSE();
@@ -174,7 +177,10 @@ function App() {
       <ThemeProvider defaultTheme="light" switchable>
         <TooltipProvider>
           <Toaster richColors position="top-right" />
-          <Router />
+          <TourProvider>
+            <WelcomeModal />
+            <Router />
+          </TourProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

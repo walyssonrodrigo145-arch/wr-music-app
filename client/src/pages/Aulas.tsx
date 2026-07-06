@@ -383,7 +383,7 @@ export default function Aulas() {
             </div>
 
             {/* Desktop View Content */}
-            <div className="relative min-h-[600px]">
+            <div id="tour-calendar-view" className="relative min-h-[600px]">
                <AnimatePresence mode="wait">
                   {view === "mes" && (
                     <motion.div key="month" className="bg-card rounded-[2rem] border border-border shadow-xl overflow-hidden">
@@ -669,7 +669,7 @@ export default function Aulas() {
       </section>
 
       <div className="fixed bottom-8 right-8 z-50">
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setAgendarOpen(true)} className="bg-[#2563EB] text-white px-8 py-5 rounded-full flex items-center gap-4 shadow-2xl group relative overflow-hidden">
+        <motion.button id="tour-new-lesson" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setAgendarOpen(true)} className="bg-[#2563EB] text-white px-8 py-5 rounded-full flex items-center gap-4 shadow-2xl group relative overflow-hidden">
           <Plus size={24} strokeWidth={3} className="relative z-10" /><span className="text-sm font-black uppercase tracking-widest relative z-10">Nova Aula</span>
         </motion.button>
       </div>

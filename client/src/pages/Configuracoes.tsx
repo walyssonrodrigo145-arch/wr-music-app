@@ -10,8 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   User, Building2, Bell, Palette, Shield, Save, Users,
   Sun, Moon, Phone, Mail, Globe, MapPin, FileText,
-  CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles,
+  CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles, HelpCircle
 } from "lucide-react";
+import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
 
 // ─── Export CSV helper ──────────────────────────────────────────────────────
@@ -634,7 +635,7 @@ function WhatsAppSessionManager() {
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca";
+type Tab = "perfil" | "escola" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
@@ -646,6 +647,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "integracoes", label: "Integrações", icon: Wallet },
   { id: "ia", label: "IA Assistente", icon: Sparkles },
   { id: "seguranca", label: "Segurança", icon: Shield },
+  { id: "ajuda", label: "Ajuda", icon: HelpCircle },
 ];
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
@@ -687,6 +689,7 @@ export default function Configuracoes() {
   const utils = trpc.useUtils();
 
   const [activeTab, setActiveTab] = useState<Tab>("perfil");
+  const { startTour } = useTour();
 
   const { data: settings, isLoading } = trpc.settings.get.useQuery();
 
@@ -1627,6 +1630,36 @@ export default function Configuracoes() {
             {/* ── ABA: PROFESSORES ── */}
             {activeTab === "professores" && (
               <ProfessoresTab />
+            )}
+
+            {/* ── ABA: AJUDA ── */}
+            {activeTab === "ajuda" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center">
+                    <HelpCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Ajuda e Tutoriais</h3>
+                    <p className="text-xs text-muted-foreground font-medium">Reveja tutoriais e aprenda a usar o sistema.</p>
+                  </div>
+                </div>
+
+                <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">Tour Guiado da Plataforma</h4>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                        Relembre como as principais áreas do sistema funcionam. O tour mostrará passo a passo os menus, gráficos e controles.
+                      </p>
+                    </div>
+                    <Button onClick={() => startTour()} className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-500/20 px-6 h-10 text-xs font-bold gap-2">
+                      <HelpCircle size={16} />
+                      Iniciar Tour
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -56,6 +56,7 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 320 }),
   passwordHash: varchar("passwordHash", { length: 255 }),
   mustChangePassword: boolean("mustChangePassword").default(false).notNull(),
+  hasSeenTutorial: boolean("hasSeenTutorial").default(false).notNull(),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: roleEnum("role").default("professor").notNull(),
   studentId: integer("studentId"), // Link to students table if role is 'aluno'

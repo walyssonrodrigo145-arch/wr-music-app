@@ -138,6 +138,14 @@ export const appRouter = router({
     }),
   }),
   auth: router({
+    completeTutorial: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return { success: false };
+      await db.update(users)
+        .set({ hasSeenTutorial: true })
+        .where(eq(users.id, ctx.user.id));
+      return { success: true };
+    }),
     me: publicProcedure.query(async ({ ctx }) => {
       if (!ctx.user) return null;
       const db = await getDb();

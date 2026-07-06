@@ -629,6 +629,7 @@ export default function Alunos() {
              {/* Ocultar botão "Novo aluno" para professores sem permissão de editar */}
              {canEdit && (
                <Button 
+                id="tour-new-student"
                 onClick={() => setLocation("/alunos/novo")}
                 className="h-10 rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
                >
@@ -757,7 +758,7 @@ export default function Alunos() {
         {/* MAIN CONTENT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* TABLE / CARD SECTION */}
-          <div className="lg:col-span-9 bg-card/40 backdrop-blur-xl md:rounded-[2rem] border-0 md:border border-white/10 shadow-2xl shadow-primary/5 overflow-hidden flex flex-col -mx-4 md:mx-0">
+          <div id="tour-students-list" className="lg:col-span-9 bg-card/40 backdrop-blur-xl md:rounded-[2rem] border-0 md:border border-white/10 shadow-2xl shadow-primary/5 overflow-hidden flex flex-col -mx-4 md:mx-0">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto no-scrollbar pb-2">
               <table className="w-full text-left table-fixed">

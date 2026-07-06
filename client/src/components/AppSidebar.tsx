@@ -112,6 +112,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
 
   return (
     <aside
+      id="tour-sidebar"
       className={cn(
         "flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out relative border-r border-sidebar-border shadow-2xl z-20 overflow-hidden",
         collapsed ? "w-[80px]" : "w-[260px]",
@@ -252,7 +253,9 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       </nav>
 
       {/* User profile at bottom */}
-      <div className={cn(
+      <div
+        id="tour-user-menu"
+        className={cn(
         "p-4 bg-sidebar-accent/30 border-t border-sidebar-border",
         collapsed ? "flex justify-center" : ""
       )}>

@@ -662,6 +662,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                 />
              </div>
              <Button 
+               id="tour-new-charge"
                onClick={() => setNovaOpen(true)}
                className="h-10 rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
              >

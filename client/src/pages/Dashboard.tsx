@@ -204,7 +204,7 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
       
       {/* ── Metrics Grid ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div id="tour-dashboard-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard 
           title="Alunos Ativos" 
           value={stats?.activeStudents ?? 0} 
@@ -245,7 +245,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
+        <div id="tour-dashboard-charts" className="lg:col-span-2 bg-card/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                  <h3 className="text-base font-black text-foreground tracking-tight">Evolução Mensal</h3>

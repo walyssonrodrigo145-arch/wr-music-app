@@ -18,6 +18,8 @@ const filesToUpload = [
   'server/routers.ts',
   'server/_core/rateLimiter.ts',
   'server/_core/index.ts',
+  'server/_core/env.ts',
+  'server/superAdminRouter.ts',
   'client/public/logo.svg',
   'client/public/manifest.json',
   'client/index.html',

@@ -75,7 +75,7 @@ export default function Financeiro() {
         </div>
 
         {/* Saldo Geral Líquido */}
-        <div className={cn(
+        <div id="tour-finance-cards" className={cn(
           "relative p-6 lg:p-8 rounded-[2rem] border shadow-sm overflow-hidden",
           saldoLiquido >= 0 ? "bg-gradient-to-br from-emerald-500/20 to-background border-emerald-500/30" : "bg-gradient-to-br from-rose-500/20 to-background border-rose-500/30"
         )}>
@@ -96,7 +96,7 @@ export default function Financeiro() {
           </div>
         </div>
 
-        <Tabs defaultValue="mensalidades" className="w-full">
+        <Tabs id="tour-finance-tabs" defaultValue="mensalidades" className="w-full">
           <TabsList className="w-full lg:w-auto grid grid-cols-2 lg:inline-flex mb-6 rounded-2xl bg-muted/50 p-1">
             <TabsTrigger value="mensalidades" className="rounded-xl text-xs font-bold uppercase tracking-widest h-10 data-[state=active]:bg-card data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">Emissões</TabsTrigger>
             <TabsTrigger value="despesas" className="rounded-xl text-xs font-bold uppercase tracking-widest h-10 data-[state=active]:bg-card data-[state=active]:text-orange-600 data-[state=active]:shadow-sm">Despesas</TabsTrigger>
