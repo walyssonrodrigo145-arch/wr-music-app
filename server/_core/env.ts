@@ -1,6 +1,19 @@
+// ─── Validação de variáveis de ambiente obrigatórias ────────────────────────
+// Falha rápida: se variáveis críticas de segurança não estiverem definidas,
+// o servidor não inicia — melhor do que silenciosamente usar defaults inseguros.
+const requiredEnvVars = ["JWT_SECRET", "DATABASE_URL"] as const;
+for (const key of requiredEnvVars) {
+  if (!process.env[key]) {
+    throw new Error(
+      `[ENV] Variável de ambiente obrigatória não definida: ${key}. ` +
+      `Configure-a na VPS antes de iniciar o servidor.`
+    );
+  }
+}
+
 export const ENV = {
   appId: process.env.VITE_APP_ID ?? "",
-  cookieSecret: process.env.JWT_SECRET || "fallback_default_secret_padrao_muito_seguro_da_aplicacao",
+  cookieSecret: process.env.JWT_SECRET!, // obrigatório — validado acima
   databaseUrl: process.env.DATABASE_URL ?? "",
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
@@ -17,6 +30,7 @@ export const ENV = {
   asaasApiKey: (process.env.ASAAS_API_KEY ?? "").trim(),
   asaasBaseUrl: (process.env.ASAAS_BASE_URL ?? "https://sandbox.asaas.com/api/v3").trim(),
 };
+
 
 
 

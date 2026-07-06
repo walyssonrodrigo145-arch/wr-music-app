@@ -4551,6 +4551,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
                 ne(paymentDues.id, id) // não mexer na que acabamos de atualizar
               ));
 
+            // FIX-4: Buscar API key do professor para sincronizar com Asaas
+            const [profSettings] = await db
+              .select({ asaasApiKey: settings.asaasApiKey, asaasEnabled: settings.asaasEnabled })
+              .from(settings)
+              .where(eq(settings.userId, ctx.user.id))
+              .limit(1);
+
             for (const pay of unpaidPayments) {
               const currentDueDate = new Date(pay.dueDate);
               const newDueDate = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth(), newDay);
@@ -4559,6 +4566,23 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               await db.update(paymentDues)
                 .set({ dueDate: formattedDate, updatedAt: new Date() })
                 .where(and(eq(paymentDues.id, pay.id), eq(paymentDues.organizationId, orgId)));
+
+              // FIX-4: Se houver cobrança aberta no Asaas, cancelar para evitar divergência de data
+              // O aluno precisará gerar uma nova cobrança com a data atualizada
+              if (pay.asaasId && pay.status !== 'pago' && profSettings?.asaasEnabled === 1 && profSettings.asaasApiKey) {
+                try {
+                  const { deleteAsaasCharge } = await import('./utils/asaas');
+                  await deleteAsaasCharge(pay.asaasId, profSettings.asaasApiKey);
+                  // Limpar referências Asaas no banco — nova cobrança com data correta será gerada quando necessário
+                  await db.update(paymentDues)
+                    .set({ asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
+                    .where(and(eq(paymentDues.id, pay.id), eq(paymentDues.organizationId, orgId)));
+                  console.log(`[UpdateFutureDues] Cobrança Asaas cancelada (${pay.asaasId}) — data atualizada para ${formattedDate}`);
+                } catch (e) {
+                  // Não bloqueia a atualização se o cancelamento Asaas falhar
+                  console.error(`[UpdateFutureDues] Falha ao cancelar cobrança Asaas ${pay.asaasId}:`, e);
+                }
+              }
             }
           }
             
@@ -7812,17 +7836,13 @@ Texto original para reescrever:
 
         let subId = org.asaasSubscriptionId;
         if (!subId) {
-          const planValues: Record<string, number> = {
-            "basico": 29.99,
-            "profissional": 59.90,
-            "premium": 99.90,
-            "30alunos": 20.00,
-            "20alunos": 15.00,
-            "10alunos": 10.00,
-          };
-          const planValue = input.planType === "YEARLY"
-            ? (planValues[org.planId] ?? 59.90) * 10
-            : (planValues[org.planId] ?? 59.90);
+          // FIX-6: Buscar preço real do banco de dados em vez de valores hardcoded
+          // Garante que alterações de preço no Super Admin são refletidas imediatamente no checkout
+          const { systemPlans } = await import("../drizzle/schema");
+          const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, org.planId)).limit(1);
+          const planValue = planInfo
+            ? (input.planType === "YEARLY" ? Number(planInfo.priceYearly) : Number(planInfo.priceMonthly))
+            : (input.planType === "YEARLY" ? 59.90 * 10 : 59.90); // fallback seguro se plano não encontrado
 
           const sub = await createAsaasSubscription({
             customer: customerId,
@@ -7876,13 +7896,25 @@ Texto original para reescrever:
 
       const { getAsaasSubscriptionPayments } = await import('./utils/asaas');
       const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
-      const confirmedPayment = payments.find((p: any) => p.status === 'RECEIVED' || p.status === 'CONFIRMED');
+
+      // FIX-5: Filtrar pagamentos por data (últimos 35 dias = 1 ciclo mensal + margem)
+      // Evita ativar assinatura com pagamento antigo quando o ciclo atual está em aberto.
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 35);
+
+      const confirmedPayment = payments.find((p: any) => {
+        if (p.status !== 'RECEIVED' && p.status !== 'CONFIRMED') return false;
+        // Verificar se o pagamento foi feito recentemente
+        const paymentDate = p.confirmedDate || p.paymentDate || p.dueDate;
+        if (!paymentDate) return true; // se não tem data, aceitar (compatibilidade)
+        return new Date(paymentDate) >= cutoffDate;
+      });
       
       if (confirmedPayment) {
         await db.update(organizations)
           .set({ subscriptionStatus: "active", updatedAt: new Date() })
           .where(eq(organizations.id, orgId));
-        console.log(`[Platform Sync] Assinatura ativada manualmente para org ${orgId}`);
+        console.log(`[Platform Sync] Assinatura ativada manualmente para org ${orgId} (pagamento: ${confirmedPayment.id})`);
         return { success: true, status: "active", message: "Assinatura ativada com sucesso!" };
       }
 
@@ -7891,7 +7923,7 @@ Texto original para reescrever:
       return { 
         success: false, 
         status: org.subscriptionStatus, 
-        message: "Nenhum pagamento confirmado encontrado.",
+        message: "Nenhum pagamento confirmado recente encontrado. Efetue o pagamento e tente novamente.",
         invoiceUrl: pendingPayment?.invoiceUrl,
         pendingValue: pendingPayment?.value
       };

@@ -18,7 +18,7 @@ import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
 import { paymentDues, students, organizations } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { setupEvolutionWebhook } from "../utils/whatsapp";
 import { notifyUser } from "./notification";
 
@@ -99,9 +99,13 @@ async function startServer() {
       }
 
       if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
-        // Fetch payment details and student name before updating
+        // ── FIX-3: Busca com validação de existência (tenant safety) ──────────
+        // Buscamos o paymentDue pelo asaasId E validamos que ele existe antes de
+        // atualizar — garantindo que o asaasId pertence a um registro real do sistema.
         const [paymentDetails] = await db
           .select({
+            id: paymentDues.id,
+            organizationId: paymentDues.organizationId,
             userId: paymentDues.userId,
             amount: paymentDues.amount,
             studentName: students.name,
@@ -111,54 +115,85 @@ async function startServer() {
           .where(eq(paymentDues.asaasId, payment.id))
           .limit(1);
 
+        if (!paymentDetails) {
+          // asaasId não encontrado no banco — pode ser webhook de outro ambiente ou ID inválido
+          console.warn(`[Asaas Webhook] asaasId não encontrado no banco: ${payment.id} — ignorado`);
+          return res.status(200).json({ ok: true });
+        }
+
+        // Atualiza apenas o registro encontrado (usando o ID interno — nunca só o asaasId genérico)
         await db
           .update(paymentDues)
           .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
-          .where(eq(paymentDues.asaasId, payment.id));
-        console.log(`[Asaas Webhook] Mensalidade marcada como PAGA (${payment.id})`);
+          .where(and(eq(paymentDues.id, paymentDetails.id), eq(paymentDues.organizationId, paymentDetails.organizationId!)));
+        console.log(`[Asaas Webhook] Mensalidade marcada como PAGA (${payment.id}) — org ${paymentDetails.organizationId}`);
 
-        if (paymentDetails) {
-          const valor = Number(paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-          const contentStr = `O aluno ${paymentDetails.studentName || "Aluno"} pagou a mensalidade no valor de ${valor}.`;
+        const valor = Number(paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        const contentStr = `O aluno ${paymentDetails.studentName || "Aluno"} pagou a mensalidade no valor de ${valor}.`;
           
-          await notifyUser(paymentDetails.userId, {
-            title: "Pagamento Confirmado",
-            content: contentStr,
-          });
+        await notifyUser(paymentDetails.userId, {
+          title: "Pagamento Confirmado",
+          content: contentStr,
+        });
 
-          // SSE Notification for Real-Time UI
-          const { broadcastSSE } = await import("../webhooks/botStatus");
-          broadcastSSE("PAYMENT_CONFIRMED", {
-            studentName: paymentDetails.studentName,
-            amount: valor,
-            message: contentStr,
-          });
-        }
+        // SSE Notification for Real-Time UI
+        const { broadcastSSE } = await import("../webhooks/botStatus");
+        broadcastSSE("PAYMENT_CONFIRMED", {
+          studentName: paymentDetails.studentName,
+          amount: valor,
+          message: contentStr,
+        });
       }
 
 
       if (event === "PAYMENT_OVERDUE") {
-        await db
-          .update(paymentDues)
-          .set({ status: "atrasado", updatedAt: new Date() })
-          .where(eq(paymentDues.asaasId, payment.id));
-        console.log(`[Asaas Webhook] Mensalidade marcada como ATRASADA (${payment.id})`);
+        // FIX-3: busca o registro primeiro para garantir que pertence ao sistema
+        const [due] = await db
+          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId })
+          .from(paymentDues)
+          .where(eq(paymentDues.asaasId, payment.id))
+          .limit(1);
+        if (due) {
+          await db
+            .update(paymentDues)
+            .set({ status: "atrasado", updatedAt: new Date() })
+            .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
+          console.log(`[Asaas Webhook] Mensalidade marcada como ATRASADA (${payment.id}) — org ${due.organizationId}`);
+        } else {
+          console.warn(`[Asaas Webhook] PAYMENT_OVERDUE — asaasId não encontrado: ${payment.id}`);
+        }
       }
 
       if (event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") {
-        await db
-          .update(paymentDues)
-          .set({ status: "pendente", asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
-          .where(eq(paymentDues.asaasId, payment.id));
-        console.log(`[Asaas Webhook] Cobrança removida/estornada (${payment.id})`);
+        const [due] = await db
+          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId })
+          .from(paymentDues)
+          .where(eq(paymentDues.asaasId, payment.id))
+          .limit(1);
+        if (due) {
+          await db
+            .update(paymentDues)
+            .set({ status: "pendente", asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
+            .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
+          console.log(`[Asaas Webhook] Cobrança removida/estornada (${payment.id}) — org ${due.organizationId}`);
+        } else {
+          console.warn(`[Asaas Webhook] ${event} — asaasId não encontrado: ${payment.id}`);
+        }
       }
 
       if (event === "PAYMENT_CREATED") {
-        await db
-          .update(paymentDues)
-          .set({ status: "pendente", updatedAt: new Date() })
-          .where(eq(paymentDues.asaasId, payment.id));
-        console.log(`[Asaas Webhook] Nova cobrança criada/registrada (${payment.id})`);
+        const [due] = await db
+          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId })
+          .from(paymentDues)
+          .where(eq(paymentDues.asaasId, payment.id))
+          .limit(1);
+        if (due) {
+          await db
+            .update(paymentDues)
+            .set({ status: "pendente", updatedAt: new Date() })
+            .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
+          console.log(`[Asaas Webhook] Nova cobrança criada/registrada (${payment.id}) — org ${due.organizationId}`);
+        }
       }
 
       return res.status(200).json({ ok: true });
@@ -194,6 +229,32 @@ async function startServer() {
       const db = await getDb();
       if (!db) return res.status(500).json({ error: "DB unavailable" });
 
+      // ── FIX-1: Validação cruzada de subscriptionId ────────────────────────────
+      // Antes de processar qualquer evento de plataforma, verificamos que o
+      // payment.customer corresponde a uma organização que TEM o asaasSubscriptionId
+      // correto — evitando ativação indevida por colisão de IDs ou eventos errados.
+      const [targetOrg] = await db
+        .select({ id: organizations.id, asaasSubscriptionId: organizations.asaasSubscriptionId })
+        .from(organizations)
+        .where(eq(organizations.asaasCustomerId, payment.customer))
+        .limit(1);
+
+      if (!targetOrg) {
+        console.warn(`[Asaas Platform Webhook] Customer não encontrado no banco: ${payment.customer} — ignorado`);
+        return res.status(200).json({ ok: true });
+      }
+
+      // Se o evento tem subscription ID, validar que corresponde ao registrado
+      const paymentWithSub = req.body as { event: string; payment?: { id: string; status: string; customer: string; subscription?: string } };
+      if (paymentWithSub.payment?.subscription && targetOrg.asaasSubscriptionId &&
+          paymentWithSub.payment.subscription !== targetOrg.asaasSubscriptionId) {
+        console.warn(
+          `[Asaas Platform Webhook] subscriptionId divergente para customer ${payment.customer}: ` +
+          `esperado=${targetOrg.asaasSubscriptionId} recebido=${paymentWithSub.payment.subscription} — ignorado`
+        );
+        return res.status(200).json({ ok: true });
+      }
+
       // ── MÉDIO-3 FIX: Preencher currentPeriodEnd ao ativar assinatura ──
       if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
         // Calcular próximo período (default mensal — webhooks de assinatura anual são raros)
@@ -207,20 +268,16 @@ async function startServer() {
             currentPeriodEnd: nextPeriodEnd, // registrar próximo vencimento
             updatedAt: new Date()
           })
-          .where(eq(organizations.asaasCustomerId, payment.customer));
+          .where(eq(organizations.id, targetOrg.id));
         console.log(`[Asaas Platform Webhook] Assinatura ATIVADA para customer ${payment.customer} | próximo vencimento: ${nextPeriodEnd.toISOString().slice(0,10)}`);
-      }
-
-      if (event === "PAYMENT_OVERDUE") {
+      } else if (event === "PAYMENT_OVERDUE") {
         await db
           .update(organizations)
           .set({ subscriptionStatus: "past_due", updatedAt: new Date() })
-          .where(eq(organizations.asaasCustomerId, payment.customer));
+          .where(eq(organizations.id, targetOrg.id));
         console.log(`[Asaas Platform Webhook] Assinatura ATRASADA para customer ${payment.customer}`);
-      }
-
-      // ── BUG 2 FIX: Tratar cancelamento de assinatura pelo portal Asaas ───
-      if (event === "SUBSCRIPTION_CANCELED" || event === "SUBSCRIPTION_DELETED" || event === "PAYMENT_REFUNDED") {
+      } else if (event === "SUBSCRIPTION_CANCELED" || event === "SUBSCRIPTION_DELETED" || event === "PAYMENT_REFUNDED") {
+        // ── BUG 2 FIX: Tratar cancelamento de assinatura pelo portal Asaas ───
         await db
           .update(organizations)
           .set({ 
@@ -228,8 +285,11 @@ async function startServer() {
             asaasSubscriptionId: null,
             updatedAt: new Date()
           })
-          .where(eq(organizations.asaasCustomerId, payment.customer));
+          .where(eq(organizations.id, targetOrg.id));
         console.log(`[Asaas Platform Webhook] Assinatura CANCELADA para customer ${payment.customer}`);
+      } else {
+        // FIX-7: Log de eventos não mapeados para facilitar diagnóstico futuro
+        console.warn(`[Asaas Platform Webhook] Evento não tratado recebido: "${event}" para customer ${payment.customer}`);
       }
 
       return res.status(200).json({ ok: true });
