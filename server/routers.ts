@@ -8531,9 +8531,18 @@ Texto original para reescrever:
         if (!rule) throw new TRPCError({ code: "NOT_FOUND" });
         if (rule.isSystem === 1) throw new TRPCError({ code: "FORBIDDEN", message: "Regras do sistema não podem ser excluídas." });
 
+        // BUG-AUTO-003 FIX: Adiciona orgId + userId no WHERE do DELETE para
+        // garantir defesa em profundidade. Sem isso, um race condition multi-processo
+        // poderia apagar uma regra de outra organização caso o id coincidisse.
         await db
           .delete(messageAutomationRules)
-          .where(eq(messageAutomationRules.id, input.id));
+          .where(
+            and(
+              eq(messageAutomationRules.id, input.id),
+              eq(messageAutomationRules.organizationId, orgId),
+              eq(messageAutomationRules.userId, userId)
+            )
+          );
         return { success: true };
       }),
 

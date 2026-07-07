@@ -718,10 +718,14 @@ export default function Automacoes() {
     onError: (e) => toast.error("Erro ao excluir: " + e.message),
   });
 
+  // BUG-AUTO-005 FIX: Adiciona guard `isPending` para evitar chamadas duplas no React StrictMode.
+  // O useEffect era chamado múltiplas vezes quando rules oscilava entre 0 e >0 em re-renders.
   useEffect(() => {
-    if (!isLoading && rules.length === 0) {
+    if (!isLoading && rules.length === 0 && !seedMutation.isPending) {
       seedMutation.mutate();
     }
+    // seedMutation.mutate é estável (não muda entre renders) — incluímos para satisfazer o linter
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, rules.length]);
 
   const [autoEnabled, setAutoEnabled] = useState(false);
@@ -752,10 +756,13 @@ export default function Automacoes() {
 
   const handleSaveRule = (data: Partial<AutomationRule>) => {
     if (data.id) {
+      // BUG-AUTO-002 FIX: `trigger` agora é incluído no update para permitir
+      // que o usuário altere o tipo de disparador de uma automação existente.
       updateMutation.mutate({
         id: data.id,
         name: data.name,
         description: data.description ?? undefined,
+        trigger: data.trigger,
         // BUG#3 FIX: conditions contém daysOfWeek + sendTime do daily_study
         // Sem esse campo, editar uma regra apagava a configuração do banco
         conditions: (data as any).conditions ?? undefined,
@@ -768,12 +775,16 @@ export default function Automacoes() {
         sendToGuardian: (data as any).sendToGuardian === true || (data as any).sendToGuardian === 1,
       });
     } else {
+      // BUG-AUTO-001 FIX: `conditions` agora é incluído na criação para preservar
+      // a configuração de daysOfWeek + sendTime de automações do tipo daily_study / daily_report.
+      // Sem esse campo, criar uma automação desse tipo descartava silenciosamente a configuração.
       createMutation.mutate({
         name: data.name!,
         description: data.description ?? undefined,
         trigger: data.trigger!,
         offsetDays: data.offsetDays ?? 0,
         offsetHours: data.offsetHours ?? 0,
+        conditions: (data as any).conditions ?? undefined,
         messageTemplate: data.messageTemplate!,
         channel: data.channel ?? "whatsapp",
         isActive: data.isActive ?? 1,

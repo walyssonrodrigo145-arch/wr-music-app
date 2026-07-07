@@ -71,6 +71,15 @@ async function runAutomation() {
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  // BUG-AUTO-004 FIX: `startOfDay` deve respeitar o timezone de Brasília.
+  // O servidor VPS roda em UTC — sem correção, o anti-spam resetava às 21h BRT
+  // (meia-noite UTC), podendo reenviar lembretes no período 21h-00h BRT.
+  const brazilNowStr = now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+  const brazilNow = new Date(brazilNowStr);
+  const startOfDayBRT = new Date(brazilNow.getFullYear(), brazilNow.getMonth(), brazilNow.getDate(), 0, 0, 0);
+  // Converte de volta para UTC para comparar com timestamps UTC do banco
+  const brtOffsetMs = brazilNow.getTime() - now.getTime();
+  const startOfDayUTC = new Date(startOfDayBRT.getTime() - brtOffsetMs);
 
   for (const userSettings of activeSettings) {
     const userId = userSettings.userId;
@@ -397,7 +406,7 @@ async function runAutomation() {
               eq(reminders.organizationId, orgId),
               eq(reminders.userId, userId),
               eq(reminders.status, "enviado"),
-              gte(reminders.sentAt, startOfDay)
+              gte(reminders.sentAt, startOfDayUTC)
             )
           );
 
@@ -1217,7 +1226,7 @@ async function runAutomation() {
               const { dailyStudyPlans, notifications } = await import("../drizzle/schema");
               
               const existingReport = await db.select({ id: notifications.id }).from(notifications)
-                .where(and(eq(notifications.organizationId, orgId), eq(notifications.title, "Relatório Diário de Treinos 📊"), gte(notifications.createdAt, startOfDay))).limit(1);
+                .where(and(eq(notifications.organizationId, orgId), eq(notifications.title, "Relatório Diário de Treinos 📊"), gte(notifications.createdAt, startOfDayUTC))).limit(1);
               
               if (existingReport.length === 0) {
                 const plans = await db.select({ studentName: students.name, updatedAt: dailyStudyPlans.updatedAt })
@@ -1232,7 +1241,7 @@ async function runAutomation() {
                   for (const p of plans) {
                     if (!p.studentName) continue;
                     anyStudent = true;
-                    const updatedToday = p.updatedAt && new Date(p.updatedAt).getTime() >= startOfDay.getTime();
+                    const updatedToday = p.updatedAt && new Date(p.updatedAt).getTime() >= startOfDayUTC.getTime();
                     resumo += `\n${updatedToday ? '✅' : '❌'} ${p.studentName.split(' ')[0]}`;
                   }
 
