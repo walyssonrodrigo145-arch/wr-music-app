@@ -4,7 +4,7 @@
  * de acordo com as regras de negócio de automação avançada.
  */
 
-import { eq, and, gte, lte, desc, sql, or, like } from "drizzle-orm";
+import { eq, and, gte, lte, lt, desc, sql, or, like } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
@@ -595,8 +595,17 @@ async function runAutomation() {
                   and(
                     eq(paymentDues.organizationId, orgId),
                     eq(paymentDues.userId, userId),
+                    // BUG-AUTO-006 FIX: O status 'atrasado' NUNCA é salvo no banco — ele é calculado
+                    // apenas em memória no frontend (routers.ts). Por isso, a query anterior que
+                    // filtrava por `status = 'atrasado'` para o trigger `payment_overdue` nunca
+                    // encontrava nenhum pagamento, e o robô nunca disparava.
+                    // Solução: buscar pagamentos 'pendente' cujo dueDate já passou (lógica idêntica
+                    // ao frontend), pois esses são os realmente "atrasados" no banco.
                     rule.trigger === "payment_overdue"
-                      ? eq(paymentDues.status, "atrasado")
+                      ? and(
+                          eq(paymentDues.status, "pendente"),
+                          lt(paymentDues.dueDate, todayStr2) // dueDate < hoje = realmente atrasado
+                        )
                       : or(eq(paymentDues.status, "pendente"), eq(paymentDues.status, "atrasado")),
                     eq(students.status, "ativo")
                   )
