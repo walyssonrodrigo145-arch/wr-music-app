@@ -3,7 +3,11 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trash2, Edit2, Mail, GraduationCap } from "lucide-react";
+import {
+  Loader2, Plus, Trash2, Edit2, Mail, GraduationCap,
+  Lock, Phone, Star, DollarSign, Shield, Info, KeyRound,
+  CheckCircle2, Users,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,43 +19,45 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const AVAILABLE_PERMISSIONS = [
-  { id: "/dashboard", label: "Dashboard" },
-  { id: "/alunos", label: "Alunos" },
-  { id: "/aulas", label: "Aulas" },
-  { id: "/instrumentos", label: "Instrumentos" },
-  { id: "/relatorios", label: "Relatórios" },
-  { id: "/lembretes", label: "Lembretes" },
-  { id: "/comunicados", label: "Comunicados" },
-  { id: "/solicitacoes", label: "Solicitações" },
-  { id: "/automacoes", label: "Automações" },
-  { id: "/ia", label: "IA Assistente" },
-  { id: "/progresso", label: "Progresso" },
-  { id: "/financeiro", label: "Financeiro" },
-  { id: "/folha", label: "Folha de Pagto" },
-  { id: "/recepcao-qr", label: "Recepção QR" },
-  { id: "/configuracoes", label: "Configurações" },
+  { id: "/dashboard",     label: "Dashboard",     icon: "📊" },
+  { id: "/alunos",        label: "Alunos",         icon: "👨‍🎓" },
+  { id: "/aulas",         label: "Aulas",          icon: "📅" },
+  { id: "/instrumentos",  label: "Instrumentos",   icon: "🎸" },
+  { id: "/relatorios",    label: "Relatórios",     icon: "📈" },
+  { id: "/lembretes",     label: "Lembretes",      icon: "🔔" },
+  { id: "/comunicados",   label: "Comunicados",    icon: "📢" },
+  { id: "/solicitacoes",  label: "Solicitações",   icon: "📋" },
+  { id: "/automacoes",    label: "Automações",     icon: "🤖" },
+  { id: "/ia",            label: "IA Assistente",  icon: "✨" },
+  { id: "/progresso",     label: "Progresso",      icon: "🎯" },
+  { id: "/financeiro",    label: "Financeiro",     icon: "💰" },
+  { id: "/folha",         label: "Folha de Pagto", icon: "💼" },
+  { id: "/recepcao-qr",   label: "Recepção QR",    icon: "📷" },
+  { id: "/configuracoes", label: "Configurações",  icon: "⚙️" },
 ];
 
-// Permissões granulares de dados (não são rotas, controlam o que o professor pode VER/FAZER)
 const DATA_PERMISSIONS = [
-  { id: "alunos_editar", label: "Editar dados dos alunos", desc: "Permite editar, excluir e alterar status dos alunos" },
-  { id: "alunos_mensalidade", label: "Ver valor da mensalidade", desc: "Exibe a coluna de mensalidade na lista de alunos" },
+  { id: "alunos_editar",      label: "Editar dados dos alunos",    desc: "Permite editar, excluir e alterar status dos alunos" },
+  { id: "alunos_mensalidade", label: "Ver valor da mensalidade",   desc: "Exibe a coluna de mensalidade na lista de alunos" },
 ];
 
 export function ProfessoresTab() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  
+  const [isOpen, setIsOpen]           = useState(false);
+  const [editingId, setEditingId]     = useState<number | null>(null);
+
   // Form State
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [especialidade, setEspecialidade] = useState("");
-  const [permissions, setPermissions] = useState<string[]>(["/dashboard", "/alunos", "/aulas"]);
-  const [paymentType, setPaymentType] = useState<"fixo" | "porcentagem">("fixo");
-  const [hourlyRate, setHourlyRate] = useState("");
+  const [name, setName]                         = useState("");
+  const [email, setEmail]                       = useState("");
+  const [password, setPassword]                 = useState("");
+  const [telefone, setTelefone]                 = useState("");
+  const [especialidade, setEspecialidade]       = useState("");
+  const [permissions, setPermissions]           = useState<string[]>(["/dashboard", "/alunos", "/aulas"]);
+  const [paymentType, setPaymentType]           = useState<"fixo" | "porcentagem">("fixo");
+  const [hourlyRate, setHourlyRate]             = useState("");
   const [paymentPercentage, setPaymentPercentage] = useState("");
+
+  // Gmail detection — if email ends with @gmail.com, no password required
+  const isGmail = email.trim().toLowerCase().endsWith("@gmail.com");
 
   const utils = trpc.useUtils();
   const { data: professores, isLoading } = trpc.professores.list.useQuery();
@@ -85,15 +91,9 @@ export function ProfessoresTab() {
   });
 
   const resetForm = () => {
-    setName("");
-    setEmail("");
-    setPassword("");
-    setTelefone("");
-    setEspecialidade("");
-    setPermissions(["aulas", "progresso"]);
-    setPaymentType("fixo");
-    setHourlyRate("");
-    setPaymentPercentage("");
+    setName(""); setEmail(""); setPassword(""); setTelefone("");
+    setEspecialidade(""); setPermissions(["/dashboard", "/alunos", "/aulas"]);
+    setPaymentType("fixo"); setHourlyRate(""); setPaymentPercentage("");
     setEditingId(null);
   };
 
@@ -116,213 +116,337 @@ export function ProfessoresTab() {
       toast.error("Nome e E-mail são obrigatórios");
       return;
     }
-    if (!editingId && !password) {
-      toast.error("Senha é obrigatória para novos professores");
+    // Gmail accounts: login via Google OAuth — no password needed
+    if (!editingId && !isGmail && !password) {
+      toast.error("Senha é obrigatória para professores que não usam Gmail");
       return;
     }
 
     if (editingId) {
       updateMutation.mutate({
-        id: editingId,
-        name,
-        telefone,
-        especialidade,
+        id: editingId, name, telefone, especialidade,
         password: password || undefined,
-        permissions,
-        paymentType,
-        hourlyRate,
-        paymentPercentage,
+        permissions, paymentType, hourlyRate, paymentPercentage,
       });
     } else {
       createMutation.mutate({
-        name,
-        email,
-        password,
-        telefone,
-        especialidade,
-        permissions,
-        paymentType,
-        hourlyRate,
-        paymentPercentage,
+        name, email,
+        // For Gmail accounts pass an empty/random password — they'll use Google OAuth
+        password: isGmail ? `google_oauth_${Date.now()}` : password,
+        telefone, especialidade, permissions, paymentType, hourlyRate, paymentPercentage,
       });
     }
   };
 
   const togglePermission = (id: string) => {
-    setPermissions(prev => 
+    setPermissions(prev =>
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
     );
+  };
+
+  const formatPhone = (value: string) => {
+    let clean = value.replace(/\D/g, "");
+    if (!clean) return "";
+    let prefix = "";
+    if (clean.startsWith("55") && clean.length > 11) { prefix = "+55 "; clean = clean.substring(2); }
+    if (clean.length > 10) return prefix + `(${clean.slice(0,2)}) ${clean.slice(2,7)}-${clean.slice(7,11)}`;
+    if (clean.length > 6)  return prefix + `(${clean.slice(0,2)}) ${clean.slice(2,6)}-${clean.slice(6)}`;
+    if (clean.length > 2)  return prefix + `(${clean.slice(0,2)}) ${clean.slice(2)}`;
+    return prefix + clean;
   };
 
   if (isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/30 p-6 rounded-2xl border border-border/50">
         <div>
           <h3 className="text-xl lg:text-2xl font-outfit font-black text-foreground uppercase tracking-widest flex items-center gap-3">
-            <span className="w-2 h-8 bg-primary rounded-full"></span>
+            <span className="w-2 h-8 bg-primary rounded-full" />
             Equipe de Professores
           </h3>
-          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-widest mt-1 ml-5">Gerencie os acessos e permissões dos membros</p>
+          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-widest mt-1 ml-5">
+            Gerencie os acessos e permissões dos membros
+          </p>
         </div>
-        
+
         <Dialog open={isOpen} onOpenChange={(val) => { setIsOpen(val); if (!val) resetForm(); }}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all">
-              <Plus size={18} className="mr-2" />
-              Novo Professor
+              <Plus size={18} className="mr-2" /> Novo Professor
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingId ? "Editar Professor" : "Novo Professor"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold">Nome Completo</label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="João da Silva" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold">E-mail (Login)</label>
-                <Input value={email} onChange={e => setEmail(e.target.value)} disabled={!!editingId} placeholder="joao@escola.com" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold">{editingId ? "Nova Senha (opcional)" : "Senha de Acesso"}</label>
-                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="******" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">WhatsApp</label>
-                  <Input value={telefone} onChange={e => {
-                    let clean = e.target.value.replace(/\D/g, "");
-                    if (!clean) {
-                      setTelefone("");
-                      return;
-                    }
-                    let prefix = "";
-                    if (clean.startsWith("55") && clean.length > 11) {
-                      prefix = "+55 ";
-                      clean = clean.substring(2);
-                    }
-                    let formatted = prefix + clean;
-                    if (clean.length > 2 && clean.length <= 6) {
-                      formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
-                    } else if (clean.length > 6 && clean.length <= 10) {
-                      formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
-                    } else if (clean.length > 10) {
-                      formatted = prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
-                    }
-                    setTelefone(formatted);
-                  }} placeholder="(11) 99999-9999" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">Especialidade</label>
-                  <Input value={especialidade} onChange={e => setEspecialidade(e.target.value)} placeholder="Piano, Canto..." />
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t border-border">
-                <label className="text-xs font-semibold mb-2 block">Permissões de Acesso às Páginas</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {AVAILABLE_PERMISSIONS.map(perm => (
-                    <label key={perm.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={permissions.includes(perm.id)}
-                        onChange={() => togglePermission(perm.id)}
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <span>{perm.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
 
-              {/* Permissões Granulares de Dados */}
-              <div className="pt-4 border-t border-border">
-                <label className="text-xs font-semibold mb-1 block">Permissões de Dados</label>
-                <p className="text-[11px] text-muted-foreground mb-3">Controla o que o professor pode ver e fazer dentro das páginas</p>
-                <div className="space-y-2">
-                  {DATA_PERMISSIONS.map(perm => (
-                    <label key={perm.id} className="flex items-start gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={permissions.includes(perm.id)}
-                        onChange={() => togglePermission(perm.id)}
-                        className="rounded border-gray-300 text-primary focus:ring-primary mt-0.5"
-                      />
-                      <div>
-                        <span className="text-sm font-medium block">{perm.label}</span>
-                        <span className="text-[11px] text-muted-foreground">{perm.desc}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <label className="text-xs font-semibold mb-2 block">Acordo Financeiro</label>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input 
-                        type="radio" 
-                        checked={paymentType === "fixo"} 
-                        onChange={() => setPaymentType("fixo")}
-                        className="text-primary focus:ring-primary"
-                      />
-                      Valor Fixo por Aula/Hora
-                    </label>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input 
-                        type="radio" 
-                        checked={paymentType === "porcentagem"} 
-                        onChange={() => setPaymentType("porcentagem")}
-                        className="text-primary focus:ring-primary"
-                      />
-                      Porcentagem (%)
-                    </label>
+          {/* ── MODAL ──────────────────────────────────────────── */}
+          <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto p-0 gap-0 rounded-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 py-5 rounded-t-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3 text-lg font-black font-outfit">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    {editingId ? <Edit2 size={16} className="text-primary" /> : <Users size={16} className="text-primary" />}
                   </div>
-                  
-                  {paymentType === "fixo" ? (
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Valor da Hora (R$)</label>
-                      <Input 
-                        type="number" 
-                        step="0.01"
-                        value={hourlyRate} 
-                        onChange={e => setHourlyRate(e.target.value)} 
-                        placeholder="Ex: 40.00" 
-                      />
+                  {editingId ? "Editar Professor" : "Novo Professor"}
+                </DialogTitle>
+              </DialogHeader>
+            </div>
+
+            <div className="px-6 py-5 space-y-6">
+
+              {/* ── SEÇÃO 1: Dados Pessoais ── */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <GraduationCap size={13} className="text-blue-500" />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Dados Pessoais</span>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Nome */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground/80">Nome Completo</label>
+                    <Input
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="Ex: João da Silva"
+                      className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                      <Mail size={11} /> E-mail (Login)
+                    </label>
+                    <Input
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      disabled={!!editingId}
+                      placeholder="professor@escola.com"
+                      className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* ── BLOCO DE SENHA — inteligente por Gmail ── */}
+                  {isGmail ? (
+                    <div className="flex items-start gap-3 bg-blue-500/8 border border-blue-500/20 rounded-xl px-4 py-3">
+                      <div className="mt-0.5 flex-shrink-0 w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                        {/* Google "G" icon inline */}
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-blue-600 dark:text-blue-400">Login via Google</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                          Este professor usará o botão <strong>"Entrar com Google"</strong> na tela de login.
+                          Não é necessário definir uma senha.
+                        </p>
+                      </div>
                     </div>
                   ) : (
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold">Porcentagem de Comissão (%)</label>
-                      <Input 
-                        type="number" 
-                        step="0.1"
-                        value={paymentPercentage} 
-                        onChange={e => setPaymentPercentage(e.target.value)} 
-                        placeholder="Ex: 50" 
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                        <KeyRound size={11} />
+                        {editingId ? "Nova Senha" : "Senha de Acesso"}
+                        {editingId && <span className="text-muted-foreground font-normal">(opcional)</span>}
+                      </label>
+                      <Input
+                        type="password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder={editingId ? "Deixe em branco para manter" : "Mínimo 6 caracteres"}
+                        className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors"
                       />
                     </div>
                   )}
+
+                  {/* WhatsApp + Especialidade */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                        <Phone size={11} /> WhatsApp
+                      </label>
+                      <Input
+                        value={telefone}
+                        onChange={e => setTelefone(formatPhone(e.target.value))}
+                        placeholder="(11) 99999-9999"
+                        className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                        <Star size={11} /> Especialidade
+                      </label>
+                      <Input
+                        value={especialidade}
+                        onChange={e => setEspecialidade(e.target.value)}
+                        placeholder="Piano, Canto..."
+                        className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors"
+                      />
+                    </div>
+                  </div>
                 </div>
+              </section>
+
+              {/* ── SEÇÃO 2: Permissões de Páginas ── */}
+              <section className="border-t border-border/50 pt-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                    <Shield size={13} className="text-violet-500" />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Acesso às Páginas</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  {AVAILABLE_PERMISSIONS.map(perm => {
+                    const active = permissions.includes(perm.id);
+                    return (
+                      <label
+                        key={perm.id}
+                        className={`flex items-center gap-2.5 cursor-pointer rounded-xl px-3 py-2.5 border transition-all select-none ${
+                          active
+                            ? "bg-primary/8 border-primary/30 text-primary"
+                            : "bg-muted/20 border-border/40 hover:bg-muted/40 text-foreground/70"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={active}
+                          onChange={() => togglePermission(perm.id)}
+                          className="sr-only"
+                        />
+                        <span className="text-base leading-none">{perm.icon}</span>
+                        <span className="text-xs font-semibold">{perm.label}</span>
+                        {active && <CheckCircle2 size={12} className="ml-auto text-primary flex-shrink-0" />}
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* ── SEÇÃO 3: Permissões de Dados ── */}
+              <section className="border-t border-border/50 pt-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <Info size={13} className="text-amber-500" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Permissões de Dados</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground -mt-1">Controla o que o professor pode ver e fazer <em>dentro</em> das páginas</p>
+
+                <div className="space-y-2">
+                  {DATA_PERMISSIONS.map(perm => {
+                    const active = permissions.includes(perm.id);
+                    return (
+                      <label
+                        key={perm.id}
+                        className={`flex items-start gap-3 cursor-pointer rounded-xl px-3 py-3 border transition-all select-none ${
+                          active
+                            ? "bg-amber-500/8 border-amber-500/25"
+                            : "bg-muted/20 border-border/40 hover:bg-muted/40"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={active}
+                          onChange={() => togglePermission(perm.id)}
+                          className="sr-only"
+                        />
+                        <div className={`mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                          active ? "bg-amber-500 border-amber-500" : "border-border"
+                        }`}>
+                          {active && <CheckCircle2 size={10} className="text-white" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold block text-foreground">{perm.label}</span>
+                          <span className="text-[11px] text-muted-foreground">{perm.desc}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* ── SEÇÃO 4: Acordo Financeiro ── */}
+              <section className="border-t border-border/50 pt-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <DollarSign size={13} className="text-emerald-500" />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Acordo Financeiro</span>
+                </div>
+
+                {/* Toggle fixo/porcentagem */}
+                <div className="flex gap-2 bg-muted/40 p-1 rounded-xl">
+                  {(["fixo", "porcentagem"] as const).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setPaymentType(t)}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                        paymentType === t
+                          ? "bg-background shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t === "fixo" ? "💵 Valor Fixo / Hora" : "📊 Porcentagem (%)"}
+                    </button>
+                  ))}
+                </div>
+
+                {paymentType === "fixo" ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground/80">Valor da Hora (R$)</label>
+                    <Input
+                      type="number" step="0.01"
+                      value={hourlyRate}
+                      onChange={e => setHourlyRate(e.target.value)}
+                      placeholder="Ex: 40.00"
+                      className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground/80">Porcentagem de Comissão (%)</label>
+                    <Input
+                      type="number" step="0.1"
+                      value={paymentPercentage}
+                      onChange={e => setPaymentPercentage(e.target.value)}
+                      placeholder="Ex: 50"
+                      className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors"
+                    />
+                  </div>
+                )}
+              </section>
+
+              {/* ── BOTÃO SALVAR ── */}
+              <div className="border-t border-border/50 pt-4">
+                <Button
+                  onClick={handleSave}
+                  className="w-full h-11 rounded-xl font-black text-sm shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                >
+                  {(createMutation.isPending || updateMutation.isPending)
+                    ? <><Loader2 size={16} className="animate-spin mr-2" /> Salvando...</>
+                    : <><CheckCircle2 size={16} className="mr-2" /> {editingId ? "Salvar Alterações" : "Cadastrar Professor"}</>
+                  }
+                </Button>
               </div>
 
-              <Button 
-                onClick={handleSave} 
-                className="w-full mt-4" 
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
-                {(createMutation.isPending || updateMutation.isPending) ? <Loader2 className="animate-spin" /> : "Salvar"}
-              </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* ── LISTA DE PROFESSORES ── */}
       <div className="grid grid-cols-1 gap-4">
         {professores?.length === 0 ? (
           <div className="bg-card border border-border rounded-2xl p-12 text-center flex flex-col items-center">
@@ -336,7 +460,8 @@ export function ProfessoresTab() {
           professores?.map((prof) => {
             const initials = prof.name?.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() || "P";
             const especialidades = prof.especialidade ? prof.especialidade.split(",").map((s: string) => s.trim()) : [];
-            
+            const isGmailProf = prof.email?.toLowerCase().endsWith("@gmail.com");
+
             return (
               <div key={prof.id} className="bg-card hover:bg-muted/30 border border-border rounded-2xl p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:shadow-md">
                 <div className="flex items-center gap-5">
@@ -350,6 +475,17 @@ export function ProfessoresTab() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium mt-1">
                       <Mail className="w-3.5 h-3.5" />
                       {prof.email}
+                      {isGmailProf && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full border border-blue-500/20">
+                          <svg viewBox="0 0 24 24" className="w-3 h-3" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                          </svg>
+                          Google
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -366,12 +502,12 @@ export function ProfessoresTab() {
                       <span className="text-xs text-muted-foreground italic bg-muted px-3 py-1 rounded-lg">Sem especialidade</span>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="h-9 rounded-lg font-semibold hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors" onClick={() => handleOpenEdit(prof)}>
+                    <Button variant="outline" size="sm" className="h-9 rounded-lg font-semibold hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors dark:hover:bg-blue-950/40" onClick={() => handleOpenEdit(prof)}>
                       <Edit2 size={14} className="mr-2" /> Editar
                     </Button>
-                    <Button variant="outline" size="sm" className="h-9 rounded-lg font-semibold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors" onClick={() => {
+                    <Button variant="outline" size="sm" className="h-9 rounded-lg font-semibold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors dark:hover:bg-red-950/40" onClick={() => {
                       if (confirm("Tem certeza que deseja remover este professor? O acesso dele será bloqueado.")) {
                         deleteMutation.mutate({ id: prof.id });
                       }
