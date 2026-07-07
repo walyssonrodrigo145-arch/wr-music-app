@@ -234,8 +234,12 @@ export default function Progresso() {
 
   const [isSendingViaBot, setIsSendingViaBot] = useState(false);
   const sendPlanViaWhatsAppMutation = trpc.progress.sendPlanViaWhatsApp.useMutation({
-    onSuccess: () => {
-      toast.success("Plano enviado para o aluno via WhatsApp com sucesso!");
+    onSuccess: (res) => {
+      if (res.sentTo === "guardian") {
+        toast.success("Plano enviado para o responsável via WhatsApp! (aluno sem telefone cadastrado)");
+      } else {
+        toast.success("Plano enviado para o aluno via WhatsApp com sucesso!");
+      }
     },
     onError: (e) => toast.error(e.message)
   });
@@ -333,8 +337,12 @@ export default function Progresso() {
   };
 
   const handleSendManualWhatsApp = (content: string, type: "aula" | "diario") => {
-    if (!selectedStudent?.phone) {
-      toast.error("Este aluno não possui um telefone cadastrado.");
+    // Tenta primeiro o telefone do aluno; se não tiver, usa o do responsável
+    const targetPhone = selectedStudent?.phone?.trim() || selectedStudent?.guardianPhone?.trim();
+    const sendingToGuardian = !selectedStudent?.phone?.trim() && !!selectedStudent?.guardianPhone?.trim();
+
+    if (!targetPhone) {
+      toast.error("Este aluno não possui telefone cadastrado e nem o do responsável.");
       return;
     }
     const getEmoji = (inst?: string) => {
@@ -348,14 +356,19 @@ export default function Progresso() {
       if (n.includes("trompete")) return "🎺";
       return "🎸";
     };
-    const emoji = getEmoji(selectedStudent.instrumentName);
-    const saudacao = type === "aula" 
-      ? `Olá ${selectedStudent.name}! Preparado para a nossa próxima aula? ${emoji} Aqui está o que vamos fazer:\n\n`
-      : `Olá ${selectedStudent.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`;
+    const emoji = getEmoji(selectedStudent?.instrumentName);
+    // Saudação diferente quando enviando para o responsável
+    const saudacao = sendingToGuardian
+      ? (type === "aula"
+          ? `Olá! Segue o plano de aula de ${selectedStudent?.name} ${emoji}\n\n`
+          : `Olá! Aqui está o cronograma de treino de ${selectedStudent?.name} para essa semana! 📅👇\n\n`)
+      : (type === "aula"
+          ? `Olá ${selectedStudent?.name}! Preparado para a nossa próxima aula? ${emoji} Aqui está o que vamos fazer:\n\n`
+          : `Olá ${selectedStudent?.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`);
     
     const finalContent = type === "diario" ? formatPlanAsText(content) : content;
     const text = encodeURIComponent(saudacao + finalContent);
-    const url = `https://api.whatsapp.com/send?phone=55${selectedStudent.phone.replace(/\D/g, '')}&text=${text}`;
+    const url = `https://api.whatsapp.com/send?phone=55${targetPhone.replace(/\D/g, '')}&text=${text}`;
     window.open(url, "_blank");
   };
 
@@ -1008,8 +1021,10 @@ export default function Progresso() {
                                       <Button 
                                         variant="outline"
                                         onClick={() => {
-                                          if (!selectedStudent?.phone) {
-                                            toast.error("Este aluno não possui um telefone cadastrado.");
+                                          // Tenta telefone do aluno; fallback para responsável
+                                          const targetPhone = selectedStudent?.phone?.trim() || selectedStudent?.guardianPhone?.trim();
+                                          if (!targetPhone) {
+                                            toast.error("Este aluno não possui telefone cadastrado e nem o do responsável.");
                                             return;
                                           }
                                           const getEmoji = (inst?: string) => {
@@ -1023,9 +1038,9 @@ export default function Progresso() {
                                             if (n.includes("trompete")) return "🎺";
                                             return "🎸";
                                           };
-                                          const emoji = getEmoji(selectedStudent.instrumentName);
-                                          const text = encodeURIComponent(`Olá ${selectedStudent.name}! Passando para lembrar você de treinar os exercícios do seu plano de estudo diário hoje! Bora praticar? ${emoji}🚀`);
-                                          window.open(`https://api.whatsapp.com/send?phone=55${selectedStudent.phone.replace(/\D/g, '')}&text=${text}`, "_blank");
+                                          const emoji = getEmoji(selectedStudent?.instrumentName);
+                                          const text = encodeURIComponent(`Olá! Passando para lembrar ${selectedStudent?.name} de treinar os exercícios do plano de estudo hoje! Bora praticar? ${emoji}🚀`);
+                                          window.open(`https://api.whatsapp.com/send?phone=55${targetPhone.replace(/\D/g, '')}&text=${text}`, "_blank");
                                         }}
                                         className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"
                                       >

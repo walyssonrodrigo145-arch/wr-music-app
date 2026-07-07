@@ -1113,16 +1113,29 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       
       const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
       if (!student) throw new Error("Aluno não encontrado");
-      if (!student.phone) throw new Error("Este aluno não tem um telefone cadastrado.");
+
+      // FIX: Tenta primeiro o telefone do aluno; se não tiver, usa o do responsável.
+      // Nunca envia para os dois ao mesmo tempo.
+      const targetPhone = student.phone?.trim() || student.guardianPhone?.trim() || null;
+      const sendingToGuardian = !student.phone?.trim() && !!student.guardianPhone?.trim();
+
+      if (!targetPhone) {
+        throw new Error("Este aluno não tem telefone cadastrado e nem o do responsável. Cadastre um número em Alunos > Editar.");
+      }
       
       const [userSettings] = await db.select().from(settings).where(eq(settings.userId, ctx.user.id));
       if (!userSettings || !userSettings.whatsappBotUrl || !userSettings.whatsappBotToken) {
         throw new Error("O robô do WhatsApp não está configurado. Vá em Configurações > WhatsApp para configurar.");
       }
 
-      const saudacao = input.type === "aula" 
-        ? `Olá ${student.name}! Preparado para a nossa próxima aula? 🎸 Aqui está o que vamos fazer:\n\n`
-        : `Olá ${student.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`;
+      // Saudão diferenciada: se for para o responsável, menciona o nome do aluno
+      const saudacao = sendingToGuardian
+        ? (input.type === "aula"
+            ? `Olá! Segue o plano de aula de ${student.name} 🎸\n\n`
+            : `Olá! Aqui está o cronograma de treino de ${student.name} para essa semana 📅👇\n\n`)
+        : (input.type === "aula" 
+            ? `Olá ${student.name}! Preparado para a nossa próxima aula? 🎸 Aqui está o que vamos fazer:\n\n`
+            : `Olá ${student.name}! Aqui está o seu cronograma de treino para arrebentar essa semana! 📅👇\n\n`);
 
       let formattedPlanText = input.planText;
       if (input.type === "diario") {
@@ -1152,7 +1165,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const result = await sendWhatsAppMessage({
         url: userSettings.whatsappBotUrl,
         token: userSettings.whatsappBotToken,
-        phone: student.phone,
+        phone: targetPhone,
         message: finalMessage,
         sessionId: `prof_${ctx.user.id}`
       });
@@ -1161,7 +1174,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         throw new Error("Falha ao enviar mensagem pelo robô: " + result.error);
       }
 
-      return { success: true };
+      return { 
+        success: true,
+        sentTo: sendingToGuardian ? "guardian" : "student"
+      };
     }),
   }),
 
