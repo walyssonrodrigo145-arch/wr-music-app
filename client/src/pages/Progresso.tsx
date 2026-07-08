@@ -1274,7 +1274,7 @@ export default function Progresso() {
           </div>
           
           <div className="p-8 space-y-6 bg-card">
-             <div className="grid grid-cols-2 gap-4">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Data da Atividade</label>
                    <Input 

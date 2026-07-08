@@ -49,7 +49,7 @@ export function ResponsiveDialog({
               <DrawerDescription>{description}</DrawerDescription>
             )}
           </DrawerHeader>
-          <div className="py-4 overflow-y-auto max-h-[85vh] scrollbar-none">
+          <div className="py-4 overflow-y-auto overflow-x-hidden max-h-[90dvh] scrollbar-none">
             {children}
           </div>
         </DrawerContent>
@@ -60,14 +60,14 @@ export function ResponsiveDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           {title && <DialogTitle>{title}</DialogTitle>}
           {description && (
             <DialogDescription>{description}</DialogDescription>
           )}
         </DialogHeader>
-        <div className="overflow-y-auto max-h-[70vh] pr-1 -mr-1">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 max-h-[calc(90vh-120px)] pr-1 -mr-1">
           {children}
         </div>
       </DialogContent>

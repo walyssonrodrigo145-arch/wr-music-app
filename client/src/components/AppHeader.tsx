@@ -78,7 +78,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
     : "WR";
 
   return (
-    <header className="h-20 lg:h-24 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-6 lg:px-10 gap-6 lg:gap-10 flex-shrink-0 z-40 sticky top-0 transition-all duration-500">
+    <header className="h-16 md:h-20 lg:h-24 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-3 sm:px-6 lg:px-10 gap-3 sm:gap-6 lg:gap-10 flex-shrink-0 z-40 sticky top-0 transition-all duration-500 overflow-hidden">
       {/* Mobile menu button - Refined */}
       <button
         id="tour-mobile-menu"
@@ -90,8 +90,8 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
       </button>
 
       {/* Page title - Premium Typography */}
-      <div className="flex-1 min-w-0 text-left">
-        <h1 className="text-xl lg:text-3xl font-black text-foreground tracking-tight leading-none truncate drop-shadow-sm">
+      <div className="flex-1 min-w-0 text-left overflow-hidden">
+        <h1 className="text-base sm:text-xl lg:text-3xl font-black text-foreground tracking-tight leading-none truncate drop-shadow-sm">
           {pageInfo.title}
         </h1>
         {location !== "/dashboard" && (

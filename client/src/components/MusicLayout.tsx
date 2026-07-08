@@ -74,7 +74,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
   const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() + 3 * 24 * 60 * 60 * 1000 - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-background" style={{ maxHeight: '100dvh' }}>
       {/* Mobile drawer overlay */}
       <div
         className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${
@@ -84,7 +84,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       />
 
       {/* Sidebar - Desktop & Tablet */}
-      <div className="hidden md:flex flex-shrink-0 transition-all duration-300 tour-sidebar-desktop">
+      <div className="hidden md:flex flex-shrink-0 transition-all duration-300 tour-sidebar-desktop" style={{ maxWidth: '280px' }}>
         <AppSidebar 
           collapsed={collapsed} 
           onToggle={() => setCollapsed(!collapsed)} 
@@ -105,7 +105,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative" style={{ minWidth: 0 }}>
         <AppHeader onMobileMenuOpen={() => setMobileOpen(true)} />
         
         {isGracePeriod && (
@@ -124,7 +124,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar pb-safe" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
           <div className="max-w-[1600px] mx-auto w-full">
             {children}
           </div>

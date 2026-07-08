@@ -114,11 +114,12 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     <aside
       id="tour-sidebar"
       className={cn(
-        "flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out relative border-r border-sidebar-border shadow-2xl z-20 overflow-hidden",
+        "flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out relative border-r border-sidebar-border shadow-2xl z-20 overflow-hidden",
         collapsed ? "w-[80px]" : "w-[260px]",
         // Mobile drawer specific styling
         "lg:translate-x-0"
       )}
+      style={{ height: '100dvh', maxHeight: '100dvh', overflowX: 'hidden', flexShrink: 0 }}
     >
       {/* Mobile Close Button */}
       <button
@@ -171,7 +172,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto no-scrollbar scroll-smooth">
+      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
         {!collapsed && (
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mb-4 animate-in fade-in duration-500">Menu</p>
         )}

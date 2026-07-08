@@ -88,7 +88,7 @@ export default function Login() {
   const isLoading = loginMutation.isPending;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#050816] relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#050816] relative overflow-hidden py-8" style={{ minHeight: '100dvh' }}>
       {/* Dynamic Background Elements */}
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-primary/20 blur-[120px] animate-pulse" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/10 blur-[120px]" />
@@ -97,7 +97,7 @@ export default function Login() {
         <Music size={400} className="absolute bottom-0 right-0 rotate-12" />
       </div>
       
-      <div className="z-10 w-full max-w-[440px] p-6">
+      <div className="z-10 w-full max-w-[440px] px-4 sm:px-0 mx-auto">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -122,7 +122,7 @@ function InstrumentModal({ open, onClose, editData }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm">
+      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h3 className="text-sm font-bold text-foreground">{editData ? "Editar Instrumento" : "Novo Instrumento"}</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground"><X size={14} /></button>

@@ -76,7 +76,7 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
   if (!isAuthenticated || (user?.role !== 'aluno' && user?.role !== 'admin')) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-background" style={{ maxHeight: '100dvh' }}>
       {/* Mobile drawer overlay */}
       <div
         className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${
@@ -86,7 +86,7 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
       />
 
       {/* Sidebar - Desktop & Tablet */}
-      <div className="hidden md:flex flex-shrink-0 transition-all duration-300">
+      <div className="hidden md:flex flex-shrink-0 transition-all duration-300" style={{ maxWidth: '280px' }}>
         <StudentSidebar 
           collapsed={collapsed} 
           onToggle={() => setCollapsed(!collapsed)} 
@@ -107,9 +107,9 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative" style={{ minWidth: 0 }}>
         <AppHeader onMobileMenuOpen={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar">
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
           <div className="max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
             {children}
           </div>

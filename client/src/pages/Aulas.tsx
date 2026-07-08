@@ -383,14 +383,14 @@ export default function Aulas() {
             </div>
 
             {/* Desktop View Content */}
-            <div id="tour-calendar-view" className="relative min-h-[600px]">
+            <div id="tour-calendar-view" className="relative min-h-[400px] lg:min-h-[600px] overflow-x-auto">
                <AnimatePresence mode="wait">
                   {view === "mes" && (
                     <motion.div key="month" className="bg-card rounded-[2rem] border border-border shadow-xl overflow-hidden">
                        <div className="grid grid-cols-7 border-b border-border bg-muted/50">
-                          {DAYS_SHORT.map(day => <div key={day} className="py-4 text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">{day}</div>)}
+                          {DAYS_SHORT.map(day => <div key={day} className="py-2 lg:py-4 text-center text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{day}</div>)}
                        </div>
-                       <div className="grid grid-cols-7 min-h-[600px]">
+                       <div className="grid grid-cols-7 min-h-[400px] lg:min-h-[600px]">
                           {monthDays.map((day, idx) => {
                             const lessonsInDay = filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day));
                             const isCurrMonth = isSameMonth(day, currentDate);
@@ -402,7 +402,7 @@ export default function Aulas() {
                                    setAgendarOpen(true);
                                  }}
                                  className={cn(
-                                   "p-2 border-r border-b border-border min-h-[140px] relative cursor-pointer hover:bg-muted transition-colors", 
+                                   "p-1 lg:p-2 border-r border-b border-border min-h-[80px] lg:min-h-[140px] relative cursor-pointer hover:bg-muted transition-colors", 
                                    !isCurrMonth && "opacity-20 bg-muted/50", 
                                    isToday(day) && "bg-blue-500/10/30"
                                  )}
