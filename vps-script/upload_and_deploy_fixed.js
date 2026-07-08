@@ -58,6 +58,8 @@ const filesToUpload = [
   'client/src/pages/Automacoes.tsx',
   'server/automationJob.ts',
   'client/src/pages/Relatorios.tsx',
+  'client/src/pages/ProfessoresTab.tsx',
+  'server/_core/email.ts',
   'client/src/index.css',
   'client/src/pages/Assinatura.tsx',
   'client/src/pages/Alunos.tsx',

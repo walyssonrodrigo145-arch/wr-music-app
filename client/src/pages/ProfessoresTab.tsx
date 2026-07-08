@@ -319,6 +319,18 @@ export function ProfessoresTab() {
                           }}
                           className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors text-xs flex-1 file:bg-primary file:text-white file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 file:text-xs file:font-semibold hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
                         />
+                        {foto && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="h-10 w-10 shrink-0 rounded-xl shadow-sm"
+                            onClick={() => setFoto("")}
+                            title="Remover foto"
+                          >
+                            <Trash2 size={15} />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
