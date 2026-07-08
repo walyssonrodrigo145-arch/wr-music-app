@@ -29,8 +29,8 @@ export async function callGemini(
   if (isGroq) {
     try {
       const groq = new Groq({ apiKey: apiKeyToUse.trim() });
-      const groqMessages = messages.map(msg => ({
-        role: msg.role === "assistant" || msg.role === "model" ? "assistant" as const : "user" as const,
+      const groqMessages: any[] = messages.map(msg => ({
+        role: msg.role === "assistant" || msg.role === "model" ? "assistant" : "user",
         content: msg.content,
       }));
       if (systemPrompt) {

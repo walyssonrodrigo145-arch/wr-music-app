@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import {
   Loader2, Plus, Trash2, Edit2, Mail, GraduationCap,
   Lock, Phone, Star, DollarSign, Shield, Info, KeyRound,
-  CheckCircle2, Users,
+  CheckCircle2, Users, Camera,
 } from "lucide-react";
 import {
   Dialog,
@@ -51,6 +51,7 @@ export function ProfessoresTab() {
   const [password, setPassword]                 = useState("");
   const [telefone, setTelefone]                 = useState("");
   const [especialidade, setEspecialidade]       = useState("");
+  const [foto, setFoto]                         = useState("");
   const [permissions, setPermissions]           = useState<string[]>(["/dashboard", "/alunos", "/aulas"]);
   const [paymentType, setPaymentType]           = useState<"fixo" | "porcentagem">("fixo");
   const [hourlyRate, setHourlyRate]             = useState("");
@@ -92,7 +93,7 @@ export function ProfessoresTab() {
 
   const resetForm = () => {
     setName(""); setEmail(""); setPassword(""); setTelefone("");
-    setEspecialidade(""); setPermissions(["/dashboard", "/alunos", "/aulas"]);
+    setEspecialidade(""); setFoto(""); setPermissions(["/dashboard", "/alunos", "/aulas"]);
     setPaymentType("fixo"); setHourlyRate(""); setPaymentPercentage("");
     setEditingId(null);
   };
@@ -104,6 +105,7 @@ export function ProfessoresTab() {
     setPassword("");
     setTelefone(prof.telefone || "");
     setEspecialidade(prof.especialidade || "");
+    setFoto(prof.foto || "");
     setPermissions(prof.permissions || []);
     setPaymentType(prof.paymentType || "fixo");
     setHourlyRate(prof.hourlyRate || "");
@@ -124,7 +126,7 @@ export function ProfessoresTab() {
 
     if (editingId) {
       updateMutation.mutate({
-        id: editingId, name, telefone, especialidade,
+        id: editingId, name, telefone, especialidade, foto,
         password: password || undefined,
         permissions, paymentType, hourlyRate, paymentPercentage,
       });
@@ -133,7 +135,7 @@ export function ProfessoresTab() {
         name, email,
         // For Gmail accounts pass an empty/random password — they'll use Google OAuth
         password: isGmail ? `google_oauth_${Date.now()}` : password,
-        telefone, especialidade, permissions, paymentType, hourlyRate, paymentPercentage,
+        telefone, especialidade, foto, permissions, paymentType, hourlyRate, paymentPercentage,
       });
     }
   };
@@ -289,6 +291,35 @@ export function ProfessoresTab() {
                         placeholder="Piano, Canto..."
                         className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors"
                       />
+                    </div>
+                    
+                    {/* Foto */}
+                    <div className="col-span-2 space-y-1.5 mt-1 border-t border-border/30 pt-3">
+                      <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                        <Camera size={11} /> Foto do Professor
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-11 w-11 ring-2 ring-border/50 shadow-sm">
+                          {foto ? (
+                            <img src={foto} alt="Professor" className="object-cover w-full h-full" />
+                          ) : (
+                            <AvatarFallback className="bg-muted text-muted-foreground font-black text-xs">FOTO</AvatarFallback>
+                          )}
+                        </Avatar>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => setFoto(ev.target?.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="h-10 rounded-xl border-border/60 bg-muted/30 focus:bg-background transition-colors text-xs flex-1 file:bg-primary file:text-white file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 file:text-xs file:font-semibold hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -466,9 +497,13 @@ export function ProfessoresTab() {
               <div key={prof.id} className="bg-card hover:bg-muted/30 border border-border rounded-2xl p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:shadow-md">
                 <div className="flex items-center gap-5">
                   <Avatar className="h-14 w-14 ring-2 ring-primary/20 shadow-md">
-                    <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-white font-outfit font-black text-xl">
-                      {initials}
-                    </AvatarFallback>
+                    {prof.foto ? (
+                      <img src={prof.foto} alt={prof.name} className="object-cover w-full h-full" />
+                    ) : (
+                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-white font-outfit font-black text-xl">
+                        {initials}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   <div>
                     <h4 className="font-outfit text-xl font-black text-foreground">{prof.name}</h4>

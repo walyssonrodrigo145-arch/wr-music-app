@@ -31,7 +31,7 @@ import { callGemini, genAI } from "./utils/gemini";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "./utils/whatsapp";
 import { nanoid } from "nanoid";
 import { sdk } from "./_core/sdk";
-import { sendVerificationEmail } from "./_core/email";
+import { sendVerificationEmail, sendSimpleEmail } from "./_core/email";
 import { ENV } from "./_core/env";
 import { storagePut } from "./storage";
 import { superAdminRouter } from "./superAdminRouter";
@@ -204,7 +204,7 @@ export const appRouter = router({
         try {
           const [user] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
           if (user?.email) {
-            await sendVerificationEmail(user.email, 
+            await sendSimpleEmail(user.email, 
               "Senha alterada com sucesso — MusicPro",
               `<p>Olá ${user.name ?? ''},</p><p>Sua senha no <strong>MusicPro</strong> foi alterada com sucesso em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.</p><p>Se não foi você, entre em contato imediatamente.</p>`);
           }
@@ -742,7 +742,8 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
       if (!student) throw new Error("Aluno não encontrado");
 
       try {
-        const pdfParse = (await import('pdf-parse')).default;
+        const pdfParseModule = await import('pdf-parse');
+        const pdfParse = (pdfParseModule as any).default || pdfParseModule;
         const buffer = Buffer.from(input.pdfBase64.replace(/^data:application\/pdf;base64,/, ""), 'base64');
         const data = await pdfParse(buffer);
         
@@ -1987,6 +1988,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         // 1. Criar o Aluno primeiro para ter o ID
         const [newStudent] = await db.insert(students).values({
           organizationId: orgId,
+          userId: ctx.user.id,
           professorId: input.professorId || ctx.user.id,
           name: input.name,
           socialName: input.socialName || undefined,
@@ -6029,7 +6031,11 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         duration: lessons.duration,
         status: lessons.status,
         notes: lessons.notes,
+        teacherName: users.name,
+        teacherFoto: professores.foto,
       }).from(lessons)
+        .leftJoin(users, eq(lessons.userId, users.id))
+        .leftJoin(professores, eq(professores.userId, users.id))
         .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
         .orderBy(asc(lessons.scheduledAt))
         .limit(100);
@@ -7329,7 +7335,7 @@ Texto original para reescrever:
               const hourlyRate = parseFloat(prof.hourlyRate || "0");
               totalCredits = (totalMinutes / 60) * hourlyRate;
             } else if (prof.paymentType === "porcentagem") {
-              const uniqueStudentIds = [...new Set(completedLessons.map(l => l.studentId).filter(Boolean))] as number[];
+              const uniqueStudentIds = Array.from(new Set(completedLessons.map(l => l.studentId).filter(Boolean))) as number[];
               if (uniqueStudentIds.length > 0) {
                 const studentList = await db.select({
                   id: students.id,
@@ -7526,7 +7532,7 @@ Texto original para reescrever:
         let percentageDetails: Array<{ studentName: string; monthlyFee: number; commission: number }> = [];
 
         if (prof?.paymentType === "porcentagem") {
-          const uniqueStudentIds = [...new Set(profLessons.map(l => l.lesson.studentId).filter(Boolean))] as number[];
+          const uniqueStudentIds = Array.from(new Set(profLessons.map(l => l.lesson.studentId).filter(Boolean))) as number[];
           if (uniqueStudentIds.length > 0) {
             const studentList = await db.select({
               id: students.id,
@@ -8215,6 +8221,7 @@ Texto original para reescrever:
         email: z.string().email(),
         password: z.string().min(6),
         telefone: z.string().optional(),
+        foto: z.string().optional(),
         especialidade: z.string().optional(),
         permissions: z.array(z.string()).default([]),
         paymentType: z.enum(["fixo", "porcentagem"]).optional().default("fixo"),
@@ -8263,6 +8270,7 @@ Texto original para reescrever:
             organizationId: orgId,
             userId: newUser.id,
             telefone: input.telefone,
+            foto: input.foto,
             especialidade: input.especialidade,
             permissions: input.permissions,
             paymentType: input.paymentType,
@@ -8287,6 +8295,7 @@ Texto original para reescrever:
         id: z.number(),
         name: z.string(),
         telefone: z.string().optional(),
+        foto: z.string().optional(),
         especialidade: z.string().optional(),
         permissions: z.array(z.string()).optional(),
         password: z.string().optional(),
@@ -8313,6 +8322,7 @@ Texto original para reescrever:
         await db.update(professores)
           .set({
             telefone: input.telefone,
+            foto: input.foto,
             especialidade: input.especialidade,
             paymentType: input.paymentType,
             hourlyRate: sanitizedHourlyRate,

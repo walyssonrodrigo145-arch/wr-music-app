@@ -12,6 +12,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, addDays, isSameDay, addWeeks, subWeeks, addMonths, subMonths, addDays as addDaysFns, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -168,6 +169,22 @@ export default function StudentAgenda() {
                                {lesson.status === 'concluida' && <CheckCircle2 size={10} />}
                              </div>
                              <p className="text-foreground font-black truncate mb-1">{lesson.title}</p>
+                             
+                             {lesson.teacherName && (
+                               <div className="flex items-center gap-1.5 mt-2 mb-1.5 opacity-90">
+                                 <Avatar className="w-4 h-4 ring-1 ring-border shadow-sm">
+                                   {lesson.teacherFoto ? (
+                                     <img src={lesson.teacherFoto} alt={lesson.teacherName} className="object-cover w-full h-full" />
+                                   ) : (
+                                     <AvatarFallback className="text-[7px] bg-primary/10 text-primary font-black">
+                                       {lesson.teacherName.charAt(0).toUpperCase()}
+                                     </AvatarFallback>
+                                   )}
+                                 </Avatar>
+                                 <span className="text-[10px] font-semibold text-foreground/80 truncate">Prof. {lesson.teacherName.split(' ')[0]}</span>
+                               </div>
+                             )}
+                             
                              <div className="flex items-center gap-1.5 opacity-60">
                                <MapPin size={10} />
                                 <span className="truncate max-w-[80%] inline-block">Estúdio A</span>

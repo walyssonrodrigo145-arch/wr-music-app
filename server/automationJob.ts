@@ -235,7 +235,7 @@ async function runAutomation() {
         );
 
       for (const lesson of upcomingLessons) {
-                if (lesson.allowAutoReminders === false || lesson.allowAutoReminders === 0) continue;
+                if (lesson.allowAutoReminders === false) continue;
         const diffMinutes = Math.round((new Date(lesson.scheduledAt).getTime() - now.getTime()) / (60 * 1000));
         
         // Alerta de 1 hora (entre 50 e 70 minutos para tolerância)
@@ -293,7 +293,7 @@ async function runAutomation() {
           );
 
         for (const lesson of expLessons) {
-                if (lesson.allowAutoReminders === false || lesson.allowAutoReminders === 0) continue;
+                if (lesson.allowAutoReminders === false) continue;
           if (!lesson.experimentalPhone) continue;
 
           const diffHours = (new Date(lesson.scheduledAt).getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -445,7 +445,7 @@ async function runAutomation() {
         const MAX_MESSAGES_PER_MINUTE = 1;
 
         for (const rem of pendingReminders) {
-                if (rem.allowAutoReminders === false || rem.allowAutoReminders === 0) continue;
+                if (rem.allowAutoReminders === false) continue;
           if (messagesSentThisCycle >= MAX_MESSAGES_PER_MINUTE) {
             console.log(`[Automation] Limite de ${MAX_MESSAGES_PER_MINUTE} mensagem/min atingido. Fila continua no próximo ciclo.`);
             break;
@@ -498,7 +498,7 @@ async function runAutomation() {
             messagesSentThisCycle++;
 
             const timeStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-            const remType = rem.type === "aula" ? "Aula" : rem.type === "cobranca" ? "Cobrança" : rem.type === "aniversario" ? "Aniversário" : rem.type === "aula_experimental" ? "Aula Experimental" : "Estudo";
+            const remType = (rem.type as string) === "aula" ? "Aula" : (rem.type as string) === "cobranca" ? "Cobrança" : (rem.type as string) === "aniversario" ? "Aniversário" : (rem.type as string) === "aula_experimental" ? "Aula Experimental" : "Estudo";
             await notifyUser(userId, {
               title: `✅ Enviado: ${remType}`,
               content: `👤 Aluno: ${rem.studentName || "Aluno"}\n📱 Número: ${targetPhone}\n⏰ Horário: ${timeStr}`
@@ -612,7 +612,7 @@ async function runAutomation() {
                 );
 
               for (const due of pendingDues) {
-                if (due.allowAutoReminders === false || due.allowAutoReminders === 0) continue;
+                if (due.allowAutoReminders === false) continue;
                 const dueDate = new Date(due.dueDate + "T08:00:00");
                 const dueDateStr = String(due.dueDate).slice(0, 10);
                 const isOverdue = dueDateStr < todayStr2;
@@ -738,7 +738,7 @@ async function runAutomation() {
                 );
 
               for (const lesson of upcomingLessons2) {
-                if (lesson.allowAutoReminders === false || lesson.allowAutoReminders === 0) continue;
+                if (lesson.allowAutoReminders === false) continue;
                 const lessonTime = new Date(lesson.scheduledAt);
                 const triggerTime = new Date(lessonTime.getTime() + offsetMs); // offsetHours=-24 → 24h before
                 

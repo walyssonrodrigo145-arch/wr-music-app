@@ -223,6 +223,7 @@ export default function StudentProgress() {
     trpc.progress.getActiveStudyPlan.useQuery();
 
   const { data: dashboardData } = trpc.studentPortal.getDashboard.useQuery();
+  const { data: profile } = trpc.studentPortal.getProfile.useQuery();
   const { data: professorContact } = trpc.studentPortal.getProfessorContact.useQuery();
 
   const [activeTab, setActiveTab] = useState("JORNADA");
@@ -266,10 +267,10 @@ export default function StudentProgress() {
   }
 
 
-  const studentName = dashboardData?.student?.name || "Aluno";
+  const studentName = profile?.name || "Aluno";
   const firstName = studentName.split(" ")[0];
   const lastName = studentName.split(" ").slice(1).join(" ");
-  const lessonsDone = dashboardData?.statsDone?.count || 0;
+  const lessonsDone = dashboardData?.stats?.lessonsDone || 0;
   
   // Como nao temos lastLessonDate na api do student de forma rapida no dashboard, vamos mockar ou usar data atual se houver aula
   const lastLessonDate = "27 Jun"; 
@@ -282,7 +283,7 @@ export default function StudentProgress() {
   const isCurrentDayCompleted = planData ? Boolean(daysCompleted[safeDayIndex]) : false;
   const isPlanFinished = activePlan?.status === "inativo";
 
-  const handleToggleDay = (markAs) => {
+  const handleToggleDay = (markAs: boolean) => {
     if (isPlanFinished || toggleDayMutation.isPending || !activePlan) return;
     if (markAs !== isCurrentDayCompleted) {
       toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: safeDayIndex });

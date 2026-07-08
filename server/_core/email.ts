@@ -108,6 +108,34 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     );
     console.log("[Email] Password reset email sent to:", email);
   } catch (error: any) {
-    console.error("[Email] Failed to send reset email:", error.response?.data || error.message);
+    console.error("[Email] Failed to send password reset email:", error.response?.data || error.message);
+  }
+}
+
+export async function sendSimpleEmail(email: string, subject: string, html: string) {
+  if (!ENV.resendApiKey) {
+    console.warn("[Email] RESEND_API_KEY not found. Skipping simple email for:", email);
+    return;
+  }
+
+  try {
+    const response = await axios.post(
+      "https://api.resend.com/emails",
+      {
+        from: ENV.resendFromEmail,
+        to: [email],
+        subject: subject,
+        html: html,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${ENV.resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    console.log("[Email] Simple email sent to:", email, response.data.id);
+  } catch (error: any) {
+    console.error("[Email] Failed to send simple email:", error.response?.data || error.message);
   }
 }
