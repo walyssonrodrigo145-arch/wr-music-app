@@ -26,7 +26,7 @@ export function RemindersFilter({
   };
 
   return (
-    <div className="sticky top-0 sm:top-4 z-40 mb-6 bg-background/95 sm:bg-transparent -mx-4 sm:mx-0 px-4 sm:px-0 py-2 sm:py-0">
+    <div className="sticky top-0 sm:top-4 z-30 mb-6 bg-background/95 sm:bg-transparent -mx-4 sm:mx-0 px-4 sm:px-0 py-2 sm:py-0">
       <div className="flex flex-col sm:flex-row items-center gap-3 bg-card border border-border rounded-2xl p-3 shadow-lg shadow-black/5">
         <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
           <Filter size={16} className="text-muted-foreground ml-2 hidden sm:block pointer-events-none" />
