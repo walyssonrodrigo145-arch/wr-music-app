@@ -72,7 +72,11 @@ const filesToUpload = [
   'client/src/components/modals/AgendarModal.tsx',
   'server/reportEngineRouter.ts',
   'server/report_engine/excelExporter.ts',
-  'client/src/components/modals/EditStudyPlanModal.tsx'
+  'client/src/components/modals/EditStudyPlanModal.tsx',
+  'client/src/components/MusicLayout.tsx',
+  'client/src/components/AppHeader.tsx',
+  'client/src/components/MobileTabBar.tsx',
+  'client/src/components/lembretes/RemindersFilter.tsx'
 ];
 
 conn.on('ready', () => {

@@ -126,7 +126,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-safe" style={{ paddingBottom: isDesktop || isTablet ? 'max(2rem, env(safe-area-inset-bottom, 0px))' : undefined }}>
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar" style={{ paddingBottom: isDesktop || isTablet ? 'max(2rem, env(safe-area-inset-bottom, 0px))' : 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
           <div className="max-w-[1600px] mx-auto w-full">
             {children}
           </div>

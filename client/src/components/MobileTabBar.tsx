@@ -17,7 +17,7 @@ export function MobileTabBar({ onMenuClick }: MobileTabBarProps) {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border px-2 py-2 flex items-center justify-between pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border px-2 py-2 flex items-center justify-between" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)' }}>
       {tabs.map((tab) => {
         const isActive = location === tab.href || (location.startsWith(tab.href) && tab.href !== "/");
         const Icon = tab.icon;
