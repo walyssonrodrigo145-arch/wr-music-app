@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight, CreditCard } from "lucide-react";
+import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight, CreditCard, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -59,6 +59,10 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const markReadMutation = trpc.system.markNotificationRead.useMutation({
+    onSuccess: () => refetchNotifications()
+  });
+
+  const markAllReadMutation = trpc.system.markAllNotificationsRead.useMutation({
     onSuccess: () => refetchNotifications()
   });
 
@@ -187,8 +191,17 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
                </button>
              </DropdownMenuTrigger>
              <DropdownMenuContent align="end" className="w-80 rounded-[2rem] p-3 border-border/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] bg-card/90 backdrop-blur-2xl">
-               <div className="px-4 py-3 border-b border-border/20 mb-2">
+               <div className="px-4 py-3 border-b border-border/20 mb-2 flex items-center justify-between">
                   <p className="text-xs font-black text-foreground uppercase tracking-widest">Notificações</p>
+                  {unreadCount > 0 && (
+                    <button 
+                      onClick={() => markAllReadMutation.mutate()}
+                      className="text-[10px] flex items-center gap-1 font-bold text-primary hover:text-primary/80 transition-colors"
+                    >
+                      <CheckCheck size={12} />
+                      MARCAR TODAS COMO LIDO
+                    </button>
+                  )}
                </div>
                <div className="max-h-[60vh] overflow-y-auto subtle-scrollbar">
                  {notifications.length === 0 ? (

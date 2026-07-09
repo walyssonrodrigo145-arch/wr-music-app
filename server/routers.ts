@@ -147,6 +147,11 @@ export const appRouter = router({
       if (!db) return;
       await db.update(notifications).set({ read: true }).where(and(eq(notifications.id, input.id), eq(notifications.userId, ctx.user.id)));
     }),
+    markAllNotificationsRead: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return;
+      await db.update(notifications).set({ read: true }).where(and(eq(notifications.userId, ctx.user.id), eq(notifications.organizationId, ctx.user.organizationId!), eq(notifications.read, false)));
+    }),
   }),
   auth: router({
     completeTutorial: protectedProcedure.mutation(async ({ ctx }) => {
