@@ -6347,6 +6347,46 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           read: false,
         });
 
+        // WhatsApp Notification to the Teacher
+        try {
+          const [orgSettings] = await db.select({
+            whatsappBotUrl: settings.whatsappBotUrl,
+            whatsappBotToken: settings.whatsappBotToken
+          })
+          .from(settings)
+          .innerJoin(users, eq(users.id, settings.userId))
+          .where(and(eq(users.organizationId, orgId), eq(users.role, "admin")))
+          .limit(1);
+
+          const [teacherProf] = await db.select({ telefone: professores.telefone })
+            .from(professores)
+            .where(eq(professores.userId, lesson.userId))
+            .limit(1);
+
+          if (orgSettings?.whatsappBotUrl && teacherProf?.telefone) {
+            const { sendWhatsAppMessage } = await import("./utils/whatsapp");
+            
+            const formatter = new Intl.DateTimeFormat('pt-BR', {
+              weekday: 'long',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            const formattedDate = formatter.format(newDateObj);
+
+            await sendWhatsAppMessage({
+              url: orgSettings.whatsappBotUrl,
+              token: orgSettings.whatsappBotToken || "",
+              phone: teacherProf.telefone,
+              message: `🔄 *AULA REAGENDADA*\n\nOlá! O aluno *${studentData?.name || 'desconhecido'}* acabou de reagendar a aula pelo Portal do Aluno.\n\n📚 *Aula:* ${lesson.title}\n📅 *Nova Data/Hora:* ${formattedDate}`
+            });
+          }
+        } catch (e) {
+          console.error("Erro ao enviar whatsapp para professor no reagendamento", e);
+        }
+
         return { success: true, message: "Aula reagendada com sucesso!" };
       }),
     verifyAndConfirmPayment: studentProcedure
