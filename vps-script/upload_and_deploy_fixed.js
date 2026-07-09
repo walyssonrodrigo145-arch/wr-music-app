@@ -71,7 +71,8 @@ const filesToUpload = [
   'client/src/pages/ProfessoresTab.tsx',
   'client/src/components/modals/AgendarModal.tsx',
   'server/reportEngineRouter.ts',
-  'server/report_engine/excelExporter.ts'
+  'server/report_engine/excelExporter.ts',
+  'client/src/components/modals/EditStudyPlanModal.tsx'
 ];
 
 conn.on('ready', () => {
