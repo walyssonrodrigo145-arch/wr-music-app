@@ -193,7 +193,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
              <DropdownMenuContent align="end" className="w-80 rounded-[2rem] p-3 border-border/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] bg-card/90 backdrop-blur-2xl">
                <div className="px-4 py-3 border-b border-border/20 mb-2 flex items-center justify-between">
                   <p className="text-xs font-black text-foreground uppercase tracking-widest">Notificações</p>
-                  {unreadCount > 0 && (
+                  {notifications.length > 0 && (
                     <button 
                       onClick={() => markAllReadMutation.mutate()}
                       className="text-[10px] flex items-center gap-1 font-bold text-primary hover:text-primary/80 transition-colors"
