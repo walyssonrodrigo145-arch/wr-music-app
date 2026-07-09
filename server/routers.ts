@@ -6149,7 +6149,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           : Promise.resolve([{ name: null }]),
           
         student.organizationId
-          ? db.select({ pixKey: settings.pixKey })
+          ? db.select({ pixKey: settings.pixKey, schoolPhone: settings.schoolPhone })
               .from(settings)
               .innerJoin(users, eq(users.id, settings.userId))
               .where(
@@ -6159,7 +6159,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
                 )
               )
               .limit(1)
-          : Promise.resolve([{ pixKey: null }]),
+          : Promise.resolve([{ pixKey: null, schoolPhone: null }]),
           
         db.select({ title: studentGoals.title })
           .from(studentGoals)
@@ -6195,6 +6195,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         permissions: parsedPermissions,
         teacherName: teacher?.name || 'Professor',
         teacherPixKey: orgSettings?.pixKey,
+        schoolPhone: orgSettings?.schoolPhone,
         instrumentName: instrument?.name || 'Não definido',
         nextGoal: nextGoal?.title || null
       };

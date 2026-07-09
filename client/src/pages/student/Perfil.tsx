@@ -253,7 +253,17 @@ export default function StudentProfile() {
                    <div className="space-y-1">
                       <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Suporte ao Aluno</p>
                       <p className="text-sm font-bold text-foreground">Ajuda com o portal?</p>
-                      <button className="text-[10px] text-primary font-black uppercase tracking-widest hover:underline mt-1 flex items-center gap-1">
+                      <button 
+                        onClick={() => {
+                          if ((profile as any)?.schoolPhone) {
+                            const numericPhone = (profile as any).schoolPhone.replace(/\D/g, '');
+                            window.open(`https://wa.me/55${numericPhone}?text=Olá, preciso de ajuda com o portal do aluno.`, '_blank');
+                          } else {
+                            window.alert("O número de suporte ainda não foi configurado pela escola.");
+                          }
+                        }}
+                        className="text-[10px] text-primary font-black uppercase tracking-widest hover:underline mt-1 flex items-center gap-1"
+                      >
                         Abrir chamado <ChevronRight size={10} />
                       </button>
                    </div>
