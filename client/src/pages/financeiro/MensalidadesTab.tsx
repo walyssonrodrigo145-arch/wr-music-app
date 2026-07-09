@@ -951,7 +951,21 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                       </div>
                       <div>
                         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Vencimento</p>
-                        <p className="text-xs font-black text-foreground">{format(new Date(payment.dueDate + "T12:00:00"), "dd/MM/yyyy")}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-black text-foreground">{format(new Date(payment.dueDate + "T12:00:00"), "dd/MM/yyyy")}</p>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-blue-500 hover:bg-blue-500/10 -mr-2"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setEditPayment(payment);
+                            }}
+                          >
+                            <Pencil size={12} />
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
