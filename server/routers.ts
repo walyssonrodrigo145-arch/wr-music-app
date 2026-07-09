@@ -6347,6 +6347,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           read: false,
         });
 
+        // Send Push Notification (FCM / Web Push) to Teacher's devices
+        await notifyUser(lesson.userId, {
+          title: "Aula Reagendada 🔄",
+          content: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${newDateObj.toLocaleString('pt-BR')}.`
+        });
+
         // WhatsApp Notification to the Teacher
         try {
           const [orgSettings] = await db.select({
