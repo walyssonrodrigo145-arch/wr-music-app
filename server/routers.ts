@@ -1078,6 +1078,24 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       return { success: true };
     }),
 
+    updateStudyPlan: protectedProcedure.input(z.object({ planId: z.number(), planText: z.string() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      try {
+        JSON.parse(input.planText);
+      } catch (e) {
+        throw new Error("O plano editado não é um JSON válido. Verifique se as aspas e chaves estão corretas.");
+      }
+
+      await db.update(dailyStudyPlans)
+        .set({ planText: input.planText, updatedAt: new Date() })
+        .where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.organizationId, orgId)));
+
+      return { success: true };
+    }),
+
     unpublishStudyPlan: protectedProcedure.input(z.object({ planId: z.number() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");

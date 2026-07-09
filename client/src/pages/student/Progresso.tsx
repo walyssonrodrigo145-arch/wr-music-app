@@ -219,6 +219,7 @@ function ExerciseDetailModal({ exercise, dayFocus, onClose }: ExerciseDetailModa
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function StudentProgress() {
+  const utils = trpc.useContext();
   const { data: activePlan, isLoading: isPlanLoading, refetch: refetchPlan } =
     trpc.progress.getActiveStudyPlan.useQuery();
 
@@ -261,12 +262,34 @@ export default function StudentProgress() {
   };
 
   const toggleDayMutation = trpc.progress.toggleStudyPlanDay.useMutation({
+    onMutate: async ({ dayIndex }) => {
+      await utils.progress.getActiveStudyPlan.cancel();
+      const prevData = utils.progress.getActiveStudyPlan.getData();
+      
+      if (prevData) {
+        const parsedDays = JSON.parse((prevData.daysCompleted as string) || "[]");
+        const days = Array.isArray(parsedDays) ? parsedDays.map(Boolean) : [false, false, false, false, false];
+        days[dayIndex] = true;
+        utils.progress.getActiveStudyPlan.setData(undefined, {
+          ...prevData,
+          daysCompleted: JSON.stringify(days)
+        });
+      }
+      return { prevData };
+    },
+    onError: (err, newTodo, context) => {
+      if (context?.prevData) {
+        utils.progress.getActiveStudyPlan.setData(undefined, context.prevData);
+      }
+      toast.error("Erro ao registrar treino: " + err.message);
+    },
+    onSettled: () => {
+      utils.progress.getActiveStudyPlan.invalidate();
+    },
     onSuccess: (data) => {
-      refetchPlan();
       if (data.allCompleted) toast.success("Parabéns! Você gabaritou a semana! 🎉 Seu professor foi notificado!");
       else toast.success("Treino do dia atualizado!");
     },
-    onError: (e) => toast.error("Erro ao registrar treino: " + e.message),
   });
 
   const planData = useMemo(() => parsePlanData(activePlan?.planText), [activePlan?.planText]);
