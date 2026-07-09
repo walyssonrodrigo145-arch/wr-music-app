@@ -284,6 +284,13 @@ export const appRouter = router({
           throw new Error("Acesso restrito a professores");
         }
 
+        if (user.role === 'aluno' && user.studentId) {
+          const studentInfo = await db.select().from(students).where(eq(students.id, user.studentId)).limit(1);
+          if (studentInfo.length > 0 && studentInfo[0].status !== 'ativo') {
+            throw new Error("Seu acesso foi desativado ou pausado. Entre em contato com a escola.");
+          }
+        }
+
         if (!user.passwordHash) {
           throw new Error("Credenciais inválidas");
         }
