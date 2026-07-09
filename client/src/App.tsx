@@ -167,6 +167,22 @@ function Router() {
 
 import { TourProvider } from "./components/tour/TourProvider";
 import { WelcomeModal } from "./components/tour/WelcomeModal";
+import { initAnalytics, trackPageView } from "./lib/analytics";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
+
+// Initialize analytics outside of the component tree to run once on load
+initAnalytics();
+
+function AppTracking() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    trackPageView(location);
+  }, [location]);
+
+  return null;
+}
 
 function App() {
   // Escuta eventos SSE do bot e exibe toast quando a sessão WhatsApp cair
@@ -178,6 +194,7 @@ function App() {
         <TooltipProvider>
           <Toaster richColors position="top-right" />
           <TourProvider>
+            <AppTracking />
             <WelcomeModal />
             <Router />
           </TourProvider>
