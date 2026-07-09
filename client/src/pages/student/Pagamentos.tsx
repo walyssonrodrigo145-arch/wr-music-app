@@ -230,7 +230,7 @@ export default function StudentPayments() {
                                 setAnalysisResult(null);
                                 setUploadedImageUrl(null);
                               } else {
-                                toast.info("Aguardando configuração de pagamento do professor.");
+                                toast.info("Aguardando configuração de pagamento da escola.");
                               }
                             }}
                             className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
@@ -296,7 +296,7 @@ export default function StudentPayments() {
                          setAnalysisResult(null);
                          setUploadedImageUrl(null);
                        } else {
-                         toast.info("Aguardando configuração de pagamento do professor.");
+                         toast.info("Aguardando configuração de pagamento da escola.");
                        }
                      }}
                      className="bg-primary/20 text-primary hover:bg-primary hover:text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all"

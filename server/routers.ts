@@ -6109,6 +6109,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         guardianName: students.guardianName,
         guardianPhone: students.guardianPhone,
         permissions: students.permissions,
+        organizationId: students.organizationId,
       }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
 
       if (!student) {
@@ -6126,18 +6127,17 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           guardianName: students.guardianName,
           guardianPhone: students.guardianPhone,
           permissions: students.permissions,
+          organizationId: students.organizationId,
         }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
       }
       
       if (!student) throw new Error("Dados do aluno não encontrados.");
       
-      const [[teacher], [instrument]] = await Promise.all([
+      const [[teacher], [instrument], [orgSettings]] = await Promise.all([
         db.select({ 
-          name: users.name,
-          pixKey: settings.pixKey
+          name: users.name
         })
         .from(users)
-        .leftJoin(settings, eq(users.id, settings.userId))
         .where(eq(users.id, student.teacherId))
         .limit(1),
         
@@ -6146,7 +6146,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               .from(instruments)
               .where(eq(instruments.id, student.instrumentId))
               .limit(1)
-          : Promise.resolve([{ name: null }])
+          : Promise.resolve([{ name: null }]),
+          
+        student.organizationId
+          ? db.select({ pixKey: settings.pixKey })
+              .from(settings)
+              .where(eq(settings.organizationId, student.organizationId))
+              .limit(1)
+          : Promise.resolve([{ pixKey: null }])
       ]);
       
       let parsedPermissions = {
@@ -6170,7 +6177,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         ...student, 
         permissions: parsedPermissions,
         teacherName: teacher?.name || 'Professor',
-        teacherPixKey: teacher?.pixKey,
+        teacherPixKey: orgSettings?.pixKey,
         instrumentName: instrument?.name || 'Não definido'
       };
     }),

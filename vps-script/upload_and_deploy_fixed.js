@@ -38,6 +38,7 @@ const filesToUpload = [
   'client/src/pages/IAAssistente.tsx',
   'client/src/pages/student/Exercicios.tsx',
   'client/src/pages/student/Avisos.tsx',
+  'client/src/pages/student/Pagamentos.tsx',
   'client/src/pages/student/Progresso.tsx',
   'client/src/pages/student/Materiais.tsx',
   'client/src/components/RescheduleModal.tsx',
