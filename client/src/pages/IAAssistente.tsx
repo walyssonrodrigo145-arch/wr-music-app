@@ -299,7 +299,7 @@ export default function IAAssistente() {
         "w-full md:w-72 lg:w-80 border-r border-border bg-card/50 flex flex-col shrink-0 transition-all h-full md:h-auto",
         activeConversationId ? "hidden md:flex" : "flex"
       )}>
-        <Tabs defaultValue="conversas" className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-border flex flex-col gap-3 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
@@ -309,14 +309,9 @@ export default function IAAssistente() {
                 <h2 className="font-bold text-foreground leading-tight">IA Assistente</h2>
               </div>
             </div>
-
-            <TabsList className="w-full grid grid-cols-2 mt-2">
-              <TabsTrigger value="conversas">Conversas</TabsTrigger>
-              <TabsTrigger value="documentos">Documentos</TabsTrigger>
-            </TabsList>
           </div>
 
-          <TabsContent value="conversas" className="flex-1 min-h-0 overflow-hidden m-0 data-[state=active]:flex flex-col">
+          <div className="flex-1 min-h-0 overflow-hidden m-0 flex flex-col">
             <div className="px-4 pt-4 shrink-0">
               <Button
                 onClick={() => handleCreateConversation()}
@@ -395,52 +390,8 @@ export default function IAAssistente() {
             </div>
           )}
         </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="documentos" className="flex-1 overflow-hidden m-0 data-[state=active]:flex flex-col">
-          <div className="p-4 flex flex-col gap-4 h-full">
-            <p className="text-xs text-muted-foreground">
-              Faça upload de tabelas CSV, arquivos de texto ou anotações para treinar a IA.
-            </p>
-            <Button asChild variant="outline" className="w-full gap-2 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer">
-              <label>
-                {uploadDocMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                Adicionar Arquivo (.csv, .txt)
-                <input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileUpload} disabled={uploadDocMutation.isPending} />
-              </label>
-            </Button>
-            
-            <ScrollArea className="flex-1">
-              <div className="space-y-2">
-                {isLoadingDocs ? (
-                  <div className="flex justify-center p-8 text-muted-foreground">
-                    <Loader2 className="animate-spin" size={20} />
-                  </div>
-                ) : documents.length === 0 ? (
-                  <div className="text-center p-6 text-sm text-muted-foreground">
-                    Nenhum documento adicionado.
-                  </div>
-                ) : (
-                  documents.map((doc: any) => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-3 truncate">
-                        <FileText size={16} className="shrink-0 text-indigo-500" />
-                        <span className="text-sm font-medium truncate">{doc.fileName}</span>
-                      </div>
-                      <button
-                        onClick={() => deleteDocMutation.mutate({ id: doc.id })}
-                        className="p-1.5 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-600 rounded-lg transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
           </div>
-        </TabsContent>
-        </Tabs>
+        </div>
       </div>
 
       {/* Área Principal — Chat */}
