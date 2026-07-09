@@ -86,7 +86,10 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
       {/* Mobile menu button - Refined */}
       <button
         id="tour-mobile-menu"
-        className="md:hidden w-12 h-12 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40"
+        className={cn(
+          "w-12 h-12 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40",
+          user?.role === "aluno" ? "md:hidden" : "hidden"
+        )}
         onClick={onMobileMenuOpen}
         aria-label="Abrir menu"
       >

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
+import { MobileTabBar } from "./MobileTabBar";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Loader2, Music } from "lucide-react";
@@ -125,12 +126,15 @@ export function MusicLayout({ children }: MusicLayoutProps) {
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar pb-safe" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-safe" style={{ paddingBottom: isDesktop || isTablet ? 'max(2rem, env(safe-area-inset-bottom, 0px))' : undefined }}>
           <div className="max-w-[1600px] mx-auto w-full">
             {children}
           </div>
         </main>
       </div>
+
+      {/* Tab Bar Inferior para Mobile (Admin/Professor) */}
+      <MobileTabBar onMenuClick={() => setMobileOpen(true)} />
     </div>
   );
 }
