@@ -6366,13 +6366,23 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           .set({ scheduledAt: newDateObj, status: "agendada" })
           .where(eq(lessons.id, input.lessonId));
 
+        const formatter = new Intl.DateTimeFormat('pt-BR', {
+          weekday: 'long',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        const formattedDate = formatter.format(newDateObj);
+
         // Create a notification for the teacher
         const [studentData] = await db.select({ name: students.name }).from(students).where(eq(students.id, studentId)).limit(1);
         await db.insert(notifications).values({
           organizationId: orgId,
           userId: lesson.userId,
           title: "Aula Reagendada pelo Robô",
-          message: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${newDateObj.toLocaleString('pt-BR')}.`,
+          message: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${formattedDate}.`,
           type: "INFO",
           read: false,
         });
@@ -6380,7 +6390,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         // Send Push Notification (FCM / Web Push) to Teacher's devices (async)
         notifyUser(lesson.userId, {
           title: "Aula Reagendada 🔄",
-          content: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${newDateObj.toLocaleString('pt-BR')}.`
+          content: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${formattedDate}.`
         }).catch(err => console.error("Erro no push de reagendamento:", err));
 
         // WhatsApp Notification to the Teacher (async)
@@ -6402,16 +6412,6 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
             if (orgSettings?.whatsappBotUrl && teacherProf?.telefone) {
               const { sendWhatsAppMessage } = await import("./utils/whatsapp");
-              
-              const formatter = new Intl.DateTimeFormat('pt-BR', {
-                weekday: 'long',
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              });
-              const formattedDate = formatter.format(newDateObj);
 
               await sendWhatsAppMessage({
                 url: orgSettings.whatsappBotUrl,
