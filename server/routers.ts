@@ -6133,7 +6133,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       
       if (!student) throw new Error("Dados do aluno não encontrados.");
       
-      const [[teacher], [instrument], [orgSettings]] = await Promise.all([
+      const [[teacher], [instrument], [orgSettings], [nextGoal]] = await Promise.all([
         db.select({ 
           name: users.name
         })
@@ -6159,7 +6159,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
                 )
               )
               .limit(1)
-          : Promise.resolve([{ pixKey: null }])
+          : Promise.resolve([{ pixKey: null }]),
+          
+        db.select({ title: studentGoals.title })
+          .from(studentGoals)
+          .where(
+            and(
+              eq(studentGoals.studentId, student.id),
+              eq(studentGoals.status, 'pendente')
+            )
+          )
+          .orderBy(asc(studentGoals.targetDate))
+          .limit(1)
       ]);
       
       let parsedPermissions = {
@@ -6184,7 +6195,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         permissions: parsedPermissions,
         teacherName: teacher?.name || 'Professor',
         teacherPixKey: orgSettings?.pixKey,
-        instrumentName: instrument?.name || 'Não definido'
+        instrumentName: instrument?.name || 'Não definido',
+        nextGoal: nextGoal?.title || null
       };
     }),
     getSchedule: studentProcedure.query(async ({ ctx }) => {

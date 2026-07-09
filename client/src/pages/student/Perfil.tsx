@@ -240,8 +240,8 @@ export default function StudentProfile() {
                    </div>
                    <div className="space-y-1">
                       <p className="text-xs font-black text-primary uppercase tracking-widest">Próxima Meta</p>
-                      <p className="text-sm font-bold text-foreground">Defina sua meta com o professor</p>
-                      <p className="text-[10px] text-muted-foreground font-medium">Foco no progresso contínuo</p>
+                      <p className="text-sm font-bold text-foreground">{profile?.nextGoal || "Defina sua meta com o professor"}</p>
+                      <p className="text-[10px] text-muted-foreground font-medium">{profile?.nextGoal ? "Foco no progresso contínuo" : "Nenhuma meta pendente"}</p>
                    </div>
                 </CardContent>
              </Card>

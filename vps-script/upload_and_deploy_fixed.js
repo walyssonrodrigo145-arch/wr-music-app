@@ -41,6 +41,7 @@ const filesToUpload = [
   'client/src/pages/student/Pagamentos.tsx',
   'client/src/pages/student/Progresso.tsx',
   'client/src/pages/student/Materiais.tsx',
+  'client/src/pages/student/Perfil.tsx',
   'client/src/components/RescheduleModal.tsx',
   'server/utils/gemini.ts',
   'client/src/pages/Configuracoes.tsx',
