@@ -225,8 +225,40 @@ export default function StudentProgress() {
   const [selectedDay, setSelectedDay] = useState(0);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
 
-  // Reset do dia quando o plano muda
-  useEffect(() => { setSelectedDay(0); }, [activePlan?.id]);
+  const [isTraining, setIsTraining] = useState(false);
+  const [trainingSeconds, setTrainingSeconds] = useState(0);
+
+  // Reset do dia e timer quando o plano muda
+  useEffect(() => { 
+    setSelectedDay(0); 
+    setIsTraining(false);
+    setTrainingSeconds(0);
+  }, [activePlan?.id]);
+
+  // Reset do timer quando muda o dia
+  useEffect(() => {
+    setIsTraining(false);
+    setTrainingSeconds(0);
+  }, [selectedDay]);
+
+  // Timer logic
+  useEffect(() => {
+    let interval: any;
+    if (isTraining) {
+      interval = setInterval(() => {
+        setTrainingSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isTraining]);
+
+  const formatTime = (totalSeconds: number) => {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   const toggleDayMutation = trpc.progress.toggleStudyPlanDay.useMutation({
     onSuccess: (data) => {
@@ -257,11 +289,15 @@ export default function StudentProgress() {
   const isCurrentDayCompleted = planData ? Boolean(daysCompleted[safeDayIndex]) : false;
   const isPlanFinished = activePlan?.status === "inativo";
 
-  const handleToggleDay = (markAs: boolean) => {
+  const handleStartTraining = () => {
+    if (isPlanFinished || isCurrentDayCompleted) return;
+    setIsTraining(true);
+  };
+
+  const handleFinishTraining = () => {
     if (isPlanFinished || toggleDayMutation.isPending || !activePlan) return;
-    if (markAs !== isCurrentDayCompleted) {
-      toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: safeDayIndex });
-    }
+    setIsTraining(false);
+    toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: safeDayIndex });
   };
 
   return (
@@ -387,13 +423,24 @@ export default function StudentProgress() {
                     "w-full h-12 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg",
                     isCurrentDayCompleted
                       ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
-                      : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+                      : isTraining
+                        ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20"
+                        : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
                   )}
-                  onClick={() => handleToggleDay(true)}
+                  onClick={() => {
+                    if (isCurrentDayCompleted) return;
+                    if (isTraining) {
+                      handleFinishTraining();
+                    } else {
+                      handleStartTraining();
+                    }
+                  }}
                   disabled={toggleDayMutation.isPending}
                >
                   {isCurrentDayCompleted ? (
                     <><CheckCircle2 size={16} className="fill-emerald-100" /> TREINO CONCLUÍDO</>
+                  ) : isTraining ? (
+                    <><Timer size={16} className="text-white" /> CONCLUIR TREINO ({formatTime(trainingSeconds)})</>
                   ) : (
                     <><Play size={16} className="fill-white" /> COMEÇAR TREINO</>
                   )}
