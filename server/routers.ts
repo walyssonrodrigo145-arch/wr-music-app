@@ -988,7 +988,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         .set({ 
           daysCompleted: JSON.stringify(daysCompleted),
           updatedAt: new Date(),
-          ...(allCompleted ? { status: 'inativo', completedAt: new Date() } : {})
+          ...(allCompleted ? { completedAt: new Date() } : {})
         })
         .where(eq(dailyStudyPlans.id, plan.id));
 
