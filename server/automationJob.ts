@@ -221,6 +221,7 @@ async function runAutomation() {
           alertSent30m: lessons.alertSent30m,
           studentName: students.name,
           studentPhone: students.phone,
+          allowAutoReminders: students.allowAutoReminders,
         })
         .from(lessons)
         .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
@@ -293,7 +294,6 @@ async function runAutomation() {
           );
 
         for (const lesson of expLessons) {
-                if (lesson.allowAutoReminders === false) continue;
           if (!lesson.experimentalPhone) continue;
 
           const diffHours = (new Date(lesson.scheduledAt).getTime() - now.getTime()) / (1000 * 60 * 60);

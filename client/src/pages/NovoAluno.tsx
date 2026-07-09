@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { validateCPF } from "@/lib/cpf";
 import { 
   ChevronLeft, 
   Save, 
@@ -112,7 +113,7 @@ export default function NovoAluno() {
         guardianEmail: (studentData as any).guardianEmail ?? "",
         notes: (studentData as any).notes ?? "",
         temporaryPassword: "",
-        avatar: studentData.avatar ?? "",
+        avatar: (studentData as any).avatar ?? "",
         allowAutoReminders: (studentData as any).allowAutoReminders ?? true,
       });
 
@@ -313,30 +314,9 @@ export default function NovoAluno() {
     }
 
     // CPF validation
-    const cleanCPF = form.cpf.replace(/\D/g, "");
-    if (cleanCPF) {
-      if (cleanCPF.length !== 11) {
-        newErrors.cpf = "CPF deve ter 11 dígitos";
-      } else if (/^(\d)\1{10}$/.test(cleanCPF)) {
-        newErrors.cpf = "CPF inválido (não pode conter apenas dígitos repetidos)";
-      } else {
-        // CPF Checksum validation
-        let sum = 0;
-        for (let i = 0; i < 9; i++) sum += parseInt(cleanCPF.charAt(i)) * (10 - i);
-        let rev = 11 - (sum % 11);
-        if (rev === 10 || rev === 11) rev = 0;
-        if (rev !== parseInt(cleanCPF.charAt(9))) {
-          newErrors.cpf = "CPF inválido";
-        } else {
-          sum = 0;
-          for (let i = 0; i < 10; i++) sum += parseInt(cleanCPF.charAt(i)) * (11 - i);
-          rev = 11 - (sum % 11);
-          if (rev === 10 || rev === 11) rev = 0;
-          if (rev !== parseInt(cleanCPF.charAt(10))) {
-            newErrors.cpf = "CPF inválido";
-          }
-        }
-      }
+    const cpfError = validateCPF(form.cpf);
+    if (cpfError) {
+      newErrors.cpf = cpfError;
     }
 
     // RG validation

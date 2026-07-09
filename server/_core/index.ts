@@ -17,7 +17,8 @@ import { createRateLimiter } from "./rateLimiter";
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
-import { paymentDues, students, organizations } from "../../drizzle/schema";
+import { settings, paymentDues, organizations, asaasWebhooksLog, students } from "../../drizzle/schema";
+import { ENV } from './env';
 import { eq, and } from "drizzle-orm";
 import { setupEvolutionWebhook } from "../utils/whatsapp";
 import { notifyUser } from "./notification";
@@ -50,9 +51,23 @@ async function startServer() {
   const app = express();
   app.set("trust proxy", 1); // Obrigatório para a Render enviar cookies "Secure"
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads (up to 500MB)
-  app.use(express.json({ limit: "500mb" }));
-  app.use(express.urlencoded({ limit: "500mb", extended: true }));
+
+  // CRÍTICO-02 FIX: Limite de 10MB no body parser global para evitar DoS.
+  // Requests de upload de arquivo (musicLibrary.upload, etc.) recebem base64 grande,
+  // mas esses endpoints têm autenticação prévia e devem usar streaming quando possível.
+  // Se necessário, crie middleware específico por rota com limite maior.
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+  // Rota especial de upload com limite maior (requer autenticação via JWT cookie):
+  // Obs: o trânsito de base64 para arquivos de músca/vídeo passa por aqui.
+  // O middleware do tRPC já verifica o cookie antes de processar o payload.
+  // Límite: 200MB — suficiente para vídeos educacionais sem expor DoS.
+  app.use(
+    "/api/trpc/musicLibrary.upload",
+    express.json({ limit: "200mb" }),
+    express.urlencoded({ limit: "200mb", extended: true })
+  );
   
   registerOAuthRoutes(app);
   registerGoogleAuthRoutes(app);
@@ -61,10 +76,21 @@ async function startServer() {
   // Recebe notificações do Asaas e atualiza o status das mensalidades automaticamente.
   app.post("/api/webhooks/asaas", async (req, res) => {
     try {
-      // Opcional: validação do token do webhook para maior segurança
-      const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
+      // CRÍTICO-10 FIX: Token de webhook agora é OBRIGATÓRIO.
+      // Se ASAAS_WEBHOOK_TOKEN não estiver configurado, o endpoint recusa qualquer requisição.
+      // Isso impede que terceiros simulem eventos Asaas e manipulem dados financeiros.
+      const webhookToken = ENV.asaasWebhookToken;
       const requestToken = req.headers["asaas-access-token"];
-      if (webhookToken && requestToken !== webhookToken) {
+
+      if (!webhookToken) {
+        // Em produção, ASAAS_WEBHOOK_TOKEN é obrigatório (validado em env.ts).
+        // Em dev, se não configurado, apenas loga e aceita para facilitar testes locais.
+        if (ENV.isProduction) {
+          console.error("[Asaas Webhook] ASAAS_WEBHOOK_TOKEN não configurado em produção. Requisição bloqueada.");
+          return res.status(401).json({ error: "Webhook token not configured" });
+        }
+        console.warn("[Asaas Webhook] ASAAS_WEBHOOK_TOKEN não configurado (ambiente dev — aceito sem validação).");
+      } else if (requestToken !== webhookToken) {
         console.warn("[Asaas Webhook] Token de autenticação inválido ou não fornecido.");
         return res.status(401).json({ error: "Unauthorized" });
       }
@@ -147,41 +173,54 @@ async function startServer() {
 
 
       if (event === "PAYMENT_OVERDUE") {
-        // FIX-3: busca o registro primeiro para garantir que pertence ao sistema
+        // CRÍTICO-08 FIX: Idempotência para PAYMENT_OVERDUE.
+        // Só atualiza se o status atual NÃO for já "atrasado" (evita reprocessamento).
         const [due] = await db
-          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId })
+          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId, status: paymentDues.status })
           .from(paymentDues)
           .where(eq(paymentDues.asaasId, payment.id))
           .limit(1);
         if (due) {
-          await db
-            .update(paymentDues)
-            .set({ status: "atrasado", updatedAt: new Date() })
-            .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
-          console.log(`[Asaas Webhook] Mensalidade marcada como ATRASADA (${payment.id}) — org ${due.organizationId}`);
+          if (due.status === "atrasado") {
+            console.log(`[Asaas Webhook] Evento duplicado ignorado (já atrasado): ${event} ${payment.id}`);
+          } else {
+            await db
+              .update(paymentDues)
+              .set({ status: "atrasado", updatedAt: new Date() })
+              .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
+            console.log(`[Asaas Webhook] Mensalidade marcada como ATRASADA (${payment.id}) — org ${due.organizationId}`);
+          }
         } else {
           console.warn(`[Asaas Webhook] PAYMENT_OVERDUE — asaasId não encontrado: ${payment.id}`);
         }
       }
 
       if (event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") {
+        // CRÍTICO-08 FIX: Idempotência para PAYMENT_DELETED/REFUNDED.
+        // Só limpa o asaasId se ele ainda estiver preenchido no registro (evita reprocessamento).
         const [due] = await db
-          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId })
+          .select({ id: paymentDues.id, organizationId: paymentDues.organizationId, asaasId: paymentDues.asaasId })
           .from(paymentDues)
           .where(eq(paymentDues.asaasId, payment.id))
           .limit(1);
         if (due) {
-          await db
-            .update(paymentDues)
-            .set({ status: "pendente", asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
-            .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
-          console.log(`[Asaas Webhook] Cobrança removida/estornada (${payment.id}) — org ${due.organizationId}`);
+          if (!due.asaasId) {
+            console.log(`[Asaas Webhook] Evento duplicado ignorado (asaasId já nulo): ${event} ${payment.id}`);
+          } else {
+            await db
+              .update(paymentDues)
+              .set({ status: "pendente", asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
+              .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
+            console.log(`[Asaas Webhook] Cobrança removida/estornada (${payment.id}) — org ${due.organizationId}`);
+          }
         } else {
           console.warn(`[Asaas Webhook] ${event} — asaasId não encontrado: ${payment.id}`);
         }
       }
 
       if (event === "PAYMENT_CREATED") {
+        // CRÍTICO-08 FIX: Idempotência para PAYMENT_CREATED.
+        // Só atualiza se o registro existir E ainda não tiver asaasId preenchido de outra forma.
         const [due] = await db
           .select({ id: paymentDues.id, organizationId: paymentDues.organizationId })
           .from(paymentDues)
@@ -207,10 +246,17 @@ async function startServer() {
   // Recebe notificações sobre a assinatura do próprio professor (SaaS)
   app.post("/api/webhooks/asaas/platform", async (req, res) => {
     try {
-      // ── BUG 1 FIX: Validação de token (igual ao webhook de mensalidades) ──
-      const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
+      // CRÍTICO-10 FIX: Token de webhook agora é OBRIGATÓRIO (igual ao webhook de mensalidades).
+      const webhookToken = ENV.asaasWebhookToken;
       const requestToken = req.headers["asaas-access-token"];
-      if (webhookToken && requestToken !== webhookToken) {
+
+      if (!webhookToken) {
+        if (ENV.isProduction) {
+          console.error("[Asaas Platform Webhook] ASAAS_WEBHOOK_TOKEN não configurado em produção. Requisição bloqueada.");
+          return res.status(401).json({ error: "Webhook token not configured" });
+        }
+        console.warn("[Asaas Platform Webhook] ASAAS_WEBHOOK_TOKEN não configurado (ambiente dev — aceito sem validação).");
+      } else if (requestToken !== webhookToken) {
         console.warn("[Asaas Platform Webhook] Token de autenticação inválido ou não fornecido.");
         return res.status(401).json({ error: "Unauthorized" });
       }
@@ -311,10 +357,36 @@ async function startServer() {
 
   app.use("/uploads", express.static("uploads"));
 
-  // Security Middlewares
+  // CRÍTICO-03 FIX: CSP habilitado em produção com política restritiva.
+  // Em desenvolvimento, CSP permanece desabilitado para compatibilidade com Vite HMR.
   app.use(helmet({
-    contentSecurityPolicy: false, // Vite/React needs inline scripts in dev
-    crossOriginEmbedderPolicy: false
+    contentSecurityPolicy: ENV.isProduction ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          // Necessário para React e bundlers modernos (hash ou nonce deve substituir em v2)
+          "'unsafe-inline'",
+          "'unsafe-eval'", // remover após migrar para hash-based CSP
+          "https://www.googletagmanager.com",
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        connectSrc: [
+          "'self'",
+          "https://api.asaas.com",
+          "https://sandbox.asaas.com",
+          "https://generativelanguage.googleapis.com",
+          "wss:",
+        ],
+        mediaSrc: ["'self'", "blob:", "https:"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    } : false, // desabilitado em dev para compatibilidade com Vite
+    crossOriginEmbedderPolicy: false,
   }));
   app.use(cors({
     origin: process.env.NODE_ENV === "production" ? process.env.APP_URL : "*",

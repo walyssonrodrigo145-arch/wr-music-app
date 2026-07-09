@@ -67,9 +67,10 @@ export function MusicLayout({ children }: MusicLayoutProps) {
 
   if (!isAuthenticated) return null;
 
-  const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const u = user as any;
+  const trialEndsAt = u?.trialEndsAt ? new Date(u.trialEndsAt) : null;
   const isTrialExpired = trialEndsAt ? trialEndsAt < new Date() : false;
-  const isSubscriptionActive = user?.subscriptionStatus === "active";
+  const isSubscriptionActive = u?.subscriptionStatus === "active";
   const isGracePeriod = !isSubscriptionActive && isTrialExpired && trialEndsAt !== null;
   const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() + 3 * 24 * 60 * 60 * 1000 - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
 

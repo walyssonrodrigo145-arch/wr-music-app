@@ -8,8 +8,12 @@ interface SendWhatsAppParams {
   sessionId?: string;
 }
 
-const EVOLUTION_API_URL = "http://76.13.228.159:8080";
-const EVOLUTION_API_KEY = "minha_chave_secreta_123";
+// SEGURANÇA: URLs e tokens do Evolution API NÃO devem ser hardcoded.
+// Esses valores vêm das configurações do professor (settings.whatsappBotUrl e settings.whatsappBotToken)
+// ou, como fallback de desenvolvimento, de variáveis de ambiente.
+// NUNCA commite URLs, IPs ou chaves reais aqui.
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "";
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "";
 
 const DEFAULT_INSTANCE = "prof_1";
 

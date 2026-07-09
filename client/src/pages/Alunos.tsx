@@ -40,6 +40,8 @@ type StudentRow = {
   level: string; status: string; monthlyFee: string; dueDay?: number | null;
   startDate?: string | null; instrumentName?: string | null;
   instrumentColor?: string | null; instrumentIcon?: string | null;
+  instrumentId?: number | null;
+  notes?: string | null;
   portalEnabled?: boolean;
   professorId: number;
   lessonType: string;
@@ -233,7 +235,7 @@ function StudentModal({
 
   const [updateFutureDues, setUpdateFutureDues] = useState(false);
   const [generatePortalAccess, setGeneratePortalAccess] = useState(false);
-  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [credentials, setCredentials] = useState<{ email: string; password?: string } | null>(null);
 
   const set = (k: keyof FormData, v: string) => setForm(f => ({ ...f, [k]: v }));
 

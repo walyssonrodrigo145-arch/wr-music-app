@@ -238,7 +238,7 @@ export default function ProfessorExtract() {
           const detail = detailsData.percentageDetails.find((d: any) => d.studentName === l.studentName);
           if (detail) comissao = `R$ ${detail.commission}`;
         } else if (detailsData.paymentType === "fixo") {
-          comissao = `R$ ${detailsData.hourlyRate}`;
+          comissao = `R$ ${(detailsData as any).hourlyRate}`;
         }
         
         rows.push([
@@ -256,7 +256,7 @@ export default function ProfessorExtract() {
     
     generateReport.mutate({
       format: 'excel',
-      title: `Relatório de Aulas - ${detailsData.professorName}`,
+      title: `Relatório de Aulas - ${(detailsData as any).professorName}`,
       columns,
       rows,
       period: `${viewMonth}/${viewYear}`,
@@ -264,7 +264,7 @@ export default function ProfessorExtract() {
     }, {
       onSuccess: (data) => {
         toast.dismiss('export-loading');
-        downloadBase64File(data.data, 'excel', `relatorio_aulas_${detailsData.professorName.replace(/\s+/g, '_')}`);
+        downloadBase64File(data.data, 'excel', `relatorio_aulas_${(detailsData as any).professorName.replace(/\s+/g, '_')}`);
         toast.success('Relatório exportado com sucesso!');
       },
       onError: () => {

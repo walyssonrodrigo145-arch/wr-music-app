@@ -83,7 +83,17 @@ export async function callGemini(
     
     const lastMessage = formattedMessages[formattedMessages.length - 1];
     
-    const result = await chat.sendMessage(lastMessage.parts[0].text);
+    // MÉDIO-15 FIX: Timeout explícito de 30 segundos para chamadas à API do Gemini.
+    // Impede que uma API lenta/travada segure conexões indefinidamente e trave o servidor.
+    const GEMINI_TIMEOUT_MS = 30_000;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("[Gemini] Timeout: A API não respondeu em 30 segundos.")), GEMINI_TIMEOUT_MS)
+    );
+    
+    const result = await Promise.race([
+      chat.sendMessage(lastMessage.parts[0].text),
+      timeoutPromise,
+    ]);
     return result.response.text();
   } catch (error: any) {
     console.error("[Gemini API Error]:", error);

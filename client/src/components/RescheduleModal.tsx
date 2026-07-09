@@ -56,7 +56,7 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
         0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday'
       };
       const dayName = dayOfWeekMap[d.getDay()];
-      const hoursConfig = scheduleData.schoolHours[dayName];
+      const hoursConfig = (scheduleData.schoolHours as any)[dayName];
       
       if (hoursConfig?.active) {
         days.push(d);
@@ -73,7 +73,7 @@ export function RescheduleModal({ open, onOpenChange, lessonId, lessonTitle }: R
       0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday'
     };
     const dayName = dayOfWeekMap[selectedDate.getDay()];
-    const hoursConfig = scheduleData.schoolHours[dayName];
+    const hoursConfig = (scheduleData.schoolHours as any)[dayName];
     
     if (!hoursConfig?.active) return [];
     

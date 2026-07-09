@@ -51,8 +51,9 @@ export default function Checkout() {
     }
   }, []);
 
-  const isExpired = user?.trialEndsAt && isPast(new Date(user.trialEndsAt));
-  const trialDate = user?.trialEndsAt ? format(new Date(user.trialEndsAt), "dd/MM/yyyy", { locale: ptBR }) : "";
+  const u = user as any;
+  const isExpired = u?.trialEndsAt && isPast(new Date(u.trialEndsAt));
+  const trialDate = u?.trialEndsAt ? format(new Date(u.trialEndsAt), "dd/MM/yyyy", { locale: ptBR }) : "";
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 relative overflow-hidden">

@@ -194,6 +194,36 @@ async function ensureSchemaConsistency(db: any) {
     // Índice em reminders(status, scheduledAt) para o job de automação
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_reminders_status_scheduled" ON "reminders" ("status", "scheduledAt", "organizationId")`, "idx_reminders_status_scheduled");
 
+    // ─── MÉDIO-07 FIX: Índices adicionais para queries críticas ─────────────────
+    // Esses índices eliminam sequential scans nas tabelas mais acessadas.
+
+    // payment_dues.asaasId: usado no processamento de webhooks Asaas (lookup muito frequente)
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_payment_dues_asaas_id" ON "payment_dues" ("asaasId") WHERE "asaasId" IS NOT NULL`, "idx_payment_dues_asaas_id");
+
+    // students por org + status + professor: query mais comum em toda a aplicação
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_status" ON "students" ("organizationId", "status")`, "idx_students_org_status");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_professor" ON "students" ("organizationId", "professorId")`, "idx_students_org_professor");
+
+    // users.organizationId: lookup de sessão no middleware de autenticação
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_users_organization_id" ON "users" ("organizationId")`, "idx_users_organization_id");
+    // users.email: login por email (muito frequente, deve ser rápido)
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_users_email" ON "users" ("email") WHERE "email" IS NOT NULL`, "idx_users_email");
+    // users.studentId: lookup do portal do aluno
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_users_student_id" ON "users" ("studentId") WHERE "studentId" IS NOT NULL`, "idx_users_student_id");
+
+    // notifications.userId: lookup de notificações do usuário
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_notifications_user_id" ON "notifications" ("userId", "organizationId")`, "idx_notifications_user_id");
+
+    // lessons.organizationId + status: queries do dashboard
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_lessons_org_status" ON "lessons" ("organizationId", "status")`, "idx_lessons_org_status");
+    // lessons.studentId: lookup de aulas por aluno
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_lessons_student_id" ON "lessons" ("studentId")`, "idx_lessons_student_id");
+
+    // daily_study_plans: aluno + status publicado (portal do aluno)
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_study_plans_student_status" ON "daily_study_plans" ("studentId", "publishedStatus", "status")`, "idx_study_plans_student_status");
+
+    // payment_dues.studentId: relatórios financeiros por aluno
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_payment_dues_student_id" ON "payment_dues" ("studentId", "organizationId")`, "idx_payment_dues_student_id");
 
     // file_comments table
     await safeExecute(sql`

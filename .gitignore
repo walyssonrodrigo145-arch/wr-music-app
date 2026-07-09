@@ -112,9 +112,43 @@ temp/
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json
 
-# Scratch / debug scripts (contain credentials, not for version control)
+# Scratch / debug scripts (contain credentials and PII — NUNCA commitar)
+# Padrões de arquivos de debug identificados na auditoria GO LIVE (LEVE-10)
 scratch/
 check_*.ts
+check_*.cjs
+check_*.mjs
 clear_*.ts
+clear_*.cjs
 fix_*.ts
+fix_*.cjs
+fix_*.mjs
 find.ts
+find_*.ts
+test_*.ts
+test_*.cjs
+test_*.mjs
+test-*.ts
+debug_*.ts
+debug_*.cjs
+delete_*.ts
+delete_*.cjs
+cleanup_*.ts
+create_test_*.ts
+seed_*.ts
+migrate*.ts
+migrate*.cjs
+migrate*.mjs
+run-*.ts
+run_*.cjs
+unlock*.ts
+unlock*.cjs
+unlock*.mjs
+upload_*.cjs
+vps_*.cjs
+deploy*.cjs
+deploy*.mjs
+restart_*.cjs
+audit_*.mjs
+patch_*.cjs
+flush_*.cjs

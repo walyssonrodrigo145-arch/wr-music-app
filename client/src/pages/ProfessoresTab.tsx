@@ -510,7 +510,7 @@ export function ProfessoresTab() {
                 <div className="flex items-center gap-5">
                   <Avatar className="h-14 w-14 ring-2 ring-primary/20 shadow-md">
                     {prof.foto ? (
-                      <img src={prof.foto} alt={prof.name} className="object-cover w-full h-full" />
+                      <img src={prof.foto ?? undefined} alt={prof.name} className="object-cover w-full h-full" />
                     ) : (
                       <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-white font-outfit font-black text-xl">
                         {initials}

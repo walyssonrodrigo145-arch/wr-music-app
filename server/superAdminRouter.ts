@@ -7,11 +7,15 @@ import { systemPlans, systemCoupons, organizations, users, students } from "../d
 import { ENV } from "./_core/env";
 
 // ─── Middleware de autorização ────────────────────────────────────────────────
-// REGRA: SOMENTE o email walyssonrodrigo145@gmail.com tem acesso.
-// Nenhuma outra conta, independente de role, pode acessar este router.
+// REGRA: Somente o usuário configurado em SUPER_ADMIN_EMAIL (variável de ambiente)
+// OU via OWNER_OPEN_ID tem acesso. O e-mail NUNCA deve ser hardcoded no código-fonte.
 const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
+  // ENV.superAdminEmail é lido de process.env.SUPER_ADMIN_EMAIL — nunca hardcoded.
+  // Em produção, a variável é obrigatória (validada em env.ts).
+  const superAdminEmail = ENV.superAdminEmail;
+
   const isMaster =
-    ctx.user.email?.toLowerCase() === 'walyssonrodrigo145@gmail.com' ||
+    (superAdminEmail && ctx.user.email?.toLowerCase() === superAdminEmail) ||
     (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
 
   if (!isMaster) {
@@ -56,8 +60,27 @@ export const superAdminRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-    // FIX: buscar apenas campos necessários — NUNCA retornar passwordHash, tokens, etc.
-    const orgsList = await db.select().from(organizations);
+    // CRÍTICO-09 FIX: especificar campos explicitamente — NUNCA usar select() sem campos.
+    // Evita retornar asaasCustomerId, asaasSubscriptionId e outros dados sensíveis
+    // quando não estritamente necessários.
+    const orgsList = await db.select({
+      id: organizations.id,
+      name: organizations.name,
+      slug: organizations.slug,
+      logo: organizations.logo,
+      active: organizations.active,
+      ownerId: organizations.ownerId,
+      subscriptionStatus: organizations.subscriptionStatus,
+      trialEndsAt: organizations.trialEndsAt,
+      currentPeriodEnd: organizations.currentPeriodEnd,
+      planId: organizations.planId,
+      createdAt: organizations.createdAt,
+      updatedAt: organizations.updatedAt,
+      // Campos de integração Asaas: incluídos pois o super admin precisa deles
+      // para gestão, mas NUNCA expor para outros roles.
+      asaasCustomerId: organizations.asaasCustomerId,
+      asaasSubscriptionId: organizations.asaasSubscriptionId,
+    }).from(organizations);
 
     // FIX: usar COUNT agrupado por org em vez de carregar todos os users/alunos em memória
     const userCounts = await db.select({
@@ -241,11 +264,22 @@ export const superAdminRouter = router({
   updateOrgSubscription: isSuperAdmin
     .input(z.object({
       orgId: z.number().int().positive(),
-      subscriptionStatus: z.enum(['active', 'trial', 'inactive', 'suspended']),
+      // Valores válidos que correspondem aos usados no sistema
+      subscriptionStatus: z.enum(['active', 'trialing', 'past_due', 'canceled', 'inactive', 'suspended']),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      // Verificar que a org existe antes de alterar
+      const [org] = await db.select({ id: organizations.id })
+        .from(organizations)
+        .where(eq(organizations.id, input.orgId))
+        .limit(1);
+
+      if (!org) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada." });
+      }
 
       await db.update(organizations)
         .set({ subscriptionStatus: input.subscriptionStatus, updatedAt: new Date() })

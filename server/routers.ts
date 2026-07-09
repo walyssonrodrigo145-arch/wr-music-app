@@ -37,6 +37,7 @@ import { storagePut } from "./storage";
 import { superAdminRouter } from "./superAdminRouter";
 import { reportEngineRouter } from "./reportEngineRouter";
 import { pairingActiveSessions } from "./automationJob";
+import { checkFileMagicBytes } from "./utils/fileSecurity";
 
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
@@ -100,6 +101,16 @@ export const appRouter = router({
       }
     }),
     cleanupTestData: protectedProcedure.mutation(async ({ ctx }) => {
+      // MÉDIO-10 FIX: Operação destrutiva restrita a admins da organização.
+      // Professores não têm permissão para deletar dados de teste da org inteira.
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      if (!isUserAdmin) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Apenas administradores podem executar a limpeza de dados de teste.'
+        });
+      }
+
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
@@ -173,13 +184,18 @@ export const appRouter = router({
 
         return {
           ...ctx.user,
-          subscriptionStatus: org?.subscriptionStatus,
-          trialEndsAt: org?.trialEndsAt,
+          subscriptionStatus: org?.subscriptionStatus || null,
+          trialEndsAt: org?.trialEndsAt || null,
           permissions,
         };
       }
       
-      return ctx.user;
+      return {
+        ...ctx.user,
+        subscriptionStatus: null,
+        trialEndsAt: null,
+        permissions: [],
+      };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
@@ -1024,12 +1040,32 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
 
-      // Invalida planos antigos do aluno (publicados e ativos)
+      // MÉDIO-13 FIX: Validar que o studentId pertence ao professor que está publicando.
+      // Sem isso, um professor poderia invalidar planos de alunos de outros professores.
+      const [ownedStudent] = await db.select({ id: students.id })
+        .from(students)
+        .where(and(
+          eq(students.id, input.studentId),
+          eq(students.organizationId, orgId),
+          isUserAdmin ? undefined : eq(students.professorId, ctx.user.id)
+        ))
+        .limit(1);
+
+      if (!ownedStudent) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Você não tem permissão para publicar planos deste aluno.'
+        });
+      }
+
+      // Invalida planos antigos do aluno (publicados e ativos) — apenas desta organização
       await db.update(dailyStudyPlans)
         .set({ status: 'inativo' })
         .where(and(
           eq(dailyStudyPlans.studentId, input.studentId),
+          eq(dailyStudyPlans.organizationId, orgId),
           eq(dailyStudyPlans.status, 'ativo'),
           eq(dailyStudyPlans.publishedStatus, 'publicado')
         ));
@@ -1215,6 +1251,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       fileName: z.string(),
       fileType: z.string(),
       category: z.enum(['imagem', 'video', 'pdf', 'audio', 'documento']),
+      folder: z.string().optional(),
       fileUrl: z.string(),
       thumbnailUrl: z.string().optional(),
       comments: z.string().optional(),
@@ -1245,6 +1282,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         fileName: input.fileName,
         fileType: input.fileType,
         category: input.category,
+        folder: input.folder,
         fileUrl: input.fileUrl,
         thumbnailUrl: input.thumbnailUrl,
         comments: input.comments,
@@ -1261,20 +1299,106 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       thumbnailData: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
-      // Strong sanitization: replace the entire file name with a UUID to prevent path traversal or script execution
-      const ext = input.fileName.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'bin';
-      const uuid = crypto.randomUUID();
-      const baseKey = `music-library/${orgId}/${ctx.user.id}/${Date.now()}-${uuid}.${ext}`;
-      // Upload do arquivo principal
+
+      // CRÍTICO-05 FIX: Validação de MIME type e extensão por whitelist explícita.
+      // Impede upload de arquivos executáveis (PHP, JS no servidor, EXE, etc.)
+      // mesmo que renomeados com extensão segura.
+      const ALLOWED_MIME_TYPES = new Set([
+        // Imagens
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+        // Áudio
+        'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/flac', 'audio/m4a', 'audio/mp4',
+        // Vídeo
+        'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/avi', 'video/mov',
+        // Documentos
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        // Texto
+        'text/plain',
+      ]);
+
+      const ALLOWED_EXTENSIONS = new Set([
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg',
+        'mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a',
+        'mp4', 'webm', 'mov', 'avi',
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt',
+      ]);
+
+      // TAMANHO MÁXIMO POR TIPO (em bytes)
+      const SIZE_LIMITS: Record<string, number> = {
+        'image': 10 * 1024 * 1024,  // 10MB para imagens
+        'audio': 50 * 1024 * 1024,  // 50MB para áudio
+        'video': 200 * 1024 * 1024, // 200MB para vídeo
+        'application': 20 * 1024 * 1024, // 20MB para documentos
+        'text': 5 * 1024 * 1024,    // 5MB para texto
+      };
+
+      // Verificar extensão
+      const ext = input.fileName.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `Tipo de arquivo não permitido: .${ext}. Formatos aceitos: imagens, áudio, vídeo, PDF e documentos Office.`
+        });
+      }
+
+      // Verificar MIME type declarado
+      const normalizedMime = input.fileType.toLowerCase().split(';')[0].trim();
+      if (!ALLOWED_MIME_TYPES.has(normalizedMime)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `Tipo de conteúdo não permitido: ${input.fileType}.`
+        });
+      }
+
+      // Decodificar e verificar tamanho
       const base64 = input.base64Data.includes(',') ? input.base64Data.split(',')[1] : input.base64Data;
       const buffer = Buffer.from(base64, 'base64');
-      const { url } = await storagePut(baseKey, buffer, input.fileType);
+
+      // Verificar tamanho máximo por categoria de tipo
+      const mimeCategory = normalizedMime.split('/')[0];
+      const maxSize = SIZE_LIMITS[mimeCategory] || (10 * 1024 * 1024); // padrão 10MB
+      if (buffer.length > maxSize) {
+        const maxMb = Math.round(maxSize / (1024 * 1024));
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `Arquivo muito grande. Tamanho máximo para ${mimeCategory}: ${maxMb}MB.`
+        });
+      }
+
+      // CRÍTICO-05 FIX: Verificação de magic bytes (assinatura do arquivo binário).
+      // Garante que o conteúdo real corresponde ao tipo declarado, mesmo que renomeado.
+      const fileSignatureValid = checkFileMagicBytes(buffer, normalizedMime);
+      if (!fileSignatureValid) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'O conteúdo do arquivo não corresponde ao tipo declarado. Upload bloqueado por segurança.'
+        });
+      }
+
+      // Strong sanitization: replace the entire file name with a UUID to prevent path traversal or script execution
+      const uuid = crypto.randomUUID();
+      const baseKey = `music-library/${orgId}/${ctx.user.id}/${Date.now()}-${uuid}.${ext}`;
+
+      // Upload do arquivo principal (MIME type sanitizado — usa o declarado após validação)
+      const { url } = await storagePut(baseKey, buffer, normalizedMime);
 
       let thumbnailUrl: string | undefined = undefined;
       // Upload da thumbnail se fornecida
       if (input.thumbnailData) {
         const thumbBase64 = input.thumbnailData.includes(',') ? input.thumbnailData.split(',')[1] : input.thumbnailData;
         const thumbBuffer = Buffer.from(thumbBase64, 'base64');
+
+        // Limitar thumbnail a 5MB
+        if (thumbBuffer.length > 5 * 1024 * 1024) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Thumbnail muito grande. Máximo: 5MB.' });
+        }
+
         const thumbKey = `${baseKey}-thumb.jpg`;
         const thumbResult = await storagePut(thumbKey, thumbBuffer, 'image/jpeg');
         thumbnailUrl = thumbResult.url;
@@ -1445,7 +1569,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             .limit(1);
 
           if (destRes.length > 0) {
-            professorDestaque = destRes[0].profName;
+            professorDestaque = destRes[0].profName || "Nenhum definido";
           }
         } catch (e) {
           console.error("Dashboard todaySummary - professorDestaque error:", e);
@@ -1770,17 +1894,24 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       };
     }),
 
-    updateAvatar: professorProcedure.input(z.object({
+    updateAvatar: protectedProcedure.input(z.object({
       id: z.number(),
       avatar: z.string(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Banco de dados não disponível" });
       const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+      // MÉDIO-14 FIX: Admin pode atualizar avatar de qualquer aluno da org.
+      // Professor só pode atualizar avatar dos seus próprios alunos.
+      const condition = isUserAdmin
+        ? and(eq(students.id, input.id), eq(students.organizationId, orgId))
+        : and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id));
       
       await db.update(students)
         .set({ avatar: input.avatar })
-        .where(and(eq(students.id, input.id), eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(students.userId, ctx.user.id)));
+        .where(condition);
       
       return { success: true };
     }),
@@ -1893,7 +2024,19 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
       console.log(`[TRPC] Successfully linked student ${student.id} ↔ user ${finalUser.id}`);
 
-      return { success: true, email, password };
+      // MÉDIO-08 FIX: Senha não é mais retornada em texto claro via API.
+      // A senha temporária é retornada APENAS quando foi gerada automaticamente,
+      // para que o professor possa transmiti-la ao aluno de forma segura offline.
+      // Em versões futuras, implementar envio por e-mail diretamente ao aluno.
+      return { 
+        success: true, 
+        email,
+        // Retorna a senha APENAS se foi gerada automaticamente pelo sistema
+        // e o professor precisa dela para informar ao aluno.
+        // Não retornar quando o professor definiu uma senha customizada.
+        password: isAutoGeneratedPassword ? password : undefined,
+        isAutoGenerated: isAutoGeneratedPassword,
+      };
     }),
     create: protectedProcedure.input(z.object({
       name: z.string().min(1, "O nome é obrigatório"),
@@ -2013,7 +2156,6 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           notes: input.notes || undefined,
           status: input.status,
           allowAutoReminders: input.allowAutoReminders,
-          userId: ctx.user.id,
           createdAt: new Date(),
           updatedAt: new Date(),
         }).returning({ id: students.id });
@@ -2395,11 +2537,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               scheduledAt: lessons.scheduledAt,
               duration: lessons.duration,
               status: lessons.status,
+              rating: lessons.rating,
               isExperimental: lessons.isExperimental,
               experimentalName: lessons.experimentalName,
+              instrumentId: lessons.instrumentId,
+              instrumentName: instruments.name,
               studentName: students.name,
+              studentId: students.id,
+              lessonType: lessons.lessonType,
+              recurringGroupId: lessons.recurringGroupId,
             }).from(lessons)
               .leftJoin(students, eq(lessons.studentId, students.id))
+              .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
               .where(and(
                 eq(lessons.organizationId, orgId),
                 inArray(lessons.studentId, studentIds),
@@ -2415,11 +2564,18 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             scheduledAt: lessons.scheduledAt,
             duration: lessons.duration,
             status: lessons.status,
+            rating: lessons.rating,
             isExperimental: lessons.isExperimental,
             experimentalName: lessons.experimentalName,
+            instrumentId: lessons.instrumentId,
+            instrumentName: instruments.name,
             studentName: students.name,
+            studentId: students.id,
+            lessonType: lessons.lessonType,
+            recurringGroupId: lessons.recurringGroupId,
           }).from(lessons)
             .leftJoin(students, eq(lessons.studentId, students.id))
+            .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
             .where(and(
               eq(lessons.organizationId, orgId),
               isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),

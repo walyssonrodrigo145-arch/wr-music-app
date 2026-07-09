@@ -1,7 +1,20 @@
 // ─── Validação de variáveis de ambiente obrigatórias ────────────────────────
 // Falha rápida: se variáveis críticas de segurança não estiverem definidas,
 // o servidor não inicia — melhor do que silenciosamente usar defaults inseguros.
-const requiredEnvVars = ["JWT_SECRET", "DATABASE_URL"] as const;
+const requiredEnvVars = [
+  "JWT_SECRET",
+  "DATABASE_URL",
+] as const;
+
+// ─── Variáveis obrigatórias SOMENTE em produção ───────────────────────────────
+// Em desenvolvimento local estas podem ser omitidas para facilitar o setup.
+const requiredInProduction = [
+  "REGISTRATION_TOKEN",
+  "ASAAS_WEBHOOK_TOKEN",
+  "ASAAS_BASE_URL",
+  "SUPER_ADMIN_EMAIL",
+] as const;
+
 for (const key of requiredEnvVars) {
   if (!process.env[key]) {
     throw new Error(
@@ -9,6 +22,44 @@ for (const key of requiredEnvVars) {
       `Configure-a na VPS antes de iniciar o servidor.`
     );
   }
+}
+
+if (process.env.NODE_ENV === "production") {
+  for (const key of requiredInProduction) {
+    if (!process.env[key]) {
+      throw new Error(
+        `[ENV] Variável obrigatória em produção não definida: ${key}. ` +
+        `Configure-a na VPS antes de iniciar o servidor em produção. ` +
+        `NUNCA use valores padrão para segredos de segurança.`
+      );
+    }
+  }
+}
+
+// ─── Segurança: Asaas não pode apontar para sandbox em produção ───────────────
+const asaasBaseUrlRaw = (process.env.ASAAS_BASE_URL ?? "").trim();
+if (process.env.NODE_ENV === "production" && asaasBaseUrlRaw.includes("sandbox")) {
+  throw new Error(
+    "[ENV] ASAAS_BASE_URL aponta para o sandbox em produção! " +
+    "Configure a URL de produção: https://api.asaas.com/api/v3"
+  );
+}
+
+// ─── Segurança: Token de registro hardcoded é proibido ────────────────────────
+const registrationTokenRaw = (
+  process.env.REGISTRATION_TOKEN ||
+  process.env.REGIATRATION_TOKEN || // typo legado mantido por compatibilidade
+  ""
+).trim();
+
+if (
+  process.env.NODE_ENV === "production" &&
+  (!registrationTokenRaw || registrationTokenRaw === "44C9rDweFjfrEwk")
+) {
+  throw new Error(
+    "[ENV] REGISTRATION_TOKEN inválido ou usando valor padrão inseguro. " +
+    "Defina um token seguro e único na VPS."
+  );
 }
 
 export const ENV = {
@@ -25,14 +76,15 @@ export const ENV = {
   googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE || "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.SECRET_GOOGLE || "",
   appUrl: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000",
-  registrationToken: (process.env.REGISTRATION_TOKEN || process.env.REGIATRATION_TOKEN || "44C9rDweFjfrEwk").trim(),
-  // Asaas
+
+  // ─── Segurança: sem fallback hardcoded. Em dev, usa string vazia (cadastro bloqueado). ──
+  registrationToken: registrationTokenRaw,
+
+  // ─── Super Admin: email definido por variável de ambiente — NUNCA hardcoded ──
+  superAdminEmail: (process.env.SUPER_ADMIN_EMAIL || "").toLowerCase().trim(),
+
+  // ─── Asaas: sem fallback para sandbox. Em dev, sem URL = integração desativada. ──
   asaasApiKey: (process.env.ASAAS_API_KEY ?? "").trim(),
-  asaasBaseUrl: (process.env.ASAAS_BASE_URL ?? "https://sandbox.asaas.com/api/v3").trim(),
+  asaasBaseUrl: asaasBaseUrlRaw || "https://sandbox.asaas.com/api/v3", // dev only fallback
+  asaasWebhookToken: (process.env.ASAAS_WEBHOOK_TOKEN || "").trim(),
 };
-
-
-
-
-
-
