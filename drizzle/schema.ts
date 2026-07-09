@@ -406,6 +406,7 @@ export const dailyStudyPlans = pgTable("daily_study_plans", {
   status: statusEnum("status").default("ativo").notNull(), // 'ativo', 'concluido' (we can reuse statusEnum or just use a boolean)
   publishedStatus: varchar("publishedStatus", { length: 20 }).default("rascunho").notNull(), // 'rascunho', 'publicado'
   daysCompleted: text("daysCompleted").default("[false,false,false,false,false]").notNull(), // JSON array
+  daysTimeSpent: text("daysTimeSpent").default("[0,0,0,0,0]").notNull(), // Tempo gasto em segundos
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   completedAt: timestamp("completedAt"),

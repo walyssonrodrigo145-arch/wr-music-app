@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
+import { EditStudyPlanModal } from "@/components/modals/EditStudyPlanModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Exercise {
@@ -63,11 +64,27 @@ function parseDaysCompleted(raw: any): boolean[] {
       if (arr.length > 5) arr.length = 5;
       return arr;
     }
-  } catch { /* noop */ }
-  return [false, false, false, false, false];
+  } catch (e) {
+    return [false, false, false, false, false];
+  }
 }
 
-function ExerciseIcon({ icon }: { icon?: string }) {
+function parseDaysTimeSpent(raw: any): number[] {
+  if (!raw) return [0, 0, 0, 0, 0];
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (Array.isArray(parsed)) {
+      const arr = parsed.map(Number);
+      while (arr.length < 5) arr.push(0);
+      return arr;
+    }
+    return [0, 0, 0, 0, 0];
+  } catch (e) {
+    return [0, 0, 0, 0, 0];
+  }
+}
+
+const ExerciseIcon = ({ icon }: { icon?: string }) => {
   const cls = "text-indigo-600";
   const sz = 22;
   switch (icon) {
@@ -225,6 +242,7 @@ export default function StudentProgress() {
 
   const [selectedDay, setSelectedDay] = useState(0);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const [isTraining, setIsTraining] = useState(false);
   const [trainingSeconds, setTrainingSeconds] = useState(0);
@@ -269,10 +287,17 @@ export default function StudentProgress() {
       if (prevData) {
         const parsedDays = JSON.parse((prevData.daysCompleted as string) || "[]");
         const days = Array.isArray(parsedDays) ? parsedDays.map(Boolean) : [false, false, false, false, false];
+        
+        const parsedTime = JSON.parse((prevData.daysTimeSpent as string) || "[]");
+        const times = Array.isArray(parsedTime) ? parsedTime.map(Number) : [0, 0, 0, 0, 0];
+
         days[dayIndex] = true;
+        times[dayIndex] = trainingSeconds;
+
         utils.progress.getActiveStudyPlan.setData(undefined, {
           ...prevData,
-          daysCompleted: JSON.stringify(days)
+          daysCompleted: JSON.stringify(days),
+          daysTimeSpent: JSON.stringify(times)
         });
       }
       return { prevData };
@@ -297,6 +322,10 @@ export default function StudentProgress() {
     () => parseDaysCompleted(activePlan?.daysCompleted as string | undefined),
     [activePlan?.daysCompleted]
   );
+  const daysTimeSpent = useMemo(
+    () => parseDaysTimeSpent((activePlan as any)?.daysTimeSpent),
+    [(activePlan as any)?.daysTimeSpent]
+  );
 
   if (isPlanLoading) {
     return (
@@ -320,7 +349,7 @@ export default function StudentProgress() {
   const handleFinishTraining = () => {
     if (isPlanFinished || toggleDayMutation.isPending || !activePlan) return;
     setIsTraining(false);
-    toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: safeDayIndex });
+    toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: safeDayIndex, timeSpentSeconds: trainingSeconds });
   };
 
   return (
@@ -330,6 +359,14 @@ export default function StudentProgress() {
         exercise={selectedExercise}
         dayFocus={currentDayData?.focus?.title}
         onClose={() => setSelectedExercise(null)}
+      />
+
+      {/* Modal de Edição */}
+      <EditStudyPlanModal
+        planId={activePlan?.id || null}
+        initialText={activePlan?.planText || ""}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
       />
 
       {/* Header Minimal */}
@@ -363,8 +400,13 @@ export default function StudentProgress() {
                 <div className="w-1.5 h-4 bg-orange-500 rounded-full" />
                 <h3 className="text-xs font-black text-slate-900 tracking-widest uppercase">Plano Diário Ativo</h3>
               </div>
-              <div className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md text-[9px] font-black tracking-widest uppercase">
-                PUBLICADO
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-[9px] font-black tracking-widest text-indigo-600 uppercase hover:bg-indigo-50 rounded-md" onClick={() => setIsEditModalOpen(true)}>
+                  Editar Plano
+                </Button>
+                <div className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md text-[9px] font-black tracking-widest uppercase">
+                  PUBLICADO
+                </div>
               </div>
             </div>
 
@@ -461,7 +503,7 @@ export default function StudentProgress() {
                   disabled={toggleDayMutation.isPending}
                >
                   {isCurrentDayCompleted ? (
-                    <><CheckCircle2 size={16} className="fill-emerald-100" /> TREINO CONCLUÍDO</>
+                    <><CheckCircle2 size={16} className="fill-emerald-100" /> TREINO CONCLUÍDO ({formatTime(daysTimeSpent[safeDayIndex])})</>
                   ) : isTraining ? (
                     <><Timer size={16} className="text-white" /> CONCLUIR TREINO ({formatTime(trainingSeconds)})</>
                   ) : (

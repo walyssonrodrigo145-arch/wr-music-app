@@ -968,22 +968,33 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       return plan || null;
     }),
 
-    toggleStudyPlanDay: studentProcedure.input(z.object({ planId: z.number(), dayIndex: z.number().min(0).max(4) })).mutation(async ({ ctx, input }) => {
+    toggleStudyPlanDay: studentProcedure.input(z.object({ planId: z.number(), dayIndex: z.number().min(0).max(4), timeSpentSeconds: z.number().optional() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
       const [plan] = await db.select().from(dailyStudyPlans).where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.studentId, ctx.user.studentId!)));
       if (!plan) throw new Error("Plano não encontrado");
 
-      const parsedDays = JSON.parse(plan.daysCompleted as string);
+      const parsedDays = JSON.parse((plan.daysCompleted as string) || "[]");
       const daysCompleted = Array.isArray(parsedDays) ? parsedDays.map(Boolean) : [false, false, false, false, false];
+      
+      const parsedTime = JSON.parse((plan.daysTimeSpent as string) || "[]");
+      const daysTimeSpent = Array.isArray(parsedTime) ? parsedTime.map(Number) : [0, 0, 0, 0, 0];
       
       // Ensure it always has exactly 5 days
       while (daysCompleted.length < 5) daysCompleted.push(false);
       if (daysCompleted.length > 5) daysCompleted.length = 5;
 
+      while (daysTimeSpent.length < 5) daysTimeSpent.push(0);
+      if (daysTimeSpent.length > 5) daysTimeSpent.length = 5;
+
       if (input.dayIndex >= 0 && input.dayIndex < 5) {
         daysCompleted[input.dayIndex] = !daysCompleted[input.dayIndex];
+        if (daysCompleted[input.dayIndex] && input.timeSpentSeconds) {
+          daysTimeSpent[input.dayIndex] = input.timeSpentSeconds;
+        } else if (!daysCompleted[input.dayIndex]) {
+          daysTimeSpent[input.dayIndex] = 0;
+        }
       }
 
       // Check if all 5 days are actually true
@@ -992,6 +1003,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       await db.update(dailyStudyPlans)
         .set({ 
           daysCompleted: JSON.stringify(daysCompleted),
+          daysTimeSpent: JSON.stringify(daysTimeSpent),
           updatedAt: new Date(),
           ...(allCompleted ? { completedAt: new Date() } : {})
         })
@@ -1008,15 +1020,11 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           actionUrl: `/alunos/${ctx.user.studentId}`,
         });
 
-        // Envia notificação PUSH para o aparelho do professor
-        try {
-          await notifyUser(plan.teacherId, {
-            title: "Semana Gabaritada! 🎸",
-            content: `O aluno ${ctx.user.name} concluiu os 5 dias de treino do plano de estudos!`,
-          });
-        } catch (e) {
-          console.error("Falha ao enviar push notification:", e);
-        }
+        // Envia notificação PUSH para o aparelho do professor (Sem await para não travar a resposta)
+        notifyUser(plan.teacherId, {
+          title: "Semana Gabaritada! 🎸",
+          content: `O aluno ${ctx.user.name} concluiu os 5 dias de treino do plano de estudos!`,
+        }).catch(e => console.error("Falha ao enviar push notification:", e));
       } else if (input.dayIndex >= 0 && input.dayIndex < 5 && daysCompleted[input.dayIndex]) {
         // Envia notificação diária quando o aluno marca um dia
         await db.insert(notifications).values({
@@ -1028,17 +1036,27 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           actionUrl: `/alunos/${ctx.user.studentId}`,
         });
 
-        try {
-          await notifyUser(plan.teacherId, {
-            title: "Treino Concluído! 🎸",
-            content: `O aluno ${ctx.user.name} concluiu o treino do dia!`,
-          });
-        } catch (e) {
-          console.error("Falha ao enviar push notification:", e);
-        }
+        notifyUser(plan.teacherId, {
+          title: "Treino Concluído! 🎸",
+          content: `O aluno ${ctx.user.name} concluiu o treino do dia!`,
+        }).catch(e => console.error("Falha ao enviar push notification:", e));
       }
 
       return { success: true, allCompleted };
+    }),
+
+    editStudyPlanText: studentProcedure.input(z.object({ planId: z.number(), planText: z.string() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const [plan] = await db.select().from(dailyStudyPlans).where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.studentId, ctx.user.studentId!)));
+      if (!plan) throw new Error("Plano não encontrado");
+
+      await db.update(dailyStudyPlans)
+        .set({ planText: input.planText, updatedAt: new Date() })
+        .where(eq(dailyStudyPlans.id, plan.id));
+
+      return { success: true };
     }),
 
     publishStudyPlan: protectedProcedure.input(z.object({ planId: z.number(), studentId: z.number() })).mutation(async ({ ctx, input }) => {
