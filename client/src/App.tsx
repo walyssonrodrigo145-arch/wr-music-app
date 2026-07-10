@@ -28,9 +28,9 @@ const Cadastro = lazy(() => import("./pages/Cadastro"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const NovoAluno = lazy(() => import("./pages/NovoAluno"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
-const MarketingDashboard = lazy(() => import("./pages/marketing/MarketingDashboard"));
-const CreateCampaign = lazy(() => import("./pages/marketing/CreateCampaign"));
-const CampaignDetails = lazy(() => import("./pages/marketing/CampaignDetails"));
+const MarketingDashboard = lazy(() => import("@/pages/marketing/MarketingDashboard"));
+const CreateCampaign = lazy(() => import("@/pages/marketing/CreateCampaign"));
+const CampaignDetails = lazy(() => import("@/pages/marketing/CampaignDetails"));
 
 const Solicitacoes = lazy(() => import("./pages/Solicitacoes"));
 const IAAssistente = lazy(() => import("./pages/IAAssistente"));

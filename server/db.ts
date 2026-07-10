@@ -331,8 +331,6 @@ async function ensureSchemaConsistency(db: any) {
 
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
-  } catch (err) {
-    console.error("[Database] Error in schema consistency check:", err);
   }
 }
 
