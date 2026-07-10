@@ -73,6 +73,60 @@ async function startServer() {
   registerOAuthRoutes(app);
   registerGoogleAuthRoutes(app);
 
+  // ─── Mercado Pago Webhook (Alunos) ───────────────────────────────────────
+  app.post("/api/webhooks/mercadopago/student", async (req, res) => {
+    try {
+      const dueId = req.query.dueId as string;
+      if (!dueId) return res.status(400).send("Missing dueId");
+
+      const body = req.body;
+      // MP envia { type: "payment", data: { id: "123456" }, action: "payment.updated" }
+      if (body?.type !== "payment" && body?.topic !== "payment") {
+        return res.status(200).send("Not a payment event");
+      }
+
+      const paymentId = body?.data?.id;
+      if (!paymentId) return res.status(400).send("Missing payment id");
+
+      const db = await getDb();
+      if (!db) return res.status(500).send("Database not available");
+
+      // Buscar a fatura para pegar o userId (professor)
+      const [due] = await db.select().from(paymentDues).where(eq(paymentDues.id, parseInt(dueId))).limit(1);
+      if (!due) return res.status(404).send("Payment due not found");
+      if (due.status === "pago") return res.status(200).send("Already paid");
+
+      // Buscar as configs do professor
+      const [profSettings] = await db.select({ mpAccessToken: settings.mpAccessToken })
+        .from(settings)
+        .where(eq(settings.userId, due.userId))
+        .limit(1);
+
+      if (!profSettings || !profSettings.mpAccessToken) {
+        return res.status(400).send("Mercado Pago not configured for this user");
+      }
+
+      // Validar no Mercado Pago
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        headers: { "Authorization": `Bearer ${profSettings.mpAccessToken}` }
+      });
+      if (!response.ok) return res.status(400).send("Failed to validate payment");
+      
+      const paymentData = await response.json();
+      if (paymentData.status === "approved") {
+        await db.update(paymentDues)
+          .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
+          .where(eq(paymentDues.id, due.id));
+        console.log(`[Mercado Pago Webhook] Mensalidade ${due.id} marcada como paga.`);
+      }
+
+      return res.status(200).send("OK");
+    } catch (e) {
+      console.error("[Mercado Pago Webhook] Erro:", e);
+      return res.status(500).send("Internal error");
+    }
+  });
+
   // ─── Asaas Webhook ───────────────────────────────────────────────────────
   // Recebe notificações do Asaas e atualiza o status das mensalidades automaticamente.
   app.post("/api/webhooks/asaas", async (req, res) => {

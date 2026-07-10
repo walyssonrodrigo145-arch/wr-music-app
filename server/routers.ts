@@ -3634,10 +3634,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
     updateAsaasIntegration: protectedProcedure.input(z.object({
       asaasApiKey: z.string().optional(),
       asaasEnabled: z.boolean().optional(),
+      paymentGateway: z.enum(["asaas", "mercadopago"]).optional(),
+      mpAccessToken: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
         asaasApiKey: input.asaasApiKey ?? null,
         asaasEnabled: input.asaasEnabled !== undefined ? (input.asaasEnabled ? 1 : 0) : undefined,
+        paymentGateway: input.paymentGateway,
+        mpAccessToken: input.mpAccessToken ?? null,
       });
       return { success: true };
     }),
@@ -4517,6 +4521,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           asaasId: paymentDues.asaasId,
           asaasPaymentLink: paymentDues.asaasPaymentLink,
           asaasBillingType: paymentDues.asaasBillingType,
+          mpPaymentId: paymentDues.mpPaymentId,
+          mpPaymentLink: paymentDues.mpPaymentLink,
           receiptUrl: paymentDues.receiptUrl,
           studentName: students.name,
           studentPhone: students.phone,
@@ -5409,6 +5415,71 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         };
       }),
 
+    generateMPCharge: protectedProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const orgId = ctx.user.organizationId!;
+        const professorId = ctx.user.id;
+
+        const { createMPPreference } = await import('./utils/mercadopago');
+        const [settingsData] = await db.select({ 
+          mpAccessToken: settings.mpAccessToken,
+          paymentGateway: settings.paymentGateway
+        }).from(settings).where(eq(settings.userId, professorId)).limit(1);
+        
+        if (!settingsData || settingsData.paymentGateway !== 'mercadopago' || !settingsData.mpAccessToken) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Mercado Pago não está configurada para esta conta." });
+        }
+        
+        const accessToken = settingsData.mpAccessToken;
+
+        const [due] = await db.select().from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, professorId)))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (due.mpPaymentId) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no Mercado Pago" });
+
+        const [student] = await db.select().from(students)
+          .where(and(eq(students.id, due.studentId), eq(students.organizationId, orgId)))
+          .limit(1);
+
+        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+
+        const pref = await createMPPreference({
+          items: [{
+            title: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
+            quantity: 1,
+            currency_id: "BRL",
+            unit_price: Number(due.amount)
+          }],
+          payer: {
+            name: student.name,
+            email: student.email || "aluno@musicpro.com.br"
+          },
+          external_reference: due.id.toString(),
+          successUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/painel/mensalidades`
+        }, accessToken);
+
+        await db.update(paymentDues)
+          .set({
+            mpPaymentId: pref.id,
+            mpPaymentLink: pref.init_point,
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentDues.id, input.paymentDueId));
+
+        return {
+          mpPaymentId: pref.id,
+          paymentLink: pref.init_point,
+        };
+      }),
+
     cancelAsaasCharge: protectedProcedure
       .input(z.object({ paymentDueId: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -5432,6 +5503,25 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
         await db.update(paymentDues)
           .set({ asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
+          .where(eq(paymentDues.id, input.paymentDueId));
+
+        return { success: true };
+      }),
+
+    cancelMPCharge: protectedProcedure
+      .input(z.object({ paymentDueId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const [due] = await db.select().from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+
+        await db.update(paymentDues)
+          .set({ mpPaymentId: null, mpPaymentLink: null, updatedAt: new Date() })
           .where(eq(paymentDues.id, input.paymentDueId));
 
         return { success: true };

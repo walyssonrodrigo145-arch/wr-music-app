@@ -62,6 +62,14 @@ async function ensureSchemaConsistency(db: any) {
     // settings Asaas Integration
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "asaasApiKey" text`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "asaasEnabled" integer DEFAULT 0 NOT NULL`);
+
+    // settings Mercado Pago Integration
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "paymentGateway" varchar(20) DEFAULT 'asaas' NOT NULL`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "mpAccessToken" text`);
+    
+    // payment_dues Mercado Pago Integration
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "mpPaymentId" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "mpPaymentLink" text`);
     
     // organizations Subscription Fields
     await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "subscriptionStatus" varchar(50) DEFAULT 'trialing' NOT NULL`);

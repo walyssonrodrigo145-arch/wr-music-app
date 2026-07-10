@@ -730,9 +730,11 @@ export default function Configuracoes() {
   const [whatsappBotToken, setWhatsappBotToken] = useState("");
   const [whatsappAutoSend, setWhatsappAutoSend] = useState(false);
 
-  // ── Asaas state ──
+  // 💱 Pagamentos state 💱
   const [asaasApiKey, setAsaasApiKey] = useState("");
   const [asaasEnabled, setAsaasEnabled] = useState(false);
+  const [paymentGateway, setPaymentGateway] = useState<"asaas" | "mercadopago">("asaas");
+  const [mpAccessToken, setMpAccessToken] = useState("");
 
   // ── IA state ──
   const [aiProvider, setAiProvider] = useState("gemini");
@@ -778,6 +780,8 @@ export default function Configuracoes() {
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
+      setPaymentGateway((settings.paymentGateway as "asaas" | "mercadopago") || "asaas");
+      setMpAccessToken(settings.mpAccessToken ?? "");
       setAiProvider(settings.aiProvider ?? "gemini");
       setGeminiApiKey(settings.geminiApiKey ?? "");
       setGeminiModel(settings.geminiModel ?? "gemini-3.1-pro-preview");
@@ -909,6 +913,8 @@ export default function Configuracoes() {
     updateAsaasMutation.mutate({
       asaasApiKey,
       asaasEnabled,
+      paymentGateway,
+      mpAccessToken,
     });
   };
 
@@ -1419,55 +1425,92 @@ export default function Configuracoes() {
                 </div>
               </div>
             )}
-
-            {/* ── ABA: SEGURANÇA ── */}
-          {activeTab === "integracoes" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                  <Wallet size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">Asaas Pagamentos</h3>
-                  <p className="text-xs text-muted-foreground font-medium">Habilite o checkout de mensalidades via Asaas na área do aluno.</p>
-                </div>
-              </div>
-
-              <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
-                <div className="flex items-center justify-between p-4 rounded-2xl border border-border bg-muted/30">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-foreground">Ativar Integração Asaas</h4>
-                    <p className="text-xs text-muted-foreground font-medium max-w-sm leading-relaxed">
-                      Quando ativado, os alunos poderão visualizar o QR Code do PIX e pagar faturas diretamente pelo portal usando o Asaas.
-                    </p>
+            {/* ── ABA: INTEGRAÇÕES / PAGAMENTOS ── */}
+            {activeTab === "integracoes" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Wallet size={20} />
                   </div>
-                  <Toggle checked={asaasEnabled} onChange={setAsaasEnabled} />
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Pagamentos dos Alunos</h3>
+                    <p className="text-xs text-muted-foreground font-medium">Habilite o checkout de mensalidades via Asaas ou Mercado Pago na área do aluno.</p>
+                  </div>
                 </div>
 
-                <Field 
-                  label="Chave da API Asaas (API Key)"
-                  hint="A chave secreta gerada no painel do Asaas (Configurações > Integrações > Gerar API Key)."
+                <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                  <Field label="Provedor de Pagamento" hint="Escolha qual gateway processará os pagamentos dos seus alunos.">
+                    <select
+                      value={paymentGateway}
+                      onChange={(e) => setPaymentGateway(e.target.value as "asaas" | "mercadopago")}
+                      className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 text-sm font-medium focus:ring-primary w-full"
+                    >
+                      <option value="asaas">Asaas (Boleto/Pix)</option>
+                      <option value="mercadopago">Mercado Pago (Cartão/Pix)</option>
+                    </select>
+                  </Field>
+
+                  {paymentGateway === "asaas" ? (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      <div className="flex items-center justify-between p-4 rounded-2xl border border-border bg-muted/30">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-bold text-foreground">Ativar Integração Asaas</h4>
+                          <p className="text-xs text-muted-foreground font-medium max-w-sm leading-relaxed">
+                            Quando ativado, os alunos poderão visualizar o QR Code do PIX e pagar faturas diretamente pelo portal usando o Asaas.
+                          </p>
+                        </div>
+                        <Toggle checked={asaasEnabled} onChange={setAsaasEnabled} />
+                      </div>
+
+                      <Field 
+                        label="Chave da API Asaas (API Key)"
+                        hint="A chave secreta gerada no painel do Asaas (Configurações > Integrações > Gerar API Key)."
+                      >
+                        <Input
+                          type="password"
+                          value={asaasApiKey}
+                          onChange={(e) => setAsaasApiKey(e.target.value)}
+                          placeholder="$aact_..."
+                          className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                        />
+                      </Field>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      <div className="flex items-center justify-between p-4 rounded-2xl border border-blue-500/20 bg-blue-500/5">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-bold text-blue-600 dark:text-blue-400">Ativar Integração Mercado Pago</h4>
+                          <p className="text-xs text-blue-600/70 dark:text-blue-400/70 font-medium max-w-sm leading-relaxed">
+                            Ao salvar esta opção, seus alunos terão uma nova tela de checkout onde poderão usar Pix ou Cartão de Crédito com a segurança do Mercado Pago. O dinheiro cai direto na sua conta.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Field 
+                        label="Access Token Mercado Pago"
+                        hint="A chave secreta gerada no painel de desenvolvedor do Mercado Pago."
+                      >
+                        <Input
+                          type="password"
+                          value={mpAccessToken}
+                          onChange={(e) => setMpAccessToken(e.target.value)}
+                          placeholder="APP_USR-..."
+                          className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                        />
+                      </Field>
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  onClick={handleSaveAsaas}
+                  disabled={updateAsaasMutation.isPending}
+                  className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg px-6 h-10 text-xs font-bold"
                 >
-                  <Input
-                    type="password"
-                    value={asaasApiKey}
-                    onChange={(e) => setAsaasApiKey(e.target.value)}
-                    placeholder="$aact_..."
-                    className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
-                  />
-                </Field>
+                  {updateAsaasMutation.isPending ? "Salvando..." : "Salvar Integração"}
+                </Button>
               </div>
-
-              <Button
-                onClick={handleSaveAsaas}
-                disabled={updateAsaasMutation.isPending}
-                className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg px-6 h-10 text-xs font-bold"
-              >
-                {updateAsaasMutation.isPending ? "Salvando..." : "Salvar Integração"}
-              </Button>
-            </div>
-          )}
-
+            )}
           {activeTab === "ia" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="flex items-center gap-3 mb-6">

@@ -215,7 +215,9 @@ export default function StudentPayments() {
                         ) : (
                           <button 
                             onClick={() => {
-                              if (payment.asaasBillingType === "PIX" && payment.asaasPaymentLink) {
+                              if (payment.mpPaymentLink) {
+                                window.open(payment.mpPaymentLink, "_blank");
+                              } else if (payment.asaasBillingType === "PIX" && payment.asaasPaymentLink) {
                                 setPixCopiaECola(payment.asaasPaymentLink);
                                 setSelectedPayment(payment);
                                 setIsPixModalOpen(true);
@@ -281,7 +283,9 @@ export default function StudentPayments() {
                    </div>
                    <button 
                      onClick={() => {
-                       if (nextPayment?.asaasBillingType === "PIX" && nextPayment?.asaasPaymentLink) {
+                       if (nextPayment?.mpPaymentLink) {
+                         window.open(nextPayment.mpPaymentLink, "_blank");
+                       } else if (nextPayment?.asaasBillingType === "PIX" && nextPayment?.asaasPaymentLink) {
                          setPixCopiaECola(nextPayment.asaasPaymentLink);
                          setSelectedPayment(nextPayment);
                          setIsPixModalOpen(true);

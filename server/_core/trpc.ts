@@ -20,7 +20,7 @@ const requireUser = t.middleware(async opts => {
   // ── Bloqueio de Inadimplência na API (Segurança Extra) ──
   if (!path.startsWith('platform.') && !path.startsWith('auth.') && !path.startsWith('publicData.')) {
     if ((ctx.user.role === 'admin' || ctx.user.role === 'professor') && ctx.user.organizationId) {
-      const db = await import("./db").then(m => m.getDb());
+      const db = await import("../db").then(m => m.getDb());
       if (db) {
         const { organizations } = await import("../../drizzle/schema");
         const { eq } = await import("drizzle-orm");

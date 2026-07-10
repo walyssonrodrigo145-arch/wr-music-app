@@ -57,10 +57,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ─── Modal: Gerar Cobrança Asaas ──────────────────────────────────────────────
-function AsaasChargeModal({ open, onClose, payment }: {
+function GatewayChargeModal({ open, onClose, payment, gateway }: {
   open: boolean;
   onClose: () => void;
   payment: PaymentRow | null;
+  gateway: "asaas" | "mercadopago";
 }) {
   const utils = trpc.useUtils();
   const [billingType, setBillingType] = useState<"PIX" | "CREDIT_CARD">("PIX");
@@ -70,7 +71,7 @@ function AsaasChargeModal({ open, onClose, payment }: {
     billingType: string;
   } | null>(null);
 
-  const generateMutation = trpc.reports.generateAsaasCharge.useMutation({
+  const generateAsaasMutation = trpc.reports.generateAsaasCharge.useMutation({
     onSuccess: (data) => {
       setResult(data);
       utils.paymentDues.invalidate();
@@ -79,9 +80,22 @@ function AsaasChargeModal({ open, onClose, payment }: {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
+  const generateMPMutation = trpc.financeiro.generateMPCharge.useMutation({
+    onSuccess: (data) => {
+      setResult({ paymentLink: data.paymentLink, billingType: "MP" });
+      utils.paymentDues.invalidate();
+      toast.success("Link gerado no Mercado Pago!");
+    },
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+
   const handleGenerate = () => {
     if (!payment) return;
-    generateMutation.mutate({ paymentDueId: payment.id, billingType });
+    if (gateway === "mercadopago") {
+      generateMPMutation.mutate({ paymentDueId: payment.id });
+    } else {
+      generateAsaasMutation.mutate({ paymentDueId: payment.id, billingType });
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -99,6 +113,8 @@ function AsaasChargeModal({ open, onClose, payment }: {
   const currencyFormat = (val: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
 
+  const isPending = generateAsaasMutation.isPending || generateMPMutation.isPending;
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-md" onClick={handleClose} />
@@ -111,10 +127,10 @@ function AsaasChargeModal({ open, onClose, payment }: {
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center">
-              <Zap size={20} />
+              {gateway === "mercadopago" ? <Wallet size={20} className="text-blue-500" /> : <Zap size={20} />}
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground">Gerar Cobrança Asaas</h3>
+              <h3 className="text-sm font-bold text-foreground">Gerar Cobrança {gateway === "mercadopago" ? "Mercado Pago" : "Asaas"}</h3>
               <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{payment.studentName}</p>
             </div>
           </div>
@@ -132,40 +148,48 @@ function AsaasChargeModal({ open, onClose, payment }: {
 
           {!result ? (
             <>
-              {/* Seleção de Método */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Método de pagamento</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {([
-                    { key: "PIX", label: "PIX", icon: QrCode, color: "emerald" },
-                    { key: "CREDIT_CARD", label: "Cartão de Crédito", icon: CreditCard, color: "blue" },
-                  ] as const).map(({ key, label, icon: Icon, color }) => (
-                    <button
-                      key={key}
-                      onClick={() => setBillingType(key)}
-                      className={cn(
-                        "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
-                        billingType === key
-                          ? color === "emerald"
-                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-600"
-                            : "border-blue-500 bg-blue-500/10 text-blue-600"
-                          : "border-border bg-muted/30 text-muted-foreground hover:border-muted-foreground/40"
-                      )}
-                    >
-                      <Icon size={22} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
-                    </button>
-                  ))}
+              {/* Seleção de Método - Only for Asaas as MP handles it via preference URL */}
+              {gateway === "asaas" && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Método de pagamento</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      { key: "PIX", label: "PIX", icon: QrCode, color: "emerald" },
+                      { key: "CREDIT_CARD", label: "Cartão de Crédito", icon: CreditCard, color: "blue" },
+                    ] as const).map(({ key, label, icon: Icon, color }) => (
+                      <button
+                        key={key}
+                        onClick={() => setBillingType(key)}
+                        className={cn(
+                          "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                          billingType === key
+                            ? color === "emerald"
+                              ? "border-emerald-500 bg-emerald-500/10 text-emerald-600"
+                              : "border-blue-500 bg-blue-500/10 text-blue-600"
+                            : "border-border bg-muted/30 text-muted-foreground hover:border-muted-foreground/40"
+                        )}
+                      >
+                        <Icon size={22} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {gateway === "mercadopago" && (
+                <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center">
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">O link gerado permitirá que o aluno pague via Pix ou Cartão de Crédito no ambiente seguro do Mercado Pago.</p>
+                </div>
+              )}
 
               <Button
                 onClick={handleGenerate}
-                disabled={generateMutation.isPending}
-                className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs gap-2 shadow-lg shadow-violet-500/20"
+                disabled={isPending}
+                className={cn("w-full h-12 rounded-xl text-white font-bold text-xs gap-2 shadow-lg", gateway === "mercadopago" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20")}
               >
-                {generateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
-                Gerar Cobrança
+                {isPending ? <Loader2 size={16} className="animate-spin" /> : (gateway === "mercadopago" ? <Wallet size={16} /> : <Zap size={16} />)}
+                Gerar Link
               </Button>
             </>
           ) : (
@@ -178,10 +202,10 @@ function AsaasChargeModal({ open, onClose, payment }: {
               >
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-200">
                   <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                  <span className="text-xs font-bold text-emerald-700">Cobrança gerada com sucesso!</span>
+                  <span className="text-xs font-bold text-emerald-700">Link gerado com sucesso!</span>
                 </div>
 
-                {/* QR Code PIX */}
+                {/* QR Code PIX (somente Asaas) */}
                 {result.billingType === "PIX" && result.pixQrCode && (
                   <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-muted/50 border border-border">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">QR Code PIX</p>
@@ -196,7 +220,7 @@ function AsaasChargeModal({ open, onClose, payment }: {
                 {/* Link de Pagamento */}
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">
-                    {result.billingType === "PIX" ? "Chave PIX / Link" : "Link de Pagamento"}
+                    Link Seguro
                   </p>
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border">
                     <Link2 size={14} className="text-violet-500 shrink-0" />
@@ -514,7 +538,8 @@ function NovaModal({ open, onClose, students }: {
 export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoading }: { viewMonth: number, viewYear: number, payments: any[], isLoading: boolean }) {
   const { user } = useAuth();
   const { data: settings } = trpc.settings.get.useQuery();
-  const isAsaasEnabled = settings?.asaasEnabled === 1;
+  const paymentGateway = (settings?.paymentGateway as "asaas" | "mercadopago") || "asaas";
+  const isGatewayEnabled = paymentGateway === "mercadopago" ? !!settings?.mpAccessToken : settings?.asaasEnabled === 1;
   const isWhatsAppEnabled = settings?.whatsappBotUrl && settings?.whatsappBotToken;
   const utils = trpc.useUtils();
   const now = new Date();
@@ -858,11 +883,11 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                     <span className="text-xs font-bold text-muted-foreground">Editar Registro</span>
                                  </DropdownMenuItem>
                                  <DropdownMenuSeparator className="bg-muted" />
-                                 {!payment.asaasId ? (
-                                   isAsaasEnabled && (
+                                  {!payment.asaasId && !payment.mpPaymentId ? (
+                                    isGatewayEnabled && (
                                      <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setAsaasPayment(payment)}>
                                         <Zap className="w-4 h-4 text-violet-500" />
-                                        <span className="text-xs font-bold text-muted-foreground">Gerar Cobrança Asaas</span>
+                                        <span className="text-xs font-bold text-muted-foreground">Gerar Cobrança</span>
                                      </DropdownMenuItem>
                                    )
                                  ) : (
@@ -1067,10 +1092,11 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
         <EditMensalidadeModal open={!!editPayment} onClose={() => setEditPayment(null)} payment={editPayment} />
       )}
       <ObservacaoModal open={!!notesPayment} onClose={() => setNotesPayment(null)} payment={notesPayment} />
-      <AsaasChargeModal
+      <GatewayChargeModal
         open={!!asaasPayment}
         onClose={() => setAsaasPayment(null)}
         payment={asaasPayment}
+        gateway={(settings?.paymentGateway as "asaas" | "mercadopago") || "asaas"}
       />
     </div>
   );

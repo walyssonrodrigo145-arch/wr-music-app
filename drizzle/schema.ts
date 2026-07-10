@@ -205,6 +205,9 @@ export const settings = pgTable("settings", {
   // Asaas Integration
   asaasApiKey: text("asaasApiKey"),
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
+  // Mercado Pago Integration
+  mpAccessToken: text("mpAccessToken"),
+  paymentGateway: varchar("paymentGateway", { length: 20 }).default("asaas").notNull(),
   // AI Integration
   aiProvider: varchar("aiProvider", { length: 50 }).default("gemini"),
   geminiApiKey: varchar("geminiApiKey", { length: 255 }),
@@ -273,6 +276,9 @@ export const paymentDues = pgTable("payment_dues", {
   asaasId: text("asaasId"),
   asaasPaymentLink: text("asaasPaymentLink"),
   asaasBillingType: varchar("asaasBillingType", { length: 30 }), // PIX, CREDIT_CARD
+  // Mercado Pago integration
+  mpPaymentId: text("mpPaymentId"),
+  mpPaymentLink: text("mpPaymentLink"),
   receiptUrl: text("receiptUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
