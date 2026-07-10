@@ -17,7 +17,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import QRCode from "react-qr-code";
-import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TOKEN_REFRESH_INTERVAL = 30; // seconds
