@@ -28,6 +28,9 @@ const Cadastro = lazy(() => import("./pages/Cadastro"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const NovoAluno = lazy(() => import("./pages/NovoAluno"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
+const MarketingDashboard = lazy(() => import("./pages/marketing/MarketingDashboard"));
+const CreateCampaign = lazy(() => import("./pages/marketing/CreateCampaign"));
+const CampaignDetails = lazy(() => import("./pages/marketing/CampaignDetails"));
 
 const Solicitacoes = lazy(() => import("./pages/Solicitacoes"));
 const IAAssistente = lazy(() => import("./pages/IAAssistente"));
@@ -147,7 +150,9 @@ function Router() {
           <Route path="/assinatura" component={Assinatura} />
           <Route path="/progresso" component={Progresso} />
           <Route path="/comunicados" component={Comunicados} />
-
+          <Route path="/marketing" component={MarketingDashboard} />
+          <Route path="/marketing/nova" component={CreateCampaign} />
+          <Route path="/marketing/:id" component={CampaignDetails} />
           <Route path="/automacoes" component={Automacoes} />
           <Route path="/solicitacoes" component={Solicitacoes} />
           <Route path="/ia" component={IAAssistente} />

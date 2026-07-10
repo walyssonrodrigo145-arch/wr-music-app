@@ -13,6 +13,7 @@ import whatsappWebhookRouter from "../webhooks/whatsapp";
 import botStatusWebhookRouter from "../webhooks/botStatus";
 import { serveStatic, setupVite } from "./vite";
 import { startAutomationJob } from "../automationJob";
+import { marketingWorker } from "../services/MarketingQueueWorker";
 import { createRateLimiter } from "./rateLimiter";
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
@@ -449,6 +450,8 @@ async function startServer() {
     console.log(`Server running on http://localhost:${port}/`);
     // Iniciar job de automação de lembretes
     startAutomationJob();
+    // Iniciar job de automação de marketing
+    marketingWorker.start();
     // Configura o webhook do WhatsApp
     setupEvolutionWebhook();
   });

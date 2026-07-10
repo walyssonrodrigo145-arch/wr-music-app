@@ -2,7 +2,7 @@ import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, inArray } from "drizz
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { InsertUser, users, students, instruments, lessons, monthlyStats, settings, InsertSettings, paymentDues, studentGoals, studentTimeline, organizations } from "../drizzle/schema";
+import { InsertUser, users, students, instruments, lessons, monthlyStats, settings, InsertSettings, paymentDues, studentGoals, studentTimeline, organizations, marketingCampaigns, marketingContacts, marketingJobs, marketingLogs } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -237,11 +237,101 @@ async function ensureSchemaConsistency(db: any) {
       )
     `, "create file_comments");
 
+    // Create Marketing Enums if they don't exist
+    await db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE campaign_status AS ENUM ('draft', 'running', 'paused', 'completed', 'error');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `);
+    await db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE campaign_contact_status AS ENUM ('pending', 'processing', 'sent', 'failed');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `);
+    await db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE job_status AS ENUM ('pending', 'running', 'completed', 'failed');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `);
+
+    // Create Marketing Tables
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "marketing_campaigns" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer NOT NULL,
+        "name" varchar(255) NOT NULL,
+        "description" text,
+        "status" campaign_status DEFAULT 'draft' NOT NULL,
+        "minDelay" integer DEFAULT 10 NOT NULL,
+        "maxDelay" integer DEFAULT 20 NOT NULL,
+        "batchSize" integer DEFAULT 20 NOT NULL,
+        "batchDelay" integer DEFAULT 600 NOT NULL,
+        "totalContacts" integer DEFAULT 0 NOT NULL,
+        "sentCount" integer DEFAULT 0 NOT NULL,
+        "failedCount" integer DEFAULT 0 NOT NULL,
+        "consecutiveErrors" integer DEFAULT 0 NOT NULL,
+        "createdBy" integer NOT NULL,
+        "startedAt" timestamp,
+        "completedAt" timestamp,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "marketing_contacts" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer NOT NULL,
+        "campaignId" integer NOT NULL REFERENCES "marketing_campaigns"("id") ON DELETE CASCADE,
+        "name" varchar(255) NOT NULL,
+        "phone" varchar(50) NOT NULL,
+        "variables" jsonb,
+        "messageText" text NOT NULL,
+        "status" campaign_contact_status DEFAULT 'pending' NOT NULL,
+        "errorMessage" text,
+        "evolutionMessageId" varchar(255),
+        "processedAt" timestamp,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "marketing_jobs" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer NOT NULL,
+        "campaignId" integer NOT NULL REFERENCES "marketing_campaigns"("id") ON DELETE CASCADE,
+        "status" job_status DEFAULT 'pending' NOT NULL,
+        "lockedAt" timestamp,
+        "lockedBy" varchar(255),
+        "lastProcessedContactId" integer,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "marketing_logs" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer NOT NULL,
+        "campaignId" integer NOT NULL REFERENCES "marketing_campaigns"("id") ON DELETE CASCADE,
+        "contactId" integer REFERENCES "marketing_contacts"("id") ON DELETE SET NULL,
+        "level" varchar(50) NOT NULL,
+        "message" text NOT NULL,
+        "payload" jsonb,
+        "response" jsonb,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
   }
-}
-
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {

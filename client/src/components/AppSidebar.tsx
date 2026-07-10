@@ -19,7 +19,8 @@ import {
   MessageSquare,
   Sparkles,
   Zap,
-  CreditCard
+  CreditCard,
+  Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -48,6 +49,7 @@ const staticNavItems = [
   { label: "Comunicados", href: "/comunicados", icon: Megaphone },
   { label: "Finanças", href: "/financeiro", icon: DollarSign },
   { label: "Automações", href: "/automacoes", icon: Zap },
+  { label: "Marketing", href: "/marketing", icon: Send },
   { label: "Solicitações", href: "/solicitacoes", icon: Inbox },
   { label: "IA Assistente", href: "/ia", icon: Sparkles },
   { label: "Progresso", href: "/progresso", icon: Activity },
@@ -81,7 +83,9 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     .filter(item => {
       // 1. Check global hidden tabs
       if (hiddenTabs.includes(item.href)) return false;
-      // 2. Check professor permissions
+      // 2. Check marketing specifically (only admin)
+      if (item.href === '/marketing' && user?.role !== 'admin') return false;
+      // 3. Check professor permissions
       if (user?.role === 'professor') {
         const perms = (user as any).permissions || [];
         if (!perms.includes(item.href)) return false;

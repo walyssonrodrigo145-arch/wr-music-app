@@ -35,9 +35,9 @@ import { sendVerificationEmail, sendSimpleEmail } from "./_core/email";
 import { ENV } from "./_core/env";
 import { storagePut } from "./storage";
 import { superAdminRouter } from "./superAdminRouter";
-import { reportEngineRouter } from "./reportEngineRouter";
 import { pairingActiveSessions } from "./automationJob";
 import { checkFileMagicBytes } from "./utils/fileSecurity";
+import { marketingRouter } from "./marketingRouter";
 
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
@@ -45,6 +45,7 @@ const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map()
 export const appRouter = router({
   superAdmin: superAdminRouter,
   reportEngine: reportEngineRouter,
+  marketing: marketingRouter,
   publicData: router({
     getPlans: publicProcedure.query(async () => {
       const db = await getDb();

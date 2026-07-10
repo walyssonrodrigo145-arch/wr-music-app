@@ -28,6 +28,11 @@ export const contractStatusEnum = pgEnum('contract_status', ["rascunho", "enviad
 export const professorPaymentTypeEnum = pgEnum('professor_payment_type', ["fixo", "porcentagem"]);
 export const professorPaymentStatusEnum = pgEnum('professor_payment_status', ["aberto", "aprovado", "pago"]);
 
+// Marketing Enums
+export const campaignStatusEnum = pgEnum('campaign_status', ["draft", "running", "paused", "completed", "error"]);
+export const campaignContactStatusEnum = pgEnum('campaign_contact_status', ["pending", "processing", "sent", "failed"]);
+export const jobStatusEnum = pgEnum('job_status', ["pending", "running", "completed", "failed"]);
+
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -653,3 +658,93 @@ export const systemCoupons = pgTable("system_coupons", {
 
 export type SystemCoupon = typeof systemCoupons.$inferSelect;
 export type InsertSystemCoupon = typeof systemCoupons.$inferInsert;
+
+export type SystemReport = typeof systemReports.$inferSelect;
+export type InsertSystemReport = typeof systemReports.$inferInsert;
+
+// --- Marketing Tables ---
+
+export const marketingCampaigns = pgTable("marketing_campaigns", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  status: campaignStatusEnum("status").default("draft").notNull(),
+  
+  // Settings
+  minDelay: integer("minDelay").default(10).notNull(), // Intervalo fixo (segundos)
+  maxDelay: integer("maxDelay").default(20).notNull(), // Intervalo máximo (mantido para compatibilidade, mas ignoraremos variação)
+  batchSize: integer("batchSize").default(20).notNull(),
+  batchDelay: integer("batchDelay").default(600).notNull(), // Segundos
+  
+  // Stats cache
+  totalContacts: integer("totalContacts").default(0).notNull(),
+  sentCount: integer("sentCount").default(0).notNull(),
+  failedCount: integer("failedCount").default(0).notNull(),
+  consecutiveErrors: integer("consecutiveErrors").default(0).notNull(),
+  
+  createdBy: integer("createdBy").notNull(), // User ID
+  startedAt: timestamp("startedAt"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export const marketingContacts = pgTable("marketing_contacts", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  campaignId: integer("campaignId").notNull().references(() => marketingCampaigns.id, { onDelete: "cascade" }),
+  
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(), // WhatsApp format
+  
+  // Custom Variables ({{empresa}}, {{cidade}}, etc.)
+  variables: jsonb("variables"), 
+  
+  messageText: text("messageText").notNull(), // The compiled message or raw template
+  
+  status: campaignContactStatusEnum("status").default("pending").notNull(),
+  errorMessage: text("errorMessage"),
+  evolutionMessageId: varchar("evolutionMessageId", { length: 255 }),
+  
+  processedAt: timestamp("processedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const marketingJobs = pgTable("marketing_jobs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  campaignId: integer("campaignId").notNull().references(() => marketingCampaigns.id, { onDelete: "cascade" }),
+  
+  status: jobStatusEnum("status").default("pending").notNull(),
+  lockedAt: timestamp("lockedAt"),
+  lockedBy: varchar("lockedBy", { length: 255 }), // Worker ID or instance ID
+  
+  lastProcessedContactId: integer("lastProcessedContactId"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export const marketingLogs = pgTable("marketing_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  campaignId: integer("campaignId").notNull().references(() => marketingCampaigns.id, { onDelete: "cascade" }),
+  contactId: integer("contactId").references(() => marketingContacts.id, { onDelete: "set null" }),
+  
+  level: varchar("level", { length: 50 }).notNull(), // info, error, warning
+  message: text("message").notNull(),
+  payload: jsonb("payload"),
+  response: jsonb("response"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MarketingCampaign = typeof marketingCampaigns.$inferSelect;
+export type InsertMarketingCampaign = typeof marketingCampaigns.$inferInsert;
+export type MarketingContact = typeof marketingContacts.$inferSelect;
+export type InsertMarketingContact = typeof marketingContacts.$inferInsert;
+export type MarketingJob = typeof marketingJobs.$inferSelect;
+export type InsertMarketingJob = typeof marketingJobs.$inferInsert;
+export type MarketingLog = typeof marketingLogs.$inferSelect;
+export type InsertMarketingLog = typeof marketingLogs.$inferInsert;
