@@ -331,7 +331,11 @@ async function ensureSchemaConsistency(db: any) {
 
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
+  } catch (err) {
+    console.error("[Database] Error in schema consistency check:", err);
   }
+}
+
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
