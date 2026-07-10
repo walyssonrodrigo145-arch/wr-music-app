@@ -907,9 +907,11 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         days: [
           {
             dayName: "Dia 1",
-            focus: { title: "Titulo do foco para " + instrumentName, description: "Descrição breve e pratica" },
+            focus: { title: "Foco motivador do dia", description: "Descrição detalhada (3 a 4 frases) explicando por que este foco é crucial e como ele ajuda no desenvolvimento do " + instrumentName + "." },
             exercises: [
-              { title: "Nome do exercicio", subtitle: "Instrucao especifica para " + instrumentName, duration: "15 min", points: ["Ponto 1", "Ponto 2"], icon: "music" }
+              { title: "Aquecimento", subtitle: "Preparação física e mental", duration: "10 min", points: ["Exercício detalhado 1 com explicação de postura e movimento", "Exercício detalhado 2"], icon: "music" },
+              { title: "Prática Principal", subtitle: "Repertório ou técnica principal focada em " + instrumentName, duration: "30 min", points: ["Passo a passo detalhado do que focar (ex: palhetada, dedilhado, respiração)", "Metrônomo ou dicas de tempo", "Cuidados para não errar"], icon: "star" },
+              { title: "Teoria ou Desafio", subtitle: "Consolidação do aprendizado", duration: "10 min", points: ["Desafio prático", "O que tentar improvisar ou memorizar"], icon: "pen" }
             ]
           }
         ]
@@ -928,8 +930,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         + "REGRAS OBRIGATÓRIAS:\n"
         + "1. O plano DEVE ser 100% específico para o instrumento: " + instrumentName + ". NÃO mencione nenhum outro instrumento.\n"
         + "2. Todos os exercícios devem ser práticos para quem toca " + instrumentName + ".\n"
-        + "3. Gere exatamente 5 dias de prática com atividades curtas.\n"
-        + "4. Use uma linguagem EXTREMAMENTE SIMPLES, humana, leve e de fácil entendimento em Português do Brasil (pt-BR). Evite qualquer tipo de jargão musical confuso, palavras robóticas ou português de Portugal. Fale diretamente com o aluno no singular, como um professor amigo ensinando do zero com muita paciência.\n"
+        + "3. Gere exatamente 5 dias de prática com atividades DETALHADAS e robustas, sempre incluindo os 3 blocos em cada dia: Aquecimento, Prática Principal e Teoria/Desafio.\n"
+        + "4. Use uma linguagem humana, amigável e encorajadora em Português do Brasil (pt-BR). Seja PROFUNDO nas dicas técnicas. Não seja superficial. Explique o COMO executar e o PORQUÊ cada exercício é importante. Fale diretamente com o aluno no singular, como um professor amigo e exigente ensinando com muita paciência.\n"
         + "5. IMPORTANTE: Use apenas termos musicais corretos em Português (ex: dedilhado, palhetada, escala, acorde, pestana). NUNCA invente palavras, traduções literais estranhas (como 'arte culminar', 'dobro cromático') ou nomes de músicas irreais. Mantenha os exercícios práticos e coerentes.\n\n"
         + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
         + jsonTemplate + "\n\n"
