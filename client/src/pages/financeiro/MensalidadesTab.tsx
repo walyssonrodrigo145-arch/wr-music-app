@@ -71,7 +71,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
     billingType: string;
   } | null>(null);
 
-  const generateAsaasMutation = trpc.reports.generateAsaasCharge.useMutation({
+  const generateAsaasMutation = trpc.paymentDues.generateAsaasCharge.useMutation({
     onSuccess: (data) => {
       setResult(data);
       utils.paymentDues.invalidate();
@@ -80,7 +80,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
-  const generateMPMutation = trpc.financeiro.generateMPCharge.useMutation({
+  const generateMPMutation = trpc.paymentDues.generateMPCharge.useMutation({
     onSuccess: (data) => {
       setResult({ paymentLink: data.paymentLink, billingType: "MP" });
       utils.paymentDues.invalidate();
