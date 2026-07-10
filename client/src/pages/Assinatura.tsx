@@ -190,10 +190,22 @@ export default function Assinatura() {
               className={`relative z-10 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-colors flex items-center gap-2 ${selectedPlanType === "YEARLY" ? "text-white" : "text-muted-foreground hover:text-foreground"}`}
             >
               Anual
-              <span className={`text-[9px] px-2 py-0.5 rounded-full ${selectedPlanType === "YEARLY" ? "bg-white/20" : "bg-indigo-100 text-indigo-600"}`}>-16%</span>
+              <span className={`text-[9px] px-2 py-0.5 rounded-full ${selectedPlanType === "YEARLY" ? "bg-white/20" : "bg-indigo-100 text-indigo-600"}`}>-17%</span>
             </button>
           </div>
+
+          {/* Aviso de validade dos planos */}
+          <div className="mt-6 inline-flex items-start gap-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl px-5 py-3 max-w-lg mx-auto text-left">
+            <span className="text-amber-500 text-lg mt-0.5 flex-shrink-0">⚠️</span>
+            <p className="text-amber-700 dark:text-amber-400 text-xs font-semibold leading-relaxed">
+              {selectedPlanType === "MONTHLY"
+                ? <><strong>Plano Mensal:</strong> válido por <strong>6 meses</strong>. Após esse período é necessário renovar a assinatura.</>
+                : <><strong>Plano Anual:</strong> válido por <strong>12 meses</strong> completos — a forma mais econômica e sem interrupções.</>
+              }
+            </p>
+          </div>
         </div>
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {PLANOS.map((p, index) => {
