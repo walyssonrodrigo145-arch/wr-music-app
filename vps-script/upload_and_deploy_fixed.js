@@ -25,6 +25,7 @@ const filesToUpload = [
   'client/index.html',
   'client/src/components/AppSidebar.tsx',
   'client/src/pages/LandingPage.tsx',
+  'client/src/pages/SuperAdmin.tsx',
   'client/src/pages/ProfessorExtract.tsx',
   'client/src/pages/Progresso.tsx',
   'client/src/pages/Dashboard.tsx',
