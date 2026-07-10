@@ -8127,6 +8127,27 @@ Texto original para reescrever:
   }),
 
   platform: router({
+    // ─── Planos públicos: busca planos ativos do banco para exibição dinâmica ──
+    getPublicPlans: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      const { systemPlans } = await import("../drizzle/schema");
+      const plans = await db
+        .select()
+        .from(systemPlans)
+        .where(eq(systemPlans.isActive, true))
+        .orderBy(systemPlans.order ?? systemPlans.priceMonthly);
+      return plans.map(p => ({
+        id: p.id,
+        name: p.name,
+        priceMonthly: Number(p.priceMonthly),
+        priceYearly: Number(p.priceYearly),
+        maxStudents: p.maxStudents,
+        features: (() => { try { return JSON.parse(p.features as string); } catch { return []; } })(),
+        isPopular: p.isPopular ?? false,
+        order: p.order ?? 0,
+      }));
+    }),
     checkout: protectedProcedure
       .input(z.object({
         planType: z.enum(["MONTHLY", "YEARLY"])

@@ -1,18 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { CreditCard, AlertTriangle, CheckCircle2, ArrowRight, Loader2, Calendar, Zap, ShieldAlert, X, TrendingDown, TrendingUp } from "lucide-react";
+import { CreditCard, CheckCircle2, ArrowRight, Loader2, Zap, ShieldAlert, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-
-const PLANOS = [
-  { id: "10alunos", name: "10 Alunos", price: 10.00, features: ["Gestão de até 10 alunos ativos", "Controle financeiro", "Gestão de aulas e agendamentos", "Acesso ao painel do aluno"] },
-  { id: "20alunos", name: "20 Alunos", price: 15.00, features: ["Gestão de até 20 alunos ativos", "Controle financeiro", "Gestão de aulas e agendamentos", "Acesso ao painel do aluno"] },
-  { id: "30alunos", name: "30 Alunos", price: 20.00, features: ["Gestão de até 30 alunos ativos", "Controle financeiro", "Gestão de aulas e agendamentos", "Acesso ao painel do aluno"] },
-  { id: "basico", name: "Básico", price: 29.99, features: ["Gestão de até 50 alunos ativos", "Painel Financeiro Completo", "Automações de WhatsApp (Básico)", "Contratos Digitais"] },
-  { id: "profissional", name: "Profissional", price: 59.90, features: ["Gestão de até 100 alunos ativos", "Todas as ferramentas", "Automações de WhatsApp Ilimitadas", "Relatórios e métricas", "Suporte prioritário"] },
-  { id: "premium", name: "Premium (Ilimitado)", price: 99.90, features: ["Alunos Ilimitados", "Acesso total e irrestrito", "Integrações avançadas", "Prioridade em novas funções", "Gerente de conta exclusivo"] },
-];
 
 export default function Assinatura() {
   const { user } = useAuth();
@@ -20,6 +11,8 @@ export default function Assinatura() {
   
   const { data: mySub, isLoading } = trpc.platform.mySubscription.useQuery();
   const { data: pendingInvoice, isLoading: loadingInvoice } = trpc.platform.getPendingInvoice.useQuery();
+  // ─── Busca planos DINÂMICOS do banco de dados ─────────────────────────────
+  const { data: PLANOS = [], isLoading: loadingPlans } = trpc.platform.getPublicPlans.useQuery();
   
   const changePlanMutation = trpc.platform.changePlan.useMutation();
   const cancelMutation = trpc.platform.cancelSubscription.useMutation();
@@ -49,14 +42,13 @@ export default function Assinatura() {
       toast.success("Assinatura cancelada com sucesso.");
       setShowCancelConfirm(false);
       utils.platform.mySubscription.invalidate();
-      // Forçar refresh para derrubar o acesso
       setTimeout(() => window.location.href = "/checkout", 1500);
     } catch (error: any) {
       toast.error(error.message || "Erro ao cancelar assinatura");
     }
   };
 
-  if (isLoading) {
+  if (isLoading || loadingPlans) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <Loader2 size={32} className="animate-spin text-primary" />
@@ -65,7 +57,7 @@ export default function Assinatura() {
     );
   }
 
-  const currentPlan = PLANOS.find(p => p.id === mySub?.planId) || PLANOS[4];
+  const currentPlan = PLANOS.find(p => p.id === mySub?.planId) || PLANOS[0];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
@@ -206,8 +198,8 @@ export default function Assinatura() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {PLANOS.map((p, index) => {
             const isActive = mySub?.planId === p.id;
-            const price = selectedPlanType === "YEARLY" ? p.price * 10 : p.price;
-            const isPopular = p.id === "profissional";
+            const price = selectedPlanType === "YEARLY" ? p.priceYearly : p.priceMonthly;
+            const isPopular = p.isPopular;
             
             return (
               <motion.div 
