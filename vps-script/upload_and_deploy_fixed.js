@@ -76,7 +76,8 @@ const filesToUpload = [
   'client/src/components/MusicLayout.tsx',
   'client/src/components/AppHeader.tsx',
   'client/src/components/MobileTabBar.tsx',
-  'client/src/components/lembretes/RemindersFilter.tsx'
+  'client/src/components/lembretes/RemindersFilter.tsx',
+  'client/src/components/StudentPortalLayout.tsx'
 ];
 
 conn.on('ready', () => {

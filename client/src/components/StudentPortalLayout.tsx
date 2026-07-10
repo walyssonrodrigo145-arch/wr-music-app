@@ -109,9 +109,22 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative" style={{ minWidth: 0 }}>
         <AppHeader onMobileMenuOpen={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
-          <div className="max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar flex flex-col" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
+          <div className="max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500 flex-1">
             {children}
+          </div>
+
+          {/* Marca d'água de Marketing (Growth) */}
+          <div className="mt-auto pt-12 pb-2 w-full flex justify-center opacity-70 hover:opacity-100 transition-opacity">
+            <a 
+              href="/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+            >
+              <span>Plataforma educacional com tecnologia</span>
+              <span className="font-black text-primary tracking-tight">MusicPro</span>
+            </a>
           </div>
         </main>
       </div>
