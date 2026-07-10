@@ -498,7 +498,7 @@ const LandingPage = () => {
       highlight: isHighlight,
       badge: isHighlight ? 'Mais Escolhido' : null,
       features: parseFeatures(p.features),
-      cta: 'Assinar Agora',
+      cta: 'Começar 30 Dias Grátis',
       ctaStyle: isHighlight ? 'solid' : 'border',
     };
   }) || [];
@@ -878,9 +878,12 @@ const LandingPage = () => {
                 </button>
 
                 {/* Trial note */}
-                <p className={`text-center text-xs mt-3 ${plan.highlight ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
-                  Sem fidelidade • Cancele quando quiser
-                </p>
+                <div className={`text-center mt-4 space-y-1 ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">30 Dias Grátis no 1º mês</p>
+                  <p className="text-[10px] font-medium leading-tight">
+                    Sem fidelidade. O plano mensal dura 6 meses e o plano anual (se escolhido) dura 12 meses.
+                  </p>
+                </div>
               </motion.div>
             ))}
             </div>
