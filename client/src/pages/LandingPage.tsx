@@ -1011,8 +1011,8 @@ const LandingPage = () => {
               <h5 className="font-extrabold text-foreground mb-6 uppercase tracking-widest text-sm">Suporte</h5>
               <ul className="space-y-4 text-muted-foreground font-medium">
                 <li><a href="https://wa.me/5533984055949?text=Preciso%20de%20ajuda%20com%20o%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Central de Ajuda</a></li>
-                <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Política de Privacidade</a></li>
-                <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Termos de Uso</a></li>
+                <li><a href="/politica-de-privacidade" className="hover:text-primary transition-colors">Política de Privacidade</a></li>
+                <li><a href="/termos-de-uso" className="hover:text-primary transition-colors">Termos de Uso</a></li>
                 <li><a href="https://wa.me/5533984055949?text=Status%20do%20sistema%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Status do Sistema</a></li>
               </ul>
             </div>

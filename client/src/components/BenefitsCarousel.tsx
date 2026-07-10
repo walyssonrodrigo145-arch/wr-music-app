@@ -79,7 +79,7 @@ const slides = [
   },
   {
     id: 7,
-    title: 'Menos administração, mais ensino',
+    title: 'Melhor administração, mais ensino!',
     subtitle: 'Economia de Tempo',
     description: 'Automatize processos que hoje são feitos pelo WhatsApp, planilhas e anotações manuais.',
     icon: Clock,

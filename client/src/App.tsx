@@ -39,6 +39,8 @@ const RecepcaoQRCode = lazy(() => import("./pages/RecepcaoQRCode"));
 const QRScanner = lazy(() => import("./pages/QRScanner"));
 const Automacoes = lazy(() => import("./pages/Automacoes"));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
+const TermosDeUso = lazy(() => import("./pages/TermosDeUso"));
+const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -72,6 +74,8 @@ function Router() {
           <Route path="/" component={LandingPage} />
           <Route path="/login" component={Login} />
           <Route path="/cadastro" component={Cadastro} />
+          <Route path="/termos-de-uso" component={TermosDeUso} />
+          <Route path="/politica-de-privacidade" component={PoliticaPrivacidade} />
           <Route>
             <Redirect to="/login" />
           </Route>
