@@ -462,7 +462,8 @@ export const appRouter = router({
             nextDueDate: nextDueDateStr,
             cycle: input.planType,
             description: `Assinatura MusicPro - Plano ${planName} (${input.planType})`,
-            successUrl: `${(ctx.req as any).headers?.origin || 'https://wrmusicpro.com.br'}/dashboard`
+            successUrl: `${(ctx.req as any).headers?.origin || 'https://wrmusicpro.com.br'}/dashboard`,
+            maxPayments: input.planType === 'YEARLY' ? 1 : 6
           });
 
           // Salvar IDs do Asaas na organização
@@ -8190,6 +8191,7 @@ Texto original para reescrever:
             cycle: input.planType,
             description: `Assinatura MusicPro - Plano ${org.planId} (${input.planType})`,
             successUrl: `${ENV.appUrl}/checkout?payment=success`,
+            maxPayments: input.planType === 'YEARLY' ? 1 : 6
           });
           subId = sub.id;
           await db.update(organizations).set({ asaasSubscriptionId: subId }).where(eq(organizations.id, orgId));

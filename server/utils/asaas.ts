@@ -225,6 +225,7 @@ export async function createAsaasSubscription(params: {
   cycle: "MONTHLY" | "YEARLY";
   description: string;
   successUrl?: string;
+  maxPayments?: number;
 }, apiKey?: string) {
   const res = await asaasRequest(
     "POST",
@@ -237,6 +238,7 @@ export async function createAsaasSubscription(params: {
       cycle: params.cycle,
       description: params.description,
       successUrl: params.successUrl,
+      maxPayments: params.maxPayments,
     },
     apiKey
   );
