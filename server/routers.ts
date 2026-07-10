@@ -715,11 +715,16 @@ export const appRouter = router({
       const prompt = `Analise o progresso musical do aluno ${student.name} (nível: ${student.level}). Últimas aulas: ${pastLessons.length} concluídas. Metas cadastradas: ${goals.length}. Dê um feedback motivador e com 2 pontos de foco para as próximas aulas em um único parágrafo pequeno.`;
       
       try {
-        const { getLLM } = await import("./_core/llm");
-        const llm = getLLM();
-        const response = await llm.chat({ messages: [{ role: 'user', content: prompt }] });
-        return { insight: response.message.content };
+        const { callGemini } = await import("./utils/gemini");
+        const { getSettingsByUserId } = await import("./db");
+        const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
+        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
+        return { insight: responseText.trim() };
       } catch (e) {
+        console.error("Erro ao gerar insight:", e);
         return { insight: "O aluno tem se saído bem nas últimas aulas. Foco em melhorar a constância na prática diária e avançar nas metas de repertório." }; // Fallback
       }
     }),
