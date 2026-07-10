@@ -35,9 +35,9 @@ export const superAdminRouter = router({
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
 
     // FIX: usar COUNT(*) em vez de SELECT * para evitar Full Table Scan em memória
-    const [{ totalOrgs }] = await db.select({ totalOrgs: count() }).from(organizations);
-    const [{ totalProfs }] = await db.select({ totalProfs: count() }).from(users).where(eq(users.role, "professor"));
-    const [{ totalStuds }] = await db.select({ totalStuds: count() }).from(students);
+    const [{ totalOrgs }] = await db.select({ totalOrgs: sql<number>`CAST(count(*) AS INT)` }).from(organizations);
+    const [{ totalProfs }] = await db.select({ totalProfs: sql<number>`CAST(count(*) AS INT)` }).from(users).where(eq(users.role, "professor"));
+    const [{ totalStuds }] = await db.select({ totalStuds: sql<number>`CAST(count(*) AS INT)` }).from(students);
 
     // Últimas 10 organizações para o painel — apenas campos seguros
     const recentOrgs = await db.select({
@@ -85,12 +85,12 @@ export const superAdminRouter = router({
     // FIX: usar COUNT agrupado por org em vez de carregar todos os users/alunos em memória
     const userCounts = await db.select({
       organizationId: users.organizationId,
-      total: count(),
+      total: sql<number>`CAST(count(*) AS INT)`,
     }).from(users).groupBy(users.organizationId);
 
     const studentCounts = await db.select({
       organizationId: students.organizationId,
-      total: count(),
+      total: sql<number>`CAST(count(*) AS INT)`,
     }).from(students).groupBy(students.organizationId);
 
     // FIX: buscar owner com apenas campos seguros (sem passwordHash, tokens)

@@ -15,6 +15,39 @@ async function ensureSchemaConsistency(db: any) {
   console.time("[DB] schema-consistency-check");
   try {
     console.log("[Database] Checking schema consistency...");
+
+    // Create system tables if missing (drizzle-kit push might not run on deploy)
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "system_plans" (
+          "id" varchar(50) PRIMARY KEY,
+          "name" varchar(100) NOT NULL,
+          "priceMonthly" integer NOT NULL,
+          "priceYearly" integer NOT NULL,
+          "maxStudents" integer NOT NULL,
+          "features" jsonb NOT NULL,
+          "isActive" boolean DEFAULT true NOT NULL,
+          "showOnLanding" boolean DEFAULT true NOT NULL,
+          "createdAt" timestamp DEFAULT now() NOT NULL,
+          "updatedAt" timestamp DEFAULT now() NOT NULL
+        )
+      `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "system_coupons" (
+          "id" serial PRIMARY KEY,
+          "code" varchar(50) NOT NULL UNIQUE,
+          "type" varchar(20) NOT NULL,
+          "value" integer NOT NULL,
+          "maxUses" integer,
+          "currentUses" integer DEFAULT 0 NOT NULL,
+          "expiresAt" timestamp,
+          "isActive" boolean DEFAULT true NOT NULL,
+          "createdAt" timestamp DEFAULT now() NOT NULL
+        )
+      `);
+    } catch (e) {
+      console.log("[Database] Failed to execute create system tables:", e);
+    }
     
     // lessons.studentId (nullable)
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
