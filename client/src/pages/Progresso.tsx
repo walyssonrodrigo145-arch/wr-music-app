@@ -1904,7 +1904,7 @@ function BibliotecaMusical({ studentId }: { studentId: number }) {
              <div className="hidden lg:flex flex-col items-end mr-4">
                 <div className="flex items-center gap-2 mb-1">
                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Armazenamento</span>
-                   <span className="text-[9px] font-black text-indigo-600">ILIMITADO</span>
+                   <span className="text-[9px] font-black text-indigo-600">LIMITADO</span>
                 </div>
                 <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden border border-border/50">
                    <div className="h-full bg-indigo-600 w-1/3" />

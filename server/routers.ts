@@ -37,6 +37,7 @@ import { storagePut } from "./storage";
 import { superAdminRouter } from "./superAdminRouter";
 import { pairingActiveSessions } from "./automationJob";
 import { checkFileMagicBytes } from "./utils/fileSecurity";
+import { reportEngineRouter } from "./reportEngineRouter";
 import { marketingRouter } from "./marketingRouter";
 
 // MH-004: Rate limiting — controle de tentativas de login por IP+email

@@ -1,7 +1,7 @@
 import { getDb } from "../db";
 import { marketingCampaigns, marketingContacts, marketingJobs, marketingLogs } from "../../drizzle/schema";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
-import { sendMessage } from "../utils/whatsapp";
+import { sendWhatsAppMessage } from "../utils/whatsapp";
 
 const WORKER_INTERVAL_MS = 5000; // Check every 5 seconds
 
@@ -112,7 +112,7 @@ export class MarketingQueueWorker {
       
       try {
         // In a real scenario, we fetch the org's Evolution instance. For now, use the default.
-        evolutionResponse = await sendMessage(nextContact.phone, text);
+        evolutionResponse = await sendWhatsAppMessage({ phone: nextContact.phone, message: text });
         success = true;
       } catch (err: any) {
         success = false;

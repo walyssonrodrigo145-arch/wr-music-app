@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import AgendarModal from "@/components/modals/AgendarModal";
 import LessonDetailModal from "@/components/modals/LessonDetailModal";
+import DayLessonsModal from "@/components/modals/DayLessonsModal";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -137,6 +138,7 @@ export default function Aulas() {
 
   const [agendarOpen, setAgendarOpen] = useState(false);
   const [detailLessonId, setDetailLessonId] = useState<number | null>(null);
+  const [dayLessonsModalDate, setDayLessonsModalDate] = useState<Date | null>(null);
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [recurringAction, setRecurringAction] = useState<{
     type: 'delete' | 'reschedule';
@@ -419,7 +421,17 @@ export default function Aulas() {
                                  </motion.span>
                                 <div className="space-y-1">
                                    {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
-                                  {lessonsInDay.length > 3 && <p className="text-[9px] font-black text-blue-600 text-center">+ {lessonsInDay.length - 3} aulas</p>}
+                                  {lessonsInDay.length > 3 && (
+                                    <p 
+                                      className="text-[9px] font-black text-blue-600 text-center cursor-pointer hover:underline py-1"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDayLessonsModalDate(day);
+                                      }}
+                                    >
+                                      + {lessonsInDay.length - 3} aulas
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -771,6 +783,16 @@ export default function Aulas() {
           </button>
         </div>
       </ResponsiveDialog>
+
+      {dayLessonsModalDate && (
+        <DayLessonsModal
+          day={dayLessonsModalDate}
+          lessons={filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), dayLessonsModalDate))}
+          open={!!dayLessonsModalDate}
+          onOpenChange={(v) => !v && setDayLessonsModalDate(null)}
+          onLessonClick={(lessonId) => setDetailLessonId(lessonId)}
+        />
+      )}
     </div>
   );
 }

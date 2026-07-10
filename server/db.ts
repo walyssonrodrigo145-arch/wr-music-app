@@ -220,6 +220,7 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_lessons_student_id" ON "lessons" ("studentId")`, "idx_lessons_student_id");
 
     // daily_study_plans: aluno + status publicado (portal do aluno)
+    await safeExecute(sql`ALTER TABLE "daily_study_plans" ADD COLUMN IF NOT EXISTS "daysTimeSpent" text DEFAULT '[0,0,0,0,0]' NOT NULL`, "daily_study_plans.daysTimeSpent");
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_study_plans_student_status" ON "daily_study_plans" ("studentId", "publishedStatus", "status")`, "idx_study_plans_student_status");
 
     // payment_dues.studentId: relatórios financeiros por aluno
