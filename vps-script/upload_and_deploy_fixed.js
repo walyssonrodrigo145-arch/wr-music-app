@@ -101,6 +101,7 @@ const filesToUpload = [
   'client/src/pages/financeiro/MensalidadesTab.tsx',
   'client/src/pages/financeiro/DespesasTab.tsx',
   'client/src/pages/Dashboard.tsx',
+  'server/utils/mercadopago.ts',
   'client/src/pages/Automacoes.tsx',
   'server/services/MarketingQueueWorker.ts',
   'server/marketingRouter.ts',

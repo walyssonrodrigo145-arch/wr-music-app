@@ -5,7 +5,7 @@ import {
   Loader2, Trash2, ChevronLeft, ChevronRight, Pencil,
   Search, MoreVertical, CreditCard,
   ChevronDown, TrendingUp, Zap, Link2, Copy, QrCode, Ban,
-  FileUp, FileCheck, FileText, Info
+  FileUp, FileCheck, FileText, Info, Wallet
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
