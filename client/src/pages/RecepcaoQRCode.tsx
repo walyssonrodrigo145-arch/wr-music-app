@@ -14,8 +14,9 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import QRCode from "react-qr-code";
 import { ptBR } from "date-fns/locale";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -23,67 +24,10 @@ const TOKEN_REFRESH_INTERVAL = 30; // seconds
 const QR_SIZE = 380;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function buildQrUrl(token: string): string {
-  const payload = encodeURIComponent(token);
-  // Using PNG format instead of SVG for better compatibility with standard QR scanner libraries
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${QR_SIZE}x${QR_SIZE}&data=${payload}&bgcolor=ffffff&color=000000&format=png`;
-}
-
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-}
-
-// ─── Circular Timer ──────────────────────────────────────────────────────────
-function CircularTimer({
-  remaining,
-  total,
-}: {
-  remaining: number;
-  total: number;
-}) {
-  const radius = 22;
-  const circumference = 2 * Math.PI * radius;
-  const progress = remaining / total;
-  const dashOffset = circumference * (1 - progress);
-
-  return (
-    <div className="relative inline-flex items-center justify-center w-16 h-16">
-      <svg className="w-16 h-16 -rotate-90" viewBox="0 0 52 52">
-        <circle
-          cx="26"
-          cy="26"
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          className="text-white/10"
-          strokeWidth="3"
-        />
-        <circle
-          cx="26"
-          cy="26"
-          r={radius}
-          fill="none"
-          stroke="url(#timer-gradient)"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          className="transition-all duration-1000 ease-linear"
-        />
-        <defs>
-          <linearGradient id="timer-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="#a855f7" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <span className="absolute text-sm font-bold text-white tabular-nums">
-        {remaining}s
-      </span>
-    </div>
-  );
 }
 
 // ─── Scan Activity Item ──────────────────────────────────────────────────────
@@ -122,19 +66,16 @@ function ScanItem({
 export default function RecepcaoQRCode() {
   const { user } = useAuth();
   const [token, setToken] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(TOKEN_REFRESH_INTERVAL);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // tRPC calls
   const generateToken = trpc.attendance.generateToken.useMutation({
     onSuccess: (data) => {
       setToken(data.token);
-      setCountdown(TOKEN_REFRESH_INTERVAL);
     },
     onError: () => {
-      // Will retry on next interval
+      // Tentar de novo
     },
   });
 
@@ -281,14 +222,13 @@ export default function RecepcaoQRCode() {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 1.05 }}
                       transition={{ duration: 0.3 }}
+                      className="bg-white p-4 rounded-2xl"
                     >
-                      <img
-                        src={buildQrUrl(token)}
-                        alt="QR Code para presença"
-                        width={QR_SIZE}
-                        height={QR_SIZE}
-                        className="rounded-2xl"
-                        style={{ imageRendering: "pixelated" }}
+                      <QRCode
+                        value={token}
+                        size={QR_SIZE - 32} // padding offset
+                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        level="Q"
                       />
                     </motion.div>
                   ) : (
