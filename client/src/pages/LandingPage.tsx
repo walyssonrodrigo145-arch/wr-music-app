@@ -990,9 +990,9 @@ const LandingPage = () => {
             <div>
               <h5 className="font-extrabold text-foreground mb-6 uppercase tracking-widest text-sm">Produto</h5>
               <ul className="space-y-4 text-muted-foreground font-medium">
-                <li><a href="#features" className="hover:text-primary transition-colors">Recursos</a></li>
-                <li><a href="#testimonials" className="hover:text-primary transition-colors">Depoimentos</a></li>
-                <li><a href="#pricing" className="hover:text-primary transition-colors">Preços</a></li>
+                <li><a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Recursos</a></li>
+                <li><a href="#testimonials" onClick={(e) => { e.preventDefault(); document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Depoimentos</a></li>
+                <li><a href="#pricing" onClick={(e) => { e.preventDefault(); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Preços</a></li>
                 <li><Link href="/login" className="hover:text-primary transition-colors">Área do Aluno</Link></li>
               </ul>
             </div>
@@ -1000,9 +1000,9 @@ const LandingPage = () => {
             <div>
               <h5 className="font-extrabold text-foreground mb-6 uppercase tracking-widest text-sm">Escola</h5>
               <ul className="space-y-4 text-muted-foreground font-medium">
-                <li><a href="#" className="hover:text-primary transition-colors">Sobre nós</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Parceiros</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Blog</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Sobre nós</a></li>
+                <li><a href="https://wa.me/5533984055949?text=Gostaria%20de%20saber%20sobre%20parceria%20com%20o%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Parceiros</a></li>
+                <li><a href="https://wa.me/5533984055949?text=Quero%20saber%20mais%20sobre%20o%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Blog</a></li>
                 <li><a href="https://wa.me/5533984055949?text=ola%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20o%20sistema%20musicpro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Contato</a></li>
               </ul>
             </div>
@@ -1010,12 +1010,13 @@ const LandingPage = () => {
             <div>
               <h5 className="font-extrabold text-foreground mb-6 uppercase tracking-widest text-sm">Suporte</h5>
               <ul className="space-y-4 text-muted-foreground font-medium">
-                <li><a href="#" className="hover:text-primary transition-colors">Central de Ajuda</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Política de Privacidade</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Termos de Uso</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Status do Sistema</a></li>
+                <li><a href="https://wa.me/5533984055949?text=Preciso%20de%20ajuda%20com%20o%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Central de Ajuda</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Política de Privacidade</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-primary transition-colors cursor-pointer">Termos de Uso</a></li>
+                <li><a href="https://wa.me/5533984055949?text=Status%20do%20sistema%20MusicPro" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Status do Sistema</a></li>
               </ul>
             </div>
+
           </div>
 
           <div className="flex flex-col md:flex-row items-center justify-between pt-10 border-t border-border/50 text-muted-foreground font-medium text-sm gap-4">
