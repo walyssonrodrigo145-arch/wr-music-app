@@ -11,10 +11,41 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 
 const requireUser = t.middleware(async opts => {
-  const { ctx, next } = opts;
+  const { ctx, next, path } = opts;
 
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  }
+
+  // ── Bloqueio de Inadimplência na API (Segurança Extra) ──
+  if (!path.startsWith('platform.') && !path.startsWith('auth.') && !path.startsWith('publicData.')) {
+    if ((ctx.user.role === 'admin' || ctx.user.role === 'professor') && ctx.user.organizationId) {
+      const db = await import("./db").then(m => m.getDb());
+      if (db) {
+        const { organizations } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const [org] = await db.select({ 
+          subscriptionStatus: organizations.subscriptionStatus,
+          trialEndsAt: organizations.trialEndsAt 
+        }).from(organizations).where(eq(organizations.id, ctx.user.organizationId)).limit(1);
+
+        if (org) {
+          const trialEndsAt = org.trialEndsAt ? new Date(org.trialEndsAt) : null;
+          const hardBlockDate = trialEndsAt ? new Date(trialEndsAt.getTime() + 3 * 24 * 60 * 60 * 1000) : null;
+          const isHardBlocked = hardBlockDate ? hardBlockDate < new Date() : false;
+          const isSubscriptionActive = org.subscriptionStatus === "active";
+          
+          const hasAccess = isSubscriptionActive || (trialEndsAt && !isHardBlocked);
+          
+          if (!hasAccess) {
+            throw new TRPCError({ 
+              code: "FORBIDDEN", 
+              message: "Acesso bloqueado: Assinatura pendente ou Trial expirado." 
+            });
+          }
+        }
+      }
+    }
   }
 
   return next({

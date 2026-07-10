@@ -304,15 +304,28 @@ async function startServer() {
 
       // ── MÉDIO-3 FIX: Preencher currentPeriodEnd ao ativar assinatura ──
       if (event === "PAYMENT_RECEIVED" || event === "PAYMENT_CONFIRMED") {
-        // Calcular próximo período (default mensal — webhooks de assinatura anual são raros)
-        const nextPeriodEnd = new Date();
-        nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1);
+        // Calcular próximo período
+        let nextPeriodEnd = new Date();
+        nextPeriodEnd.setMonth(nextPeriodEnd.getMonth() + 1); // fallback
+
+        if (paymentWithSub.payment?.subscription) {
+          try {
+            const { getAsaasSubscription } = await import("../utils/asaas");
+            const asaasSub = await getAsaasSubscription(paymentWithSub.payment.subscription);
+            if (asaasSub && asaasSub.nextDueDate) {
+              nextPeriodEnd = new Date(asaasSub.nextDueDate);
+            }
+          } catch (err) {
+            console.warn(`[Asaas Webhook] Falha ao buscar assinatura para ajustar nextPeriodEnd:`, err);
+          }
+        }
+
         await db
           .update(organizations)
           .set({ 
             subscriptionStatus: "active",
             trialEndsAt: null,         // usuário é assinante — não está mais em trial
-            currentPeriodEnd: nextPeriodEnd, // registrar próximo vencimento
+            currentPeriodEnd: nextPeriodEnd, // registrar próximo vencimento real
             updatedAt: new Date()
           })
           .where(eq(organizations.id, targetOrg.id));
