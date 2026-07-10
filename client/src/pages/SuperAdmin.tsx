@@ -75,16 +75,16 @@ function SuperAdminPanel() {
   const [couponIsActive, setCouponIsActive] = useState(true);
 
   // ── Queries ────────────────────────────────────────────────────────────────
-  const { data: stats, isLoading: loadingStats, isError: errorStats, refetch: refetchStats } =
+  const { data: stats, isLoading: loadingStats, isError: errorStats, error: errorStatsData, refetch: refetchStats } =
     trpc.superAdmin.getDashboardStats.useQuery(undefined, { enabled: activeTab === "dashboard" });
 
-  const { data: plans, isLoading: loadingPlans, isError: errorPlans, refetch: refetchPlans } =
+  const { data: plans, isLoading: loadingPlans, isError: errorPlans, error: errorPlansData, refetch: refetchPlans } =
     trpc.superAdmin.getPlans.useQuery(undefined, { enabled: activeTab === "plans" });
 
-  const { data: coupons, isLoading: loadingCoupons, isError: errorCoupons, refetch: refetchCoupons } =
+  const { data: coupons, isLoading: loadingCoupons, isError: errorCoupons, error: errorCouponsData, refetch: refetchCoupons } =
     trpc.superAdmin.getCoupons.useQuery(undefined, { enabled: activeTab === "coupons" });
 
-  const { data: orgs, isLoading: loadingOrgs, isError: errorOrgs, refetch: refetchOrgs } =
+  const { data: orgs, isLoading: loadingOrgs, isError: errorOrgs, error: errorOrgsData, refetch: refetchOrgs } =
     trpc.superAdmin.getOrganizations.useQuery(undefined, { enabled: activeTab === "escolas" });
 
   // ── Mutations ──────────────────────────────────────────────────────────────
@@ -214,7 +214,7 @@ function SuperAdminPanel() {
       {activeTab === "dashboard" && (
         <div className="space-y-6">
           {loadingStats && <Loader2 className="animate-spin text-primary mx-auto my-10" />}
-          {errorStats && <ErrorState message="Erro ao carregar estatísticas." onRetry={refetchStats} />}
+          {errorStats && <ErrorState message={`Erro ao carregar estatísticas: ${errorStatsData?.message || "Desconhecido"}`} onRetry={refetchStats} />}
           {stats && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -264,7 +264,7 @@ function SuperAdminPanel() {
           <h2 className="text-xl font-black">Gestão de Escolas</h2>
 
           {loadingOrgs && <Loader2 className="animate-spin text-primary mx-auto my-10" />}
-          {errorOrgs && <ErrorState message="Erro ao carregar escolas." onRetry={refetchOrgs} />}
+          {errorOrgs && <ErrorState message={`Erro ao carregar escolas: ${errorOrgsData?.message || "Desconhecido"}`} onRetry={refetchOrgs} />}
           {orgs && orgs.length === 0 && <EmptyState message="Nenhuma escola cadastrada ainda." />}
 
           {orgs && orgs.length > 0 && (
