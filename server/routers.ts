@@ -933,14 +933,15 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         + (student.methodologyText ? "METODOLOGIA DE ENSINO DO PROFESSOR:\nBaseie seus exercícios diários rigorosamente nesta metodologia:\n\"\"\"\n" + student.methodologyText + "\n\"\"\"\n\n" : "")
         + "HISTÓRICO DE AULAS (mais recentes concluídas):\n"
         + lessonsText + "\n\n"
-        + "METAS ATIVAS: " + (goals.map(g => g.title).join(", ") || "Nenhuma") + "\n"
+        + "METAS DA SEMANA (OBJETIVOS ATIVOS): " + (goals.map(g => g.title).join(", ") || "Nenhuma") + "\n"
         + "TIMELINE: " + (timelineText || "Nenhum registro") + "\n\n"
         + "REGRAS OBRIGATÓRIAS:\n"
         + "1. O plano DEVE ser 100% específico para o instrumento: " + instrumentName + ". NÃO mencione nenhum outro instrumento.\n"
         + "2. Todos os exercícios devem ser práticos para quem toca " + instrumentName + ".\n"
         + "3. Gere exatamente 5 dias de prática com atividades DETALHADAS e robustas, sempre incluindo os 3 blocos em cada dia: Aquecimento, Prática Principal e Teoria/Desafio.\n"
         + "4. Use uma linguagem humana, amigável e encorajadora em Português do Brasil (pt-BR). Seja PROFUNDO nas dicas técnicas. Não seja superficial. Explique o COMO executar e o PORQUÊ cada exercício é importante. Fale diretamente com o aluno no singular, como um professor amigo e exigente ensinando com muita paciência.\n"
-        + "5. IMPORTANTE: Use apenas termos musicais corretos em Português (ex: dedilhado, palhetada, escala, acorde, pestana). NUNCA invente palavras, traduções literais estranhas (como 'arte culminar', 'dobro cromático') ou nomes de músicas irreais. Mantenha os exercícios práticos e coerentes.\n\n"
+        + "5. IMPORTANTE: Use apenas termos musicais corretos em Português (ex: dedilhado, palhetada, escala, acorde, pestana). NUNCA invente palavras, traduções literais estranhas (como 'arte culminar', 'dobro cromático') ou nomes de músicas irreais. Mantenha os exercícios práticos e coerentes.\n"
+        + "6. FOCO NAS METAS DA SEMANA: Analise cuidadosamente as 'METAS DA SEMANA' informadas acima. O plano diário DEVE estar obrigatoriamente alinhado a elas. Inclua exercícios e blocos de prática que ataquem diretamente esses objetivos.\n\n"
         + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
         + jsonTemplate + "\n\n"
         + "Regras para o campo icon: use exatamente uma das opções: metronome, guitar, music, pen, star, play.";
