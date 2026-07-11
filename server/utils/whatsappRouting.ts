@@ -1,4 +1,4 @@
-import { sendWhatsAppMessage } from "./whatsapp";
+import { sendWhatsAppMessage, humanDelay } from "./whatsapp";
 
 export interface RoutingParams {
   sendToStudent: boolean;
@@ -93,8 +93,8 @@ export async function sendSmartWhatsAppNotification({
       if (!res.success) {
         errors.push(`Erro ao enviar para ${phone}: ${res.error || 'Desconhecido'}`);
       }
-      // pequeno delay para não bloquear a API e evitar Anti-Spam
-      await new Promise(r => setTimeout(r, 800));
+      // ANTI-BAN: delay humanizado aleat\u00f3rio entre mensagens (3s~10s)
+      await humanDelay(3000, 10000);
     } catch (err: any) {
       errors.push(`Erro ao enviar para ${phone}: ${err?.message || 'Desconhecido'}`);
     }

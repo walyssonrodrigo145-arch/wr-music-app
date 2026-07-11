@@ -9,13 +9,37 @@ interface SendWhatsAppParams {
 }
 
 // SEGURANÇA: URLs e tokens do Evolution API NÃO devem ser hardcoded.
-// Esses valores vêm das configurações do professor (settings.whatsappBotUrl e settings.whatsappBotToken)
-// ou, como fallback de desenvolvimento, de variáveis de ambiente.
-// NUNCA commite URLs, IPs ou chaves reais aqui.
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "";
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "";
 
 const DEFAULT_INSTANCE = "prof_1";
+
+// ─── ANTI-BAN: Delay humanizado entre mensagens ───────────────────────────────
+// Simula comportamento humano: pausa aleatória entre 3s e 9s.
+export function humanDelay(minMs = 3000, maxMs = 9000): Promise<void> {
+  const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// ─── ANTI-BAN: Backoff exponencial para reenvio em caso de falha ──────────────
+// Se a API retornar erro temporário (5xx), espera 2^attempt * 1s antes de tentar de novo.
+async function withExponentialBackoff<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3
+): Promise<T> {
+  let lastErr: any;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      const waitMs = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+      console.warn(`[WhatsApp] Tentativa ${attempt + 1} falhou. Aguardando ${Math.round(waitMs)}ms...`);
+      await new Promise(r => setTimeout(r, waitMs));
+    }
+  }
+  throw lastErr;
+}
 
 /**
  * Envia uma mensagem de texto via Evolution API.
@@ -40,11 +64,16 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
     const instanceName = sessionId || DEFAULT_INSTANCE;
     const endpoint = `${baseUrl}/message/sendText/${instanceName}`;
 
+    // ANTI-BAN: Delay humanizado antes de enviar (3~7s aleatório)
+    await humanDelay(3000, 7000);
+
     // Função auxiliar para tentar o envio
     const trySend = async (phoneToTry: string) => {
+      // ANTI-BAN: delay de digitação aleatório entre 2s e 6s simulando pessoa digitando
+      const typingDelay = Math.floor(Math.random() * 4000) + 2000;
       const payload = {
         number: phoneToTry,
-        options: { delay: 1200, presence: "composing" },
+        options: { delay: typingDelay, presence: "composing" },
         text: message
       };
 
@@ -70,6 +99,11 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
           return { success: false, notFound: true, error: `O número informado não está registrado no WhatsApp.` };
         }
 
+        // ANTI-BAN: Se for erro 5xx (servidor), lança exceção para o backoff tentar de novo
+        if (res.status >= 500) {
+          throw new Error(`Servidor da API falhou (${res.status}): ${typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg}`);
+        }
+
         if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
         return { success: false, error: `Falha na API (${res.status}): ${errorMsg}` };
       }
@@ -77,18 +111,16 @@ export async function sendWhatsAppMessage({ url, token, phone, message, sessionI
       return { success: true, messageId: responseData?.key?.id || `msg-${Date.now()}` };
     };
 
-    // Primeira tentativa com o número original
-    let result = await trySend(cleanPhone);
+    // ANTI-BAN: Envolve o envio no backoff exponencial para erros de servidor
+    let result = await withExponentialBackoff(() => trySend(cleanPhone));
 
-    // Se falhou por número não encontrado E for um celular do Brasil com 9º dígito (13 caracteres: 55 + DDD + 9 + 8 dígitos)
-    if (!result.success && result.notFound && cleanPhone.length === 13 && cleanPhone.startsWith("55") && cleanPhone[4] === "9") {
-      // Cria a versão do número sem o 9º dígito (DDD's antigos que o WhatsApp ainda não atualizou internamente)
+    // Se falhou por número não encontrado E for um celular do Brasil com 9º dígito
+    if (!result.success && (result as any).notFound && cleanPhone.length === 13 && cleanPhone.startsWith("55") && cleanPhone[4] === "9") {
       const phoneWithout9 = cleanPhone.substring(0, 4) + cleanPhone.substring(5);
-      result = await trySend(phoneWithout9);
+      result = await withExponentialBackoff(() => trySend(phoneWithout9));
     }
 
-    // Se ainda falhar por notFound (ou falhou direto e não era elegível para retry), limpamos a flag interna
-    if (!result.success && result.notFound) {
+    if (!result.success && (result as any).notFound) {
       return { success: false, error: result.error };
     }
 
