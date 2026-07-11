@@ -2203,7 +2203,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           guardianName: input.guardianName || undefined,
           guardianPhone: input.guardianPhone || undefined,
           guardianEmail: input.guardianEmail || undefined,
-          avatar: input.avatar !== undefined ? input.avatar : undefined,
+          avatar: input.avatar ?? undefined,
           instrumentId: input.instrumentId || undefined,
           level: input.level,
           monthlyFee: String(input.monthlyFee),
@@ -9181,4 +9181,4 @@ Texto original para reescrever:
   }),
 });
 
-export type AppRouter = typeof appRouter;
+export type AppRouter = typeof appRouter;

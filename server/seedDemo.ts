@@ -72,7 +72,7 @@ async function seed() {
       name: `Aluno Demo ${i}`,
       email: `aluno${i}_${Date.now()}@demo.com`,
       phone: `1198${Math.floor(1000000 + Math.random() * 9000000)}`,
-      document: `111222333${i.toString().padStart(2, '0')}`,
+      cpf: `111222333${i.toString().padStart(2, '0')}`,
       address: "Rua Demo, 123",
       city: "São Paulo",
       level: "iniciante",

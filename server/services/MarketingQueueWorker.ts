@@ -124,7 +124,7 @@ export class MarketingQueueWorker {
         await db.update(marketingContacts).set({
           status: 'sent',
           processedAt: new Date(),
-          evolutionMessageId: evolutionResponse?.messageId?.messageId || evolutionResponse?.key?.id
+          evolutionMessageId: evolutionResponse?.messageId
         }).where(eq(marketingContacts.id, nextContact.id));
 
         await db.update(marketingCampaigns).set({

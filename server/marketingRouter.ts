@@ -20,7 +20,7 @@ export const marketingRouter = router({
     
     // Only fetch campaigns for the current organization
     return await db.select().from(marketingCampaigns)
-      .where(eq(marketingCampaigns.organizationId, ctx.user.organizationId))
+      .where(eq(marketingCampaigns.organizationId, ctx.user.organizationId!))
       .orderBy(desc(marketingCampaigns.createdAt));
   }),
 
@@ -44,7 +44,7 @@ export const marketingRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
       const [campaign] = await db.insert(marketingCampaigns).values({
-        organizationId: ctx.user.organizationId,
+        organizationId: ctx.user.organizationId!,
         name: input.name,
         description: input.description,
         minDelay: input.minDelay,
@@ -58,7 +58,7 @@ export const marketingRouter = router({
 
       if (input.contacts.length > 0) {
         const contactsToInsert = input.contacts.map(c => ({
-          organizationId: ctx.user.organizationId,
+          organizationId: ctx.user.organizationId!,
           campaignId: campaign.id,
           name: c.name,
           phone: c.phone,
@@ -89,7 +89,7 @@ export const marketingRouter = router({
         .where(
           and(
             eq(marketingCampaigns.id, input.campaignId),
-            eq(marketingCampaigns.organizationId, ctx.user.organizationId)
+            eq(marketingCampaigns.organizationId, ctx.user.organizationId!)
           )
         ).returning();
 
@@ -111,7 +111,7 @@ export const marketingRouter = router({
         .from(marketingCampaigns)
         .where(and(
           eq(marketingCampaigns.id, input.campaignId),
-          eq(marketingCampaigns.organizationId, ctx.user.organizationId)
+          eq(marketingCampaigns.organizationId, ctx.user.organizationId!)
         ));
 
       if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "Campanha não encontrada" });
