@@ -580,7 +580,7 @@ export default function Progresso() {
                       <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">Timeline</p>
                    </div>
                 )}
-                <div className={cn("w-10 h-10 rounded-2xl bg-indigo-500/100/10 text-indigo-600 flex items-center justify-center shadow-inner shrink-0", isListCollapsed && "w-12 h-12")}>
+                <div className={cn("w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center shadow-inner shrink-0", isListCollapsed && "w-12 h-12")}>
                    <Activity size={20} />
                 </div>
              </div>
@@ -704,7 +704,7 @@ export default function Progresso() {
                 animate={{ scale: 1, opacity: 1 }}
                 className="w-24 h-24 rounded-[2.5rem] bg-card border border-border shadow-xl shadow-foreground/5 flex items-center justify-center mb-8 relative"
               >
-                <div className="absolute inset-0 bg-indigo-500/100/10 blur-2xl rounded-full" />
+                <div className="absolute inset-0 bg-indigo-500/10 blur-2xl rounded-full" />
                 <Activity size={40} className="text-indigo-400 relative z-10" />
               </motion.div>
               <h2 className="text-2xl font-black text-foreground tracking-tight">Evolução Musical</h2>

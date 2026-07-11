@@ -176,7 +176,7 @@ function PwaInstallSection() {
   }
 
   return (
-    <div className="p-4 bg-indigo-500/100/10 rounded-xl border border-indigo-500/20 space-y-4">
+    <div className="p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 space-y-4">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-indigo-500/100 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
           <Download size={20} />
@@ -1273,7 +1273,7 @@ export default function Configuracoes() {
                     className={cn(
                       "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "light"
-                        ? "border-indigo-600 bg-indigo-500/100/10 shadow-xl shadow-indigo-500/20"
+                        ? "border-indigo-600 bg-indigo-500/10 shadow-xl shadow-indigo-500/20"
                         : "border-border bg-card hover:border-indigo-200"
                     )}
                   >
@@ -1310,7 +1310,7 @@ export default function Configuracoes() {
                     className={cn(
                       "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "dark"
-                        ? "border-indigo-600 bg-indigo-500/100/10 shadow-xl shadow-indigo-500/20"
+                        ? "border-indigo-600 bg-indigo-500/10 shadow-xl shadow-indigo-500/20"
                         : "border-border bg-card hover:border-indigo-200"
                     )}
                   >

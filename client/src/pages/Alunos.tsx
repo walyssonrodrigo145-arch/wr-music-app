@@ -80,7 +80,7 @@ const EMPTY_FORM: FormData = {
 function LevelBadge({ level }: { level: string }) {
   const config: Record<string, { label: string; className: string }> = {
     iniciante: { label: "Iniciante", className: "bg-muted text-muted-foreground border-border" },
-    intermediario: { label: "Intermediário", className: "bg-indigo-500/100/10 text-indigo-600 border-indigo-500/20" },
+    intermediario: { label: "Intermediário", className: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
     avancado: { label: "Avançado", className: "bg-primary/5 text-primary border-primary/10" },
   };
   const c = config[level] ?? config.iniciante;
@@ -97,7 +97,7 @@ function StatusBadge({ status, id, onUpdate }: { status: string; id: number; onU
   const [deletePending, setDeletePending] = useState(true);
 
   const cfg: Record<string, { cls: string }> = {
-    ativo: { cls: "bg-emerald-500/100/10 text-emerald-600 border-emerald-500/20" },
+    ativo: { cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
     pausado: { cls: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
     inativo: { cls: "bg-red-500/10 text-red-600 border-red-500/20" },
   };
@@ -788,7 +788,7 @@ export default function Alunos() {
                         <td className="px-4 lg:px-6 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
-                              <AvatarFallback className="bg-blue-500/100/10 text-blue-600 text-xs font-bold uppercase">
+                              <AvatarFallback className="bg-blue-500/10 text-blue-600 text-xs font-bold uppercase">
                                 {student.name.substring(0, 2)}
                               </AvatarFallback>
                             </Avatar>
@@ -887,7 +887,7 @@ export default function Alunos() {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
-                          <AvatarFallback className="bg-blue-500/100/10 text-blue-600 text-xs font-bold uppercase">
+                          <AvatarFallback className="bg-blue-500/10 text-blue-600 text-xs font-bold uppercase">
                             {student.name.substring(0, 2)}
                           </AvatarFallback>
                         </Avatar>
@@ -996,7 +996,7 @@ export default function Alunos() {
                 <div className="space-y-3">
                    <div 
                      onClick={() => setLocation("/financeiro")}
-                     className="p-3 bg-rose-500/100/10 border border-rose-500/20 rounded-2xl group cursor-pointer hover:bg-rose-500/10 transition-colors"
+                     className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl group cursor-pointer hover:bg-rose-500/10 transition-colors"
                    >
                       <div className="flex gap-3">
                          <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center text-rose-500 shrink-0">
@@ -1013,7 +1013,7 @@ export default function Alunos() {
                    
                    <div 
                      onClick={() => setLocation("/aulas")}
-                     className="p-3 bg-blue-500/100/10 border border-blue-500/20 rounded-2xl group cursor-pointer hover:bg-blue-500/10 transition-colors"
+                     className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl group cursor-pointer hover:bg-blue-500/10 transition-colors"
                    >
                       <div className="flex gap-3">
                          <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center text-blue-500 shrink-0">

@@ -941,7 +941,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <Avatar className="w-9 h-9 border-2 border-background shadow-sm shrink-0">
-                          <AvatarFallback className="bg-blue-500/100/10 text-blue-600 text-[10px] font-black uppercase">
+                          <AvatarFallback className="bg-blue-500/10 text-blue-600 text-[10px] font-black uppercase">
                             {payment.studentName?.substring(0, 2) || "?"}
                           </AvatarFallback>
                         </Avatar>
