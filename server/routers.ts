@@ -939,9 +939,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         + "1. O plano DEVE ser 100% específico para o instrumento: " + instrumentName + ". NÃO mencione nenhum outro instrumento.\n"
         + "2. Todos os exercícios devem ser práticos para quem toca " + instrumentName + ".\n"
         + "3. Gere exatamente 5 dias de prática com atividades DETALHADAS e robustas, sempre incluindo os 3 blocos em cada dia: Aquecimento, Prática Principal e Teoria/Desafio.\n"
-        + "4. Use uma linguagem humana, amigável e encorajadora em Português do Brasil (pt-BR). Seja PROFUNDO nas dicas técnicas. Não seja superficial. Explique o COMO executar e o PORQUÊ cada exercício é importante. Fale diretamente com o aluno no singular, como um professor amigo e exigente ensinando com muita paciência.\n"
-        + "5. IMPORTANTE: Use apenas termos musicais corretos em Português (ex: dedilhado, palhetada, escala, acorde, pestana). NUNCA invente palavras, traduções literais estranhas (como 'arte culminar', 'dobro cromático') ou nomes de músicas irreais. Mantenha os exercícios práticos e coerentes.\n"
-        + "6. FOCO NAS METAS DA SEMANA: Analise cuidadosamente as 'METAS DA SEMANA' informadas acima. O plano diário DEVE estar obrigatoriamente alinhado a elas. Inclua exercícios e blocos de prática que ataquem diretamente esses objetivos.\n\n"
+        + "4. LINGUAGEM DIRETA E VARIADA: Seja encorajador, mas VÁ DIRETO AO PONTO. Não seja repetitivo, prolixo ou robótico. Evite frases clichês repetidas a cada dia. Use um tom humano e objetivo. Explique o COMO executar e o PORQUÊ de forma concisa.\n"
+        + "5. IMPORTANTE: Use apenas termos musicais reais em Português do Brasil (ex: dedilhado, palhetada, escala). NUNCA invente palavras ou traduções bizarras. \n"
+        + "6. FOCO EXCLUSIVO NAS METAS (SEM ASSUNTOS ALEATÓRIOS): Baseie os exercícios ESTABELECIDOS EXCLUSIVAMENTE nas 'METAS DA SEMANA' e no histórico. NÃO INVENTE assuntos que não foram solicitados. Varie a abordagem do treino ao longo dos 5 dias para não ficar monótono, mas mantenha o foco nas metas!\n\n"
         + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
         + jsonTemplate + "\n\n"
         + "Regras para o campo icon: use exatamente uma das opções: metronome, guitar, music, pen, star, play.";
