@@ -280,15 +280,19 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
     }
 
     // state=connecting → instância inicializando (Baileys conectando ao WA)
-    // Retorna PAIRING para o frontend NÃO derrubar a sessão durante o fluxo de pareamento
+    // Retorna PAIRING e tenta resgatar o QR/Pairing Code
     if (state === "connecting") {
+      const connectData = await fetch(`${baseUrl}/instance/connect/${sessionId}`, {
+        headers: { "apikey": activeToken }
+      }).then(r => r.json()).catch(() => ({})) as any;
+
       return {
         sessionId,
         status: "PAIRING" as const,
         phone: "",
         mode: "QR_CODE" as const,
-        qr: "",
-        pairingCode: "",
+        qr: connectData?.base64 || "",
+        pairingCode: connectData?.pairingCode || "",
       };
     }
 

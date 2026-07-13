@@ -264,14 +264,18 @@ function WhatsAppSessionManager() {
   // Nunca derruba o passo PAIRING enquanto o usuário está escaneando
   useEffect(() => {
     if (!getStatusQuery.data) return;
-    const s = getStatusQuery.data.status;
+    const data = getStatusQuery.data as any;
+    const s = data.status;
     if (s === "CONNECTED") {
       setStep("CONNECTED");
-      setConnectedPhone((getStatusQuery.data as any).phone || phoneNumber || "Conectado");
+      setConnectedPhone(data.phone || phoneNumber || "Conectado");
+    } else if (s === "PAIRING") {
+      if (data.qr && !qrString) setQrString(data.qr);
+      if (data.pairingCode && !pairingCode) setPairingCode(data.pairingCode);
     }
     // INTENCIONALMENTE não reseta para DISCONNECTED durante PAIRING
     // O timer de 120s cuida disso.
-  }, [getStatusQuery.data]);
+  }, [getStatusQuery.data, qrString, pairingCode]);
 
   // Timer de 120 segundos no modo PAIRING (tempo suficiente para abrir o celular e escanear)
   useEffect(() => {
