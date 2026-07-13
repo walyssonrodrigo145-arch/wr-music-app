@@ -707,6 +707,7 @@ export default function Configuracoes() {
   const [schoolPhone, setSchoolPhone] = useState("");
   const [schoolWebsite, setSchoolWebsite] = useState("");
   const [schoolDescription, setSchoolDescription] = useState("");
+  const [dueDaysForecast, setDueDaysForecast] = useState("5,10,15,20");
   const defaultHours = {
     monday: { active: true, start: "08:00", end: "18:00" },
     tuesday: { active: true, start: "08:00", end: "18:00" },
@@ -762,6 +763,7 @@ export default function Configuracoes() {
       setSchoolPhone(settings.schoolPhone ?? "");
       setSchoolWebsite(settings.schoolWebsite ?? "");
       setSchoolDescription(settings.schoolDescription ?? "");
+      setDueDaysForecast(settings.dueDaysForecast ?? "5,10,15,20");
       if (settings.schoolHours) {
         try {
           setSchoolHours(JSON.parse(settings.schoolHours));
@@ -1098,7 +1100,7 @@ export default function Configuracoes() {
                             return;
                          }
                       }
-                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, schoolHours: JSON.stringify(schoolHours) });
+                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, schoolHours: JSON.stringify(schoolHours), dueDaysForecast });
                     }}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -1161,6 +1163,18 @@ export default function Configuracoes() {
                     rows={4}
                     className="w-full px-4 py-4 text-sm font-bold rounded-xl border border-border bg-muted focus:bg-card transition-all shadow-sm resize-none text-foreground outline-none"
                   />
+                </Field>
+
+                <Field label="Dias de Previsão por Vencimento">
+                  <Input
+                    type="text"
+                    value={dueDaysForecast}
+                    onChange={e => setDueDaysForecast(e.target.value)}
+                    placeholder="Ex: 5,10,15,20"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-2 px-1">
+                    Insira os dias do mês separados por vírgula para exibir no card de previsão (Financeiro). Ex: 5,10,15,20. Outros dias serão somados na aba "Outros".
+                  </p>
                 </Field>
 
                 <div className="pt-6 border-t border-border">

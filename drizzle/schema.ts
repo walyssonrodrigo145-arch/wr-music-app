@@ -188,6 +188,7 @@ export const settings = pgTable("settings", {
   schoolPhone: varchar("schoolPhone", { length: 30 }),
   schoolWebsite: varchar("schoolWebsite", { length: 255 }),
   schoolDescription: text("schoolDescription"),
+  dueDaysForecast: text("dueDaysForecast").default("5,10,15,20"),
   notifyLessonReminder: integer("notifyLessonReminder").default(1).notNull(),
   notifyPaymentDue: integer("notifyPaymentDue").default(1).notNull(),
   notifyStudentAbsence: integer("notifyStudentAbsence").default(1).notNull(),

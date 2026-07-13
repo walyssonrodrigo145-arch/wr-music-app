@@ -730,13 +730,20 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
               </div>
            </div>
 
-           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+           <div className="flex flex-wrap gap-4">
               {useMemo(() => {
-                const days = [5, 10, 15, 20];
-                const dayMap: Record<string, number> = { "05": 0, "10": 0, "15": 0, "20": 0, "OUTROS": 0 };
+                const dueDaysString = settings?.dueDaysForecast ?? "5,10,15,20";
+                const days = dueDaysString.split(",").map(d => Number(d.trim())).filter(n => !isNaN(n) && n > 0 && n <= 31);
+                
+                const dayMap: Record<string, number> = { "OUTROS": 0 };
+                days.forEach(d => {
+                  dayMap[String(d).padStart(2, '0')] = 0;
+                });
+                
                 const validPayments = payments.filter(p => 
                   p.status === "pago" || p.studentStatus === "ativo"
                 );
+                
                 validPayments.forEach(p => {
                   const day = Number(p.dueDate.toString().split('-')[2]);
                   if (days.includes(day)) {
@@ -745,15 +752,16 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                     dayMap["OUTROS"] += Number(p.amount);
                   }
                 });
-                return [
-                  { label: "Dia 05", amount: dayMap["05"] },
-                  { label: "Dia 10", amount: dayMap["10"] },
-                  { label: "Dia 15", amount: dayMap["15"] },
-                  { label: "Dia 20", amount: dayMap["20"] },
-                  { label: "Outros", amount: dayMap["OUTROS"] }
-                ];
-              }, [payments]).map((item, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
+                
+                const result = days.map(d => {
+                  const strDay = String(d).padStart(2, '0');
+                  return { label: `Dia ${strDay}`, amount: dayMap[strDay] };
+                });
+                
+                result.push({ label: "Outros", amount: dayMap["OUTROS"] });
+                return result;
+              }, [payments, settings?.dueDaysForecast]).map((item, i) => (
+                <div key={i} className="flex-1 min-w-[120px] p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2 group-hover:text-blue-500 transition-colors">{item.label}</p>
                    <p className="text-base font-black text-foreground tracking-tighter">
                       {currencyFormat(item.amount)}

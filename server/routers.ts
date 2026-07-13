@@ -3548,6 +3548,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       schoolWebsite: z.string().optional(),
       schoolDescription: z.string().optional(),
       schoolHours: z.string().optional(),
+      dueDaysForecast: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
       await upsertSettings(orgId, ctx.user.id, input);
