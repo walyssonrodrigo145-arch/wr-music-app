@@ -179,6 +179,9 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
       body: JSON.stringify({ instanceName: sessionId, qrcode: true, integration: "WHATSAPP-BAILEYS" }),
     }).catch(() => {});
 
+    // Registra o webhook para esta nova instância
+    await setupEvolutionWebhook(sessionId);
+
     // ── PASSO 4: Aguardar state = connecting ─────────────────────────────────────
     for (let i = 0; i < 10; i++) {
       await sleep(1000);
