@@ -326,11 +326,18 @@ export default function QRScanner() {
                         }
                       }}
                       onError={(err: any) => {
-                        console.error(err);
-                        setCameraError("Não foi possível acessar a câmera. Verifique as permissões.");
+                        console.error("Scanner Error:", err);
+                        // Ignora erros genéricos que ocorrem APÓS a inicialização bem sucedida ou erros de DOMException (autoplay de beep)
+                        const isPermissionError = err?.name === "NotAllowedError" || err?.message?.toLowerCase().includes("permission");
+                        const isNotFoundError = err?.name === "NotFoundError" || err?.message?.toLowerCase().includes("not found");
+                        
+                        if (isPermissionError) {
+                          setCameraError("Não foi possível acessar a câmera. Verifique as permissões.");
+                        } else if (isNotFoundError) {
+                          setCameraError("Nenhuma câmera encontrada no dispositivo.");
+                        }
                       }}
                       components={{
-                        audio: false,
                         finder: false
                       }}
                       styles={{
