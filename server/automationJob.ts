@@ -1343,14 +1343,16 @@ async function runAutomation() {
                       .replace(/\{nome_escola\}/g, schoolName)
                       .replace(/\{resumo_treinos\}/g, resumo);
 
-                    await db.insert(notifications).values({
-                      organizationId: orgId, userId, title: "Relatório Diário de Treinos 📊", message: message, type: "info", actionUrl: "/progresso",
-                    });
+                    if (userSet.notifyWeeklyReport === 1) {
+                      await db.insert(notifications).values({
+                        organizationId: orgId, userId, title: "Relatório Diário de Treinos 📊", message: message, type: "info", actionUrl: "/progresso",
+                      });
 
-                    try {
-                      await notifyUser(userId, { title: "Relatório Diário de Treinos 📊", content: message });
-                    } catch (e) {
-                      console.error("[Automation] Erro ao enviar push de relatório:", e);
+                      try {
+                        await notifyUser(userId, { title: "Relatório Diário de Treinos 📊", content: message });
+                      } catch (e) {
+                        console.error("[Automation] Erro ao enviar push de relatório:", e);
+                      }
                     }
                   }
                 }

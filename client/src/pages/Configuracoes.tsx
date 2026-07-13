@@ -682,6 +682,60 @@ function Field({ label, children, hint }: { label: string; children: React.React
   );
 }
 
+// ─── DebouncedInput ─────────────────────────────────────────────────────────
+function DebouncedInput({ value, onChange, ...props }: any) {
+  const [localValue, setLocalValue] = useState(value ?? "");
+
+  useEffect(() => {
+    setLocalValue(value ?? "");
+  }, [value]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (localValue !== (value ?? "") && onChange) {
+        onChange({ target: { value: localValue } });
+      }
+    }, 400);
+    return () => clearTimeout(handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localValue]);
+
+  return (
+    <Input
+      {...props}
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+    />
+  );
+}
+
+// ─── DebouncedTextarea ────────────────────────────────────────────────────────
+function DebouncedTextarea({ value, onChange, ...props }: any) {
+  const [localValue, setLocalValue] = useState(value ?? "");
+
+  useEffect(() => {
+    setLocalValue(value ?? "");
+  }, [value]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (localValue !== (value ?? "") && onChange) {
+        onChange({ target: { value: localValue } });
+      }
+    }, 400);
+    return () => clearTimeout(handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localValue]);
+
+  return (
+    <textarea
+      {...props}
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+    />
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Configuracoes() {
   const { user } = useAuth();
@@ -1252,6 +1306,7 @@ export default function Configuracoes() {
                     { label: "Lembrete de aulas", desc: "Aviso 1h antes de cada aula", value: notifyLesson, onChange: setNotifyLesson },
                     { label: "Pagamento pendente", desc: "Alerta de mensalidade próxima do vencimento", value: notifyPayment, onChange: setNotifyPayment },
                     { label: "Falta de aluno", desc: "Notificação quando um aluno não comparecer", value: notifyAbsence, onChange: setNotifyAbsence },
+                    { label: "Novo aluno", desc: "Notificação ao cadastrar novo estudante", value: notifyNewStudent, onChange: setNotifyNewStudent },
                     { label: "Relatório semanal", desc: "Resumo de desempenho toda segunda-feira", value: notifyWeekly, onChange: setNotifyWeekly },
                   ].map(item => (
                     <div key={item.label} className="flex items-center justify-between p-5 bg-muted rounded-2xl border border-border group hover:border-indigo-100 transition-colors">
