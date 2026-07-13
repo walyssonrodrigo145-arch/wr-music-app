@@ -9,8 +9,8 @@ interface SendWhatsAppParams {
 }
 
 // SEGURANÇA: URLs e tokens do Evolution API NÃO devem ser hardcoded.
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "";
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "";
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "https://wrmusic-bot.fly.dev";
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "WrMusic2025SecretKey123";
 
 const DEFAULT_INSTANCE = "prof_1";
 
@@ -198,10 +198,15 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
     const connectData = await fetch(connectUrl, {
       method: "GET",
       headers: { "apikey": activeToken },
-    }).then(r => r.json()).catch(() => ({})) as any;
+    }).then(r => r.json()).catch((e) => {
+      console.error("[WhatsApp] Error fetching connect url:", e);
+      return {};
+    }) as any;
+
+    console.log(`[WhatsApp] Connect data for ${sessionId}:`, JSON.stringify(connectData).substring(0, 200));
 
     const pairingCode = connectData?.pairingCode || "";
-    const qrBase64   = connectData?.base64 || "";
+    const qrBase64   = connectData?.base64 || connectData?.qrcode || "";
 
     if (mode === "PAIRING_CODE") {
       if (pairingCode) {
@@ -284,14 +289,19 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
     if (state === "connecting") {
       const connectData = await fetch(`${baseUrl}/instance/connect/${sessionId}`, {
         headers: { "apikey": activeToken }
-      }).then(r => r.json()).catch(() => ({})) as any;
+      }).then(r => r.json()).catch((e) => {
+        console.error("[WhatsApp] Error in getSessionStatus polling:", e);
+        return {};
+      }) as any;
+
+      console.log(`[WhatsApp] Status polling connect data for ${sessionId}:`, JSON.stringify(connectData).substring(0, 200));
 
       return {
         sessionId,
         status: "PAIRING" as const,
         phone: "",
         mode: "QR_CODE" as const,
-        qr: connectData?.base64 || "",
+        qr: connectData?.base64 || connectData?.qrcode || "",
         pairingCode: connectData?.pairingCode || "",
       };
     }
