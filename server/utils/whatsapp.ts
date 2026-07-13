@@ -179,9 +179,6 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
       body: JSON.stringify({ instanceName: sessionId, qrcode: true, integration: "WHATSAPP-BAILEYS" }),
     }).catch(() => {});
 
-    // Registra o webhook para esta nova instância
-    await setupEvolutionWebhook(sessionId);
-
     // ── PASSO 4: Aguardar state = connecting ─────────────────────────────────────
     for (let i = 0; i < 10; i++) {
       await sleep(1000);
@@ -191,6 +188,9 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
       const state = stateData?.instance?.state;
       if (state === "connecting" || state === "open") break;
     }
+
+    // Registra o webhook somente após a instância estar criada e respondendo
+    await setupEvolutionWebhook(sessionId);
 
     // ── PASSO 5: Obter QR ou Pairing Code via /connect ───────────────────────────
     let connectUrl = `${baseUrl}/instance/connect/${sessionId}`;
