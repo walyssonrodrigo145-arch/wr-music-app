@@ -523,7 +523,8 @@ async function startServer() {
     // Iniciar job de automação de marketing
     marketingWorker.start();
     // Configura o webhook do WhatsApp para todas as instâncias existentes
-    setupAllEvolutionWebhooks();
+    // Aguarda 5s para garantir que a Evolution API esteja pronta antes de registrar
+    setTimeout(() => setupAllEvolutionWebhooks(), 5000);
   });
 }
 

@@ -65,9 +65,11 @@ function menuPrincipalNovoMsg(schoolName: string): string {
 router.post("/", async (req, res) => {
   try {
     const payload = req.body;
+    console.log("[Webhook Debug] Payload recebido:", JSON.stringify(payload).substring(0, 300));
 
-    // Só processa mensagens novas
-    if (payload?.event !== "messages.upsert") {
+    // O Evolution API às vezes envia "messages.upsert" (v1) e outras vezes "MESSAGES_UPSERT" (v2)
+    const eventName = payload?.event || "";
+    if (eventName !== "messages.upsert" && eventName !== "MESSAGES_UPSERT") {
       return res.status(200).json({ ok: true });
     }
 
@@ -85,7 +87,7 @@ router.post("/", async (req, res) => {
     }
 
     const phone = remoteJid.split("@")[0];
-    const textMsg = extractMessageText(messageData.message);
+    const textMsg = extractMessageText(messageData?.message) || extractMessageText(messageData);
     const pushName = payload.data.pushName || "Aluno";
 
     if (!textMsg) return res.status(200).json({ ok: true });
@@ -125,6 +127,8 @@ router.post("/", async (req, res) => {
     // ── Função auxiliar de resposta ──
     const sendReply = async (msg: string) => {
       await sendWhatsAppMessage({
+        url: profSettings.whatsappBotUrl || undefined,
+        token: profSettings.whatsappBotToken || undefined,
         phone,
         message: msg,
         sessionId: instanceName || "prof_1",
