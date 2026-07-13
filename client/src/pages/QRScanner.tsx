@@ -317,23 +317,29 @@ export default function QRScanner() {
                 ) : (
                   <>
                     <Scanner
+                      formats={["qr_code"]}
                       allowMultiple={true}
                       scanDelay={2000}
                       onScan={(result: IDetectedBarcode[]) => {
-                        if (result && result.length > 0) {
+                        if (result && result.length > 0 && result[0].rawValue) {
                           handleScan(result[0].rawValue);
                         }
                       }}
                       onError={(err: any) => {
                         console.error("Scanner Error:", err);
-                        // Ignora erros genéricos que ocorrem APÓS a inicialização bem sucedida ou erros de DOMException (autoplay de beep)
-                        const isPermissionError = err?.name === "NotAllowedError" || err?.message?.toLowerCase().includes("permission");
-                        const isNotFoundError = err?.name === "NotFoundError" || err?.message?.toLowerCase().includes("not found");
+                        const msg = err?.message?.toLowerCase() || "";
                         
-                        if (isPermissionError) {
+                        // Ignora explicitamente erros de reprodução de áudio (beep)
+                        if (msg.includes("play()") || msg.includes("audio") || msg.includes("interact") || msg.includes("not supported")) {
+                           return;
+                        }
+
+                        if (err?.name === "NotAllowedError" || msg.includes("permission")) {
                           setCameraError("Não foi possível acessar a câmera. Verifique as permissões.");
-                        } else if (isNotFoundError) {
+                        } else if (err?.name === "NotFoundError" || msg.includes("not found")) {
                           setCameraError("Nenhuma câmera encontrada no dispositivo.");
+                        } else {
+                          setCameraError("Erro na câmera: " + (err?.message || "Falha desconhecida"));
                         }
                       }}
                       styles={{
