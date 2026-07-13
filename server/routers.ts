@@ -917,9 +917,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             dayName: "Dia 1",
             focus: { title: "Foco motivador do dia", description: "Descrição detalhada (3 a 4 frases) explicando por que este foco é crucial e como ele ajuda no desenvolvimento do " + instrumentName + "." },
             exercises: [
-              { title: "Aquecimento", subtitle: "Crie um subtítulo engajador e diferente a cada dia", duration: "10 min", points: ["Exercício detalhado 1 com explicação de postura e movimento", "Exercício detalhado 2"], icon: "music" },
-              { title: "Prática Principal", subtitle: "Repertório ou técnica principal focada em " + instrumentName, duration: "30 min", points: ["Passo a passo detalhado do que focar (ex: palhetada, dedilhado, respiração)", "Metrônomo ou dicas de tempo", "Cuidados para não errar"], icon: "star" },
-              { title: "Teoria ou Desafio", subtitle: "Crie um subtítulo desafiador diferente a cada dia", duration: "10 min", points: ["Desafio prático", "O que tentar improvisar ou memorizar"], icon: "pen" }
+              { title: "Aquecimento", subtitle: "Crie um subtítulo engajador e diferente a cada dia", duration: "10 min", points: ["Exercício focado na mecânica preparatória da meta do dia", "Outro exercício prático e real"], icon: "music" },
+              { title: "Prática Principal", subtitle: "Prática focada puramente na meta da semana", duration: "30 min", points: ["Passo a passo detalhado da execução", "Dicas rítmicas ou de tempo", "Cuidados reais para não errar a execução da meta"], icon: "star" },
+              { title: "Teoria ou Desafio", subtitle: "Crie um subtítulo desafiador diferente a cada dia", duration: "10 min", points: ["Desafio prático relacionado diretamente com a meta", "Aplicação criativa"], icon: "pen" }
             ]
           }
         ]
@@ -937,12 +937,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         + "TIMELINE: " + (timelineText || "Nenhum registro") + "\n\n"
         + "REGRAS OBRIGATÓRIAS:\n"
         + "1. O plano DEVE ser 100% específico para o instrumento: " + instrumentName + ". NÃO mencione nenhum outro instrumento.\n"
-        + "2. Todos os exercícios devem ser práticos para quem toca " + instrumentName + ".\n"
+        + "2. Todos os exercícios devem ser lógicos e práticos para quem toca " + instrumentName + ".\n"
         + "3. Gere exatamente 5 dias de prática com atividades DETALHADAS e robustas, sempre incluindo os 3 blocos em cada dia: Aquecimento, Prática Principal e Teoria/Desafio.\n"
-        + "4. LINGUAGEM DIRETA E VARIADA: Seja encorajador, mas VÁ DIRETO AO PONTO. Não seja repetitivo, prolixo ou robótico. Evite frases clichês repetidas a cada dia. Use um tom humano e objetivo. Explique o COMO executar e o PORQUÊ de forma concisa.\n"
-        + "5. IMPORTANTE: Use apenas termos musicais reais em Português do Brasil (ex: dedilhado, palhetada, batida, arpejo, escala). NUNCA invente palavras ou traduções bizarras.\n"
-        + "6. ANÁLISE RIGOROSA DAS METAS: Você DEVE analisar profundamente as 'METAS DA SEMANA'. O plano deve girar 100% em torno de resolver essas metas. NÃO INVENTE assuntos ou técnicas aleatórias que não foram pedidas. Cada exercício dos 5 dias deve ser um passo prático para atingir essas metas!\n"
-        + "7. COERÊNCIA MUSICAL ABSOLUTA: Os exercícios descritos DEVEM fazer sentido lógico e prático no instrumento. NUNCA crie instruções musicais bizarras (como 'limpar acorde subindo em semitons', 'melodia cromática com notas normais' ou misturar conceitos teóricos sem nexo). O exercício deve ser tecnicamente correto, viável e que um ser humano realmente faria na prática.\n\n"
+        + "4. LINGUAGEM DIRETA E VARIADA: Seja encorajador, mas VÁ DIRETO AO PONTO. Não seja repetitivo, prolixo ou robótico. Evite frases clichês repetidas a cada dia.\n"
+        + "5. PROIBIÇÃO DE TÉCNICAS INVENTADAS: Se a meta for, por exemplo, APENAS 'Batida', NÃO INVENTE que o aluno deve fazer 'palhetada', 'dedilhado' ou 'arpejo'. Atenha-se EXATAMENTE à técnica pedida na meta. Nunca injete mecânicas não solicitadas.\n"
+        + "6. ANÁLISE RIGOROSA DAS METAS: Você DEVE analisar as 'METAS DA SEMANA'. O plano deve girar 100% em torno de resolver essas metas de forma literal e realista. Se não há meta de escala, não ensine escala.\n"
+        + "7. COERÊNCIA MUSICAL ABSOLUTA: Os exercícios descritos DEVEM fazer sentido lógico e prático no instrumento. NUNCA crie instruções musicais bizarras (como 'limpar acorde subindo em semitons', ou 'mudar de nota sem som usando a forma'). O exercício deve ser tecnicamente correto, viável e que um ser humano realmente faria na prática.\n\n"
         + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
         + jsonTemplate + "\n\n"
         + "Regras para o campo icon: use exatamente uma das opções: metronome, guitar, music, pen, star, play.";
