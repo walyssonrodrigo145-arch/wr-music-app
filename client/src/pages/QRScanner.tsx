@@ -317,7 +317,6 @@ export default function QRScanner() {
                 ) : (
                   <>
                     <Scanner
-                      formats={["qr_code"] as any}
                       allowMultiple={true}
                       scanDelay={2000}
                       onScan={(result: IDetectedBarcode[]) => {
@@ -336,9 +335,6 @@ export default function QRScanner() {
                         } else if (isNotFoundError) {
                           setCameraError("Nenhuma câmera encontrada no dispositivo.");
                         }
-                      }}
-                      components={{
-                        finder: false
                       }}
                       styles={{
                         container: { width: "100%", height: "100%" },
