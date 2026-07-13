@@ -24,6 +24,12 @@
       gtag('config', 'G-TNCFL02S7R');
     </script>
     <script>
+      // Desativa a API nativa BarcodeDetector pois em alguns Androids/Chromes (falta do Play Services)
+      // ela existe, mas falha ao executar .detect() com 'Barcode detection service unavailable'
+      // Ao forçar undefined, o react-qr-scanner automaticamente usa a versão polyfill via WASM (ZXing).
+      window.BarcodeDetector = undefined;
+    </script>
+    <script>
       // Captura global do evento de instalação para o PWA
       window.deferredPrompt = null;
       window.addEventListener('beforeinstallprompt', (e) => {

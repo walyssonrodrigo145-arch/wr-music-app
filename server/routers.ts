@@ -940,8 +940,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         + "2. Todos os exercícios devem ser práticos para quem toca " + instrumentName + ".\n"
         + "3. Gere exatamente 5 dias de prática com atividades DETALHADAS e robustas, sempre incluindo os 3 blocos em cada dia: Aquecimento, Prática Principal e Teoria/Desafio.\n"
         + "4. LINGUAGEM DIRETA E VARIADA: Seja encorajador, mas VÁ DIRETO AO PONTO. Não seja repetitivo, prolixo ou robótico. Evite frases clichês repetidas a cada dia. Use um tom humano e objetivo. Explique o COMO executar e o PORQUÊ de forma concisa.\n"
-        + "5. IMPORTANTE: Use apenas termos musicais reais em Português do Brasil (ex: dedilhado, palhetada, escala). NUNCA invente palavras ou traduções bizarras. \n"
-        + "6. FOCO EXCLUSIVO NAS METAS (SEM ASSUNTOS ALEATÓRIOS): Baseie os exercícios ESTABELECIDOS EXCLUSIVAMENTE nas 'METAS DA SEMANA' e no histórico. NÃO INVENTE assuntos que não foram solicitados. Varie a abordagem do treino ao longo dos 5 dias para não ficar monótono, mas mantenha o foco nas metas!\n\n"
+        + "5. IMPORTANTE: Use apenas termos musicais reais em Português do Brasil (ex: dedilhado, palhetada, batida, arpejo, escala). NUNCA invente palavras ou traduções bizarras.\n"
+        + "6. ANÁLISE RIGOROSA DAS METAS: Você DEVE analisar profundamente as 'METAS DA SEMANA'. O plano deve girar 100% em torno de resolver essas metas. NÃO INVENTE assuntos ou técnicas aleatórias que não foram pedidas. Cada exercício dos 5 dias deve ser um passo prático para atingir essas metas!\n"
+        + "7. COERÊNCIA MUSICAL ABSOLUTA: Os exercícios descritos DEVEM fazer sentido lógico e prático no instrumento. NUNCA crie instruções musicais bizarras (como 'limpar acorde subindo em semitons', 'melodia cromática com notas normais' ou misturar conceitos teóricos sem nexo). O exercício deve ser tecnicamente correto, viável e que um ser humano realmente faria na prática.\n\n"
         + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
         + jsonTemplate + "\n\n"
         + "Regras para o campo icon: use exatamente uma das opções: metronome, guitar, music, pen, star, play.";
