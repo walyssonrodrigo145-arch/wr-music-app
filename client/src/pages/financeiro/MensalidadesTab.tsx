@@ -732,19 +732,29 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
 
            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {useMemo(() => {
-                const days = [5, 10, 15, 20, 25];
-                const dayMap: Record<number, number> = { 5: 0, 10: 0, 15: 0, 20: 0, 25: 0 };
+                const days = [5, 10, 15, 20];
+                const dayMap: Record<string, number> = { "05": 0, "10": 0, "15": 0, "20": 0, "OUTROS": 0 };
                 const validPayments = payments.filter(p => 
                   p.status === "pago" || p.studentStatus === "ativo"
                 );
                 validPayments.forEach(p => {
                   const day = Number(p.dueDate.toString().split('-')[2]);
-                  if (dayMap[day] !== undefined) dayMap[day] += Number(p.amount);
+                  if (days.includes(day)) {
+                    dayMap[String(day).padStart(2, '0')] += Number(p.amount);
+                  } else {
+                    dayMap["OUTROS"] += Number(p.amount);
+                  }
                 });
-                return days.map(d => ({ day: d, amount: dayMap[d] }));
+                return [
+                  { label: "Dia 05", amount: dayMap["05"] },
+                  { label: "Dia 10", amount: dayMap["10"] },
+                  { label: "Dia 15", amount: dayMap["15"] },
+                  { label: "Dia 20", amount: dayMap["20"] },
+                  { label: "Outros", amount: dayMap["OUTROS"] }
+                ];
               }, [payments]).map((item, i) => (
                 <div key={i} className="p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
-                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2 group-hover:text-blue-500 transition-colors">Dia {String(item.day).padStart(2, '0')}</p>
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2 group-hover:text-blue-500 transition-colors">{item.label}</p>
                    <p className="text-base font-black text-foreground tracking-tighter">
                       {currencyFormat(item.amount)}
                    </p>
