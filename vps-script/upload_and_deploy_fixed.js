@@ -70,6 +70,7 @@ const filesToUpload = [
   'client/src/pages/Relatorios.tsx',
   'client/src/pages/ProfessoresTab.tsx',
   'server/_core/email.ts',
+  'server/webhooks/whatsapp.ts',
   'client/src/pages/SuperAdmin.tsx',
   'client/src/pages/ProfessorExtract.tsx',
   'client/src/pages/Progresso.tsx',
@@ -165,6 +166,10 @@ conn.on('ready', () => {
               cd ${repoPath}
               docker compose down
               docker compose up -d --build
+              echo "Running DB migrations manually via psql..."
+              sleep 5
+              docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \"dueDaysForecast\" text DEFAULT '5,10,15,20';"
+              docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \"chatbotEnabled\" integer NOT NULL DEFAULT 0;"
             `;
             conn.exec(rebuildCmd, (err, rebuildStream) => {
               if (err) throw err;

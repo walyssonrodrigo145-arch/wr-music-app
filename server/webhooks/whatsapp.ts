@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { getDb } from "../db";
-import { students, chatbotSessions, lessons, settings } from "../../drizzle/schema";
-import { eq, or, and, gte, lt } from "drizzle-orm";
+import { students, chatbotSessions, lessons, settings, paymentDues } from "../../drizzle/schema";
+import { eq, and, gte } from "drizzle-orm";
 import { sendWhatsAppMessage } from "../utils/whatsapp";
 
 const router = Router();
 
-// Extrai o texto da mensagem do payload do Baileys/Evolution
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Extrai o texto da mensagem do payload do Baileys/Evolution */
 function extractMessageText(messageObj: any): string {
   if (!messageObj) return "";
   if (messageObj.conversation) return messageObj.conversation;
@@ -15,49 +17,56 @@ function extractMessageText(messageObj: any): string {
   return "";
 }
 
-// Verifica se o texto é o número de uma opção
+/** Compara opção digitada */
 function isOption(text: string, option: string): boolean {
   return text.trim() === option;
 }
 
-// Retorna horários disponíveis hardcoded (para o plano) baseados no dia atual
-// O robô vai verificar os próximos 3 dias úteis às 10:00, 14:00 e 16:00
+/** Retorna slots de horário disponíveis (3 dias úteis × 3 horários) */
 function generateAvailableSlots() {
   const slots: { label: string; date: Date }[] = [];
-  const daysToAdd = [1, 2, 3]; // próximos 3 dias
-  
-  for (const add of daysToAdd) {
+  let added = 0;
+  let offset = 1;
+
+  while (added < 9 && offset <= 14) {
     const d = new Date();
-    d.setDate(d.getDate() + add);
-    // Pula finais de semana
-    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Domingo -> Segunda
-    if (d.getDay() === 6) d.setDate(d.getDate() + 2); // Sábado -> Segunda
+    d.setDate(d.getDate() + offset);
+    offset++;
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) continue; // pula fins de semana
 
-    const baseDate = new Date(d);
-    baseDate.setMinutes(0, 0, 0);
-
-    const hours = [10, 14, 16];
     const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-    const diaNome = diasSemana[baseDate.getDay()];
-    const diaMes = `${String(baseDate.getDate()).padStart(2, '0')}/${String(baseDate.getMonth() + 1).padStart(2, '0')}`;
+    const diaNome = diasSemana[dow];
+    const diaMes = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
-    for (const h of hours) {
-      const slotDate = new Date(baseDate);
-      slotDate.setHours(h);
-      slots.push({
-        label: `${diaNome} (${diaMes}) às ${h}h00`,
-        date: slotDate
-      });
+    for (const h of [10, 14, 16]) {
+      const slot = new Date(d);
+      slot.setHours(h, 0, 0, 0);
+      slots.push({ label: `${diaNome} (${diaMes}) às ${h}h00`, date: slot });
+      added++;
     }
   }
+
   return slots;
 }
+
+// ─── Menu Principal ───────────────────────────────────────────────────────────
+
+function menuPrincipalMsg(schoolName: string): string {
+  return `Olá! Bem-vindo(a) à *${schoolName}*! 🎵\nSelecione uma opção abaixo:\n\n1️⃣ - 📅 Minhas Aulas\n2️⃣ - 💰 Financeiro\n3️⃣ - 🎵 Quero me matricular\n4️⃣ - 🎸 Falar com o Professor\n5️⃣ - ⭐ Indicar um amigo`;
+}
+
+function menuPrincipalNovoMsg(schoolName: string): string {
+  return `Olá! Bem-vindo(a) à *${schoolName}*! 🎵\nSomos especialistas em ensino musical!\n\nComo posso te ajudar?\n\n1️⃣ - 🎵 Quero me matricular\n2️⃣ - 💬 Falar com nossa equipe`;
+}
+
+// ─── Webhook ─────────────────────────────────────────────────────────────────
 
 router.post("/", async (req, res) => {
   try {
     const payload = req.body;
-    
-    // Ignora eventos que não sejam de mensagens novas
+
+    // Só processa mensagens novas
     if (payload?.event !== "messages.upsert") {
       return res.status(200).json({ ok: true });
     }
@@ -65,74 +74,94 @@ router.post("/", async (req, res) => {
     const messageData = payload.data?.message;
     if (!messageData) return res.status(200).json({ ok: true });
 
-    // Evolution API manda como payload.data no formato Baileys
-    // Verifica se fomos nós que enviamos (fromMe)
+    // Ignora mensagens enviadas por nós mesmos
     if (payload.data.key?.fromMe) {
       return res.status(200).json({ ok: true });
     }
 
     const remoteJid = payload.data.key?.remoteJid || "";
     if (!remoteJid || remoteJid.includes("@g.us")) {
-      // Ignora mensagens de grupos
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: true }); // ignora grupos
     }
 
-    const phone = remoteJid.split("@")[0]; // ex: 5511999999999
+    const phone = remoteJid.split("@")[0];
     const textMsg = extractMessageText(messageData.message);
-    const pushName = payload.data.pushName || "Estudante";
+    const pushName = payload.data.pushName || "Aluno";
 
-    if (!textMsg) {
-      return res.status(200).json({ ok: true });
-    }
+    if (!textMsg) return res.status(200).json({ ok: true });
 
-    console.log(`[Chatbot] Recebeu mensagem de ${phone}: ${textMsg}`);
+    console.log(`[Chatbot] Mensagem de ${phone}: ${textMsg}`);
 
     const db = await getDb();
-    if (!db) {
-      return res.status(500).json({ error: "DB offline" });
-    }
+    if (!db) return res.status(500).json({ error: "DB offline" });
 
-    // Identificar a qual professor pertence o número do WhatsApp que recebeu a mensagem
-    // O sessionId da Evolution API é criado como "prof_X" (onde X é o userId do professor)
-    let professorUserId = 1; // Fallback para o primeiro professor
-    const instanceName = payload.instance || ""; // ex: "prof_1"
+    // ── Identificar professor pela instância Evolution API ──
+    let professorUserId = 1;
+    const instanceName = payload.instance || "";
     if (instanceName.startsWith("prof_")) {
       const parsedId = parseInt(instanceName.split("_")[1], 10);
-      if (!isNaN(parsedId)) {
-        professorUserId = parsedId;
-      }
+      if (!isNaN(parsedId)) professorUserId = parsedId;
     }
 
-    // 1. Identificar se é aluno cadastrado DESTE PROFESSOR especificamente
-    const matchedStudents = await db.select().from(students).where(eq(students.professorId, professorUserId));
-    const student = matchedStudents.find(s => {
-      const cleanDbPhone = s.phone.replace(/\D/g, "");
-      // Comparar os 8-9 ultimos digitos para contornar problemas com o 9 a mais
-      const suffixDb = cleanDbPhone.slice(-8);
-      const suffixMsg = phone.slice(-8);
-      return suffixDb === suffixMsg;
+    // ── Verificar se o chatbot está habilitado ──
+    const [profSettings] = await db
+      .select({
+        chatbotEnabled: settings.chatbotEnabled,
+        schoolName: settings.schoolName,
+        whatsappBotUrl: settings.whatsappBotUrl,
+        whatsappBotToken: settings.whatsappBotToken,
+      })
+      .from(settings)
+      .where(eq(settings.userId, professorUserId))
+      .limit(1);
+
+    if (!profSettings || profSettings.chatbotEnabled !== 1) {
+      // Robô desativado — ignora silenciosamente
+      return res.status(200).json({ ok: true });
+    }
+
+    const schoolName = profSettings.schoolName || "nossa Escola de Música";
+
+    // ── Função auxiliar de resposta ──
+    const sendReply = async (msg: string) => {
+      await sendWhatsAppMessage({
+        phone,
+        message: msg,
+        sessionId: instanceName || "prof_1",
+      });
+    };
+
+    // ── Identificar aluno cadastrado ──
+    const allStudents = await db
+      .select()
+      .from(students)
+      .where(eq(students.professorId, professorUserId));
+
+    const student = allStudents.find((s) => {
+      const cleanDb = s.phone.replace(/\D/g, "").slice(-8);
+      const cleanMsg = phone.slice(-8);
+      return cleanDb === cleanMsg;
     });
 
-    // 2. Recuperar ou criar Sessão do Chatbot
-    let [session] = await db.select().from(chatbotSessions).where(eq(chatbotSessions.phone, phone));
-    
-    // Tratamento para multi-professores: Se o aluno já tinha sessão mas mudou de professor (falou com outro número),
-    // nós resetamos o estado da sessão dele para o início para não misturar as conversas.
+    // ── Recuperar ou criar sessão ──
+    let [session] = await db
+      .select()
+      .from(chatbotSessions)
+      .where(eq(chatbotSessions.phone, phone));
+
     let sessionData: any = {};
-    if (session && session.data) {
-      try {
-        sessionData = JSON.parse(session.data);
-      } catch (e) {}
+    if (session?.data) {
+      try { sessionData = JSON.parse(session.data); } catch (_) {}
     }
 
+    // Reset de sessão se mudou de professor
     if (session && sessionData.activeProfessorId && sessionData.activeProfessorId !== professorUserId) {
       sessionData = { activeProfessorId: professorUserId };
       await db.update(chatbotSessions).set({
         state: "START",
         data: JSON.stringify(sessionData),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }).where(eq(chatbotSessions.id, session.id));
-
       session.state = "START";
       session.data = JSON.stringify(sessionData);
     }
@@ -142,53 +171,66 @@ router.post("/", async (req, res) => {
       [session] = await db.insert(chatbotSessions).values({
         phone,
         state: "START",
-        data: JSON.stringify(sessionData)
+        data: JSON.stringify(sessionData),
       }).returning();
     }
 
-    // Função auxiliar para enviar resposta usando a instância do respectivo professor
-    const sendReply = async (msg: string) => {
-      await sendWhatsAppMessage({
-        phone,
-        message: msg,
-        sessionId: instanceName || "prof_1"
-      });
+    const updateState = async (state: string, data?: any) => {
+      const mergedData = { ...sessionData, ...(data || {}), activeProfessorId: professorUserId };
+      await db.update(chatbotSessions).set({
+        state,
+        data: JSON.stringify(mergedData),
+        updatedAt: new Date(),
+      }).where(eq(chatbotSessions.id, session.id));
+      session.state = state;
+      sessionData = mergedData;
     };
 
-    // Lógica do Chatbot Baseada no Estado
-    
-    // --- USUÁRIO PEDIU PARA FALAR COM HUMANO OU ESTÁ PAUSADO ---
+    const input = textMsg.trim();
+    const inputUpper = input.toUpperCase();
+
+    // ─────────────────────────────────────────────────────
+    // ESTADO: PAUSED_HUMAN — robô em silêncio
+    // ─────────────────────────────────────────────────────
     if (session.state === "PAUSED_HUMAN") {
-      // O bot fica em silêncio. Para religar, se o user mandar "MENU"
-      if (textMsg.toUpperCase().trim() === "MENU") {
-        await db.update(chatbotSessions).set({ 
-          state: "START", 
-          data: JSON.stringify({ activeProfessorId: professorUserId }),
-          updatedAt: new Date() 
-        }).where(eq(chatbotSessions.id, session.id));
-        await sendReply("O atendimento robótico foi reativado! 🤖");
-        session.state = "START";
-      } else {
-        return res.status(200).json({ ok: true });
+      if (inputUpper === "MENU") {
+        await updateState("START");
+        await sendReply("O atendimento automático foi reativado! 🤖\nDigite qualquer mensagem para continuar.");
       }
+      return res.status(200).json({ ok: true });
     }
 
-    // --- ALUNO CADASTRADO DO PROFESSOR ---
-    if (student) {
-      if (session.state === "START" || session.state === "STUDENT_MENU") {
-        if (session.state === "START") {
-          await db.update(chatbotSessions).set({ 
-            state: "STUDENT_MENU", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }),
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          await sendReply(`Olá, ${student.name.split(' ')[0]}! 🎵\nBem-vindo ao autoatendimento.\n\nEscolha uma opção digitando o número:\n1️⃣ - Minhas próximas aulas\n2️⃣ - Falar com o professor`);
-          return res.status(200).json({ ok: true });
-        }
+    // ─────────────────────────────────────────────────────
+    // ESTADO: START — exibir menu conforme perfil do usuário
+    // ─────────────────────────────────────────────────────
+    if (session.state === "START") {
+      if (student) {
+        await updateState("MENU_ALUNO");
+        await sendReply(
+          `Olá, *${student.name.split(" ")[0]}*! 🎵 Que bom te ver aqui!\n\nEscolha uma opção:\n\n1️⃣ - 📅 Minhas Aulas\n2️⃣ - 💰 Financeiro\n3️⃣ - 🎸 Falar com o Professor\n4️⃣ - ⭐ Indicar um amigo`
+        );
+      } else {
+        await updateState("MENU_NOVO");
+        await sendReply(menuPrincipalNovoMsg(schoolName));
+      }
+      return res.status(200).json({ ok: true });
+    }
 
-        if (isOption(textMsg, "1")) {
-          // Busca próximas aulas deste aluno
-          const nextLessons = await db.select().from(lessons).where(
+    // ─────────────────────────────────────────────────────
+    // MENU: ALUNO CADASTRADO
+    // ─────────────────────────────────────────────────────
+    if (session.state === "MENU_ALUNO") {
+      if (!student) {
+        await updateState("START");
+        return res.status(200).json({ ok: true });
+      }
+
+      if (isOption(input, "1")) {
+        // Ver próximas aulas
+        const nextLessons = await db
+          .select()
+          .from(lessons)
+          .where(
             and(
               eq(lessons.studentId, student.id),
               gte(lessons.scheduledAt, new Date()),
@@ -196,97 +238,109 @@ router.post("/", async (req, res) => {
             )
           );
 
-          if (nextLessons.length === 0) {
-            await sendReply("Você não possui aulas agendadas no momento. 📅\n\nDigite MENU para voltar.");
-          } else {
-            let msg = "📅 *Suas próximas aulas:*\n\n";
-            nextLessons.slice(0, 3).forEach(l => {
-              const data = l.scheduledAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-              const hora = l.scheduledAt.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', timeZone: "America/Sao_Paulo" });
-              msg += `🔹 *${data}* às *${hora}* (${l.duration} min)\n`;
-            });
-            msg += "\nDigite MENU para voltar.";
-            await sendReply(msg);
-          }
-          await db.update(chatbotSessions).set({ 
-            state: "STUDENT_VIEW", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }),
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          return res.status(200).json({ ok: true });
+        if (nextLessons.length === 0) {
+          await sendReply("Você não possui aulas agendadas no momento. 📅\n\nDigite *MENU* para voltar.");
+        } else {
+          let msg = `📅 *Suas próximas aulas:*\n\n`;
+          nextLessons.slice(0, 5).forEach((l) => {
+            const data = l.scheduledAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+            const hora = l.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+            msg += `🔹 *${data}* às *${hora}* (${l.duration} min)\n`;
+          });
+          msg += "\nDigite *MENU* para voltar.";
+          await sendReply(msg);
         }
-        else if (isOption(textMsg, "2")) {
-          await db.update(chatbotSessions).set({ 
-            state: "PAUSED_HUMAN", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }),
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          await sendReply("Certo! Estou transferindo você para o professor. Aguarde um instante que logo você será atendido. 👤");
-          return res.status(200).json({ ok: true });
-        }
-        else {
-          await sendReply("Desculpe, não entendi. Digite *1* para suas aulas ou *2* para falar com o professor.");
-          return res.status(200).json({ ok: true });
-        }
-      }
-
-      if (session.state === "STUDENT_VIEW") {
-        if (textMsg.toUpperCase().trim() === "MENU") {
-          await db.update(chatbotSessions).set({ 
-            state: "START", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }),
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          await sendReply("Voltando ao menu principal...");
-        }
+        await updateState("AGUARDANDO_MENU");
         return res.status(200).json({ ok: true });
       }
-    } 
-    
-    // --- NOVO ALUNO (NÃO CADASTRADO NESTE PROFESSOR) ---
-    else {
-      if (session.state === "START" || session.state === "NEW_USER_MENU") {
-        if (session.state === "START") {
-          await db.update(chatbotSessions).set({ 
-            state: "NEW_USER_MENU", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }),
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          await sendReply(`Olá! Bem-vindo(a) à nossa Escola de Música! 🎵\nSomos especialistas em ensino musical e estamos prontos para te ajudar a realizar seu sonho.\n\nComo posso te ajudar hoje?\n1️⃣ - Marcar Aula Experimental\n2️⃣ - Falar com o professor`);
-          return res.status(200).json({ ok: true });
-        }
 
-        if (isOption(textMsg, "1")) {
-          await db.update(chatbotSessions).set({ 
-            state: "NEW_USER_NAME", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }),
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          await sendReply("Que ótimo! Vamos marcar sua aula experimental. 🎉\n\nPor favor, digite o seu *NOME COMPLETO* para começarmos:");
-          return res.status(200).json({ ok: true });
+      if (isOption(input, "2")) {
+        // Financeiro
+        const pendingDues = await db
+          .select()
+          .from(paymentDues)
+          .where(
+            and(
+              eq(paymentDues.studentId, student.id),
+              eq(paymentDues.status, "pendente")
+            )
+          );
+
+        if (pendingDues.length === 0) {
+          await sendReply("✅ Parabéns! Você está em dia com seus pagamentos!\n\nDigite *MENU* para voltar.");
+        } else {
+          let msg = `💰 *Suas mensalidades em aberto:*\n\n`;
+          pendingDues.slice(0, 5).forEach((p) => {
+            const valor = parseFloat(String(p.amount)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            const venc = new Date(p.dueDate + "T12:00:00").toLocaleDateString("pt-BR");
+            msg += `🔸 *${valor}* — venc. ${venc}\n`;
+            if (p.asaasPaymentLink) {
+              msg += `   💳 Pagar: ${p.asaasPaymentLink}\n`;
+            }
+          });
+          msg += "\nDigite *MENU* para voltar ou *4* para falar com o professor.";
+          await sendReply(msg);
         }
-        else if (isOption(textMsg, "2")) {
-          await db.update(chatbotSessions).set({ 
-            state: "PAUSED_HUMAN", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }),
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          await sendReply("Certo! Estou te transferindo para o professor. Logo responderemos! 👤");
-          return res.status(200).json({ ok: true });
-        }
-        else {
-          await sendReply("Desculpe, não entendi. Digite *1* para marcar uma aula ou *2* para falar com o professor.");
-          return res.status(200).json({ ok: true });
-        }
+        await updateState("AGUARDANDO_MENU");
+        return res.status(200).json({ ok: true });
       }
 
-      if (session.state === "NEW_USER_NAME") {
-        const newName = textMsg.trim();
-        
-        // Gerar horários disponiveis
-        const slots = generateAvailableSlots();
-        // Checar ocupados apenas para ESTE professor
-        const ocupadas = await db.select().from(lessons).where(
+      if (isOption(input, "3")) {
+        // Falar com professor
+        await updateState("PAUSED_HUMAN");
+        await sendReply("Certo! Estou te transferindo para o professor. Aguarde um instante! 👤\n\n_Para reativar o robô, digite MENU._");
+        return res.status(200).json({ ok: true });
+      }
+
+      if (isOption(input, "4")) {
+        // Indicar amigo
+        await updateState("INDICAR_NOME");
+        await sendReply("Que ótimo! Vamos registrar a sua indicação. 🌟\n\nDigite o *nome completo* do seu amigo que deseja indicar:");
+        return res.status(200).json({ ok: true });
+      }
+
+      // Opção inválida
+      await sendReply("Desculpe, não entendi. Digite o número da opção desejada:\n\n1️⃣ - 📅 Minhas Aulas\n2️⃣ - 💰 Financeiro\n3️⃣ - 🎸 Falar com o Professor\n4️⃣ - ⭐ Indicar um amigo");
+      return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // MENU: NOVO USUÁRIO (NÃO CADASTRADO)
+    // ─────────────────────────────────────────────────────
+    if (session.state === "MENU_NOVO") {
+      if (isOption(input, "1")) {
+        // Quero me matricular
+        await updateState("MATRICULA_NOME");
+        await sendReply("Que incrível! Vamos começar sua matrícula. 🎉\n\nPrimeiro, me diga o seu *nome completo*:");
+        return res.status(200).json({ ok: true });
+      }
+
+      if (isOption(input, "2")) {
+        // Falar com equipe
+        await updateState("PAUSED_HUMAN");
+        await sendReply("Certo! Estou te transferindo para nossa equipe. Responderemos em breve! 👤\n\n_Para reativar o robô, digite MENU._");
+        return res.status(200).json({ ok: true });
+      }
+
+      await sendReply(`Desculpe, não entendi. Digite o número da opção:\n\n1️⃣ - 🎵 Quero me matricular\n2️⃣ - 💬 Falar com nossa equipe`);
+      return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // FLUXO: MATRÍCULA — Nome
+    // ─────────────────────────────────────────────────────
+    if (session.state === "MATRICULA_NOME") {
+      const nome = input;
+      if (nome.length < 3) {
+        await sendReply("Por favor, insira seu nome completo.");
+        return res.status(200).json({ ok: true });
+      }
+
+      const slots = generateAvailableSlots();
+      const ocupadas = await db
+        .select()
+        .from(lessons)
+        .where(
           and(
             eq(lessons.userId, professorUserId),
             gte(lessons.scheduledAt, new Date()),
@@ -294,86 +348,122 @@ router.post("/", async (req, res) => {
           )
         );
 
-        // Filtra slots ocupados (mesmo horário exato)
-        const freeSlots = slots.filter(slot => {
-          return !ocupadas.some(l => l.scheduledAt.getTime() === slot.date.getTime());
-        });
+      const freeSlots = slots
+        .filter((s) => !ocupadas.some((l) => l.scheduledAt.getTime() === s.date.getTime()))
+        .slice(0, 5);
 
-        const dataObj = { 
-          name: newName, 
-          freeSlots: freeSlots.slice(0, 5),
-          activeProfessorId: professorUserId 
-        };
+      await updateState("MATRICULA_SLOT", { matriculaNome: nome, freeSlots });
 
-        await db.update(chatbotSessions).set({ 
-          state: "NEW_USER_SLOT", 
-          data: JSON.stringify(dataObj),
-          updatedAt: new Date() 
-        }).where(eq(chatbotSessions.id, session.id));
+      let msg = `Prazer, *${nome}*! 😊\nTemos os seguintes horários disponíveis para a sua aula experimental:\n\n`;
+      freeSlots.forEach((s, i) => {
+        msg += `${i + 1}️⃣ - ${s.label}\n`;
+      });
+      msg += "\nDigite o *número* do horário desejado ou *0* para falar com nossa equipe.";
+      await sendReply(msg);
+      return res.status(200).json({ ok: true });
+    }
 
-        let msg = `Prazer, ${newName}! 😊\nTemos os seguintes horários livres para a sua aula experimental com o professor:\n\n`;
-        dataObj.freeSlots.forEach((s, idx) => {
-          msg += `${idx + 1}️⃣ - ${s.label}\n`;
-        });
-        msg += "\nDigite o *número* da opção desejada ou *0* para falar com o professor.";
-        await sendReply(msg);
+    // ─────────────────────────────────────────────────────
+    // FLUXO: MATRÍCULA — Escolher horário
+    // ─────────────────────────────────────────────────────
+    if (session.state === "MATRICULA_SLOT") {
+      if (isOption(input, "0")) {
+        await updateState("PAUSED_HUMAN");
+        await sendReply("Transferindo para nossa equipe para vermos um horário! 👤\n\n_Para reativar o robô, digite MENU._");
         return res.status(200).json({ ok: true });
       }
 
-      if (session.state === "NEW_USER_SLOT") {
-        if (textMsg === "0") {
-          await db.update(chatbotSessions).set({ 
-            state: "PAUSED_HUMAN", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }),
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          await sendReply("Certo, transferindo para o professor para vermos outro horário! 👤");
-          return res.status(200).json({ ok: true });
-        }
+      const currentData: any = {};
+      try { Object.assign(currentData, JSON.parse(session.data || "{}")); } catch (_) {}
 
-        let sessionData: any = {};
-        try { sessionData = JSON.parse(session.data || "{}"); } catch(e){}
+      const idx = parseInt(input) - 1;
+      if (!isNaN(idx) && currentData.freeSlots && currentData.freeSlots[idx]) {
+        const slot = currentData.freeSlots[idx];
+        const nome = currentData.matriculaNome || "Novo Aluno";
 
-        const optionIdx = parseInt(textMsg) - 1;
-        if (!isNaN(optionIdx) && sessionData.freeSlots && sessionData.freeSlots[optionIdx]) {
-          const chosenSlot = sessionData.freeSlots[optionIdx];
-          
-          // Agendar a aula associada ao professor correto
-          const orgIdResult = await db.select({ organizationId: settings.organizationId })
-            .from(settings)
-            .where(eq(settings.userId, professorUserId))
-            .limit(1);
-          
-          const orgId = orgIdResult[0]?.organizationId;
+        // Buscar orgId do professor
+        const orgResult = await db
+          .select({ organizationId: settings.organizationId })
+          .from(settings)
+          .where(eq(settings.userId, professorUserId))
+          .limit(1);
+        const orgId = orgResult[0]?.organizationId;
 
-          await db.insert(lessons).values({
-            organizationId: orgId,
-            userId: professorUserId,
-            isExperimental: true,
-            experimentalName: sessionData.name,
-            title: `Aula Experimental - ${sessionData.name}`,
-            scheduledAt: new Date(chosenSlot.date),
-            duration: 60,
-            status: "agendada",
-            lessonType: "individual"
-          });
+        await db.insert(lessons).values({
+          organizationId: orgId,
+          userId: professorUserId,
+          isExperimental: true,
+          experimentalName: nome,
+          experimentalPhone: phone,
+          title: `Aula Experimental - ${nome}`,
+          scheduledAt: new Date(slot.date),
+          duration: 60,
+          status: "agendada",
+          lessonType: "individual",
+        });
 
-          await db.update(chatbotSessions).set({ 
-            state: "START", 
-            data: JSON.stringify({ activeProfessorId: professorUserId }), 
-            updatedAt: new Date() 
-          }).where(eq(chatbotSessions.id, session.id));
-          
-          await sendReply(`Tudo certo, ${sessionData.name}! 🎉\nSua aula experimental foi agendada para *${chosenSlot.label}*.\n\nFicamos te aguardando! Se precisar de algo, só mandar mensagem e escolher falar com o professor.`);
-          return res.status(200).json({ ok: true });
-        } else {
-          await sendReply("Opção inválida. Por favor, digite o número correspondente ao horário ou 0 para falar com o professor.");
-          return res.status(200).json({ ok: true });
-        }
+        await updateState("START", {});
+        await sendReply(
+          `Perfeito, *${nome}*! 🎉\nSua aula experimental foi agendada para *${slot.label}*.\n\nFicamos te esperando! Se precisar de qualquer coisa, pode mandar mensagem.\n\nDigite *MENU* para voltar ao início.`
+        );
+        return res.status(200).json({ ok: true });
       }
+
+      await sendReply("Opção inválida. Por favor, digite o número correspondente ou *0* para falar com nossa equipe.");
+      return res.status(200).json({ ok: true });
     }
 
+    // ─────────────────────────────────────────────────────
+    // FLUXO: INDICAÇÃO — Nome do amigo
+    // ─────────────────────────────────────────────────────
+    if (session.state === "INDICAR_NOME") {
+      const nomeAmigo = input;
+      if (nomeAmigo.length < 3) {
+        await sendReply("Por favor, insira o nome completo do seu amigo.");
+        return res.status(200).json({ ok: true });
+      }
+
+      await updateState("INDICAR_PHONE", { indicacaoNome: nomeAmigo });
+      await sendReply(`Ótimo! E qual é o *número de WhatsApp* de *${nomeAmigo}*?\n\n_Ex: 11999998888_`);
+      return res.status(200).json({ ok: true });
+    }
+
+    if (session.state === "INDICAR_PHONE") {
+      const currentData: any = {};
+      try { Object.assign(currentData, JSON.parse(session.data || "{}")); } catch (_) {}
+
+      const nomeAmigo = currentData.indicacaoNome || "Amigo";
+      const telAmigo = input.replace(/\D/g, "");
+      const indicadorNome = student?.name || pushName;
+
+      console.log(`[Chatbot] Indicação registrada: ${nomeAmigo} (${telAmigo}) indicado por ${indicadorNome} (${phone})`);
+
+      await updateState("START", {});
+      await sendReply(
+        `Obrigado pela indicação! 🌟\nVamos entrar em contato com *${nomeAmigo}* em breve.\n\nVocê é incrível! 🎵\n\nDigite *MENU* para voltar ao início.`
+      );
+      return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // ESTADO: AGUARDANDO_MENU — espera o usuário digitar MENU
+    // ─────────────────────────────────────────────────────
+    if (session.state === "AGUARDANDO_MENU") {
+      if (inputUpper === "MENU") {
+        await updateState("START");
+        await sendReply("Voltando ao menu principal... 🎵");
+      } else {
+        await sendReply("Digite *MENU* para voltar ao início.");
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // Fallback — qualquer estado desconhecido volta ao START
+    // ─────────────────────────────────────────────────────
+    await updateState("START");
     return res.status(200).json({ ok: true });
+
   } catch (error) {
     console.error("[WhatsApp Webhook] Erro:", error);
     return res.status(500).json({ error: "Internal Error" });

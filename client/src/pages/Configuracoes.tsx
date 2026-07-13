@@ -784,6 +784,7 @@ export default function Configuracoes() {
   const [whatsappBotUrl, setWhatsappBotUrl] = useState("");
   const [whatsappBotToken, setWhatsappBotToken] = useState("");
   const [whatsappAutoSend, setWhatsappAutoSend] = useState(false);
+  const [chatbotEnabled, setChatbotEnabled] = useState(false);
 
   // 💱 Pagamentos state 💱
   const [asaasApiKey, setAsaasApiKey] = useState("");
@@ -834,6 +835,7 @@ export default function Configuracoes() {
       setWhatsappBotUrl(settings.whatsappBotUrl ?? "");
       setWhatsappBotToken(settings.whatsappBotToken ?? "");
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
+      setChatbotEnabled((settings as any).chatbotEnabled === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
       setPaymentGateway((settings.paymentGateway as "asaas" | "mercadopago") || "asaas");
@@ -910,6 +912,19 @@ export default function Configuracoes() {
     },
     onError: (e) => toast.error("Erro ao atualizar WhatsApp: " + e.message),
   });
+
+  const toggleChatbotMutation = trpc.settings.toggleChatbot.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.enabled ? "🤖 Robô de autoatendimento ATIVADO!" : "Robô de autoatendimento desativado.");
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao alterar o robô: " + e.message),
+  });
+
+  const handleToggleChatbot = (val: boolean) => {
+    setChatbotEnabled(val);
+    toggleChatbotMutation.mutate({ enabled: val });
+  };
 
   const updateAsaasMutation = trpc.settings.updateAsaasIntegration.useMutation({
     onSuccess: () => {
@@ -1482,6 +1497,45 @@ export default function Configuracoes() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
+
+                  {/* ── Toggle: Robô de Autoatendimento ── */}
+                  <div className={cn(
+                    "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300",
+                    chatbotEnabled
+                      ? "bg-green-500/10 border-green-500/30"
+                      : "bg-muted border-border"
+                  )}>
+                    <div className="flex items-center gap-4 pr-4">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 text-lg",
+                        chatbotEnabled
+                          ? "bg-green-500 shadow-lg shadow-green-500/30"
+                          : "bg-muted-foreground/20"
+                      )}>
+                        🤖
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-black text-foreground uppercase tracking-widest">Robô de Autoatendimento</p>
+                          {chatbotEnabled && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400 text-[9px] font-black uppercase tracking-wider">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
+                              ATIVO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
+                          Responde automaticamente mensagens recebidas no WhatsApp com um menu interativo: aulas, financeiro, matrículas e muito mais.
+                        </p>
+                      </div>
+                    </div>
+                    <Toggle
+                      checked={chatbotEnabled}
+                      onChange={handleToggleChatbot}
+                    />
+                  </div>
+
+                  {/* ── Toggle: Disparo Automático ── */}
                   <div className="flex items-center justify-between p-5 bg-muted rounded-2xl border border-border group hover:border-indigo-100 transition-colors">
                     <div className="pr-4">
                       <p className="text-xs font-black text-foreground uppercase tracking-widest mb-1">Disparo Automático em Segundo Plano</p>

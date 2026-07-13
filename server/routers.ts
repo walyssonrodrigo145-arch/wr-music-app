@@ -3652,6 +3652,15 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       return { success: true, enabled: input.enabled };
     }),
 
+    toggleChatbot: protectedProcedure.input(z.object({
+      enabled: z.boolean(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
+        chatbotEnabled: input.enabled ? 1 : 0,
+      });
+      return { success: true, enabled: input.enabled };
+    }),
+
     updateWhatsAppBot: protectedProcedure.input(z.object({
       whatsappBotUrl: z.string().optional(),
       whatsappBotToken: z.string().optional(),

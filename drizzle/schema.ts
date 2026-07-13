@@ -203,6 +203,8 @@ export const settings = pgTable("settings", {
   whatsappBotUrl: varchar("whatsappBotUrl", { length: 255 }),
   whatsappBotToken: text("whatsappBotToken"),
   whatsappAutoSend: integer("whatsappAutoSend").default(0).notNull(),
+  // Chatbot (Robô de Autoatendimento WhatsApp)
+  chatbotEnabled: integer("chatbotEnabled").default(0).notNull(),
   // Asaas Integration
   asaasApiKey: text("asaasApiKey"),
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
