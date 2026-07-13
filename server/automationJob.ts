@@ -7,7 +7,7 @@
 import { eq, and, gte, lte, lt, desc, sql, or, like } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
-import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users } from "../drizzle/schema";
+import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users, notifications } from "../drizzle/schema";
 import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession } from "./utils/whatsapp";
 import { sendSmartWhatsAppNotification } from "./utils/whatsappRouting";
 
@@ -84,6 +84,8 @@ async function runAutomation() {
       whatsappBotToken: settings.whatsappBotToken,
       whatsappAutoSend: settings.whatsappAutoSend,
       pixKey: settings.pixKey,
+      notifyLessonReminder: settings.notifyLessonReminder,
+      notifyPaymentDue: settings.notifyPaymentDue,
     })
     .from(settings)
     .where(eq(settings.automationEnabled, 1));
@@ -231,6 +233,58 @@ async function runAutomation() {
       }
 
 
+      // ─── 3.5 ALERTA DE PAGAMENTO PENDENTE (HOJE) ─────────────────────────
+      if (userSettings.notifyPaymentDue === 1) {
+        // Busca pagamentos com vencimento hoje
+        const duesToday = await db.select({
+          id: paymentDues.id,
+          amount: paymentDues.amount,
+          studentName: students.name
+        })
+        .from(paymentDues)
+        .innerJoin(students, eq(paymentDues.studentId, students.id))
+        .where(and(
+          eq(paymentDues.organizationId, orgId),
+          eq(paymentDues.userId, userId),
+          eq(paymentDues.status, 'pendente'),
+          eq(paymentDues.dueDate, todayStr)
+        ));
+
+        for (const due of duesToday) {
+          const actionUrl = `/financeiro?paymentId=${due.id}`;
+          
+          // Verifica se já enviou notificação interna para este pagamento hoje
+          const existingNotifs = await db.select({ id: notifications.id })
+            .from(notifications)
+            .where(and(
+              eq(notifications.organizationId, orgId),
+              eq(notifications.userId, userId),
+              eq(notifications.actionUrl, actionUrl)
+            ))
+            .limit(1);
+
+          if (existingNotifs.length === 0) {
+            const formattedAmount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(due.amount));
+            const content = `A mensalidade de ${due.studentName || 'Desconhecido'} no valor de ${formattedAmount} vence hoje.`;
+            
+            await db.insert(notifications).values({
+              organizationId: orgId,
+              userId: userId,
+              title: "⚠️ Mensalidade Vencendo Hoje",
+              message: content,
+              type: "warning",
+              actionUrl: actionUrl,
+            });
+
+            try {
+              await notifyUser(userId, { title: "⚠️ Mensalidade Vencendo Hoje", content });
+            } catch (e) {
+              console.error("[Automation] Erro ao enviar push de pagamento:", e);
+            }
+          }
+        }
+      }
+
       // ─── 4. ALERTA DE AULA (1 HORA OU 30 MINUTOS ANTES) ─────────────────────
       // Busca aulas agendadas nas próximas 1h15m (75 minutos)
       const maxAlertTime = new Date(now.getTime() + 75 * 60 * 1000);
@@ -265,10 +319,13 @@ async function runAutomation() {
         if (diffMinutes >= 50 && diffMinutes <= 70 && !lesson.alertSent1h) {
           const timeStr = new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
           const dateStr = new Date(lesson.scheduledAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-          await notifyUser(userId, {
-            title: `🎸 Lembrete de Aula: ${lesson.title}`,
-            content: `👤 Aluno: ${lesson.studentName || "Aluno"}\n📱 Número: ${lesson.studentPhone || "Não cadastrado"}\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}`
-          });
+          
+          if (userSettings.notifyLessonReminder === 1) {
+            await notifyUser(userId, {
+              title: `🎸 Lembrete de Aula: ${lesson.title}`,
+              content: `👤 Aluno: ${lesson.studentName || "Aluno"}\n📱 Número: ${lesson.studentPhone || "Não cadastrado"}\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}`
+            });
+          }
           
           await db
             .update(lessons)
@@ -280,10 +337,13 @@ async function runAutomation() {
         if (diffMinutes >= 20 && diffMinutes <= 40 && !lesson.alertSent30m) {
           const timeStr = new Date(lesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
           const dateStr = new Date(lesson.scheduledAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-          await notifyUser(userId, {
-            title: `🎸 Lembrete de Aula: ${lesson.title}`,
-            content: `👤 Aluno: ${lesson.studentName || "Aluno"}\n📱 Número: ${lesson.studentPhone || "Não cadastrado"}\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}`
-          });
+          
+          if (userSettings.notifyLessonReminder === 1) {
+            await notifyUser(userId, {
+              title: `🎸 Lembrete de Aula: ${lesson.title}`,
+              content: `👤 Aluno: ${lesson.studentName || "Aluno"}\n📱 Número: ${lesson.studentPhone || "Não cadastrado"}\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}`
+            });
+          }
           
           await db
             .update(lessons)
@@ -556,6 +616,7 @@ async function runAutomation() {
           whatsappBotToken: settings.whatsappBotToken,
           whatsappAutoSend: settings.whatsappAutoSend,
           pixKey: settings.pixKey,
+          notifyWeeklyReport: settings.notifyWeeklyReport,
         })
         .from(settings)
         .where(eq(settings.automationEnabled, 1));
@@ -911,8 +972,8 @@ async function runAutomation() {
                   instrumentName: instruments.name,
                 })
                 .from(lessons)
-                .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
-                .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(students.organizationId, orgId)))
+                .leftJoin(students, and(eq(lessons.studentId, students.id), eq(lessons.organizationId, orgId)))
+                .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
                 .where(
                   and(
                     eq(lessons.organizationId, orgId),
@@ -1064,7 +1125,7 @@ async function runAutomation() {
                   instrumentName: instruments.name,
                 })
                 .from(paymentDues)
-                .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
+                .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(paymentDues.organizationId, orgId)))
                 .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
                 .where(
                   and(

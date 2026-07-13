@@ -448,7 +448,7 @@ function WhatsAppSessionManager() {
                   <label className="text-xs font-black uppercase tracking-widest text-foreground block mb-2.5">DDD + Número do Celular</label>
                   <div className="relative">
                     <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
+                    <DebouncedInput
                       value={phoneNumber}
                       onChange={e => {
                         let clean = e.target.value.replace(/\D/g, "");
@@ -1017,7 +1017,7 @@ export default function Configuracoes() {
                   <Field label="Nome completo">
                     <div className="relative">
                       <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input
+                      <DebouncedInput
                         value={profileName}
                         onChange={e => setProfileName(e.target.value)}
                         placeholder="Seu nome"
@@ -1029,7 +1029,7 @@ export default function Configuracoes() {
                   <Field label="E-mail profissional">
                     <div className="relative">
                       <Mail size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input
+                      <DebouncedInput
                         value={profileEmail}
                         onChange={e => setProfileEmail(e.target.value)}
                         placeholder="seu@email.com"
@@ -1042,7 +1042,7 @@ export default function Configuracoes() {
                   <Field label="Telefone / WhatsApp">
                     <div className="relative">
                       <Phone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input
+                      <DebouncedInput
                         value={profilePhone}
                         onChange={e => setProfilePhone(e.target.value)}
                         placeholder="(11) 99999-9999"
@@ -1056,7 +1056,7 @@ export default function Configuracoes() {
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10H7z"/><path d="M16 16h2v2h-2z"/><path d="M16 6h2v2h-2z"/><path d="M6 16h2v2H6z"/><path d="M6 6h2v2H6z"/></svg>
                       </div>
-                      <Input
+                      <DebouncedInput
                         value={profilePixKey}
                         onChange={e => setProfilePixKey(e.target.value)}
                         placeholder="CPF, E-mail ou Telefone"
@@ -1069,7 +1069,7 @@ export default function Configuracoes() {
                 <Field label="Bio / Apresentação" hint="Aparece no seu perfil público">
                   <div className="relative">
                     <FileText size={14} className="absolute left-4 top-4 text-muted-foreground" />
-                    <textarea
+                    <DebouncedTextarea
                       value={profileBio}
                       onChange={e => setProfileBio(e.target.value)}
                       placeholder="Conte um pouco sobre você..."
@@ -1110,7 +1110,7 @@ export default function Configuracoes() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                   <Field label="Nome da escola">
-                    <Input
+                    <DebouncedInput
                       value={schoolName}
                       onChange={e => setSchoolName(e.target.value)}
                       placeholder="Ex: Escola Harmonia"
@@ -1119,7 +1119,7 @@ export default function Configuracoes() {
                   </Field>
 
                   <Field label="Telefone comercial">
-                    <Input
+                    <DebouncedInput
                       value={schoolPhone}
                       onChange={e => setSchoolPhone(e.target.value)}
                       placeholder="(11) 3333-4444"
@@ -1128,7 +1128,7 @@ export default function Configuracoes() {
                   </Field>
 
                   <Field label="Cidade / UF">
-                    <Input
+                    <DebouncedInput
                       value={schoolCity}
                       onChange={e => setSchoolCity(e.target.value)}
                       placeholder="Ex: São Paulo, SP"
@@ -1137,7 +1137,7 @@ export default function Configuracoes() {
                   </Field>
 
                   <Field label="Endereço">
-                    <Input
+                    <DebouncedInput
                       value={schoolAddress}
                       onChange={e => setSchoolAddress(e.target.value)}
                       placeholder="Rua, número, bairro"
@@ -1147,7 +1147,7 @@ export default function Configuracoes() {
                 </div>
 
                 <Field label="Site ou Instagram">
-                  <Input
+                  <DebouncedInput
                     value={schoolWebsite}
                     onChange={e => setSchoolWebsite(e.target.value)}
                     placeholder="https://suaescola.com.br"
@@ -1156,7 +1156,7 @@ export default function Configuracoes() {
                 </Field>
 
                 <Field label="Sobre a escola">
-                  <textarea
+                  <DebouncedTextarea
                     value={schoolDescription}
                     onChange={e => setSchoolDescription(e.target.value)}
                     placeholder="Breve descrição da metodologia..."
@@ -1166,7 +1166,7 @@ export default function Configuracoes() {
                 </Field>
 
                 <Field label="Dias de Previsão por Vencimento">
-                  <Input
+                  <DebouncedInput
                     type="text"
                     value={dueDaysForecast}
                     onChange={e => setDueDaysForecast(e.target.value)}
@@ -1199,14 +1199,14 @@ export default function Configuracoes() {
                         <span className="text-xs font-bold w-24">{label}</span>
                         {schoolHours[day]?.active ? (
                           <div className="flex items-center gap-2">
-                            <Input 
+                            <DebouncedInput 
                               type="time" 
                               className="h-8 text-xs px-2"
                               value={schoolHours[day]?.start || "08:00"}
                               onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], start: e.target.value}})}
                             />
                             <span className="text-xs text-muted-foreground">às</span>
-                            <Input 
+                            <DebouncedInput 
                               type="time" 
                               className="h-8 text-xs px-2"
                               value={schoolHours[day]?.end || "18:00"}
@@ -1480,7 +1480,7 @@ export default function Configuracoes() {
                         label="Chave da API Asaas (API Key)"
                         hint="A chave secreta gerada no painel do Asaas (Configurações > Integrações > Gerar API Key)."
                       >
-                        <Input
+                        <DebouncedInput
                           type="password"
                           value={asaasApiKey}
                           onChange={(e) => setAsaasApiKey(e.target.value)}
@@ -1504,7 +1504,7 @@ export default function Configuracoes() {
                         label="Access Token Mercado Pago"
                         hint="A chave secreta gerada no painel de desenvolvedor do Mercado Pago."
                       >
-                        <Input
+                        <DebouncedInput
                           type="password"
                           value={mpAccessToken}
                           onChange={(e) => setMpAccessToken(e.target.value)}
@@ -1560,7 +1560,7 @@ export default function Configuracoes() {
                       label="Chave da API Gemini"
                       hint="Esta chave é individual e será usada para gerar as respostas da inteligência artificial no seu painel."
                     >
-                      <Input
+                      <DebouncedInput
                         type="password"
                         value={geminiApiKey}
                         onChange={(e) => setGeminiApiKey(e.target.value)}
@@ -1596,7 +1596,7 @@ export default function Configuracoes() {
                       label="Chave da API Groq"
                       hint="Crie sua chave em https://console.groq.com/keys para usar modelos ultrarrápidos como Llama 3."
                     >
-                      <Input
+                      <DebouncedInput
                         type="password"
                         value={groqApiKey}
                         onChange={(e) => setGroqApiKey(e.target.value)}

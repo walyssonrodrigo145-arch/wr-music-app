@@ -2256,6 +2256,20 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               .where(and(eq(students.id, newStudent.id), eq(students.organizationId, orgId)));
           }
         }
+
+        // --- NOTIFICAÇÃO NOVO ALUNO ---
+        try {
+          const [userSettings] = await db.select({ notifyNewStudent: settings.notifyNewStudent }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
+          if (userSettings && userSettings.notifyNewStudent === 1) {
+             const { notifyUser } = await import("./_core/notification");
+             await notifyUser(ctx.user.id, {
+               title: "🎉 Novo Aluno Cadastrado",
+               content: `O aluno ${input.name} acabou de ser cadastrado no sistema.`
+             });
+          }
+        } catch (e) {
+          console.error("Erro ao notificar novo aluno:", e);
+        }
         
         return { success: true, studentId: newStudent.id };
       } catch (error) {
@@ -3061,6 +3075,23 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         }
 
         await db.update(lessons).set(updateData).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+        
+        // --- NOTIFICAÇÃO DE FALTA DE ALUNO ---
+        if (input.status === 'falta') {
+          try {
+            const [userSettings] = await db.select({ notifyStudentAbsence: settings.notifyStudentAbsence }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
+            if (userSettings && userSettings.notifyStudentAbsence === 1) {
+               const [student] = await db.select({ name: students.name, title: lessons.title }).from(lessons).innerJoin(students, eq(students.id, lessons.studentId)).where(eq(lessons.id, input.id)).limit(1);
+               const { notifyUser } = await import("./_core/notification");
+               await notifyUser(ctx.user.id, {
+                 title: "📉 Falta Registrada",
+                 content: `O aluno ${student?.name || 'Desconhecido'} faltou à aula de ${student?.title || 'música'}.`
+               });
+            }
+          } catch (e) {
+            console.error("Erro ao notificar falta de aluno:", e);
+          }
+        }
         
         return { success: true };
       } catch (error) {
