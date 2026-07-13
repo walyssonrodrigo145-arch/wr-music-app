@@ -21,7 +21,7 @@ import { getDb } from "../db";
 import { settings, paymentDues, organizations, asaasWebhooksLog, students } from "../../drizzle/schema";
 import { ENV } from './env';
 import { eq, and } from "drizzle-orm";
-import { setupEvolutionWebhook } from "../utils/whatsapp";
+import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whatsapp";
 import { notifyUser } from "./notification";
 
 
@@ -522,8 +522,8 @@ async function startServer() {
     startAutomationJob();
     // Iniciar job de automação de marketing
     marketingWorker.start();
-    // Configura o webhook do WhatsApp
-    setupEvolutionWebhook();
+    // Configura o webhook do WhatsApp para todas as instâncias existentes
+    setupAllEvolutionWebhooks();
   });
 }
 

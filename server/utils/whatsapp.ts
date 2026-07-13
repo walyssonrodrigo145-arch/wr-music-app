@@ -437,3 +437,45 @@ export async function setupEvolutionWebhook(instanceName: string = DEFAULT_INSTA
     console.error(`[Evolution API] Erro ao registrar webhook: ${err.message}`);
   }
 }
+
+/**
+ * Registra o webhook para TODAS as instâncias existentes na Evolution API.
+ * Deve ser chamado no startup do servidor para garantir que instâncias já criadas
+ * recebam notificações de mensagens corretamente.
+ */
+export async function setupAllEvolutionWebhooks() {
+  try {
+    const baseUrl = EVOLUTION_API_URL.replace(/\/+$/, "");
+    const publicUrl = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
+    if (!publicUrl) {
+      console.warn("[Evolution API] Não foi possível registrar webhooks: APP_URL não definida.");
+      return;
+    }
+
+    // Buscar todas as instâncias
+    const res = await fetch(`${baseUrl}/instance/fetchInstances`, {
+      headers: { "apikey": EVOLUTION_API_KEY },
+    });
+
+    if (!res.ok) {
+      console.warn(`[Evolution API] Falha ao listar instâncias: ${res.status}`);
+      return;
+    }
+
+    const instances: any[] = await res.json();
+    if (!Array.isArray(instances) || instances.length === 0) {
+      console.log("[Evolution API] Nenhuma instância encontrada para registrar webhook.");
+      return;
+    }
+
+    for (const inst of instances) {
+      const instanceName = inst.name || inst.instance?.instanceName;
+      if (!instanceName) continue;
+      await setupEvolutionWebhook(instanceName);
+    }
+
+    console.log(`[Evolution API] Webhooks registrados para ${instances.length} instância(s).`);
+  } catch (err: any) {
+    console.error(`[Evolution API] Erro ao registrar webhooks no startup: ${err.message}`);
+  }
+}
