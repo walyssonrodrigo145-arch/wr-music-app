@@ -103,11 +103,6 @@ export default function Progresso() {
 
   const { data: upcomingLessons = [] } = trpc.lessons.upcoming.useQuery();
 
-  const [insight, setInsight] = useState<string | null>(null);
-  const aiInsightMutation = trpc.progress.generateAIInsight.useMutation({
-    onSuccess: (data) => setInsight(data.insight),
-    onError: (e) => toast.error("Erro ao gerar insight: " + e.message)
-  });
 
   const suggestNextLessonTopicMutation = trpc.progress.suggestNextLessonTopic.useMutation({
     onSuccess: (data) => {
@@ -831,7 +826,6 @@ export default function Progresso() {
                       { id: "biblioteca", label: "Biblioteca", icon: Folder },
                       { id: "observacoes", label: "Notas", icon: BookOpen },
                       { id: "metas", label: "Metas", icon: Target },
-                      { id: "desempenho", label: "Métricas", icon: TrendingUp },
                     ].map((tab) => {
                       const isActive = activeTab === tab.id;
                       return (
@@ -1247,22 +1241,6 @@ export default function Progresso() {
                         exit={{ opacity: 0, scale: 0.98 }}
                       >
                          <Observacoes timeline={timeline} />
-                      </motion.div>
-                    )}
-
-                    {activeTab === "desempenho" && (
-                      <motion.div 
-                        key="desempenho"
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.98 }}
-                      >
-                         <DesempenhoIA 
-                           studentId={selectedStudentId!} 
-                           summary={summary} 
-                           insight={insight} 
-                           aiInsightMutation={aiInsightMutation} 
-                         />
                       </motion.div>
                     )}
                  </AnimatePresence>
