@@ -901,7 +901,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         .where(and(eq(lessons.studentId, input.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')))
         .limit(5)
         .orderBy(desc(lessons.scheduledAt));
-      const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
+      const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, "pendente")));
       const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.organizationId, orgId))).limit(10).orderBy(desc(studentTimeline.achievedAt));
 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
@@ -917,9 +917,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             dayName: "Dia 1",
             focus: { title: "Foco motivador do dia", description: "Descrição detalhada (3 a 4 frases) explicando por que este foco é crucial e como ele ajuda no desenvolvimento do " + instrumentName + "." },
             exercises: [
-              { title: "Aquecimento", subtitle: "Preparação física e mental", duration: "10 min", points: ["Exercício detalhado 1 com explicação de postura e movimento", "Exercício detalhado 2"], icon: "music" },
+              { title: "Aquecimento", subtitle: "Crie um subtítulo engajador e diferente a cada dia", duration: "10 min", points: ["Exercício detalhado 1 com explicação de postura e movimento", "Exercício detalhado 2"], icon: "music" },
               { title: "Prática Principal", subtitle: "Repertório ou técnica principal focada em " + instrumentName, duration: "30 min", points: ["Passo a passo detalhado do que focar (ex: palhetada, dedilhado, respiração)", "Metrônomo ou dicas de tempo", "Cuidados para não errar"], icon: "star" },
-              { title: "Teoria ou Desafio", subtitle: "Consolidação do aprendizado", duration: "10 min", points: ["Desafio prático", "O que tentar improvisar ou memorizar"], icon: "pen" }
+              { title: "Teoria ou Desafio", subtitle: "Crie um subtítulo desafiador diferente a cada dia", duration: "10 min", points: ["Desafio prático", "O que tentar improvisar ou memorizar"], icon: "pen" }
             ]
           }
         ]
