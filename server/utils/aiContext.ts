@@ -91,7 +91,8 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
     let totalPago = 0;
     paymentsThisMonth.forEach((p: any) => {
       const amt = Number(p.amount);
-      if (p.status === "pago" || p.studentStatus === "ativo") {
+      // Previsto = soma de todos os lançamentos do mês (pendente + pago) para alunos ativos
+      if (p.studentStatus === "ativo") {
         totalPrevisto += amt;
       }
       if (p.status === "pago") totalPago += amt;
@@ -117,7 +118,13 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
     });
 
     // 7. Busca receita base recorrente e despesa base recorrente para projeções
-    const activeStudentsList = await db.select({ monthlyFee: students.monthlyFee }).from(students).where(
+    const activeStudentsList = await db.select({
+      name: students.name,
+      monthlyFee: students.monthlyFee,
+      dueDay: students.dueDay,
+      phone: students.phone,
+      status: students.status,
+    }).from(students).where(
       and(
         eq(students.status, "ativo"),
         eq(students.organizationId, orgId),
@@ -167,6 +174,17 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
       context += `\n`;
     } else {
       context += `Sem mensalidades atrasadas no momento.\n\n`;
+    }
+
+    // Adiciona lista detalhada de alunos com mensalidade individual
+    if (activeStudentsList.length > 0) {
+      context += `LISTA DE ALUNOS ATIVOS E SUAS MENSALIDADES INDIVIDUAIS:\n`;
+      context += `(Use esta lista para responder perguntas sobre a mensalidade de um aluno específico)\n`;
+      activeStudentsList.forEach((s: any) => {
+        const fee = Number(s.monthlyFee || 0);
+        context += `- ${s.name} | Mensalidade: R$ ${fee.toFixed(2)} | Vencimento: dia ${s.dueDay || 10}\n`;
+      });
+      context += `\n`;
     }
 
     if (upcomingLessons.length > 0) {
