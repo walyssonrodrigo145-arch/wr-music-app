@@ -136,6 +136,7 @@ const filesToUpload = [
   'client/src/components/BenefitsCarousel.tsx',
   'client/src/pages/TermosDeUso.tsx',
   'client/src/pages/PoliticaPrivacidade.tsx',
+  '.env',
 ];
 
 conn.on('ready', () => {

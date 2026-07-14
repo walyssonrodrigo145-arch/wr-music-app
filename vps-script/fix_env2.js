@@ -11,7 +11,9 @@ const config = {
 
 conn.on('ready', () => {
   const commands = `
-    docker compose -f /root/wr-music-app/docker-compose.yml exec -T db psql -U postgres -d wrmusic -c "SELECT \\"userId\\", \\"chatbotEnabled\\", \\"whatsappBotUrl\\", \\"whatsappBotToken\\" FROM settings WHERE \\"userId\\" = 163;"
+    sed -i 's/76.13.228.159/172.16.1.1/g' /root/wr-music-app/.env
+    cd /root/wr-music-app
+    docker compose restart app
   `;
 
   conn.exec(commands, (err, stream) => {

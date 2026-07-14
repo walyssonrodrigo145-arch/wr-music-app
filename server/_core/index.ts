@@ -96,10 +96,20 @@ async function startServer() {
       if (!due) return res.status(404).send("Payment due not found");
       if (due.status === "pago") return res.status(200).send("Already paid");
 
-      // Buscar as configs do professor
-      const [profSettings] = await db.select({ mpAccessToken: settings.mpAccessToken })
+      // Buscar as configs do professor e do aluno
+      const [profSettings] = await db.select({ 
+        mpAccessToken: settings.mpAccessToken,
+        whatsappBotUrl: settings.whatsappBotUrl,
+        whatsappBotToken: settings.whatsappBotToken,
+        phone: settings.phone,
+      })
         .from(settings)
         .where(eq(settings.userId, due.userId))
+        .limit(1);
+
+      const [studentData] = await db.select({ phone: students.phone, name: students.name })
+        .from(students)
+        .where(eq(students.id, due.studentId))
         .limit(1);
 
       if (!profSettings || !profSettings.mpAccessToken) {
@@ -118,6 +128,27 @@ async function startServer() {
           .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
           .where(eq(paymentDues.id, due.id));
         console.log(`[Mercado Pago Webhook] Mensalidade ${due.id} marcada como paga.`);
+
+        // Notificar via WhatsApp
+        const { sendWhatsAppMessage } = await import("../utils/whatsapp");
+        const valorStr = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        
+        if (profSettings.phone) {
+          await sendWhatsAppMessage({
+            url: profSettings.whatsappBotUrl || undefined,
+            token: profSettings.whatsappBotToken || undefined,
+            phone: profSettings.phone,
+            message: `🤖 *Aviso do Robô:*\n\nO aluno *${studentData?.name || "Aluno"}* acabou de pagar a mensalidade no valor de *${valorStr}* via Mercado Pago!`
+          });
+        }
+        if (studentData?.phone) {
+          await sendWhatsAppMessage({
+            url: profSettings.whatsappBotUrl || undefined,
+            token: profSettings.whatsappBotToken || undefined,
+            phone: studentData.phone,
+            message: `🤖 *Aviso do Robô:*\n\nSeu pagamento da mensalidade no valor de *${valorStr}* foi confirmado com sucesso. Muito obrigado! 🎉`
+          });
+        }
       }
 
       return res.status(200).send("OK");
@@ -190,6 +221,7 @@ async function startServer() {
             userId: paymentDues.userId,
             amount: paymentDues.amount,
             studentName: students.name,
+            studentPhone: students.phone,
           })
           .from(paymentDues)
           .leftJoin(students, eq(paymentDues.studentId, students.id))
@@ -224,6 +256,36 @@ async function startServer() {
           amount: valor,
           message: contentStr,
         });
+
+        // Notificação WhatsApp
+        const [profSettings] = await db.select({ 
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+          phone: settings.phone,
+        })
+          .from(settings)
+          .where(eq(settings.userId, paymentDetails.userId))
+          .limit(1);
+
+        if (profSettings) {
+          const { sendWhatsAppMessage } = await import("../utils/whatsapp");
+          if (profSettings.phone) {
+            await sendWhatsAppMessage({
+              url: profSettings.whatsappBotUrl || undefined,
+              token: profSettings.whatsappBotToken || undefined,
+              phone: profSettings.phone,
+              message: `🤖 *Aviso do Robô:*\n\nO aluno *${paymentDetails.studentName || "Aluno"}* acabou de pagar a mensalidade no valor de *${valor}* via Asaas!`
+            });
+          }
+          if (paymentDetails.studentPhone) {
+            await sendWhatsAppMessage({
+              url: profSettings.whatsappBotUrl || undefined,
+              token: profSettings.whatsappBotToken || undefined,
+              phone: paymentDetails.studentPhone,
+              message: `🤖 *Aviso do Robô:*\n\nSeu pagamento da mensalidade no valor de *${valor}* foi confirmado com sucesso. Muito obrigado! 🎉`
+            });
+          }
+        }
       }
 
 

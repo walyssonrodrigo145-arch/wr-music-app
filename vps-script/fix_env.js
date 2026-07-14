@@ -11,12 +11,19 @@ const config = {
 
 conn.on('ready', () => {
   const commands = `
-    docker compose -f /root/wr-music-app/docker-compose.yml exec -T db psql -U postgres -d wrmusic -c "SELECT \\"userId\\", \\"chatbotEnabled\\", \\"whatsappBotUrl\\", \\"whatsappBotToken\\" FROM settings WHERE \\"userId\\" = 163;"
+    echo "" >> /root/wr-music-app/.env
+    echo 'EVOLUTION_API_URL="http://76.13.228.159:8080"' >> /root/wr-music-app/.env
+    echo 'EVOLUTION_API_KEY="minha_chave_secreta_123"' >> /root/wr-music-app/.env
+    cd /root/wr-music-app
+    docker compose restart app
   `;
 
   conn.exec(commands, (err, stream) => {
     if (err) return conn.end();
-    stream.on('close', () => conn.end()).on('data', (data) => {
+    stream.on('close', () => {
+      console.log('Fixed env and restarted app');
+      conn.end();
+    }).on('data', (data) => {
       process.stdout.write(data.toString());
     }).stderr.on('data', (data) => {
       process.stderr.write(data.toString());

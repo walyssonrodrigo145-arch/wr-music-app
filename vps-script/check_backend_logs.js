@@ -10,8 +10,10 @@ const config = {
 };
 
 conn.on('ready', () => {
+  // Try pm2 logs or docker logs depending on how the backend runs
+  // It looks like docker compose is used for backend (service is 'app' probably)
   const commands = `
-    docker compose -f /root/wr-music-app/docker-compose.yml exec -T db psql -U postgres -d wrmusic -c "SELECT \\"userId\\", \\"chatbotEnabled\\", \\"whatsappBotUrl\\", \\"whatsappBotToken\\" FROM settings WHERE \\"userId\\" = 163;"
+    cd /root/wr-music-app && docker compose logs --tail 200 app
   `;
 
   conn.exec(commands, (err, stream) => {

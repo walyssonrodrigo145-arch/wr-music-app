@@ -22,8 +22,27 @@ function isOption(text: string, option: string): boolean {
   return text.trim() === option;
 }
 
-/** Retorna slots de horário disponíveis (3 dias úteis × 3 horários) */
-function generateAvailableSlots() {
+function generateAvailableSlots(schoolHoursStr: string) {
+  let schoolHours: any;
+  try {
+    schoolHours = JSON.parse(schoolHoursStr);
+  } catch (e) {
+    schoolHours = {
+      monday: { active: true, start: "08:00", end: "18:00" },
+      tuesday: { active: true, start: "08:00", end: "18:00" },
+      wednesday: { active: true, start: "08:00", end: "18:00" },
+      thursday: { active: true, start: "08:00", end: "18:00" },
+      friday: { active: true, start: "08:00", end: "18:00" },
+      saturday: { active: false },
+      sunday: { active: false },
+    };
+  }
+
+  const daysMap: Record<number, string> = {
+    0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday",
+    4: "thursday", 5: "friday", 6: "saturday"
+  };
+
   const slots: { label: string; date: Date }[] = [];
   let added = 0;
   let offset = 1;
@@ -32,18 +51,29 @@ function generateAvailableSlots() {
     const d = new Date();
     d.setDate(d.getDate() + offset);
     offset++;
+    
     const dow = d.getDay();
-    if (dow === 0 || dow === 6) continue; // pula fins de semana
+    const dayKey = daysMap[dow];
+    const dayConfig = schoolHours[dayKey];
+    
+    if (!dayConfig || !dayConfig.active) continue;
 
     const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
     const diaNome = diasSemana[dow];
     const diaMes = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
-    for (const h of [10, 14, 16]) {
-      const slot = new Date(d);
-      slot.setHours(h, 0, 0, 0);
-      slots.push({ label: `${diaNome} (${diaMes}) às ${h}h00`, date: slot });
-      added++;
+    const startHour = parseInt(dayConfig.start.split(":")[0]);
+    const endHour = parseInt(dayConfig.end.split(":")[0]);
+    
+    const hoursToTry = [startHour, Math.floor((startHour+endHour)/2), endHour - 2];
+    
+    for (const h of hoursToTry) {
+      if (h >= startHour && h < endHour && added < 9) {
+        const slot = new Date(d);
+        slot.setHours(h, 0, 0, 0);
+        slots.push({ label: `${diaNome} (${diaMes}) às ${h}h00`, date: slot });
+        added++;
+      }
     }
   }
 
@@ -112,6 +142,8 @@ router.post("/", async (req, res) => {
         schoolName: settings.schoolName,
         whatsappBotUrl: settings.whatsappBotUrl,
         whatsappBotToken: settings.whatsappBotToken,
+        schoolHours: settings.schoolHours,
+        phone: settings.phone,
       })
       .from(settings)
       .where(eq(settings.userId, professorUserId))
@@ -134,6 +166,19 @@ router.post("/", async (req, res) => {
         sessionId: instanceName || "prof_1",
       });
       console.log(`[Chatbot] Resposta para ${phone} via ${instanceName || "prof_1"}: success=${result.success}`, result.error ? `Erro: ${result.error}` : "");
+    };
+
+    // ── Função auxiliar para notificar o professor ──
+    const notifyProfessor = async (msg: string) => {
+      if (!profSettings.phone) return;
+      const result = await sendWhatsAppMessage({
+        url: profSettings.whatsappBotUrl || undefined,
+        token: profSettings.whatsappBotToken || undefined,
+        phone: profSettings.phone,
+        message: `🤖 *Aviso do Robô:*\n\n${msg}`,
+        sessionId: instanceName || "prof_1",
+      });
+      console.log(`[Chatbot] Notificação enviada ao professor (${profSettings.phone}): success=${result.success}`);
     };
 
     // ── Identificar aluno cadastrado ──
@@ -212,7 +257,7 @@ router.post("/", async (req, res) => {
       if (student) {
         await updateState("MENU_ALUNO");
         await sendReply(
-          `Olá, *${student.name.split(" ")[0]}*! 🎵 Que bom te ver aqui!\n\nEscolha uma opção:\n\n1️⃣ - 📅 Minhas Aulas\n2️⃣ - 💰 Financeiro\n3️⃣ - 🎸 Falar com o Professor\n4️⃣ - ⭐ Indicar um amigo`
+          `Olá, *${student.name.split(" ")[0]}*! 🎵 Que bom te ver aqui!\n\nEscolha uma opção:\n\n1️⃣ - 📅 Minhas Aulas\n2️⃣ - 💰 Financeiro\n3️⃣ - 📅 Agendar Aula\n4️⃣ - 🔄 Reagendar Aula\n5️⃣ - 🎸 Falar com o Professor\n6️⃣ - ⭐ Indicar um amigo`
         );
       } else {
         await updateState("MENU_NOVO");
@@ -280,7 +325,9 @@ router.post("/", async (req, res) => {
             const venc = new Date(p.dueDate + "T12:00:00").toLocaleDateString("pt-BR");
             msg += `🔸 *${valor}* — venc. ${venc}\n`;
             if (p.asaasPaymentLink) {
-              msg += `   💳 Pagar: ${p.asaasPaymentLink}\n`;
+              msg += `   💳 Asaas: ${p.asaasPaymentLink}\n`;
+            } else if (p.mpPaymentLink) {
+              msg += `   💳 Mercado Pago: ${p.mpPaymentLink}\n`;
             }
           });
           msg += "\nDigite *MENU* para voltar ou *4* para falar com o professor.";
@@ -291,13 +338,73 @@ router.post("/", async (req, res) => {
       }
 
       if (isOption(input, "3")) {
+        // Agendar Aula
+        const slots = generateAvailableSlots(profSettings.schoolHours || "");
+        const ocupadas = await db
+          .select()
+          .from(lessons)
+          .where(
+            and(
+              eq(lessons.userId, professorUserId),
+              gte(lessons.scheduledAt, new Date()),
+              eq(lessons.status, "agendada")
+            )
+          );
+
+        const freeSlots = slots
+          .filter((s) => !ocupadas.some((l) => l.scheduledAt.getTime() === s.date.getTime()))
+          .slice(0, 5);
+
+        await updateState("AGENDAR_AULA_SLOT", { freeSlots });
+
+        let msg = `Temos os seguintes horários disponíveis para agendamento:\n\n`;
+        freeSlots.forEach((s, i) => {
+          msg += `${i + 1}️⃣ - ${s.label}\n`;
+        });
+        msg += "\nDigite o *número* do horário desejado ou *MENU* para voltar.";
+        await sendReply(msg);
+        return res.status(200).json({ ok: true });
+      }
+
+      if (isOption(input, "4")) {
+        // Reagendar Aula (lista próximas aulas)
+        const nextLessons = await db
+          .select()
+          .from(lessons)
+          .where(
+            and(
+              eq(lessons.studentId, student.id),
+              gte(lessons.scheduledAt, new Date()),
+              eq(lessons.status, "agendada")
+            )
+          )
+          .limit(3);
+
+        if (nextLessons.length === 0) {
+          await sendReply("Você não possui aulas agendadas no momento para reagendar. 📅\n\nDigite *MENU* para voltar.");
+          await updateState("AGUARDANDO_MENU");
+        } else {
+          let msg = `📅 *Qual aula você deseja reagendar?*\n\n`;
+          nextLessons.forEach((l, i) => {
+            const data = l.scheduledAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+            const hora = l.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+            msg += `${i + 1}️⃣ - ${data} às ${hora}\n`;
+          });
+          msg += "\nDigite o *número* da aula ou *MENU* para voltar.";
+          await updateState("REAGENDAR_SELECIONAR_AULA", { nextLessons });
+          await sendReply(msg);
+        }
+        return res.status(200).json({ ok: true });
+      }
+
+      if (isOption(input, "5")) {
         // Falar com professor
         await updateState("PAUSED_HUMAN");
         await sendReply("Certo! Estou te transferindo para o professor. Aguarde um instante! 👤\n\n_Para reativar o robô, digite MENU._");
         return res.status(200).json({ ok: true });
       }
 
-      if (isOption(input, "4")) {
+      if (isOption(input, "6")) {
         // Indicar amigo
         await updateState("INDICAR_NOME");
         await sendReply("Que ótimo! Vamos registrar a sua indicação. 🌟\n\nDigite o *nome completo* do seu amigo que deseja indicar:");
@@ -305,7 +412,7 @@ router.post("/", async (req, res) => {
       }
 
       // Opção inválida
-      await sendReply("Desculpe, não entendi. Digite o número da opção desejada:\n\n1️⃣ - 📅 Minhas Aulas\n2️⃣ - 💰 Financeiro\n3️⃣ - 🎸 Falar com o Professor\n4️⃣ - ⭐ Indicar um amigo");
+      await sendReply("Desculpe, não entendi. Digite o número da opção desejada:\n\n1️⃣ - 📅 Minhas Aulas\n2️⃣ - 💰 Financeiro\n3️⃣ - 📅 Agendar Aula\n4️⃣ - 🔄 Reagendar Aula\n5️⃣ - 🎸 Falar com o Professor\n6️⃣ - ⭐ Indicar um amigo");
       return res.status(200).json({ ok: true });
     }
 
@@ -341,7 +448,7 @@ router.post("/", async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
-      const slots = generateAvailableSlots();
+      const slots = generateAvailableSlots(profSettings.schoolHours || "");
       const ocupadas = await db
         .select()
         .from(lessons)
@@ -407,6 +514,8 @@ router.post("/", async (req, res) => {
           lessonType: "individual",
         });
 
+        await notifyProfessor(`🎉 Um novo aluno chamado *${nome}* (${phone}) acabou de agendar uma aula experimental para *${slot.label}* pelo robô!`);
+
         await updateState("START", {});
         await sendReply(
           `Perfeito, *${nome}*! 🎉\nSua aula experimental foi agendada para *${slot.label}*.\n\nFicamos te esperando! Se precisar de qualquer coisa, pode mandar mensagem.\n\nDigite *MENU* para voltar ao início.`
@@ -430,6 +539,132 @@ router.post("/", async (req, res) => {
 
       await updateState("INDICAR_PHONE", { indicacaoNome: nomeAmigo });
       await sendReply(`Ótimo! E qual é o *número de WhatsApp* de *${nomeAmigo}*?\n\n_Ex: 11999998888_`);
+      return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // FLUXO: AGENDAR AULA (Aluno)
+    // ─────────────────────────────────────────────────────
+    if (session.state === "AGENDAR_AULA_SLOT") {
+      if (inputUpper === "MENU") {
+        await updateState("START");
+        await sendReply("Voltando ao menu principal... 🎵");
+        return res.status(200).json({ ok: true });
+      }
+
+      const currentData: any = {};
+      try { Object.assign(currentData, JSON.parse(session.data || "{}")); } catch (_) {}
+
+      const idx = parseInt(input) - 1;
+      if (!isNaN(idx) && currentData.freeSlots && currentData.freeSlots[idx]) {
+        const slot = currentData.freeSlots[idx];
+
+        const orgResult = await db.select({ organizationId: settings.organizationId }).from(settings).where(eq(settings.userId, professorUserId)).limit(1);
+        const orgId = orgResult[0]?.organizationId;
+
+        await db.insert(lessons).values({
+          organizationId: orgId,
+          userId: professorUserId,
+          studentId: student!.id,
+          title: `Aula Avulsa - ${student!.name.split(" ")[0]}`,
+          scheduledAt: new Date(slot.date),
+          duration: 60,
+          status: "agendada",
+          lessonType: "individual",
+        });
+
+        await notifyProfessor(`O aluno *${student!.name}* acabou de agendar uma aula para *${slot.label}*.`);
+        
+        await updateState("START", {});
+        await sendReply(`Perfeito! 🎉\nSua aula foi agendada para *${slot.label}*.\n\nDigite *MENU* para voltar ao início.`);
+        return res.status(200).json({ ok: true });
+      }
+
+      await sendReply("Opção inválida. Digite o número correspondente ou *MENU* para voltar.");
+      return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // FLUXO: REAGENDAR AULA (Aluno)
+    // ─────────────────────────────────────────────────────
+    if (session.state === "REAGENDAR_SELECIONAR_AULA") {
+      if (inputUpper === "MENU") {
+        await updateState("START");
+        await sendReply("Voltando ao menu principal... 🎵");
+        return res.status(200).json({ ok: true });
+      }
+
+      const currentData: any = {};
+      try { Object.assign(currentData, JSON.parse(session.data || "{}")); } catch (_) {}
+
+      const idx = parseInt(input) - 1;
+      if (!isNaN(idx) && currentData.nextLessons && currentData.nextLessons[idx]) {
+        const selectedLesson = currentData.nextLessons[idx];
+        
+        const slots = generateAvailableSlots(profSettings.schoolHours || "");
+        const ocupadas = await db
+          .select()
+          .from(lessons)
+          .where(
+            and(
+              eq(lessons.userId, professorUserId),
+              gte(lessons.scheduledAt, new Date()),
+              eq(lessons.status, "agendada")
+            )
+          );
+
+        const freeSlots = slots
+          .filter((s) => !ocupadas.some((l) => l.scheduledAt.getTime() === s.date.getTime()))
+          .slice(0, 5);
+
+        await updateState("REAGENDAR_SLOT", { selectedLesson, freeSlots });
+
+        let msg = `Certo. Para quando você deseja reagendar?\n\n`;
+        freeSlots.forEach((s, i) => {
+          msg += `${i + 1}️⃣ - ${s.label}\n`;
+        });
+        msg += "\nDigite o *número* do novo horário ou *MENU* para cancelar.";
+        await sendReply(msg);
+        return res.status(200).json({ ok: true });
+      }
+
+      await sendReply("Opção inválida. Digite o número da aula ou *MENU* para voltar.");
+      return res.status(200).json({ ok: true });
+    }
+
+    if (session.state === "REAGENDAR_SLOT") {
+      if (inputUpper === "MENU") {
+        await updateState("START");
+        await sendReply("Voltando ao menu principal... 🎵");
+        return res.status(200).json({ ok: true });
+      }
+
+      const currentData: any = {};
+      try { Object.assign(currentData, JSON.parse(session.data || "{}")); } catch (_) {}
+
+      const idx = parseInt(input) - 1;
+      if (!isNaN(idx) && currentData.freeSlots && currentData.freeSlots[idx] && currentData.selectedLesson) {
+        const slot = currentData.freeSlots[idx];
+        const oldLesson = currentData.selectedLesson;
+
+        await db.update(lessons)
+          .set({
+            scheduledAt: new Date(slot.date),
+            updatedAt: new Date()
+          })
+          .where(eq(lessons.id, oldLesson.id));
+
+        const oldData = new Date(oldLesson.scheduledAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+        const oldHora = new Date(oldLesson.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+        await notifyProfessor(`O aluno *${student!.name}* reagendou a aula do dia ${oldData} às ${oldHora} para o novo horário: *${slot.label}*.`);
+        
+        await updateState("START", {});
+        await sendReply(`Aula reagendada com sucesso para *${slot.label}*! 🔄\n\nDigite *MENU* para voltar ao início.`);
+        return res.status(200).json({ ok: true });
+      }
+
+      await sendReply("Opção inválida. Digite o número correspondente ou *MENU* para cancelar.");
       return res.status(200).json({ ok: true });
     }
 

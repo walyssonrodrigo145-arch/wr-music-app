@@ -10,8 +10,17 @@ const config = {
 };
 
 conn.on('ready', () => {
+  const payload = JSON.stringify({
+    number: "553399958830",
+    options: { delay: 1000, presence: "composing" },
+    text: "Mensagem de teste curl"
+  });
+
   const commands = `
-    docker compose -f /root/wr-music-app/docker-compose.yml exec -T db psql -U postgres -d wrmusic -c "SELECT \\"userId\\", \\"chatbotEnabled\\", \\"whatsappBotUrl\\", \\"whatsappBotToken\\" FROM settings WHERE \\"userId\\" = 163;"
+    curl -X POST http://76.13.228.159:8080/message/sendText/prof_163 \\
+         -H "Content-Type: application/json" \\
+         -H "apikey: minha_chave_secreta_123" \\
+         -d '${payload}'
   `;
 
   conn.exec(commands, (err, stream) => {
