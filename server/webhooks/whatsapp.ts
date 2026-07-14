@@ -87,7 +87,7 @@ router.post("/", async (req, res) => {
     }
 
     const phone = remoteJid.split("@")[0];
-    const textMsg = extractMessageText(messageData?.message) || extractMessageText(messageData);
+    const textMsg = extractMessageText(messageData);
     const pushName = payload.data.pushName || "Aluno";
 
     if (!textMsg) return res.status(200).json({ ok: true });
@@ -117,7 +117,7 @@ router.post("/", async (req, res) => {
       .where(eq(settings.userId, professorUserId))
       .limit(1);
 
-    if (!profSettings || profSettings.chatbotEnabled !== 1) {
+    if (!profSettings || !profSettings.chatbotEnabled) {
       // Robô desativado — ignora silenciosamente
       return res.status(200).json({ ok: true });
     }
@@ -126,13 +126,14 @@ router.post("/", async (req, res) => {
 
     // ── Função auxiliar de resposta ──
     const sendReply = async (msg: string) => {
-      await sendWhatsAppMessage({
+      const result = await sendWhatsAppMessage({
         url: profSettings.whatsappBotUrl || undefined,
         token: profSettings.whatsappBotToken || undefined,
         phone,
         message: msg,
         sessionId: instanceName || "prof_1",
       });
+      console.log(`[Chatbot] Resposta para ${phone} via ${instanceName || "prof_1"}: success=${result.success}`, result.error ? `Erro: ${result.error}` : "");
     };
 
     // ── Identificar aluno cadastrado ──
