@@ -3,6 +3,9 @@ import { getDb } from "../db";
 import { students, chatbotSessions, lessons, settings, paymentDues } from "../../drizzle/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { sendWhatsAppMessage } from "../utils/whatsapp";
+import { buildUserContext } from "../utils/aiContext";
+import { getSystemPrompt } from "../utils/aiPrompts";
+import { callGemini } from "../utils/gemini";
 
 const router = Router();
 
@@ -106,10 +109,7 @@ router.post("/", async (req, res) => {
     const messageData = payload.data?.message;
     if (!messageData) return res.status(200).json({ ok: true });
 
-    // Ignora mensagens enviadas por nós mesmos
-    if (payload.data.key?.fromMe) {
-      return res.status(200).json({ ok: true });
-    }
+    // O bloqueio de fromMe será feito mais abaixo, após descobrirmos se é o professor
 
     const remoteJid = payload.data.key?.remoteJid || "";
     if (!remoteJid || remoteJid.includes("@g.us")) {
@@ -144,6 +144,9 @@ router.post("/", async (req, res) => {
         whatsappBotToken: settings.whatsappBotToken,
         schoolHours: settings.schoolHours,
         phone: settings.phone,
+        organizationId: settings.organizationId,
+        geminiApiKey: settings.geminiApiKey,
+        geminiModel: settings.geminiModel,
       })
       .from(settings)
       .where(eq(settings.userId, professorUserId))
@@ -155,6 +158,22 @@ router.post("/", async (req, res) => {
     }
 
     const schoolName = profSettings.schoolName || "nossa Escola de Música";
+
+    const cleanProfPhone = profSettings.phone ? profSettings.phone.replace(/\D/g, "") : "";
+    const cleanMsgPhone = phone.replace(/\D/g, "");
+    
+    // É o próprio professor mandando mensagem para o seu próprio número?
+    const isProfessorChat = (cleanProfPhone.length > 8 && cleanMsgPhone.endsWith(cleanProfPhone.slice(-8)));
+
+    // Ignora mensagens enviadas por nós mesmos (bot), exceto se for o chat do professor (para a IA)
+    if (payload.data.key?.fromMe && !isProfessorChat) {
+      return res.status(200).json({ ok: true });
+    }
+
+    // Se for o bot respondendo no chat do professor, ignoramos para não gerar loop infinito
+    if (isProfessorChat && textMsg.startsWith("🤖")) {
+      return res.status(200).json({ ok: true });
+    }
 
     // ── Função auxiliar de resposta ──
     const sendReply = async (msg: string) => {
@@ -238,6 +257,48 @@ router.post("/", async (req, res) => {
 
     const input = textMsg.trim();
     const inputUpper = input.toUpperCase();
+
+    // ─────────────────────────────────────────────────────
+    // FLUXO: IA ASSISTENTE DO PROFESSOR (Chat Próprio)
+    // ─────────────────────────────────────────────────────
+    if (isProfessorChat) {
+      try {
+        console.log(`[Chatbot] IA Assistente acionada pelo Professor ${phone}`);
+        // Indica que está "digitando..." ou manda um status de espera (opcional)
+        
+        // Monta o contexto da escola (planilhas virtuais, dados, etc.)
+        const userDataContext = await buildUserContext(db, professorUserId, profSettings.organizationId, true);
+        const systemPrompt = getSystemPrompt(userDataContext) + 
+          "\n\nIMPORTANTE: Você está respondendo ao Professor diretamente pelo WhatsApp. Responda de forma concisa e amigável. Não gere blocos ACTION ou SPREADSHEET pelo WhatsApp, pois eles não são renderizados no celular. Responda apenas em formato de texto estruturado.";
+
+        const historyObj = sessionData.aiHistory || [];
+        historyObj.push({ role: "user", content: input });
+        
+        // Limita o histórico para não estourar tokens
+        if (historyObj.length > 10) historyObj.splice(0, historyObj.length - 10);
+
+        const aiResponse = await callGemini(
+          historyObj,
+          systemPrompt,
+          false,
+          profSettings.geminiApiKey,
+          profSettings.geminiModel
+        );
+
+        historyObj.push({ role: "assistant", content: aiResponse });
+        
+        // Atualiza estado com histórico
+        await updateState("PROFESSOR_AI", { aiHistory: historyObj });
+
+        // Envia resposta (com prefixo do robô para evitar loop no webhook)
+        await sendReply(`🤖 ${aiResponse}`);
+        
+      } catch (error: any) {
+        console.error("[WhatsApp AI Error]:", error);
+        await sendReply("🤖 *Erro na IA:* Não consegui processar sua solicitação no momento. Verifique sua chave de API do Groq/Gemini nas configurações do site.");
+      }
+      return res.status(200).json({ ok: true });
+    }
 
     // ─────────────────────────────────────────────────────
     // ESTADO: PAUSED_HUMAN — robô em silêncio
