@@ -3976,12 +3976,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const now = new Date();
       const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
-      // Buscar chave PIX do professor
-      const [userSettings] = await db.select({ pixKey: settings.pixKey })
+      // Buscar chave PIX e gateway de pagamento do professor
+      const [userSettings] = await db.select({ pixKey: settings.pixKey, paymentGateway: settings.paymentGateway, asaasEnabled: settings.asaasEnabled })
         .from(settings)
         .where(eq(settings.userId, ctx.user.id))
         .limit(1);
       const pixKey = userSettings?.pixKey ?? null;
+      const paymentGateway = userSettings?.paymentGateway ?? "asaas";
 
       // Buscar TODAS as mensalidades pendentes (qualquer mês/ano)
       const dues = await db.select({
@@ -3995,6 +3996,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         studentName: students.name,
         studentPhone: students.phone,
         instrumentName: instruments.name,
+        asaasPaymentLink: paymentDues.asaasPaymentLink,
+        mpPaymentLink: paymentDues.mpPaymentLink,
       })
         .from(paymentDues)
         .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
@@ -4093,7 +4096,15 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           .replace(/\{instrumento\}/g, due.instrumentName ?? "música")
           .replace(/\{chave_pix\}/g, pixKey ?? "");
 
-        if (pixKey) {
+        // Adiciona link de pagamento do gateway ativo
+        const paymentLink = paymentGateway === "mercadopago"
+          ? (due.mpPaymentLink ?? null)
+          : (due.asaasPaymentLink ?? null);
+
+        if (paymentLink) {
+          const gatewayName = paymentGateway === "mercadopago" ? "Mercado Pago" : "Asaas";
+          message += `\n\n💳 *Pague agora via ${gatewayName}:*\n${paymentLink}`;
+        } else if (pixKey) {
           message += `\n\n💳 *Pagamento via PIX:*\n🔑 Chave: ${pixKey}`;
         }
 
