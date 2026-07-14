@@ -68,19 +68,31 @@ function generateAvailableSlots(schoolHoursStr: string) {
     const startHour = parseInt(String(dayConfig.start || "08:00").split(":")[0]);
     const endHour = parseInt(String(dayConfig.end || "18:00").split(":")[0]);
     
-    const hoursToTry = [startHour, Math.floor((startHour+endHour)/2), endHour - 2];
-    
-    for (const h of hoursToTry) {
-      if (h >= startHour && h < endHour && added < 9) {
+    // Gera horários de hora em hora
+    for (let h = startHour; h < endHour; h++) {
+      if (added < 20) { // Limit total slots to process
         const slot = new Date(d);
         slot.setHours(h, 0, 0, 0);
-        slots.push({ label: `${diaNome} (${diaMes}) às ${h}h00`, date: slot });
+        slots.push({ label: `${diaNome} (${diaMes}) às ${String(h).padStart(2, '0')}h00`, date: slot });
         added++;
       }
     }
   }
 
   return slots;
+}
+
+// ─── Helper para verificar sobreposição ──────────────────────────────────────
+function isSlotFree(slotDate: Date, ocupadas: any[]) {
+  const sStart = slotDate.getTime();
+  const sEnd = sStart + 60 * 60 * 1000; // Aula padrão de 60 min
+  
+  return !ocupadas.some((l) => {
+    const lStart = l.scheduledAt.getTime();
+    const lEnd = lStart + (l.duration || 60) * 60 * 1000;
+    // Sobreposição: Slot inicia antes da aula ocupada terminar E Slot termina depois da aula ocupada iniciar
+    return (sStart < lEnd && sEnd > lStart);
+  });
 }
 
 // ─── Menu Principal ───────────────────────────────────────────────────────────
@@ -419,7 +431,7 @@ router.post("/", async (req, res) => {
           );
 
         const freeSlots = slots
-          .filter((s) => !ocupadas.some((l) => l.scheduledAt.getTime() === s.date.getTime()))
+          .filter((s) => isSlotFree(s.date, ocupadas))
           .slice(0, 5);
 
         await updateState("AGENDAR_AULA_SLOT", { freeSlots });
@@ -528,7 +540,7 @@ router.post("/", async (req, res) => {
         );
 
       const freeSlots = slots
-        .filter((s) => !ocupadas.some((l) => l.scheduledAt.getTime() === s.date.getTime()))
+        .filter((s) => isSlotFree(s.date, ocupadas))
         .slice(0, 5);
 
       await updateState("MATRICULA_SLOT", { matriculaNome: nome, freeSlots });
@@ -691,7 +703,7 @@ router.post("/", async (req, res) => {
           );
 
         const freeSlots = slots
-          .filter((s) => !ocupadas.some((l) => l.scheduledAt.getTime() === s.date.getTime()))
+          .filter((s) => isSlotFree(s.date, ocupadas))
           .slice(0, 5);
 
         await updateState("REAGENDAR_SLOT", { selectedLesson, freeSlots });
