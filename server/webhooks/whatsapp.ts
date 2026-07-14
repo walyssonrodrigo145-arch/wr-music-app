@@ -62,8 +62,8 @@ function generateAvailableSlots(schoolHoursStr: string) {
     const diaNome = diasSemana[dow];
     const diaMes = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
-    const startHour = parseInt(dayConfig.start.split(":")[0]);
-    const endHour = parseInt(dayConfig.end.split(":")[0]);
+    const startHour = parseInt(String(dayConfig.start || "08:00").split(":")[0]);
+    const endHour = parseInt(String(dayConfig.end || "18:00").split(":")[0]);
     
     const hoursToTry = [startHour, Math.floor((startHour+endHour)/2), endHour - 2];
     
@@ -546,6 +546,11 @@ router.post("/", async (req, res) => {
     // FLUXO: AGENDAR AULA (Aluno)
     // ─────────────────────────────────────────────────────
     if (session.state === "AGENDAR_AULA_SLOT") {
+      if (!student) {
+        await updateState("START");
+        return res.status(200).json({ ok: true });
+      }
+
       if (inputUpper === "MENU") {
         await updateState("START");
         await sendReply("Voltando ao menu principal... 🎵");
@@ -588,6 +593,11 @@ router.post("/", async (req, res) => {
     // FLUXO: REAGENDAR AULA (Aluno)
     // ─────────────────────────────────────────────────────
     if (session.state === "REAGENDAR_SELECIONAR_AULA") {
+      if (!student) {
+        await updateState("START");
+        return res.status(200).json({ ok: true });
+      }
+
       if (inputUpper === "MENU") {
         await updateState("START");
         await sendReply("Voltando ao menu principal... 🎵");
@@ -633,6 +643,11 @@ router.post("/", async (req, res) => {
     }
 
     if (session.state === "REAGENDAR_SLOT") {
+      if (!student) {
+        await updateState("START");
+        return res.status(200).json({ ok: true });
+      }
+
       if (inputUpper === "MENU") {
         await updateState("START");
         await sendReply("Voltando ao menu principal... 🎵");

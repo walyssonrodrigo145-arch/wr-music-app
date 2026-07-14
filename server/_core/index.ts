@@ -138,7 +138,8 @@ async function startServer() {
             url: profSettings.whatsappBotUrl || undefined,
             token: profSettings.whatsappBotToken || undefined,
             phone: profSettings.phone,
-            message: `🤖 *Aviso do Robô:*\n\nO aluno *${studentData?.name || "Aluno"}* acabou de pagar a mensalidade no valor de *${valorStr}* via Mercado Pago!`
+            message: `🤖 *Aviso do Robô:*\n\nO aluno *${studentData?.name || "Aluno"}* acabou de pagar a mensalidade no valor de *${valorStr}* via Mercado Pago!`,
+            sessionId: `prof_${due.userId}`
           });
         }
         if (studentData?.phone) {
@@ -146,7 +147,8 @@ async function startServer() {
             url: profSettings.whatsappBotUrl || undefined,
             token: profSettings.whatsappBotToken || undefined,
             phone: studentData.phone,
-            message: `🤖 *Aviso do Robô:*\n\nSeu pagamento da mensalidade no valor de *${valorStr}* foi confirmado com sucesso. Muito obrigado! 🎉`
+            message: `🤖 *Aviso do Robô:*\n\nSeu pagamento da mensalidade no valor de *${valorStr}* foi confirmado com sucesso. Muito obrigado! 🎉`,
+            sessionId: `prof_${due.userId}`
           });
         }
       }
@@ -274,7 +276,8 @@ async function startServer() {
               url: profSettings.whatsappBotUrl || undefined,
               token: profSettings.whatsappBotToken || undefined,
               phone: profSettings.phone,
-              message: `🤖 *Aviso do Robô:*\n\nO aluno *${paymentDetails.studentName || "Aluno"}* acabou de pagar a mensalidade no valor de *${valor}* via Asaas!`
+              message: `🤖 *Aviso do Robô:*\n\nO aluno *${paymentDetails.studentName || "Aluno"}* acabou de pagar a mensalidade no valor de *${valor}* via Asaas!`,
+              sessionId: `prof_${paymentDetails.userId}`
             });
           }
           if (paymentDetails.studentPhone) {
@@ -282,7 +285,8 @@ async function startServer() {
               url: profSettings.whatsappBotUrl || undefined,
               token: profSettings.whatsappBotToken || undefined,
               phone: paymentDetails.studentPhone,
-              message: `🤖 *Aviso do Robô:*\n\nSeu pagamento da mensalidade no valor de *${valor}* foi confirmado com sucesso. Muito obrigado! 🎉`
+              message: `🤖 *Aviso do Robô:*\n\nSeu pagamento da mensalidade no valor de *${valor}* foi confirmado com sucesso. Muito obrigado! 🎉`,
+              sessionId: `prof_${paymentDetails.userId}`
             });
           }
         }
