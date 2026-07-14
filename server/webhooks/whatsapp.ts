@@ -147,6 +147,9 @@ router.post("/", async (req, res) => {
         organizationId: settings.organizationId,
         geminiApiKey: settings.geminiApiKey,
         geminiModel: settings.geminiModel,
+        groqApiKey: settings.groqApiKey,
+        groqModel: settings.groqModel,
+        aiProvider: settings.aiProvider,
       })
       .from(settings)
       .where(eq(settings.userId, professorUserId))
@@ -277,12 +280,15 @@ router.post("/", async (req, res) => {
         // Limita o histórico para não estourar tokens
         if (historyObj.length > 10) historyObj.splice(0, historyObj.length - 10);
 
+        const apiKey = profSettings.aiProvider === 'groq' ? profSettings.groqApiKey : profSettings.geminiApiKey;
+        const model = profSettings.aiProvider === 'groq' ? profSettings.groqModel : profSettings.geminiModel;
+
         const aiResponse = await callGemini(
           historyObj,
           systemPrompt,
           false,
-          profSettings.geminiApiKey,
-          profSettings.geminiModel
+          apiKey,
+          model
         );
 
         historyObj.push({ role: "assistant", content: aiResponse });
