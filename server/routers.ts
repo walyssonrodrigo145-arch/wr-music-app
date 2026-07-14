@@ -3977,7 +3977,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
       // Buscar chave PIX e gateway de pagamento do professor
-      const [userSettings] = await db.select({ pixKey: settings.pixKey, paymentGateway: settings.paymentGateway, asaasEnabled: settings.asaasEnabled })
+      const [userSettings] = await db.select({ 
+        pixKey: settings.pixKey, 
+        paymentGateway: settings.paymentGateway, 
+        asaasEnabled: settings.asaasEnabled,
+        asaasApiKey: settings.asaasApiKey,
+        mpAccessToken: settings.mpAccessToken
+      })
         .from(settings)
         .where(eq(settings.userId, ctx.user.id))
         .limit(1);
@@ -3995,6 +4001,8 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         year: paymentDues.year,
         studentName: students.name,
         studentPhone: students.phone,
+        studentEmail: students.email,
+        studentCpf: students.cpf,
         instrumentName: instruments.name,
         asaasPaymentLink: paymentDues.asaasPaymentLink,
         mpPaymentLink: paymentDues.mpPaymentLink,
@@ -4096,10 +4104,76 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           .replace(/\{instrumento\}/g, due.instrumentName ?? "música")
           .replace(/\{chave_pix\}/g, pixKey ?? "");
 
-        // Adiciona link de pagamento do gateway ativo
-        const paymentLink = paymentGateway === "mercadopago"
+        // Adiciona link de pagamento do gateway ativo, gerando se não existir
+        let paymentLink = paymentGateway === "mercadopago"
           ? (due.mpPaymentLink ?? null)
           : (due.asaasPaymentLink ?? null);
+
+        if (!paymentLink) {
+          if (paymentGateway === "mercadopago" && userSettings.mpAccessToken) {
+            try {
+              const { createMPPreference } = await import('./utils/mercadopago');
+              const pref = await createMPPreference({
+                items: [{
+                  title: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
+                  quantity: 1,
+                  currency_id: "BRL",
+                  unit_price: Number(due.amount)
+                }],
+                payer: {
+                  name: due.studentName || 'Aluno',
+                  email: due.studentEmail || "aluno@musicpro.com.br"
+                },
+                external_reference: due.id.toString(),
+                successUrl: `https://wrmusicpro.com.br/painel/mensalidades`
+              }, userSettings.mpAccessToken);
+              
+              await db.update(paymentDues).set({ mpPaymentId: pref.id, mpPaymentLink: pref.init_point }).where(eq(paymentDues.id, due.id));
+              paymentLink = pref.init_point;
+            } catch (err) {
+              console.error("[MP Auto-Generate Error]", err);
+            }
+          } else if (paymentGateway === "asaas" && userSettings.asaasEnabled === 1 && userSettings.asaasApiKey) {
+            try {
+              const { createAsaasCustomer, createAsaasCharge } = await import('./utils/asaas');
+              let asaasCustomerId: string | null = null;
+              
+              const [existingCustomer] = await db.select().from(asaasCustomers)
+                .where(and(eq(asaasCustomers.studentId, due.studentId), eq(asaasCustomers.organizationId, orgId)))
+                .limit(1);
+
+              if (existingCustomer) {
+                asaasCustomerId = existingCustomer.asaasCustomerId;
+              } else {
+                asaasCustomerId = await createAsaasCustomer({
+                  name: due.studentName || 'Aluno',
+                  email: due.studentEmail ?? undefined,
+                  phone: due.studentPhone ?? undefined,
+                  cpfCnpj: due.studentCpf ?? undefined,
+                }, userSettings.asaasApiKey);
+                
+                if (asaasCustomerId) {
+                  await db.insert(asaasCustomers).values({ organizationId: orgId, studentId: due.studentId, asaasCustomerId });
+                }
+              }
+
+              if (asaasCustomerId) {
+                const charge = await createAsaasCharge({
+                  asaasCustomerId,
+                  billingType: 'UNDEFINED',
+                  value: Number(due.amount),
+                  dueDate: String(due.dueDate).slice(0, 10),
+                  description: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
+                }, userSettings.asaasApiKey);
+
+                await db.update(paymentDues).set({ asaasId: charge.id, asaasPaymentLink: charge.invoiceUrl, asaasBillingType: charge.billingType }).where(eq(paymentDues.id, due.id));
+                paymentLink = charge.invoiceUrl;
+              }
+            } catch (err) {
+              console.error("[Asaas Auto-Generate Error]", err);
+            }
+          }
+        }
 
         if (paymentLink) {
           const gatewayName = paymentGateway === "mercadopago" ? "Mercado Pago" : "Asaas";
