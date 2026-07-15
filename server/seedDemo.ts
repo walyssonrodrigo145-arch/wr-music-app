@@ -103,7 +103,7 @@ async function seed() {
         organizationId: orgId,
         userId: userId,
         amount: "150.00",
-        dueDate: d.toISOString().slice(0, 10),
+        dueDate: d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
         status: m === -1 ? "pago" : (m === 0 ? "pendente" : "pendente"),
         month: d.getMonth() + 1,
         year: d.getFullYear(),

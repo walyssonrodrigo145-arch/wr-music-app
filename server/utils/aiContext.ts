@@ -3,7 +3,7 @@ import { students, lessons, paymentDues, reminders, settings, expenses, organiza
 
 export async function buildUserContext(db: any, userId: number, orgId: number, isUserAdmin: boolean = false): Promise<string> {
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
   try {
     // 1. Busca configurações básicas

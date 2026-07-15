@@ -421,7 +421,7 @@ export const appRouter = router({
         // nextDueDateStr é quando o Asaas vai gerar a 1ª cobrança (33 dias)
         const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         trialEndsAt.setHours(23, 59, 59, 999);
-        const nextDueDateStr = new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const nextDueDateStr = new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
         const [org] = await db.insert(organizations).values({
           name: `${input.name}`,
@@ -2212,7 +2212,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           dueDay: input.dueDay,
           lessonType: input.lessonType,
           onlineMeetingLink: input.onlineMeetingLink || undefined,
-          startDate: input.startDate || new Date().toISOString().slice(0, 10),
+          startDate: input.startDate || new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
           notes: input.notes || undefined,
           status: input.status,
           allowAutoReminders: input.allowAutoReminders,
@@ -2423,7 +2423,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             const newDueDate = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth(), data.dueDay);
             
             // Format to YYYY-MM-DD
-            const formattedDate = newDueDate.toISOString().slice(0, 10);
+            const formattedDate = newDueDate.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
             await db.update(paymentDues)
               .set({ 
@@ -3893,7 +3893,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (alreadySent.length > 0) { skipped++; continue; }
 
         // Chave de deduplicação
-        const dateStr = lessonDate.toISOString().slice(0, 10);
+        const dateStr = lessonDate.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
         const refId = `lesson-${lesson.id}-${dateStr}`;
 
         // Verificar duplicidade por refId (qualquer status: pendente, cancelado)
@@ -3974,7 +3974,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
       const orgId = ctx.user.organizationId!;
       const now = new Date();
-      const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
+      const today = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); // YYYY-MM-DD
 
       // Buscar chave PIX e gateway de pagamento do professor
       const [userSettings] = await db.select({ 
@@ -4668,7 +4668,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           ))
           .orderBy(asc(paymentDues.dueDate));
 
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
         const mappedRows = rows.map(r => {
           if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
             return { ...r, status: 'atrasado' as const };
@@ -4757,7 +4757,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               const dueDateObj = new Date(input.dueDate);
               const todayObj = new Date();
               todayObj.setHours(0, 0, 0, 0);
-              const finalDueDate = dueDateObj < todayObj ? new Date().toISOString().slice(0, 10) : input.dueDate.slice(0, 10);
+              const finalDueDate = dueDateObj < todayObj ? new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) : input.dueDate.slice(0, 10);
 
               const charge = await createAsaasCharge({
                 asaasCustomerId,
@@ -4935,7 +4935,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             for (const pay of unpaidPayments) {
               const currentDueDate = new Date(pay.dueDate);
               const newDueDate = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth(), newDay);
-              const formattedDate = newDueDate.toISOString().slice(0, 10);
+              const formattedDate = newDueDate.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
               await db.update(paymentDues)
                 .set({ dueDate: formattedDate, updatedAt: new Date() })
@@ -5137,7 +5137,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             userId: ctx.user.id,
             studentId: input.studentId,
             amount: input.amount.toFixed(2),
-            dueDate: dueDate.toISOString().slice(0, 10),
+            dueDate: dueDate.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
             month,
             year: y,
             status: 'pendente' as const,
@@ -5209,7 +5209,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               userId: ctx.user.id,
               studentId: student.id,
               amount: fee.toFixed(2),
-              dueDate: dueDate.toISOString().slice(0, 10),
+              dueDate: dueDate.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
               month,
               year: y,
               status: 'pendente' as const,
@@ -5231,7 +5231,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const db = await getDb();
       if (!db) return [];
       const orgId = ctx.user.organizationId!;
-      const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
       const rows = await db.select({
         id: paymentDues.id,
         studentId: paymentDues.studentId,
@@ -5282,7 +5282,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           .where(and(eq(paymentDues.studentId, input.studentId), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id)))
           .orderBy(asc(paymentDues.year), asc(paymentDues.month));
 
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
         const mappedRows = rows.map(r => {
           if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
             return { ...r, status: 'atrasado' as const };
@@ -5352,7 +5352,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const dueDateObj = new Date(due.dueDate);
         const todayObj = new Date();
         todayObj.setHours(0, 0, 0, 0);
-        const finalDueDate = dueDateObj < todayObj ? new Date().toISOString().slice(0, 10) : due.dueDate;
+        const finalDueDate = dueDateObj < todayObj ? new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) : due.dueDate;
 
         // Create charge on Asaas
         const charge = await createAsaasCharge({
@@ -5542,7 +5542,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           total: 0
         };
 
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
         payments.forEach(p => {
           const amt = Number(p.amount);
@@ -7251,7 +7251,7 @@ Texto original para reescrever:
                 dueDay: actionData.dueDay ?? 15,
                 lessonType: "individual",
                 status: "ativo",
-                startDate: new Date().toISOString().slice(0, 10),
+                startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
                 notes: actionData.notes || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
@@ -8404,7 +8404,7 @@ Texto original para reescrever:
             customer: customerId,
             billingType: 'UNDEFINED',
             value: planValue,
-            nextDueDate: new Date().toISOString().slice(0, 10),
+            nextDueDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
             cycle: input.planType,
             description: `Assinatura MusicPro - Plano ${org.planId} (${input.planType})`,
             successUrl: `${ENV.appUrl}/checkout?payment=success`,

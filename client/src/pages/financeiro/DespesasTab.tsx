@@ -41,7 +41,7 @@ function NovaDespesaModal({ open, onClose }: { open: boolean; onClose: () => voi
     supplier: "",
     account: "",
     amount: "",
-    date: new Date().toISOString().slice(0, 10),
+    date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
     category: "Outros",
     recurrence: "unica",
     status: "pendente" as any,
@@ -55,7 +55,7 @@ function NovaDespesaModal({ open, onClose }: { open: boolean; onClose: () => voi
       toast.success(`Despesa registrada com sucesso!`);
       utils.expenses.invalidate();
       onClose();
-      setForm({ description: "", supplier: "", account: "", amount: "", date: new Date().toISOString().slice(0, 10), category: "Outros", recurrence: "unica", status: "pendente", notes: "" });
+      setForm({ description: "", supplier: "", account: "", amount: "", date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }), category: "Outros", recurrence: "unica", status: "pendente", notes: "" });
     },
     onError: (e) => toast.error("Erro: " + e.message),
   });
@@ -195,7 +195,7 @@ function EditDespesaModal({ open, onClose, expense }: { open: boolean; onClose: 
     supplier: expense?.supplier || "",
     account: expense?.account || "",
     amount: expense?.amount ? String(expense.amount) : "",
-    date: expense?.date || new Date().toISOString().slice(0, 10),
+    date: expense?.date || new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
     category: expense?.category || "Outros",
     recurrence: expense?.recurrence || "unica",
     status: expense?.status || "pendente",
@@ -209,7 +209,7 @@ function EditDespesaModal({ open, onClose, expense }: { open: boolean; onClose: 
         supplier: expense.supplier || "",
         account: expense.account || "",
         amount: expense.amount ? String(expense.amount) : "",
-        date: expense.date || new Date().toISOString().slice(0, 10),
+        date: expense.date || new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
         category: expense.category || "Outros",
         recurrence: expense.recurrence || "unica",
         status: expense.status || "pendente",

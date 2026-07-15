@@ -93,7 +93,7 @@ async function runAutomation() {
   if (activeSettings.length === 0) return;
 
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const todayStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); // YYYY-MM-DD no fuso BRT
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
   // BUG-AUTO-004 FIX: `startOfDay` deve respeitar o timezone de Brasília.
   // O servidor VPS roda em UTC — sem correção, o anti-spam resetava às 21h BRT
@@ -648,7 +648,7 @@ async function runAutomation() {
         const schoolName = userSettings2?.schoolName ?? "nossa escola";
         const professorName = userInfo?.name ?? "Professor";
         const now2 = new Date();
-        const todayStr2 = now2.toISOString().slice(0, 10);
+        const todayStr2 = now2.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
         for (const rule of activeRules) {
           try {
@@ -834,7 +834,7 @@ async function runAutomation() {
                 const nowDayStr = now2.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
                 if (triggerDayStr !== nowDayStr) continue;
 
-                const lessonDateStr = lessonTime.toISOString().slice(0, 10);
+                const lessonDateStr = lessonTime.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
                 // ✅ FIX: Lock exclusivo por Regra. Permite que o usuário tenha múltiplas automações para a mesma aula (ex: 24h antes E 1h antes).
                 const refId = `auto-rule-${rule.id}-lesson-${lesson.id}-${lessonDateStr}`;
                 const existing = await db.select({ id: reminders.id }).from(reminders)
