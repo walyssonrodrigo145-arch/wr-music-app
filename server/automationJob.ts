@@ -696,7 +696,7 @@ async function runAutomation() {
 
               for (const due of pendingDues) {
                 if (due.allowAutoReminders === false) continue;
-                const dueDate = new Date(due.dueDate + "T08:00:00");
+                const dueDate = new Date(due.dueDate + "T08:00:00-03:00");
                 const dueDateStr = String(due.dueDate).slice(0, 10);
                 const isOverdue = dueDateStr < todayStr2;
 
@@ -706,20 +706,21 @@ async function runAutomation() {
                   if (isOverdue) continue; // Already overdue, skip
                   triggerDate.setDate(triggerDate.getDate() + (rule.offsetDays ?? 0));
                 } else if (rule.trigger === "payment_overdue") {
-                  // BUG-011 FIX: Removido Math.abs() — respeita a semântica do offsetDays configurado.
-                  // offsetDays positivo = N dias APÓS o vencimento (ex: 1 = 1 dia depois de vencer)
-                  // offsetDays negativo = N dias ANTES do vencimento (não usual para overdue, mas respeita a config)
                   triggerDate.setDate(triggerDate.getDate() + (rule.offsetDays ?? 0));
                 }
                 
-                if (triggerDate > now2) continue; // Not yet time
+                if (triggerDate > now2) {
+                  // Not yet time
+                  continue; 
+                }
 
-                // ✅ FIX: Remove `todayStr2` from refId so the rule only triggers EXACTLY ONCE per payment.
-                // Previously, it included the current date, causing it to send again every single day.
                 const refId = `auto-rule-${rule.id}-payment-${due.id}`;
                 const existingReminder = await db.select({ id: reminders.id }).from(reminders)
                   .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
-                if (existingReminder.length > 0) continue;
+                
+                if (existingReminder.length > 0) {
+                  continue;
+                }
 
                 const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
                 const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
