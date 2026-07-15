@@ -680,9 +680,9 @@ export default function Aulas() {
         </div>
       </section>
 
-      <div className="fixed bottom-[104px] right-6 z-50">
-        <motion.button id="tour-new-lesson" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setAgendarOpen(true)} className="bg-[#2563EB] text-white px-8 py-5 rounded-full flex items-center gap-4 shadow-2xl group relative overflow-hidden">
-          <Plus size={24} strokeWidth={3} className="relative z-10" /><span className="text-sm font-black uppercase tracking-widest relative z-10">Nova Aula</span>
+      <div className="fixed bottom-[104px] right-6 z-30">
+        <motion.button id="tour-new-lesson" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setAgendarOpen(true)} className="bg-[#2563EB] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(37,99,235,0.5)] group relative overflow-hidden">
+          <Plus size={26} strokeWidth={3} className="relative z-10" />
         </motion.button>
       </div>
 

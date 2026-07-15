@@ -185,9 +185,14 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
                <button 
                  className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl text-muted-foreground hover:text-primary hover:bg-card transition-all shadow-sm relative flex items-center justify-center active:scale-90 group" 
                >
-                 <Bell size={20} />
+                 <motion.div
+                   animate={unreadCount > 0 ? { rotate: [0, -15, 15, -15, 15, 0] } : {}}
+                   transition={{ repeat: Infinity, repeatDelay: 3, duration: 0.5 }}
+                 >
+                   <Bell size={20} />
+                 </motion.div>
                  {unreadCount > 0 && (
-                   <span className="absolute top-2 right-2 flex items-center justify-center w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full border-2 border-background animate-bounce group-hover:animate-none">
+                   <span className="absolute top-2 right-2 flex items-center justify-center w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full border-2 border-background group-hover:scale-110 transition-transform">
                      {unreadCount}
                    </span>
                  )}
