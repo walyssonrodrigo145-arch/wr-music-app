@@ -3775,12 +3775,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         if (input?.dateFrom)  {
           conditions.push(gte(reminders.scheduledAt, new Date(input.dateFrom)));
         } else {
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          const fourDaysAgo = new Date();
+          fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
           conditions.push(
             or(
               eq(reminders.status, "pendente"),
-              gte(reminders.createdAt, sevenDaysAgo)
+              gte(reminders.createdAt, fourDaysAgo)
             )
           );
         }
