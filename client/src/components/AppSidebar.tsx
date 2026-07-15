@@ -176,9 +176,9 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth pb-20 md:pb-4">
         {!collapsed && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mb-4 animate-in fade-in duration-500">Menu</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mt-2 mb-2 animate-in fade-in duration-500">Menu</p>
         )}
         {navItems.map((item, idx) => {
           const Icon = item.icon;
@@ -188,7 +188,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               <div
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative overflow-hidden",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group relative overflow-hidden",
                   isActive
                     ? "bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
@@ -231,7 +231,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         })}
 
         {!collapsed && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mt-8 mb-4 animate-in fade-in duration-500">Geral</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/30 px-3 mt-6 mb-2 animate-in fade-in duration-500">Geral</p>
         )}
         {filteredBottomItems.map((item) => {
           const Icon = item.icon;
@@ -241,7 +241,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               <div
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer group",
                   isActive
                     ? "bg-slate-800 text-white"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
