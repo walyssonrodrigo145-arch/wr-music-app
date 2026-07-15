@@ -2,7 +2,7 @@ const { Client } = require('ssh2');
 
 const conn = new Client();
 const config = {
-  host: '76.13.228.159',
+  host: '179.197.76.174',
   port: 22,
   username: 'root',
   password: 'Walysson2003@',
@@ -11,7 +11,7 @@ const config = {
 
 conn.on('ready', () => {
   const commands = `
-    docker compose -f /root/wr-music-app/docker-compose.yml exec -T app curl -I -m 5 http://76.13.228.159:8080/ || echo "Public IP failed"
+    docker compose -f /root/wr-music-app/docker-compose.yml exec -T app curl -I -m 5 http://179.197.76.174:8080/ || echo "Public IP failed"
     docker compose -f /root/wr-music-app/docker-compose.yml exec -T app curl -I -m 5 http://172.17.0.1:8080/ || echo "Bridge IP failed"
   `;
 

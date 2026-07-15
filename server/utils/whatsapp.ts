@@ -9,7 +9,7 @@ interface SendWhatsAppParams {
 }
 
 // SEGURANÇA: URLs e tokens do Evolution API NÃO devem ser hardcoded.
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://76.13.228.159:8080";
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080";
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
 
 const DEFAULT_INSTANCE = "prof_1";

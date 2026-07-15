@@ -4,7 +4,7 @@ const path = require('path');
 
 const conn = new Client();
 const config = {
-  host: '76.13.228.159',
+  host: '179.197.76.174',
   port: 22,
   username: 'root',
   password: 'Walysson2003@',
@@ -19,6 +19,8 @@ const filesToUpload = [
   'server/_core/rateLimiter.ts',
   'server/_core/index.ts',
   'server/_core/env.ts',
+  'server/seedDemo.ts',
+  'server/utils/aiContext.ts',
   'server/superAdminRouter.ts',
   'client/public/logo.svg',
   'client/public/manifest.json',

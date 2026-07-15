@@ -1,5 +1,5 @@
 async function test() {
-  const res = await fetch("http://76.13.228.159:8080/instance/create", {
+  const res = await fetch("http://179.197.76.174:8080/instance/create", {
     method: "POST",
     headers: {
       "apikey": "minha_chave_secreta_123",

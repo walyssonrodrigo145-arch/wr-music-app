@@ -2,7 +2,7 @@ const { Client } = require('ssh2');
 
 const conn = new Client();
 const config = {
-  host: '76.13.228.159',
+  host: '179.197.76.174',
   port: 22,
   username: 'root',
   password: 'Walysson2003@',
@@ -17,7 +17,7 @@ conn.on('ready', () => {
   });
 
   const commands = `
-    curl -X POST http://76.13.228.159:8080/message/sendText/prof_163 \\
+    curl -X POST http://179.197.76.174:8080/message/sendText/prof_163 \\
          -H "Content-Type: application/json" \\
          -H "apikey: minha_chave_secreta_123" \\
          -d '${payload}'

@@ -2,7 +2,7 @@ const { Client } = require('ssh2');
 
 const conn = new Client();
 const config = {
-  host: '76.13.228.159',
+  host: '179.197.76.174',
   port: 22,
   username: 'root',
   password: 'Walysson2003@',
@@ -11,7 +11,7 @@ const config = {
 
 conn.on('ready', () => {
   const commands = `
-    sed -i 's/76.13.228.159/172.16.1.1/g' /root/wr-music-app/.env
+    sed -i 's/179.197.76.174/172.16.1.1/g' /root/wr-music-app/.env
     cd /root/wr-music-app
     docker compose restart app
   `;

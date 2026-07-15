@@ -16,7 +16,7 @@ conn.on('ready', () => {
     });
   });
 }).connect({
-  host: '76.13.228.159',
+  host: '179.197.76.174',
   port: 22,
   username: 'root',
   password: 'Walysson2003@',

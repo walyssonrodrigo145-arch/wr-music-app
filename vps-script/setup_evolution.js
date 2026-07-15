@@ -2,7 +2,7 @@ const { Client } = require('ssh2');
 
 const conn = new Client();
 const config = {
-  host: '76.13.228.159',
+  host: '179.197.76.174',
   port: 22,
   username: 'root',
   password: 'Walysson2003@',
@@ -27,7 +27,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SERVER_URL=http://76.13.228.159:8080
+      - SERVER_URL=http://179.197.76.174:8080
       - DOCKER_ENV=true
       - LOG_LEVEL=ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,FATAL
       - AUTHENTICATION_TYPE=apikey

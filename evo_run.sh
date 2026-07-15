@@ -16,7 +16,7 @@ docker run -d \
   --restart always \
   -p 8080:8080 \
   --network "$EVO_NETWORK" \
-  -e SERVER_URL=http://76.13.228.159:8080 \
+  -e SERVER_URL=http://179.197.76.174:8080 \
   -e DOCKER_ENV=true \
   -e LOG_LEVEL=ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,FATAL \
   -e LOG_BAILEYS=error \

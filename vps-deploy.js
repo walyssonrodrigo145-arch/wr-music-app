@@ -5,7 +5,7 @@ async function deploy() {
   try {
     console.log("Conectando à VPS...");
     await ssh.connect({
-      host: '76.13.228.159',
+      host: '179.197.76.174',
       username: 'root',
       password: 'Walysson2003@'
     });
