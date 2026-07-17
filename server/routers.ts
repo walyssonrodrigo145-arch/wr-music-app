@@ -6390,14 +6390,17 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       
       if (!student) throw new Error("Dados do aluno não encontrados.");
       
-      const [[teacher], [instrument], [orgSettings], [nextGoal]] = await Promise.all([
-        db.select({ 
-          name: users.name
-        })
-        .from(users)
-        .where(eq(users.id, student.teacherId))
-        .limit(1),
-        
+      const [teacher] = await db.select({ 
+        name: users.name,
+        organizationId: users.organizationId
+      })
+      .from(users)
+      .where(eq(users.id, student.teacherId))
+      .limit(1);
+
+      const resolvedOrgId = student.organizationId || teacher?.organizationId;
+
+      const [[instrument], [orgSettings], [nextGoal]] = await Promise.all([
         student.instrumentId 
           ? db.select({ name: instruments.name })
               .from(instruments)
@@ -6405,10 +6408,17 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               .limit(1)
           : Promise.resolve([{ name: null }]),
           
-        student.organizationId
+        resolvedOrgId
           ? db.select({ pixKey: settings.pixKey, schoolPhone: settings.schoolPhone, paymentGateway: settings.paymentGateway })
               .from(settings)
-              .where(eq(settings.organizationId, student.organizationId))
+              .innerJoin(users, eq(users.id, settings.userId))
+              .where(
+                and(
+                  eq(settings.organizationId, resolvedOrgId),
+                  eq(users.role, "admin")
+                )
+              )
+              .orderBy(desc(settings.updatedAt))
               .limit(1)
           : Promise.resolve([{ pixKey: null, schoolPhone: null, paymentGateway: "asaas" }]),
           
