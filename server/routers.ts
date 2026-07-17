@@ -6408,13 +6408,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         student.organizationId
           ? db.select({ pixKey: settings.pixKey, schoolPhone: settings.schoolPhone, paymentGateway: settings.paymentGateway })
               .from(settings)
-              .innerJoin(users, eq(users.id, settings.userId))
-              .where(
-                and(
-                  eq(users.organizationId, student.organizationId),
-                  eq(users.role, "admin")
-                )
-              )
+              .where(eq(settings.organizationId, student.organizationId))
               .limit(1)
           : Promise.resolve([{ pixKey: null, schoolPhone: null, paymentGateway: "asaas" }]),
           
