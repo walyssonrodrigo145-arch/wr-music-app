@@ -220,13 +220,13 @@ export default function StudentPayments() {
                               
                               if (gateway === "mercadopago") {
                                 if (payment.mpPaymentLink) {
-                                  window.open(payment.mpPaymentLink, "_blank");
+                                  window.location.href = payment.mpPaymentLink;
                                 } else {
                                   toast.loading("Gerando link de pagamento...", { id: `mp-${payment.id}` });
                                   generateMPMutation.mutate({ paymentDueId: payment.id }, {
                                     onSuccess: (data) => {
                                       toast.success("Link gerado com sucesso!", { id: `mp-${payment.id}` });
-                                      window.open(data.paymentLink, "_blank");
+                                      window.location.href = data.paymentLink;
                                       utils.studentPortal.getPayments.invalidate();
                                     },
                                     onError: (err) => {
@@ -312,13 +312,13 @@ export default function StudentPayments() {
                        
                        if (gateway === "mercadopago") {
                          if (nextPayment?.mpPaymentLink) {
-                           window.open(nextPayment.mpPaymentLink, "_blank");
+                           window.location.href = nextPayment.mpPaymentLink;
                          } else {
                            toast.loading("Gerando link de pagamento...", { id: `mp2-${nextPayment.id}` });
                            generateMPMutation.mutate({ paymentDueId: nextPayment.id }, {
                              onSuccess: (data) => {
                                toast.success("Link gerado com sucesso!", { id: `mp2-${nextPayment.id}` });
-                               window.open(data.paymentLink, "_blank");
+                               window.location.href = data.paymentLink;
                                utils.studentPortal.getPayments.invalidate();
                              },
                              onError: (err) => {
