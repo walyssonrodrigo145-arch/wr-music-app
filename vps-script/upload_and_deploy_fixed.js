@@ -139,6 +139,12 @@ const filesToUpload = [
   'client/src/pages/TermosDeUso.tsx',
   'client/src/pages/PoliticaPrivacidade.tsx',
   '.env',
+  'Dockerfile',
+  'Caddyfile',
+  'drizzle.config.ts',
+  'tsconfig.json',
+  'evo_run.sh',
+  'evolution-v2-compose.yml',
 ];
 
 conn.on('ready', () => {

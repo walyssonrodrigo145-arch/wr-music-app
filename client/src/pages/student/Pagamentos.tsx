@@ -215,22 +215,36 @@ export default function StudentPayments() {
                         ) : (
                           <button 
                             onClick={() => {
-                              if (payment.mpPaymentLink) {
-                                window.open(payment.mpPaymentLink, "_blank");
-                              } else if (payment.asaasBillingType === "PIX" && payment.asaasPaymentLink) {
-                                setPixCopiaECola(payment.asaasPaymentLink);
-                                setSelectedPayment(payment);
-                                setIsPixModalOpen(true);
-                                setAnalysisResult(null);
-                                setUploadedImageUrl(null);
-                              } else if (payment.asaasPaymentLink) {
-                                window.open(payment.asaasPaymentLink, "_blank");
-                              } else if (profile?.teacherPixKey) {
-                                setPixCopiaECola(null);
-                                setSelectedPayment(payment);
-                                setIsPixModalOpen(true);
-                                setAnalysisResult(null);
-                                setUploadedImageUrl(null);
+                              const gateway = profile?.paymentGateway || "asaas";
+                              
+                              if (gateway === "mercadopago") {
+                                if (payment.mpPaymentLink) {
+                                  window.open(payment.mpPaymentLink, "_blank");
+                                } else {
+                                  toast.info("Fatura MercadoPago não disponível para esta mensalidade.");
+                                }
+                              } else if (gateway === "asaas") {
+                                if (payment.asaasBillingType === "PIX" && payment.asaasPaymentLink) {
+                                  setPixCopiaECola(payment.asaasPaymentLink);
+                                  setSelectedPayment(payment);
+                                  setIsPixModalOpen(true);
+                                  setAnalysisResult(null);
+                                  setUploadedImageUrl(null);
+                                } else if (payment.asaasPaymentLink) {
+                                  window.open(payment.asaasPaymentLink, "_blank");
+                                } else {
+                                  toast.info("Fatura Asaas não disponível para esta mensalidade.");
+                                }
+                              } else if (gateway === "pix") {
+                                if (profile?.teacherPixKey) {
+                                  setPixCopiaECola(null);
+                                  setSelectedPayment(payment);
+                                  setIsPixModalOpen(true);
+                                  setAnalysisResult(null);
+                                  setUploadedImageUrl(null);
+                                } else {
+                                  toast.info("Chave PIX da escola não está configurada.");
+                                }
                               } else {
                                 toast.info("Aguardando configuração de pagamento da escola.");
                               }
@@ -283,22 +297,36 @@ export default function StudentPayments() {
                    </div>
                    <button 
                      onClick={() => {
-                       if (nextPayment?.mpPaymentLink) {
-                         window.open(nextPayment.mpPaymentLink, "_blank");
-                       } else if (nextPayment?.asaasBillingType === "PIX" && nextPayment?.asaasPaymentLink) {
-                         setPixCopiaECola(nextPayment.asaasPaymentLink);
-                         setSelectedPayment(nextPayment);
-                         setIsPixModalOpen(true);
-                         setAnalysisResult(null);
-                         setUploadedImageUrl(null);
-                       } else if (nextPayment?.asaasPaymentLink) {
-                         window.open(nextPayment.asaasPaymentLink, "_blank");
-                       } else if (profile?.teacherPixKey) {
-                         setPixCopiaECola(null);
-                         setSelectedPayment(nextPayment);
-                         setIsPixModalOpen(true);
-                         setAnalysisResult(null);
-                         setUploadedImageUrl(null);
+                       const gateway = profile?.paymentGateway || "asaas";
+                       
+                       if (gateway === "mercadopago") {
+                         if (nextPayment?.mpPaymentLink) {
+                           window.open(nextPayment.mpPaymentLink, "_blank");
+                         } else {
+                           toast.info("Fatura MercadoPago não disponível para esta mensalidade.");
+                         }
+                       } else if (gateway === "asaas") {
+                         if (nextPayment?.asaasBillingType === "PIX" && nextPayment?.asaasPaymentLink) {
+                           setPixCopiaECola(nextPayment.asaasPaymentLink);
+                           setSelectedPayment(nextPayment);
+                           setIsPixModalOpen(true);
+                           setAnalysisResult(null);
+                           setUploadedImageUrl(null);
+                         } else if (nextPayment?.asaasPaymentLink) {
+                           window.open(nextPayment.asaasPaymentLink, "_blank");
+                         } else {
+                           toast.info("Fatura Asaas não disponível para esta mensalidade.");
+                         }
+                       } else if (gateway === "pix") {
+                         if (profile?.teacherPixKey) {
+                           setPixCopiaECola(null);
+                           setSelectedPayment(nextPayment);
+                           setIsPixModalOpen(true);
+                           setAnalysisResult(null);
+                           setUploadedImageUrl(null);
+                         } else {
+                           toast.info("Chave PIX da escola não está configurada.");
+                         }
                        } else {
                          toast.info("Aguardando configuração de pagamento da escola.");
                        }
