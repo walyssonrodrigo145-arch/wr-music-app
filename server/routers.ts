@@ -6462,6 +6462,85 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         nextGoal: nextGoal?.title || null
       };
     }),
+    generatePaymentLink: studentProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const orgId = ctx.user.organizationId!;
+        
+        const { createMPPreference } = await import('./utils/mercadopago');
+        
+        const [settingsData] = await db.select({ 
+          mpAccessToken: settings.mpAccessToken,
+          paymentGateway: settings.paymentGateway
+        })
+        .from(settings)
+        .innerJoin(users, eq(users.id, settings.userId))
+        .where(
+          and(
+            eq(settings.organizationId, orgId),
+            eq(users.role, "admin")
+          )
+        )
+        .orderBy(desc(settings.updatedAt))
+        .limit(1);
+
+        if (!settingsData || settingsData.paymentGateway !== 'mercadopago' || !settingsData.mpAccessToken) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Mercado Pago não está configurada." });
+        }
+
+        const accessToken = settingsData.mpAccessToken;
+
+        // Validar permissão do aluno para essa mensalidade
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new TRPCError({ code: "UNAUTHORIZED", message: "Acesso não autorizado" });
+
+        const [due] = await db.select().from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.studentId, studentId)))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (due.mpPaymentLink) return { paymentLink: due.mpPaymentLink }; // Já existe
+
+        const [student] = await db.select().from(students)
+          .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+          .limit(1);
+
+        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+
+        const pref = await createMPPreference({
+          items: [{
+            title: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
+            quantity: 1,
+            currency_id: "BRL",
+            unit_price: Number(due.amount)
+          }],
+          payer: {
+            name: student.name,
+            email: student.email || "aluno@musicpro.com.br"
+          },
+          external_reference: due.id.toString(),
+          successUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/painel/mensalidades`
+        }, accessToken);
+
+        await db.update(paymentDues)
+          .set({
+            mpPaymentId: pref.id,
+            mpPaymentLink: pref.init_point,
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentDues.id, input.paymentDueId));
+
+        return { paymentLink: pref.init_point };
+      }),
     getSchedule: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");

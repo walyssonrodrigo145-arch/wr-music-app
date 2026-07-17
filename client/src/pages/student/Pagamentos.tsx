@@ -53,6 +53,7 @@ export default function StudentPayments() {
   const { data: payments, isLoading } = trpc.studentPortal.getPayments.useQuery();
   const { data: profile } = trpc.studentPortal.getProfile.useQuery();
   const verifyMutation = trpc.studentPortal.verifyAndConfirmPayment.useMutation();
+  const generateMPMutation = trpc.studentPortal.generatePaymentLink.useMutation();
 
   const [isPixModalOpen, setIsPixModalOpen] = useState(false);
   const [pixCopiaECola, setPixCopiaECola] = useState<string | null>(null);
@@ -221,7 +222,17 @@ export default function StudentPayments() {
                                 if (payment.mpPaymentLink) {
                                   window.open(payment.mpPaymentLink, "_blank");
                                 } else {
-                                  toast.info("Fatura MercadoPago não disponível para esta mensalidade.");
+                                  toast.loading("Gerando link de pagamento...", { id: `mp-${payment.id}` });
+                                  generateMPMutation.mutate({ paymentDueId: payment.id }, {
+                                    onSuccess: (data) => {
+                                      toast.success("Link gerado com sucesso!", { id: `mp-${payment.id}` });
+                                      window.open(data.paymentLink, "_blank");
+                                      utils.studentPortal.getPayments.invalidate();
+                                    },
+                                    onError: (err) => {
+                                      toast.error(err.message || "Erro ao gerar link de pagamento.", { id: `mp-${payment.id}` });
+                                    }
+                                  });
                                 }
                               } else if (gateway === "asaas") {
                                 if (payment.asaasBillingType === "PIX" && payment.asaasPaymentLink) {
@@ -303,7 +314,17 @@ export default function StudentPayments() {
                          if (nextPayment?.mpPaymentLink) {
                            window.open(nextPayment.mpPaymentLink, "_blank");
                          } else {
-                           toast.info("Fatura MercadoPago não disponível para esta mensalidade.");
+                           toast.loading("Gerando link de pagamento...", { id: `mp2-${nextPayment.id}` });
+                           generateMPMutation.mutate({ paymentDueId: nextPayment.id }, {
+                             onSuccess: (data) => {
+                               toast.success("Link gerado com sucesso!", { id: `mp2-${nextPayment.id}` });
+                               window.open(data.paymentLink, "_blank");
+                               utils.studentPortal.getPayments.invalidate();
+                             },
+                             onError: (err) => {
+                               toast.error(err.message || "Erro ao gerar link de pagamento.", { id: `mp2-${nextPayment.id}` });
+                             }
+                           });
                          }
                        } else if (gateway === "asaas") {
                          if (nextPayment?.asaasBillingType === "PIX" && nextPayment?.asaasPaymentLink) {
