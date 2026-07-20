@@ -146,6 +146,26 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
     const tz = "America/Sao_Paulo";
     let context = `Escola: ${userSettings?.schoolName || "Minha Escola de Música"}\n`;
     context += `Data Atual: ${now.toLocaleDateString("pt-BR", { timeZone: tz, weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit' })} - ${now.toLocaleTimeString("pt-BR", { timeZone: tz, hour: '2-digit', minute: '2-digit' })}\n`;
+    
+    try {
+      if (userSettings?.schoolHours) {
+        const hours = typeof userSettings.schoolHours === 'string' ? JSON.parse(userSettings.schoolHours) : userSettings.schoolHours;
+        const daysMap: Record<string, string> = { monday: "Segunda-feira", tuesday: "Terça-feira", wednesday: "Quarta-feira", thursday: "Quinta-feira", friday: "Sexta-feira", saturday: "Sábado", sunday: "Domingo" };
+        context += `HORÁRIO DE FUNCIONAMENTO DA ESCOLA:\n`;
+        Object.keys(hours).forEach(day => {
+          const config = hours[day];
+          if (config.active) {
+            context += `- ${daysMap[day] || day}: das ${config.start} às ${config.end}\n`;
+          } else {
+            context += `- ${daysMap[day] || day}: Fechado\n`;
+          }
+        });
+        context += `\n(Atenção: Ao sugerir horários para alunos, respeite OBRIGATORIAMENTE o horário de funcionamento acima. Não sugira aulas quando a escola estiver fechada.)\n\n`;
+      }
+    } catch (e) {
+      console.error("Erro ao fazer parse dos horários para a IA", e);
+    }
+
     context += `Alunos ativos: ${activeStudents.length}\n\n`;
 
     context += `FINANCEIRO DESTE MÊS (${currentMonth}/${currentYear}):\n`;

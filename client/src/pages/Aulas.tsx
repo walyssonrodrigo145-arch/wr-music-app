@@ -510,6 +510,25 @@ export default function Aulas() {
         <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={currentDate} />
         <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={(id) => { setDetailLessonId(null); setTimeout(() => handleDeleteRequest(id), 150); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
 
+        {dayLessonsModalDate && (
+          <DayLessonsModal
+            day={dayLessonsModalDate}
+            lessons={filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), dayLessonsModalDate))}
+            open={!!dayLessonsModalDate}
+            onOpenChange={(v) => !v && setDayLessonsModalDate(null)}
+            onOpenDetail={(lesson) => {
+              setDayLessonsModalDate(null);
+              setDetailLessonId(lesson.id);
+            }}
+            onStatusChange={handleStatusChange}
+            onAddLesson={(day) => {
+              setSelectedDate(day);
+              setAgendarOpen(true);
+              setDayLessonsModalDate(null);
+            }}
+          />
+        )}
+
         {/* ── Dialog de confirmação para ações recorrentes (desktop) ──────────── */}
         <ResponsiveDialog
           open={!!recurringAction}
