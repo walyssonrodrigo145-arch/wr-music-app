@@ -1152,11 +1152,6 @@ const LandingPage = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between pt-10 border-t border-border/50 text-muted-foreground font-medium text-sm gap-4">
             <p>© {new Date().getFullYear()} MusicPro. Todos os direitos reservados.</p>
-            <div className="flex gap-2 items-center">
-              <span>Feito com</span>
-              <span className="text-red-500 animate-pulse">❤️</span>
-              <span>por músicos para músicos</span>
-            </div>
           </div>
         </div>
       </footer>
