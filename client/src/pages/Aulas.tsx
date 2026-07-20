@@ -790,7 +790,16 @@ export default function Aulas() {
           lessons={filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), dayLessonsModalDate))}
           open={!!dayLessonsModalDate}
           onOpenChange={(v) => !v && setDayLessonsModalDate(null)}
-          onLessonClick={(lessonId) => setDetailLessonId(lessonId)}
+          onOpenDetail={(lesson) => {
+            setDayLessonsModalDate(null);
+            setDetailLessonId(lesson.id);
+          }}
+          onStatusChange={handleStatusChange}
+          onAddLesson={(day) => {
+            setSelectedDate(day);
+            setAgendarOpen(true);
+            setDayLessonsModalDate(null);
+          }}
         />
       )}
     </div>
