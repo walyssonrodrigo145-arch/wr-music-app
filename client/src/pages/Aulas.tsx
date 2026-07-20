@@ -399,12 +399,8 @@ export default function Aulas() {
                             return (
                                <div 
                                  key={idx} 
-                                 onClick={() => {
-                                   setCurrentDate(day);
-                                   setAgendarOpen(true);
-                                 }}
                                  className={cn(
-                                   "p-1 lg:p-2 border-r border-b border-border min-h-[80px] lg:min-h-[140px] relative cursor-pointer hover:bg-muted transition-colors", 
+                                   "p-1 lg:p-2 border-r border-b border-border min-h-[80px] lg:min-h-[140px] relative transition-colors", 
                                    !isCurrMonth && "opacity-20 bg-muted/50", 
                                    isToday(day) && "bg-blue-500/10/30"
                                  )}
@@ -415,22 +411,25 @@ export default function Aulas() {
                                      scale: [1, 1.4, 1],
                                      transition: { duration: 0.5, repeat: 1 }
                                    } : {}}
-                                   className={cn("w-8 h-8 flex items-center justify-center rounded-full text-xs font-black mb-2", isToday(day) ? "bg-blue-600 text-white shadow-lg" : "text-muted-foreground")}
+                                   onClick={(e) => { e.stopPropagation(); setCurrentDate(day); setAgendarOpen(true); }}
+                                   className={cn("w-8 h-8 flex items-center justify-center rounded-full text-xs font-black mb-2 cursor-pointer hover:ring-2 hover:ring-blue-400", isToday(day) ? "bg-blue-600 text-white shadow-lg" : "text-muted-foreground hover:bg-muted")}
                                  >
                                    {format(day, "d")}
                                  </motion.span>
                                 <div className="space-y-1">
                                    {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
                                   {lessonsInDay.length > 3 && (
-                                    <p 
-                                      className="text-[9px] font-black text-blue-600 text-center cursor-pointer hover:underline py-1"
+                                    <button
+                                      type="button"
+                                      className="w-full text-[9px] font-black text-blue-600 text-center cursor-pointer hover:underline py-1 bg-transparent border-none outline-none"
                                       onClick={(e) => {
+                                        e.preventDefault();
                                         e.stopPropagation();
                                         setDayLessonsModalDate(day);
                                       }}
                                     >
                                       + {lessonsInDay.length - 3} aulas
-                                    </p>
+                                    </button>
                                   )}
                                 </div>
                               </div>
