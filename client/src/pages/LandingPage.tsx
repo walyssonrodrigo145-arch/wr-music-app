@@ -788,6 +788,134 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* ── INTEGRAÇÕES ────────────────────────────────────────────────────────── */}
+      <section className="relative py-24 bg-background overflow-hidden">
+        <div className="container relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-primary font-black tracking-widest uppercase text-sm mb-4">Integrações Oficiais</h2>
+            <h3 className="text-4xl md:text-5xl font-outfit font-extrabold text-foreground mb-6">
+              Receba pagamentos como os grandes
+            </h3>
+            <p className="text-lg text-muted-foreground font-medium">
+              Integração nativa com as principais plataformas de pagamento do Brasil. Seus alunos pagam por Pix, cartão ou boleto — tudo automático e rastreado.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+
+            {/* Asaas */}
+            <motion.div
+              {...fadeIn}
+              transition={{ delay: 0 }}
+              className="group relative p-8 bg-card/40 backdrop-blur-xl border border-border/50 rounded-[32px] hover:border-primary/30 shadow-2xl shadow-primary/5 hover:shadow-primary/20 transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent rounded-[32px] pointer-events-none" />
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 font-black text-xl shadow-lg">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-9 h-9">
+                      <rect width="40" height="40" rx="10" fill="#005AE2"/>
+                      <path d="M10 25l5-10 5 10 5-10 5 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-extrabold text-foreground">Asaas</h4>
+                    <span className="text-xs font-bold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-full">Integração Oficial</span>
+                  </div>
+                </div>
+                <p className="text-muted-foreground font-medium leading-relaxed mb-6">
+                  Gere cobranças de mensalidades com Pix, boleto bancário e cartão de crédito. A plataforma cria as faturas automaticamente e você acompanha tudo no painel.
+                </p>
+                <ul className="space-y-2">
+                  {['Pix com QR Code automático', 'Boleto bancário e cartão', 'Dashboard de inadimplência', 'Notificação automática de vencimento'].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
+                        <Check size={11} strokeWidth={3} />
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.div>
+
+            {/* Mercado Pago */}
+            <motion.div
+              {...fadeIn}
+              transition={{ delay: 0.15 }}
+              className="group relative p-8 bg-card/40 backdrop-blur-xl border border-border/50 rounded-[32px] hover:border-primary/30 shadow-2xl shadow-primary/5 hover:shadow-primary/20 transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 via-transparent to-transparent rounded-[32px] pointer-events-none" />
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-600 font-black text-xl shadow-lg">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-9 h-9">
+                      <rect width="40" height="40" rx="10" fill="#FFF159"/>
+                      <path d="M20 10c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S25.52 10 20 10zm0 16a6 6 0 110-12 6 6 0 010 12z" fill="#009EE3"/>
+                      <circle cx="20" cy="20" r="3" fill="#009EE3"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-extrabold text-foreground">Mercado Pago</h4>
+                    <span className="text-xs font-bold text-yellow-700 bg-yellow-500/10 px-2 py-0.5 rounded-full">Integração Oficial</span>
+                  </div>
+                </div>
+                <p className="text-muted-foreground font-medium leading-relaxed mb-6">
+                  Checkout Mercado Pago completo com Pix, cartão de crédito em parcelas e muito mais. O link de pagamento é gerado automaticamente quando o aluno clica em "Pagar".
+                </p>
+                <ul className="space-y-2">
+                  {['Checkout com Pix instantâneo', 'Cartão em até 12x', 'Link de pagamento automático', 'Confirmação em tempo real'].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <span className="w-5 h-5 rounded-full bg-yellow-500/10 text-yellow-600 flex items-center justify-center flex-shrink-0">
+                        <Check size={11} strokeWidth={3} />
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Bottom trust strip */}
+          <motion.div
+            {...fadeIn}
+            transition={{ delay: 0.3 }}
+            className="mt-16 flex flex-col md:flex-row items-center justify-center gap-8 p-6 bg-muted/30 border border-border/50 rounded-[24px] max-w-3xl mx-auto"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-600">
+                <Shield size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-foreground text-sm">100% Seguro</p>
+                <p className="text-xs text-muted-foreground">Dados criptografados e protegidos</p>
+              </div>
+            </div>
+            <div className="w-px h-10 bg-border hidden md:block" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                <CreditCard size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-foreground text-sm">Sem taxa adicional</p>
+                <p className="text-xs text-muted-foreground">Use sua própria conta nas plataformas</p>
+              </div>
+            </div>
+            <div className="w-px h-10 bg-border hidden md:block" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-600">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-foreground text-sm">Configuração em 2 min</p>
+                <p className="text-xs text-muted-foreground">Cole sua chave de API e pronto</p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* ── PREÇOS ─────────────────────────────────────────────────────────────── */}
       <section id="pricing" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
