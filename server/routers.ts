@@ -3697,7 +3697,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       if (!db) throw new Error("Database not available");
 
       const orgId = ctx.user.organizationId!;
-      // Alunos (somente do usuário logado)
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+      let studentFilter = eq(students.organizationId, orgId);
+      if (!isUserAdmin) {
+        studentFilter = and(studentFilter, eq(students.professorId, ctx.user.id)) as any;
+      }
+
+      // Alunos
       const allStudents = await db.select({
         id: students.id,
         name: students.name,
@@ -3707,9 +3714,14 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         status: students.status,
         monthlyFee: students.monthlyFee,
         startDate: students.startDate,
-      }).from(students).where(and(eq(students.organizationId, orgId), eq(students.professorId, ctx.user.id))).orderBy(students.name);
+      }).from(students).where(studentFilter).orderBy(students.name);
 
-      // Aulas (somente do usuário logado)
+      let lessonFilter = eq(lessons.organizationId, orgId);
+      if (!isUserAdmin) {
+        lessonFilter = and(lessonFilter, eq(lessons.userId, ctx.user.id)) as any;
+      }
+
+      // Aulas
       const allLessons = await db.select({
         id: lessons.id,
         title: lessons.title,
@@ -3720,16 +3732,36 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         studentName: students.name,
       }).from(lessons)
         .leftJoin(students, eq(lessons.studentId, students.id))
-        .where(and(eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)))
+        .where(lessonFilter)
         .orderBy(desc(lessons.scheduledAt));
 
+      const studentsData = allStudents.map(s => [
+        s.id,
+        s.name ?? '',
+        s.email ?? '',
+        s.phone ?? '',
+        s.level ?? 'Iniciante',
+        s.status ?? 'ativo',
+        Number(s.monthlyFee ?? 0),
+        s.startDate ? new Date(s.startDate).toLocaleDateString('pt-BR') : ''
+      ]);
+
+      const lessonsData = allLessons.map(l => [
+        l.id,
+        l.title ?? '',
+        l.studentName ?? 'N/A',
+        l.status ?? 'agendada',
+        l.scheduledAt ? new Date(l.scheduledAt).toLocaleDateString('pt-BR') : '',
+        Number(l.duration ?? 0),
+        l.rating ?? ''
+      ]);
 
       // Build CSV strings
       const studentsCsv = [
         'ID,Nome,Email,Telefone,Nivel,Status,Mensalidade,Inicio',
         ...allStudents.map(s =>
           [s.id, `"${s.name}"`, `"${s.email ?? ''}"`, `"${s.phone ?? ''}"`,
-           s.level, s.status, s.monthlyFee,
+           s.level ?? '', s.status ?? '', s.monthlyFee ?? 0,
            s.startDate ? new Date(s.startDate).toLocaleDateString('pt-BR') : ''].join(',')
         ),
       ].join('\n');
@@ -3738,12 +3770,12 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         'ID,Titulo,Aluno,Status,Data,Duracao(min),Avaliacao',
         ...allLessons.map(l =>
           [l.id, `"${l.title}"`, `"${l.studentName ?? ''}"`,
-           l.status, new Date(l.scheduledAt).toLocaleDateString('pt-BR'),
-           l.duration, l.rating ?? ''].join(',')
+           l.status ?? '', l.scheduledAt ? new Date(l.scheduledAt).toLocaleDateString('pt-BR') : '',
+           l.duration ?? 0, l.rating ?? ''].join(',')
         ),
       ].join('\n');
 
-      return { studentsCsv, lessonsCsv };
+      return { studentsData, lessonsData, studentsCsv, lessonsCsv };
     }),
   }),
 

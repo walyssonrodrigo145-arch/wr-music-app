@@ -33,7 +33,10 @@ function ExportDataSection() {
       const date = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
       const buildStudentRows = () => {
-        const lines = data.studentsCsv.split('\n').slice(1);
+        if ((data as any).studentsData && Array.isArray((data as any).studentsData)) {
+          return (data as any).studentsData;
+        }
+        const lines = (data.studentsCsv || '').split('\n').slice(1);
         return lines
           .filter(l => l.trim())
           .map(line => {
@@ -52,7 +55,10 @@ function ExportDataSection() {
       };
 
       const buildAulaRows = () => {
-        const lines = data.lessonsCsv.split('\n').slice(1);
+        if ((data as any).lessonsData && Array.isArray((data as any).lessonsData)) {
+          return (data as any).lessonsData;
+        }
+        const lines = (data.lessonsCsv || '').split('\n').slice(1);
         return lines
           .filter(l => l.trim())
           .map(line => {
