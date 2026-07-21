@@ -579,7 +579,7 @@ export default function Aulas() {
           </div>
 
           {/* Coluna Direita (Painel de Resumo do Dia e Ocupação da Semana) */}
-          <div className="w-80 border-l border-border/40 bg-card/30 p-5 space-y-6 overflow-y-auto no-scrollbar shrink-0 hidden xl:block">
+          <div className="w-80 border-l border-border/40 bg-card/30 p-4 space-y-4 overflow-y-auto no-scrollbar shrink-0 hidden xl:block">
             {/* Card de Resumo do dia */}
             <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
