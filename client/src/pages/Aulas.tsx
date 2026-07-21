@@ -299,7 +299,7 @@ export default function Aulas() {
         "flex flex-col bg-background overflow-hidden transition-all duration-300",
         isExpanded 
           ? "fixed inset-0 z-[45] p-6 lg:p-8 overflow-y-auto m-0 h-screen max-w-none animate-in fade-in zoom-in-95 duration-300 bg-background" 
-          : "h-[calc(100vh-5rem)] -m-4 sm:-m-6"
+          : "h-[calc(100vh-4rem)] -m-4 sm:-m-6 -mt-6 sm:-mt-8"
       )}>
         {/* Sub-Header de Filtros, Visões e Ação Nova Aula (Alinhado ao Topo) */}
         <div className="px-6 py-4 border-b border-border/30 bg-card/40 backdrop-blur-xl flex items-center justify-between flex-wrap gap-4">
