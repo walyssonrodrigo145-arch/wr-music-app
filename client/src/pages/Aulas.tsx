@@ -301,40 +301,10 @@ export default function Aulas() {
           ? "fixed inset-0 z-[45] p-6 lg:p-8 overflow-y-auto m-0 h-screen max-w-none animate-in fade-in zoom-in-95 duration-300 bg-background" 
           : "h-[calc(100vh-5rem)] -m-4 sm:-m-6"
       )}>
-        {/* Header Superior da Agenda */}
-        <div className="p-6 pb-4 border-b border-border/40 bg-card/40 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-foreground">Agenda</h1>
-            <p className="text-xs font-medium text-muted-foreground mt-0.5">Gerencie suas aulas, horários e compromissos</p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="relative w-72">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-              <input
-                type="text"
-                placeholder="Buscar aluno, aula, instrumento..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full h-10 pl-10 pr-12 rounded-xl bg-card border border-border/60 text-xs font-medium placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded border border-border/40">Ctrl + K</span>
-            </div>
-            
-            <Button
-              onClick={() => setAgendarOpen(true)}
-              className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
-            >
-              <Plus size={16} strokeWidth={3} />
-              <span>+ Nova</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Sub-Header de Filtros e Visões */}
-        <div className="px-6 py-3 border-b border-border/30 bg-muted/10 flex items-center justify-between flex-wrap gap-4">
+        {/* Sub-Header de Filtros, Visões e Ação Nova Aula (Alinhado ao Topo) */}
+        <div className="px-6 py-4 border-b border-border/30 bg-card/40 backdrop-blur-xl flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Botões de Visão (Mês, Semana, Dia, Eventos/Lista) */}
+            {/* Botões de Visão (Mês, Semana, Dia, Lista) */}
             <div className="flex p-1 bg-card rounded-xl border border-border/60 shadow-sm">
               {(["mes", "semana", "dia", "eventos"] as const).map(v => (
                 <button
@@ -411,7 +381,7 @@ export default function Aulas() {
             </div>
           </div>
 
-          {/* Filtros Suspensos de Instrumento, Status e Modalidade */}
+          {/* Filtros Suspensos e Botão Primário + Nova Aula */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-muted-foreground uppercase">Instrumento:</span>
@@ -459,9 +429,17 @@ export default function Aulas() {
                 onClick={() => { setInstrumentFilter("todos"); setStatusFilterDesktop("geral"); setLessonTypeFilter("todos"); }}
                 className="text-xs font-bold text-blue-600 hover:underline px-2"
               >
-                Limpar filtros
+                Limpar
               </button>
             )}
+
+            <Button
+              onClick={() => setAgendarOpen(true)}
+              className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all ml-2"
+            >
+              <Plus size={16} strokeWidth={3} />
+              <span>+ Nova</span>
+            </Button>
           </div>
         </div>
 
@@ -634,25 +612,34 @@ export default function Aulas() {
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Próximas aulas hoje</span>
                 <span className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer" onClick={() => setView('dia')}>Ver todas</span>
               </div>
-              <div className="space-y-2.5 max-h-56 overflow-y-auto no-scrollbar">
+              <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
                 {todayLessons.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic text-center py-4">Nenhuma aula agendada para hoje.</p>
                 ) : (
-                  todayLessons.slice(0, 5).map((l: any) => (
-                    <div key={l.id} className="p-2.5 bg-muted/20 rounded-xl border border-border/30 flex items-center justify-between cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setDetailLessonId(l.id)}>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black text-blue-600">{safeFormat(l.scheduledAt, "HH:mm")}</span>
-                          <span className="text-xs font-bold text-foreground truncate">{l.title || l.studentName}</span>
+                  todayLessons.slice(0, 6).map((l: any) => {
+                    const isTurma = l.lessonType === 'turma';
+                    const nameText = isTurma ? (l.title || "Turma") : (l.studentName || l.experimentalName || "Aula");
+                    const statusColor = l.status === 'concluida' ? "bg-emerald-500 text-emerald-600" : l.status === 'falta' ? "bg-rose-500 text-rose-500" : "bg-blue-500 text-blue-600";
+
+                    return (
+                      <div key={l.id} className="p-3 bg-muted/20 hover:bg-muted/40 rounded-xl border border-border/40 flex items-center justify-between cursor-pointer transition-all group" onClick={() => setDetailLessonId(l.id)}>
+                        <div className="min-w-0 flex-1 pr-2">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-xs font-black text-blue-600">{safeFormat(l.scheduledAt, "HH:mm")}</span>
+                            <span className="text-xs font-bold text-foreground truncate group-hover:text-blue-600 transition-colors">{nameText}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground font-bold uppercase">
+                            <Music size={10} className="text-blue-500 shrink-0" />
+                            <span className="truncate">{l.instrumentName || "Geral"}</span>
+                            {isTurma && <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-1.5 py-0.2 rounded-full border border-purple-500/20">Turma</span>}
+                          </div>
                         </div>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5">{l.instrumentName || "Música"}</p>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <div className={cn("w-2 h-2 rounded-full shadow-sm", statusColor.split(' ')[0])} />
+                        </div>
                       </div>
-                      <div className={cn(
-                        "w-2 h-2 rounded-full shrink-0",
-                        l.status === 'concluida' ? "bg-emerald-500" : l.status === 'falta' ? "bg-rose-500" : "bg-blue-500"
-                      )} />
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
