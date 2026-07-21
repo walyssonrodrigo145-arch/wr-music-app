@@ -86,33 +86,39 @@ const statusConfig = {
 };
 
 const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: React.MouseEvent) => void }) => {
+    const isTurma = lesson.lessonType === 'turma';
     const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
+    const titleText = isTurma ? (lesson.title || "Turma") : (lesson.studentName || lesson.experimentalName || "Aula");
+
     return (
       <motion.div
         layoutId={`lesson-${lesson.id}`}
         onClick={onClick}
         className={cn(
-          "p-3.5 rounded-xl border-l-4 bg-card border-border transition-all cursor-pointer shadow-sm mb-2",
+          "p-3.5 rounded-xl border-l-4 bg-card border-border transition-all cursor-pointer shadow-sm mb-2 hover:border-purple-500/30",
           config.border
         )}
-        style={{ borderLeftColor: config.color.replace('bg-', '') }}
+        style={{ borderLeftColor: isTurma ? '#9333ea' : config.color.replace('bg-', '') }}
       >
         <div className="flex items-center justify-between mb-1.5">
-          <span className={cn("text-[10px] font-black uppercase tracking-widest", config.text)}>
+          <span className={cn("text-[10px] font-black uppercase tracking-widest", isTurma ? "text-purple-600" : config.text)}>
             {safeFormat(lesson.scheduledAt, "HH:mm")}
           </span>
-          <div className={cn("w-2 h-2 rounded-full", config.color)} />
+          <div className={cn("w-2 h-2 rounded-full", isTurma ? "bg-purple-600" : config.color)} />
         </div>
         <p className="text-xs font-black text-foreground truncate leading-tight">
-          {lesson.studentName || lesson.experimentalName}
+          {titleText}
         </p>
         <div className="flex items-center gap-1.5 mt-1.5 opacity-60">
            <Music size={10} className="text-muted-foreground" />
-           <p className="text-[9px] text-muted-foreground font-bold truncate uppercase">{lesson.instrumentName}</p>
+           <p className="text-[9px] text-muted-foreground font-bold truncate uppercase">{lesson.instrumentName || "Geral"}</p>
         </div>
-        {lesson.lessonType === 'turma' && (
-          <div className="mt-2 py-0.5 px-2 bg-purple-500/10 rounded-full w-fit">
-            <p className="text-[8px] font-black text-purple-600 uppercase tracking-widest">Aula em Turma</p>
+        {isTurma && (
+          <div className="mt-2 py-0.5 px-2 bg-purple-500/10 rounded-full w-fit flex items-center gap-1">
+            <Users size={10} className="text-purple-600" />
+            <p className="text-[8px] font-black text-purple-600 uppercase tracking-widest">
+              Turma ({lesson.studentCount || 1} Alunos)
+            </p>
           </div>
         )}
       </motion.div>
@@ -178,16 +184,16 @@ export default function Aulas() {
 
 
   const filteredLessons = useMemo(() => {
-    return lessons.filter(l => {
+    const rawFiltered = lessons.filter(l => {
       if (isDesktop) {
-        const matchesSearch = (l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = (l.title || l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
         const matchesInstrument = instrumentFilter === "todos" || String(l.instrumentId) === instrumentFilter;
         const matchesStatus = statusFilterDesktop === "geral" || l.status === statusFilterDesktop;
         const matchesLessonType = lessonTypeFilter === "todos" || l.lessonType === lessonTypeFilter;
         return matchesSearch && matchesInstrument && matchesStatus && matchesLessonType;
       } else {
         const isDayMatch = isSameDay(new Date(l.scheduledAt), selectedDate);
-        const matchesSearch = (l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = (l.title || l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
         let matchesStatus = false;
         if (statusFilterMobile === "Todas") {
           matchesStatus = true;
@@ -201,6 +207,36 @@ export default function Aulas() {
         return isDayMatch && matchesSearch && matchesStatus && matchesLessonType;
       }
     });
+
+    // Agrupar aulas em turma para que apareçam como apenas 1 card representando a turma na agenda
+    const grouped: any[] = [];
+    const turmaMap = new Map<string, any>();
+
+    for (const lesson of rawFiltered) {
+      if (lesson.lessonType === 'turma') {
+        const d = safeFormat(lesson.scheduledAt, "yyyy-MM-dd_HH:mm");
+        const key = lesson.recurringGroupId ? `group_${lesson.recurringGroupId}_${d}` : `turma_${lesson.title}_${d}`;
+        if (!turmaMap.has(key)) {
+          const turmaCopy = { 
+            ...lesson, 
+            studentCount: 1, 
+            studentsList: [lesson.studentName || "Aluno"] 
+          };
+          turmaMap.set(key, turmaCopy);
+          grouped.push(turmaCopy);
+        } else {
+          const existing = turmaMap.get(key);
+          existing.studentCount += 1;
+          if (lesson.studentName) {
+            existing.studentsList.push(lesson.studentName);
+          }
+        }
+      } else {
+        grouped.push(lesson);
+      }
+    }
+
+    return grouped;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessons, isDesktop, search, instrumentFilter, statusFilterDesktop, selectedDate, statusFilterMobile, lessonTypeFilter]);
 
@@ -667,25 +703,32 @@ export default function Aulas() {
               <div className="col-span-full py-24 text-center bg-card rounded-[2.5rem] border border-dashed border-border"><Calendar size={48} className="mx-auto text-slate-100 mb-4" /><p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Nenhuma aula encontrada</p></div>
             ) : (
               filteredLessons.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()).map(lesson => {
+                const isTurma = lesson.lessonType === 'turma';
                 const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
+                const titleText = isTurma ? (lesson.title || "Turma") : (lesson.studentName || lesson.experimentalName || "Aula");
+
                 return (
                   <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-card rounded-[2.5rem] p-6 lg:p-8 border border-border shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[180px]" onClick={() => setDetailLessonId(lesson.id)}>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3"><div className={cn("w-1.5 h-6 rounded-full", config.color)} /><span className="text-lg font-black text-foreground tracking-tighter">{safeFormat(lesson.scheduledAt, "HH:mm")}</span></div>
-                      <span className={cn("px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm", config.bg, config.text, config.border)}>{config.label}</span>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-1.5 h-6 rounded-full", isTurma ? "bg-purple-600" : config.color)} />
+                        <span className="text-lg font-black text-foreground tracking-tighter">{safeFormat(lesson.scheduledAt, "HH:mm")}</span>
+                      </div>
+                      <span className={cn("px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm", isTurma ? "bg-purple-500/10 text-purple-600 border-purple-500/20" : cn(config.bg, config.text, config.border))}>
+                        {isTurma ? `Turma (${lesson.studentCount || 1} Alunos)` : config.label}
+                      </span>
                     </div>
                     <div className="space-y-1.5">
-                      <h4 className="text-sm font-black text-foreground leading-tight group-hover:text-blue-600 transition-colors">{lesson.studentName || lesson.experimentalName}</h4>
+                      <h4 className="text-sm font-black text-foreground leading-tight group-hover:text-blue-600 transition-colors">{titleText}</h4>
                       <div className="flex items-center gap-4 flex-wrap">
-                         <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest"><Music size={14} className="text-blue-500" /> {lesson.instrumentName}</div>
-                         <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest"><Users size={14} className="text-purple-500" /> {(lesson as any).teacherName || "Professor"}</div>
-                         {lesson.lessonType === 'turma' && (
-                           <div className="px-2 py-0.5 bg-purple-500/10 text-purple-600 text-[8px] font-black uppercase rounded-full border border-purple-500/20">Turma</div>
+                         <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest"><Music size={14} className="text-blue-500" /> {lesson.instrumentName || "Geral"}</div>
+                         {isTurma && (
+                           <div className="flex items-center gap-2 text-[10px] font-bold text-purple-600 uppercase tracking-widest"><Users size={14} className="text-purple-500" /> {lesson.studentCount} Alunos na turma</div>
                          )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-                       <button className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1.5">Detalhes <ChevronRight size={14} /></button>
+                       <button className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1.5">Chamada / Detalhes <ChevronRight size={14} /></button>
                        <button className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors"><MoreVertical size={20} /></button>
                     </div>
                   </motion.div>

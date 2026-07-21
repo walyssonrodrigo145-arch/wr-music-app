@@ -3453,6 +3453,76 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         return handleDbError(error, "agendar turma");
       }
     }),
+
+    // ─ Buscar detalhes de todos os alunos de uma turma específica ───────────
+    getTurmaDetails: protectedProcedure.input(z.object({
+      groupId: z.string().optional(),
+      scheduledAt: z.string(),
+      title: z.string(),
+    })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const orgId = ctx.user.organizationId!;
+
+      const dateObj = new Date(input.scheduledAt);
+      const startWindow = new Date(dateObj.getTime() - 60000); // 1 min margin
+      const endWindow = new Date(dateObj.getTime() + 60000);
+
+      const whereClause = input.groupId
+        ? and(
+            eq(lessons.organizationId, orgId),
+            eq(lessons.recurringGroupId, input.groupId)
+          )
+        : and(
+            eq(lessons.organizationId, orgId),
+            eq(lessons.title, input.title),
+            eq(lessons.lessonType, 'turma'),
+            gte(lessons.scheduledAt, startWindow),
+            lte(lessons.scheduledAt, endWindow)
+          );
+
+      return db.select({
+        id: lessons.id,
+        title: lessons.title,
+        scheduledAt: lessons.scheduledAt,
+        duration: lessons.duration,
+        status: lessons.status,
+        notes: lessons.notes,
+        studentId: students.id,
+        studentName: students.name,
+        studentPhone: students.phone,
+        studentAvatar: students.avatar,
+        instrumentName: instruments.name,
+      })
+      .from(lessons)
+      .leftJoin(students, and(eq(lessons.studentId, students.id), eq(students.organizationId, orgId)))
+      .leftJoin(instruments, and(eq(lessons.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+      .where(whereClause)
+      .orderBy(asc(students.name));
+    }),
+
+    // ─ Dar baixa em lote no status de chamada de uma turma ─────────────────
+    updateTurmaAttendance: protectedProcedure.input(z.object({
+      attendances: z.array(z.object({
+        lessonId: z.number(),
+        status: z.enum(['agendada', 'concluida', 'falta', 'cancelada', 'remarcada'])
+      }))
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        const orgId = ctx.user.organizationId!;
+
+        for (const item of input.attendances) {
+          await db.update(lessons)
+            .set({ status: item.status, updatedAt: new Date() })
+            .where(and(eq(lessons.id, item.lessonId), eq(lessons.organizationId, orgId)));
+        }
+        return { success: true };
+      } catch (error) {
+        return handleDbError(error, "dar baixa na frequência da turma");
+      }
+    }),
   }),
 
 

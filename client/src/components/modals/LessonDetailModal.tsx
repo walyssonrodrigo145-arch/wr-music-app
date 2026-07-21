@@ -14,13 +14,18 @@ import {
   ExternalLink,
   ChevronLeft,
   Save,
-  Users
+  Users,
+  Loader2,
+  Check
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface LessonDetailModalProps {
   lesson: any;
@@ -42,6 +47,26 @@ export default function LessonDetailModal({
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
+
+  const isTurma = lesson?.lessonType === 'turma';
+  const utils = trpc.useUtils();
+
+  const { data: turmaDetails = [], isLoading: isLoadingTurma } = trpc.lessons.getTurmaDetails.useQuery({
+    groupId: lesson?.recurringGroupId || undefined,
+    scheduledAt: lesson?.scheduledAt ? new Date(lesson.scheduledAt).toISOString() : "",
+    title: lesson?.title || "",
+  }, {
+    enabled: open && !!lesson && isTurma
+  });
+
+  const updateTurmaAttendanceMutation = trpc.lessons.updateTurmaAttendance.useMutation({
+    onSuccess: () => {
+      toast.success("Frequência da turma atualizada!");
+      utils.lessons.list.invalidate();
+      utils.lessons.getTurmaDetails.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao atualizar chamada: " + e.message)
+  });
 
   useEffect(() => {
     if (open && lesson) {
@@ -67,48 +92,72 @@ export default function LessonDetailModal({
   const config = statusConfig[lesson.status] || statusConfig.agendada;
   const StatusIcon = config.icon;
 
+  const handleStudentAttendance = (lessonId: number, status: 'concluida' | 'falta' | 'agendada') => {
+    updateTurmaAttendanceMutation.mutate({
+      attendances: [{ lessonId, status }]
+    });
+  };
+
+  const handleAllAttendance = (status: 'concluida' | 'falta') => {
+    if (turmaDetails.length === 0) return;
+    const attendances = turmaDetails.map(t => ({ lessonId: t.id, status }));
+    updateTurmaAttendanceMutation.mutate({ attendances });
+  };
+
   return (
     <ResponsiveDialog 
       open={open} 
       onOpenChange={onOpenChange}
-      title="Detalhes da Aula"
-      description={`Visualizando aula de ${lesson.studentName || lesson.experimentalName || 'Aluno'}`}
+      title={isTurma ? `Turma: ${lesson.title}` : "Detalhes da Aula"}
+      description={isTurma ? `Gestão e chamada de alunos da turma` : `Visualizando aula de ${lesson.studentName || lesson.experimentalName || 'Aluno'}`}
     >
         <div className="p-0 overflow-hidden">
           <div className="p-8 pb-4 bg-gradient-to-b from-primary/5 to-transparent">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-3">
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", config.bg)}>
-                  <StatusIcon size={24} className={config.color} />
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", isTurma ? "bg-purple-500/10" : config.bg)}>
+                  {isTurma ? <Users size={24} className="text-purple-600" /> : <StatusIcon size={24} className={config.color} />}
                 </div>
                 <div>
                   <h3 className="text-2xl font-black tracking-tighter uppercase leading-none">
-                    Detalhes da Aula
+                    {isTurma ? lesson.title : "Detalhes da Aula"}
                   </h3>
-                  <div className={cn("mt-1 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5", config.color)}>
-                     <div className={cn("w-1.5 h-1.5 rounded-full", config.color.replace('text-', 'bg-'))} />
-                     {config.label}
+                  <div className={cn("mt-1 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5", isTurma ? "text-purple-600" : config.color)}>
+                     <div className={cn("w-1.5 h-1.5 rounded-full", isTurma ? "bg-purple-600" : config.color.replace('text-', 'bg-'))} />
+                     {isTurma ? `Aula em Turma (${turmaDetails.length || (lesson.studentCount || 1)} Alunos)` : config.label}
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-8 pt-4 space-y-8">
+          <div className="p-8 pt-4 space-y-6">
             {/* Main Info Card */}
-            <div className="bg-muted/20 rounded-[2rem] p-6 border border-border/40 space-y-4">
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-muted-foreground/40">
-                     <User size={20} />
-                  </div>
-                  <div>
-                     <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Aluno</p>
-                     <h4 className="font-bold text-foreground">{lesson.studentName || "Não informado"}</h4>
-                  </div>
-               </div>
+            <div className="bg-muted/20 rounded-[2rem] p-5 border border-border/40 space-y-3">
+               {!isTurma ? (
+                 <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-muted-foreground/40 shrink-0">
+                       <User size={20} />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Aluno</p>
+                       <h4 className="font-bold text-foreground">{lesson.studentName || "Não informado"}</h4>
+                    </div>
+                 </div>
+               ) : (
+                 <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0">
+                       <Users size={20} />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Turma / Modalidade</p>
+                       <h4 className="font-bold text-foreground">{lesson.title}</h4>
+                    </div>
+                 </div>
+               )}
 
                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-muted-foreground/40">
+                  <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-muted-foreground/40 shrink-0">
                      <Music size={20} />
                   </div>
                   <div>
@@ -116,17 +165,91 @@ export default function LessonDetailModal({
                      <h4 className="font-bold text-foreground">{lesson.instrumentName || "Geral"}</h4>
                   </div>
                </div>
-
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-muted-foreground/40">
-                     <Users size={20} />
-                  </div>
-                  <div>
-                     <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Tipo de Aula</p>
-                     <h4 className="font-bold text-foreground capitalize">{lesson.lessonType || "Individual"}</h4>
-                  </div>
-               </div>
             </div>
+
+            {/* Lista de Alunos e Chamada de Frequência se for Turma */}
+            {isTurma && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    Chamada / Frequência dos Alunos ({turmaDetails.length})
+                  </span>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => handleAllAttendance('concluida')}
+                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 text-[9px] font-black uppercase rounded-lg transition-all"
+                    >
+                      Todos Vieram
+                    </button>
+                    <button
+                      onClick={() => handleAllAttendance('falta')}
+                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 text-[9px] font-black uppercase rounded-lg transition-all"
+                    >
+                      Todos Faltaram
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-card rounded-2xl border border-border/60 divide-y divide-border/40 max-h-60 overflow-y-auto">
+                  {isLoadingTurma ? (
+                    <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                      <Loader2 size={16} className="animate-spin text-primary" /> Carregando lista de alunos...
+                    </div>
+                  ) : turmaDetails.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-muted-foreground italic">Nenhum aluno registrado.</div>
+                  ) : (
+                    turmaDetails.map((item: any) => {
+                      const itemCfg = statusConfig[item.status] || statusConfig.agendada;
+                      return (
+                        <div key={item.id} className="p-3 flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar className="w-8 h-8 border border-border shrink-0">
+                              <AvatarImage src={item.studentAvatar || undefined} />
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold uppercase">
+                                {item.studentName ? item.studentName.substring(0, 2) : "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-foreground truncate">{item.studentName || "Aluno sem nome"}</p>
+                              <span className={cn("text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block mt-0.5", itemCfg.bg, itemCfg.text, itemCfg.border)}>
+                                {itemCfg.label}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleStudentAttendance(item.id, 'concluida')}
+                              title="Marcar como Veio/Concluída"
+                              className={cn(
+                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all",
+                                item.status === 'concluida' 
+                                  ? "bg-emerald-500 text-white shadow-sm" 
+                                  : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                              )}
+                            >
+                              <Check size={12} /> Veio
+                            </button>
+                            <button
+                              onClick={() => handleStudentAttendance(item.id, 'falta')}
+                              title="Marcar como Falta"
+                              className={cn(
+                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all",
+                                item.status === 'falta' 
+                                  ? "bg-amber-500 text-white shadow-sm" 
+                                  : "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+                              )}
+                            >
+                              <X size={12} /> Faltou
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Time & Duration */}
             {!isRescheduling ? (
@@ -183,8 +306,8 @@ export default function LessonDetailModal({
             )}
 
             {/* Actions Section */}
-            <div className="space-y-6 pt-4 pb-10 md:pb-0">
-               {!isRescheduling ? (
+            <div className="space-y-6 pt-2 pb-10 md:pb-0">
+               {!isTurma && (!isRescheduling ? (
                  <div className="grid grid-cols-2 gap-3">
                     <button 
                       onClick={() => { onStatusChange(lesson.id, "concluida"); onOpenChange(false); }}
@@ -226,8 +349,6 @@ export default function LessonDetailModal({
                     <button 
                       onClick={() => {
                         const fullDate = new Date(`${newDate}T${newTime}:00`);
-                        // Fecha o modal ANTES de chamar onStatusChange
-                        // para evitar conflito de dois dialogs Radix abertos ao mesmo tempo
                         onOpenChange(false);
                         setTimeout(() => {
                           onStatusChange(lesson.id, "remarcada", fullDate.toISOString());
@@ -238,7 +359,7 @@ export default function LessonDetailModal({
                        <Save size={16} /> Confirmar Novo Horário
                     </button>
                   </div>
-               )}
+               ))}
 
                <div className="flex gap-2">
                   <button 
@@ -246,7 +367,7 @@ export default function LessonDetailModal({
                     className="flex-1 flex items-center justify-center gap-2 h-14 bg-primary text-primary-foreground rounded-2xl text-xs font-black uppercase tracking-tighter shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                   >
                      <ExternalLink size={16} />
-                     Editar Completo
+                     Editar Aula / Turma
                   </button>
                   <button 
                     onClick={() => onDelete(lesson.id)}
