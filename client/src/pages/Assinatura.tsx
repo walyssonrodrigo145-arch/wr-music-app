@@ -60,154 +60,132 @@ export default function Assinatura() {
   const currentPlan = PLANOS.find(p => p.id === mySub?.planId) || PLANOS[0];
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-400 max-w-4xl mx-auto pb-10">
+      {/* Topo Compacto */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/40">
         <div>
-          <h1 className="text-3xl font-black text-foreground tracking-tight">Gerenciar Assinatura</h1>
-          <p className="text-muted-foreground mt-1 text-sm font-medium">Acompanhe seu plano, faturas e opções da conta.</p>
+          <h1 className="text-xl font-bold text-foreground tracking-tight">Gerenciar Assinatura</h1>
+          <p className="text-xs text-muted-foreground font-medium mt-0.5">Acompanhe seu plano ativo, faturas e termos da conta.</p>
         </div>
         <button
           onClick={() => setShowRulesModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-xl font-bold text-sm transition-colors border border-indigo-100 dark:border-indigo-500/20 shadow-sm"
+          className="flex items-center gap-2 px-3.5 py-1.5 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground rounded-xl font-bold text-xs transition-colors border border-border/50 shadow-sm self-start sm:self-auto"
         >
-          <ShieldAlert size={18} />
-          Regras da Assinatura
+          <ShieldAlert size={15} className="text-indigo-500" />
+          <span>Regras da Assinatura</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Current Plan Card */}
-        <div className="md:col-span-2 relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-800 border-none rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-indigo-500/20 flex flex-col justify-between text-white">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/3"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-400/20 blur-2xl rounded-full translate-y-1/3 -translate-x-1/4"></div>
+      {/* Cards de Resumo (Plano Atual + Fatura) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Card do Plano Atual Refinado */}
+        <div className="md:col-span-2 relative overflow-hidden bg-gradient-to-br from-indigo-950/80 via-slate-900 to-indigo-900 border border-indigo-500/20 rounded-2xl p-5 shadow-lg flex flex-col justify-between text-white">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 blur-2xl rounded-full -translate-y-1/2 translate-x-1/3"></div>
           
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/10 shadow-inner">
-                  <Zap size={28} />
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                  <Zap size={20} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black tracking-tight text-white/90">Plano Atual</h2>
-                  <p className="text-white text-2xl font-black">{currentPlan.name}</p>
+                  <span className="text-[10px] font-bold text-indigo-200/60 uppercase tracking-widest">Plano Atual</span>
+                  <h2 className="text-lg font-black text-white leading-tight">{currentPlan.name}</h2>
                 </div>
               </div>
               
-              <div className={`px-4 py-1.5 text-xs font-black uppercase tracking-widest rounded-full backdrop-blur-md border ${
-                  isTrial ? 'bg-blue-500/20 border-blue-400/30 text-blue-100' :
-                  isCanceled ? 'bg-red-500/20 border-red-400/30 text-red-100' :
-                  'bg-emerald-500/20 border-emerald-400/30 text-emerald-100'
+              <div className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border ${
+                  isTrial ? 'bg-blue-500/20 border-blue-400/30 text-blue-200' :
+                  isCanceled ? 'bg-rose-500/20 border-rose-400/30 text-rose-200' :
+                  'bg-emerald-500/20 border-emerald-400/30 text-emerald-300'
                 }`}>
                   {isTrial ? "Período de Teste" : isCanceled ? "Cancelado" : "Ativo"}
               </div>
             </div>
 
-            <div className="space-y-4">
-              {isTrial && trialEndsAt && (
-                <div className="bg-black/10 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
-                  <div className="flex justify-between items-end mb-2">
-                    <div>
-                      <span className="text-white/70 font-bold text-xs uppercase tracking-widest">Fim do Teste</span>
-                      <p className="text-white font-black text-lg mt-0.5">{trialEndsAt.toLocaleDateString('pt-BR')}</p>
-                    </div>
-                    <span className="text-white/90 font-black text-sm">
-                      {Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} dias restantes
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.max(0, Math.min(100, 100 - (Math.max(0, trialEndsAt.getTime() - Date.now()) / (33 * 24 * 60 * 60 * 1000)) * 100))}%` }}
-                      className="h-full bg-white rounded-full" 
-                    />
-                  </div>
+            {isTrial && trialEndsAt && (
+              <div className="bg-black/30 rounded-xl p-3 border border-white/10">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-white/60 font-bold text-[10px] uppercase tracking-wider">Fim do Teste: {trialEndsAt.toLocaleDateString('pt-BR')}</span>
+                  <span className="text-indigo-300 font-bold text-xs">
+                    {Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} dias restantes
+                  </span>
                 </div>
-              )}
-            </div>
+                <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.max(0, Math.min(100, 100 - (Math.max(0, trialEndsAt.getTime() - Date.now()) / (33 * 24 * 60 * 60 * 1000)) * 100))}%` }}
+                    className="h-full bg-indigo-400 rounded-full" 
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Invoice Card */}
-        <div className="bg-card border border-border rounded-[2rem] p-6 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${pendingInvoice ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-              <CreditCard size={24} />
+        {/* Card de Fatura Refinado */}
+        <div className="bg-card border border-border/60 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${pendingInvoice ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+              <CreditCard size={16} />
             </div>
-            <h2 className="text-lg font-black text-foreground tracking-tight">Sua Fatura</h2>
+            <h2 className="text-sm font-bold text-foreground">Sua Fatura</h2>
           </div>
           
           {loadingInvoice ? (
-            <div className="flex flex-col items-center justify-center py-6 gap-3 text-muted-foreground">
-              <Loader2 size={24} className="animate-spin text-primary" /> 
-              <span className="text-sm font-bold">Buscando faturas...</span>
+            <div className="flex items-center justify-center py-4 text-xs text-muted-foreground gap-2">
+              <Loader2 size={16} className="animate-spin text-primary" /> Buscando...
             </div>
           ) : pendingInvoice ? (
-            <div className="mt-2 bg-amber-50 dark:bg-amber-500/5 p-4 rounded-2xl border border-amber-200 dark:border-amber-500/20">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1">Aguardando Pagamento</p>
-              <p className="text-3xl font-black text-amber-700 dark:text-amber-500 mb-4 tracking-tighter">
+            <div className="bg-amber-500/5 p-3 rounded-xl border border-amber-500/20">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-amber-600 mb-0.5">Pendente</p>
+              <p className="text-xl font-black text-amber-600 mb-2">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingInvoice.value)}
               </p>
               <a 
                 href={pendingInvoice.invoiceUrl} 
                 target="_blank" 
                 rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 h-12 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest rounded-xl text-[11px] transition-all shadow-lg shadow-amber-500/20"
+                className="w-full flex items-center justify-center gap-1.5 h-9 bg-amber-500 hover:bg-amber-600 text-white font-bold uppercase tracking-wider rounded-lg text-[10px] transition-all shadow-sm"
               >
-                Pagar Agora <ArrowRight size={16} />
+                Pagar Agora <ArrowRight size={14} />
               </a>
             </div>
           ) : (
-            <div className="mt-2 flex flex-col items-center justify-center py-6 bg-emerald-50 dark:bg-emerald-500/5 rounded-2xl border border-emerald-100 dark:border-emerald-500/10">
-              <CheckCircle2 size={40} className="text-emerald-500 mb-3" />
-              <p className="text-emerald-700 dark:text-emerald-400 text-sm font-black uppercase tracking-widest">Tudo em dia!</p>
-              <p className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-500/70 mt-1">Nenhuma pendência.</p>
+            <div className="flex flex-col items-center justify-center py-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+              <CheckCircle2 size={24} className="text-emerald-500 mb-1" />
+              <p className="text-emerald-600 text-xs font-bold uppercase tracking-wider">Tudo em dia!</p>
+              <p className="text-[9px] text-muted-foreground">Sem pendências financeiras.</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Upgrade Section */}
-      <div className="pt-10">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-black text-foreground tracking-tight mb-4">Escolha seu novo nível</h2>
-          <p className="text-muted-foreground text-sm font-medium mb-8 max-w-lg mx-auto">Potencialize sua escola com nossos planos e libere mais alunos, ferramentas exclusivas e automações ilimitadas.</p>
+      {/* Upgrade Section / Escolha seu Nível */}
+      <div className="pt-4 space-y-6">
+        <div className="text-center space-y-3">
+          <h2 className="text-xl font-bold text-foreground tracking-tight">Escolha seu Plano</h2>
+          <p className="text-muted-foreground text-xs font-medium max-w-md mx-auto">Libere mais alunos e ferramentas exclusivas para potencializar sua escola.</p>
           
-          <div className="inline-flex bg-muted/50 p-1.5 rounded-2xl relative">
-            <motion.div 
-              className="absolute top-1.5 bottom-1.5 w-[50%] bg-indigo-600 rounded-xl shadow-md"
-              initial={false}
-              animate={{ left: selectedPlanType === "MONTHLY" ? "6px" : "calc(50% - 6px)" }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            />
+          <div className="inline-flex bg-muted/40 p-1 rounded-xl border border-border/50 relative">
             <button 
               onClick={() => setSelectedPlanType("MONTHLY")}
-              className={`relative z-10 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-colors ${selectedPlanType === "MONTHLY" ? "text-white" : "text-muted-foreground hover:text-foreground"}`}
+              className={`px-5 py-1.5 rounded-lg font-bold text-xs transition-all ${selectedPlanType === "MONTHLY" ? "bg-blue-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               Mensal
             </button>
             <button 
               onClick={() => setSelectedPlanType("YEARLY")}
-              className={`relative z-10 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-colors flex items-center gap-2 ${selectedPlanType === "YEARLY" ? "text-white" : "text-muted-foreground hover:text-foreground"}`}
+              className={`px-5 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 ${selectedPlanType === "YEARLY" ? "bg-blue-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               Anual
-              <span className={`text-[9px] px-2 py-0.5 rounded-full ${selectedPlanType === "YEARLY" ? "bg-white/20" : "bg-indigo-100 text-indigo-600"}`}>-17%</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-600 font-bold">-17%</span>
             </button>
-          </div>
-
-          {/* Aviso de validade dos planos */}
-          <div className="mt-6 inline-flex items-start gap-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl px-5 py-3 max-w-lg mx-auto text-left">
-            <span className="text-amber-500 text-lg mt-0.5 flex-shrink-0">⚠️</span>
-            <p className="text-amber-700 dark:text-amber-400 text-xs font-semibold leading-relaxed">
-              {selectedPlanType === "MONTHLY"
-                ? <><strong>Plano Mensal:</strong> válido por <strong>6 meses</strong>. Após esse período é necessário renovar a assinatura.</>
-                : <><strong>Plano Anual:</strong> válido por <strong>12 meses</strong> completos — a forma mais econômica e sem interrupções.</>
-              }
-            </p>
           </div>
         </div>
 
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Grid dos Planos Compacto */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {PLANOS.map((p, index) => {
             const isActive = mySub?.planId === p.id;
             const price = selectedPlanType === "YEARLY" ? p.priceYearly : p.priceMonthly;
@@ -216,41 +194,39 @@ export default function Assinatura() {
             return (
               <motion.div 
                 key={p.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className={`relative flex flex-col bg-card border rounded-[2rem] p-8 transition-all duration-300 hover:-translate-y-1 ${
-                  isActive ? 'border-indigo-500 shadow-xl shadow-indigo-500/10 ring-1 ring-indigo-500' : 
-                  isPopular ? 'border-indigo-300 dark:border-indigo-700 shadow-lg' :
-                  'border-border hover:border-indigo-500/50 hover:shadow-lg'
+                transition={{ delay: index * 0.08 }}
+                className={`relative flex flex-col bg-card border rounded-2xl p-5 transition-all duration-300 ${
+                  isActive ? 'border-blue-600 ring-1 ring-blue-600 shadow-md' : 
+                  isPopular ? 'border-indigo-500/40 shadow-sm' :
+                  'border-border/60 hover:border-border'
                 }`}
               >
                 {isPopular && !isActive && (
-                  <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                    <span className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[10px] font-black uppercase tracking-widest py-1.5 px-4 rounded-full shadow-lg">Mais Popular</span>
+                  <div className="absolute -top-3 left-0 right-0 flex justify-center">
+                    <span className="bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest py-0.5 px-3 rounded-full shadow-sm">Mais Popular</span>
                   </div>
                 )}
                 {isActive && (
-                  <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                    <span className="bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest py-1.5 px-4 rounded-full shadow-lg border border-slate-700">Seu Plano</span>
+                  <div className="absolute -top-3 left-0 right-0 flex justify-center">
+                    <span className="bg-slate-800 text-white text-[9px] font-black uppercase tracking-widest py-0.5 px-3 rounded-full shadow-sm border border-slate-700">Seu Plano</span>
                   </div>
                 )}
 
-                <div className="mb-6">
-                  <h3 className="text-xl font-black text-foreground mb-2">{p.name}</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-foreground tracking-tighter">R$ {price.toFixed(2).replace('.',',')}</span>
-                    <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">/{selectedPlanType === "YEARLY" ? 'ano' : 'mês'}</span>
+                <div className="mb-4 pt-1">
+                  <h3 className="text-base font-bold text-foreground">{p.name}</h3>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-foreground tracking-tight">R$ {price.toFixed(2).replace('.',',')}</span>
+                    <span className="text-muted-foreground text-[10px] font-bold uppercase">/{selectedPlanType === "YEARLY" ? 'ano' : 'mês'}</span>
                   </div>
                 </div>
                 
-                <div className="flex-1 space-y-4 mb-8">
+                <div className="flex-1 space-y-2.5 mb-6">
                   {p.features.map((f, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${isPopular || isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-muted text-muted-foreground'}`}>
-                        <CheckCircle2 size={12} strokeWidth={3} />
-                      </div>
-                      <span className="text-sm font-medium text-foreground/80 leading-tight">{f}</span>
+                    <div key={i} className="flex items-start gap-2 text-xs">
+                      <CheckCircle2 size={13} className="text-blue-600 shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground font-medium leading-tight">{f}</span>
                     </div>
                   ))}
                 </div>
@@ -258,10 +234,10 @@ export default function Assinatura() {
                 <button
                   onClick={() => handleChangePlan(p.id)}
                   disabled={isActive || changePlanMutation.isPending || isCanceled}
-                  className={`w-full h-12 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all ${
+                  className={`w-full h-10 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
                     isActive ? 'bg-muted text-muted-foreground cursor-not-allowed' :
-                    isPopular ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20' :
-                    'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20'
+                    isPopular ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20' :
+                    'bg-muted/40 hover:bg-muted text-foreground border border-border/60'
                   }`}
                 >
                   {isActive ? 'Plano Ativo' : changePlanMutation.isPending ? 'Processando...' : 'Fazer Upgrade'}

@@ -53,6 +53,7 @@ const filesToUpload = [
   'server/db.ts',
   'server/automationJob.ts',
   'client/src/pages/Aulas.tsx',
+  'client/src/pages/Assinatura.tsx',
   'client/src/pages/Automacoes.tsx',
   'server/utils/whatsappRouting.ts',
   'server/utils/whatsapp.ts',
