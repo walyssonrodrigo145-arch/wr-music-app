@@ -277,271 +277,411 @@ export default function Aulas() {
   };
 
   // ──────────────────────────────────────────────────────────────────────────
-  // DESKTOP LAYOUT (NOTEBOOK)
+  // DESKTOP LAYOUT (MODERNO E INSPIRADO NO MODELO)
   // ──────────────────────────────────────────────────────────────────────────
   if (isDesktop) {
+    const todayLessons = lessons.filter(l => isToday(new Date(l.scheduledAt)));
+    const todayCompleted = todayLessons.filter(l => l.status === 'concluida').length;
+    const todayPending = todayLessons.filter(l => l.status === 'agendada').length;
+    const todayCancelled = todayLessons.filter(l => l.status === 'cancelada').length;
+
+    // Cálculo estático/dinâmico de ocupação semanal (Domingo a Sábado)
+    const weekDays = eachDayOfInterval({ start: startOfWeek(new Date(), { weekStartsOn: 0 }), end: endOfWeek(new Date(), { weekStartsOn: 0 }) });
+    const occupancy = weekDays.map(day => {
+      const count = lessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).length;
+      // considera 8 aulas/dia como 100% de capacidade
+      const pct = Math.min(100, Math.round((count / 8) * 100));
+      return { dayLabel: DAYS_SHORT[day.getDay()], pct };
+    });
 
     return (
       <div className={cn(
         "flex flex-col bg-background overflow-hidden transition-all duration-300",
         isExpanded 
-          ? "fixed inset-0 z-[45] p-6 lg:p-10 overflow-y-auto m-0 h-screen max-w-none animate-in fade-in zoom-in-95 duration-300" 
-          : "h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] -m-4 sm:-m-6"
+          ? "fixed inset-0 z-[45] p-6 lg:p-8 overflow-y-auto m-0 h-screen max-w-none animate-in fade-in zoom-in-95 duration-300 bg-background" 
+          : "h-[calc(100vh-5rem)] -m-4 sm:-m-6"
       )}>
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto lg:overflow-hidden no-scrollbar">
-          <div className={cn("flex-1 overflow-y-auto space-y-8 no-scrollbar", isExpanded ? "p-0" : "p-8")}>
-            {/* Desktop Filters */}
-            <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
-               <div className="space-y-4">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Instrumentos</p>
-                  <div className="flex flex-wrap gap-2">
-                     {["todos", ...instruments.map(i => String(i.id))].map((id) => {
-                       const inst = instruments.find(i => String(i.id) === id);
-                       const label = id === "todos" ? "Todos" : inst?.name;
-                       const isActive = instrumentFilter === id;
-                       return (
-                         <button key={id} onClick={() => setInstrumentFilter(id)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm", isActive ? "bg-blue-600 text-white border-blue-600" : "bg-card text-muted-foreground border-border")}>{label}</button>
-                       );
-                     })}
-                  </div>
-               </div>
-               <div className="space-y-4">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Status</p>
-                  <div className="flex flex-wrap gap-2">
-                     {["geral", "agendada", "concluida", "cancelada", "remarcada", "falta"].map((st) => (
-                       <button key={st} onClick={() => setStatusFilterDesktop(st)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm capitalize", statusFilterDesktop === st ? "bg-blue-600 text-white border-slate-800" : "bg-card text-muted-foreground border-border")}>{st}</button>
-                     ))}
-                  </div>
-               </div>
-               <div className="space-y-4">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Modalidade</p>
-                  <div className="flex flex-wrap gap-2">
-                     {[
-                       { id: "todos", label: "Todas" },
-                       { id: "individual", label: "Individual" },
-                       { id: "turma", label: "Turma" }
-                     ].map((t) => (
-                       <button key={t.id} onClick={() => setLessonTypeFilter(t.id)} className={cn("px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm", lessonTypeFilter === t.id ? "bg-blue-600 text-white border-blue-600" : "bg-card text-muted-foreground border-border")}>{t.label}</button>
-                     ))}
-                  </div>
-               </div>
+        {/* Header Superior da Agenda */}
+        <div className="p-6 pb-4 border-b border-border/40 bg-card/40 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-foreground">Agenda</h1>
+            <p className="text-xs font-medium text-muted-foreground mt-0.5">Gerencie suas aulas, horários e compromissos</p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="relative w-72">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+              <input
+                type="text"
+                placeholder="Buscar aluno, aula, instrumento..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full h-10 pl-10 pr-12 rounded-xl bg-card border border-border/60 text-xs font-medium placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded border border-border/40">Ctrl + K</span>
+            </div>
+            
+            <Button
+              onClick={() => setAgendarOpen(true)}
+              className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+            >
+              <Plus size={16} strokeWidth={3} />
+              <span>+ Nova</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Sub-Header de Filtros e Visões */}
+        <div className="px-6 py-3 border-b border-border/30 bg-muted/10 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Botões de Visão (Mês, Semana, Dia, Eventos/Lista) */}
+            <div className="flex p-1 bg-card rounded-xl border border-border/60 shadow-sm">
+              {(["mes", "semana", "dia", "eventos"] as const).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-xs font-bold transition-all capitalize",
+                    view === v ? "bg-blue-600 text-white shadow-md" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {v === "eventos" ? "Lista" : v}
+                </button>
+              ))}
             </div>
 
-            {/* Desktop Calendar Header */}
-            <div className="flex items-center justify-between flex-wrap gap-4">
-               <div className="flex p-1 bg-muted/40 rounded-xl shadow-sm border border-border/30">
-                  {(["mes", "semana", "dia", "eventos"] as const).map(v => (
-                    <button key={v} onClick={() => setView(v)} className={cn("px-5 py-2 rounded-lg text-[11px] font-black transition-all capitalize", view === v ? "bg-blue-600 text-white shadow-lg" : "text-muted-foreground hover:bg-muted")}>{v}</button>
-                  ))}
-               </div>
-               <div className="flex items-center gap-3 flex-wrap">
-                  {/* Month/Year filter — visible in mes/eventos view */}
-                  {(view === "mes" || view === "eventos") && (
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={currentDate.getMonth()}
-                        onChange={e => setCurrentDate(new Date(currentDate.getFullYear(), Number(e.target.value), 1))}
-                        className="h-10 px-3 rounded-xl bg-card border border-border text-xs font-bold text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
-                      >
-                        {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((m, i) => (
-                          <option key={i} value={i}>{m}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={currentDate.getFullYear()}
-                        onChange={e => setCurrentDate(new Date(Number(e.target.value), currentDate.getMonth(), 1))}
-                        className="h-10 px-3 rounded-xl bg-card border border-border text-xs font-bold text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
-                      >
-                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  <button onClick={() => {
-                     if (view === "dia") setCurrentDate(addDays(currentDate, -1));
-                     else if (view === "semana") setCurrentDate(addDays(currentDate, -7));
-                     else setCurrentDate(subMonths(currentDate, 1));
-                   }} className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"><ChevronLeft size={18} /></button>
-                   
-                   <div className="min-w-[200px] text-center">
-                      <h3 className="text-lg font-black text-foreground leading-tight">
-                         {view === "dia"
-                           ? format(currentDate, "dd 'de' MMMM", { locale: ptBR })
-                           : view === "semana"
-                           ? `${format(startOfWeek(currentDate), "dd/MM", { locale: ptBR })} – ${format(endOfWeek(currentDate), "dd/MM", { locale: ptBR })}`
-                           : format(currentDate, "MMMM yyyy", { locale: ptBR })}
-                      </h3>
-                      {view === "dia" && <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">{format(currentDate, "EEEE • yyyy", { locale: ptBR })}</p>}
-                      {view === "semana" && <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">{format(currentDate, "yyyy", { locale: ptBR })}</p>}
-                   </div>
-
-                   <button onClick={() => {
-                     if (view === "dia") setCurrentDate(addDays(currentDate, 1));
-                     else if (view === "semana") setCurrentDate(addDays(currentDate, 7));
-                     else setCurrentDate(addMonths(currentDate, 1));
-                   }} className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"><ChevronRight size={18} /></button>
-
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-xl px-4 text-xs font-bold hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all"
-                    onClick={() => {
-                      setCurrentDate(new Date());
-                      setAnimateToday(true);
-                      setTimeout(() => setAnimateToday(false), 1000);
-                    }}
+            {/* Seletores de Data */}
+            <div className="flex items-center gap-2">
+              {(view === "mes" || view === "eventos") && (
+                <>
+                  <select
+                    value={currentDate.getMonth()}
+                    onChange={e => setCurrentDate(new Date(currentDate.getFullYear(), Number(e.target.value), 1))}
+                    className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground focus:outline-none shadow-sm cursor-pointer"
                   >
-                    Hoje
-                  </Button>
-
-                  <Button
-                    variant={isExpanded ? "default" : "outline"}
-                    className={cn(
-                      "h-10 rounded-xl px-4 text-xs font-bold transition-all flex items-center gap-2 shadow-sm",
-                      isExpanded 
-                        ? "bg-blue-600 text-white hover:bg-blue-700" 
-                        : "hover:bg-blue-600 hover:text-white hover:border-blue-600"
-                    )}
-                    onClick={() => setIsExpanded(!isExpanded)}
+                    {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((m, i) => (
+                      <option key={i} value={i}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={currentDate.getFullYear()}
+                    onChange={e => setCurrentDate(new Date(Number(e.target.value), currentDate.getMonth(), 1))}
+                    className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground focus:outline-none shadow-sm cursor-pointer"
                   >
-                    {isExpanded ? (
-                      <>
-                        <Minimize2 size={16} />
-                        Restaurar
-                      </>
-                    ) : (
-                      <>
-                        <Maximize2 size={16} />
-                        Expandir
-                      </>
-                    )}
-                  </Button>
-               </div>
+                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+
+              <button
+                onClick={() => {
+                  setCurrentDate(new Date());
+                  setAnimateToday(true);
+                  setTimeout(() => setAnimateToday(false), 1000);
+                }}
+                className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground hover:bg-muted transition-all shadow-sm"
+              >
+                Hoje
+              </button>
+              
+              <div className="flex items-center gap-1 bg-card border border-border/60 rounded-xl p-0.5 shadow-sm">
+                <button
+                  onClick={() => {
+                    if (view === "dia") setCurrentDate(addDays(currentDate, -1));
+                    else if (view === "semana") setCurrentDate(addDays(currentDate, -7));
+                    else setCurrentDate(subMonths(currentDate, 1));
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (view === "dia") setCurrentDate(addDays(currentDate, 1));
+                    else if (view === "semana") setCurrentDate(addDays(currentDate, 7));
+                    else setCurrentDate(addMonths(currentDate, 1));
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Filtros Suspensos de Instrumento, Status e Modalidade */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">Instrumento:</span>
+              <select
+                value={instrumentFilter}
+                onChange={e => setInstrumentFilter(e.target.value)}
+                className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground outline-none shadow-sm cursor-pointer"
+              >
+                <option value="todos">Todos</option>
+                {instruments.map(i => <option key={i.id} value={String(i.id)}>{i.name}</option>)}
+              </select>
             </div>
 
-            {/* Desktop View Content */}
-            <div id="tour-calendar-view" className="relative min-h-[400px] lg:min-h-[600px] overflow-x-auto">
-               <AnimatePresence mode="wait">
-                  {view === "mes" && (
-                    <motion.div key="month" className="bg-card rounded-[2rem] border border-border shadow-xl overflow-hidden">
-                       <div className="grid grid-cols-7 border-b border-border bg-muted/50">
-                          {DAYS_SHORT.map(day => <div key={day} className="py-2 lg:py-4 text-center text-[9px] lg:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{day}</div>)}
-                       </div>
-                       <div className="grid grid-cols-7 min-h-[400px] lg:min-h-[600px]">
-                          {monthDays.map((day, idx) => {
-                            const lessonsInDay = filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day));
-                            const isCurrMonth = isSameMonth(day, currentDate);
-                            return (
-                               <div 
-                                 key={idx} 
-                                 className={cn(
-                                   "p-1 lg:p-2 border-r border-b border-border min-h-[80px] lg:min-h-[140px] relative transition-colors", 
-                                   !isCurrMonth && "opacity-20 bg-muted/50", 
-                                   isToday(day) && "bg-blue-500/10/30"
-                                 )}
-                               >
-                                 <motion.span 
-                                   layout={false}
-                                   animate={animateToday && isToday(day) ? { 
-                                     scale: [1, 1.4, 1],
-                                     transition: { duration: 0.5, repeat: 1 }
-                                   } : {}}
-                                   onClick={(e) => { e.stopPropagation(); setCurrentDate(day); setAgendarOpen(true); }}
-                                   className={cn("w-8 h-8 flex items-center justify-center rounded-full text-xs font-black mb-2 cursor-pointer hover:ring-2 hover:ring-blue-400", isToday(day) ? "bg-blue-600 text-white shadow-lg" : "text-muted-foreground hover:bg-muted")}
-                                 >
-                                   {format(day, "d")}
-                                 </motion.span>
-                                <div className="space-y-1">
-                                   {lessonsInDay.slice(0, 3).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
-                                  {lessonsInDay.length > 3 && (
-                                    <button
-                                      type="button"
-                                      className="w-full text-[9px] font-black text-blue-600 text-center cursor-pointer hover:underline py-1 bg-transparent border-none outline-none"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setDayLessonsModalDate(day);
-                                      }}
-                                    >
-                                      + {lessonsInDay.length - 3} aulas
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                       </div>
-                    </motion.div>
-                  )}
-                  {view === "semana" && (
-                    <motion.div key="week" className="grid grid-cols-7 gap-4">
-                      {eachDayOfInterval({ start: startOfWeek(currentDate), end: endOfWeek(currentDate) }).map((day, i) => (
-                        <div key={i} className="flex flex-col gap-4">
-                           <div className={cn("p-4 rounded-3xl border text-center", isToday(day) ? "bg-blue-600 border-blue-600 text-white shadow-xl" : "bg-card border-border")}>
-                              <p className="text-[10px] font-black uppercase opacity-60 mb-1">{DAYS_SHORT[i]}</p>
-                              <p className="text-2xl font-black">{format(day, "d")}</p>
-                           </div>
-                           <div className="space-y-3">
-                              {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
-                           </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">Status:</span>
+              <select
+                value={statusFilterDesktop}
+                onChange={e => setStatusFilterDesktop(e.target.value)}
+                className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground outline-none shadow-sm cursor-pointer capitalize"
+              >
+                <option value="geral">Todos</option>
+                <option value="agendada">Agendadas</option>
+                <option value="concluida">Concluídas</option>
+                <option value="cancelada">Canceladas</option>
+                <option value="remarcada">Remarcadas</option>
+                <option value="falta">Faltas</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">Modalidade:</span>
+              <select
+                value={lessonTypeFilter}
+                onChange={e => setLessonTypeFilter(e.target.value)}
+                className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground outline-none shadow-sm cursor-pointer"
+              >
+                <option value="todos">Todas</option>
+                <option value="individual">Individual</option>
+                <option value="turma">Turma</option>
+              </select>
+            </div>
+
+            {(instrumentFilter !== "todos" || statusFilterDesktop !== "geral" || lessonTypeFilter !== "todos") && (
+              <button
+                onClick={() => { setInstrumentFilter("todos"); setStatusFilterDesktop("geral"); setLessonTypeFilter("todos"); }}
+                className="text-xs font-bold text-blue-600 hover:underline px-2"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Conteúdo Principal Split (Calendário + Painel Direita) */}
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          {/* Coluna Esquerda: Calendário Principal */}
+          <div className="flex-1 p-6 overflow-y-auto space-y-4 no-scrollbar">
+            <div id="tour-calendar-view" className="relative min-h-[500px]">
+              <AnimatePresence mode="wait">
+                {view === "mes" && (
+                  <motion.div key="month" className="bg-card rounded-2xl border border-border/60 shadow-xl overflow-hidden">
+                    <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30">
+                      {DAYS_SHORT.map(day => (
+                        <div key={day} className="py-3 text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                          {day}
                         </div>
                       ))}
-                    </motion.div>
-                  )}
-                  {view === "dia" && (
-                    <motion.div key="day" className="space-y-6">
-                       <div className="flex items-center justify-between bg-card p-6 rounded-3xl border border-border shadow-sm">
-                          <div className="flex items-center gap-4">
-                             <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-black text-xl">
-                                {format(currentDate, "d")}
-                             </div>
-                             <div>
-                                <h3 className="text-lg font-black text-foreground tracking-tight">{format(currentDate, "EEEE", { locale: ptBR })}</h3>
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">{format(currentDate, "dd 'de' MMMM", { locale: ptBR })}</p>
-                             </div>
+                    </div>
+                    <div className="grid grid-cols-7 min-h-[520px]">
+                      {monthDays.map((day, idx) => {
+                        const lessonsInDay = filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day));
+                        const isCurrMonth = isSameMonth(day, currentDate);
+                        return (
+                          <div 
+                            key={idx} 
+                            className={cn(
+                              "p-2 border-r border-b border-border/40 min-h-[110px] relative transition-colors", 
+                              !isCurrMonth && "opacity-25 bg-muted/20", 
+                              isToday(day) && "bg-blue-500/5"
+                            )}
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span 
+                                onClick={(e) => { e.stopPropagation(); setCurrentDate(day); setAgendarOpen(true); }}
+                                className={cn(
+                                  "text-xs font-bold cursor-pointer hover:text-blue-600 transition-colors",
+                                  isToday(day) ? "w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-black" : "text-muted-foreground"
+                                )}
+                              >
+                                {format(day, "d")}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              {lessonsInDay.slice(0, 3).map(l => (
+                                <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
+                              ))}
+                              {lessonsInDay.length > 3 && (
+                                <button
+                                  type="button"
+                                  className="w-full text-[9px] font-black text-blue-600 text-center cursor-pointer hover:underline py-0.5 bg-transparent"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setDayLessonsModalDate(day);
+                                  }}
+                                >
+                                  + {lessonsInDay.length - 3} aulas
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-4 py-2 rounded-full border border-border">
-                             {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), currentDate)).length} aulas
-                          </span>
-                       </div>
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {filteredLessons
-                            .filter(l => isSameDay(new Date(l.scheduledAt), currentDate))
-                            .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-                            .map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
-                       </div>
-                    </motion.div>
-                  )}
-                  {view === "eventos" && (
-                    <motion.div key="events" className="space-y-8">
-                       {/* Group by month or just a list */}
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                          {filteredLessons
-                            .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
-                            .map(l => (
-                              <div key={l.id} className="relative">
-                                <div className="absolute -top-3 left-6 z-10 px-3 py-1 bg-blue-600 text-white text-[9px] font-black rounded-full uppercase tracking-widest shadow-lg">
-                                   {safeFormat(l.scheduledAt, "dd/MM")}
-                                </div>
-                                <LessonCardDesktop lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
-                              </div>
-                            ))}
-                       </div>
-                    </motion.div>
-                  )}
-               </AnimatePresence>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+
+                {view === "semana" && (
+                  <motion.div key="week" className="grid grid-cols-7 gap-3">
+                    {eachDayOfInterval({ start: startOfWeek(currentDate), end: endOfWeek(currentDate) }).map((day, i) => (
+                      <div key={i} className="flex flex-col gap-3">
+                        <div className={cn("p-3 rounded-2xl border text-center", isToday(day) ? "bg-blue-600 border-blue-600 text-white shadow-lg" : "bg-card border-border/60")}>
+                          <p className="text-[10px] font-bold uppercase opacity-70 mb-0.5">{DAYS_SHORT[i]}</p>
+                          <p className="text-xl font-black">{format(day, "d")}</p>
+                        </div>
+                        <div className="space-y-2">
+                          {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => (
+                            <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+
+                {view === "dia" && (
+                  <motion.div key="day" className="space-y-4">
+                    <div className="flex items-center justify-between bg-card p-5 rounded-2xl border border-border/60 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-black text-lg">
+                          {format(currentDate, "d")}
+                        </div>
+                        <div>
+                          <h3 className="text-base font-bold text-foreground">{format(currentDate, "EEEE", { locale: ptBR })}</h3>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase">{format(currentDate, "dd 'de' MMMM yyyy", { locale: ptBR })}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                        {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), currentDate)).length} aulas
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {filteredLessons
+                        .filter(l => isSameDay(new Date(l.scheduledAt), currentDate))
+                        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+                        .map(l => <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />)}
+                    </div>
+                  </motion.div>
+                )}
+
+                {view === "eventos" && (
+                  <motion.div key="events" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredLessons
+                      .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+                      .map(l => (
+                        <div key={l.id} className="relative">
+                          <div className="absolute -top-2.5 left-4 z-10 px-2.5 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded-full uppercase shadow-md">
+                            {safeFormat(l.scheduledAt, "dd/MM")}
+                          </div>
+                          <LessonCardDesktop lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
+                        </div>
+                      ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Legenda de Cores no Rodapé (Como na Imagem) */}
+            <div className="flex items-center gap-4 flex-wrap pt-3 border-t border-border/40 text-[10px] font-bold text-muted-foreground">
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Individual</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-purple-600" /> Turma</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Reposição</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Experimental</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Cancelada</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Concluída</div>
+            </div>
+          </div>
+
+          {/* Coluna Direita (Painel de Resumo do Dia e Ocupação da Semana) */}
+          <div className="w-80 border-l border-border/40 bg-card/30 p-5 space-y-6 overflow-y-auto no-scrollbar shrink-0 hidden xl:block">
+            {/* Card de Resumo do dia */}
+            <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Resumo do dia</span>
+                <span className="text-[10px] font-bold text-blue-600">{format(new Date(), "dd/MM")}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
+                  <p className="text-base font-black text-foreground">{todayLessons.length}</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Aulas</p>
+                </div>
+                <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
+                  <p className="text-base font-black text-emerald-600">{todayCompleted}</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Concluídas</p>
+                </div>
+                <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
+                  <p className="text-base font-black text-rose-500">{todayCancelled}</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Canceladas</p>
+                </div>
+                <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
+                  <p className="text-base font-black text-blue-600">{todayPending}</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Pendentes</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Próximas Aulas de Hoje (Timeline) */}
+            <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Próximas aulas hoje</span>
+                <span className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer" onClick={() => setView('dia')}>Ver todas</span>
+              </div>
+              <div className="space-y-2.5 max-h-56 overflow-y-auto no-scrollbar">
+                {todayLessons.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic text-center py-4">Nenhuma aula agendada para hoje.</p>
+                ) : (
+                  todayLessons.slice(0, 5).map((l: any) => (
+                    <div key={l.id} className="p-2.5 bg-muted/20 rounded-xl border border-border/30 flex items-center justify-between cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setDetailLessonId(l.id)}>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-blue-600">{safeFormat(l.scheduledAt, "HH:mm")}</span>
+                          <span className="text-xs font-bold text-foreground truncate">{l.title || l.studentName}</span>
+                        </div>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5">{l.instrumentName || "Música"}</p>
+                      </div>
+                      <div className={cn(
+                        "w-2 h-2 rounded-full shrink-0",
+                        l.status === 'concluida' ? "bg-emerald-500" : l.status === 'falta' ? "bg-rose-500" : "bg-blue-500"
+                      )} />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Ocupação da Semana (Gráfico de Barras) */}
+            <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Ocupação da semana</span>
+              <div className="flex items-end justify-between gap-1.5 h-28 pt-4 px-1">
+                {occupancy.map((occ, idx) => (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                    <span className="text-[8px] font-black text-muted-foreground">{occ.pct}%</span>
+                    <div className="w-full bg-muted rounded-t-lg overflow-hidden flex flex-col justify-end" style={{ height: '70px' }}>
+                      <div 
+                        className={cn(
+                          "w-full transition-all duration-500 rounded-t-lg",
+                          occ.pct > 75 ? "bg-rose-500" : occ.pct > 40 ? "bg-amber-500" : occ.pct > 0 ? "bg-emerald-500" : "bg-transparent"
+                        )} 
+                        style={{ height: `${occ.pct}%` }} 
+                      />
+                    </div>
+                    <span className="text-[8px] font-bold text-muted-foreground">{occ.dayLabel}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="fixed bottom-12 right-12 z-[48]">
-          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setAgendarOpen(true)} className="w-20 h-20 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl relative overflow-hidden group">
-            <Plus size={36} strokeWidth={3} />
-            <div className="absolute inset-0 rounded-full border-4 border-blue-400/30 animate-ping opacity-75" />
-          </motion.button>
-        </div>
-
+        {/* Modais da Agenda */}
         <AgendarModal open={agendarOpen} onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }} editingLesson={editingLesson} initialDate={currentDate} />
         <LessonDetailModal open={!!detailLessonId} lesson={lessons.find(l => l.id === detailLessonId)} onOpenChange={(open) => !open && setDetailLessonId(null)} onStatusChange={handleStatusChange} onDelete={(id) => { setDetailLessonId(null); setTimeout(() => handleDeleteRequest(id), 150); }} onEdit={() => { setEditingLesson(lessons.find(l => l.id === detailLessonId)); setAgendarOpen(true); setDetailLessonId(null); }} />
 
@@ -562,7 +702,7 @@ export default function Aulas() {
           }}
         />
 
-        {/* ── Dialog de confirmação para ações recorrentes (desktop) ──────────── */}
+        {/* Dialog de confirmação para ações recorrentes */}
         <ResponsiveDialog
           open={!!recurringAction}
           onOpenChange={(open) => { if (!open) setRecurringAction(null); }}
@@ -642,7 +782,6 @@ export default function Aulas() {
             </button>
           </div>
         </ResponsiveDialog>
-
       </div>
     );
   }

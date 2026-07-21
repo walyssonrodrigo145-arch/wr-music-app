@@ -255,6 +255,29 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
             </Link>
           );
         })}
+
+        {!collapsed && (
+          <div className="mx-1 my-4 p-4 rounded-2xl bg-gradient-to-br from-indigo-950/60 to-slate-900 border border-indigo-500/20 shadow-lg shadow-indigo-950/40 relative overflow-hidden group">
+             <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all" />
+             <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30 shrink-0">
+                   <Sparkles size={14} />
+                </div>
+                <p className="text-xs font-black text-white tracking-tight">Plano Premium</p>
+             </div>
+             <p className="text-[10px] text-sidebar-foreground/60 font-medium leading-relaxed mb-3">
+               Seu plano expira em <span className="text-indigo-300 font-bold">25/09/2026</span>
+             </p>
+             <Link href="/assinatura">
+                <Button 
+                  onClick={onNavigate}
+                  className="w-full h-8 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                >
+                   Ver planos
+                </Button>
+             </Link>
+          </div>
+        )}
       </nav>
 
       {/* User profile at bottom */}

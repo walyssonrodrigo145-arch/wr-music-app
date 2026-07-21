@@ -58,6 +58,7 @@ const filesToUpload = [
   'server/utils/whatsapp.ts',
   'server/automationJob.ts',
   'client/src/pages/Comunicados.tsx',
+  'client/src/components/modals/LessonDetailModal.tsx',
   'client/src/pages/Financeiro.tsx',
   'client/src/pages/financeiro/MensalidadesTab.tsx',
   'client/src/pages/financeiro/DespesasTab.tsx',
