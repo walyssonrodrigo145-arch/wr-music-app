@@ -114,6 +114,14 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "P";
 
+  const { data: mySub } = trpc.platform.mySubscription.useQuery();
+  const currentPlanName = mySub?.planId === "pro" ? "Plano Pro" : mySub?.planId === "enterprise" ? "Plano Enterprise" : "Plano Premium";
+  const expirationDate = mySub?.trialEndsAt 
+    ? new Date(mySub.trialEndsAt).toLocaleDateString('pt-BR') 
+    : mySub?.currentPeriodEnd 
+    ? new Date(mySub.currentPeriodEnd).toLocaleDateString('pt-BR')
+    : "Ativo";
+
   return (
     <aside
       id="tour-sidebar"
@@ -263,10 +271,14 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30 shrink-0">
                    <Sparkles size={14} />
                 </div>
-                <p className="text-xs font-black text-white tracking-tight">Plano Premium</p>
+                <p className="text-xs font-black text-white tracking-tight">{currentPlanName}</p>
              </div>
              <p className="text-[10px] text-sidebar-foreground/60 font-medium leading-relaxed mb-3">
-               Seu plano expira em <span className="text-indigo-300 font-bold">25/09/2026</span>
+               {mySub?.subscriptionStatus === "active" ? (
+                 <>Validade da fatura: <span className="text-indigo-300 font-bold">{expirationDate}</span></>
+               ) : (
+                 <>Seu plano expira em <span className="text-indigo-300 font-bold">{expirationDate}</span></>
+               )}
              </p>
              <Link href="/assinatura">
                 <Button 
