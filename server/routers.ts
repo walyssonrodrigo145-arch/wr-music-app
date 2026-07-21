@@ -103,13 +103,16 @@ export const appRouter = router({
       }
     }),
     cleanupTestData: protectedProcedure.mutation(async ({ ctx }) => {
-      // MÉDIO-10 FIX: Operação destrutiva restrita a admins da organização.
-      // Professores não têm permissão para deletar dados de teste da org inteira.
-      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-      if (!isUserAdmin) {
+      // SUPERADMIN-ONLY: Apenas o walyssonrodrigo145@gmail.com (SUPER_ADMIN_EMAIL) pode limpar dados.
+      // Admins de escola e professores NÃO têm permissão.
+      const superAdminEmail = ENV.superAdminEmail;
+      const isMaster =
+        (superAdminEmail && ctx.user.email?.toLowerCase() === superAdminEmail) ||
+        (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
+      if (!isMaster) {
         throw new TRPCError({
           code: 'FORBIDDEN',
-          message: 'Apenas administradores podem executar a limpeza de dados de teste.'
+          message: 'Acesso restrito exclusivamente ao Super Admin do sistema.',
         });
       }
 

@@ -135,6 +135,7 @@ const filesToUpload = [
   'client/src/components/MobileTabBar.tsx',
   'client/src/components/lembretes/RemindersFilter.tsx',
   'client/src/components/StudentPortalLayout.tsx',
+  'client/src/components/tour/TourProvider.tsx',
   'client/src/components/BenefitsCarousel.tsx',
   'client/src/pages/TermosDeUso.tsx',
   'client/src/pages/PoliticaPrivacidade.tsx',
@@ -174,11 +175,12 @@ conn.on('ready', () => {
             const rebuildCmd = `
               cd ${repoPath}
               docker compose down
-              docker compose up -d --build
+              docker compose build --no-cache
+              docker compose up -d
               echo "Running DB migrations manually via psql..."
               sleep 5
-              docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \"dueDaysForecast\" text DEFAULT '5,10,15,20';"
-              docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \"chatbotEnabled\" integer NOT NULL DEFAULT 0;"
+              docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"dueDaysForecast\\" text DEFAULT '5,10,15,20';"
+              docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"chatbotEnabled\\" integer NOT NULL DEFAULT 0;"
             `;
             conn.exec(rebuildCmd, (err, rebuildStream) => {
               if (err) throw err;

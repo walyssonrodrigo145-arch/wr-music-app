@@ -36,12 +36,20 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    // Tour exclusivo para admins e professores — alunos nunca veem o tour
+    if (user && user.role === 'aluno') {
+      setHasSeenTutorial(true);
+      return;
+    }
     if (user && user.hasSeenTutorial === false) {
       setHasSeenTutorial(false);
     }
   }, [user]);
 
   const startTour = () => {
+    // Alunos não podem iniciar o tour
+    if (user?.role === 'aluno') return;
+
     setStepIndex(0);
     setIsNavigating(false);
     pendingStepIndex.current = null;
