@@ -9,70 +9,136 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   User, Building2, Bell, Palette, Shield, Save, Users,
-  Sun, Moon, Phone, Mail, Globe, MapPin, FileText,
+  Sun, Moon, Phone, Mail, Globe, MapPin,
   CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles, HelpCircle,
-  Brain, BarChart2, GraduationCap, CalendarDays, FileSpreadsheet
+  FileSpreadsheet
 } from "lucide-react";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
 import { downloadBase64File } from "@/utils/downloadReport";
 
 // ─── Export CSV helper ──────────────────────────────────────────────────────
-function downloadCsv(content: string, filename: string) {
-  const bom = '\uFEFF'; // UTF-8 BOM for Excel compatibility
-  const blob = new Blob([bom + content], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 function ExportDataSection() {
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<string | null>(null);
   const { refetch } = trpc.settings.exportData.useQuery(undefined, { enabled: false });
+  const generateReport = trpc.reportEngine.generate.useMutation();
 
   const handleExport = async (type: 'alunos' | 'aulas' | 'completo') => {
-    setExporting(true);
+    setExporting(type);
     try {
       const { data } = await refetch();
-      if (!data) { toast.error('Erro ao exportar dados'); return; }
-      const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-      if (type === 'alunos' || type === 'completo') {
-        downloadCsv(data.studentsCsv, `alunos_${date}.csv`);
+      if (!data) { toast.error('Erro ao carregar os dados'); return; }
+
+      const date = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+      const buildStudentRows = () => {
+        const lines = data.studentsCsv.split('\n').slice(1);
+        return lines
+          .filter(l => l.trim())
+          .map(line => {
+            const p = line.split(',');
+            return [
+              p[0] ?? '',
+              (p[1] ?? '').replace(/"/g, ''),
+              (p[2] ?? '').replace(/"/g, ''),
+              (p[3] ?? '').replace(/"/g, ''),
+              p[4] ?? '',
+              p[5] ?? '',
+              Number(p[6] ?? 0),
+              p[7] ?? '',
+            ] as (string | number)[];
+          });
+      };
+
+      const buildAulaRows = () => {
+        const lines = data.lessonsCsv.split('\n').slice(1);
+        return lines
+          .filter(l => l.trim())
+          .map(line => {
+            const p = line.split(',');
+            return [
+              p[0] ?? '',
+              (p[1] ?? '').replace(/"/g, ''),
+              (p[2] ?? '').replace(/"/g, ''),
+              p[3] ?? '',
+              p[4] ?? '',
+              Number(p[5] ?? 0),
+              p[6] ?? '',
+            ] as (string | number)[];
+          });
+      };
+
+      toast.loading('Gerando relatório Excel...', { id: 'export-report' });
+
+      if (type === 'alunos') {
+        generateReport.mutate(
+          { format: 'excel', title: `Relatório de Alunos — ${date}`, columns: ['ID', 'Nome', 'Email', 'Telefone', 'Nível', 'Status', 'Mensalidade (R$)', 'Início'], rows: buildStudentRows(), period: date },
+          {
+            onSuccess: r => { toast.dismiss('export-report'); downloadBase64File(r.data, 'excel', `alunos_${date}`); toast.success('Relatório de alunos exportado!'); },
+            onError: () => { toast.dismiss('export-report'); toast.error('Erro ao gerar relatório.'); },
+            onSettled: () => setExporting(null),
+          }
+        );
+      } else if (type === 'aulas') {
+        generateReport.mutate(
+          { format: 'excel', title: `Relatório de Aulas — ${date}`, columns: ['ID', 'Título', 'Aluno', 'Status', 'Data', 'Duração (min)', 'Avaliação'], rows: buildAulaRows(), period: date },
+          {
+            onSuccess: r => { toast.dismiss('export-report'); downloadBase64File(r.data, 'excel', `aulas_${date}`); toast.success('Relatório de aulas exportado!'); },
+            onError: () => { toast.dismiss('export-report'); toast.error('Erro ao gerar relatório.'); },
+            onSettled: () => setExporting(null),
+          }
+        );
+      } else {
+        // Exportar tudo: dispara alunos e aulas em sequência
+        generateReport.mutate(
+          { format: 'excel', title: `Relatório de Alunos — ${date}`, columns: ['ID', 'Nome', 'Email', 'Telefone', 'Nível', 'Status', 'Mensalidade (R$)', 'Início'], rows: buildStudentRows(), period: date },
+          {
+            onSuccess: r => {
+              downloadBase64File(r.data, 'excel', `alunos_${date}`);
+              // depois dispara aulas
+              generateReport.mutate(
+                { format: 'excel', title: `Relatório de Aulas — ${date}`, columns: ['ID', 'Título', 'Aluno', 'Status', 'Data', 'Duração (min)', 'Avaliação'], rows: buildAulaRows(), period: date },
+                {
+                  onSuccess: r2 => { toast.dismiss('export-report'); downloadBase64File(r2.data, 'excel', `aulas_${date}`); toast.success('Todos os relatórios exportados!'); },
+                  onError: () => { toast.dismiss('export-report'); toast.error('Erro ao gerar relatório de aulas.'); },
+                  onSettled: () => setExporting(null),
+                }
+              );
+            },
+            onError: () => { toast.dismiss('export-report'); toast.error('Erro ao gerar relatório.'); setExporting(null); },
+          }
+        );
       }
-      if (type === 'aulas' || type === 'completo') {
-        downloadCsv(data.lessonsCsv, `aulas_${date}.csv`);
-      }
-      toast.success('Arquivo(s) CSV baixado(s) com sucesso!');
-    } catch (e) {
+    } catch {
+      toast.dismiss('export-report');
       toast.error('Erro ao exportar dados');
-    } finally {
-      setExporting(false);
+      setExporting(null);
     }
   };
+
+  const isLoading = !!exporting;
 
   return (
     <div className="p-4 bg-muted/30 rounded-xl border border-border space-y-3">
       <div>
         <p className="text-xs font-semibold text-foreground mb-1">Exportar dados</p>
-        <p className="text-[10px] text-muted-foreground">Baixe uma cópia dos seus dados em formato CSV (compatível com Excel).</p>
+        <p className="text-[10px] text-muted-foreground">Baixe relatórios organizados em Excel (compatível com Excel/Google Sheets).</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" className="text-xs rounded-xl gap-2" disabled={exporting}
+        <Button variant="outline" size="sm" className="text-xs rounded-xl gap-2" disabled={isLoading}
           onClick={() => handleExport('alunos')}>
-          {exporting ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+          {exporting === 'alunos' ? <Loader2 size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
           Exportar Alunos
         </Button>
-        <Button variant="outline" size="sm" className="text-xs rounded-xl gap-2" disabled={exporting}
+        <Button variant="outline" size="sm" className="text-xs rounded-xl gap-2" disabled={isLoading}
           onClick={() => handleExport('aulas')}>
-          {exporting ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+          {exporting === 'aulas' ? <Loader2 size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
           Exportar Aulas
         </Button>
-        <Button size="sm" className="text-xs rounded-xl gap-2" disabled={exporting}
+        <Button size="sm" className="text-xs rounded-xl gap-2" disabled={isLoading}
           onClick={() => handleExport('completo')}>
-          {exporting ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+          {exporting === 'completo' ? <Loader2 size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
           Exportar Tudo
         </Button>
       </div>
@@ -198,218 +264,7 @@ function PwaInstallSection() {
   );
 }
 
-// ─── MOTOR DE RELATÓRIO COM IA ───────────────────────────────────────────────
-type ReportType = 'alunos' | 'financeiro' | 'aulas';
-type FileFormat = 'csv' | 'excel';
 
-const REPORT_TYPES: { key: ReportType; label: string; icon: React.ElementType; desc: string; color: string }[] = [
-  { key: 'alunos',     label: 'Alunos',      icon: GraduationCap,    desc: 'Cadastro e mensalidades', color: 'text-violet-600 dark:text-violet-400' },
-  { key: 'financeiro', label: 'Financeiro',  icon: BarChart2,        desc: 'Receitas e cobranças',   color: 'text-emerald-600 dark:text-emerald-400' },
-  { key: 'aulas',      label: 'Aulas',       icon: CalendarDays,     desc: 'Frequência e histórico', color: 'text-blue-600 dark:text-blue-400' },
-];
-
-function AIReportSection() {
-  const [reportType, setReportType] = useState<ReportType>('alunos');
-  const [fileFormat, setFileFormat] = useState<FileFormat>('excel');
-  const [includeAI, setIncludeAI] = useState(true);
-
-  const { refetch: refetchExport } = trpc.settings.exportData.useQuery(undefined, { enabled: false });
-  const generateReport = trpc.reportEngine.generate.useMutation();
-
-  const handleGenerate = async () => {
-    try {
-      let columns: string[] = [];
-      let rows: (string | number)[][] = [];
-      const date = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-      const titles: Record<ReportType, string> = {
-        alunos:      'Relatório de Alunos',
-        financeiro:  'Relatório Financeiro',
-        aulas:       'Relatório de Aulas',
-      };
-      const title = `${titles[reportType]} — ${date}`;
-
-      // Busca os dados via exportData (filtra por prof/admin logado)
-      const { data } = await refetchExport();
-      if (!data) { toast.error('Não foi possível carregar os dados.'); return; }
-
-      if (reportType === 'alunos') {
-        columns = ['ID', 'Nome', 'Email', 'Telefone', 'Nível', 'Status', 'Mensalidade (R$)', 'Início'];
-        // Parseia o CSV de alunos para rows estruturadas
-        const lines = data.studentsCsv.split('\n').slice(1);
-        lines.forEach(line => {
-          if (!line.trim()) return;
-          const parts = line.split(',');
-          rows.push([
-            parts[0] ?? '',
-            (parts[1] ?? '').replace(/"/g, ''),
-            (parts[2] ?? '').replace(/"/g, ''),
-            (parts[3] ?? '').replace(/"/g, ''),
-            parts[4] ?? '',
-            parts[5] ?? '',
-            Number(parts[6] ?? 0),
-            parts[7] ?? '',
-          ]);
-        });
-      } else if (reportType === 'aulas') {
-        columns = ['ID', 'Título', 'Aluno', 'Status', 'Data', 'Duração (min)', 'Avaliação'];
-        const lines = data.lessonsCsv.split('\n').slice(1);
-        lines.forEach(line => {
-          if (!line.trim()) return;
-          const parts = line.split(',');
-          rows.push([
-            parts[0] ?? '',
-            (parts[1] ?? '').replace(/"/g, ''),
-            (parts[2] ?? '').replace(/"/g, ''),
-            parts[3] ?? '',
-            parts[4] ?? '',
-            Number(parts[5] ?? 0),
-            parts[6] ?? '',
-          ]);
-        });
-      } else {
-        // financeiro: resume mensalidades dos alunos
-        columns = ['Nome', 'Status', 'Mensalidade (R$)', 'Início'];
-        const lines = data.studentsCsv.split('\n').slice(1);
-        lines.forEach(line => {
-          if (!line.trim()) return;
-          const parts = line.split(',');
-          rows.push([
-            (parts[1] ?? '').replace(/"/g, ''),
-            parts[5] ?? '',
-            Number(parts[6] ?? 0),
-            parts[7] ?? '',
-          ]);
-        });
-      }
-
-      if (rows.length === 0) {
-        toast.info('Nenhum dado encontrado para gerar o relatório.');
-        return;
-      }
-
-      // IA só disponível no Excel
-      const shouldUseAI = includeAI && fileFormat === 'excel';
-
-      toast.loading(`Gerando ${fileFormat.toUpperCase()}${shouldUseAI ? ' com análise IA ✨' : ''}...`, { id: 'ai-report' });
-
-      generateReport.mutate(
-        { format: fileFormat, title, columns, rows, includeAiInsights: shouldUseAI, period: date },
-        {
-          onSuccess: (result) => {
-            toast.dismiss('ai-report');
-            downloadBase64File(result.data, fileFormat, `relatorio_${reportType}`);
-            toast.success('Relatório gerado com sucesso!');
-          },
-          onError: (err) => {
-            toast.dismiss('ai-report');
-            toast.error('Erro ao gerar relatório: ' + err.message);
-          },
-        }
-      );
-    } catch {
-      toast.dismiss('ai-report');
-      toast.error('Erro ao preparar os dados do relatório.');
-    }
-  };
-
-  const isLoading = generateReport.isPending;
-
-  return (
-    <div className="rounded-2xl border border-violet-200/60 dark:border-violet-800/30 bg-gradient-to-br from-violet-500/5 via-purple-500/5 to-indigo-500/5 dark:from-violet-500/10 dark:via-purple-500/8 dark:to-indigo-500/10 overflow-hidden">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-violet-200/40 dark:border-violet-800/20 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/25 shrink-0">
-          <Brain size={16} className="text-white" />
-        </div>
-        <div>
-          <p className="text-xs font-bold text-foreground tracking-wide">Relatório com IA</p>
-          <p className="text-[10px] text-muted-foreground">Gere relatórios inteligentes com análise estratégica da IA.</p>
-        </div>
-      </div>
-
-      <div className="p-4 space-y-4">
-        {/* Tipo de relatório */}
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Tipo de Relatório</p>
-          <div className="grid grid-cols-3 gap-2">
-            {REPORT_TYPES.map(({ key, label, icon: Icon, desc, color }) => (
-              <button
-                key={key}
-                onClick={() => setReportType(key)}
-                className={cn(
-                  'flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all duration-200 active:scale-95',
-                  reportType === key
-                    ? 'border-violet-400/60 dark:border-violet-500/40 bg-violet-500/10 dark:bg-violet-500/15 shadow-sm'
-                    : 'border-border/50 bg-card/40 hover:bg-card hover:border-border'
-                )}
-              >
-                <Icon size={16} className={reportType === key ? color : 'text-muted-foreground'} />
-                <span className={cn('text-[10px] font-bold leading-none', reportType === key ? 'text-foreground' : 'text-muted-foreground')}>{label}</span>
-                <span className="text-[9px] text-muted-foreground/70 leading-tight hidden sm:block">{desc}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Formato */}
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Formato do Arquivo</p>
-          <div className="flex gap-2">
-            {(['csv', 'excel'] as FileFormat[]).map(fmt => (
-              <button
-                key={fmt}
-                onClick={() => setFileFormat(fmt)}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all duration-200 active:scale-95',
-                  fileFormat === fmt
-                    ? 'border-violet-400/60 dark:border-violet-500/40 bg-violet-500/10 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300'
-                    : 'border-border/50 bg-card/40 text-muted-foreground hover:bg-card hover:border-border'
-                )}
-              >
-                {fmt === 'csv' ? <FileText size={12} /> : <FileSpreadsheet size={12} />}
-                {fmt === 'csv' ? 'CSV' : 'Excel'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Toggle IA */}
-        <div className={cn(
-          'flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all duration-200',
-          fileFormat === 'excel'
-            ? 'border-violet-200/60 dark:border-violet-700/30 bg-violet-500/5'
-            : 'border-border/30 bg-muted/20 opacity-50'
-        )}>
-          <div className="flex items-center gap-2">
-            <Sparkles size={12} className={cn(includeAI && fileFormat === 'excel' ? 'text-violet-500' : 'text-muted-foreground')} />
-            <div>
-              <p className="text-[11px] font-semibold text-foreground">Incluir Análise da IA</p>
-              <p className="text-[9px] text-muted-foreground">{fileFormat === 'excel' ? 'Resumo estratégico + plano de ação' : 'Disponível apenas no Excel'}</p>
-            </div>
-          </div>
-          <Switch
-            checked={includeAI && fileFormat === 'excel'}
-            onCheckedChange={setIncludeAI}
-            disabled={fileFormat !== 'excel'}
-          />
-        </div>
-
-        {/* Botão */}
-        <Button
-          onClick={handleGenerate}
-          disabled={isLoading}
-          className="w-full h-9 rounded-xl text-xs font-bold gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md shadow-violet-500/20 transition-all hover:scale-[1.02] active:scale-95"
-        >
-          {isLoading ? (
-            <><Loader2 size={12} className="animate-spin" /> Gerando...</>
-          ) : (
-            <><Download size={12} /> Gerar Relatório {includeAI && fileFormat === 'excel' ? '✨' : ''}</>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 function CleanupTestDataSection() {
   const [cleaning, setCleaning] = useState(false);
@@ -2008,7 +1863,6 @@ export default function Configuracoes() {
                 
                 <PwaInstallSection />
                 <ExportDataSection />
-                <AIReportSection />
                 {user?.email?.toLowerCase() === 'walyssonrodrigo145@gmail.com' && (
                   <CleanupTestDataSection />
                 )}
