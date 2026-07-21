@@ -602,7 +602,7 @@ export default function Alunos() {
   const activeRate = stats.total > 0 ? Math.round((stats.ativos / stats.total) * 100) : 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background relative">
+    <div className="flex flex-col h-full bg-background relative">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
         {/* SECTION HEADER: Alunos & Action */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 lg:gap-6">
@@ -645,9 +645,9 @@ export default function Alunos() {
         {/* ── FILTER BAR ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
           {/* Status filters */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] shrink-0">Status</span>
-            <div className="flex bg-muted/40 rounded-xl p-1 gap-1 border border-border/30 shadow-sm flex-wrap">
+            <div className="flex bg-muted/40 rounded-xl p-1 gap-1 border border-border/30 shadow-sm flex-wrap w-full sm:w-auto">
               {([
                 { value: "todos",   label: "Todos",   count: students.length },
                 { value: "ativo",   label: "Ativos",  count: stats.ativos },
@@ -658,7 +658,7 @@ export default function Alunos() {
                   key={value}
                   onClick={() => setStatusFilter(value)}
                   className={cn(
-                    "relative px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
+                    "relative px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center",
                     statusFilter === value
                       ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -680,9 +680,9 @@ export default function Alunos() {
           <div className="hidden sm:block h-6 w-px bg-border" />
 
           {/* Lesson type filters */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] shrink-0">Modalidade</span>
-            <div className="flex bg-muted/40 rounded-xl p-1 gap-1 border border-border/30 shadow-sm">
+            <div className="flex bg-muted/40 rounded-xl p-1 gap-1 border border-border/30 shadow-sm flex-wrap w-full sm:w-auto">
               {([
                 { value: "todos",      label: "Todas",      count: students.length },
                 { value: "individual", label: "Individual",  count: students.filter((s: any) => s.lessonType === 'individual' || !s.lessonType).length },
@@ -693,7 +693,7 @@ export default function Alunos() {
                   key={value}
                   onClick={() => setLessonTypeFilter(value)}
                   className={cn(
-                    "relative px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
+                    "relative px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center",
                     lessonTypeFilter === value
                       ? "bg-purple-600 text-white shadow-md shadow-purple-500/25"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -723,8 +723,8 @@ export default function Alunos() {
           )}
         </div>
 
-        {/* METRICS CARDS - Horizontal Scroll on Mobile */}
-        <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+        {/* METRICS CARDS - Responsive Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
           {[
             { label: "Total",    filterVal: "todos",   count: stats.total,    sub: "Matrículas", icon: Users,        color: "text-blue-600",   bg: "from-blue-500/10 to-background",   border: "border-blue-500/20" },
             { label: "Ativos",   filterVal: "ativo",   count: stats.ativos,   sub: "Regulares",  icon: CheckCircle2, color: "text-purple-600", bg: "from-purple-500/10 to-background", border: "border-purple-100/50" },
@@ -735,19 +735,19 @@ export default function Alunos() {
               key={i}
               onClick={() => setStatusFilter(item.filterVal)}
               className={cn(
-                "relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl backdrop-blur-xl border shadow-xl shadow-primary/5 overflow-hidden group shrink-0 cursor-pointer transition-all hover:shadow-primary/15 hover:-translate-y-1 active:scale-[0.97]",
+                "relative lg:h-32 p-3.5 lg:p-6 rounded-2xl backdrop-blur-xl border shadow-xl shadow-primary/5 overflow-hidden group cursor-pointer transition-all hover:shadow-primary/15 hover:-translate-y-1 active:scale-[0.97]",
                 item.bg,
                 statusFilter === item.filterVal ? "ring-2 ring-primary/40 border-primary/30" : "border-white/10"
               )}
             >
               <div className="relative z-10">
                 <div className="flex items-center gap-2 lg:gap-3 mb-2 lg:mb-4">
-                  <div className={cn("w-8 h-8 lg:w-9 lg:h-9 rounded-xl flex items-center justify-center bg-card shadow-sm shrink-0", item.color)}>
-                    <item.icon size={16} />
+                  <div className={cn("w-7 h-7 lg:w-9 lg:h-9 rounded-xl flex items-center justify-center bg-card shadow-sm shrink-0", item.color)}>
+                    <item.icon size={15} />
                   </div>
                   <div>
                     <p className={cn("text-[8px] lg:text-[10px] font-bold uppercase tracking-wider opacity-60", item.color)}>{item.label}</p>
-                    <p className="text-lg lg:text-2xl font-black text-foreground leading-none">{item.count}</p>
+                    <p className="text-base lg:text-2xl font-black text-foreground leading-none">{item.count}</p>
                   </div>
                 </div>
                 <p className="text-[8px] lg:text-[10px] text-muted-foreground font-medium">{item.sub}</p>
@@ -760,7 +760,7 @@ export default function Alunos() {
         {/* MAIN CONTENT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* TABLE / CARD SECTION */}
-          <div id="tour-students-list" className="lg:col-span-9 bg-card/40 backdrop-blur-xl md:rounded-[2rem] border-0 md:border border-white/10 shadow-2xl shadow-primary/5 overflow-hidden flex flex-col -mx-4 md:mx-0">
+          <div id="tour-students-list" className="lg:col-span-9 bg-card/40 backdrop-blur-xl rounded-2xl md:rounded-[2rem] border border-border/60 md:border-white/10 shadow-2xl shadow-primary/5 overflow-hidden flex flex-col">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto no-scrollbar pb-2">
               <table className="w-full text-left table-fixed">
