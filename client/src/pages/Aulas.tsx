@@ -304,20 +304,30 @@ export default function Aulas() {
         {/* Sub-Header de Filtros, Visões e Ação Nova Aula (Alinhado ao Topo) */}
         <div className="px-6 py-4 border-b border-border/30 bg-card/40 backdrop-blur-xl flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Botões de Visão (Mês, Semana, Dia, Lista) */}
-            <div className="flex p-1 bg-card rounded-xl border border-border/60 shadow-sm">
-              {(["mes", "semana", "dia", "eventos"] as const).map(v => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={cn(
-                    "px-4 py-1.5 rounded-lg text-xs font-bold transition-all capitalize",
-                    view === v ? "bg-blue-600 text-white shadow-md" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {v === "eventos" ? "Lista" : v}
-                </button>
-              ))}
+            {/* Botões de Visão (Mês, Semana, Dia, Lista) - Pílula Deslizante Ultra-Fluida */}
+            <div className="flex p-1 bg-card rounded-xl border border-border/60 shadow-sm relative">
+              {(["mes", "semana", "dia", "eventos"] as const).map(v => {
+                const isActive = view === v;
+                return (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 capitalize relative z-10 select-none",
+                      isActive ? "text-white" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="viewPillActive"
+                        className="absolute inset-0 bg-blue-600 rounded-lg -z-10 shadow-md shadow-blue-500/20"
+                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                    {v === "eventos" ? "Lista" : v}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Seletores de Data */}
@@ -448,9 +458,16 @@ export default function Aulas() {
           {/* Coluna Esquerda: Calendário Principal */}
           <div className="flex-1 p-6 overflow-y-auto space-y-4 no-scrollbar">
             <div id="tour-calendar-view" className="relative min-h-[500px]">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="popLayout" initial={false}>
                 {view === "mes" && (
-                  <motion.div key="month" className="bg-card rounded-2xl border border-border/60 shadow-xl overflow-hidden">
+                  <motion.div 
+                    key="month" 
+                    initial={{ opacity: 0, y: 4 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="bg-card rounded-2xl border border-border/60 shadow-xl overflow-hidden"
+                  >
                     <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30">
                       {DAYS_SHORT.map(day => (
                         <div key={day} className="py-3 text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">
