@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { CreditCard, CheckCircle2, ArrowRight, Loader2, Zap, ShieldAlert, X } from "lucide-react";
+import { CreditCard, CheckCircle2, ArrowRight, Loader2, Zap, ShieldAlert, X, Calendar, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
