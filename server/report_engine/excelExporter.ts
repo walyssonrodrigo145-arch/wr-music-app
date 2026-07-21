@@ -16,26 +16,54 @@ export async function generateExcel(config: ReportConfig): Promise<Buffer> {
   const totalRows = config.rows.length;
   
   // -- CALCULATE KPIs --
-  const numericTotals = new Array(config.columns.length).fill(0);
-  const numericCounts = new Array(config.columns.length).fill(0);
-  
-  config.rows.forEach(row => {
-    row.forEach((val, index) => {
-      if (typeof val === 'number') {
-        numericTotals[index] += val;
-        numericCounts[index]++;
+  // Find non-ID numeric columns and pick primary value column
+  let primaryValueColIndex = -1;
+
+  config.columns.forEach((col, idx) => {
+    const name = String(col).toLowerCase().trim();
+    if (name === 'id' || name.endsWith('_id') || name.startsWith('id ') || name === 'id') {
+      return; // Ignore ID column
+    }
+
+    if (
+      primaryValueColIndex === -1 &&
+      (name.includes('mensalidade') ||
+       name.includes('valor') ||
+       name.includes('total') ||
+       name.includes('preço') ||
+       name.includes('preco') ||
+       name.includes('pago') ||
+       name.includes('despesa') ||
+       name.includes('lucro'))
+    ) {
+      primaryValueColIndex = idx;
+    }
+  });
+
+  // Fallback: pick first non-ID numeric column with number data
+  if (primaryValueColIndex === -1) {
+    config.columns.forEach((col, idx) => {
+      const name = String(col).toLowerCase().trim();
+      if (name === 'id' || name.endsWith('_id') || name === 'id') return;
+      if (primaryValueColIndex === -1 && config.rows.some(r => typeof r[idx] === 'number')) {
+        primaryValueColIndex = idx;
       }
     });
-  });
+  }
 
   let sumAll = 0;
   let countAll = 0;
-  numericTotals.forEach((tot, idx) => {
-    if (numericCounts[idx] > 0) {
-      sumAll += tot;
-      countAll += numericCounts[idx];
-    }
-  });
+
+  if (primaryValueColIndex !== -1) {
+    config.rows.forEach(row => {
+      const val = row[primaryValueColIndex];
+      if (typeof val === 'number') {
+        sumAll += val;
+        countAll++;
+      }
+    });
+  }
+
   const avgAll = countAll > 0 ? sumAll / countAll : 0;
 
   // 1. ABA RESUMO (KPIs)
