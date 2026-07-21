@@ -1,20 +1,16 @@
-# Auditoria Pré-Deploy - Correção de Redirecionamento de Pagamento (Portal do Aluno)
+# Auditoria Pré-Deploy
 
-## Causa Raiz Estrutural Identificada
-Após denúncia de que o botão "Pagar" na área do aluno não estava obedecendo à configuração da escola, realizamos a auditoria e detectamos:
+## Resumo
+A aplicação quebrou em produção ao acessar a página de Configurações, disparando o erro `ReferenceError: FileText is not defined`. 
 
-1. **Retorno Incompleto da API do Perfil:**
-   A rota `studentPortal.getProfile` (no arquivo `server/routers.ts`) puxava da tabela `settings` a chave PIX e o telefone da escola, mas ignorava completamente o campo `paymentGateway` da escola.
-   *Solução:* Adicionamos `paymentGateway: settings.paymentGateway` ao `SELECT` e expusemos o valor no retorno da query.
+## Causa Raiz
+O componente `FileText` do `lucide-react` foi utilizado no JSX, porém, foi omitido na lista de importação no topo do arquivo `client/src/pages/Configuracoes.tsx`. Isso gerou um ReferenceError.
 
-2. **Lógica de Hardcode no Frontend:**
-   No arquivo `client/src/pages/student/Pagamentos.tsx`, o botão possuía uma cadeia de `if/else` engessada: se existisse o link do MercadoPago, ele tentaria abrir, mesmo que a escola tivesse setado o gateway para Asaas ou apenas PIX manual. 
-   *Solução:* Refatoramos a condicional para ler estritamente a variável `profile.paymentGateway` ("asaas", "mercadopago" ou "pix"), evitando falhas de redirecionamento caso a escola realize a troca do gateway padrão, e adicionando notificações visuais (`toast.info`) se a fatura do método escolhido não estiver pronta.
+## Verificação e Correção (QA)
+- A linha de importação no arquivo `client/src/pages/Configuracoes.tsx` foi atualizada.
+- `FileText` foi devidamente incluído no destructuring do pacote `lucide-react`.
+- Nenhuma outra quebra visual ou de formatação CSS foi inserida. A alteração foi pontual.
 
-## Status da Auditoria
-- [x] Lógica de negócio do financeiro validada (respeito máximo à escolha da Escola).
-- [x] Segurança garantida: O retorno extra no tRPC é apenas uma string descritiva.
-- [x] Interface robusta: Evitamos botões silenciosos e botões mortos.
-
-## Parecer do WRAUDITOR
-✅ **APROVADO PARA DEPLOY**. As alterações foram milimétricas e fecharam um bug que afetava o core business. O sistema atinge os 100% desejados. Aguardando a execução final do `devopsmaster`.
+## Aval para Deploy
+**Status:** APROVADO
+O sistema está livre de erros críticos relacionados a essa rota. Pode prosseguir para deploy via DevOps.
