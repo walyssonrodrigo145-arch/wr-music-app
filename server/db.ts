@@ -1,4 +1,4 @@
-import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, inArray } from "drizzle-orm";
+import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, inArray, aliasedTable } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -753,6 +753,9 @@ export async function getRecentLessons(
     professorStudentIds = profStudents.map(s => s.id);
   }
 
+  const profUsers = aliasedTable(users, "prof_users");
+  const creatorUsers = aliasedTable(users, "creator_users");
+
   return db.select({
     id: lessons.id,
     title: lessons.title,
@@ -768,12 +771,13 @@ export async function getRecentLessons(
     studentId: students.id,
     lessonType: lessons.lessonType,
     recurringGroupId: lessons.recurringGroupId,
-    teacherId: lessons.userId,
-    teacherName: users.name,
+    teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
+    teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
   }).from(lessons)
     .leftJoin(students, eq(lessons.studentId, students.id))
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
-    .leftJoin(users, eq(lessons.userId, users.id))
+    .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+    .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
     .where(and(
         eq(lessons.organizationId, organizationId),
         // Se for professor: filtra pelos alunos dele (ignora userId do criador)

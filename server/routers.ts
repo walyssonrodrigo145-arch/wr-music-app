@@ -18,7 +18,7 @@ import {
   getExperimentalStats,
 } from "./db";
 import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments } from "../drizzle/schema";
-import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
 import { TRPCError } from "@trpc/server";
@@ -2596,6 +2596,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           const startOfDay = new Date(input.date + 'T00:00:00.000Z');
           const endOfDay = new Date(input.date + 'T23:59:59.999Z');
 
+          const profUsers = aliasedTable(users, "prof_users");
+          const creatorUsers = aliasedTable(users, "creator_users");
+
           // Para professor: buscar pelos alunos dele
           if (isProfessor) {
             const profStudents = await db
@@ -2623,9 +2626,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
               studentId: students.id,
               lessonType: lessons.lessonType,
               recurringGroupId: lessons.recurringGroupId,
+              teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
+              teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
             }).from(lessons)
               .leftJoin(students, eq(lessons.studentId, students.id))
               .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
+              .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+              .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
               .where(and(
                 eq(lessons.organizationId, orgId),
                 inArray(lessons.studentId, studentIds),
@@ -2650,9 +2657,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             studentId: students.id,
             lessonType: lessons.lessonType,
             recurringGroupId: lessons.recurringGroupId,
+            teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
+            teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
           }).from(lessons)
             .leftJoin(students, eq(lessons.studentId, students.id))
             .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
+            .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+            .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
             .where(and(
               eq(lessons.organizationId, orgId),
               isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
