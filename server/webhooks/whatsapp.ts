@@ -284,7 +284,7 @@ router.post("/", async (req, res) => {
         // Monta o contexto da escola (planilhas virtuais, dados, etc.)
         const userDataContext = await buildUserContext(db, professorUserId, profSettings.organizationId, true);
         const systemPrompt = getSystemPrompt(userDataContext) + 
-          "\n\nIMPORTANTE: Você está respondendo ao Professor diretamente pelo WhatsApp. Responda de forma concisa e amigável. Não gere blocos ACTION ou SPREADSHEET pelo WhatsApp, pois eles não são renderizados no celular. Responda apenas em formato de texto estruturado.";
+          "\n\nIMPORTANTE: Você está respondendo ao Professor diretamente pelo WhatsApp. Responda de forma clara, amigável e concisa. Você pode usar blocos ACTION como ACTION:CREATE_LESSON e ACTION:CREATE_STUDENT para realizar agendamentos de aulas e cadastros de alunos diretamente pelo WhatsApp! Não use o bloco SPREADSHEET no WhatsApp.";
 
         const historyObj = sessionData.aiHistory || [];
         historyObj.push({ role: "user", content: input });
@@ -295,7 +295,7 @@ router.post("/", async (req, res) => {
         const apiKey = profSettings.aiProvider === 'groq' ? profSettings.groqApiKey : profSettings.geminiApiKey;
         const model = profSettings.aiProvider === 'groq' ? profSettings.groqModel : profSettings.geminiModel;
 
-        const aiResponse = await callGemini(
+        const aiResponseRaw = await callGemini(
           historyObj,
           systemPrompt,
           false,
@@ -303,13 +303,101 @@ router.post("/", async (req, res) => {
           model
         );
 
-        historyObj.push({ role: "assistant", content: aiResponse });
+        let finalResponseContent = aiResponseRaw;
+
+        // ── Executar ações de agendamento enviadas via WhatsApp ──
+        const LESSON_ACTION_REGEX = /<!--ACTION:CREATE_LESSON\s+(\{[\s\S]*?\})-->/g;
+        let lessonMatch;
+        while ((lessonMatch = LESSON_ACTION_REGEX.exec(aiResponseRaw)) !== null) {
+          const blockStr = lessonMatch[0];
+          const jsonStr = lessonMatch[1];
+          try {
+            const lessonData = JSON.parse(jsonStr);
+            let targetStudentId: number | null = null;
+            if (lessonData.studentName) {
+              const [foundStudent] = await db.select({ id: students.id })
+                .from(students)
+                .where(and(eq(students.organizationId, profSettings.organizationId), ilike(students.name, `%${lessonData.studentName}%`)))
+                .limit(1);
+              if (foundStudent) targetStudentId = foundStudent.id;
+            }
+
+            const scheduledDate = lessonData.scheduledAt ? new Date(lessonData.scheduledAt) : new Date();
+
+            await db.insert(lessons).values({
+              organizationId: profSettings.organizationId,
+              userId: professorUserId,
+              studentId: targetStudentId,
+              title: lessonData.title || `Aula - ${lessonData.studentName || 'Aluno'}`,
+              scheduledAt: scheduledDate,
+              duration: lessonData.duration || 60,
+              isExperimental: !!lessonData.isExperimental,
+              experimentalName: lessonData.experimentalName || null,
+              lessonType: lessonData.lessonType || (lessonData.isExperimental ? "experimental" : "individual"),
+              status: "agendada",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+
+            const formattedScheduled = scheduledDate.toLocaleString('pt-BR', {
+              dateStyle: 'short',
+              timeStyle: 'short',
+              timeZone: 'America/Sao_Paulo'
+            });
+
+            const confirmMsg = `\n\n✅ *Aula agendada com sucesso!*\n📌 *Título:* ${lessonData.title}\n📅 *Data/Hora:* ${formattedScheduled}\n⏱️ *Duração:* ${lessonData.duration || 60} min`;
+            finalResponseContent = finalResponseContent.replace(blockStr, confirmMsg);
+          } catch (parseErr) {
+            console.error("[WhatsApp AI ACTION:CREATE_LESSON] Erro:", parseErr);
+            finalResponseContent = finalResponseContent.replace(blockStr, "\n\n⚠️ Erro ao registrar o agendamento da aula.");
+          }
+        }
+
+        // ── Executar ações de cadastro enviadas via WhatsApp ──
+        const STUDENT_ACTION_REGEX = /<!--ACTION:CREATE_STUDENT\s+(\{[\s\S]*?\})-->/g;
+        let studentMatch;
+        while ((studentMatch = STUDENT_ACTION_REGEX.exec(aiResponseRaw)) !== null) {
+          const blockStr = studentMatch[0];
+          const jsonStr = studentMatch[1];
+          try {
+            const actionData = JSON.parse(jsonStr);
+            await db.insert(students).values({
+              organizationId: profSettings.organizationId,
+              professorId: professorUserId,
+              userId: professorUserId,
+              name: actionData.name,
+              phone: actionData.phone || "",
+              email: actionData.email || null,
+              birthDate: actionData.birthDate || null,
+              guardianName: actionData.guardianName || null,
+              guardianPhone: actionData.guardianPhone || null,
+              guardianEmail: null,
+              level: actionData.level || "iniciante",
+              monthlyFee: String(actionData.monthlyFee ?? 0),
+              dueDay: actionData.dueDay ?? 15,
+              lessonType: "individual",
+              status: "ativo",
+              startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+              notes: actionData.notes || null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+
+            const confirmMsg = `\n\n✅ *Aluno cadastrado com sucesso:* ${actionData.name}`;
+            finalResponseContent = finalResponseContent.replace(blockStr, confirmMsg);
+          } catch (parseErr) {
+            console.error("[WhatsApp AI ACTION:CREATE_STUDENT] Erro:", parseErr);
+            finalResponseContent = finalResponseContent.replace(blockStr, "\n\n⚠️ Erro ao cadastrar o aluno.");
+          }
+        }
+
+        historyObj.push({ role: "assistant", content: finalResponseContent });
         
         // Atualiza estado com histórico
         await updateState("PROFESSOR_AI", { aiHistory: historyObj });
 
         // Envia resposta (com prefixo do robô para evitar loop no webhook)
-        await sendReply(`🤖 ${aiResponse}`);
+        await sendReply(`🤖 ${finalResponseContent}`);
         
       } catch (error: any) {
         console.error("[WhatsApp AI Error]:", error);

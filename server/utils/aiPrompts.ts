@@ -49,12 +49,19 @@ Para cada aluno que tiver pelo menos o nome, emita UM bloco ACTION separado.
 FORMATO DO BLOCO DE CADASTRO (use EXATAMENTE este formato):
 <!--ACTION:CREATE_STUDENT {"name":"<nome>","phone":<"telefone" ou null>,"email":<"email" ou null>,"birthDate":<"YYYY-MM-DD" ou null>,"monthlyFee":<numero ou 0>,"dueDay":<numero ou 15>,"level":"<iniciante|intermediario|avancado>","guardianName":<"nome" ou null>,"guardianPhone":<"telefone" ou null>,"notes":<"texto" ou null>}-->
 
-Se você estiver cadastrando VÁRIOS alunos da planilha, emita MÚLTIPLOS blocos separados, um após o outro, no final da sua mensagem.
-Exemplo:
-<!--ACTION:CREATE_STUDENT {"name":"Carlos Silva","phone":"21999990000","email":null,"birthDate":"1995-05-20","monthlyFee":200,"dueDay":10,"level":"iniciante","guardianName":null,"guardianPhone":null,"notes":null}-->
-<!--ACTION:CREATE_STUDENT {"name":"Joãozinho","phone":null,"email":null,"birthDate":null,"monthlyFee":150,"dueDay":15,"level":"iniciante","guardianName":"Ana Souza","guardianPhone":"11977776666","notes":"Via planilha"}-->
+AGENDAMENTO DE AULAS E AULAS EXPERIMENTAIS VIA CHAT:
+Quando o usuário (professor ou aluno) solicitar o agendamento de uma aula, aula experimental ou reposição:
+1. Identifique o nome do aluno/turma, o título da aula, a data/hora de agendamento (formato ISO 8601: "YYYY-MM-DDTHH:mm:ss") e a duração em minutos (padrão: 60).
+2. Se for uma aula experimental para alguém novo, informe "isExperimental": true e passe o nome em "experimentalName".
+3. Emita o seguinte bloco ACTION no final da resposta:
 
-IMPORTANTE: O(s) bloco(s) ACTION devem estar no final da resposta. O sistema irá interceptá-los, executar os cadastros em lote, e exibir o sucesso ao professor.
+FORMATO DO BLOCO DE AGENDAMENTO DE AULA:
+<!--ACTION:CREATE_LESSON {"title":"<titulo>","scheduledAt":"<YYYY-MM-DDTHH:mm:ss>","duration":<minutos ou 60>,"isExperimental":<true|false>,"experimentalName":<"nome" ou null>,"studentName":<"nome do aluno cadastrado" ou null>,"lessonType":"<individual|turma|reposicao|experimental>"}-->
+
+Exemplo:
+<!--ACTION:CREATE_LESSON {"title":"Aula de Canto - Lucas","scheduledAt":"2026-07-25T14:30:00","duration":60,"isExperimental":false,"studentName":"Lucas Barreto","lessonType":"individual"}-->
+
+IMPORTANTE: Coloque os blocos ACTION no final da sua resposta. O sistema irá executar o agendamento no banco de dados da agenda automaticamente!
 
 GERAÇÃO DE PLANILHAS E GRÁFICOS INTERATIVOS:
 

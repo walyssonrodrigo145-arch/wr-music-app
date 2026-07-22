@@ -7462,6 +7462,57 @@ Texto original para reescrever:
               );
             }
           }
+
+        // ── PROCESSAR ACTIONS DE AGENDAMENTO DE AULAS (Múltiplos permitidos) ──────
+        const LESSON_ACTION_REGEX = /<!--ACTION:CREATE_LESSON\s+(\{[\s\S]*?\})-->/g;
+        let lessonMatch;
+        while ((lessonMatch = LESSON_ACTION_REGEX.exec(aiResponseRaw)) !== null) {
+          const blockStr = lessonMatch[0];
+          const jsonStr = lessonMatch[1];
+          try {
+            const lessonData = JSON.parse(jsonStr);
+            let targetStudentId: number | null = null;
+            
+            if (lessonData.studentName) {
+              const [foundStudent] = await db.select({ id: students.id })
+                .from(students)
+                .where(and(eq(students.organizationId, orgId), ilike(students.name, `%${lessonData.studentName}%`)))
+                .limit(1);
+              if (foundStudent) targetStudentId = foundStudent.id;
+            }
+
+            const scheduledDate = lessonData.scheduledAt ? new Date(lessonData.scheduledAt) : new Date();
+
+            const [newLesson] = await db.insert(lessons).values({
+              organizationId: orgId,
+              userId: ctx.user.id,
+              studentId: targetStudentId,
+              title: lessonData.title || `Aula - ${lessonData.studentName || 'Aluno'}`,
+              scheduledAt: scheduledDate,
+              duration: lessonData.duration || 60,
+              isExperimental: !!lessonData.isExperimental,
+              experimentalName: lessonData.experimentalName || null,
+              lessonType: lessonData.lessonType || (lessonData.isExperimental ? "experimental" : "individual"),
+              status: "agendada",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }).returning({ id: lessons.id });
+
+            const formattedScheduled = scheduledDate.toLocaleString('pt-BR', {
+              dateStyle: 'short',
+              timeStyle: 'short'
+            });
+
+            const confirmMsg = `\n\n📅 **Aula agendada com sucesso na agenda!**\n- **Título:** ${lessonData.title}\n- **Data/Hora:** ${formattedScheduled}\n- **Duração:** ${lessonData.duration || 60} minutos`;
+
+            finalResponseContent = finalResponseContent.replace(blockStr, confirmMsg);
+          } catch (parseErr) {
+            console.error("[AI ACTION:CREATE_LESSON] Erro ao processar:", parseErr);
+            finalResponseContent = finalResponseContent.replace(blockStr,
+              "\n\n⚠️ Ocorreu um erro interno ao agendar a aula na agenda."
+            );
+          }
+        }
         
         // Salva a resposta da IA (já processada)
         const [aiMsg] = await db.insert(aiMessages).values({
