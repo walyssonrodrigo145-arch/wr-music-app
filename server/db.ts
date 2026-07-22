@@ -768,9 +768,12 @@ export async function getRecentLessons(
     studentId: students.id,
     lessonType: lessons.lessonType,
     recurringGroupId: lessons.recurringGroupId,
+    teacherId: lessons.userId,
+    teacherName: users.name,
   }).from(lessons)
     .leftJoin(students, eq(lessons.studentId, students.id))
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
+    .leftJoin(users, eq(lessons.userId, users.id))
     .where(and(
         eq(lessons.organizationId, organizationId),
         // Se for professor: filtra pelos alunos dele (ignora userId do criador)

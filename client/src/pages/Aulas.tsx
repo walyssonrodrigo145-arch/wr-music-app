@@ -113,6 +113,12 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
            <Music size={10} className="text-muted-foreground" />
            <p className="text-[9px] text-muted-foreground font-bold truncate uppercase">{lesson.instrumentName || "Geral"}</p>
         </div>
+        {lesson.teacherName && (
+          <div className="flex items-center gap-1 mt-1 text-[9px] text-blue-600 font-bold truncate">
+            <User size={10} className="shrink-0 text-blue-500" />
+            <span className="truncate">Prof. {lesson.teacherName}</span>
+          </div>
+        )}
         {isTurma && (
           <div className="mt-2 py-0.5 px-2 bg-purple-500/10 rounded-full w-fit flex items-center gap-1">
             <Users size={10} className="text-purple-600" />
@@ -133,6 +139,7 @@ export default function Aulas() {
   const [view, setView] = useState<CalendarView>("mes");
   const [animateToday, setAnimateToday] = useState(false);
   const [instrumentFilter, setInstrumentFilter] = useState("todos");
+  const [teacherFilter, setTeacherFilter] = useState("todos");
   const [statusFilterDesktop, setStatusFilterDesktop] = useState("geral");
   const [lessonTypeFilter, setLessonTypeFilter] = useState("todos");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -155,6 +162,7 @@ export default function Aulas() {
   const utils = trpc.useUtils();
   const { data: lessons = [], isLoading } = trpc.lessons.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
+  const { data: professoresList = [] } = trpc.professores.list.useQuery();
   const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
 
   const targetLessonForAction = useMemo(() => {
@@ -188,9 +196,10 @@ export default function Aulas() {
       if (isDesktop) {
         const matchesSearch = (l.title || l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
         const matchesInstrument = instrumentFilter === "todos" || String(l.instrumentId) === instrumentFilter;
+        const matchesTeacher = teacherFilter === "todos" || String(l.teacherId) === teacherFilter;
         const matchesStatus = statusFilterDesktop === "geral" || l.status === statusFilterDesktop;
         const matchesLessonType = lessonTypeFilter === "todos" || l.lessonType === lessonTypeFilter;
-        return matchesSearch && matchesInstrument && matchesStatus && matchesLessonType;
+        return matchesSearch && matchesInstrument && matchesTeacher && matchesStatus && matchesLessonType;
       } else {
         const isDayMatch = isSameDay(new Date(l.scheduledAt), selectedDate);
         const matchesSearch = (l.title || l.studentName || l.experimentalName || "").toLowerCase().includes(search.toLowerCase());
@@ -394,6 +403,18 @@ export default function Aulas() {
           {/* Filtros Suspensos e Botão Primário + Nova Aula */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">Professor:</span>
+              <select
+                value={teacherFilter}
+                onChange={e => setTeacherFilter(e.target.value)}
+                className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground outline-none shadow-sm cursor-pointer"
+              >
+                <option value="todos">Todos</option>
+                {professoresList.map(p => <option key={p.id} value={String(p.userId)}>{p.nome}</option>)}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-muted-foreground uppercase">Instrumento:</span>
               <select
                 value={instrumentFilter}
@@ -434,9 +455,9 @@ export default function Aulas() {
               </select>
             </div>
 
-            {(instrumentFilter !== "todos" || statusFilterDesktop !== "geral" || lessonTypeFilter !== "todos") && (
+            {(instrumentFilter !== "todos" || teacherFilter !== "todos" || statusFilterDesktop !== "geral" || lessonTypeFilter !== "todos") && (
               <button
-                onClick={() => { setInstrumentFilter("todos"); setStatusFilterDesktop("geral"); setLessonTypeFilter("todos"); }}
+                onClick={() => { setInstrumentFilter("todos"); setTeacherFilter("todos"); setStatusFilterDesktop("geral"); setLessonTypeFilter("todos"); }}
                 className="text-xs font-bold text-blue-600 hover:underline px-2"
               >
                 Limpar
@@ -645,9 +666,15 @@ export default function Aulas() {
                             <span className="text-xs font-black text-blue-600">{safeFormat(l.scheduledAt, "HH:mm")}</span>
                             <span className="text-xs font-bold text-foreground truncate group-hover:text-blue-600 transition-colors">{nameText}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground font-bold uppercase">
+                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground font-bold uppercase flex-wrap">
                             <Music size={10} className="text-blue-500 shrink-0" />
                             <span className="truncate">{l.instrumentName || "Geral"}</span>
+                            {l.teacherName && (
+                              <>
+                                <span>•</span>
+                                <span className="text-blue-600 font-bold">Prof. {l.teacherName}</span>
+                              </>
+                            )}
                             {isTurma && <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-1.5 py-0.2 rounded-full border border-purple-500/20">Turma</span>}
                           </div>
                         </div>
