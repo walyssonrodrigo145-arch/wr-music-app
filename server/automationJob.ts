@@ -616,6 +616,10 @@ async function runAutomation() {
           whatsappBotToken: settings.whatsappBotToken,
           whatsappAutoSend: settings.whatsappAutoSend,
           pixKey: settings.pixKey,
+          paymentGateway: settings.paymentGateway,
+          asaasApiKey: settings.asaasApiKey,
+          asaasEnabled: settings.asaasEnabled,
+          mpAccessToken: settings.mpAccessToken,
           notifyWeeklyReport: settings.notifyWeeklyReport,
         })
         .from(settings)
@@ -665,11 +669,14 @@ async function runAutomation() {
                   year: paymentDues.year,
                   studentName: students.name,
                   studentPhone: students.phone,
+                  studentEmail: students.email,
+                  studentCpf: students.cpf,
                   guardianPhone: students.guardianPhone,
                   birthDate: students.birthDate,
                   allowAutoReminders: students.allowAutoReminders,
                   instrumentName: instruments.name,
                   asaasPaymentLink: paymentDues.asaasPaymentLink,
+                  mpPaymentLink: paymentDues.mpPaymentLink,
                 })
                 .from(paymentDues)
                 .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
@@ -725,6 +732,56 @@ async function runAutomation() {
                 const valor = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
                 const vencimento = dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
 
+                // Tenta recuperar ou gerar link de pagamento caso não exista
+                const pGateway = userSet.paymentGateway ?? "asaas";
+                let paymentLink = pGateway === "mercadopago" ? (due.mpPaymentLink ?? null) : (due.asaasPaymentLink ?? null);
+
+                if (!paymentLink) {
+                  if (pGateway === "asaas" && userSet.asaasApiKey && (userSet.asaasEnabled === 1 || userSet.asaasEnabled === undefined || userSet.asaasEnabled === null)) {
+                    try {
+                      const { createAsaasCustomer, createAsaasCharge } = await import("./utils/asaas");
+                      const { asaasCustomers } = await import("../drizzle/schema");
+                      let asaasCustomerId: string | null = null;
+                      const [existingCust] = await db.select().from(asaasCustomers)
+                        .where(and(eq(asaasCustomers.studentId, due.studentId), eq(asaasCustomers.organizationId, orgId)))
+                        .limit(1);
+
+                      if (existingCust) {
+                        asaasCustomerId = existingCust.asaasCustomerId;
+                      } else {
+                        asaasCustomerId = await createAsaasCustomer({
+                          name: due.studentName || "Aluno",
+                          email: due.studentEmail ?? undefined,
+                          phone: due.studentPhone ?? undefined,
+                          cpfCnpj: due.studentCpf ?? undefined,
+                        }, userSet.asaasApiKey);
+                        if (asaasCustomerId) {
+                          await db.insert(asaasCustomers).values({ organizationId: orgId, studentId: due.studentId, asaasCustomerId });
+                        }
+                      }
+
+                      if (asaasCustomerId) {
+                        const charge = await createAsaasCharge({
+                          asaasCustomerId,
+                          billingType: "UNDEFINED",
+                          value: Number(due.amount),
+                          dueDate: String(due.dueDate).slice(0, 10),
+                          description: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
+                        }, userSet.asaasApiKey);
+
+                        await db.update(paymentDues).set({
+                          asaasId: charge.id,
+                          asaasPaymentLink: charge.invoiceUrl,
+                          asaasBillingType: charge.billingType
+                        }).where(eq(paymentDues.id, due.id));
+                        paymentLink = charge.invoiceUrl;
+                      }
+                    } catch (err) {
+                      console.error("[AutomationJob] Erro ao gerar cobrança Asaas on-the-fly:", err);
+                    }
+                  }
+                }
+
                 let message = (rule.messageTemplate ?? "")
                   .replace(/\{nome_aluno\}/g, due.studentName ?? "Aluno")
                   .replace(/\{nome_professor\}/g, professorName)
@@ -734,8 +791,17 @@ async function runAutomation() {
                   .replace(/\{valor_mensalidade\}/g, valor)
                   .replace(/\{data_vencimento\}/g, vencimento);
 
-                if (due.asaasPaymentLink) {
-                  message += `\n\n💳 *Link de pagamento:*\n${due.asaasPaymentLink}`;
+                const hasLinkTag = /\{link_pagamento\}|\{link_cobranca\}|\{link\}|\{payment_link\}/.test(message);
+                if (hasLinkTag) {
+                  const replacement = paymentLink ?? (userSet.pixKey ? `PIX: ${userSet.pixKey}` : "");
+                  message = message
+                    .replace(/\{link_pagamento\}/g, replacement)
+                    .replace(/\{link_cobranca\}/g, replacement)
+                    .replace(/\{link\}/g, replacement)
+                    .replace(/\{payment_link\}/g, replacement);
+                } else if (paymentLink) {
+                  const gatewayName = pGateway === "mercadopago" ? "Mercado Pago" : "Asaas";
+                  message += `\n\n💳 *Link de pagamento (${gatewayName}):*\n${paymentLink}`;
                 } else if (userSet.pixKey) {
                   message += `\n\n💳 *PIX:* ${userSet.pixKey}`;
                 }

@@ -72,6 +72,7 @@ const VARIABLES = [
   { label: "{hora_aula}",         desc: "Horário da aula"         },
   { label: "{valor_mensalidade}", desc: "Valor da mensalidade"    },
   { label: "{data_vencimento}",   desc: "Data de vencimento"      },
+  { label: "{link_pagamento}",    desc: "Link de pagamento automático" },
   { label: "{dias_sem_estudo}",   desc: "Dias sem estudo"         },
   { label: "{resumo_treinos}",    desc: "Lista de status de treinos de hoje" },
 ];

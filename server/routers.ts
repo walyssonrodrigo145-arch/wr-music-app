@@ -4249,7 +4249,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             } catch (err) {
               console.error("[MP Auto-Generate Error]", err);
             }
-          } else if (paymentGateway === "asaas" && userSettings.asaasEnabled === 1 && userSettings.asaasApiKey) {
+          } else if (paymentGateway === "asaas" && (userSettings.asaasEnabled === 1 || userSettings.asaasEnabled === undefined || userSettings.asaasEnabled === null) && userSettings.asaasApiKey) {
             try {
               const { createAsaasCustomer, createAsaasCharge } = await import('./utils/asaas');
               let asaasCustomerId: string | null = null;
@@ -4291,7 +4291,15 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           }
         }
 
-        if (paymentLink) {
+        const hasLinkTag = /\{link_pagamento\}|\{link_cobranca\}|\{link\}|\{payment_link\}/.test(message);
+        if (hasLinkTag) {
+          const replacement = paymentLink ?? (pixKey ? `PIX: ${pixKey}` : "");
+          message = message
+            .replace(/\{link_pagamento\}/g, replacement)
+            .replace(/\{link_cobranca\}/g, replacement)
+            .replace(/\{link\}/g, replacement)
+            .replace(/\{payment_link\}/g, replacement);
+        } else if (paymentLink) {
           const gatewayName = paymentGateway === "mercadopago" ? "Mercado Pago" : "Asaas";
           message += `\n\n💳 *Pague agora via ${gatewayName}:*\n${paymentLink}`;
         } else if (pixKey) {
