@@ -779,6 +779,32 @@ async function runAutomation() {
                     } catch (err) {
                       console.error("[AutomationJob] Erro ao gerar cobrança Asaas on-the-fly:", err);
                     }
+                  } else if (pGateway === "mercadopago" && userSet.mpAccessToken) {
+                    // ── MERCADO PAGO: gera link de pagamento on-the-fly ──────────
+                    try {
+                      const { createMPPreference } = await import("./utils/mercadopago");
+                      const pref = await createMPPreference({
+                        items: [{
+                          title: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
+                          quantity: 1,
+                          currency_id: "BRL",
+                          unit_price: Number(due.amount),
+                        }],
+                        payer: {
+                          name: due.studentName || "Aluno",
+                          email: due.studentEmail || "aluno@musicpro.com.br",
+                        },
+                        external_reference: due.id.toString(),
+                        successUrl: `https://wrmusicpro.com.br/painel/mensalidades`,
+                      }, userSet.mpAccessToken);
+
+                      await db.update(paymentDues)
+                        .set({ mpPaymentId: pref.id, mpPaymentLink: pref.init_point })
+                        .where(eq(paymentDues.id, due.id));
+                      paymentLink = pref.init_point;
+                    } catch (err) {
+                      console.error("[AutomationJob] Erro ao gerar cobrança Mercado Pago on-the-fly:", err);
+                    }
                   }
                 }
 
