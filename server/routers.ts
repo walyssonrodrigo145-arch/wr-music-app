@@ -2192,73 +2192,76 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         // ---------------------------------------
 
         // 1. Criar o Aluno primeiro para ter o ID
-        const [newStudent] = await db.insert(students).values({
-          organizationId: orgId,
-          userId: ctx.user.id,
-          professorId: input.professorId || ctx.user.id,
-          name: input.name,
-          socialName: input.socialName || undefined,
-          email: input.email || undefined,
-          phone: input.phone,
-          birthDate: input.birthDate || undefined,
-          gender: input.gender || undefined,
-          cpf: input.cpf || undefined,
-          rg: input.rg || undefined,
-          address: input.address || undefined,
-          guardianName: input.guardianName || undefined,
-          guardianPhone: input.guardianPhone || undefined,
-          guardianEmail: input.guardianEmail || undefined,
-          avatar: input.avatar ?? undefined,
-          instrumentId: input.instrumentId || undefined,
-          level: input.level,
-          monthlyFee: String(input.monthlyFee),
-          dueDay: input.dueDay,
-          lessonType: input.lessonType,
-          onlineMeetingLink: input.onlineMeetingLink || undefined,
-          startDate: input.startDate || new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
-          notes: input.notes || undefined,
-          status: input.status,
-          allowAutoReminders: input.allowAutoReminders,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }).returning({ id: students.id });
+        const newStudentId = await db.transaction(async (tx) => {
+          const [newStudent] = await tx.insert(students).values({
+            organizationId: orgId,
+            userId: ctx.user.id,
+            professorId: input.professorId || ctx.user.id,
+            name: input.name,
+            socialName: input.socialName || undefined,
+            email: input.email || undefined,
+            phone: input.phone,
+            birthDate: input.birthDate || undefined,
+            gender: input.gender || undefined,
+            cpf: input.cpf || undefined,
+            rg: input.rg || undefined,
+            address: input.address || undefined,
+            guardianName: input.guardianName || undefined,
+            guardianPhone: input.guardianPhone || undefined,
+            guardianEmail: input.guardianEmail || undefined,
+            avatar: input.avatar ?? undefined,
+            instrumentId: input.instrumentId || undefined,
+            level: input.level,
+            monthlyFee: String(input.monthlyFee),
+            dueDay: input.dueDay,
+            lessonType: input.lessonType,
+            onlineMeetingLink: input.onlineMeetingLink || undefined,
+            startDate: input.startDate || new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+            notes: input.notes || undefined,
+            status: input.status,
+            allowAutoReminders: input.allowAutoReminders,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }).returning({ id: students.id });
 
-        // 2. Criar o usuário se o email for gmail (mesmo sem senha) ou se tiver senha temporária
-        if (input.email) {
-          const isGoogle = input.email.toLowerCase().endsWith('@gmail.com');
-          
-          if (isGoogle || input.temporaryPassword) {
-            let passwordHash: string | null = null;
-            let loginMethod = 'local';
+          // 2. Criar o usuário se o email for gmail (mesmo sem senha) ou se tiver senha temporária
+          if (input.email) {
+            const isGoogle = input.email.toLowerCase().endsWith('@gmail.com');
             
-            if (isGoogle) {
-              loginMethod = 'google';
-            } else if (input.temporaryPassword) {
-              const salt = crypto.randomBytes(16).toString("hex");
-              const derivedKey = crypto.scryptSync(input.temporaryPassword, salt, 64).toString("hex");
-              passwordHash = `${salt}:${derivedKey}`;
+            if (isGoogle || input.temporaryPassword) {
+              let passwordHash: string | null = null;
+              let loginMethod = 'local';
+              
+              if (isGoogle) {
+                loginMethod = 'google';
+              } else if (input.temporaryPassword) {
+                const salt = crypto.randomBytes(16).toString("hex");
+                const derivedKey = crypto.scryptSync(input.temporaryPassword, salt, 64).toString("hex");
+                passwordHash = `${salt}:${derivedKey}`;
+              }
+
+              const openId = crypto.randomUUID();
+
+              const [newUser] = await tx.insert(users).values({
+                openId,
+                organizationId: orgId,
+                name: input.name,
+                email: input.email,
+                passwordHash,
+                loginMethod,
+                role: 'aluno',
+                studentId: newStudent.id,
+                isEmailVerified: true,
+              }).returning({ id: users.id });
+
+              // Atualizar o aluno com o link para o usuário
+              await tx.update(students)
+                .set({ studentUserId: newUser.id })
+                .where(and(eq(students.id, newStudent.id), eq(students.organizationId, orgId)));
             }
-
-            const openId = crypto.randomUUID();
-
-            const [newUser] = await db.insert(users).values({
-              openId,
-              organizationId: orgId,
-              name: input.name,
-              email: input.email,
-              passwordHash,
-              loginMethod,
-              role: 'aluno',
-              studentId: newStudent.id,
-              isEmailVerified: true,
-            }).returning({ id: users.id });
-
-            // Atualizar o aluno com o link para o usuário
-            await db.update(students)
-              .set({ studentUserId: newUser.id })
-              .where(and(eq(students.id, newStudent.id), eq(students.organizationId, orgId)));
           }
-        }
+          return newStudent.id;
+        });
 
         // --- NOTIFICAÇÃO NOVO ALUNO ---
         try {
@@ -2274,7 +2277,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           console.error("Erro ao notificar novo aluno:", e);
         }
         
-        return { success: true, studentId: newStudent.id };
+        return { success: true, studentId: newStudentId };
       } catch (error) {
         return handleDbError(error, "cadastrar o aluno");
       }
@@ -2529,7 +2532,26 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
           throw new Error("Você não tem permissão para remover este aluno");
         }
 
+        // DELETAR ASAAS CUSTOMER
+        try {
+          const [asaasCust] = await db.select().from(asaasCustomers).where(and(eq(asaasCustomers.studentId, input.id), eq(asaasCustomers.organizationId, orgId))).limit(1);
+          if (asaasCust) {
+            const [settingsData] = await db.select({ asaasApiKey: settings.asaasApiKey })
+              .from(settings).where(eq(settings.userId, student.professorId ?? ctx.user.id)).limit(1);
+            const apiKey = settingsData?.asaasApiKey || ENV.asaasApiKey;
+            if (apiKey) {
+              await fetch(`${ENV.asaasBaseUrl}/customers/${asaasCust.asaasCustomerId}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json", "access_token": apiKey }
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao deletar cliente no Asaas:", e);
+        }
+
         // Deletar dependências para evitar erro de FK
+        await db.delete(asaasCustomers).where(and(eq(asaasCustomers.studentId, input.id), eq(asaasCustomers.organizationId, orgId)));
         await db.delete(paymentDues).where(and(eq(paymentDues.studentId, input.id), eq(paymentDues.organizationId, orgId)));
         await db.delete(reminders).where(and(eq(reminders.studentId, input.id), eq(reminders.organizationId, orgId)));
         await db.delete(rescheduleRequests).where(and(eq(rescheduleRequests.studentId, input.id), eq(rescheduleRequests.organizationId, orgId)));

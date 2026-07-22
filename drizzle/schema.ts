@@ -9,7 +9,9 @@ import {
   date,
   serial,
   boolean,
-  jsonb
+  jsonb,
+  index,
+  uniqueIndex
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum('role', ["admin", "professor", "aluno"]);
@@ -110,7 +112,7 @@ export const students = pgTable("students", {
   studentUserId: integer("studentUserId"), // Student's own user account
   name: varchar("name", { length: 255 }).notNull(),
   socialName: varchar("socialName", { length: 255 }),
-  email: varchar("email", { length: 320 }).unique(),
+  email: varchar("email", { length: 320 }),
   phone: varchar("phone", { length: 30 }).default("").notNull(),
   birthDate: date("birthDate"),
   gender: varchar("gender", { length: 50 }),
@@ -136,7 +138,9 @@ export const students = pgTable("students", {
   allowAutoReminders: boolean("allowAutoReminders").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
-});
+}, (table) => [
+  uniqueIndex("students_email_org_idx").on(table.email, table.organizationId),
+]);
 
 export const lessons = pgTable("lessons", {
   id: serial("id").primaryKey(),
@@ -160,7 +164,12 @@ export const lessons = pgTable("lessons", {
   alertSent30m: boolean("alertSent30m").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
-});
+}, (table) => [
+  index("lessons_student_id_idx").on(table.studentId),
+  index("lessons_organization_id_idx").on(table.organizationId),
+  index("lessons_scheduled_at_idx").on(table.scheduledAt),
+  index("lessons_status_idx").on(table.status),
+]);
 
 export const monthlyStats = pgTable("monthly_stats", {
   id: serial("id").primaryKey(),
@@ -247,7 +256,12 @@ export const reminders = pgTable("reminders", {
   errorMessage: text("errorMessage"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
-});
+}, (table) => [
+  index("reminders_ref_id_idx").on(table.refId),
+  index("reminders_organization_id_idx").on(table.organizationId),
+  index("reminders_status_idx").on(table.status),
+  index("reminders_scheduled_at_idx").on(table.scheduledAt),
+]);
 
 export const reminderTemplates = pgTable("reminder_templates", {
   id: serial("id").primaryKey(),
@@ -285,7 +299,13 @@ export const paymentDues = pgTable("payment_dues", {
   receiptUrl: text("receiptUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
-});
+}, (table) => [
+  index("payment_dues_student_id_idx").on(table.studentId),
+  index("payment_dues_organization_id_idx").on(table.organizationId),
+  index("payment_dues_status_idx").on(table.status),
+  index("payment_dues_due_date_idx").on(table.dueDate),
+  index("payment_dues_asaas_id_idx").on(table.asaasId),
+]);
 
 export const asaasCustomers = pgTable("asaas_customers", {
   id: serial("id").primaryKey(),
@@ -293,7 +313,9 @@ export const asaasCustomers = pgTable("asaas_customers", {
   studentId: integer("studentId").notNull(),
   asaasCustomerId: text("asaasCustomerId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => [
+  index("asaas_customers_student_org_idx").on(table.studentId, table.organizationId),
+]);
 
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),

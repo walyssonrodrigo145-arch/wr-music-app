@@ -23,6 +23,8 @@ import { ENV } from './env';
 import { eq, and } from "drizzle-orm";
 import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whatsapp";
 import { notifyUser } from "./notification";
+import { COOKIE_NAME } from "../../shared/const";
+
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -61,8 +63,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
   // Rota especial de upload com limite maior (requer autenticação via JWT cookie):
-  // Obs: o trânsito de base64 para arquivos de músca/vídeo passa por aqui.
-  // O middleware do tRPC já verifica o cookie antes de processar o payload.
+  // O middleware do tRPC verifica o cookie app_session_id antes de processar o payload.
   // Límite: 200MB — suficiente para vídeos educacionais sem expor DoS.
   app.use(
     "/api/trpc/musicLibrary.upload",
@@ -73,14 +74,56 @@ async function startServer() {
   registerOAuthRoutes(app);
   registerGoogleAuthRoutes(app);
 
-  // ─── Mercado Pago Webhook (Alunos) ───────────────────────────────────────
+  // ─── Mercado Pago Webhook (Alunos) ─────────────────────────────────
   app.post("/api/webhooks/mercadopago/student", async (req, res) => {
     try {
+      // ─── ALTO-01 FIX: Validação de assinatura X-Signature do Mercado Pago ──
+      const mpSecret = ENV.mpWebhookSecret;
+      if (mpSecret) {
+        const xSignature = req.headers["x-signature"] as string;
+        const xRequestId = req.headers["x-request-id"] as string;
+
+        if (!xSignature) {
+          console.warn("[MP Webhook] Requisição sem x-signature bloqueada.");
+          return res.status(401).send("Missing x-signature");
+        }
+
+        const parts: Record<string, string> = {};
+        xSignature.split(",").forEach(part => {
+          const [k, v] = part.split("=");
+          if (k && v) parts[k.trim()] = v.trim();
+        });
+        const ts = parts["ts"];
+        const receivedHash = parts["v1"];
+
+        if (!ts || !receivedHash) {
+          console.warn("[MP Webhook] x-signature malformado bloqueado.");
+          return res.status(401).send("Invalid x-signature format");
+        }
+
+        const dataId = (req.body?.data?.id ?? req.query.dueId ?? "").toString();
+        const signaturePayload = `id:${dataId};request-id:${xRequestId ?? ""};ts:${ts}`;
+
+        const { createHmac } = await import("crypto");
+        const expectedHash = createHmac("sha256", mpSecret)
+          .update(signaturePayload)
+          .digest("hex");
+
+        if (receivedHash !== expectedHash) {
+          console.warn("[MP Webhook] Assinatura inválida bloqueada.");
+          return res.status(401).send("Invalid signature");
+        }
+      } else if (ENV.isProduction) {
+        console.error("[MP Webhook] MP_WEBHOOK_SECRET não configurado em produção. Bloqueando.");
+        return res.status(401).send("Webhook secret not configured");
+      } else {
+        console.warn("[MP Webhook] MP_WEBHOOK_SECRET não configurado (dev — aceito sem validação).");
+      }
+
       const dueId = req.query.dueId as string;
       if (!dueId) return res.status(400).send("Missing dueId");
 
       const body = req.body;
-      // MP envia { type: "payment", data: { id: "123456" }, action: "payment.updated" }
       if (body?.type !== "payment" && body?.topic !== "payment") {
         return res.status(200).send("Not a payment event");
       }
@@ -91,12 +134,10 @@ async function startServer() {
       const db = await getDb();
       if (!db) return res.status(500).send("Database not available");
 
-      // Buscar a fatura para pegar o userId (professor)
       const [due] = await db.select().from(paymentDues).where(eq(paymentDues.id, parseInt(dueId))).limit(1);
       if (!due) return res.status(404).send("Payment due not found");
       if (due.status === "pago") return res.status(200).send("Already paid");
 
-      // Buscar as configs do professor e do aluno
       const [profSettings] = await db.select({ 
         mpAccessToken: settings.mpAccessToken,
         whatsappBotUrl: settings.whatsappBotUrl,
@@ -116,7 +157,6 @@ async function startServer() {
         return res.status(400).send("Mercado Pago not configured for this user");
       }
 
-      // Validar no Mercado Pago
       const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: { "Authorization": `Bearer ${profSettings.mpAccessToken}` }
       });
@@ -126,10 +166,9 @@ async function startServer() {
       if (paymentData.status === "approved") {
         await db.update(paymentDues)
           .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
-          .where(eq(paymentDues.id, due.id));
-        console.log(`[Mercado Pago Webhook] Mensalidade ${due.id} marcada como paga.`);
+          .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
+        console.log(`[Mercado Pago Webhook] Mensalidade marcada como paga. org=${due.organizationId}`);
 
-        // Notificar via WhatsApp
         const { sendWhatsAppMessage } = await import("../utils/whatsapp");
         const valorStr = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         
@@ -155,7 +194,7 @@ async function startServer() {
 
       return res.status(200).send("OK");
     } catch (e) {
-      console.error("[Mercado Pago Webhook] Erro:", e);
+      console.error("[Mercado Pago Webhook] Erro ao processar:", (e as Error)?.message ?? e);
       return res.status(500).send("Internal error");
     }
   });
@@ -489,7 +528,16 @@ async function startServer() {
   app.use("/api/webhooks/bot-status", botStatusWebhookRouter);
   // ─────────────────────────────────────────────────────────────────────────
 
-  app.use("/uploads", express.static("uploads"));
+  // [MÉDIO-06 FIX] Protege /uploads com autenticação — apenas usuários autenticados
+  // podem acessar arquivos (contratos, fotos, materiais didáticos, comprovantes).
+  app.use("/uploads", (req, res, next) => {
+    const sessionCookie = req.cookies?.[COOKIE_NAME];
+    if (!sessionCookie) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    next();
+  }, express.static("uploads"));
+
 
   // CRÍTICO-03 FIX: CSP habilitado em produção com política restritiva.
   // Em desenvolvimento, CSP permanece desabilitado para compatibilidade com Vite HMR.
@@ -512,6 +560,8 @@ async function startServer() {
           "https://api.asaas.com",
           "https://sandbox.asaas.com",
           "https://generativelanguage.googleapis.com",
+          "https://api.mercadopago.com",
+          "https://www.mercadopago.com",
           "wss:",
         ],
         mediaSrc: ["'self'", "blob:", "https:"],

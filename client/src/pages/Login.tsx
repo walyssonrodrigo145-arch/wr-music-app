@@ -57,7 +57,7 @@ export default function Login() {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
-    if (newPassword.length < 6) return setErrorMsg("A nova senha deve ter pelo menos 6 caracteres.");
+    if (newPassword.length < 8 || !/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) return setErrorMsg("A senha deve ter no mínimo 8 caracteres, incluindo letras e números");
     if (newPassword !== confirmPassword) return setErrorMsg("As senhas não coincidem.");
     updatePasswordMutation.mutate({ password: newPassword });
   };

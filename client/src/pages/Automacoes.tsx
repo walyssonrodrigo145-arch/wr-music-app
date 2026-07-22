@@ -677,6 +677,7 @@ export default function Automacoes() {
   const utils = trpc.useUtils();
   const [editorRule, setEditorRule] = useState<Partial<AutomationRule> | null>(null);
   const [historyRule, setHistoryRule] = useState<AutomationRule | null>(null);
+  const [ruleToDelete, setRuleToDelete] = useState<number | null>(null);
   const [search, setSearch] = useState("");
 
   const { data: rules = [], isLoading } = trpc.automations.list.useQuery();
@@ -796,7 +797,7 @@ export default function Automacoes() {
   };
 
   const handleDelete = (id: number) => {
-    if (window.confirm("Deseja excluir esta automação? Ação irreversível.")) deleteMutation.mutate({ id });
+    setRuleToDelete(id);
   };
 
   const systemRules = rules.filter(r => r.isSystem === 1);
@@ -1004,6 +1005,20 @@ export default function Automacoes() {
         )}
         {historyRule && (
           <HistoryModal rule={historyRule} onClose={() => setHistoryRule(null)} />
+        )}
+        {ruleToDelete !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+              className="bg-card border border-border rounded-3xl w-full max-w-sm shadow-2xl p-6 flex flex-col gap-4"
+            >
+              <h3 className="text-lg font-black text-foreground">Excluir automação?</h3>
+              <p className="text-sm text-muted-foreground">Esta ação é irreversível e excluirá a automação e seu histórico.</p>
+              <div className="flex justify-end gap-3 mt-2">
+                <Button variant="outline" onClick={() => setRuleToDelete(null)} className="rounded-xl">Cancelar</Button>
+                <Button variant="destructive" onClick={() => { deleteMutation.mutate({ id: ruleToDelete }); setRuleToDelete(null); }} className="rounded-xl">Excluir</Button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

@@ -58,9 +58,10 @@ export function useAuth(options?: UseAuthOptions) {
 
   useEffect(() => {
     if (meQuery.data) {
+      const { id, name, role, organizationId } = meQuery.data;
       localStorage.setItem(
         "manus-runtime-user-info",
-        JSON.stringify(meQuery.data)
+        JSON.stringify({ id, name, role, organizationId })
       );
     }
   }, [meQuery.data]);

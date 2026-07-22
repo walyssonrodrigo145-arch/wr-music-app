@@ -506,7 +506,7 @@ async function runAutomation() {
           if (autoRuleExpMatch) return `${studentId}-auto-${refId}`;
 
           // Extrai lessonId do refId para identificar cada aula individualmente e evitar falsos positivos
-          const lessonMatch = refId?.match(/^lesson-(\d+)-/);
+          const lessonMatch = refId?.match(/^lesson-(?:exp-[^-]+-)?(\d+)/);
           if (lessonMatch) return `${studentId}-aula-${lessonMatch[1]}`;
 
           // Extrai paymentDueId para diferenciar cobranças do mesmo aluno em meses diferentes
@@ -831,6 +831,8 @@ async function runAutomation() {
                 } else if (userSet.pixKey) {
                   message += `\n\n💳 *PIX:* ${userSet.pixKey}`;
                 }
+                
+                message = message.replace(/\{[^}]+\}/g, '');
 
                 // ✅ FIX: INSERT PRIMEIRO — garante registro no banco antes do envio.
                 // Se o INSERT falhar após o envio, o próximo ciclo não teria como saber que já foi enviado.
@@ -923,9 +925,7 @@ async function runAutomation() {
                 
                 // E só dispara se AINDA for o mesmo dia calendário (BRT) planejado para o disparo.
                 // Se virar a meia-noite, a mensagem perderia o contexto (ex: falaria 'amanhã' no dia da aula).
-                const triggerDayStr = triggerTime.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-                const nowDayStr = now2.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-                if (triggerDayStr !== nowDayStr) continue;
+                // CORREÇÃO: Removida a verificação triggerDayStr !== nowDayStr que impedia o envio de lembretes na virada da meia-noite.
 
                 const lessonDateStr = lessonTime.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
                 // ✅ FIX: Lock exclusivo por Regra. Permite que o usuário tenha múltiplas automações para a mesma aula (ex: 24h antes E 1h antes).
@@ -947,7 +947,8 @@ async function runAutomation() {
                   .replace(/\{curso\}/g, lesson.instrumentName ?? "m\u00fasica")
                   .replace(/\{instrumento\}/g, lesson.instrumentName ?? "m\u00fasica")
                   .replace(/\{data_aula\}/g, dataAula)
-                  .replace(/\{hora_aula\}/g, horaAula);
+                  .replace(/\{hora_aula\}/g, horaAula)
+                  .replace(/\{[^}]+\}/g, '');
 
                 // ✅ FIX: INSERT PRIMEIRO — garante registro no banco antes do envio
                 await db.insert(reminders).values({
@@ -1242,7 +1243,8 @@ async function runAutomation() {
                   .replace(/\{nome_professor\}/g, professorName)
                   .replace(/\{nome_escola\}/g, schoolName)
                   .replace(/\{curso\}/g, payment.instrumentName ?? "m\u00fasica")
-                  .replace(/\{valor_mensalidade\}/g, valor);
+                  .replace(/\{valor_mensalidade\}/g, valor)
+                  .replace(/\{[^}]+\}/g, '');
 
                 // ✅ FIX: INSERT PRIMEIRO — garante registro no banco antes do envio
                 if (!payment.studentPhone && !payment.guardianPhone) continue;

@@ -87,4 +87,8 @@ export const ENV = {
   asaasApiKey: (process.env.ASAAS_API_KEY ?? "").trim(),
   asaasBaseUrl: asaasBaseUrlRaw || "https://sandbox.asaas.com/api/v3", // dev only fallback
   asaasWebhookToken: (process.env.ASAAS_WEBHOOK_TOKEN || "").trim(),
+
+  // ─── Mercado Pago: secret para validação de assinatura do webhook ─────────
+  // Obtenha em: Dashboard MP → Suas integrações → Webhooks → Chave secreta
+  mpWebhookSecret: (process.env.MP_WEBHOOK_SECRET || "").trim(),
 };
