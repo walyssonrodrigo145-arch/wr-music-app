@@ -423,6 +423,8 @@
 @keyframes scan {
   0% { transform: translateY(-10px); }
   100% { transform: translateY(200px); }
+}
+}
 
 .tour-active .backdrop-blur-xl {
   backdrop-filter: none !important;
