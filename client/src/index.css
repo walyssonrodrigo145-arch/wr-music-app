@@ -408,6 +408,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
 
 @layer utilities {
   .animate-scan {
