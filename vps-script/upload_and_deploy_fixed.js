@@ -60,6 +60,8 @@ const filesToUpload = [
   'server/automationJob.ts',
   'client/src/pages/Comunicados.tsx',
   'client/src/components/modals/LessonDetailModal.tsx',
+  'client/src/index.css',
+  'client/src/contexts/ThemeContext.tsx',
   'client/src/components/AppHeader.tsx',
   'client/src/components/MusicLayout.tsx',
   'client/src/components/StudentPortalLayout.tsx',
