@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -238,14 +238,6 @@
   --sidebar-border: oklch(0.20 0.05 300);
   --sidebar-ring: oklch(0.65 0.26 310);
 }
-  --chart-5: oklch(0.68 0.18 155);
-  --violet: oklch(0.65 0.24 295);
-  --sidebar: oklch(0.10 0.03 265);
-  --sidebar-foreground: oklch(0.90 0.01 260);
-  --sidebar-accent: oklch(0.20 0.06 265);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.18 0.03 265);
-  --sidebar-ring: oklch(0.62 0.22 264);
 
   --surface-container: oklch(0.15 0.02 265);
   --surface-container-low: oklch(0.14 0.02 265);
@@ -316,7 +308,6 @@
     max-width: 100%;
     height: auto;
   }
-}
 
 @layer components {
   .container {
@@ -419,7 +410,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-}
 
 @layer utilities {
   .animate-scan {
@@ -431,12 +421,10 @@
   .max-w-ultrawide {
     max-width: 1600px;
   }
-}
 
 @keyframes scan {
   0% { transform: translateY(-10px); }
   100% { transform: translateY(200px); }
-}
 
 .tour-active .backdrop-blur-xl {
   backdrop-filter: none !important;
