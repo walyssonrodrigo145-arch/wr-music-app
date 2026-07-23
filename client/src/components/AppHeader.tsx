@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight, CreditCard, CheckCheck } from "lucide-react";
+import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight, CreditCard, CheckCheck, Sparkles, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -175,8 +175,17 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
            <button 
              className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group" 
              onClick={toggleTheme}
+             title={`Tema atual: ${theme}. Clique para alternar.`}
            >
-             {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+             {theme === "dark" ? (
+               <Moon size={20} className="text-indigo-400" />
+             ) : theme === "midnight" ? (
+               <Sparkles size={20} className="text-cyan-400" />
+             ) : theme === "purple" ? (
+               <Palette size={20} className="text-purple-400" />
+             ) : (
+               <Sun size={20} className="text-amber-500" />
+             )}
              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full scale-0 group-hover:scale-100 transition-transform" />
            </button>
 

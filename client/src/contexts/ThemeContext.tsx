@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "light" | "dark";
+export type Theme = "light" | "dark" | "midnight" | "purple";
 
 interface ThemeContextType {
   theme: Theme;
+  setTheme: (theme: Theme) => void;
   toggleTheme?: () => void;
   switchable: boolean;
 }
@@ -21,7 +22,7 @@ export function ThemeProvider({
   defaultTheme = "light",
   switchable = false,
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
+  const [theme, setThemeState] = useState<Theme>(() => {
     if (switchable) {
       const stored = localStorage.getItem("theme");
       return (stored as Theme) || defaultTheme;
@@ -29,12 +30,23 @@ export function ThemeProvider({
     return defaultTheme;
   });
 
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+    if (switchable) {
+      localStorage.setItem("theme", newTheme);
+    }
+  };
+
   useEffect(() => {
     const root = document.documentElement;
+    root.classList.remove("dark", "theme-midnight", "theme-purple");
+
     if (theme === "dark") {
       root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
+    } else if (theme === "midnight") {
+      root.classList.add("dark", "theme-midnight");
+    } else if (theme === "purple") {
+      root.classList.add("dark", "theme-purple");
     }
 
     if (switchable) {
@@ -44,12 +56,18 @@ export function ThemeProvider({
 
   const toggleTheme = switchable
     ? () => {
-        setTheme(prev => (prev === "light" ? "dark" : "light"));
+        setThemeState(prev => {
+          const themes: Theme[] = ["light", "dark", "midnight", "purple"];
+          const nextIndex = (themes.indexOf(prev) + 1) % themes.length;
+          const next = themes[nextIndex];
+          localStorage.setItem("theme", next);
+          return next;
+        });
       }
     : undefined;
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, switchable }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, switchable }}>
       {children}
     </ThemeContext.Provider>
   );

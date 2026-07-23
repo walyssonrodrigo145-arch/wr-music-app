@@ -3728,7 +3728,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
     }),
 
     updateTheme: protectedProcedure.input(z.object({
-      theme: z.enum(['light', 'dark']),
+      theme: z.enum(['light', 'dark', 'midnight', 'purple']),
     })).mutation(async ({ ctx, input }) => {
       await upsertSettings(ctx.user.organizationId!, ctx.user.id, { theme: input.theme });
       return { success: true };

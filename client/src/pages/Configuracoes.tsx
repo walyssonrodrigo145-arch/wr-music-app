@@ -819,7 +819,7 @@ function DebouncedTextarea({ value, onChange, ...props }: any) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Configuracoes() {
   const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme, toggleTheme } = useTheme();
   const utils = trpc.useUtils();
 
   const [activeTab, setActiveTab] = useState<Tab>("perfil");
@@ -1424,24 +1424,24 @@ export default function Configuracoes() {
                   <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Aparência do sistema</p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   {/* Light */}
                   <button
                     onClick={() => {
                       if (theme !== "light") {
-                        toggleTheme?.();
+                        setTheme("light");
                         updateTheme.mutate({ theme: "light" });
-                        toast.success("Tema claro ativado!");
+                        toast.success("Tema Claro ativado!");
                       }
                     }}
                     className={cn(
-                      "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
+                      "relative p-5 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "light"
                         ? "border-indigo-600 bg-indigo-500/10 shadow-xl shadow-indigo-500/20"
                         : "border-border bg-card hover:border-indigo-200"
                     )}
                   >
-                    <div className="w-full h-24 rounded-[1.25rem] bg-card border border-border mb-6 overflow-hidden shadow-sm flex flex-col">
+                    <div className="w-full h-20 rounded-[1.25rem] bg-card border border-border mb-4 overflow-hidden shadow-sm flex flex-col">
                        <div className="h-4 bg-muted border-b border-border flex items-center px-2 gap-1">
                          <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
                          <div className="w-6 h-1 rounded bg-muted" />
@@ -1452,13 +1452,13 @@ export default function Configuracoes() {
                        </div>
                     </div>
                     <div className="flex items-center justify-between">
-                       <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                            <Sun size={18} />
+                       <div className="flex items-center gap-2.5">
+                         <div className="w-7 h-7 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                            <Sun size={16} />
                          </div>
                          <span className="text-xs font-black uppercase tracking-widest text-foreground">Modo Claro</span>
                        </div>
-                       {theme === "light" && <CheckCircle2 size={18} className="text-indigo-600" />}
+                       {theme === "light" && <CheckCircle2 size={18} className="text-indigo-600 shrink-0" />}
                     </div>
                   </button>
 
@@ -1466,19 +1466,19 @@ export default function Configuracoes() {
                   <button
                     onClick={() => {
                       if (theme !== "dark") {
-                        toggleTheme?.();
+                        setTheme("dark");
                         updateTheme.mutate({ theme: "dark" });
-                        toast.success("Tema escuro ativado!");
+                        toast.success("Tema Escuro ativado!");
                       }
                     }}
                     className={cn(
-                      "relative p-6 rounded-[2rem] border-4 transition-all text-left group",
+                      "relative p-5 rounded-[2rem] border-4 transition-all text-left group",
                       theme === "dark"
                         ? "border-indigo-600 bg-indigo-500/10 shadow-xl shadow-indigo-500/20"
                         : "border-border bg-card hover:border-indigo-200"
                     )}
                   >
-                    <div className="w-full h-24 rounded-[1.25rem] bg-slate-900 border border-slate-800 mb-6 overflow-hidden shadow-sm flex flex-col">
+                    <div className="w-full h-20 rounded-[1.25rem] bg-slate-900 border border-slate-800 mb-4 overflow-hidden shadow-sm flex flex-col">
                        <div className="h-4 bg-slate-800 border-b border-slate-700 flex items-center px-2 gap-1">
                          <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
                          <div className="w-6 h-1 rounded bg-slate-800" />
@@ -1489,13 +1489,87 @@ export default function Configuracoes() {
                        </div>
                     </div>
                     <div className="flex items-center justify-between">
-                       <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-xl bg-indigo-900 text-indigo-400 flex items-center justify-center">
-                            <Moon size={18} />
+                       <div className="flex items-center gap-2.5">
+                         <div className="w-7 h-7 rounded-xl bg-indigo-900 text-indigo-400 flex items-center justify-center shrink-0">
+                            <Moon size={16} />
                          </div>
                          <span className="text-xs font-black uppercase tracking-widest text-foreground">Modo Escuro</span>
                        </div>
-                       {theme === "dark" && <CheckCircle2 size={18} className="text-indigo-600" />}
+                       {theme === "dark" && <CheckCircle2 size={18} className="text-indigo-600 shrink-0" />}
+                    </div>
+                  </button>
+
+                  {/* Midnight Cyber */}
+                  <button
+                    onClick={() => {
+                      if (theme !== "midnight") {
+                        setTheme("midnight");
+                        updateTheme.mutate({ theme: "midnight" });
+                        toast.success("Tema Midnight Cyber ativado!");
+                      }
+                    }}
+                    className={cn(
+                      "relative p-5 rounded-[2rem] border-4 transition-all text-left group",
+                      theme === "midnight"
+                        ? "border-cyan-500 bg-cyan-500/10 shadow-xl shadow-cyan-500/20"
+                        : "border-border bg-card hover:border-cyan-200"
+                    )}
+                  >
+                    <div className="w-full h-20 rounded-[1.25rem] bg-[#0c1222] border border-[#1e293b] mb-4 overflow-hidden shadow-sm flex flex-col">
+                       <div className="h-4 bg-[#1e293b] border-b border-[#334155] flex items-center px-2 gap-1">
+                         <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                         <div className="w-6 h-1 rounded bg-cyan-900/50" />
+                       </div>
+                       <div className="flex-1 p-3 space-y-2">
+                         <div className="h-3 bg-cyan-500/30 rounded-full w-3/4" />
+                         <div className="h-2 bg-[#1e293b] rounded-full w-1/2" />
+                       </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2.5">
+                         <div className="w-7 h-7 rounded-xl bg-cyan-950 text-cyan-400 flex items-center justify-center shrink-0">
+                            <Sparkles size={16} />
+                         </div>
+                         <span className="text-xs font-black uppercase tracking-widest text-foreground">Midnight</span>
+                       </div>
+                       {theme === "midnight" && <CheckCircle2 size={18} className="text-cyan-400 shrink-0" />}
+                    </div>
+                  </button>
+
+                  {/* Purple Emerald */}
+                  <button
+                    onClick={() => {
+                      if (theme !== "purple") {
+                        setTheme("purple");
+                        updateTheme.mutate({ theme: "purple" });
+                        toast.success("Tema Purple Emerald ativado!");
+                      }
+                    }}
+                    className={cn(
+                      "relative p-5 rounded-[2rem] border-4 transition-all text-left group",
+                      theme === "purple"
+                        ? "border-purple-500 bg-purple-500/10 shadow-xl shadow-purple-500/20"
+                        : "border-border bg-card hover:border-purple-200"
+                    )}
+                  >
+                    <div className="w-full h-20 rounded-[1.25rem] bg-[#170b24] border border-[#2d1245] mb-4 overflow-hidden shadow-sm flex flex-col">
+                       <div className="h-4 bg-[#2d1245] border-b border-[#431866] flex items-center px-2 gap-1">
+                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                         <div className="w-6 h-1 rounded bg-purple-900/50" />
+                       </div>
+                       <div className="flex-1 p-3 space-y-2">
+                         <div className="h-3 bg-purple-500/40 rounded-full w-3/4" />
+                         <div className="h-2 bg-emerald-500/20 rounded-full w-1/2" />
+                       </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2.5">
+                         <div className="w-7 h-7 rounded-xl bg-purple-950 text-purple-400 flex items-center justify-center shrink-0">
+                            <Palette size={16} />
+                         </div>
+                         <span className="text-xs font-black uppercase tracking-widest text-foreground">Purple</span>
+                       </div>
+                       {theme === "purple" && <CheckCircle2 size={18} className="text-purple-400 shrink-0" />}
                     </div>
                   </button>
                 </div>
