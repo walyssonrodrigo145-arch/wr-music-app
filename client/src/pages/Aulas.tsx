@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { 
   ChevronLeft, 
@@ -56,31 +56,31 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type CalendarView = "mes" | "semana" | "dia" | "eventos";
-const DAYS_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+const DAYS_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÃB"];
 
 // Map from mobile filter chip label to DB status value
 const STATUS_CHIP_MAP: Record<string, string> = {
   "Agendadas": "agendada",
-  "Concluídas": "concluida",
+  "ConcluÃ­das": "concluida",
   "Canceladas": "cancelada",
   "Remarcadas": "remarcada",
   "Faltas": "falta",
 };
 
-// --- FUNÇÃO DE FORMAT SEGURO ---
+// --- FUNÃ‡ÃƒO DE FORMAT SEGURO ---
 const safeFormat = (date: any, formatStr: string, options?: any) => {
   try {
     const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
-    if (!isValid(d)) return "Inválido";
+    if (!isValid(d)) return "InvÃ¡lido";
     return format(d, formatStr, options);
   } catch {
-    return "Inválido";
+    return "InvÃ¡lido";
   }
 };
 
 const statusConfig = {
   agendada: { label: "Agendada", color: "bg-blue-600", text: "text-blue-600", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-  concluida: { label: "Concluída", color: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+  concluida: { label: "ConcluÃ­da", color: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
   cancelada: { label: "Cancelada", color: "bg-rose-500", text: "text-rose-600", bg: "bg-rose-500/10", border: "border-rose-500/20" },
   remarcada: { label: "Remarcada", color: "bg-purple-500", text: "text-purple-600", bg: "bg-purple-500/10", border: "border-purple-500/20" },
   falta: { label: "Falta", color: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-500/20" },
@@ -218,7 +218,7 @@ export default function Aulas() {
       }
     });
 
-    // Agrupar aulas em turma para que apareçam como apenas 1 card representando a turma na agenda
+    // Agrupar aulas em turma para que apareÃ§am como apenas 1 card representando a turma na agenda
     const grouped: any[] = [];
     const turmaMap = new Map<string, any>();
 
@@ -286,16 +286,16 @@ export default function Aulas() {
     }
   };
 
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // DESKTOP LAYOUT (MODERNO E INSPIRADO NO MODELO)
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isDesktop) {
     const todayLessons = lessons.filter(l => isToday(new Date(l.scheduledAt)));
     const todayCompleted = todayLessons.filter(l => l.status === 'concluida').length;
     const todayPending = todayLessons.filter(l => l.status === 'agendada').length;
     const todayCancelled = todayLessons.filter(l => l.status === 'cancelada').length;
 
-    // Cálculo estático/dinâmico de ocupação semanal (Domingo a Sábado)
+    // CÃ¡lculo estÃ¡tico/dinÃ¢mico de ocupaÃ§Ã£o semanal (Domingo a SÃ¡bado)
     const weekDays = eachDayOfInterval({ start: startOfWeek(new Date(), { weekStartsOn: 0 }), end: endOfWeek(new Date(), { weekStartsOn: 0 }) });
     const occupancy = weekDays.map(day => {
       const count = lessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).length;
@@ -311,10 +311,10 @@ export default function Aulas() {
           ? "fixed inset-0 z-[45] p-6 lg:p-8 overflow-y-auto m-0 h-screen max-w-none animate-in fade-in zoom-in-95 duration-300 bg-background" 
           : "h-[calc(100vh-4rem)] -m-4 sm:-m-6 -mt-6 sm:-mt-8"
       )}>
-        {/* Sub-Header de Filtros, Visões e Ação Nova Aula (Alinhado ao Topo) */}
+        {/* Sub-Header de Filtros, VisÃµes e AÃ§Ã£o Nova Aula (Alinhado ao Topo) */}
         <div className="px-6 py-4 border-b border-border/30 bg-card/40 backdrop-blur-xl flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Botões de Visão (Mês, Semana, Dia, Lista) - Pílula Deslizante Ultra-Fluida */}
+            {/* BotÃµes de VisÃ£o (MÃªs, Semana, Dia, Lista) - PÃ­lula Deslizante Ultra-Fluida */}
             <div className="flex p-1 bg-card rounded-xl border border-border/60 shadow-sm relative">
               {(["mes", "semana", "dia", "eventos"] as const).map(v => {
                 const isActive = view === v;
@@ -349,7 +349,7 @@ export default function Aulas() {
                     onChange={e => setCurrentDate(new Date(currentDate.getFullYear(), Number(e.target.value), 1))}
                     className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground focus:outline-none shadow-sm cursor-pointer"
                   >
-                    {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((m, i) => (
+                    {["Janeiro","Fevereiro","MarÃ§o","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((m, i) => (
                       <option key={i} value={i}>{m}</option>
                     ))}
                   </select>
@@ -401,7 +401,7 @@ export default function Aulas() {
             </div>
           </div>
 
-          {/* Filtros Suspensos e Botão Primário + Nova Aula */}
+          {/* Filtros Suspensos e BotÃ£o PrimÃ¡rio + Nova Aula */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-muted-foreground uppercase">Professor:</span>
@@ -436,7 +436,7 @@ export default function Aulas() {
               >
                 <option value="geral">Todos</option>
                 <option value="agendada">Agendadas</option>
-                <option value="concluida">Concluídas</option>
+                <option value="concluida">ConcluÃ­das</option>
                 <option value="cancelada">Canceladas</option>
                 <option value="remarcada">Remarcadas</option>
                 <option value="falta">Faltas</option>
@@ -475,9 +475,9 @@ export default function Aulas() {
           </div>
         </div>
 
-        {/* Conteúdo Principal Split (Calendário + Painel Direita) */}
+        {/* ConteÃºdo Principal Split (CalendÃ¡rio + Painel Direita) */}
         <div className="flex-1 flex min-h-0 overflow-hidden">
-          {/* Coluna Esquerda: Calendário Principal */}
+          {/* Coluna Esquerda: CalendÃ¡rio Principal */}
           <div className="flex-1 p-6 overflow-y-auto space-y-4 no-scrollbar">
             <div id="tour-calendar-view" className="relative min-h-[500px]">
               <AnimatePresence mode="popLayout" initial={false}>
@@ -490,77 +490,83 @@ export default function Aulas() {
                     transition={{ duration: 0.15 }}
                     className="bg-card rounded-2xl border border-border/60 shadow-xl overflow-hidden"
                   >
-                    <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30">
-                      {DAYS_SHORT.map(day => (
-                        <div key={day} className="py-3 text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                          {day}
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[560px]">
+                        <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30">
+                          {DAYS_SHORT.map(day => (
+                            <div key={day} className="py-3 text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                              {day}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-7 min-h-[520px]">
-                      {monthDays.map((day, idx) => {
-                        const lessonsInDay = filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day));
-                        const isCurrMonth = isSameMonth(day, currentDate);
-                        return (
-                          <div 
-                            key={idx} 
-                            className={cn(
-                              "p-2 border-r border-b border-border/40 min-h-[110px] relative transition-colors", 
-                              !isCurrMonth && "opacity-25 bg-muted/20", 
-                              isToday(day) && "bg-blue-500/5"
-                            )}
-                          >
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span 
-                                onClick={(e) => { e.stopPropagation(); setCurrentDate(day); setAgendarOpen(true); }}
+                        <div className="grid grid-cols-7 min-h-[400px] lg:min-h-[460px]">
+                          {monthDays.map((day, idx) => {
+                            const lessonsInDay = filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day));
+                            const isCurrMonth = isSameMonth(day, currentDate);
+                            return (
+                              <div 
+                                key={idx} 
                                 className={cn(
-                                  "text-xs font-bold cursor-pointer hover:text-blue-600 transition-colors",
-                                  isToday(day) ? "w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-black" : "text-muted-foreground"
+                                  "p-2 border-r border-b border-border/40 min-h-[110px] relative transition-colors", 
+                                  !isCurrMonth && "opacity-25 bg-muted/20", 
+                                  isToday(day) && "bg-blue-500/5"
                                 )}
                               >
-                                {format(day, "d")}
-                              </span>
-                            </div>
-                            <div className="space-y-1">
-                              {lessonsInDay.slice(0, 3).map(l => (
-                                <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
-                              ))}
-                              {lessonsInDay.length > 3 && (
-                                <button
-                                  type="button"
-                                  className="w-full text-[9px] font-black text-blue-600 text-center cursor-pointer hover:underline py-0.5 bg-transparent"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setDayLessonsModalDate(day);
-                                  }}
-                                >
-                                  + {lessonsInDay.length - 3} aulas
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span 
+                                    onClick={(e) => { e.stopPropagation(); setCurrentDate(day); setAgendarOpen(true); }}
+                                    className={cn(
+                                      "text-xs font-bold cursor-pointer hover:text-blue-600 transition-colors",
+                                      isToday(day) ? "w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-black" : "text-muted-foreground"
+                                    )}
+                                  >
+                                    {format(day, "d")}
+                                  </span>
+                                </div>
+                                <div className="space-y-1">
+                                  {lessonsInDay.slice(0, 3).map(l => (
+                                    <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
+                                  ))}
+                                  {lessonsInDay.length > 3 && (
+                                    <button
+                                      type="button"
+                                      className="w-full text-[9px] font-black text-blue-600 text-center cursor-pointer hover:underline py-0.5 bg-transparent"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setDayLessonsModalDate(day);
+                                      }}
+                                    >
+                                      + {lessonsInDay.length - 3} aulas
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 )}
 
                 {view === "semana" && (
-                  <motion.div key="week" className="grid grid-cols-7 gap-3">
-                    {eachDayOfInterval({ start: startOfWeek(currentDate), end: endOfWeek(currentDate) }).map((day, i) => (
-                      <div key={i} className="flex flex-col gap-3">
-                        <div className={cn("p-3 rounded-2xl border text-center", isToday(day) ? "bg-blue-600 border-blue-600 text-white shadow-lg" : "bg-card border-border/60")}>
-                          <p className="text-[10px] font-bold uppercase opacity-70 mb-0.5">{DAYS_SHORT[i]}</p>
-                          <p className="text-xl font-black">{format(day, "d")}</p>
+                  <motion.div key="week" className="overflow-x-auto">
+                    <div className="grid grid-cols-7 gap-3 min-w-[560px]">
+                      {eachDayOfInterval({ start: startOfWeek(currentDate), end: endOfWeek(currentDate) }).map((day, i) => (
+                        <div key={i} className="flex flex-col gap-3">
+                          <div className={cn("p-3 rounded-2xl border text-center", isToday(day) ? "bg-blue-600 border-blue-600 text-white shadow-lg" : "bg-card border-border/60")}>
+                            <p className="text-[10px] font-bold uppercase opacity-70 mb-0.5">{DAYS_SHORT[i]}</p>
+                            <p className="text-xl font-black">{format(day, "d")}</p>
+                          </div>
+                          <div className="space-y-2">
+                            {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => (
+                              <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          {filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).map(l => (
-                            <LessonCardDesktop key={l.id} lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </motion.div>
                 )}
 
@@ -600,24 +606,24 @@ export default function Aulas() {
                           </div>
                           <LessonCardDesktop lesson={l} onClick={(e) => { e.stopPropagation(); setDetailLessonId(l.id); }} />
                         </div>
-                      ))}
+                     ))}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Legenda de Cores no Rodapé (Como na Imagem) */}
+            {/* Legenda de Cores no RodapÃ© (Como na Imagem) */}
             <div className="flex items-center gap-4 flex-wrap pt-3 border-t border-border/40 text-[10px] font-bold text-muted-foreground">
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Individual</div>
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-purple-600" /> Turma</div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Reposição</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> ReposiÃ§Ã£o</div>
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Experimental</div>
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Cancelada</div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Concluída</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> ConcluÃ­da</div>
             </div>
           </div>
 
-          {/* Coluna Direita (Painel de Resumo do Dia e Ocupação da Semana) */}
+          {/* Coluna Direita (Painel de Resumo do Dia e OcupaÃ§Ã£o da Semana) */}
           <div className="w-80 border-l border-border/40 bg-card/30 p-4 space-y-4 overflow-y-auto no-scrollbar shrink-0 hidden xl:block">
             {/* Card de Resumo do dia */}
             <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
@@ -632,7 +638,7 @@ export default function Aulas() {
                 </div>
                 <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
                   <p className="text-base font-black text-emerald-600">{todayCompleted}</p>
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Concluídas</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase">ConcluÃ­das</p>
                 </div>
                 <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
                   <p className="text-base font-black text-rose-500">{todayCancelled}</p>
@@ -645,10 +651,10 @@ export default function Aulas() {
               </div>
             </div>
 
-            {/* Próximas Aulas de Hoje (Timeline) */}
+            {/* PrÃ³ximas Aulas de Hoje (Timeline) */}
             <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Próximas aulas hoje</span>
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">PrÃ³ximas aulas hoje</span>
                 <span className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer" onClick={() => setView('dia')}>Ver todas</span>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
@@ -672,7 +678,7 @@ export default function Aulas() {
                             <span className="truncate">{l.instrumentName || "Geral"}</span>
                             {l.teacherName && (
                               <>
-                                <span>•</span>
+                                <span>â€¢</span>
                                 <span className="text-blue-600 font-bold">Prof. {l.teacherName}</span>
                               </>
                             )}
@@ -689,9 +695,9 @@ export default function Aulas() {
               </div>
             </div>
 
-            {/* Ocupação da Semana (Gráfico de Barras) */}
+            {/* OcupaÃ§Ã£o da Semana (GrÃ¡fico de Barras) */}
             <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Ocupação da semana</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">OcupaÃ§Ã£o da semana</span>
               <div className="flex items-end justify-between gap-1.5 h-28 pt-4 px-1">
                 {occupancy.map((occ, idx) => (
                   <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
@@ -734,19 +740,19 @@ export default function Aulas() {
           }}
         />
 
-        {/* Dialog de confirmação para ações recorrentes */}
+        {/* Dialog de confirmaÃ§Ã£o para aÃ§Ãµes recorrentes */}
         <ResponsiveDialog
           open={!!recurringAction}
           onOpenChange={(open) => { if (!open) setRecurringAction(null); }}
           title={
             hasRecurrence
               ? (recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente')
-              : (recurringAction?.type === 'delete' ? 'Confirmar Exclusão' : 'Confirmar Remarcação')
+              : (recurringAction?.type === 'delete' ? 'Confirmar ExclusÃ£o' : 'Confirmar RemarcaÃ§Ã£o')
           }
           description={
             hasRecurrence
-              ? "Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?"
-              : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.' : 'Deseja confirmar a remarcação desta aula?')
+              ? "Esta aula faz parte de uma sÃ©rie recorrente. Como deseja aplicar esta alteraÃ§Ã£o?"
+              : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta aÃ§Ã£o nÃ£o pode ser desfeita.' : 'Deseja confirmar a remarcaÃ§Ã£o desta aula?')
           }
         >
           <div className="flex flex-col gap-3 pb-8 md:pb-0">
@@ -782,7 +788,7 @@ export default function Aulas() {
                   }}
                   className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
                 >
-                  {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
+                  {recurringAction?.type === 'delete' ? 'Excluir toda a sÃ©rie (futuras)' : 'Remarcar toda a sÃ©rie (futuras)'}
                 </button>
               </>
             ) : (
@@ -818,9 +824,9 @@ export default function Aulas() {
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // MOBILE / TABLET LAYOUT (PREMIUM DESIGN)
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Date Selector Strip */}
@@ -848,7 +854,7 @@ export default function Aulas() {
 
       {/* Filter Chips */}
       <section className="flex flex-wrap items-center gap-2">
-        {["Todas", "Hoje", "Agendadas", "Concluídas", "Canceladas"].map(chip => (
+        {["Todas", "Hoje", "Agendadas", "ConcluÃ­das", "Canceladas"].map(chip => (
           <button key={chip} onClick={() => setStatusFilterMobile(chip)} className={cn("px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border", statusFilterMobile === chip ? "bg-blue-600 text-white border-blue-600 shadow-blue-200" : "bg-card text-muted-foreground border-border hover:border-blue-200 hover:text-blue-600")}>{chip}</button>
         ))}
         <div className="h-6 w-[1px] bg-border mx-1" />
@@ -933,19 +939,19 @@ export default function Aulas() {
         }} 
       />
 
-      {/* ── Dialog de confirmação compartilhado desktop+mobile ──────────────── */}
+      {/* â”€â”€ Dialog de confirmaÃ§Ã£o compartilhado desktop+mobile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <ResponsiveDialog
         open={!!recurringAction}
         onOpenChange={(open) => { if (!open) setRecurringAction(null); }}
         title={
           hasRecurrence
             ? (recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente')
-            : (recurringAction?.type === 'delete' ? 'Confirmar Exclusão' : 'Confirmar Remarcação')
+            : (recurringAction?.type === 'delete' ? 'Confirmar ExclusÃ£o' : 'Confirmar RemarcaÃ§Ã£o')
         }
         description={
           hasRecurrence
-            ? "Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?"
-            : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.' : 'Deseja confirmar a remarcação desta aula?')
+            ? "Esta aula faz parte de uma sÃ©rie recorrente. Como deseja aplicar esta alteraÃ§Ã£o?"
+            : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta aÃ§Ã£o nÃ£o pode ser desfeita.' : 'Deseja confirmar a remarcaÃ§Ã£o desta aula?')
         }
       >
         <div className="flex flex-col gap-3 pb-8 md:pb-0">
@@ -981,7 +987,7 @@ export default function Aulas() {
                 }}
                 className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
               >
-                {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
+                {recurringAction?.type === 'delete' ? 'Excluir toda a sÃ©rie (futuras)' : 'Remarcar toda a sÃ©rie (futuras)'}
               </button>
             </>
           ) : (

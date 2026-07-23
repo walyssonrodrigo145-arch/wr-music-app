@@ -82,7 +82,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
     : "WR";
 
   return (
-    <header className="h-16 md:h-20 lg:h-24 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-3 sm:px-6 lg:px-10 gap-3 sm:gap-6 lg:gap-10 flex-shrink-0 z-40 sticky top-0 transition-all duration-500 overflow-hidden">
+    <header className="h-14 md:h-16 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-3 sm:px-5 lg:px-6 gap-3 sm:gap-5 lg:gap-6 flex-shrink-0 z-40 sticky top-0 transition-all duration-500 overflow-hidden">
       {/* Mobile menu button - Refined */}
       <button
         id="tour-mobile-menu"
@@ -110,14 +110,14 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
       </div>
 
       {/* Search global - Premium Glassmorphism Input */}
-      <div ref={searchRef} className="relative hidden md:flex items-center w-48 lg:w-96 group">
+      <div ref={searchRef} className="relative hidden md:flex items-center w-44 lg:w-64 group">
         <Search size={18} className="absolute left-5 text-muted-foreground/50 group-focus-within:text-primary transition-colors pointer-events-none z-10" />
         <input
           value={searchQuery}
           onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
           onFocus={() => setSearchOpen(true)}
           placeholder="Procurar conteúdo..."
-          className="w-full h-12 lg:h-14 pl-12 lg:pl-14 pr-12 text-xs font-bold bg-muted/30 border border-border/30 rounded-[1.25rem] focus:bg-card focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all text-foreground placeholder:text-muted-foreground/40 shadow-inner"
+          className="w-full h-11 lg:h-12 pl-12 lg:pl-14 pr-10 text-xs font-bold bg-muted/30 border border-border/30 rounded-[1.25rem] focus:bg-card focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all text-foreground placeholder:text-muted-foreground/40 shadow-inner"
         />
         {searchQuery && (
           <button onClick={() => { setSearchQuery(""); setSearchOpen(false); }}
@@ -173,7 +173,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
         {/* Actions - Theme & Notifications */}
         <div className="flex items-center gap-2 lg:gap-3 bg-muted/30 p-1.5 rounded-2xl border border-border/20 shadow-inner">
            <button 
-             className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group" 
+             className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group" 
              onClick={toggleTheme}
            >
              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
@@ -183,7 +183,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
            <DropdownMenu>
              <DropdownMenuTrigger asChild>
                <button 
-                 className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl text-muted-foreground hover:text-primary hover:bg-card transition-all shadow-sm relative flex items-center justify-center active:scale-90 group" 
+                 className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-card transition-all shadow-sm relative flex items-center justify-center active:scale-90 group" 
                >
                  <motion.div
                    animate={unreadCount > 0 ? { rotate: [0, -15, 15, -15, 15, 0] } : {}}
@@ -241,7 +241,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
           <DropdownMenuTrigger asChild>
             <button id="tour-mobile-user-menu" className="flex items-center gap-3 lg:gap-4 pl-2 pr-4 py-2 rounded-[1.5rem] bg-card/40 hover:bg-card transition-all group active:scale-95 border border-border/20 shadow-sm">
               <div className="relative">
-                 <Avatar className="w-10 h-10 lg:w-12 lg:h-12 border-2 border-primary/20 shadow-lg group-hover:rotate-6 transition-all duration-500">
+                 <Avatar className="w-9 h-9 lg:w-10 lg:h-10 border-2 border-primary/20 shadow-lg group-hover:rotate-6 transition-all duration-500">
                    <AvatarFallback className="bg-gradient-to-br from-primary via-indigo-600 to-violet-600 text-white text-[11px] lg:text-[12px] font-black tracking-tight">
                      {initials}
                    </AvatarFallback>

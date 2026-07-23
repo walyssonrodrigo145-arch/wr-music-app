@@ -665,19 +665,19 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
         onChange={handleFileChange}
       />
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 lg:gap-6">
-          <div className="flex items-center gap-3 lg:gap-4 w-full md:w-auto">
-            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-primary/5 text-primary flex items-center justify-center shadow-sm shrink-0">
-              <CreditCard size={24} />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 lg:w-12 lg:h-12 rounded-2xl bg-primary/5 text-primary flex items-center justify-center shadow-sm shrink-0">
+              <CreditCard size={20} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight leading-none">Mensalidades</h2>
-              <p className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 lg:mt-2">Controle financeiro da escola</p>
+              <h2 className="text-lg lg:text-2xl font-bold text-foreground tracking-tight leading-none">Mensalidades</h2>
+              <p className="text-[10px] text-muted-foreground font-medium mt-0.5 hidden sm:block">Controle financeiro da escola</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-             <div className="relative flex-1 md:w-64">
+          <div className="flex items-center gap-2 shrink-0">
+             <div className="relative hidden md:flex items-center w-48 lg:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                 <Input 
                   placeholder="Buscar..." 
@@ -689,27 +689,38 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
              <Button 
                id="tour-new-charge"
                onClick={() => setNovaOpen(true)}
-               className="h-10 rounded-xl px-4 lg:px-5 bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
+               className="h-10 w-10 md:w-auto md:px-4 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 shrink-0"
              >
                 <Plus size={18} />
-                <span className="hidden sm:inline">Nova</span>
+                <span className="hidden md:inline">Nova</span>
              </Button>
           </div>
         </div>
 
+        {/* Mobile Search */}
+        <div className="md:hidden relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+          <Input 
+            placeholder="Buscar aluno..."
+            className="pl-9 h-11 border-border bg-card rounded-2xl shadow-sm text-xs w-full"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
 
-        {/* METRICS CARDS - Horizontal Scroll on Mobile */}
-        <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 pb-2 lg:pb-0 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+
+        {/* METRICS CARDS - 2x2 grid on mobile, 4 cols on desktop */}
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
            {[
              { label: "Recebido", amount: stats.recebido, color: "text-emerald-600", bg: "from-emerald-500/10 to-background", border: "border-emerald-100/50" },
              { label: "Pendente", amount: stats.pendente, color: "text-amber-600", bg: "from-amber-500/10 to-background", border: "border-amber-100/50" },
              { label: "Atrasado", amount: stats.atrasado, color: "text-rose-600", bg: "from-rose-500/10 to-background", border: "border-rose-100/50" },
              { label: "Previsto", amount: stats.total, color: "text-blue-600", bg: "from-blue-500/10 to-background", border: "border-blue-500/20" },
            ].map((item, i) => (
-             <div key={i} className={cn("relative min-w-[140px] flex-1 lg:h-32 p-4 lg:p-6 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden shrink-0", item.bg, item.border)}>
+             <div key={i} className={cn("relative p-3.5 lg:p-6 lg:h-32 rounded-2xl bg-gradient-to-br border shadow-sm overflow-hidden", item.bg, item.border)}>
                <div className="relative z-10">
-                 <p className={cn("text-[8px] lg:text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1 lg:mb-2", item.color)}>{item.label}</p>
+                 <p className={cn("text-[9px] lg:text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1 lg:mb-2", item.color)}>{item.label}</p>
                  <p className="text-sm lg:text-2xl font-black text-foreground leading-none">
                     {currencyFormat(item.amount)}
                  </p>
@@ -719,18 +730,18 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
         </div>
 
         {/* FLOW BY DUE DATE (Day 5, 10, 15, 20) */}
-        <div className="bg-card rounded-[2rem] border border-border p-6 lg:p-8 shadow-sm space-y-6">
-           <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
-                 <TrendingUp size={20} />
+        <div className="bg-card rounded-2xl lg:rounded-[2rem] border border-border p-4 lg:p-8 shadow-sm space-y-4">
+           <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+                 <TrendingUp size={18} />
               </div>
               <div>
                  <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Previsão por Vencimento</h3>
-                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Quanto você irá receber em cada dia do mês</p>
+                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Quanto você irá receber em cada dia do mês</p>
               </div>
            </div>
 
-           <div className="flex flex-wrap gap-4">
+           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {useMemo(() => {
                 const dueDaysString = settings?.dueDaysForecast ?? "5,10,15,20";
                 const days = dueDaysString.split(",").map(d => Number(d.trim())).filter(n => !isNaN(n) && n > 0 && n <= 31);
@@ -761,9 +772,9 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                 result.push({ label: "Outros", amount: dayMap["OUTROS"] });
                 return result;
               }, [payments, settings?.dueDaysForecast]).map((item, i) => (
-                <div key={i} className="flex-1 min-w-[120px] p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
-                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2 group-hover:text-blue-500 transition-colors">{item.label}</p>
-                   <p className="text-base font-black text-foreground tracking-tighter">
+                <div key={i} className="p-3.5 lg:p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 group-hover:text-blue-500 transition-colors">{item.label}</p>
+                   <p className="text-sm font-black text-foreground tracking-tighter">
                       {currencyFormat(item.amount)}
                    </p>
                 </div>
@@ -772,27 +783,31 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
         </div>
 
         {/* FILTERS SECTION */}
-        <div className="flex flex-wrap items-center justify-between gap-4 bg-card p-4 rounded-2xl border border-border shadow-sm">
-           <div className="flex flex-wrap items-center gap-3">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Status</p>
-              <div className="flex bg-muted/50 p-1 rounded-xl">
+        <div className="space-y-3 bg-card p-3 lg:p-4 rounded-2xl border border-border shadow-sm">
+           {/* Status filter - horizontal scroll on mobile */}
+           <div className="flex items-center gap-2">
+              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest shrink-0 hidden sm:block">Status</p>
+              <div className="flex overflow-x-auto gap-1.5 no-scrollbar">
                  {["todas", "pendente", "pago", "atrasado"].map(st => (
-                   <button key={st} onClick={() => setFilterStatus(st)} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all", filterStatus === st ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                   <button key={st} onClick={() => setFilterStatus(st)} className={cn("px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all shrink-0", filterStatus === st ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground bg-muted/50")}
+                   >
                       {st}
                    </button>
                  ))}
               </div>
            </div>
            
-           <div className="flex flex-wrap items-center gap-3">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Modalidade</p>
-              <div className="flex bg-muted/50 p-1 rounded-xl">
+           {/* Modalidade filter */}
+           <div className="flex items-center gap-2">
+              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest shrink-0 hidden sm:block">Tipo</p>
+              <div className="flex overflow-x-auto gap-1.5 no-scrollbar">
                  {[
                    { id: "todos", label: "Todas" },
-                   { id: "individual", label: "Indiv." },
+                   { id: "individual", label: "Individual" },
                    { id: "turma", label: "Turma" }
                  ].map(t => (
-                   <button key={t.id} onClick={() => setLessonTypeFilter(t.id)} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all", lessonTypeFilter === t.id ? "bg-purple-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                   <button key={t.id} onClick={() => setLessonTypeFilter(t.id)} className={cn("px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all shrink-0", lessonTypeFilter === t.id ? "bg-purple-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground bg-muted/50")}
+                   >
                       {t.label}
                    </button>
                  ))}

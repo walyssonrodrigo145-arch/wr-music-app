@@ -14,18 +14,23 @@ interface StudentPortalLayoutProps {
 
 export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
   const { user, loading, isAuthenticated } = useAuth();
-  const { isMobile, isTablet, isDesktop } = useBreakpoint();
+  const { isMobile, isTablet, isDesktop, isXL } = useBreakpoint();
   
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 1280;
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (isTablet) {
       setCollapsed(true);
-    } else if (isDesktop) {
+    } else if (isDesktop && !isXL) {
+      setCollapsed(true);
+    } else if (isXL) {
       setCollapsed(false);
     }
-  }, [isTablet, isDesktop]);
+  }, [isTablet, isDesktop, isXL]);
 
   const [, setLocation] = useLocation();
 
@@ -86,7 +91,10 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
       />
 
       {/* Sidebar - Desktop & Tablet */}
-      <div className="hidden md:flex flex-shrink-0 transition-all duration-300" style={{ maxWidth: '280px' }}>
+      <div
+        className="hidden md:flex flex-shrink-0 transition-all duration-300"
+        style={{ width: collapsed ? '80px' : '260px', minWidth: collapsed ? '80px' : '260px' }}
+      >
         <StudentSidebar 
           collapsed={collapsed} 
           onToggle={() => setCollapsed(!collapsed)} 
@@ -109,7 +117,7 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative" style={{ minWidth: 0 }}>
         <AppHeader onMobileMenuOpen={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar flex flex-col" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-5 lg:p-6 scrollbar-thin no-scrollbar flex flex-col" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' }}>
           <div className="max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-500 flex-1">
             {children}
           </div>

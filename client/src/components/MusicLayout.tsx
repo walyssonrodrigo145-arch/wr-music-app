@@ -14,21 +14,29 @@ interface MusicLayoutProps {
 
 export function MusicLayout({ children }: MusicLayoutProps) {
   const { user, loading, isAuthenticated } = useAuth();
-  const { isMobile, isTablet, isDesktop } = useBreakpoint();
+  const { isMobile, isTablet, isDesktop, isXL } = useBreakpoint();
   
   // Sidebar state
-  // On tablet, start collapsed. On desktop, start open.
-  const [collapsed, setCollapsed] = useState(false);
+  // On tablet or desktop < 1280px (MacBook Air 13"), start collapsed.
+  // On desktop >= 1280px, start open.
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 1280;
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Sync collapsed state with tablet breakpoint
+  // Sync collapsed state with breakpoint
   useEffect(() => {
     if (isTablet) {
       setCollapsed(true);
-    } else if (isDesktop) {
+    } else if (isDesktop && !isXL) {
+      // Desktop pequeno (1024-1279px = MacBook Air 13"): colapsa sidebar
+      setCollapsed(true);
+    } else if (isXL) {
+      // Desktop grande (≥1280px): expande sidebar
       setCollapsed(false);
     }
-  }, [isTablet, isDesktop]);
+  }, [isTablet, isDesktop, isXL]);
 
   const [, setLocation] = useLocation();
 
@@ -86,7 +94,10 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       />
 
       {/* Sidebar - Desktop & Tablet */}
-      <div className="hidden md:flex flex-shrink-0 transition-all duration-300 tour-sidebar-desktop" style={{ maxWidth: '280px' }}>
+      <div
+        className="hidden md:flex flex-shrink-0 transition-all duration-300"
+        style={{ width: collapsed ? '80px' : '260px', minWidth: collapsed ? '80px' : '260px' }}
+      >
         <AppSidebar 
           collapsed={collapsed} 
           onToggle={() => setCollapsed(!collapsed)} 
@@ -126,7 +137,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8 scrollbar-thin no-scrollbar" style={{ paddingBottom: isDesktop || isTablet ? 'max(2rem, env(safe-area-inset-bottom, 0px))' : 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
+        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-5 lg:p-6 scrollbar-thin no-scrollbar" style={{ paddingBottom: isDesktop || isTablet ? 'max(1.5rem, env(safe-area-inset-bottom, 0px))' : 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
           <div className="max-w-[1600px] mx-auto w-full">
             {children}
           </div>
