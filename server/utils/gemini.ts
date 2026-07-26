@@ -44,12 +44,21 @@ export async function callGemini(
         safeModel = safeModel.includes("70b") ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
       }
 
-      const completion = await groq.chat.completions.create({
-        messages: groqMessages,
-        model: safeModel,
-        temperature: 0.3,
-        response_format: isJson ? { type: "json_object" } : undefined,
-      });
+      const GROQ_TIMEOUT_MS = 30_000;
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("[Groq] Timeout: A API não respondeu em 30 segundos.")), GROQ_TIMEOUT_MS)
+      );
+
+      const completion = await Promise.race([
+        groq.chat.completions.create({
+          messages: groqMessages,
+          model: safeModel,
+          temperature: 0.3,
+          response_format: isJson ? { type: "json_object" } : undefined,
+        }),
+        timeoutPromise,
+      ]) as any;
+
       return completion.choices[0]?.message?.content || "";
     } catch (groqError: any) {
       console.error("[Groq API Error]:", groqError);

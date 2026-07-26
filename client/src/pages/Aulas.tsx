@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { 
   ChevronLeft, 
@@ -56,34 +56,34 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type CalendarView = "mes" | "semana" | "dia" | "eventos";
-const DAYS_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÃB"];
+const DAYS_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 // Map from mobile filter chip label to DB status value
 const STATUS_CHIP_MAP: Record<string, string> = {
   "Agendadas": "agendada",
-  "ConcluÃ­das": "concluida",
+  "Concluídas": "concluida",
   "Canceladas": "cancelada",
   "Remarcadas": "remarcada",
   "Faltas": "falta",
 };
 
-// --- FUNÃ‡ÃƒO DE FORMAT SEGURO ---
+// --- FUNÇÃO DE FORMAT SEGURO ---
 const safeFormat = (date: any, formatStr: string, options?: any) => {
   try {
     const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
-    if (!isValid(d)) return "InvÃ¡lido";
+    if (!isValid(d)) return "Inválido";
     return format(d, formatStr, options);
   } catch {
-    return "InvÃ¡lido";
+    return "Inválido";
   }
 };
 
 const statusConfig = {
-  agendada: { label: "Agendada", color: "bg-blue-600", text: "text-blue-600", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-  concluida: { label: "ConcluÃ­da", color: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-  cancelada: { label: "Cancelada", color: "bg-rose-500", text: "text-rose-600", bg: "bg-rose-500/10", border: "border-rose-500/20" },
-  remarcada: { label: "Remarcada", color: "bg-purple-500", text: "text-purple-600", bg: "bg-purple-500/10", border: "border-purple-500/20" },
-  falta: { label: "Falta", color: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+  agendada: { label: "Agendada", badgeBg: "bg-blue-600 text-white", text: "text-blue-700 dark:text-blue-300", cardBg: "bg-blue-50/90 dark:bg-blue-950/40", border: "border-blue-300/80 dark:border-blue-800/60 border-l-blue-600" },
+  concluida: { label: "Concluída", badgeBg: "bg-emerald-600 text-white", text: "text-emerald-700 dark:text-emerald-300", cardBg: "bg-emerald-50/90 dark:bg-emerald-950/40", border: "border-emerald-300/80 dark:border-emerald-800/60 border-l-emerald-600" },
+  cancelada: { label: "Cancelada", badgeBg: "bg-rose-600 text-white", text: "text-rose-700 dark:text-rose-300", cardBg: "bg-rose-50/90 dark:bg-rose-950/40", border: "border-rose-300/80 dark:border-rose-800/60 border-l-rose-600" },
+  remarcada: { label: "Remarcada", badgeBg: "bg-purple-600 text-white", text: "text-purple-700 dark:text-purple-300", cardBg: "bg-purple-50/90 dark:bg-purple-950/40", border: "border-purple-300/80 dark:border-purple-800/60 border-l-purple-600" },
+  falta: { label: "Falta", badgeBg: "bg-amber-600 text-white", text: "text-amber-700 dark:text-amber-300", cardBg: "bg-amber-50/90 dark:bg-amber-950/40", border: "border-amber-300/80 dark:border-amber-800/60 border-l-amber-600" },
 };
 
 const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: React.MouseEvent) => void }) => {
@@ -95,36 +95,48 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
       <motion.div
         layoutId={`lesson-${lesson.id}`}
         onClick={onClick}
+        whileHover={{ scale: 1.02 }}
         className={cn(
-          "p-3.5 rounded-xl border-l-4 bg-card border-border transition-all cursor-pointer shadow-sm mb-2 hover:border-purple-500/30",
-          config.border
+          "p-2.5 rounded-xl border border-l-4 transition-all cursor-pointer shadow-sm mb-2 hover:shadow-md backdrop-blur-sm select-none",
+          isTurma 
+            ? "bg-purple-50/90 dark:bg-purple-950/40 border-purple-300/80 dark:border-purple-800/60 border-l-purple-600" 
+            : `${config.cardBg} ${config.border}`
         )}
-        style={{ borderLeftColor: isTurma ? '#9333ea' : config.color.replace('bg-', '') }}
       >
-        <div className="flex items-center justify-between mb-1.5">
-          <span className={cn("text-[10px] font-black uppercase tracking-widest", isTurma ? "text-purple-600" : config.text)}>
+        <div className="flex items-center justify-between gap-1 mb-1">
+          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-xs", isTurma ? "bg-purple-600 text-white" : config.badgeBg)}>
             {safeFormat(lesson.scheduledAt, "HH:mm")}
           </span>
-          <div className={cn("w-2 h-2 rounded-full", isTurma ? "bg-purple-600" : config.color)} />
+          {isTurma ? (
+            <span className="text-[9px] font-black uppercase text-purple-700 dark:text-purple-300 bg-purple-200/60 dark:bg-purple-900/60 px-1.5 py-0.5 rounded-full">
+              Turma
+            </span>
+          ) : (
+            <span className={cn("text-[9px] font-bold uppercase truncate max-w-[80px]", config.text)}>
+              {config.label}
+            </span>
+          )}
         </div>
-        <p className="text-xs font-black text-foreground truncate leading-tight">
+        <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate leading-snug">
           {titleText}
         </p>
-        <div className="flex items-center gap-1.5 mt-1.5 opacity-60">
-           <Music size={10} className="text-muted-foreground" />
-           <p className="text-[9px] text-muted-foreground font-bold truncate uppercase">{lesson.instrumentName || "Geral"}</p>
+        <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-black/5 dark:border-white/5 text-[9px]">
+           <div className="flex items-center gap-1 min-w-0 font-bold text-slate-600 dark:text-slate-300">
+             <Music size={10} className="shrink-0 text-blue-600 dark:text-blue-400" />
+             <span className="truncate uppercase">{lesson.instrumentName || "Geral"}</span>
+           </div>
+           {lesson.teacherName && (
+             <div className="flex items-center gap-1 font-bold text-blue-700 dark:text-blue-300 truncate max-w-[90px]">
+               <User size={10} className="shrink-0" />
+               <span className="truncate">{lesson.teacherName.split(' ')[0]}</span>
+             </div>
+           )}
         </div>
-        {lesson.teacherName && (
-          <div className="flex items-center gap-1 mt-1 text-[9px] text-blue-600 font-bold truncate">
-            <User size={10} className="shrink-0 text-blue-500" />
-            <span className="truncate">Prof. {lesson.teacherName}</span>
-          </div>
-        )}
         {isTurma && (
-          <div className="mt-2 py-0.5 px-2 bg-purple-500/10 rounded-full w-fit flex items-center gap-1">
-            <Users size={10} className="text-purple-600" />
-            <p className="text-[8px] font-black text-purple-600 uppercase tracking-widest">
-              Turma ({lesson.studentCount || 1} Alunos)
+          <div className="mt-1 py-0.5 px-2 bg-purple-600/10 dark:bg-purple-400/10 rounded-full w-fit flex items-center gap-1 border border-purple-500/20">
+            <Users size={10} className="text-purple-700 dark:text-purple-300" />
+            <p className="text-[8px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+              {lesson.studentCount || 1} Alunos
             </p>
           </div>
         )}
@@ -349,7 +361,7 @@ export default function Aulas() {
                     onChange={e => setCurrentDate(new Date(currentDate.getFullYear(), Number(e.target.value), 1))}
                     className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground focus:outline-none shadow-sm cursor-pointer"
                   >
-                    {["Janeiro","Fevereiro","MarÃ§o","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((m, i) => (
+                    {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((m, i) => (
                       <option key={i} value={i}>{m}</option>
                     ))}
                   </select>
@@ -436,7 +448,7 @@ export default function Aulas() {
               >
                 <option value="geral">Todos</option>
                 <option value="agendada">Agendadas</option>
-                <option value="concluida">ConcluÃ­das</option>
+                <option value="concluida">Concluídas</option>
                 <option value="cancelada">Canceladas</option>
                 <option value="remarcada">Remarcadas</option>
                 <option value="falta">Faltas</option>
@@ -465,13 +477,24 @@ export default function Aulas() {
               </button>
             )}
 
-            <Button
-              onClick={() => setAgendarOpen(true)}
-              className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all ml-2"
-            >
-              <Plus size={16} strokeWidth={3} />
-              <span>+ Nova</span>
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button
+                onClick={() => setAgendarOpen(true)}
+                className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+              >
+                <Plus size={16} strokeWidth={3} />
+                <span>+ Nova</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIsExpanded(!isExpanded)}
+                title={isExpanded ? "Restaurar tamanho" : "Maximizar Agenda"}
+                className="h-9 w-9 rounded-xl border-border/60 hover:bg-muted shadow-sm"
+              >
+                {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -612,49 +635,49 @@ export default function Aulas() {
               </AnimatePresence>
             </div>
 
-            {/* Legenda de Cores no RodapÃ© (Como na Imagem) */}
+            {/* Legenda de Cores no Rodapé */}
             <div className="flex items-center gap-4 flex-wrap pt-3 border-t border-border/40 text-[10px] font-bold text-muted-foreground">
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Individual</div>
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-purple-600" /> Turma</div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> ReposiÃ§Ã£o</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Reposição</div>
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Experimental</div>
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Cancelada</div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> ConcluÃ­da</div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Concluída</div>
             </div>
           </div>
 
-          {/* Coluna Direita (Painel de Resumo do Dia e OcupaÃ§Ã£o da Semana) */}
-          <div className="w-80 border-l border-border/40 bg-card/30 p-4 space-y-4 overflow-y-auto no-scrollbar shrink-0 hidden xl:block">
+          {/* Coluna Direita (Painel de Resumo do Dia e Ocupação da Semana) */}
+          <div className="w-80 border-l border-border/40 bg-card/30 backdrop-blur-md p-4 space-y-4 overflow-y-auto no-scrollbar shrink-0 hidden xl:block">
             {/* Card de Resumo do dia */}
-            <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
+            <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Resumo do dia</span>
                 <span className="text-[10px] font-bold text-blue-600">{format(new Date(), "dd/MM")}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
+                <div className="p-2 bg-muted/30 rounded-xl border border-border/40">
                   <p className="text-base font-black text-foreground">{todayLessons.length}</p>
                   <p className="text-[9px] font-bold text-muted-foreground uppercase">Aulas</p>
                 </div>
-                <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
+                <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                   <p className="text-base font-black text-emerald-600">{todayCompleted}</p>
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase">ConcluÃ­das</p>
+                  <p className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Concluídas</p>
                 </div>
-                <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
+                <div className="p-2 bg-rose-500/10 rounded-xl border border-rose-500/20">
                   <p className="text-base font-black text-rose-500">{todayCancelled}</p>
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Canceladas</p>
+                  <p className="text-[9px] font-bold text-rose-700 dark:text-rose-300 uppercase">Canceladas</p>
                 </div>
-                <div className="p-2 bg-muted/20 rounded-xl border border-border/30">
+                <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20">
                   <p className="text-base font-black text-blue-600">{todayPending}</p>
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Pendentes</p>
+                  <p className="text-[9px] font-bold text-blue-700 dark:text-blue-300 uppercase">Pendentes</p>
                 </div>
               </div>
             </div>
 
-            {/* PrÃ³ximas Aulas de Hoje (Timeline) */}
-            <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
+            {/* Próximas Aulas de Hoje (Timeline) */}
+            <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">PrÃ³ximas aulas hoje</span>
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Próximas aulas hoje</span>
                 <span className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer" onClick={() => setView('dia')}>Ver todas</span>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
@@ -667,7 +690,7 @@ export default function Aulas() {
                     const statusColor = l.status === 'concluida' ? "bg-emerald-500 text-emerald-600" : l.status === 'falta' ? "bg-rose-500 text-rose-500" : "bg-blue-500 text-blue-600";
 
                     return (
-                      <div key={l.id} className="p-3 bg-muted/20 hover:bg-muted/40 rounded-xl border border-border/40 flex items-center justify-between cursor-pointer transition-all group" onClick={() => setDetailLessonId(l.id)}>
+                      <div key={l.id} className="p-3 bg-muted/30 hover:bg-muted/60 rounded-xl border border-border/50 flex items-center justify-between cursor-pointer transition-all group" onClick={() => setDetailLessonId(l.id)}>
                         <div className="min-w-0 flex-1 pr-2">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-xs font-black text-blue-600">{safeFormat(l.scheduledAt, "HH:mm")}</span>
@@ -678,7 +701,7 @@ export default function Aulas() {
                             <span className="truncate">{l.instrumentName || "Geral"}</span>
                             {l.teacherName && (
                               <>
-                                <span>â€¢</span>
+                                <span>•</span>
                                 <span className="text-blue-600 font-bold">Prof. {l.teacherName}</span>
                               </>
                             )}
@@ -695,9 +718,9 @@ export default function Aulas() {
               </div>
             </div>
 
-            {/* OcupaÃ§Ã£o da Semana (GrÃ¡fico de Barras) */}
-            <div className="bg-card rounded-2xl p-4 border border-border/60 shadow-sm space-y-3">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">OcupaÃ§Ã£o da semana</span>
+            {/* Ocupação da Semana (Gráfico de Barras) */}
+            <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Ocupação da semana</span>
               <div className="flex items-end justify-between gap-1.5 h-28 pt-4 px-1">
                 {occupancy.map((occ, idx) => (
                   <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">

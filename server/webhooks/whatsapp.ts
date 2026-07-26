@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { getDb } from "../db";
-import { students, chatbotSessions, lessons, settings, paymentDues } from "../../drizzle/schema";
-import { eq, and, gte } from "drizzle-orm";
+import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens } from "../../drizzle/schema";
+import { eq, and, gte, ilike } from "drizzle-orm";
 import { sendWhatsAppMessage } from "../utils/whatsapp";
 import { buildUserContext } from "../utils/aiContext";
 import { getSystemPrompt } from "../utils/aiPrompts";
 import { callGemini } from "../utils/gemini";
+import { sendPushNotification } from "../firebaseAdmin";
 
 const router = Router();
 
@@ -162,6 +163,7 @@ router.post("/", async (req, res) => {
         groqApiKey: settings.groqApiKey,
         groqModel: settings.groqModel,
         aiProvider: settings.aiProvider,
+        pixKey: settings.pixKey,
       })
       .from(settings)
       .where(eq(settings.userId, professorUserId))
@@ -202,29 +204,82 @@ router.post("/", async (req, res) => {
       console.log(`[Chatbot] Resposta para ${phone} via ${instanceName || "prof_1"}: success=${result.success}`, result.error ? `Erro: ${result.error}` : "");
     };
 
-    // ── Função auxiliar para notificar o professor ──
-    const notifyProfessor = async (msg: string) => {
+    // ── Função auxiliar para notificar o professor (Push FCM + Sistema + WhatsApp) ──
+    const notifyProfessor = async (msg: string, title?: string) => {
+      const notifTitle = title || "🤖 Aviso do Robô WhatsApp";
+
+      // 1. Inserir no painel do sistema (banco de dados)
+      try {
+        await db.insert(notifications).values({
+          organizationId: profSettings.organizationId,
+          userId: professorUserId,
+          title: notifTitle,
+          message: msg,
+          type: "info",
+          read: false,
+          actionUrl: "/automacoes",
+          createdAt: new Date(),
+        });
+      } catch (nErr) {
+        console.error("[notifyProfessor] Erro ao salvar notificação no banco:", nErr);
+      }
+
+      // 2. Disparar notificação PUSH para o aparelho do professor (FCM)
+      try {
+        const tokens = await db
+          .select({ token: fcmTokens.token })
+          .from(fcmTokens)
+          .where(eq(fcmTokens.userId, professorUserId));
+
+        for (const { token } of tokens) {
+          await sendPushNotification(
+            token,
+            notifTitle,
+            msg.replace(/\*/g, ""),
+            { url: "/automacoes" }
+          );
+        }
+      } catch (fcmErr) {
+        console.error("[notifyProfessor] Erro ao enviar Push FCM:", fcmErr);
+      }
+
+      // 3. Notificar via mensagem do WhatsApp
       if (!profSettings.phone) return;
       const result = await sendWhatsAppMessage({
         url: profSettings.whatsappBotUrl || undefined,
         token: profSettings.whatsappBotToken || undefined,
         phone: profSettings.phone,
-        message: `🤖 *Aviso do Robô:*\n\n${msg}`,
+        message: `🤖 *${notifTitle}:*\n\n${msg}`,
         sessionId: instanceName || "prof_1",
       });
       console.log(`[Chatbot] Notificação enviada ao professor (${profSettings.phone}): success=${result.success}`);
     };
 
-    // ── Identificar aluno cadastrado ──
+    // ── Identificar aluno cadastrado (pelo telefone do aluno OU do responsável) ──
     const allStudents = await db
       .select()
       .from(students)
       .where(eq(students.professorId, professorUserId));
 
     const student = allStudents.find((s) => {
-      const cleanDb = s.phone.replace(/\D/g, "").slice(-8);
-      const cleanMsg = phone.slice(-8);
-      return cleanDb === cleanMsg;
+      const cleanMsg = phone.replace(/\D/g, "");
+      if (!cleanMsg) return false;
+
+      // 1. Telefone do aluno
+      const cleanStudentPhone = s.phone ? s.phone.replace(/\D/g, "") : "";
+      if (cleanStudentPhone) {
+        const targetLen = cleanStudentPhone.length >= 10 ? 10 : 8;
+        if (cleanStudentPhone.slice(-targetLen) === cleanMsg.slice(-targetLen)) return true;
+      }
+
+      // 2. Telefone do responsável (pai / mãe)
+      const cleanGuardianPhone = s.guardianPhone ? s.guardianPhone.replace(/\D/g, "") : "";
+      if (cleanGuardianPhone) {
+        const targetLen = cleanGuardianPhone.length >= 10 ? 10 : 8;
+        if (cleanGuardianPhone.slice(-targetLen) === cleanMsg.slice(-targetLen)) return true;
+      }
+
+      return false;
     });
 
     // ── Recuperar ou criar sessão ──
@@ -274,6 +329,87 @@ router.post("/", async (req, res) => {
     const inputUpper = input.toUpperCase();
 
     // ─────────────────────────────────────────────────────
+    // PROCESSAMENTO AUTOMÁTICO DE COMPROVANTES DE PAGAMENTO (PIX/FOTO/PDF)
+    // ─────────────────────────────────────────────────────
+    const isReceiptContext =
+      messageData.imageMessage ||
+      messageData.documentMessage ||
+      /comprovante|paguei|pix|transferencia|transferência|pagamento|deposito|depósito/i.test(textMsg);
+
+    if (student && isReceiptContext && !payload.data.key?.fromMe) {
+      const pendingDues = await db
+        .select()
+        .from(paymentDues)
+        .where(
+          and(
+            eq(paymentDues.studentId, student.id),
+            eq(paymentDues.status, "pendente")
+          )
+        );
+
+      if (pendingDues.length > 0) {
+        let targetDue = pendingDues[0];
+        let extractedAmount: number | null = null;
+        let isReceiptValid = false;
+
+        const priceMatch = textMsg.match(/R\$\s?(\d+(?:[.,]\d{2})?)/i) || textMsg.match(/(\d+(?:[.,]\d{2})?)\s?(reais|brl)/i);
+        if (priceMatch) {
+          extractedAmount = parseFloat(priceMatch[1].replace(",", "."));
+        }
+
+        try {
+          const aiAnalysis = await callGemini(
+            [{ role: "user", content: `Mensagem com comprovante: "${textMsg}". O aluno tem mensalidade pendente de R$ ${targetDue.amount}.` }],
+            "Você é um analisador financeiro. Determine se a mensagem indica um comprovante de pagamento de mensalidade. Responda APENAS em JSON: {\"isReceipt\": true, \"amount\": 150.00}",
+            true,
+            profSettings.aiProvider === 'groq' ? profSettings.groqApiKey : profSettings.geminiApiKey,
+            profSettings.aiProvider === 'groq' ? profSettings.groqModel : profSettings.geminiModel
+          );
+          const cleanJsonStr = aiAnalysis.replace(/```json/gi, "").replace(/```/g, "").trim();
+          const parsed = JSON.parse(cleanJsonStr);
+          if (parsed.isReceipt) {
+            isReceiptValid = true;
+            if (parsed.amount) extractedAmount = parsed.amount;
+          }
+        } catch (_) {
+          if (messageData.imageMessage || messageData.documentMessage || /comprovante/i.test(textMsg)) {
+            isReceiptValid = true;
+          }
+        }
+
+        if (isReceiptValid) {
+          if (extractedAmount) {
+            const matched = pendingDues.find(d => Math.abs(parseFloat(String(d.amount)) - extractedAmount!) < 1.0);
+            if (matched) targetDue = matched;
+          }
+
+          await db.update(paymentDues)
+            .set({
+              status: "pago",
+              paidAt: new Date(),
+              paymentMethod: "pix",
+              updatedAt: new Date(),
+            })
+            .where(eq(paymentDues.id, targetDue.id));
+
+          const formattedValue = parseFloat(String(targetDue.amount)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          const formattedDueDate = new Date(targetDue.dueDate + "T12:00:00").toLocaleDateString("pt-BR");
+
+          await notifyProfessor(
+            `✅ *Baixa Automática de Mensalidade!*\n\n👤 *Aluno:* ${student.name}\n💰 *Valor:* ${formattedValue}\n📅 *Vencimento:* ${formattedDueDate}\n📱 *Comprovante recebido via WhatsApp*`,
+            "💳 Comprovante Recebido e Baixado"
+          );
+
+          await updateState("AGUARDANDO_MENU");
+          await sendReply(
+            `✅ *Comprovante recebido com sucesso!*\n\nConfirmamos a baixa da sua mensalidade no valor de *${formattedValue}* (vencimento: ${formattedDueDate}) no nosso sistema! 🎵🌟\n\nMuito obrigado pelo pagamento! Digite *MENU* se precisar de mais alguma coisa. 😊`
+          );
+          return res.status(200).json({ ok: true });
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
     // FLUXO: IA ASSISTENTE DO PROFESSOR (Chat Próprio)
     // ─────────────────────────────────────────────────────
     if (isProfessorChat) {
@@ -282,7 +418,7 @@ router.post("/", async (req, res) => {
         // Indica que está "digitando..." ou manda um status de espera (opcional)
         
         // Monta o contexto da escola (planilhas virtuais, dados, etc.)
-        const userDataContext = await buildUserContext(db, professorUserId, profSettings.organizationId, true);
+        const userDataContext = await buildUserContext(db, professorUserId, profSettings.organizationId || 1, true);
         const systemPrompt = getSystemPrompt(userDataContext) + 
           "\n\nIMPORTANTE: Você está respondendo ao Professor diretamente pelo WhatsApp. Responda de forma clara, amigável e concisa. Você pode usar blocos ACTION como ACTION:CREATE_LESSON e ACTION:CREATE_STUDENT para realizar agendamentos de aulas e cadastros de alunos diretamente pelo WhatsApp! Não use o bloco SPREADSHEET no WhatsApp.";
 
@@ -315,9 +451,11 @@ router.post("/", async (req, res) => {
             const lessonData = JSON.parse(jsonStr);
             let targetStudentId: number | null = null;
             if (lessonData.studentName) {
+              const whereConds = [ilike(students.name, `%${lessonData.studentName}%`)];
+              if (profSettings.organizationId) whereConds.push(eq(students.organizationId, profSettings.organizationId));
               const [foundStudent] = await db.select({ id: students.id })
                 .from(students)
-                .where(and(eq(students.organizationId, profSettings.organizationId), ilike(students.name, `%${lessonData.studentName}%`)))
+                .where(and(...whereConds))
                 .limit(1);
               if (foundStudent) targetStudentId = foundStudent.id;
             }
@@ -497,6 +635,9 @@ router.post("/", async (req, res) => {
               msg += `   💳 Pague aqui: ${p.mpPaymentLink}\n`;
             }
           });
+          if (profSettings.pixKey) {
+            msg += `\n🔑 *Chave PIX para pagamento:* ${profSettings.pixKey}\n`;
+          }
           msg += `━━━━━━━━━━━━━━━━━━\n\nQualquer dúvida, é só falar! Digite *MENU* para voltar ou *5* para falar com o professor.`;
           await sendReply(msg);
         }
@@ -572,6 +713,7 @@ router.post("/", async (req, res) => {
       if (isOption(input, "5")) {
         // Falar com professor
         await updateState("PAUSED_HUMAN");
+        await notifyProfessor(`👤 *Solicitação de Atendimento Humano!*\n\nO aluno *${student?.name || pushName}* (${phone}) solicitou falar com você no WhatsApp.`);
         await sendReply("Claro! Vou chamar o professor pra você agora. Aguarda um instante! 🎸👤\n\n_Quando quiser voltar ao menu automático, é só digitar *MENU*._");
         return res.status(200).json({ ok: true });
       }
@@ -602,6 +744,7 @@ router.post("/", async (req, res) => {
       if (isOption(input, "2")) {
         // Falar com equipe
         await updateState("PAUSED_HUMAN");
+        await notifyProfessor(`👤 *Novo Cliente Aguardando Atendimento!*\n\nContato (${phone}) solicitou falar com a equipe no WhatsApp.`);
         await sendReply("Perfeito! Já estou chamando nossa equipe pra te atender. Aguarda um pouquinho! 👤😊\n\n_Se quiser voltar ao menu automático depois, é só digitar *MENU*._");
         return res.status(200).json({ ok: true });
       }
@@ -869,6 +1012,8 @@ router.post("/", async (req, res) => {
       const indicadorNome = student?.name || pushName;
 
       console.log(`[Chatbot] Indicação registrada: ${nomeAmigo} (${telAmigo}) indicado por ${indicadorNome} (${phone})`);
+
+      await notifyProfessor(`⭐ *Nova Indicação de Amigo Recebida!*\n\n👤 *Indicado por:* ${indicadorNome} (${phone})\n🌟 *Nome do amigo:* ${nomeAmigo}\n📱 *WhatsApp do amigo:* ${telAmigo || input}\n\nEntre em contato para oferecer uma aula experimental! 🎵`);
 
       await updateState("START", {});
       await sendReply(
