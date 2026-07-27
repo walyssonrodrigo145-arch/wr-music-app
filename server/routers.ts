@@ -923,45 +923,45 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         : "Nenhuma meta específica cadastrada para esta semana.";
 
       const jsonTemplate = JSON.stringify({
-        weeklyGoal: "Texto final escrito diretamente para o aluno explicando o objetivo da semana no " + instrumentName + ".",
-        importantMessage: "Dica pessoal do professor para o aluno manter o foco durante a semana.",
+        weeklyGoal: "Nesta semana, nosso foco total é fazer você dominar a montagem e a troca fluida dos acordes de Dó Maior no " + instrumentName + ", aplicando esses acordes diretamente em uma música sem travar o ritmo.",
+        importantMessage: "Lembre-se: não busque velocidade agora. O segredo no " + instrumentName + " é a precisão e a clareza de cada nota. Toque com calma e sinta os dedos se acostumarem.",
         days: [
           {
             dayName: "Dia 1",
             focus: { 
-              title: "Título do foco do dia (ex: Conhecer as notas e acordes de Dó Maior)", 
-              description: "Explicação em 2-3 frases diretamente para o aluno sobre a importância deste primeiro dia." 
+              title: "Conhecer a posição e montagem dos primeiros acordes", 
+              description: "Hoje você vai aprender a formar os acordes básicos com a postura correta da mão no " + instrumentName + ", garantindo que cada nota soe perfeita desde o primeiro toque." 
             },
             exercises: [
               { 
                 title: "Aquecimento", 
-                subtitle: "Postura e preparação dos dedos", 
+                subtitle: "Relaxamento dos pulsos e articulação dos dedos", 
                 duration: "10 min", 
                 points: [
-                  "Explicação direta do motivo do aquecimento e como ele prepara as mãos para o treino.",
-                  "Instrução passo a passo exata de como posicionar os dedos e tocar lentamente sem tensão.",
-                  "Alerta sobre o erro mais comum e a dica exata de como saber se o som saiu limpo e correto."
+                  "O objetivo deste aquecimento é soltar os músculos da mão e evitar tensão nos pulsos antes de montar os acordes.",
+                  "Posicione sua mão com os dedos levemente curvados sobre as teclas/cordas. Toque cada nota lentamente contando 1, 2, 3, 4 em ritmo constante.",
+                  "Um erro muito comum é curvar demais o pulso ou colocar força excessiva. Se sentir desconforto, pare, chacoalhe os braços e retome devagar."
                 ], 
                 icon: "music" 
               },
               { 
                 title: "Prática Principal", 
-                subtitle: "Troca e execução dos acordes corretos", 
+                subtitle: "Montagem individual dos acordes de Dó e Sol", 
                 duration: "30 min", 
                 points: [
-                  "Objetivo real da prática (ex: Montar C, Dm, Em, F, G, Am e treinar as trocas sem parar o ritmo).",
-                  "Passo a passo minucioso de onde colocar cada dedo no " + instrumentName + " e a contagem de tempo.",
-                  "O que observar no som/postura e o ajuste exato para corrigir qualquer nota abafada."
+                  "Vamos montar o acorde de Dó Maior. Coloque os dedos exatamente nas notas indicadas, pressionando com a ponta dos dedos e não com a parte chata.",
+                  "Toque nota por nota bem devagar. Escute se alguma nota está saindo abafada ou trastejando. Se sair abafada, levante ligeiramente a falange do dedo.",
+                  "Repita a montagem 5 vezes seguidas: monte o acorde, toque, tire a mão do instrumento, relaxe 2 segundos e monte de novo até virar memória muscular."
                 ], 
                 icon: "star"
               },
               {
                 title: "Teoria ou Desafio",
-                subtitle: "Aplicação prática da meta",
+                subtitle: "Desafio da troca limpa em 4 tempos",
                 duration: "10 min",
                 points: [
-                  "Desafio prático real (ex: Tocar a sequência C - G - Am - F contando de 1 a 4).",
-                  "Sinal claro de sucesso para o aluno saber sozinho que concluiu o desafio com maestria."
+                  "Seu desafio hoje é trocar do acorde de Dó Maior para Sol Maior contando 4 tempos em cada acorde sem interromper a contagem.",
+                  "Você saberá que venceu o desafio quando conseguir fazer 3 trocas seguidas sem parar o ritmo para procurar onde colocar os dedos."
                 ], 
                 icon: "pen" 
               }
@@ -970,50 +970,39 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         ]
       }, null, 2);
 
-      const prompt = `# 🎼 MusicPro AI v4.0 — Patch de Inteligência Pedagógica
+      const prompt = `# 🎼 MusicPro AI v5.0 — Texto Didático Direto ao Aluno
 
-# REGRA MÁXIMA DE CONTEÚDO (LEIA COM ATENÇÃO!)
-Sua resposta no JSON NUNCA DEVE CONTER METALINGUAGEM OU INSTRUÇÕES DO TIPO "Explique a importância...", "Detalhe a execução...", "Ensine como...".
-Você é o professor falando DIRETO com o aluno.
-Escreva a EXPLICAÇÃO FINAL E PRONTA para o aluno ler.
+# REGRAS DE OURO INQUEBRÁVEIS (LEIA COM MÁXIMA ATENÇÃO!)
 
-EXEMPLO DE ERRO CRÍTICO (NUNCA FAÇA ISSO):
-❌ "Objetivo e por que fazer: Explique a importância de conhecer as notas do campo harmônico..."
+1. **VOCÊ É O PROFESSOR FALANDO DIRETAMENTE COM O ALUNO**:
+   Tudo o que você escrever nos campos do JSON deve ser a **EXPLICAÇÃO DIDÁTICA PRONTA E FINAL** para o aluno ler e praticar no ${instrumentName}.
+   
+2. **PROIBIÇÃO ABSOLUTA DE FRASES INSTRUCIONAIS / METALINGUAGEM**:
+   NUNCA escreva frases como:
+   ❌ "Explicação direta do motivo..."
+   ❌ "Instrução passo a passo exata de como..."
+   ❌ "Alerta sobre o erro mais comum..."
+   ❌ "Objetivo real da prática..."
+   ❌ "Passo a passo minucioso de onde colocar..."
+   ❌ "Explique a importância de..."
+   
+   Escreva SEMPRE a explicação real e prática:
+   ✅ "O objetivo deste exercício é treinar sua mão para trocar do acorde C para G sem pausar a batida."
+   ✅ "Coloque o dedo 1 na primeira casa e o dedo 2 na segunda casa, mantendo o polegar apoiado atrás do braço."
+   ✅ "O erro mais comum aqui é deixar o dedo deitar sobre a corda vizinha. Mantenha os dedos curvados como garras."
 
-EXEMPLO CORRETO:
-✅ "O objetivo de hoje é fazer seus dedos decorarem o desenho dos acordes de Dó Maior (C), Ré menor (Dm) e Mi menor (Em). Fazer isso logo no primeiro dia garante que você não precise parar para pensar na posição dos dedos quando for tocar uma música inteira."
+3. **CONTEÚDO RÍGIDO E PROIBIDO ERRAR TEORIA MUSICAL**:
+   Se a meta for "Campo Harmônico de Dó Maior", os acordes REAIS E CORRETOS são estritamente:
+   - Dó Maior (C), Ré menor (Dm), Mi menor (Em), Fá Maior (F), Sol Maior (G), Lá menor (Am), Si menor com quinta diminuta (Bdim).
+   PROIBIDO inventar acordes de outras tonalidades (como Ré Maior ou Fa#).
 
----
-
-# RIGOR MUSICAL E TEÓRICO (PROIBIDO ERRAR NOTAS E ACORDES!)
-Se a meta for "Campo Harmônico de Dó Maior", os acordes REAIS E CORRETOS são estritamente:
-- Dó Maior (C), Ré menor (Dm), Mi menor (Em), Fá Maior (F), Sol Maior (G), Lá menor (Am), Si menor com quinta diminuta (Bdim).
-É TERMINANTEMENTE PROIBIDO inventar acordes errados (como dizer que o Campo Harmônico de Dó Maior tem Ré Maior ou Fa#). Se tiver dúvidas, siga rigorosamente a teoria musical exata!
-
----
-
-# IDENTIDADE DA IA
-Você NÃO é um gerador de planos.
-Você NÃO é um escritor.
-Você NÃO é uma inteligência artificial.
-Você é um professor particular especializado no instrumento do aluno (${instrumentName}).
-Você possui mais de 20 anos de experiência ensinando alunos iniciantes, intermediários e avançados.
-Você sabe exatamente como explicar qualquer assunto de forma simples.
-Seu maior objetivo é fazer o aluno entender. Não apenas praticar.
-
----
-
-# MISSÃO
-Sua missão NÃO é preencher um JSON com placeholders ou metalinguagem.
-Sua missão é entregar um plano com EXPLICATIVOS PRONTOS, DIDÁTICOS E COMPLETOS para o aluno.
-Cada exercício precisa existir por um motivo.
-Cada exercício deve desenvolver exatamente uma habilidade.
-Cada dia precisa preparar o próximo.
-O aluno deve sentir que existe um professor acompanhando sua evolução.
+4. **CADA UM DOS 5 DIAS DEVE TER TEXTOS COMPLETAMENTE DIFERENTES**:
+   NÃO repita os mesmos textos de aquecimento, prática ou desafio nos dias 2, 3, 4 e 5.
+   Cada dia deve ter títulos, subtítulos e orientações totalmente novas focadas na evolução diária!
 
 ---
 
-# REGRAS ABSOLUTAS E RIGOROSAS
+# REGRAS ABSOLUTAS DE CONTEÚDO
 
 ## REGRA ABSOLUTA Nº 1 — NUNCA INVENTE CONTEÚDO MUSICAL
 Você só pode utilizar:
