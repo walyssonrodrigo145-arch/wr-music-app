@@ -23,6 +23,8 @@ import {
   Calendar,
   Maximize2,
   Minimize2,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -156,6 +158,7 @@ export default function Aulas() {
   const [statusFilterDesktop, setStatusFilterDesktop] = useState("geral");
   const [lessonTypeFilter, setLessonTypeFilter] = useState("todos");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showRightPanel, setShowRightPanel] = useState(true);
 
   // Mobile specific states
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -494,6 +497,15 @@ export default function Aulas() {
               >
                 {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowRightPanel(!showRightPanel)}
+                title={showRightPanel ? "Esconder painel de resumo" : "Exibir painel de resumo"}
+                className={cn("h-9 w-9 rounded-xl border-border/60 hover:bg-muted shadow-sm transition-all", !showRightPanel && "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400")}
+              >
+                {showRightPanel ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+              </Button>
             </div>
           </div>
         </div>
@@ -647,99 +659,101 @@ export default function Aulas() {
           </div>
 
           {/* Coluna Direita (Painel de Resumo do Dia e Ocupação da Semana) */}
-          <div className="w-80 border-l border-border/40 bg-card/30 backdrop-blur-md p-4 space-y-4 overflow-y-auto no-scrollbar shrink-0 hidden xl:block">
-            {/* Card de Resumo do dia */}
-            <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Resumo do dia</span>
-                <span className="text-[10px] font-bold text-blue-600">{format(new Date(), "dd/MM")}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="p-2 bg-muted/30 rounded-xl border border-border/40">
-                  <p className="text-base font-black text-foreground">{todayLessons.length}</p>
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Aulas</p>
+          {showRightPanel && (
+            <div className="w-80 border-l border-border/40 bg-card/30 backdrop-blur-md p-4 space-y-4 overflow-y-auto no-scrollbar shrink-0 hidden xl:block">
+              {/* Card de Resumo do dia */}
+              <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Resumo do dia</span>
+                  <span className="text-[10px] font-bold text-blue-600">{format(new Date(), "dd/MM")}</span>
                 </div>
-                <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                  <p className="text-base font-black text-emerald-600">{todayCompleted}</p>
-                  <p className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Concluídas</p>
-                </div>
-                <div className="p-2 bg-rose-500/10 rounded-xl border border-rose-500/20">
-                  <p className="text-base font-black text-rose-500">{todayCancelled}</p>
-                  <p className="text-[9px] font-bold text-rose-700 dark:text-rose-300 uppercase">Canceladas</p>
-                </div>
-                <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                  <p className="text-base font-black text-blue-600">{todayPending}</p>
-                  <p className="text-[9px] font-bold text-blue-700 dark:text-blue-300 uppercase">Pendentes</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Próximas Aulas de Hoje (Timeline) */}
-            <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Próximas aulas hoje</span>
-                <span className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer" onClick={() => setView('dia')}>Ver todas</span>
-              </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
-                {todayLessons.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic text-center py-4">Nenhuma aula agendada para hoje.</p>
-                ) : (
-                  todayLessons.slice(0, 6).map((l: any) => {
-                    const isTurma = l.lessonType === 'turma';
-                    const nameText = isTurma ? (l.title || "Turma") : (l.studentName || l.experimentalName || "Aula");
-                    const statusColor = l.status === 'concluida' ? "bg-emerald-500 text-emerald-600" : l.status === 'falta' ? "bg-rose-500 text-rose-500" : "bg-blue-500 text-blue-600";
-
-                    return (
-                      <div key={l.id} className="p-3 bg-muted/30 hover:bg-muted/60 rounded-xl border border-border/50 flex items-center justify-between cursor-pointer transition-all group" onClick={() => setDetailLessonId(l.id)}>
-                        <div className="min-w-0 flex-1 pr-2">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-xs font-black text-blue-600">{safeFormat(l.scheduledAt, "HH:mm")}</span>
-                            <span className="text-xs font-bold text-foreground truncate group-hover:text-blue-600 transition-colors">{nameText}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground font-bold uppercase flex-wrap">
-                            <Music size={10} className="text-blue-500 shrink-0" />
-                            <span className="truncate">{l.instrumentName || "Geral"}</span>
-                            {l.teacherName && (
-                              <>
-                                <span>•</span>
-                                <span className="text-blue-600 font-bold">Prof. {l.teacherName}</span>
-                              </>
-                            )}
-                            {isTurma && <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-1.5 py-0.2 rounded-full border border-purple-500/20">Turma</span>}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <div className={cn("w-2 h-2 rounded-full shadow-sm", statusColor.split(' ')[0])} />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Ocupação da Semana (Gráfico de Barras) */}
-            <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Ocupação da semana</span>
-              <div className="flex items-end justify-between gap-1.5 h-28 pt-4 px-1">
-                {occupancy.map((occ, idx) => (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                    <span className="text-[8px] font-black text-muted-foreground">{occ.pct}%</span>
-                    <div className="w-full bg-muted rounded-t-lg overflow-hidden flex flex-col justify-end" style={{ height: '70px' }}>
-                      <div 
-                        className={cn(
-                          "w-full transition-all duration-500 rounded-t-lg",
-                          occ.pct > 75 ? "bg-rose-500" : occ.pct > 40 ? "bg-amber-500" : occ.pct > 0 ? "bg-emerald-500" : "bg-transparent"
-                        )} 
-                        style={{ height: `${occ.pct}%` }} 
-                      />
-                    </div>
-                    <span className="text-[8px] font-bold text-muted-foreground">{occ.dayLabel}</span>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="p-2 bg-muted/30 rounded-xl border border-border/40">
+                    <p className="text-base font-black text-foreground">{todayLessons.length}</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Aulas</p>
                   </div>
-                ))}
+                  <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                    <p className="text-base font-black text-emerald-600">{todayCompleted}</p>
+                    <p className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Concluídas</p>
+                  </div>
+                  <div className="p-2 bg-rose-500/10 rounded-xl border border-rose-500/20">
+                    <p className="text-base font-black text-rose-500">{todayCancelled}</p>
+                    <p className="text-[9px] font-bold text-rose-700 dark:text-rose-300 uppercase">Canceladas</p>
+                  </div>
+                  <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                    <p className="text-base font-black text-blue-600">{todayPending}</p>
+                    <p className="text-[9px] font-bold text-blue-700 dark:text-blue-300 uppercase">Pendentes</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Próximas Aulas de Hoje (Timeline) */}
+              <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Próximas aulas hoje</span>
+                  <span className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer" onClick={() => setView('dia')}>Ver todas</span>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
+                  {todayLessons.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic text-center py-4">Nenhuma aula agendada para hoje.</p>
+                  ) : (
+                    todayLessons.slice(0, 6).map((l: any) => {
+                      const isTurma = l.lessonType === 'turma';
+                      const nameText = isTurma ? (l.title || "Turma") : (l.studentName || l.experimentalName || "Aula");
+                      const statusColor = l.status === 'concluida' ? "bg-emerald-500 text-emerald-600" : l.status === 'falta' ? "bg-rose-500 text-rose-500" : "bg-blue-500 text-blue-600";
+
+                      return (
+                        <div key={l.id} className="p-3 bg-muted/30 hover:bg-muted/60 rounded-xl border border-border/50 flex items-center justify-between cursor-pointer transition-all group" onClick={() => setDetailLessonId(l.id)}>
+                          <div className="min-w-0 flex-1 pr-2">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-xs font-black text-blue-600">{safeFormat(l.scheduledAt, "HH:mm")}</span>
+                              <span className="text-xs font-bold text-foreground truncate group-hover:text-blue-600 transition-colors">{nameText}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[9px] text-muted-foreground font-bold uppercase flex-wrap">
+                              <Music size={10} className="text-blue-500 shrink-0" />
+                              <span className="truncate">{l.instrumentName || "Geral"}</span>
+                              {l.teacherName && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-blue-600 font-bold">Prof. {l.teacherName}</span>
+                                </>
+                              )}
+                              {isTurma && <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-1.5 py-0.2 rounded-full border border-purple-500/20">Turma</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <div className={cn("w-2 h-2 rounded-full shadow-sm", statusColor.split(' ')[0])} />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Ocupação da Semana (Gráfico de Barras) */}
+              <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Ocupação da semana</span>
+                <div className="flex items-end justify-between gap-1.5 h-28 pt-4 px-1">
+                  {occupancy.map((occ, idx) => (
+                    <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                      <span className="text-[8px] font-black text-muted-foreground">{occ.pct}%</span>
+                      <div className="w-full bg-muted rounded-t-lg overflow-hidden flex flex-col justify-end" style={{ height: '70px' }}>
+                        <div 
+                          className={cn(
+                            "w-full transition-all duration-500 rounded-t-lg",
+                            occ.pct > 75 ? "bg-rose-500" : occ.pct > 40 ? "bg-amber-500" : occ.pct > 0 ? "bg-emerald-500" : "bg-transparent"
+                          )} 
+                          style={{ height: `${occ.pct}%` }} 
+                        />
+                      </div>
+                      <span className="text-[8px] font-bold text-muted-foreground">{occ.dayLabel}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Modais da Agenda */}
