@@ -635,8 +635,16 @@ const LandingPage = () => {
 
       {/* HERO SECTION */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden bg-background">
-        {/* Semantic Background Effects */}
-
+        {/* Background Gradient Mesh */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-15%] right-[-8%] w-[700px] h-[700px] bg-primary/8 rounded-full blur-[140px]" />
+          <div className="absolute bottom-[-5%] left-[-5%] w-[500px] h-[500px] bg-indigo-500/8 rounded-full blur-[120px]" />
+          <div className="absolute top-1/2 left-1/3 w-[300px] h-[300px] bg-blue-400/5 rounded-full blur-[80px]" />
+        </div>
+        {/* Piano Decoration */}
+        <div className="hidden xl:block absolute top-[40px] right-[-80px] transform -rotate-[8deg] z-0 pointer-events-none">
+          <img src="/img/piano-trans.png" loading="lazy" alt="" className="w-[460px] object-contain select-none opacity-70 drop-shadow-2xl" draggable={false} />
+        </div>
 
         <div className="container relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -659,31 +667,30 @@ const LandingPage = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center gap-4 mb-10">
+                <button
+                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-xl shadow-primary/30 hover:bg-primary/90 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group"
+                >
+                  Ver Planos e Preços
+                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                </button>
                 <Link href="/login?type=professor">
-                  <button
-                    className="w-full sm:w-auto px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-xl shadow-primary/30 hover:bg-primary/90 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group"
-                  >
-                    Área da Escola / Professor
-                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </Link>
-                <Link href="/login?type=aluno">
                   <button className="w-full sm:w-auto px-8 py-4 bg-background border-2 border-primary/20 text-foreground rounded-2xl font-black text-sm uppercase tracking-widest hover:border-primary/50 hover:bg-muted/50 active:scale-95 transition-all flex items-center justify-center gap-3">
                     <Users size={18} className="text-primary" />
-                    Área do Aluno
+                    Área da Escola
                   </button>
                 </Link>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 {[
-                  { value: '500+', label: 'Escolas ativas' },
-                  { value: '10mil+', label: 'Alunos gerenciados' },
-                  { value: '99%', label: 'Satisfação' },
+                  { value: '500+', label: 'Escolas ativas', color: 'text-primary' },
+                  { value: '10mil+', label: 'Alunos gerenciados', color: 'text-indigo-500' },
+                  { value: '99%', label: 'Satisfação', color: 'text-emerald-500' },
                 ].map(stat => (
-                  <div key={stat.label} className="text-center sm:text-left">
-                    <div className="text-2xl font-black text-foreground">{stat.value}</div>
-                    <div className="text-xs text-muted-foreground font-medium mt-0.5">{stat.label}</div>
+                  <div key={stat.label} className="text-center p-3 sm:p-4 bg-card/60 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
+                    <div className={`text-xl sm:text-2xl font-black ${stat.color}`}>{stat.value}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-0.5 leading-tight">{stat.label}</div>
                   </div>
                 ))}
               </div>
@@ -697,7 +704,23 @@ const LandingPage = () => {
             >
               <div className="relative w-full">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-[48px] blur-2xl"></div>
-                <img src="/images/dashboard-preview.png" alt="Dashboard do Sistema MusicPro" className="relative rounded-[24px] shadow-2xl border border-border w-full h-auto object-cover" />
+                <img
+                  src="/images/dashboard-preview.png"
+                  alt="Dashboard do Sistema MusicPro"
+                  className="relative rounded-[24px] shadow-2xl border border-border w-full h-auto object-cover"
+                  onError={(e) => {
+                    e.currentTarget.classList.add('hidden');
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.classList.remove('hidden');
+                  }}
+                />
+                <div className="hidden relative rounded-[24px] shadow-2xl border border-border/50 bg-gradient-to-br from-primary/10 via-indigo-500/5 to-background flex flex-col items-center justify-center aspect-video">
+                  <div className="text-center p-8">
+                    <Music size={52} className="text-primary/40 mx-auto mb-4" />
+                    <p className="text-foreground font-bold text-base">Dashboard MusicPro</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">Visualização do painel administrativo</p>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -767,20 +790,25 @@ const LandingPage = () => {
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { name: 'Ana Lima', role: 'Diretora - Escola Harmonia', text: 'O MusicPro transformou completamente a forma como gerencio minha escola. Economizo horas por semana!' },
-              { name: 'Carlos Mendes', role: 'Professor - Studio Ritmo', text: 'Os lembretes automáticos reduziram em 80% as faltas dos alunos. Resultado incrível!' },
-              { name: 'Patricia Souza', role: 'Fundadora - Acorde Music', text: 'O controle financeiro é fantástico. Antes era tudo planilha, agora tenho tudo automatizado.' },
+              { name: 'Ana Lima', role: 'Diretora - Escola Harmonia', text: 'O MusicPro transformou completamente a forma como gerencio minha escola. Economizo horas por semana!', avatarColor: 'bg-gradient-to-br from-blue-500 to-indigo-600' },
+              { name: 'Carlos Mendes', role: 'Professor - Studio Ritmo', text: 'Os lembretes automáticos reduziram em 80% as faltas dos alunos. Resultado incrível!', avatarColor: 'bg-gradient-to-br from-emerald-500 to-teal-600' },
+              { name: 'Patricia Souza', role: 'Fundadora - Acorde Music', text: 'O controle financeiro é fantástico. Antes era tudo planilha, agora tenho tudo automatizado.', avatarColor: 'bg-gradient-to-br from-violet-500 to-purple-600' },
             ].map((t, i) => (
-              <motion.div key={t.name} {...fadeIn} transition={{ delay: i * 0.15 }} className="p-8 bg-card/40 backdrop-blur-xl shadow-2xl shadow-primary/5 border border-border/50 rounded-[32px]">
+              <motion.div key={t.name} {...fadeIn} transition={{ delay: i * 0.15 }} className="p-8 bg-card/40 backdrop-blur-xl shadow-2xl shadow-primary/5 border border-border/50 rounded-[32px] hover:border-primary/20 hover:shadow-primary/10 transition-all duration-300">
                 <div className="flex gap-1 mb-4">
                   {Array.from({ length: 5 }).map((_, j) => (
                     <Star key={j} size={14} className="text-yellow-400 fill-current" />
                   ))}
                 </div>
                 <p className="text-muted-foreground font-medium mb-6 leading-relaxed">"{t.text}"</p>
-                <div>
-                  <div className="font-extrabold text-foreground">{t.name}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{t.role}</div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-sm shrink-0 shadow-md ${t.avatarColor}`}>
+                    {t.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="font-extrabold text-foreground">{t.name}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{t.role}</div>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -1007,9 +1035,9 @@ const LandingPage = () => {
 
                 {/* Trial note */}
                 <div className={`text-center mt-4 space-y-1 ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
-                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">30 Dias Grátis no 1º mês</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">✓ 30 Dias Grátis no 1º mês</p>
                   <p className="text-[10px] font-medium leading-tight">
-                    Sem fidelidade. O plano mensal dura 6 meses e o plano anual (se escolhido) dura 12 meses.
+                    Sem fidelidade. Cancele ou mude de plano quando quiser.
                   </p>
                 </div>
               </motion.div>
@@ -1075,21 +1103,33 @@ const LandingPage = () => {
       {/* FINAL CTA */}
       <section className="py-24 bg-background">
         <div className="container">
-          <div className="relative bg-card border border-border rounded-[48px] p-12 md:p-24 overflow-hidden shadow-2xl">
-            
+          <div className="relative bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 border border-white/10 rounded-[48px] p-12 md:p-24 overflow-hidden shadow-2xl">
+            {/* Decorative glow */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-600/20 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4 pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(99,102,241,0.08)_0%,_transparent_70%)] pointer-events-none" />
+
             <div className="relative z-10 text-center max-w-4xl mx-auto">
-              <h2 className="text-4xl md:text-6xl font-outfit font-black text-foreground mb-8 leading-tight tracking-tight">
-                Pronto para levar sua escola para o <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">próximo nível?</span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-blue-200 text-xs font-bold mb-8">
+                <Sparkles size={14} className="text-blue-300" />
+                <span>30 Dias Grátis · Sem Cartão de Crédito</span>
+              </div>
+              <h2 className="text-4xl md:text-6xl font-outfit font-black text-white mb-8 leading-tight tracking-tight">
+                Pronto para levar sua escola para o{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300">próximo nível?</span>
               </h2>
-              <p className="text-xl text-muted-foreground font-medium mb-12 max-w-2xl mx-auto">
+              <p className="text-xl text-blue-100/70 font-medium mb-12 max-w-2xl mx-auto">
                 Comece agora mesmo. Sem burocracia. Cancele quando quiser.
               </p>
               <button
                 onClick={() => setSignupPlan('profissional')}
-                className="px-8 py-4 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-wider shadow-2xl hover:scale-105 hover:shadow-primary/50 transition-all flex items-center gap-2 mx-auto"
+                className="px-10 py-5 bg-white text-blue-900 rounded-2xl font-black uppercase tracking-wider shadow-2xl hover:scale-105 hover:shadow-white/20 transition-all flex items-center gap-3 mx-auto text-sm"
               >
-                Criar conta agora <ArrowRight size={24} />
+                Criar conta agora <ArrowRight size={20} />
               </button>
+              <p className="mt-6 text-blue-300/50 text-sm font-medium">
+                Sem fidelidade · Cancele quando quiser · Suporte incluído
+              </p>
             </div>
           </div>
         </div>

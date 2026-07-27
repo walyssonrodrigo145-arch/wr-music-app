@@ -258,8 +258,11 @@ export function BenefitsCarousel() {
                     ))}
                   </div>
                   
-                  <button className="flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors group">
-                    Descubra como funciona
+                  <button 
+                    onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors group"
+                  >
+                    Ver Planos e Preços
                     <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                   </button>
 
