@@ -923,45 +923,45 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         : "Nenhuma meta específica cadastrada para esta semana.";
 
       const jsonTemplate = JSON.stringify({
-        weeklyGoal: "Objetivo em 2-3 linhas especifico para " + instrumentName + ", focado na evolução prática da semana.",
-        importantMessage: "Dica pedagógica e encorajadora do professor, específica para quem toca " + instrumentName + ".",
+        weeklyGoal: "Texto final escrito diretamente para o aluno explicando o objetivo da semana no " + instrumentName + ".",
+        importantMessage: "Dica pessoal do professor para o aluno manter o foco durante a semana.",
         days: [
           {
             dayName: "Dia 1",
             focus: { 
-              title: "Construção dos fundamentos", 
-              description: "Explicação clara e detalhada de por que este foco inicial é crucial para o " + instrumentName + " nesta semana." 
+              title: "Título do foco do dia (ex: Conhecer as notas e acordes de Dó Maior)", 
+              description: "Explicação em 2-3 frases diretamente para o aluno sobre a importância deste primeiro dia." 
             },
             exercises: [
               { 
                 title: "Aquecimento", 
-                subtitle: "Mecânica e postura preparatória", 
+                subtitle: "Postura e preparação dos dedos", 
                 duration: "10 min", 
                 points: [
-                  "Por que fazer: Explique o motivo deste aquecimento preparar a mão/corpo.",
-                  "Como fazer e o que observar: Detalhe a execução, a postura e como evitar tensão.",
-                  "Erro comum e correção: Explique o erro clássico e como saber se está correto."
+                  "Explicação direta do motivo do aquecimento e como ele prepara as mãos para o treino.",
+                  "Instrução passo a passo exata de como posicionar os dedos e tocar lentamente sem tensão.",
+                  "Alerta sobre o erro mais comum e a dica exata de como saber se o som saiu limpo e correto."
                 ], 
                 icon: "music" 
               },
               { 
                 title: "Prática Principal", 
-                subtitle: "Foco absoluto nas metas da semana", 
+                subtitle: "Troca e execução dos acordes corretos", 
                 duration: "30 min", 
                 points: [
-                  "Objetivo e por que fazer: Explicação profunda da aplicação técnica/musical.",
-                  "Passo a passo de execução: Instruções minuciosas de como praticar lentamente com controle.",
-                  "O que observar e erro comum: Cuidados técnicos específicos do " + instrumentName + " para não errar."
+                  "Objetivo real da prática (ex: Montar C, Dm, Em, F, G, Am e treinar as trocas sem parar o ritmo).",
+                  "Passo a passo minucioso de onde colocar cada dedo no " + instrumentName + " e a contagem de tempo.",
+                  "O que observar no som/postura e o ajuste exato para corrigir qualquer nota abafada."
                 ], 
                 icon: "star"
               },
               {
                 title: "Teoria ou Desafio",
-                subtitle: "Aplicação prática e consolidação",
+                subtitle: "Aplicação prática da meta",
                 duration: "10 min",
                 points: [
-                  "Desafio musical: Uma aplicação prática, rítmica ou teórica da meta.",
-                  "Como testar o aprendizado: Dica de como o aluno confirma que dominou a etapa."
+                  "Desafio prático real (ex: Tocar a sequência C - G - Am - F contando de 1 a 4).",
+                  "Sinal claro de sucesso para o aluno saber sozinho que concluiu o desafio com maestria."
                 ], 
                 icon: "pen" 
               }
@@ -971,6 +971,26 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       }, null, 2);
 
       const prompt = `# 🎼 MusicPro AI v4.0 — Patch de Inteligência Pedagógica
+
+# REGRA MÁXIMA DE CONTEÚDO (LEIA COM ATENÇÃO!)
+Sua resposta no JSON NUNCA DEVE CONTER METALINGUAGEM OU INSTRUÇÕES DO TIPO "Explique a importância...", "Detalhe a execução...", "Ensine como...".
+Você é o professor falando DIRETO com o aluno.
+Escreva a EXPLICAÇÃO FINAL E PRONTA para o aluno ler.
+
+EXEMPLO DE ERRO CRÍTICO (NUNCA FAÇA ISSO):
+❌ "Objetivo e por que fazer: Explique a importância de conhecer as notas do campo harmônico..."
+
+EXEMPLO CORRETO:
+✅ "O objetivo de hoje é fazer seus dedos decorarem o desenho dos acordes de Dó Maior (C), Ré menor (Dm) e Mi menor (Em). Fazer isso logo no primeiro dia garante que você não precise parar para pensar na posição dos dedos quando for tocar uma música inteira."
+
+---
+
+# RIGOR MUSICAL E TEÓRICO (PROIBIDO ERRAR NOTAS E ACORDES!)
+Se a meta for "Campo Harmônico de Dó Maior", os acordes REAIS E CORRETOS são estritamente:
+- Dó Maior (C), Ré menor (Dm), Mi menor (Em), Fá Maior (F), Sol Maior (G), Lá menor (Am), Si menor com quinta diminuta (Bdim).
+É TERMINANTEMENTE PROIBIDO inventar acordes errados (como dizer que o Campo Harmônico de Dó Maior tem Ré Maior ou Fa#). Se tiver dúvidas, siga rigorosamente a teoria musical exata!
+
+---
 
 # IDENTIDADE DA IA
 Você NÃO é um gerador de planos.
@@ -984,8 +1004,8 @@ Seu maior objetivo é fazer o aluno entender. Não apenas praticar.
 ---
 
 # MISSÃO
-Sua missão NÃO é preencher um JSON.
-Sua missão é construir uma sequência pedagógica inteligente.
+Sua missão NÃO é preencher um JSON com placeholders ou metalinguagem.
+Sua missão é entregar um plano com EXPLICATIVOS PRONTOS, DIDÁTICOS E COMPLETOS para o aluno.
 Cada exercício precisa existir por um motivo.
 Cada exercício deve desenvolver exatamente uma habilidade.
 Cada dia precisa preparar o próximo.
