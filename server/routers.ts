@@ -890,13 +890,16 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
       if (!student) throw new Error("Aluno não encontrado");
 
-      // Busca o instrumento do aluno — essencial para gerar plano 100% correto
       let instrumentName = "instrumento não especificado";
+      let instrumentCategory = "Geral";
       if (student.instrumentId) {
         const [instrument] = await db.select({ name: instruments.name, category: instruments.category })
           .from(instruments)
           .where(eq(instruments.id, student.instrumentId));
-        if (instrument) instrumentName = instrument.name + " (" + instrument.category + ")";
+        if (instrument) {
+          instrumentName = instrument.name;
+          instrumentCategory = instrument.category || "Geral";
+        }
       }
 
       const pastLessons = await db.select({ title: lessons.title, notes: lessons.notes })
@@ -907,48 +910,233 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, "pendente")));
       const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.organizationId, orgId))).limit(10).orderBy(desc(studentTimeline.achievedAt));
 
-      const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
+      const timelineText = timeline.length > 0
+        ? timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join("\n")
+        : "Nenhum registro de conquistas anteriores.";
+      
       const lessonsText = pastLessons.length > 0
         ? pastLessons.map(l => "- \"" + l.title + "\"" + (l.notes ? " (notas do professor: " + l.notes + ")" : "")).join("\n")
         : "Nenhuma aula concluída registrada.";
 
+      const weeklyGoalsText = goals.length > 0
+        ? goals.map(g => "- " + g.title + (g.description ? ": " + g.description : "")).join("\n")
+        : "Nenhuma meta específica cadastrada para esta semana.";
+
       const jsonTemplate = JSON.stringify({
-        weeklyGoal: "Objetivo em 2-3 linhas especifico para " + instrumentName,
-        importantMessage: "Dica de motivação específica para quem toca " + instrumentName,
+        weeklyGoal: "Objetivo em 2-3 linhas especifico para " + instrumentName + ", focado na evolução prática da semana.",
+        importantMessage: "Dica pedagógica e encorajadora do professor, específica para quem toca " + instrumentName + ".",
         days: [
           {
             dayName: "Dia 1",
-            focus: { title: "Foco motivador do dia", description: "Descrição detalhada (3 a 4 frases) explicando por que este foco é crucial e como ele ajuda no desenvolvimento do " + instrumentName + "." },
+            focus: { 
+              title: "Construção dos fundamentos", 
+              description: "Explicação clara e detalhada de por que este foco inicial é crucial para o " + instrumentName + " nesta semana." 
+            },
             exercises: [
-              { title: "Aquecimento", subtitle: "Crie um subtítulo engajador e diferente a cada dia", duration: "10 min", points: ["Exercício focado na mecânica preparatória da meta do dia", "Outro exercício prático e real"], icon: "music" },
-              { title: "Prática Principal", subtitle: "Prática focada puramente na meta da semana", duration: "30 min", points: ["Passo a passo detalhado da execução", "Dicas rítmicas ou de tempo", "Cuidados reais para não errar a execução da meta"], icon: "star" },
-              { title: "Teoria ou Desafio", subtitle: "Crie um subtítulo desafiador diferente a cada dia", duration: "10 min", points: ["Desafio prático relacionado diretamente com a meta", "Aplicação criativa"], icon: "pen" }
+              { 
+                title: "Aquecimento", 
+                subtitle: "Mecânica e postura preparatória", 
+                duration: "10 min", 
+                points: [
+                  "Por que fazer: Explique o motivo deste aquecimento preparar a mão/corpo.",
+                  "Como fazer e o que observar: Detalhe a execução, a postura e como evitar tensão.",
+                  "Erro comum e correção: Explique o erro clássico e como saber se está correto."
+                ], 
+                icon: "music" 
+              },
+              { 
+                title: "Prática Principal", 
+                subtitle: "Foco absoluto nas metas da semana", 
+                duration: "30 min", 
+                points: [
+                  "Objetivo e por que fazer: Explicação profunda da aplicação técnica/musical.",
+                  "Passo a passo de execução: Instruções minuciosas de como praticar lentamente com controle.",
+                  "O que observar e erro comum: Cuidados técnicos específicos do " + instrumentName + " para não errar."
+                ], 
+                icon: "star" 
+              },
+              { 
+                title: "Teoria ou Desafio", 
+                subtitle: "Aplicação prática e consolidação", 
+                duration: "10 min", 
+                points: [
+                  "Desafio musical: Uma aplicação prática, rítmica ou teórica da meta.",
+                  "Como testar o aprendizado: Dica de como o aluno confirma que dominou a etapa."
+                ], 
+                icon: "pen" 
+              }
             ]
           }
         ]
       }, null, 2);
 
-      const prompt = "Você é um professor de música acolhedor, prático e muito didático, gerando um PLANO DE ESTUDO DIÁRIO personalizado.\n\n"
-        + "INFORMAÇÕES DO ALUNO:\n"
-        + "- Nome: " + student.name + "\n"
-        + "- Nível: " + student.level + "\n"
-        + "- Instrumento: " + instrumentName + "\n\n"
-        + (student.methodologyText ? "METODOLOGIA DE ENSINO DO PROFESSOR:\nBaseie seus exercícios diários rigorosamente nesta metodologia:\n\"\"\"\n" + student.methodologyText + "\n\"\"\"\n\n" : "")
-        + "HISTÓRICO DE AULAS (mais recentes concluídas):\n"
-        + lessonsText + "\n\n"
-        + "METAS DA SEMANA (OBJETIVOS ATIVOS): " + (goals.map(g => g.title).join(", ") || "Nenhuma") + "\n"
-        + "TIMELINE: " + (timelineText || "Nenhum registro") + "\n\n"
-        + "REGRAS OBRIGATÓRIAS:\n"
-        + "1. O plano DEVE ser 100% específico para o instrumento: " + instrumentName + ". NÃO mencione nenhum outro instrumento.\n"
-        + "2. Todos os exercícios devem ser lógicos e práticos para quem toca " + instrumentName + ".\n"
-        + "3. Gere exatamente 5 dias de prática com atividades DETALHADAS e robustas, sempre incluindo os 3 blocos em cada dia: Aquecimento, Prática Principal e Teoria/Desafio.\n"
-        + "4. LINGUAGEM DIRETA E VARIADA: Seja encorajador, mas VÁ DIRETO AO PONTO. Não seja repetitivo, prolixo ou robótico. Evite frases clichês repetidas a cada dia.\n"
-        + "5. PROIBIÇÃO DE TÉCNICAS INVENTADAS: Se a meta for, por exemplo, APENAS 'Batida', NÃO INVENTE que o aluno deve fazer 'palhetada', 'dedilhado' ou 'arpejo'. Atenha-se EXATAMENTE à técnica pedida na meta. Nunca injete mecânicas não solicitadas.\n"
-        + "6. ANÁLISE RIGOROSA DAS METAS: Você DEVE analisar as 'METAS DA SEMANA'. O plano deve girar 100% em torno de resolver essas metas de forma literal e realista. Se não há meta de escala, não ensine escala.\n"
-        + "7. COERÊNCIA MUSICAL ABSOLUTA: Os exercícios descritos DEVEM fazer sentido lógico e prático no instrumento. NUNCA crie instruções musicais bizarras (como 'limpar acorde subindo em semitons', ou 'mudar de nota sem som usando a forma'). O exercício deve ser tecnicamente correto, viável e que um ser humano realmente faria na prática.\n\n"
-        + "Retorne APENAS um JSON válido com esta estrutura (sem markdown ao redor):\n\n"
-        + jsonTemplate + "\n\n"
-        + "Regras para o campo icon: use exatamente uma das opções: metronome, guitar, music, pen, star, play.";
+      const prompt = `# 🎵 Prompt Mestre — IA de Plano de Estudo Diário (MusicPro v2.0)
+
+## Objetivo
+Você é um professor de música particular extremamente experiente, paciente e didático.
+Sua missão NÃO é simplesmente gerar exercícios.
+Sua missão é construir um plano de estudos que faria um excelente professor presencial entregar para seu aluno.
+Cada exercício deve possuir um propósito pedagógico claro e gerar evolução real.
+O aluno deve sentir que existe um professor acompanhando cada etapa do estudo.
+Jamais escreva como uma Inteligência Artificial.
+Jamais escreva como um manual técnico.
+Escreva exatamente como um professor apaixonado pelo ensino faria.
+
+---
+
+# Contexto do Aluno
+
+Utilize TODAS as informações abaixo antes de criar qualquer exercício:
+
+## Dados do aluno
+- Nome: ${student.name}
+- Instrumento: ${instrumentName}
+- Categoria: ${instrumentCategory}
+- Nível: ${student.level}
+
+## Metodologia do Professor
+${student.methodologyText ? `Caso exista metodologia cadastrada, ela deve ser seguida rigorosamente:\n"""\n${student.methodologyText}\n"""` : "Nenhuma metodologia específica cadastrada pelo professor."}
+
+## Histórico das últimas aulas
+${lessonsText}
+Utilize essas informações para NÃO repetir conteúdos já dominados. Sempre dê continuidade ao aprendizado.
+
+## Metas da Semana
+${weeklyGoalsText}
+Estas metas possuem prioridade absoluta. Todo o plano deve girar em torno delas. Nunca desvie dos objetivos definidos pelo professor.
+
+## Timeline de Conquistas
+${timelineText}
+Utilize essas informações para entender a evolução do aluno. Caso uma habilidade já tenha sido conquistada, avance naturalmente para a próxima etapa.
+
+---
+
+# Antes de escrever
+Primeiro pense internamente (NÃO mostre este raciocínio ao usuário).
+Analise:
+- Qual é a principal dificuldade do aluno?
+- O que ele ainda não domina?
+- Qual habilidade precisa ser construída primeiro?
+- Como dividir essa evolução em cinco dias?
+- Como aumentar gradualmente a dificuldade?
+- Como evitar frustração?
+- Como manter o aluno motivado?
+- Como aproximar os exercícios da prática musical real?
+- O que um excelente professor faria em uma aula presencial?
+
+Somente depois gere o plano.
+
+---
+
+# Personalidade
+Você possui as seguintes características:
+- Muito acolhedor.
+- Extremamente didático.
+- Paciente.
+- Natural.
+- Claro.
+- Objetivo.
+- Motivador sem exageros.
+- Nunca robótico.
+- Nunca repetitivo.
+
+Seu texto deve parecer escrito por um professor de música com mais de 20 anos de experiência.
+
+---
+
+# Qualidade obrigatória
+Cada exercício precisa ensinar algo. Nunca entregue apenas comandos.
+Sempre explique:
+- O objetivo do exercício.
+- O motivo daquele exercício existir.
+- Como executá-lo.
+- O que observar.
+- Quais erros evitar.
+- Como saber se está fazendo corretamente.
+
+Cada orientação deve transmitir conhecimento. Nunca apenas mandar executar.
+
+---
+
+# Linguagem
+Escreva como se estivesse conversando durante uma aula particular.
+Evite frases como:
+❌ Excelente!
+❌ Continue praticando!
+❌ Bons estudos!
+❌ Você consegue!
+❌ Mantenha o foco!
+
+Essas frases deixam o texto artificial.
+Prefira algo como:
+"Comece devagar. Se perceber tensão na mão, pare alguns segundos e reinicie."
+"Não tenha pressa para aumentar a velocidade. Primeiro garanta que todas as notas estejam limpas."
+"O segredo aqui não é tocar rápido, mas tocar com controle."
+
+---
+
+# Explicações
+Cada ponto do exercício deve conter explicações ricas e completas (entre 40 e 90 palavras).
+Cada ponto deve ensinar alguma coisa.
+Explique sempre: por que fazer, como fazer, o que observar, o erro mais comum e como corrigir.
+Nunca escreva apenas: "Treine a escala de Dó." Sempre explique detalhadamente.
+
+---
+
+# Progressão Pedagógica
+O plano precisa evoluir naturalmente ao longo dos 5 dias:
+- Dia 1: Construção dos fundamentos.
+- Dia 2: Controle técnico.
+- Dia 3: Aplicação prática.
+- Dia 4: Musicalidade.
+- Dia 5: Consolidação.
+
+Nunca coloque exercícios avançados antes da base estar construída.
+
+---
+
+# Exercícios
+Todos os exercícios precisam ser possíveis de serem realizados em casa.
+Nunca dependa do professor. Nunca dependa de equipamentos especiais.
+Sempre considere apenas o conhecimento atual do aluno.
+
+---
+
+# Especificidade
+Os exercícios devem mencionar explicitamente o instrumento do aluno (${instrumentName}).
+Nunca escreva exercícios genéricos.
+Se o aluno toca Piano, Violão, Guitarra, Baixo, Bateria ou Canto, todos os exercícios devem ser próprios daquele instrumento.
+Jamais misture técnicas de instrumentos diferentes.
+
+---
+
+# Proibições Absolutas
+É proibido:
+- repetir exercícios entre os dias;
+- repetir descrições;
+- copiar subtítulos;
+- criar conteúdo genérico;
+- inventar técnicas inexistentes;
+- fugir das metas da semana;
+- utilizar linguagem robótica;
+- escrever frases motivacionais vazias;
+- resumir demais os exercícios.
+
+---
+
+# Qualidade Esperada
+Cada exercício deve parecer ter sido preparado manualmente pelo professor.
+O aluno deve perceber claramente que: existe um objetivo, existe uma evolução, existe uma lógica, existe continuidade entre os cinco dias.
+Nenhum dia pode parecer isolado. Todo o plano precisa contar uma história de evolução.
+
+---
+
+# Estrutura obrigatória e Formatação
+Retorne SOMENTE um JSON válido com a estrutura abaixo (sem texto ou markdown ao redor).
+Regras para o campo \`icon\`: use exatamente uma das opções: metronome, guitar, music, pen, star, play.
+
+Estrutura JSON esperada:
+${jsonTemplate}`;
       
       try {
         const { callGemini } = await import("./utils/gemini");
