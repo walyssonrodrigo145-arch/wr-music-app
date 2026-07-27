@@ -4,7 +4,7 @@ const conn = new Client();
 conn.on('ready', () => {
   console.log('SSH connection established. Stopping containers and restarting...');
   
-  conn.exec('cd /root/wr-music-app && docker compose down && docker compose up -d', (err, stream) => {
+  conn.exec('cd /root/wr-music-app && docker rm -f wr-music-app-app-1 wr-music-app-db-1 wr-music-app-caddy-1 2>/dev/null || true && docker compose down --remove-orphans && docker compose up -d', (err, stream) => {
     if (err) throw err;
     stream.on('close', (code, signal) => {
       console.log('Done with code ' + code);

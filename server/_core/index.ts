@@ -206,19 +206,25 @@ async function startServer() {
       // CRÍTICO-10 FIX: Token de webhook agora é OBRIGATÓRIO.
       // Se ASAAS_WEBHOOK_TOKEN não estiver configurado, o endpoint recusa qualquer requisição.
       // Isso impede que terceiros simulem eventos Asaas e manipulem dados financeiros.
-      const webhookToken = ENV.asaasWebhookToken;
-      const requestToken = req.headers["asaas-access-token"];
+      const webhookToken = (ENV.asaasWebhookToken || "").trim();
+      const rawHeaderToken = (
+        req.headers["asaas-access-token"] ||
+        req.headers["access-token"] ||
+        req.headers["access_token"] ||
+        req.headers["authorization"]
+      )?.toString();
+      const requestToken = (rawHeaderToken || "").replace(/^Bearer\s+/i, "").trim();
 
       if (!webhookToken) {
-        // Em produção, ASAAS_WEBHOOK_TOKEN é obrigatório (validado em env.ts).
-        // Em dev, se não configurado, apenas loga e aceita para facilitar testes locais.
         if (ENV.isProduction) {
           console.error("[Asaas Webhook] ASAAS_WEBHOOK_TOKEN não configurado em produção. Requisição bloqueada.");
           return res.status(401).json({ error: "Webhook token not configured" });
         }
         console.warn("[Asaas Webhook] ASAAS_WEBHOOK_TOKEN não configurado (ambiente dev — aceito sem validação).");
       } else if (requestToken !== webhookToken) {
-        console.warn("[Asaas Webhook] Token de autenticação inválido ou não fornecido.");
+        const receivedMask = requestToken ? `${requestToken.substring(0, 6)}...${requestToken.slice(-4)}` : "(NENHUM/VAZIO)";
+        const expectedMask = `${webhookToken.substring(0, 6)}...${webhookToken.slice(-4)}`;
+        console.warn(`[Asaas Webhook] Token de autenticação inválido. Recebido: ${receivedMask} | Esperado: ${expectedMask}`);
         return res.status(401).json({ error: "Unauthorized" });
       }
 
@@ -407,8 +413,14 @@ async function startServer() {
   app.post("/api/webhooks/asaas/platform", async (req, res) => {
     try {
       // CRÍTICO-10 FIX: Token de webhook agora é OBRIGATÓRIO (igual ao webhook de mensalidades).
-      const webhookToken = ENV.asaasWebhookToken;
-      const requestToken = req.headers["asaas-access-token"];
+      const webhookToken = (ENV.asaasWebhookToken || "").trim();
+      const rawHeaderToken = (
+        req.headers["asaas-access-token"] ||
+        req.headers["access-token"] ||
+        req.headers["access_token"] ||
+        req.headers["authorization"]
+      )?.toString();
+      const requestToken = (rawHeaderToken || "").replace(/^Bearer\s+/i, "").trim();
 
       if (!webhookToken) {
         if (ENV.isProduction) {
@@ -417,7 +429,9 @@ async function startServer() {
         }
         console.warn("[Asaas Platform Webhook] ASAAS_WEBHOOK_TOKEN não configurado (ambiente dev — aceito sem validação).");
       } else if (requestToken !== webhookToken) {
-        console.warn("[Asaas Platform Webhook] Token de autenticação inválido ou não fornecido.");
+        const receivedMask = requestToken ? `${requestToken.substring(0, 6)}...${requestToken.slice(-4)}` : "(NENHUM/VAZIO)";
+        const expectedMask = `${webhookToken.substring(0, 6)}...${webhookToken.slice(-4)}`;
+        console.warn(`[Asaas Platform Webhook] Token de autenticação inválido. Recebido: ${receivedMask} | Esperado: ${expectedMask}`);
         return res.status(401).json({ error: "Unauthorized" });
       }
 
