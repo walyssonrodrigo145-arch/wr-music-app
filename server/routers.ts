@@ -953,14 +953,24 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
                   "Passo a passo de execução: Instruções minuciosas de como praticar lentamente com controle.",
                   "O que observar e erro comum: Cuidados técnicos específicos do " + instrumentName + " para não errar."
                 ], 
-                icon: "star" 
+                icon: "star"
               },
-              { 
-                title: "Teoria ou Desafio", 
-                subtitle: "Aplicação prática e consolidação", 
-                duration: "10 min", 
+              {
+                title: "Teoria ou Desafio",
+                subtitle: "Aplicação prática e consolidação",
+                duration: "10 min",
                 points: [
-                  "Desafio musical: Uma aplicação prática, rítmica ou te      const prompt = `# 🎓 Patch de Qualidade Pedagógica — MusicPro AI v3.0
+                  "Desafio musical: Uma aplicação prática, rítmica ou teórica da meta.",
+                  "Como testar o aprendizado: Dica de como o aluno confirma que dominou a etapa."
+                ], 
+                icon: "pen" 
+              }
+            ]
+          }
+        ]
+      }, null, 2);
+
+      const prompt = `# 🎓 Patch de Qualidade Pedagógica — MusicPro AI v3.0
 
 # MISSÃO PRINCIPAL
 Você NÃO está escrevendo um plano de estudos.
