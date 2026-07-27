@@ -663,7 +663,7 @@ const LandingPage = () => {
               </h1>
               
               <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-lg leading-relaxed font-medium">
-                Organize alunos, aulas, pagamentos e relatórios em um único sistema intuitivo. Mais tempo para o que realmente importa: a música.
+                Pare de perder tempo com planilhas e WhatsApp. O MusicPro cuida da burocracia enquanto você foca no que ama: <strong className="text-foreground">ensinar música.</strong>
               </p>
               
               <div className="flex flex-col sm:flex-row items-center gap-4 mb-10">
