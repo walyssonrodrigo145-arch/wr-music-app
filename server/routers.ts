@@ -922,114 +922,86 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         ? goals.map(g => "- " + g.title + (g.description ? ": " + g.description : "")).join("\n")
         : "Nenhuma meta específica cadastrada para esta semana.";
 
-      const jsonTemplate = JSON.stringify({
-        weeklyGoal: "Nesta semana, nosso foco total é fazer você dominar a montagem e a troca fluida dos acordes de Dó Maior no " + instrumentName + ", aplicando esses acordes diretamente em uma música sem travar o ritmo.",
-        importantMessage: "Lembre-se: não busque velocidade agora. O segredo no " + instrumentName + " é a precisão e a clareza de cada nota. Toque com calma e sinta os dedos se acostumarem.",
-        days: [
-          {
-            dayName: "Dia 1",
-            focus: { 
-              title: "Conhecer a posição e montagem dos primeiros acordes", 
-              description: "Hoje você vai aprender a formar os acordes básicos com a postura correta da mão no " + instrumentName + ", garantindo que cada nota soe perfeita desde o primeiro toque." 
-            },
-            exercises: [
-              { 
-                title: "Aquecimento", 
-                subtitle: "Relaxamento dos pulsos e articulação dos dedos", 
-                duration: "10 min", 
-                points: [
-                  "O objetivo deste aquecimento é soltar os músculos da mão e evitar tensão nos pulsos antes de montar os acordes.",
-                  "Posicione sua mão com os dedos levemente curvados sobre as teclas/cordas. Toque cada nota lentamente contando 1, 2, 3, 4 em ritmo constante.",
-                  "Um erro muito comum é curvar demais o pulso ou colocar força excessiva. Se sentir desconforto, pare, chacoalhe os braços e retome devagar."
-                ], 
-                icon: "music" 
-              },
-              { 
-                title: "Prática Principal", 
-                subtitle: "Montagem individual dos acordes de Dó e Sol", 
-                duration: "30 min", 
-                points: [
-                  "Vamos montar o acorde de Dó Maior. Coloque os dedos exatamente nas notas indicadas, pressionando com a ponta dos dedos e não com a parte chata.",
-                  "Toque nota por nota bem devagar. Escute se alguma nota está saindo abafada ou trastejando. Se sair abafada, levante ligeiramente a falange do dedo.",
-                  "Repita a montagem 5 vezes seguidas: monte o acorde, toque, tire a mão do instrumento, relaxe 2 segundos e monte de novo até virar memória muscular."
-                ], 
-                icon: "star"
-              },
-              { 
-                title: "Teoria ou Desafio", 
-                subtitle: "Desafio da troca limpa em 4 tempos", 
-                duration: "10 min", 
-                points: [
-                  "Seu desafio hoje é trocar do acorde de Dó Maior para Sol Maior contando 4 tempos em cada acorde sem interromper a contagem.",
-                  "Você saberá que venceu o desafio quando conseguir fazer 3 trocas seguidas sem parar o ritmo para procurar onde colocar os dedos."
-                ], 
-                icon: "pen" 
-              }
-            ]
-          }
-        ]
-      }, null, 2);
+      const jsonSchemaFormat = `{
+  "weeklyGoal": "Resumo motivador e didático do objetivo da semana direto para o aluno.",
+  "importantMessage": "Dica prática do professor para o aluno sobre paciência e postura.",
+  "days": [
+    {
+      "dayName": "Dia 1",
+      "focus": {
+        "title": "Título específico da meta do Dia 1",
+        "description": "Explicação em 2 frases sobre o porquê desta prática inicial."
+      },
+      "exercises": [
+        {
+          "title": "Aquecimento",
+          "subtitle": "Exercício de coordenação e agilidade inicial",
+          "duration": "10 min",
+          "points": [
+            "Instrução técnica 1 de execução passo a passo no instrumento.",
+            "Instrução técnica 2 sobre o que observar na postura/som.",
+            "Instrução técnica 3 sobre como identificar se a execução está correta."
+          ],
+          "icon": "music"
+        },
+        {
+          "title": "Prática Principal",
+          "subtitle": "Trabalho prático nas metas da semana",
+          "duration": "30 min",
+          "points": [
+            "Passo 1: Como posicionar e executar com exatidão no instrumento.",
+            "Passo 2: Qual ritmo ou contagem utilizar durante a prática.",
+            "Passo 3: Qual erro evitar e como corrigir imediatamente."
+          ],
+          "icon": "star"
+        },
+        {
+          "title": "Teoria ou Desafio",
+          "subtitle": "Desafio prático de aplicação",
+          "duration": "10 min",
+          "points": [
+            "Desafio prático objetivo relacionado diretamente à meta.",
+            "Critério claro para o aluno saber que conquistou o desafio."
+          ],
+          "icon": "pen"
+        }
+      ]
+    }
+  ]
+}`;
 
-      const prompt = `# 🎼 MusicPro AI v6.0 — Didática Real por Instrumento
+      const prompt = `# 🎼 MusicPro AI v7.0 — Motor de Didática Presencial Direta
 
-# REGRAS CRÍTICAS DE SOBREVIVÊNCIA DO PROMPT (LEIA ANTES DE TUDO!)
-
-1. **PROIBIDO COPIAR O EXEMPLO DO TEMPLATE JSON**:
-   O exemplo do JSON ao final desta mensagem serve **EXCLUSIVAMENTE PARA APRESENTAR A SINTAXE DAS CHAVES**.
-   É SEVERAMENTE PROIBIDO copiar as frases do exemplo no seu resultado final (como "Relaxamento dos pulsos...", "Montagem individual de Dó e Sol...", etc).
-   Gere um texto 100% NOVO, ORIGINAL E ESPECÍFICO para a meta do aluno em cada um dos 5 dias!
-
-2. **PROIBIDO FRASES CLICHÊS E FRASES VAZIAS REPETIDAS**:
-   NUNCA escreva frases vazias ou clichês repetidos como:
-   ❌ "Lembre-se de que a prática leva à perfeição."
-   ❌ "Se você sentir que está fazendo isso, pare e retome devagar."
-   ❌ "A prática é a chave para o sucesso!"
-   ❌ "Não se esqueça de respirar enquanto toca."
-   
-   Escreva SEMPRE orientações técnicas reais do ${instrumentName}:
-   ✅ "Coloque o polegar esquerdo no C3 e os dedos 1-3-5 da mão direita nas teclas Dó, Mi e Sol simultaneamente."
-   ✅ "Ao mudar para Fá Maior, mova a mão inteira para a direita mantendo a forma de concha sem afundar os pulsos."
-
-3. **FIDELIDADE ABSOLUTA AO INSTRUMENTO DO ALUNO (${instrumentName})**:
-   Se o instrumento for **Teclado / Piano**:
-   - NUNCA mencione "cordas", "trastejar", "palhetada" ou "braço do instrumento".
-   - Fale obrigatoriamente sobre: **teclas**, **mão direita / mão esquerda**, **dedos 1 (polegar), 2 (indicador), 3 (médio), 4 (anelar), 5 (mínimo)**, **postura da mão em forma de concha**, **teclas brancas e pretas**.
-   - Ao ensinar acordes no Teclado, indique as notas reais que formam o acorde.
-
-4. **VARIAÇÃO OBRIGATÓRIA DE EXERCÍCIOS ENTRE OS 5 DIAS**:
-   NENHUM dos 5 dias pode ter textos copiados ou colados de outro dia.
-   Cada dia deve ter títulos, subtítulos e orientações totalmente novas focadas na evolução diária!
+Você é um PROFESSOR PARTICULAR PRESENCIAL DE MÚSICA com 20 anos de experiência.
+Seu aluno de **${instrumentName}** (${student.level}) vai ler este plano de estudos diretamente no aplicativo dele.
 
 ---
 
-# REGRAS ABSOLUTAS DE CONTEÚDO
+# 🛑 REGRAS DE OURO SUPREMAS (VIOLAÇÃO = ERRO CRÍTICO DE SISTEMA)
 
-## REGRA ABSOLUTA Nº 1 — NUNCA INVENTE CONTEÚDO MUSICAL
-Você só pode utilizar: metas cadastradas, músicas cadastradas, exercícios relacionados, o instrumento informado e o nível do aluno. Nunca acrescente assuntos que o professor não pediu.
+1. **FALE DIRETO COM O ALUNO EM PRIMEIRA PESSOA**:
+   Escreva como se estivesse conversando com o ${student.name} na sala de aula.
+   ❌ NUNCA escreva frases sobre o que explicar: "Explicação do motivo...", "Instrução exata de...", "Passo a passo minucioso de...", "Alerta sobre o erro..."
+   ✅ ESCREVA A ORIENTAÇÃO DIDÁTICA PRONTA: "Para tocar o acorde de Dó Maior no teclado, coloque o polegar (dedo 1) na tecla Dó central, o dedo médio (3) na tecla Mi e o dedo mínimo (5) na tecla Sol."
 
-## REGRA ABSOLUTA Nº 2 — NUNCA TENTE "MELHORAR" A TEORIA CADASTRADA
-Mantenha-se rigorosamente dentro das metas do professor.
+2. **CÓPIA DO SCHEMA É PROIBIDA**:
+   O schema JSON ao final serve APENAS para você entender a estrutura do código.
+   É PROIBIDO usar palavras abstratas como "Instrução técnica 1", "Passo 1", "Desafio prático objetivo", etc. Preencha TUDO com texto didático real!
 
-## REGRA ABSOLUTA Nº 3 — NUNCA TRANSFORME METAS EM TEORIA
-Evite explicações teóricas desnecessárias; foque na aplicação prática imediata.
+3. **RIGOR ABSOLUTO DE TEORIA E INSTRUMENTO (${instrumentName})**:
+   - Para **TECLADO/PIANO**: Fale APENAS de teclas, dedos (1 a 5), mão direita/esquerda, postura de concha. É PROIBIDO citar "cordas", "trastejar", "palhetada", "casa" ou "braço".
+   - Se a meta for "Campo Harmônico de Dó Maior", os acordes REAIS E EXATOS são: Dó Maior (C), Ré menor (Dm), Mi menor (Em), Fá Maior (F), Sol Maior (G), Lá menor (Am), Si diminuto (Bdim). PROIBIDO inventar Ré Maior ou Fá#!
 
-## REGRA ABSOLUTA Nº 4 — NUNCA UTILIZE TERMOS TÉCNICOS SEM EXPLICAR
-Sempre que aparecer um termo musical, explique imediatamente em linguagem simples.
+4. **VARIAÇÃO OBRIGATÓRIA NOS 5 DIAS**:
+   Cada um dos 5 dias deve ter um objetivo e textos 100% DIFERENTES e inéditos.
+   - Dia 1: Conhecer as posições e notas iniciais.
+   - Dia 2: Treinar as trocas lentas com metrônomo/contagem.
+   - Dia 3: Conectar a sequência de acordes com fluidez.
+   - Dia 4: Aplicar a sequência na prática de uma música.
+   - Dia 5: Consolidação e execução contínua sem parar o ritmo.
 
-## REGRA ABSOLUTA Nº 5 — NUNCA ASSUMA CONHECIMENTO
-Considere que um aluno iniciante nunca ouviu falar sobre Campo Harmônico, Intervalos, Arpejos, Escalas, Inversões, Graus ou Dominantes. Sempre explique utilizando linguagem simples.
-
----
-
-# COMO ESCREVER UM EXERCÍCIO
-É proibido escrever apenas: "Pratique.", "Treine.", "Repita."
-Sempre explique exatamente COMO FAZER seguindo o modelo obrigatório:
-- Objetivo: Explique por que o exercício existe.
-- Como fazer: Explique exatamente o movimento, a posição das mãos, a velocidade, quantas vezes repetir, quando parar e quando descansar.
-- O que observar: Explique exatamente onde deve prestar atenção.
-- Erro mais comum: Explique qual erro acontece.
-- Como corrigir: Explique exatamente como corrigir.
-- Como saber que conseguiu: Explique quais sinais mostram que o exercício foi executado corretamente (som limpo, ritmo constante, etc).
+5. **PROIBIDO FRASES VAZIAS OU CLICHÊS REPETIDOS**:
+   Não use "A prática leva à perfeição", "Respire enquanto toca", "Pare e retome devagar". Dê instruções técnicas reais de música.
 
 ---
 
@@ -1038,19 +1010,20 @@ Sempre explique exatamente COMO FAZER seguindo o modelo obrigatório:
 - Instrumento: ${instrumentName} (${instrumentCategory})
 - Nível: ${student.level}
 - Metodologia do Professor: ${student.methodologyText || "Nenhuma cadastrada."}
-- Histórico de Aulas Concluídas:\n${lessonsText}
-- Metas da Semana (FOCO OBRIGATÓRIO):\n${weeklyGoalsText}
-- Timeline de Conquistas:\n${timelineText}
+- Histórico de Aulas Concluídas:
+${lessonsText}
+- Metas da Semana (PRIORIDADE ABSOLUTA DA SEMANA):
+${weeklyGoalsText}
+- Timeline de Conquistas:
+${timelineText}
 
 ---
 
+# FORMATO DE SAÍDA JSON
+Retorne APENAS o JSON válido com a estrutura abaixo contendo 5 dias completos com orientações didáticas reais.
 
-# Estrutura obrigatória e Formatação JSON
-Retorne SOMENTE um JSON válido com a estrutura abaixo (sem texto ou markdown ao redor).
-Regras para o campo \`icon\`: use exatamente uma das opções: metronome, guitar, music, pen, star, play.
-
-Estrutura JSON esperada:
-${jsonTemplate}`;
+Estrutura JSON:
+${jsonSchemaFormat}`;
       
       try {
         const { callGemini } = await import("./utils/gemini");
