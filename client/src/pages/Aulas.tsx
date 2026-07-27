@@ -486,7 +486,7 @@ export default function Aulas() {
                 className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
               >
                 <Plus size={16} strokeWidth={3} />
-                <span>+ Nova</span>
+                <span>Nova Aula</span>
               </Button>
               <Button
                 variant="outline"
