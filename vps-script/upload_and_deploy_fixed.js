@@ -194,12 +194,18 @@ conn.on('ready', () => {
               docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"chatbotEnabled\\" integer NOT NULL DEFAULT 0;"
             `;
             conn.exec(rebuildCmd, (err, rebuildStream) => {
-              if (err) throw err;
-              rebuildStream.on('data', data => process.stdout.write(data.toString()));
               rebuildStream.stderr.on('data', data => process.stderr.write(data.toString()));
               rebuildStream.on('close', () => {
-                console.log('Deploy finished successfully!');
-                conn.end();
+                console.log('Running DB migrations manually via psql...');
+                const migrateCmd = `
+                  cd ${repoPath} && docker compose exec -T db psql -U postgres -d wrmusic -c 'ALTER TABLE settings ADD COLUMN IF NOT EXISTS "dueDaysForecast" text;'
+                  cd ${repoPath} && docker compose exec -T db psql -U postgres -d wrmusic -c 'ALTER TABLE settings ADD COLUMN IF NOT EXISTS "chatbotEnabled" integer NOT NULL DEFAULT 0;'
+                  cd ${repoPath} && docker compose exec -T db psql -U postgres -d wrmusic -c 'ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS "mediaUrl" text;'
+                `;
+                conn.exec(migrateCmd, () => {
+                  console.log('Deploy finished successfully!');
+                  conn.end();
+                });
               });
             });
           }

@@ -153,6 +153,7 @@ export async function runAutoMigrations() {
       // Modalidade Online — expande enum e adiciona coluna de link
       { table: 'enum', sql: "ALTER TYPE lesson_type ADD VALUE IF NOT EXISTS 'online'" },
       { table: 'students', sql: 'ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "onlineMeetingLink" text' },
+      { table: 'marketing_campaigns', sql: 'ALTER TABLE "marketing_campaigns" ADD COLUMN IF NOT EXISTS "mediaUrl" text' },
     ];
 
     for (const m of migrations) {
