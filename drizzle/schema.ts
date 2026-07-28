@@ -700,6 +700,7 @@ export const marketingCampaigns = pgTable("marketing_campaigns", {
   organizationId: integer("organizationId").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
+  mediaUrl: text("mediaUrl"),
   status: campaignStatusEnum("status").default("draft").notNull(),
   
   // Settings

@@ -28,6 +28,7 @@ export const marketingRouter = router({
     .input(z.object({
       name: z.string(),
       description: z.string().optional(),
+      mediaUrl: z.string().optional(),
       minDelay: z.number().default(10),
       batchSize: z.number().default(20),
       batchDelay: z.number().default(600),
@@ -47,6 +48,7 @@ export const marketingRouter = router({
         organizationId: ctx.user.organizationId!,
         name: input.name,
         description: input.description,
+        mediaUrl: input.mediaUrl,
         minDelay: input.minDelay,
         maxDelay: input.minDelay, // Ignored logic for variation
         batchSize: input.batchSize,

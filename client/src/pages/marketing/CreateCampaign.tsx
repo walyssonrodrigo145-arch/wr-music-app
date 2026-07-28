@@ -17,6 +17,7 @@ export default function CreateCampaign() {
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
   const [messageText, setMessageText] = useState("Olá {{nome}}, tudo bem?");
   const [minDelay, setMinDelay] = useState(10);
   const [rawContacts, setRawContacts] = useState("");
@@ -59,6 +60,7 @@ export default function CreateCampaign() {
     createCampaign.mutate({
       name,
       description,
+      mediaUrl: mediaUrl.trim() || undefined,
       minDelay,
       contacts: parsedContacts
     });
@@ -79,7 +81,7 @@ export default function CreateCampaign() {
       <Card>
         <CardHeader>
           <CardTitle>Detalhes da Campanha</CardTitle>
-          <CardDescription>Defina o nome e os intervalos de envio.</CardDescription>
+          <CardDescription>Defina o nome, imagem opcional e os intervalos de envio.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -92,6 +94,13 @@ export default function CreateCampaign() {
               <Input type="number" min="1" value={minDelay} onChange={e => setMinDelay(Number(e.target.value))} />
             </div>
           </div>
+          
+          <div className="space-y-2">
+            <Label>URL da Imagem / Mídia (Opcional)</Label>
+            <Input placeholder="https://exemplo.com/sua-imagem.png" value={mediaUrl} onChange={e => setMediaUrl(e.target.value)} />
+            <p className="text-xs text-muted-foreground">Cole o link direto da imagem (PNG, JPG, WebP). Se preenchido, a mensagem será enviada como imagem com legenda.</p>
+          </div>
+
           <div className="space-y-2">
             <Label>Descrição (Interna)</Label>
             <Input placeholder="Detalhes adicionais..." value={description} onChange={e => setDescription(e.target.value)} />

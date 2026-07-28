@@ -120,7 +120,8 @@ export class MarketingQueueWorker {
           token: orgSettings?.evolutionApiKey || undefined,
           sessionId: sessionId,
           phone: nextContact.phone, 
-          message: text 
+          message: text,
+          mediaUrl: campaign.mediaUrl || undefined
         });
         
         if (evolutionResponse && (evolutionResponse as any).success === false) {
