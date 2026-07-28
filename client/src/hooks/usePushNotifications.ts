@@ -21,9 +21,20 @@ export function usePushNotifications() {
     setPermission(result);
     
     if (result === "granted") {
+      let token: string | null = null;
       try {
-        const token = await requestForToken();
-        if (token) {
+        token = await requestForToken();
+      } catch (err: any) {
+        console.error("Erro na API do Firebase ao obter Token FCM:", err);
+        const detail = err?.message || err?.code || String(err);
+        if (!silent) {
+          toast.error(`Falha no Firebase Push: ${detail}`);
+        }
+        return result;
+      }
+
+      if (token) {
+        try {
           console.log("Registrando token no backend...");
           await registerToken.mutateAsync({
             token,
@@ -32,15 +43,15 @@ export function usePushNotifications() {
           if (!silent) {
             toast.success("Dispositivo sincronizado para notificações!");
           }
-        } else {
+        } catch (err: any) {
+          console.error("Erro no backend ao salvar FCM token:", err);
           if (!silent) {
-            toast.error("Não foi possível gerar o token FCM. Verifique o console.");
+            toast.error("Servidor indisponível ao salvar token de notificação: " + (err.message || "Erro de conexão"));
           }
         }
-      } catch (err: any) {
-        console.error("Erro ao registrar FCM token:", err);
+      } else {
         if (!silent) {
-          toast.error("Erro ao registrar FCM: " + err.message);
+          toast.error("Não foi possível obter a chave de notificação do dispositivo.");
         }
       }
     }

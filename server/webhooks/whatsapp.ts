@@ -98,12 +98,12 @@ function isSlotFree(slotDate: Date, ocupadas: any[]) {
 
 // ─── Menu Principal ───────────────────────────────────────────────────────────
 
-function menuPrincipalMsg(schoolName: string): string {
-  return `Oi! Seja bem-vindo(a) à *${schoolName}* 🎵\n\nFicamos felizes em te atender! Como posso te ajudar hoje?\n\n1️⃣  📅  Minhas Aulas\n2️⃣  💰  Financeiro\n3️⃣  🎵  Quero me matricular\n4️⃣  🎸  Falar com o Professor\n5️⃣  ⭐  Indicar um amigo\n\n_Digite o número da opção desejada_ 👇`;
+function menuPrincipalMsg(schoolName: string, studentName: string): string {
+  return `Oi, *${studentName}*! Que alegria te ver por aqui! 🎵😊\n\nComo posso te ajudar hoje na *${schoolName}*?\n\n1️⃣  📅  Minhas Aulas\n2️⃣  💰  Financeiro\n3️⃣  📆  Agendar uma Aula\n4️⃣  🔄  Reagendar Aula\n5️⃣  ⭐  Indicar um amigo\n0️⃣  🎸  Falar com o Professor\n9️⃣9️⃣ ❌  Encerrar Atendimento\n\n_Digite o número da opção desejada_ 👇`;
 }
 
 function menuPrincipalNovoMsg(schoolName: string): string {
-  return `Olá! Seja muito bem-vindo(a) à *${schoolName}*! 🎶\n\nSomos apaixonados por música e adoramos receber pessoas que querem aprender. Fico feliz que você entrou em contato! 😊\n\nComo posso te ajudar?\n\n1️⃣  🎵  Quero me matricular\n2️⃣  💬  Falar com nossa equipe\n\n_Só me diga o número e eu te ajudo! 👇_`;
+  return `Olá! Seja muito bem-vindo(a) à *${schoolName}*! 🎶\n\nFicamos felizes com seu contato! Aqui você encontra as melhores aulas de música. 😊\n\nComo posso te ajudar?\n\n1️⃣  🎵  Quero me matricular\n2️⃣  💬  Falar com nossa equipe / Professor\n9️⃣9️⃣ ❌  Encerrar Atendimento\n\n_Só me diga o número e eu te ajudo! 👇_`;
 }
 
 // ─── Webhook ─────────────────────────────────────────────────────────────────
@@ -268,15 +268,16 @@ router.post("/", async (req, res) => {
       // 1. Telefone do aluno
       const cleanStudentPhone = s.phone ? s.phone.replace(/\D/g, "") : "";
       if (cleanStudentPhone) {
-        const targetLen = cleanStudentPhone.length >= 10 ? 10 : 8;
-        if (cleanStudentPhone.slice(-targetLen) === cleanMsg.slice(-targetLen)) return true;
+        // Compara com os últimos 8 e 9 dígitos (cobre variações com/sem DDD e com/sem 9º dígito)
+        if (cleanStudentPhone.slice(-8) === cleanMsg.slice(-8)) return true;
+        if (cleanStudentPhone.length >= 10 && cleanMsg.length >= 10 && cleanStudentPhone.slice(-10) === cleanMsg.slice(-10)) return true;
       }
 
       // 2. Telefone do responsável (pai / mãe)
       const cleanGuardianPhone = s.guardianPhone ? s.guardianPhone.replace(/\D/g, "") : "";
       if (cleanGuardianPhone) {
-        const targetLen = cleanGuardianPhone.length >= 10 ? 10 : 8;
-        if (cleanGuardianPhone.slice(-targetLen) === cleanMsg.slice(-targetLen)) return true;
+        if (cleanGuardianPhone.slice(-8) === cleanMsg.slice(-8)) return true;
+        if (cleanGuardianPhone.length >= 10 && cleanMsg.length >= 10 && cleanGuardianPhone.slice(-10) === cleanMsg.slice(-10)) return true;
       }
 
       return false;
@@ -327,6 +328,50 @@ router.post("/", async (req, res) => {
 
     const input = textMsg.trim();
     const inputUpper = input.toUpperCase();
+
+    // ─────────────────────────────────────────────────────
+    // COMANDOS GLOBAIS: Falar com Professor (0) e Encerrar (99 / SAIR)
+    // ─────────────────────────────────────────────────────
+    if (session.state !== "PAUSED_HUMAN" && !isProfessorChat) {
+      if (input === "0") {
+        await updateState("PAUSED_HUMAN");
+        await notifyProfessor(`👤 *Solicitação de Atendimento Humano!*\n\nContato *${student?.name || pushName}* (${phone}) solicitou falar com o professor pelo robô (opção 0).`);
+        await sendReply("Claro! Chamei o professor para te atender. Aguarde um instante! 🎸👤\n\n_Quando quiser voltar ao robô automático no futuro, é só digitar *MENU*._");
+        return res.status(200).json({ ok: true });
+      }
+
+      if (input === "99" || inputUpper === "SAIR" || inputUpper === "ENCERRAR" || inputUpper === "TCHAU") {
+        await updateState("AGUARDANDO_MENU");
+        await sendReply("Atendimento encerrado! 😊\n\nFoi um prazer falar com você. Se precisar de algo no futuro, é só mandar uma mensagem ou digitar *MENU*! 🎵👋");
+        return res.status(200).json({ ok: true });
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    // ESTADO: PAUSED_HUMAN — robô em silêncio
+    // ─────────────────────────────────────────────────────
+    if (session.state === "PAUSED_HUMAN") {
+      if (inputUpper === "MENU") {
+        await updateState("START");
+        await sendReply("Estou de volta! 🤖✨\nPode falar comigo normalmente, estou aqui pra te ajudar!");
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // ESTADO: START / MENU — exibir menu conforme perfil do usuário
+    // ─────────────────────────────────────────────────────
+    if (session.state === "START" || inputUpper === "MENU") {
+      if (student) {
+        await updateState("MENU_ALUNO");
+        const primeiroNome = student.name.split(" ")[0];
+        await sendReply(menuPrincipalMsg(schoolName, primeiroNome));
+      } else {
+        await updateState("MENU_NOVO");
+        await sendReply(menuPrincipalNovoMsg(schoolName));
+      }
+      return res.status(200).json({ ok: true });
+    }
 
     // ─────────────────────────────────────────────────────
     // PROCESSAMENTO AUTOMÁTICO DE COMPROVANTES DE PAGAMENTO (PIX/FOTO/PDF)
@@ -542,6 +587,24 @@ router.post("/", async (req, res) => {
         await sendReply("🤖 *Erro na IA:* Não consegui processar sua solicitação no momento. Verifique sua chave de API do Groq/Gemini nas configurações do site.");
       }
       return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // COMANDOS GLOBAIS: Falar com Professor (0) e Encerrar (99 / SAIR)
+    // ─────────────────────────────────────────────────────
+    if (session.state !== "PAUSED_HUMAN" && !isProfessorChat) {
+      if (input === "0") {
+        await updateState("PAUSED_HUMAN");
+        await notifyProfessor(`👤 *Solicitação de Atendimento Humano!*\n\nContato *${student?.name || pushName}* (${phone}) solicitou falar com o professor pelo robô (opção 0).`);
+        await sendReply("Claro! Chamei o professor para te atender. Aguarde um instante! 🎸👤\n\n_Quando quiser voltar ao robô automático no futuro, é só digitar *MENU*._", false);
+        return res.status(200).json({ ok: true });
+      }
+
+      if (input === "99" || inputUpper === "SAIR" || inputUpper === "ENCERRAR" || inputUpper === "TCHAU") {
+        await updateState("AGUARDANDO_MENU");
+        await sendReply("Atendimento encerrado! 😊\n\nFoi um prazer falar com você. Se precisar de algo no futuro, é só mandar uma mensagem ou digitar *MENU*! 🎵👋", false);
+        return res.status(200).json({ ok: true });
+      }
     }
 
     // ─────────────────────────────────────────────────────
@@ -1027,8 +1090,14 @@ router.post("/", async (req, res) => {
     // ─────────────────────────────────────────────────────
     if (session.state === "AGUARDANDO_MENU") {
       if (inputUpper === "MENU") {
-        await updateState("START");
-        await sendReply("Voltando ao menu! 🎵");
+        if (student) {
+          await updateState("MENU_ALUNO");
+          const primeiroNome = student.name.split(" ")[0];
+          await sendReply(menuPrincipalMsg(schoolName, primeiroNome));
+        } else {
+          await updateState("MENU_NOVO");
+          await sendReply(menuPrincipalNovoMsg(schoolName));
+        }
       } else {
         await sendReply("Quando quiser, é só digitar *MENU* pra voltar ao início. 😊");
       }

@@ -1,5 +1,5 @@
 import { getDb } from "../db";
-import { marketingCampaigns, marketingContacts, marketingJobs, marketingLogs } from "../../drizzle/schema";
+import { marketingCampaigns, marketingContacts, marketingJobs, marketingLogs, settings } from "../../drizzle/schema";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import { sendWhatsAppMessage } from "../utils/whatsapp";
 
@@ -111,9 +111,23 @@ export class MarketingQueueWorker {
       let errorMessage = "";
       
       try {
-        // In a real scenario, we fetch the org's Evolution instance. For now, use the default.
-        evolutionResponse = await sendWhatsAppMessage({ phone: nextContact.phone, message: text });
-        success = true;
+        // Busca as configurações da organização para usar a instância pareada real
+        const [orgSettings] = await db.select().from(settings).where(eq(settings.organizationId, campaign.organizationId));
+        
+        evolutionResponse = await sendWhatsAppMessage({ 
+          url: orgSettings?.evolutionApiUrl || undefined,
+          token: orgSettings?.evolutionApiKey || undefined,
+          sessionId: orgSettings?.whatsappSessionId || undefined,
+          phone: nextContact.phone, 
+          message: text 
+        });
+        
+        if (evolutionResponse && (evolutionResponse as any).success === false) {
+          success = false;
+          errorMessage = (evolutionResponse as any).error || "Falha na resposta do WhatsApp";
+        } else {
+          success = true;
+        }
       } catch (err: any) {
         success = false;
         errorMessage = err.message || "Unknown error";

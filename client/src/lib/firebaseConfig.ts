@@ -2,33 +2,47 @@ import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDhgSbEbtUmXMmgn0dnLoODM0sGS35-fzI",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "wr-music.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "wr-music",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "wr-music.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "357562439771",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:357562439771:web:9583a273539352d0cc877e"
 };
 
 const app = initializeApp(firebaseConfig);
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
 export const requestForToken = async () => {
-  if (!messaging) return null;
+  if (!messaging || typeof window === 'undefined') return null;
   try {
+    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
+
+    let swRegistration: ServiceWorkerRegistration | undefined = undefined;
+    if ('serviceWorker' in navigator) {
+      try {
+        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      } catch (swErr) {
+        console.warn('Registro direto de /firebase-messaging-sw.js falhou, usando ready...', swErr);
+        swRegistration = await navigator.serviceWorker.ready.catch(() => undefined);
+      }
+    }
+
     const currentToken = await getToken(messaging, { 
-      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY 
+      vapidKey,
+      ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {})
     });
+
     if (currentToken) {
       console.log('FCM Token generated:', currentToken);
       return currentToken;
     } else {
-      console.log('No registration token available. Request permission to generate one.');
+      console.log('No registration token available.');
       return null;
     }
-  } catch (err) {
-    console.error('An error occurred while retrieving token. ', err);
-    return null;
+  } catch (err: any) {
+    console.error('An error occurred while retrieving token: ', err);
+    throw err;
   }
 };
 
