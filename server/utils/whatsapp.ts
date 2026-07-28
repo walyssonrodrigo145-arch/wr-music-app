@@ -78,6 +78,9 @@ export async function sendWhatsAppMessage({ url, token, phone, message, mediaUrl
       const payload: any = isMedia ? {
         number: phoneToTry,
         options: { delay: typingDelay, presence: "composing" },
+        mediatype: "image",
+        media: mediaUrl,
+        caption: message,
         mediaMessage: {
           mediatype: "image",
           caption: message,
