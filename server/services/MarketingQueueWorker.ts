@@ -111,13 +111,14 @@ export class MarketingQueueWorker {
       let errorMessage = "";
       
       try {
-        // Busca as configurações da organização para usar a instância pareada real
+        // Busca as configurações da organização/usuário para usar a instância pareada real (prof_{userId})
         const [orgSettings] = await db.select().from(settings).where(eq(settings.organizationId, campaign.organizationId));
+        const sessionId = orgSettings?.whatsappSessionId || `prof_${campaign.createdBy}`;
         
         evolutionResponse = await sendWhatsAppMessage({ 
           url: orgSettings?.evolutionApiUrl || undefined,
           token: orgSettings?.evolutionApiKey || undefined,
-          sessionId: orgSettings?.whatsappSessionId || undefined,
+          sessionId: sessionId,
           phone: nextContact.phone, 
           message: text 
         });
