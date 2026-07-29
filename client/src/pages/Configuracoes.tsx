@@ -917,16 +917,16 @@ export default function Configuracoes() {
       setSchoolDescription(settings.schoolDescription ?? "");
       setDueDaysForecast(settings.dueDaysForecast ?? "5,10,15,20");
 
-      setLateFeeEnabled((settings as any).lateFeeEnabled !== 0);
+      setLateFeeEnabled(Number((settings as any).lateFeeEnabled ?? 1) === 1);
       setLateFeeType(((settings as any).lateFeeType === "fixed" ? "fixed" : "percentage"));
       setLateFeeValue(Number((settings as any).lateFeeValue ?? 2.0));
-      setInterestEnabled((settings as any).interestEnabled !== 0);
+      setInterestEnabled(Number((settings as any).interestEnabled ?? 1) === 1);
       setInterestType(((settings as any).interestType === "monthly" ? "monthly" : "daily"));
       setInterestRate(Number((settings as any).interestRate ?? 0.33));
       setGraceDays(Number((settings as any).graceDays ?? 3));
-      setAutoUpdateInvoice((settings as any).autoUpdateInvoice !== 0);
-      setShowFeeBreakdown((settings as any).showFeeBreakdown !== 0);
-      setEarlyDiscountEnabled(Boolean((settings as any).earlyDiscountEnabled));
+      setAutoUpdateInvoice(Number((settings as any).autoUpdateInvoice ?? 1) === 1);
+      setShowFeeBreakdown(Number((settings as any).showFeeBreakdown ?? 1) === 1);
+      setEarlyDiscountEnabled(Number((settings as any).earlyDiscountEnabled ?? 0) === 1);
       setEarlyDiscountType(((settings as any).earlyDiscountType === "fixed" ? "fixed" : "percentage"));
       setEarlyDiscountValue(Number((settings as any).earlyDiscountValue ?? 5.0));
       setEarlyDiscountDays(Number((settings as any).earlyDiscountDays ?? 0));
@@ -1079,6 +1079,7 @@ export default function Configuracoes() {
         icon: <DollarSign size={16} className="text-emerald-500" />,
       });
       utils.settings.get.invalidate();
+      utils.paymentDues.invalidate();
     },
     onError: (e) => toast.error("Erro ao salvar configurações financeiras: " + e.message),
   });
@@ -1578,7 +1579,7 @@ export default function Configuracoes() {
                               type="number"
                               step="0.01"
                               value={lateFeeValue}
-                              onChange={(e) => setLateFeeValue(Number(e.target.value))}
+                              onChange={(e) => setLateFeeValue(parseFloat(String(e.target.value).replace(',', '.')) || 0)}
                               className="h-11 font-bold bg-muted/50 rounded-xl"
                             />
                           </Field>
@@ -1638,7 +1639,7 @@ export default function Configuracoes() {
                               type="number"
                               step="0.0001"
                               value={interestRate}
-                              onChange={(e) => setInterestRate(Number(e.target.value))}
+                              onChange={(e) => setInterestRate(parseFloat(String(e.target.value).replace(',', '.')) || 0)}
                               className="h-11 font-bold bg-muted/50 rounded-xl"
                             />
                           </Field>

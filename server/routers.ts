@@ -4947,11 +4947,7 @@ ${jsonSchemaFormat}`;
           ))
           .orderBy(asc(paymentDues.dueDate));
 
-        const [schoolSettingsObj] = await db
-          .select()
-          .from(settings)
-          .where(eq(settings.organizationId, orgId))
-          .limit(1);
+        const schoolSettingsObj = await getSettingsByUserId(orgId, ctx.user.id);
 
         const enrichedRows = await BillingEngine.enrichInvoicesList(rows, schoolSettingsObj);
 

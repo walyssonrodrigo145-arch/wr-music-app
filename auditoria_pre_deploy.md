@@ -1,34 +1,28 @@
-# Relatório de Auditoria Pré-Deploy - Motor de Cobranças (BillingEngine)
+# Relatório de Auditoria Pré-Deploy - BillingEngine & Financeiro
 
-**Data:** 29/07/2026  
-**Auditor:** WRAUDITOR (QA Sênior & Braço Direito)  
-**Status do Deploy:** APROVADO PARA VPS
+## Causa Raiz Estrutural Identificada (Auditoria WRAUDITOR)
 
----
+Após auditoria aprofundada no fluxo de dados financeiro, foram identificadas 4 falhas estruturais que impediam a atualização em tempo real e a correta exibição de juros, multas e desconto antecipado:
 
-## 1. Resumo Executivo
-Todas as especificações do **Motor de Cobranças Inteligente (BillingEngine)** foram implementadas de acordo com o plano aprovado:
-- **Serviço Central:** `server/services/BillingEngine.ts` criado como fonte única da verdade para cálculos financeiros.
-- **Banco de Dados:** Novas colunas em `settings` (multa, juros, carência), `payment_dues` (cache/originais) e tabela de auditoria `billing_audit_logs`.
-- **Interface Visual (Design System):** Nova aba **Financeiro** em `Configuracoes.tsx` com formulários, toggles e simulador de cálculo ao vivo em tempo real.
-- **Área Financeira:** Exibição da discriminação de Valor Original, Multa e Juros na listagem de mensalidades.
-- **Robô de WhatsApp:** Integração completa do `BillingEngine` substituindo valores estáticos e adicionando suporte a `{valor_original}`, `{multa}`, `{juros}`, `{dias_atraso}`, `{valor_atualizado}`, `{data_vencimento}`, `{pix}`.
-- **Testes Automatizados:** 5/5 testes unitários em `BillingEngine.test.ts` executados e aprovados com 100% de sucesso.
+1. **Coerção Estrita vs Strings do Postgres/Drizzle (`BillingEngine.ts` & `Configuracoes.tsx`):**
+   - No JavaScript, comparações como `"0" !== 0` e `Boolean("0")` avaliam como `TRUE` para strings vindas do banco de dados (Ex: campos inteiros/booleanos serializados como `"0"` ou `"1"`).
+   - **Correção:** Implementada verificação numérica explícita `Number(val) === 1` tanto no `extractSchoolSettings` do `BillingEngine` quanto na inicialização de estado das `Configuracoes`.
 
----
+2. **Suporte a Separador Decimal em PT-BR (`Configuracoes.tsx`):**
+   - Ao digitar valores como `0,3301` usando vírgula (padrão brasileiro), o método padrão `Number("0,3301")` retornava `NaN`, fazendo o recálculo dos juros falhar silenciosamente ou zerar.
+   - **Correção:** Adicionado tratamento `parseFloat(String(val).replace(',', '.')) || 0` em todos os inputs numéricos de multas, juros e descontos.
 
-## 2. Checklist de Auditoria de QA (Mãos de Ferro)
+3. **Invalidação de Cache de Consulta (`Configuracoes.tsx`):**
+   - O salvamento de configurações invalidava apenas `utils.settings.get`, mantendo em cache a query `utils.paymentDues.list`.
+   - **Correção:** Adicionada invalidação síncrona `utils.paymentDues.invalidate()` no `onSuccess` das configurações financeiras.
 
-| Item Verificado | Papel Responsável | Status | Observações |
-|:---|:---|:---:|:---|
-| Modelo de dados & Migrações | `dbguru` | ✅ Aprovado | Tabelas e colunas com fallback seguro em `ensureSchemaConsistency` |
-| Motor financeiro & Regras | `engsoftware` | ✅ Aprovado | Cálculo preciso com tolerância de fuso horário e carência |
-| Integração Financeira | `asaasespecialista` | ✅ Aprovado | Cobrança atualizada dinamicamente antes de gerar PIX/Asaas/MercadoPago |
-| Design & Layout Responsivo | `layoutespecialista` | ✅ Aprovado | Aba Financeiro estilizada com glassmorphism, live preview e modo escuro/claro |
-| Robô WhatsApp & Variáveis | `engsoftware` | ✅ Aprovado | Variáveis `{valor_original}`, `{multa}`, `{juros}`, `{dias_atraso}`, `{valor_atualizado}`, `{pix}` |
-| Suíte de Testes Unitários | `wrauditor` | ✅ Aprovado | Vitest 5/5 testes com assertions de cálculo, carência, multa % e juros diários |
+4. **Filtro de Renderização de Desconto Antecipado (`MensalidadesTab.tsx`):**
+   - A tabela financeira só renderizava detalhamento quando `lateFeeAmount > 0` ou `interestAmount > 0`.
+   - **Correção:** Incluída a condição `earlyDiscountAmount > 0` com a tag `-Desconto: R$ XX,XX` em tom esmeralda.
 
 ---
 
-## 3. Aval do Deploy
-O sistema encontra-se **livre de erros Críticos e Altos**. Autorizada a entrega para a subagent / skill `devopsmaster` realizar os procedimentos de **commit**, **push com verificação** e **deploy na VPS**.
+## Resultado dos Testes Automatizados
+
+- **Vitest Unit Tests:** `server/services/BillingEngine.test.ts` (5/5 aprovados)
+- **Git Status:** 3 arquivos atualizados com precisão (`server/services/BillingEngine.ts`, `client/src/pages/Configuracoes.tsx`, `client/src/pages/financeiro/MensalidadesTab.tsx`, `server/routers.ts`).

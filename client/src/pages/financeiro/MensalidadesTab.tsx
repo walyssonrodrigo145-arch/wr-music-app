@@ -862,7 +862,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                             <p className="text-sm font-black text-foreground">
                                {currencyFormat(Number(payment.amount))}
                             </p>
-                            {(payment as any).calculation && ((payment as any).calculation.lateFeeAmount > 0 || (payment as any).calculation.interestAmount > 0) && (
+                            {(payment as any).calculation && ((payment as any).calculation.lateFeeAmount > 0 || (payment as any).calculation.interestAmount > 0 || (payment as any).calculation.earlyDiscountAmount > 0) && (
                               <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium mt-0.5">
                                 <span className="text-muted-foreground line-through">
                                   Orig: {currencyFormat((payment as any).calculation.originalAmount)}
@@ -875,6 +875,11 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                 {(payment as any).calculation.interestAmount > 0 && (
                                   <span className="text-indigo-500 font-bold">
                                     +Juros: R$ {(payment as any).calculation.interestAmount.toFixed(2)}
+                                  </span>
+                                )}
+                                {(payment as any).calculation.earlyDiscountAmount > 0 && (
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                    -Desconto: R$ {(payment as any).calculation.earlyDiscountAmount.toFixed(2)}
                                   </span>
                                 )}
                               </div>

@@ -71,16 +71,16 @@ export class BillingEngine {
     }
 
     return {
-      lateFeeEnabled: schoolSettingsObj.lateFeeEnabled !== 0,
+      lateFeeEnabled: Number(schoolSettingsObj.lateFeeEnabled ?? 1) === 1,
       lateFeeType: (schoolSettingsObj.lateFeeType === "fixed" ? "fixed" : "percentage") as "fixed" | "percentage",
       lateFeeValue: Number(schoolSettingsObj.lateFeeValue ?? 2.0),
-      interestEnabled: schoolSettingsObj.interestEnabled !== 0,
+      interestEnabled: Number(schoolSettingsObj.interestEnabled ?? 1) === 1,
       interestType: (schoolSettingsObj.interestType === "monthly" ? "monthly" : "daily") as "daily" | "monthly",
       interestRate: Number(schoolSettingsObj.interestRate ?? 0.33),
       graceDays: Number(schoolSettingsObj.graceDays ?? 3),
-      autoUpdateInvoice: schoolSettingsObj.autoUpdateInvoice !== 0,
-      showFeeBreakdown: schoolSettingsObj.showFeeBreakdown !== 0,
-      earlyDiscountEnabled: Boolean(schoolSettingsObj.earlyDiscountEnabled),
+      autoUpdateInvoice: Number(schoolSettingsObj.autoUpdateInvoice ?? 1) === 1,
+      showFeeBreakdown: Number(schoolSettingsObj.showFeeBreakdown ?? 1) === 1,
+      earlyDiscountEnabled: Number(schoolSettingsObj.earlyDiscountEnabled ?? 0) === 1,
       earlyDiscountType: (schoolSettingsObj.earlyDiscountType === "fixed" ? "fixed" : "percentage") as "fixed" | "percentage",
       earlyDiscountValue: Number(schoolSettingsObj.earlyDiscountValue ?? 5.0),
       earlyDiscountDays: Number(schoolSettingsObj.earlyDiscountDays ?? 0),
