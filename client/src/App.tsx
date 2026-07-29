@@ -68,8 +68,10 @@ function Router() {
 
   if (loading) return <PageLoader />;
 
-  // Se o acesso for via subdomínio analytics.wrmusicpro.com.br
-  if (host.startsWith("analytics.")) {
+  // Se o acesso for via subdomínio analytics.wrmusicpro.com.br ou query string ?analytics=true
+  const isAnalyticsHost = host.includes("analytics.") || (typeof window !== "undefined" && window.location.search.includes("analytics=true"));
+
+  if (isAnalyticsHost) {
     if (!isAuthenticated) {
       return (
         <Suspense fallback={<PageLoader />}>
