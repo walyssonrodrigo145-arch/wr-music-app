@@ -222,7 +222,7 @@ export async function recordAnalyticsRevenue(data: {
 }) {
   try {
     const { getDb } = await import("../db");
-    const { analyticsRevenue, analyticsConversions, analyticsEvents } = await import("../../drizzle/schema");
+    const { analyticsRevenue, analyticsConversions } = await import("../../drizzle/schema");
 
     const db = await getDb();
     if (!db) return;
@@ -231,7 +231,7 @@ export async function recordAnalyticsRevenue(data: {
     const strAmount = String(data.amount);
 
     await db.insert(analyticsRevenue).values({
-      organizationId: data.organizationId ?? null,
+      organizationId: data.organizationId || 1,
       sessionId: data.sessionId ?? null,
       visitorId: data.visitorId ?? null,
       userId: data.userId ?? null,
@@ -249,12 +249,11 @@ export async function recordAnalyticsRevenue(data: {
     if (data.sessionId) {
       await db.insert(analyticsConversions).values({
         sessionId: data.sessionId,
-        visitorId: data.visitorId ?? undefined,
-        userId: data.userId ?? undefined,
-        conversionType: "payment",
-        value: strAmount,
-        utmSource: data.utmSource ?? undefined,
-        utmCampaign: data.utmCampaign ?? undefined,
+        visitorId: data.visitorId || data.sessionId,
+        userId: data.userId ?? null,
+        reachedPayment: true,
+        utmSource: data.utmSource ?? null,
+        utmCampaign: data.utmCampaign ?? null,
         createdAt: created,
       }).onConflictDoNothing();
     }
@@ -301,7 +300,7 @@ export async function syncHistoricalRevenueToAnalytics() {
 
       for (const p of paidList) {
         await db.insert(analyticsRevenue).values({
-          organizationId: p.organizationId ?? null,
+          organizationId: p.organizationId || 1,
           userId: p.userId,
           amount: String(p.amount),
           planName: "Mensalidade Escolar",
