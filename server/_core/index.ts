@@ -14,7 +14,7 @@ import botStatusWebhookRouter from "../webhooks/botStatus";
 import { serveStatic, setupVite } from "./vite";
 import { startAutomationJob } from "../automationJob";
 import { marketingWorker } from "../services/MarketingQueueWorker";
-import { analyticsQueue } from "../services/AnalyticsQueue";
+import { analyticsQueue, recordAnalyticsRevenue, syncHistoricalRevenueToAnalytics } from "../services/AnalyticsQueue";
 import { generateAnalyticsInsights } from "../services/AnalyticsAIService";
 import { createRateLimiter } from "./rateLimiter";
 import { runAutoMigrations } from "./migrate";
