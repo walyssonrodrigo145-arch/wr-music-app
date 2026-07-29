@@ -53,6 +53,7 @@ const filesToUpload = [
   'drizzle/schema.ts',
   'server/_core/migrate.ts',
   'server/db.ts',
+  'server/services/BillingEngine.ts',
   'server/automationJob.ts',
   'client/src/pages/Aulas.tsx',
   'client/src/pages/Assinatura.tsx',
