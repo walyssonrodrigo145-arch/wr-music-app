@@ -41,7 +41,7 @@ export const requestForToken = async () => {
 
       if ('serviceWorker' in navigator) {
         try {
-          let reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+          let reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
           
           // Se o Service Worker ainda não estiver no estado 'active', aguarda até que reg.active exista
           if (!reg.active) {
