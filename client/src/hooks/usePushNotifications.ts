@@ -16,7 +16,21 @@ export function usePushNotifications() {
   /** Solicita permissão ao usuário e cadastra o Token no backend FCM */
   const requestPermission = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
-    if (!isSupported) return "denied" as NotificationPermission;
+    if (!isSupported) {
+      if (!silent) {
+        toast.error("Notificações Web Push não são suportadas neste navegador ou modo. No iPhone/iOS, adicione o app à Tela de Início (PWA).");
+      }
+      return "denied" as NotificationPermission;
+    }
+
+    if (Notification.permission === "denied") {
+      setPermission("denied");
+      if (!silent) {
+        toast.error("As notificações estão bloqueadas nas configurações do seu celular/navegador. Toque no cadeado ao lado da URL para permitir.");
+      }
+      return "denied" as NotificationPermission;
+    }
+
     const result = await Notification.requestPermission();
     setPermission(result);
     
@@ -28,7 +42,7 @@ export function usePushNotifications() {
         console.error("Erro na API do Firebase ao obter Token FCM:", err);
         const detail = err?.message || err?.code || String(err);
         if (!silent) {
-          toast.error(`Falha no Firebase Push: ${detail}`);
+          toast.error(`Falha ao obter Token FCM: ${detail}`);
         }
         return result;
       }
@@ -41,18 +55,22 @@ export function usePushNotifications() {
             deviceInfo: navigator.userAgent
           });
           if (!silent) {
-            toast.success("Dispositivo sincronizado para notificações!");
+            toast.success("Celular e dispositivo sincronizados para receber notificações!");
           }
         } catch (err: any) {
           console.error("Erro no backend ao salvar FCM token:", err);
           if (!silent) {
-            toast.error("Servidor indisponível ao salvar token de notificação: " + (err.message || "Erro de conexão"));
+            toast.error("Servidor indisponível ao salvar token: " + (err.message || "Erro de conexão"));
           }
         }
       } else {
         if (!silent) {
-          toast.error("Não foi possível obter a chave de notificação do dispositivo.");
+          toast.error("Não foi possível gerar a chave de notificação do dispositivo.");
         }
+      }
+    } else if (result === "denied") {
+      if (!silent) {
+        toast.error("Permissão de notificação negada pelo usuário.");
       }
     }
     return result;

@@ -16,6 +16,20 @@ try {
   const messaging = firebase.messaging();
   messaging.onBackgroundMessage((payload) => {
     console.log('[sw.js] Background Push FCM recebido:', payload);
+    const notificationTitle = payload.notification?.title || payload.data?.title || 'WR MusicPro';
+    const notificationOptions = {
+      body: payload.notification?.body || payload.data?.body || 'Você tem uma nova mensagem ou lembrete.',
+      icon: payload.notification?.icon || payload.data?.icon || '/icon-192.png',
+      badge: payload.notification?.badge || payload.data?.badge || '/icon-badge.png',
+      data: {
+        url: payload.fcmOptions?.link || payload.data?.url || '/',
+        ...payload.data
+      },
+      vibrate: [200, 100, 200],
+      tag: payload.data?.tag || 'wr-music-notification'
+    };
+
+    return self.registration.showNotification(notificationTitle, notificationOptions);
   });
 } catch (err) {
   console.warn('[sw.js] Erro ao inicializar Firebase no SW:', err);
@@ -80,15 +94,45 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Escutar notificações push (preparação para o futuro)
+// Escutar notificações push (preparação e fallback)
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Novo Lembrete';
-  const options = {
-    body: data.content || 'Você tem um novo aviso no sistema de música.',
-    icon: '/icon-192.png',
-    badge: '/icon-badge.png',
-  };
+  if (!event.data) return;
+  try {
+    const data = event.data.json();
+    const title = data.notification?.title || data.title || 'Novo Lembrete';
+    const options = {
+      body: data.notification?.body || data.content || 'Você tem um novo aviso no sistema de música.',
+      icon: data.notification?.icon || '/icon-192.png',
+      badge: data.notification?.badge || '/icon-badge.png',
+      data: {
+        url: data.fcmOptions?.link || data.url || '/',
+        ...data
+      },
+      vibrate: [200, 100, 200]
+    };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (e) {
+    console.error('[sw.js] Erro ao processar evento push:', e);
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('[sw.js] Notificação clicada:', event.notification);
+  event.notification.close();
+
+  const urlToOpen = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(urlToOpen) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
 });

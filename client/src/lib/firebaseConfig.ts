@@ -21,9 +21,15 @@ export const requestForToken = async () => {
     let swRegistration: ServiceWorkerRegistration | undefined = undefined;
     if ('serviceWorker' in navigator) {
       try {
-        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        const regs = await navigator.serviceWorker.getRegistrations();
+        if (regs.length > 0) {
+          swRegistration = regs.find(r => r.active && (r.active.scriptURL.includes('firebase-messaging-sw.js') || r.active.scriptURL.includes('sw.js'))) || regs[0];
+        }
+        if (!swRegistration) {
+          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        }
       } catch (swErr) {
-        console.warn('Registro direto de /firebase-messaging-sw.js falhou, usando ready...', swErr);
+        console.warn('Busca de Service Worker falhou, usando navigator.serviceWorker.ready...', swErr);
         swRegistration = await navigator.serviceWorker.ready.catch(() => undefined);
       }
     }
@@ -34,14 +40,14 @@ export const requestForToken = async () => {
     });
 
     if (currentToken) {
-      console.log('FCM Token generated:', currentToken);
+      console.log('FCM Token gerado com sucesso:', currentToken);
       return currentToken;
     } else {
-      console.log('No registration token available.');
+      console.warn('Nenhum token FCM retornado pelo Firebase.');
       return null;
     }
   } catch (err: any) {
-    console.error('An error occurred while retrieving token: ', err);
+    console.error('Erro ao buscar token FCM:', err);
     throw err;
   }
 };

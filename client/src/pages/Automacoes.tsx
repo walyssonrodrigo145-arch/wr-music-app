@@ -731,7 +731,19 @@ export default function Automacoes() {
   }, [isLoading, rules.length]);
 
   const [autoEnabled, setAutoEnabled] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { permission, isSupported, requestPermission } = usePushNotifications();
+
+  const handleSyncNotifications = async () => {
+    setIsSyncing(true);
+    try {
+      await requestPermission({ silent: false });
+    } catch (err: any) {
+      toast.error("Erro ao sincronizar: " + (err.message || String(err)));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
   
   const { data: automationData } = trpc.settings.getAutomation.useQuery(
     undefined,
@@ -871,25 +883,49 @@ export default function Automacoes() {
       </div>
 
       {isSupported && permission === "default" && (
-        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-100 shadow-sm shrink-0">
+        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-sm shrink-0">
           <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
-          <p className="text-[11px] lg:text-xs text-amber-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Ative os alertas para ser avisado sobre novos lembretes.</p>
-          <Button size="sm" className="w-full sm:w-auto h-9 rounded-xl bg-amber-600 text-white font-black uppercase tracking-widest text-[9px] px-4 shadow-lg shadow-amber-500/20" onClick={async () => {
-            const result = await requestPermission();
-            if (result === "granted") toast.success("Notificações ativadas!");
-          }}>Ativar</Button>
+          <p className="text-[11px] lg:text-xs text-amber-800 dark:text-amber-300 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Ative os alertas para ser avisado sobre novos lembretes no celular.</p>
+          <Button size="sm" disabled={isSyncing} className="w-full sm:w-auto h-9 rounded-xl bg-amber-600 text-white font-black uppercase tracking-widest text-[9px] px-4 shadow-lg shadow-amber-500/20 hover:bg-amber-700" onClick={handleSyncNotifications}>
+            {isSyncing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Ativar Notificações
+          </Button>
         </div>
       )}
 
       {isSupported && permission === "granted" && (
-        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-100 shadow-sm shrink-0">
+        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-sm shrink-0">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
-          <p className="text-[11px] lg:text-xs text-emerald-800 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Notificações Ativadas! Você pode fechar a aba que continuará sendo avisado.</p>
+          <p className="text-[11px] lg:text-xs text-emerald-800 dark:text-emerald-300 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Notificações Ativadas! Seu celular receberá os avisos mesmo com o app fechado.</p>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => requestPermission()}>Sincronizar</Button>
-            <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => testPush.mutate()} disabled={testPush.isPending}>
+            <Button size="sm" variant="outline" disabled={isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={handleSyncNotifications}>
+              {isSyncing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Sincronizar
+            </Button>
+            <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => testPush.mutate()} disabled={testPush.isPending || isSyncing}>
               {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Disparar Teste
             </Button>
+          </div>
+        </div>
+      )}
+
+      {permission === "denied" && (
+        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 shadow-sm shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
+          <div className="flex-1 text-center sm:text-left">
+            <p className="text-[11px] lg:text-xs text-rose-800 dark:text-rose-300 font-bold uppercase tracking-widest leading-snug">Notificações Bloqueadas no Celular/Navegador</p>
+            <p className="text-[10px] text-rose-700/80 dark:text-rose-400 font-medium mt-1">Para receber alertas no celular, toque no ícone de cadeado na barra de endereço do navegador e ative a permissão "Notificações".</p>
+          </div>
+          <Button size="sm" variant="outline" disabled={isSyncing} className="w-full sm:w-auto h-9 rounded-xl border-rose-500/30 text-rose-700 dark:text-rose-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-rose-500/20" onClick={handleSyncNotifications}>
+            {isSyncing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Tentar Novamente
+          </Button>
+        </div>
+      )}
+
+      {!isSupported && (
+        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-sm shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
+          <div className="flex-1 text-center sm:text-left">
+            <p className="text-[11px] lg:text-xs text-amber-800 dark:text-amber-300 font-bold uppercase tracking-widest leading-snug">Navegador sem Suporte Direto a Web Push</p>
+            <p className="text-[10px] text-amber-700/80 dark:text-amber-400 font-medium mt-1">No iPhone/iOS, toque em "Compartilhar" e escolha "Adicionar à Tela de Início" para ativar as notificações push.</p>
           </div>
         </div>
       )}
