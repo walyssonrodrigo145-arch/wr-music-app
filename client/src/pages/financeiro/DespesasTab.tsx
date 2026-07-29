@@ -580,7 +580,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
   };
 
   return (
-    <div className="space-y-6 lg:space-y-8 font-sans animate-fade-in">
+    <div className="space-y-6 lg:space-y-8 font-sans animate-fade-in pb-12">
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -593,12 +593,12 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
       <EditDespesaModal open={!!editExpense} onClose={() => setEditExpense(null)} expense={editExpense} />
 
       {/* HEADER PRINCIPAL */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6 lg:p-8 bg-card rounded-[2.5rem] border border-border shadow-sm">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6 lg:p-8 bg-card rounded-[2rem] border border-border shadow-sm">
         <div>
           <h1 className="text-2xl lg:text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
-            Despesas <span className="text-xs font-black px-3 py-1 rounded-xl bg-purple-500/10 text-purple-600 border border-purple-500/20 uppercase tracking-widest">SaaS Premium</span>
+            Despesas e Custos <span className="text-xs font-black px-3 py-1 rounded-xl bg-purple-500/10 text-purple-600 border border-purple-500/20 uppercase tracking-widest">Financeiro</span>
           </h1>
-          <p className="text-xs lg:text-sm text-muted-foreground font-medium mt-1">Gerencie todas as despesas da empresa de forma organizada e inteligente.</p>
+          <p className="text-xs lg:text-sm text-muted-foreground font-medium mt-1">Visão completa e controle centralizado de todas as saídas financeiras da sua escola.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -606,155 +606,251 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
             onClick={() => generateRecurringMutation.mutate({ startMonth: viewMonth, startYear: viewYear, monthsCount: 1 })} 
             disabled={generateRecurringMutation.isPending}
             variant="outline"
-            className="h-12 rounded-2xl px-5 border-border hover:bg-muted text-xs font-bold gap-2 text-muted-foreground hover:text-foreground transition-all shadow-sm flex-1 md:flex-initial"
+            className="h-11 rounded-xl px-4 border-border hover:bg-muted text-xs font-bold gap-2 text-muted-foreground hover:text-foreground transition-all shadow-sm flex-1 md:flex-initial"
           >
-            {generateRecurringMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} className="text-purple-500" />}
+            {generateRecurringMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} className="text-purple-500" />}
             Gerar Fixas do Mês
           </Button>
 
           <Button 
             onClick={exportCSV} 
             variant="outline"
-            className="h-12 rounded-2xl px-5 border-border hover:bg-muted text-xs font-bold gap-2 text-muted-foreground hover:text-foreground transition-all shadow-sm flex-1 md:flex-initial"
+            className="h-11 rounded-xl px-4 border-border hover:bg-muted text-xs font-bold gap-2 text-muted-foreground hover:text-foreground transition-all shadow-sm flex-1 md:flex-initial"
           >
-            <Download size={16} />
+            <Download size={15} />
             Exportar Relatório
           </Button>
 
           <Button 
             onClick={() => setNovaOpen(true)}
-            className="h-12 rounded-2xl px-6 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:via-indigo-700 hover:to-blue-700 text-white text-xs font-black gap-2 shadow-xl shadow-purple-500/20 transition-all active:scale-95 w-full md:w-auto"
+            className="h-11 rounded-xl px-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black gap-2 shadow-lg shadow-purple-500/20 transition-all active:scale-95 w-full md:w-auto"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             Nova Despesa
           </Button>
         </div>
       </div>
 
       {/* 4 CARDS FINANCEIROS SUPERIORES */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {/* Card 1 */}
-        <div className="p-6 lg:p-8 rounded-[2.5rem] bg-card border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-purple-500/30 transition-all">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-all" />
-          <div className="flex items-center justify-between relative z-10">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total de Despesas</span>
-            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center shadow-sm shrink-0">
+        <div className="p-5 lg:p-6 rounded-2xl bg-card border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-purple-500/30 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">Total de Despesas</span>
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shadow-xs shrink-0">
               <DollarSign size={20} />
             </div>
           </div>
-          <div className="mt-4 relative z-10">
+          <div className="mt-4">
             <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{currencyFormat(stats.currentSum)}</p>
             <div className="flex items-center gap-1.5 mt-2">
-              <span className={cn("inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-lg", stats.percentTotal <= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}>
+              <span className={cn("inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-md", stats.percentTotal <= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}>
                 {stats.percentTotal <= 0 ? <TrendingDown size={12} className="mr-1" /> : <TrendingUp size={12} className="mr-1" />}
                 {Math.abs(stats.percentTotal).toFixed(1)}%
               </span>
-              <span className="text-[10px] font-medium text-muted-foreground">vs mês anterior</span>
+              <span className="text-[11px] font-medium text-muted-foreground">vs mês anterior</span>
             </div>
           </div>
         </div>
 
         {/* Card 2 */}
-        <div className="p-6 lg:p-8 rounded-[2.5rem] bg-card border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-blue-500/30 transition-all">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-all" />
-          <div className="flex items-center justify-between relative z-10">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Despesas Fixas</span>
-            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center shadow-sm shrink-0">
+        <div className="p-5 lg:p-6 rounded-2xl bg-card border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-blue-500/30 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">Despesas Fixas</span>
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shadow-xs shrink-0">
               <Building2 size={20} />
             </div>
           </div>
-          <div className="mt-4 relative z-10">
+          <div className="mt-4">
             <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{currencyFormat(stats.fixasSum)}</p>
             <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-600">
+              <span className="inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600">
                 {stats.percentFixas.toFixed(1)}% do total
               </span>
-              <span className="text-[10px] font-medium text-muted-foreground">contas recorrentes</span>
+              <span className="text-[11px] font-medium text-muted-foreground">recorrentes</span>
             </div>
           </div>
         </div>
 
         {/* Card 3 */}
-        <div className="p-6 lg:p-8 rounded-[2.5rem] bg-card border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/30 transition-all">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-all" />
-          <div className="flex items-center justify-between relative z-10">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Despesas Variáveis</span>
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shadow-sm shrink-0">
+        <div className="p-5 lg:p-6 rounded-2xl bg-card border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/30 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">Despesas Variáveis</span>
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shadow-xs shrink-0">
               <Tag size={20} />
             </div>
           </div>
-          <div className="mt-4 relative z-10">
+          <div className="mt-4">
             <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{currencyFormat(stats.variaveisSum)}</p>
             <div className="flex items-center gap-1.5 mt-2">
-              <span className={cn("inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-lg", stats.percentVariaveis <= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}>
+              <span className={cn("inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-md", stats.percentVariaveis <= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}>
                 {stats.percentVariaveis <= 0 ? <TrendingDown size={12} className="mr-1" /> : <TrendingUp size={12} className="mr-1" />}
                 {Math.abs(stats.percentVariaveis).toFixed(1)}%
               </span>
-              <span className="text-[10px] font-medium text-muted-foreground">vs mês anterior</span>
+              <span className="text-[11px] font-medium text-muted-foreground">vs mês anterior</span>
             </div>
           </div>
         </div>
 
         {/* Card 4 */}
-        <div className="p-6 lg:p-8 rounded-[2.5rem] bg-card border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/30 transition-all">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-all" />
-          <div className="flex items-center justify-between relative z-10">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Média Diária</span>
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-sm shrink-0">
+        <div className="p-5 lg:p-6 rounded-2xl bg-card border border-border shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/30 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">Média Diária</span>
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-xs shrink-0">
               <Wallet size={20} />
             </div>
           </div>
-          <div className="mt-4 relative z-10">
+          <div className="mt-4">
             <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{currencyFormat(stats.mediaDiaria)}</p>
             <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600">
+              <span className="inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600">
                 Período Atual
               </span>
-              <span className="text-[10px] font-medium text-muted-foreground">gastos por dia</span>
+              <span className="text-[11px] font-medium text-muted-foreground">por dia</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ÁREA DE FILTROS AVANÇADOS */}
-      <div className="p-6 bg-card rounded-[2.5rem] border border-border shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto flex-1">
-          {/* Busca */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+      {/* PAINEL DE GRÁFICOS & RESUMO (3 COLUNAS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Gráfico Donut de Categorias */}
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <h3 className="text-sm font-black text-foreground tracking-tight flex items-center gap-2">
+              <PieIcon size={16} className="text-purple-500" /> Distribuição por Categoria
+            </h3>
+          </div>
+
+          <div className="h-52 w-full">
+            {categoryChartData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground font-medium italic">Sem dados no período</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {categoryChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="transparent" />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(val: any) => currencyFormat(Number(val))}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '0.75rem', fontSize: '12px', fontWeight: 'bold' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border max-h-24 overflow-y-auto scrollbar-none">
+            {categoryChartData.map((c, i) => (
+              <div key={c.name} className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                <span className="text-[11px] font-semibold text-muted-foreground truncate">{c.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Gráfico Mensal de Evolução */}
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <h3 className="text-sm font-black text-foreground tracking-tight flex items-center gap-2">
+              <TrendingUp size={16} className="text-blue-500" /> Evolução de Despesas
+            </h3>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">6 meses</span>
+          </div>
+
+          <div className="h-52 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthlyEvolutionData}>
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={45} tickFormatter={(val) => `R$${val/1000}k`} />
+                <Tooltip 
+                  formatter={(val: any) => currencyFormat(Number(val))}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '0.75rem', fontSize: '12px', fontWeight: 'bold' }}
+                />
+                <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} dot={{ r: 3, fill: '#3b82f6' }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Próximos Vencimentos */}
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <h3 className="text-sm font-black text-foreground tracking-tight flex items-center gap-2">
+              <Calendar size={16} className="text-amber-500" /> Próximos Vencimentos
+            </h3>
+          </div>
+
+          <div className="space-y-3 overflow-y-auto max-h-56 pr-1 scrollbar-none">
+            {upcomingExpenses.length === 0 ? (
+              <p className="text-xs text-muted-foreground font-medium italic text-center py-8">Nenhuma despesa pendente no momento.</p>
+            ) : (
+              upcomingExpenses.map((exp: any) => (
+                <div key={exp.id} onClick={() => setEditExpense(exp)} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border hover:bg-muted transition-all cursor-pointer group">
+                  <div className="min-w-0 flex-1 mr-2">
+                    <p className="text-xs font-bold text-foreground truncate group-hover:text-purple-600 transition-colors">{exp.description}</p>
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{format(new Date(exp.date + "T12:00:00"), "dd/MM")} • {exp.account || "Sem conta"}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-black text-amber-600 tracking-tight">{currencyFormat(Number(exp.amount))}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* BARRA DE BUSCA E FILTROS ESPAÇOSOS */}
+      <div className="p-5 bg-card rounded-2xl border border-border shadow-sm space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Busca por texto */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <Input 
-              placeholder="Buscar por descrição ou fornecedor..." 
-              className="pl-11 h-12 border-border bg-muted/50 rounded-2xl shadow-sm text-xs font-bold focus:bg-card transition-all"
+              placeholder="Buscar descrição ou fornecedor..." 
+              className="pl-10 h-11 border-border bg-muted/30 rounded-xl text-xs font-bold focus:bg-card transition-all"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             />
           </div>
 
           {/* Categoria Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hidden sm:inline">Categoria:</span>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">Categoria</label>
             <select value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setCurrentPage(1); }}
-              className="h-12 text-xs font-bold rounded-2xl border border-border bg-muted/50 px-4 focus:bg-card transition-all cursor-pointer">
+              className="w-full h-11 text-xs font-bold rounded-xl border border-border bg-muted/30 px-3 focus:bg-card transition-all cursor-pointer text-foreground">
               <option value="todas">Todas Categorias</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
           {/* Conta Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hidden sm:inline">Conta:</span>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">Conta Financeira</label>
             <select value={filterAccount} onChange={e => { setFilterAccount(e.target.value); setCurrentPage(1); }}
-              className="h-12 text-xs font-bold rounded-2xl border border-border bg-muted/50 px-4 focus:bg-card transition-all cursor-pointer">
+              className="w-full h-11 text-xs font-bold rounded-xl border border-border bg-muted/30 px-3 focus:bg-card transition-all cursor-pointer text-foreground">
               <option value="todas">Todas Contas</option>
               {uniqueAccounts.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hidden sm:inline">Status:</span>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">Status de Pagamento</label>
             <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-              className="h-12 text-xs font-bold rounded-2xl border border-border bg-muted/50 px-4 focus:bg-card transition-all cursor-pointer">
+              className="w-full h-11 text-xs font-bold rounded-xl border border-border bg-muted/30 px-3 focus:bg-card transition-all cursor-pointer text-foreground">
               <option value="todas">Todos Status</option>
               <option value="pendente">Pendente</option>
               <option value="pago">Pago</option>
@@ -764,287 +860,176 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
         </div>
 
         {(search || filterCategory !== "todas" || filterAccount !== "todas" || filterStatus !== "todas") && (
-          <Button variant="ghost" onClick={() => { setSearch(""); setFilterCategory("todas"); setFilterAccount("todas"); setFilterStatus("todas"); setCurrentPage(1); }}
-            className="h-12 rounded-2xl text-xs font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/10">
-            Limpar Filtros
-          </Button>
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <span className="text-xs font-medium text-muted-foreground">Filtros ativos aplicados</span>
+            <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFilterCategory("todas"); setFilterAccount("todas"); setFilterStatus("todas"); setCurrentPage(1); }}
+              className="h-8 rounded-lg text-xs font-bold text-rose-500 hover:bg-rose-500/10">
+              Limpar Todos os Filtros
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* LAYOUT PRINCIPAL: TABELA (8 COLUNAS) + DASHBOARD LATERAL (4 COLUNAS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-        {/* COLUNA ESQUERDA: TABELA PRINCIPAL */}
-        <div className="lg:col-span-8 bg-card rounded-[2.5rem] border border-border shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 lg:p-8 border-b border-border flex items-center justify-between">
-             <h3 className="text-lg font-black text-foreground tracking-tight flex items-center gap-2">
-               <Filter size={18} className="text-purple-500" /> Registros de Despesas
-             </h3>
-             <span className="text-xs font-bold text-muted-foreground bg-muted/50 px-3 py-1 rounded-xl border border-border">{filtered.length} encontrados</span>
-          </div>
-
-          {/* Tabela Desktop */}
-          <div className="hidden md:block overflow-x-auto no-scrollbar">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-border bg-muted/20">
-                  <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Descrição / Fornecedor</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Categoria</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Conta</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Vencimento</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Valor</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {isLoading ? (
-                  <tr><td colSpan={7} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-purple-500 mx-auto" /></td></tr>
-                ) : paginated.length === 0 ? (
-                  <tr><td colSpan={7} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhuma despesa atende aos filtros atuais.</td></tr>
-                ) : (
-                  paginated.map((expense: any) => (
-                    <tr key={expense.id} className="group hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => setEditExpense(expense)}>
-                      <td className="px-8 py-5 min-w-[220px]">
-                        <p className="text-sm font-black text-foreground tracking-tight truncate group-hover:text-purple-500 transition-colors">{expense.description}</p>
-                        {expense.supplier && <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-0.5">{expense.supplier}</p>}
-                      </td>
-                      <td className="px-8 py-5">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-xl bg-muted text-muted-foreground border border-border shadow-xs uppercase tracking-wider">
-                          {expense.category}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5">
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{expense.account || "—"}</p>
-                      </td>
-                      <td className="px-8 py-5 text-center">
-                        <div className="flex flex-col items-center">
-                            <p className="text-xs font-black text-foreground">{format(new Date(expense.date + "T12:00:00"), "dd/MM")}</p>
-                            <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider mt-0.5">{expense.recurrence}</p>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 min-w-[120px]">
-                        <p className="text-sm font-black text-foreground tracking-tight">
-                            {currencyFormat(Number(expense.amount))}
-                        </p>
-                      </td>
-                      <td className="px-8 py-5 text-center">
-                          <StatusBadge status={expense.status} />
-                      </td>
-                      <td className="px-8 py-5 text-right" onClick={e => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl text-muted-foreground hover:bg-muted transition-colors">
-                                  <MoreVertical size={18} />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 border-border shadow-xl">
-                                {expense.receiptUrl ? (
-                                  <DropdownMenuItem className="gap-3 rounded-xl p-3 text-xs font-bold" onClick={() => window.open(expense.receiptUrl, "_blank")}>
-                                    <FileCheck className="w-4 h-4 text-emerald-500" /> Ver Comprovante
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem className="gap-3 rounded-xl p-3 text-xs font-bold" onClick={() => {
-                                    setUploadingFor(expense.id);
-                                    setTimeout(() => fileInputRef.current?.click(), 100);
-                                  }}>
-                                    <FileUp className="w-4 h-4 text-amber-500" /> Anexar Comprovante
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator className="bg-muted" />
-                                {expense.status !== "pago" && (
-                                  <DropdownMenuItem className="gap-3 rounded-xl p-3 text-xs font-bold" onClick={() => updateStatusMutation.mutate({ id: expense.id, status: "pago" })}>
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Marcar como Pago
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem className="gap-3 rounded-xl p-3 text-xs font-bold" onClick={() => setEditExpense(expense)}>
-                                  <Pencil className="w-4 h-4 text-blue-500" /> Editar Despesa
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator className="bg-muted" />
-                                <DropdownMenuItem className="gap-3 rounded-xl p-3 text-xs font-bold text-rose-500 hover:bg-rose-500/10" onClick={() => {
-                                  if(confirm("Deseja excluir esta despesa?")) {
-                                    deleteMutation.mutate({ id: expense.id });
-                                  }
-                                }}>
-                                  <Trash2 className="w-4 h-4" /> Excluir Registro
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Tabela Mobile Cards */}
-          <div className="md:hidden grid grid-cols-1 gap-4 p-6">
-            {isLoading ? (
-              <div className="py-10 text-center"><Loader2 size={32} className="animate-spin text-purple-500 mx-auto" /></div>
-            ) : paginated.length === 0 ? (
-              <div className="py-10 text-center text-xs text-muted-foreground font-medium italic">Nenhuma despesa encontrada.</div>
-            ) : (
-              paginated.map((expense: any) => (
-                <div key={expense.id} onClick={() => setEditExpense(expense)} className="bg-muted/30 rounded-2xl p-5 border border-border shadow-xs space-y-4 active:scale-[0.98] transition-all cursor-pointer">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-foreground truncate">{expense.description}</p>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-0.5">{expense.supplier || expense.category}</p>
-                    </div>
-                    <StatusBadge status={expense.status} />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-border">
-                    <div>
-                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Vencimento</p>
-                      <p className="text-xs font-black text-foreground">{format(new Date(expense.date + "T12:00:00"), "dd/MM/yyyy")}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Valor</p>
-                      <p className="text-sm font-black text-foreground text-purple-600">{currencyFormat(Number(expense.amount))}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Conta: {expense.account || "—"}</span>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-xl text-rose-500 hover:bg-rose-500/10"
-                        onClick={(e) => { 
-                          e.preventDefault();
-                          e.stopPropagation(); 
-                          if(confirm("Deseja excluir esta despesa?")) deleteMutation.mutate({ id: expense.id }); 
-                        }}>
-                        <Trash2 size={14} />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-3 rounded-xl text-xs font-bold text-purple-600 hover:bg-purple-500/10"
-                        onClick={(e) => { 
-                          e.preventDefault();
-                          e.stopPropagation(); 
-                          setEditExpense(expense); 
-                        }}>
-                        <Pencil size={12} className="mr-1.5" /> Editar
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Paginação */}
-          <div className="p-6 border-t border-border bg-muted/20 flex items-center justify-between">
-             <p className="text-xs text-muted-foreground font-bold tracking-wider">Página {currentPage} de {totalPages}</p>
-             <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="h-10 rounded-2xl px-4 text-xs font-bold border-border hover:bg-card">
-                  Anterior
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                  className="h-10 rounded-2xl px-4 text-xs font-bold border-border hover:bg-card">
-                  Próxima
-                </Button>
-             </div>
-          </div>
+      {/* SEÇÃO PRINCIPAL: TABELA EM LARGURA TOTAL (SEM CORTES) */}
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
+        <div className="p-5 lg:p-6 border-b border-border flex items-center justify-between">
+           <h3 className="text-base font-black text-foreground tracking-tight flex items-center gap-2">
+             <Filter size={18} className="text-purple-500" /> Registros de Despesas
+           </h3>
+           <span className="text-xs font-bold text-muted-foreground bg-muted px-3 py-1 rounded-lg border border-border">{filtered.length} encontrados</span>
         </div>
 
-        {/* COLUNA DIREITA: DASHBOARD LATERAL (4 COLUNAS) */}
-        <div className="lg:col-span-4 space-y-6 lg:space-y-8 w-full">
-          {/* Gráfico Donut de Categorias */}
-          <div className="bg-card rounded-[2.5rem] border border-border shadow-sm p-6 lg:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <h3 className="text-base font-black text-foreground tracking-tight flex items-center gap-2">
-                <PieIcon size={18} className="text-purple-500" /> Distribuição por Categoria
-              </h3>
-            </div>
-
-            <div className="h-64 w-full">
-              {categoryChartData.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-xs text-muted-foreground font-medium italic">Sem dados no período</div>
+        {/* Tabela Desktop Largura Total */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[900px]">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Descrição / Fornecedor</th>
+                <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Categoria</th>
+                <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Conta</th>
+                <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Vencimento</th>
+                <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-right">Valor (R$)</th>
+                <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
+                <th className="px-6 py-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-right">Comprovante / Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading ? (
+                <tr><td colSpan={7} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-purple-500 mx-auto" /></td></tr>
+              ) : paginated.length === 0 ? (
+                <tr><td colSpan={7} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhuma despesa atende aos filtros atuais.</td></tr>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={85}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
-                      {categoryChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="transparent" />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(val: any) => currencyFormat(Number(val))}
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '1rem', fontSize: '12px', fontWeight: 'bold' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+                paginated.map((expense: any) => (
+                  <tr key={expense.id} className="group hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => setEditExpense(expense)}>
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-bold text-foreground tracking-tight group-hover:text-purple-600 transition-colors">{expense.description}</p>
+                      {expense.supplier && <p className="text-[11px] text-muted-foreground font-semibold uppercase mt-0.5">{expense.supplier}</p>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground border border-border uppercase tracking-wider">
+                        {expense.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-xs font-semibold text-muted-foreground">{expense.account || "—"}</p>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex flex-col items-center">
+                        <p className="text-xs font-bold text-foreground">{format(new Date(expense.date + "T12:00:00"), "dd/MM/yyyy")}</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase mt-0.5">{expense.recurrence}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <p className="text-sm font-black text-foreground tracking-tight">
+                        {currencyFormat(Number(expense.amount))}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <StatusBadge status={expense.status} />
+                    </td>
+                    <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-2">
+                        {expense.receiptUrl ? (
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => window.open(expense.receiptUrl, "_blank")}
+                            className="h-8 rounded-lg px-2.5 text-[11px] font-bold text-emerald-600 border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 gap-1.5"
+                          >
+                            <FileCheck size={14} /> Comprovante
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost" size="sm"
+                            onClick={() => {
+                              setUploadingFor(expense.id);
+                              setTimeout(() => fileInputRef.current?.click(), 100);
+                            }}
+                            className="h-8 rounded-lg px-2 text-[11px] font-bold text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10 gap-1.5"
+                          >
+                            <FileUp size={14} /> Anexar
+                          </Button>
+                        )}
 
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
-              {categoryChartData.map((c, i) => (
-                <div key={c.name} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                  <span className="text-xs font-bold text-muted-foreground truncate">{c.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Gráfico Mensal de Evolução */}
-          <div className="bg-card rounded-[2.5rem] border border-border shadow-sm p-6 lg:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <h3 className="text-base font-black text-foreground tracking-tight flex items-center gap-2">
-                <TrendingUp size={18} className="text-blue-500" /> Evolução de Despesas
-              </h3>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Últimos 6 meses</span>
-            </div>
-
-            <div className="h-52 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyEvolutionData}>
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={40} tickFormatter={(val) => `R$${val/1000}k`} />
-                  <Tooltip 
-                    formatter={(val: any) => currencyFormat(Number(val))}
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '1rem', fontSize: '12px', fontWeight: 'bold' }}
-                  />
-                  <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Próximos Vencimentos */}
-          <div className="bg-card rounded-[2.5rem] border border-border shadow-sm p-6 lg:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <h3 className="text-base font-black text-foreground tracking-tight flex items-center gap-2">
-                <Calendar size={18} className="text-amber-500" /> Próximos Vencimentos
-              </h3>
-            </div>
-
-            <div className="space-y-4">
-              {upcomingExpenses.length === 0 ? (
-                <p className="text-xs text-muted-foreground font-medium italic text-center py-6">Nenhuma despesa pendente no momento.</p>
-              ) : (
-                upcomingExpenses.map((exp: any) => (
-                  <div key={exp.id} onClick={() => setEditExpense(exp)} className="flex items-center justify-between p-4 rounded-2xl bg-muted/40 border border-border hover:bg-muted transition-all cursor-pointer group">
-                    <div className="min-w-0 flex-1 mr-4">
-                      <p className="text-xs font-black text-foreground truncate group-hover:text-purple-500 transition-colors">{exp.description}</p>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-0.5">{format(new Date(exp.date + "T12:00:00"), "dd/MM")} • {exp.account || "Sem conta"}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-black text-foreground tracking-tight text-amber-600">{currencyFormat(Number(exp.amount))}</p>
-                    </div>
-                  </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted">
+                              <MoreVertical size={16} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5 border-border shadow-xl">
+                            {expense.status !== "pago" && (
+                              <DropdownMenuItem className="gap-2.5 rounded-lg p-2.5 text-xs font-bold" onClick={() => updateStatusMutation.mutate({ id: expense.id, status: "pago" })}>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Marcar como Pago
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem className="gap-2.5 rounded-lg p-2.5 text-xs font-bold" onClick={() => setEditExpense(expense)}>
+                              <Pencil className="w-4 h-4 text-blue-500" /> Editar Despesa
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-muted" />
+                            <DropdownMenuItem className="gap-2.5 rounded-lg p-2.5 text-xs font-bold text-rose-500 hover:bg-rose-500/10" onClick={() => {
+                              if(confirm("Deseja excluir esta despesa?")) {
+                                deleteMutation.mutate({ id: expense.id });
+                              }
+                            }}>
+                              <Trash2 className="w-4 h-4" /> Excluir Registro
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </td>
+                  </tr>
                 ))
               )}
-            </div>
-          </div>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Tabela Mobile Cards */}
+        <div className="md:hidden grid grid-cols-1 gap-4 p-4">
+          {isLoading ? (
+            <div className="py-10 text-center"><Loader2 size={32} className="animate-spin text-purple-500 mx-auto" /></div>
+          ) : paginated.length === 0 ? (
+            <div className="py-10 text-center text-xs text-muted-foreground font-medium italic">Nenhuma despesa encontrada.</div>
+          ) : (
+            paginated.map((expense: any) => (
+              <div key={expense.id} onClick={() => setEditExpense(expense)} className="bg-muted/30 rounded-2xl p-4 border border-border shadow-xs space-y-3 active:scale-[0.98] transition-all cursor-pointer">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-foreground truncate">{expense.description}</p>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-0.5">{expense.supplier || expense.category}</p>
+                  </div>
+                  <StatusBadge status={expense.status} />
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                  <div>
+                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Vencimento</p>
+                    <p className="text-xs font-black text-foreground">{format(new Date(expense.date + "T12:00:00"), "dd/MM/yyyy")}</p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Valor</p>
+                    <p className="text-sm font-black text-foreground">{currencyFormat(Number(expense.amount))}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Paginação */}
+        <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between">
+           <p className="text-xs text-muted-foreground font-bold tracking-wider">Página {currentPage} de {totalPages}</p>
+           <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                className="h-9 rounded-xl px-3 text-xs font-bold border-border hover:bg-card">
+                Anterior
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                className="h-9 rounded-xl px-3 text-xs font-bold border-border hover:bg-card">
+                Próxima
+              </Button>
+           </div>
         </div>
       </div>
     </div>
