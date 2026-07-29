@@ -10,6 +10,7 @@ import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users, notifications } from "../drizzle/schema";
 import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession } from "./utils/whatsapp";
 import { sendSmartWhatsAppNotification } from "./utils/whatsappRouting";
+import { BillingEngine } from "./services/BillingEngine";
 
 // Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
 let isAutomationRunning = false;
@@ -808,23 +809,38 @@ async function runAutomation() {
                   }
                 }
 
+                const schoolSet = BillingEngine.extractSchoolSettings(userSet);
+                const calcResult = BillingEngine.computeInvoiceAmounts(due, schoolSet);
+
+                const valorOriginalFmt = `R$ ${calcResult.originalAmount.toFixed(2).replace('.', ',')}`;
+                const multaFmt = `R$ ${calcResult.lateFeeAmount.toFixed(2).replace('.', ',')}`;
+                const jurosFmt = `R$ ${calcResult.interestAmount.toFixed(2).replace('.', ',')}`;
+                const valorAtualizadoFmt = `R$ ${calcResult.updatedAmount.toFixed(2).replace('.', ',')}`;
+                const pixReplacement = paymentLink ?? (userSet.pixKey ? `PIX: ${userSet.pixKey}` : "");
+
                 let message = (rule.messageTemplate ?? "")
                   .replace(/\{nome_aluno\}/g, due.studentName ?? "Aluno")
                   .replace(/\{nome_professor\}/g, professorName)
                   .replace(/\{nome_escola\}/g, schoolName)
                   .replace(/\{curso\}/g, due.instrumentName ?? "música")
                   .replace(/\{instrumento\}/g, due.instrumentName ?? "música")
-                  .replace(/\{valor_mensalidade\}/g, valor)
-                  .replace(/\{data_vencimento\}/g, vencimento);
+                  .replace(/\{valor_original\}/g, valorOriginalFmt)
+                  .replace(/\{multa\}/g, multaFmt)
+                  .replace(/\{juros\}/g, jurosFmt)
+                  .replace(/\{dias_atraso\}/g, String(calcResult.daysOverdue))
+                  .replace(/\{valor_atualizado\}/g, valorAtualizadoFmt)
+                  .replace(/\{valor_mensalidade\}/g, valorAtualizadoFmt)
+                  .replace(/\{valor\}/g, valorAtualizadoFmt)
+                  .replace(/\{data_vencimento\}/g, vencimento)
+                  .replace(/\{pix\}/g, pixReplacement);
 
-                const hasLinkTag = /\{link_pagamento\}|\{link_cobranca\}|\{link\}|\{payment_link\}/.test(message);
+                const hasLinkTag = /\{link_pagamento\}|\{link_cobranca\}|\{link\}|\{payment_link\}|\{pix\}/.test(rule.messageTemplate ?? "");
                 if (hasLinkTag) {
-                  const replacement = paymentLink ?? (userSet.pixKey ? `PIX: ${userSet.pixKey}` : "");
                   message = message
-                    .replace(/\{link_pagamento\}/g, replacement)
-                    .replace(/\{link_cobranca\}/g, replacement)
-                    .replace(/\{link\}/g, replacement)
-                    .replace(/\{payment_link\}/g, replacement);
+                    .replace(/\{link_pagamento\}/g, pixReplacement)
+                    .replace(/\{link_cobranca\}/g, pixReplacement)
+                    .replace(/\{link\}/g, pixReplacement)
+                    .replace(/\{payment_link\}/g, pixReplacement);
                 } else if (paymentLink) {
                   const gatewayName = pGateway === "mercadopago" ? "Mercado Pago" : "Asaas";
                   message += `\n\n💳 *Link de pagamento (${gatewayName}):*\n${paymentLink}`;

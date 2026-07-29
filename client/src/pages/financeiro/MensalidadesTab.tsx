@@ -858,9 +858,28 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                           </div>
                         </td>
                         <td className="px-8 py-4">
-                          <p className="text-sm font-black text-foreground">
-                             {currencyFormat(Number(payment.amount))}
-                          </p>
+                          <div className="flex flex-col">
+                            <p className="text-sm font-black text-foreground">
+                               {currencyFormat(Number(payment.amount))}
+                            </p>
+                            {(payment as any).calculation && ((payment as any).calculation.lateFeeAmount > 0 || (payment as any).calculation.interestAmount > 0) && (
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium mt-0.5">
+                                <span className="text-muted-foreground line-through">
+                                  Orig: {currencyFormat((payment as any).calculation.originalAmount)}
+                                </span>
+                                {(payment as any).calculation.lateFeeAmount > 0 && (
+                                  <span className="text-emerald-500 font-bold">
+                                    +Multa: R$ {(payment as any).calculation.lateFeeAmount.toFixed(2)}
+                                  </span>
+                                )}
+                                {(payment as any).calculation.interestAmount > 0 && (
+                                  <span className="text-indigo-500 font-bold">
+                                    +Juros: R$ {(payment as any).calculation.interestAmount.toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-8 py-4 text-center">
                           <div className="flex flex-col items-center">

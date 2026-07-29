@@ -238,6 +238,37 @@ async function ensureSchemaConsistency(db: any) {
 
     // ─── MÉDIO-07 FIX: Índices adicionais para queries críticas ─────────────────
     // Esses índices eliminam sequential scans nas tabelas mais acessadas.
+    // Billing Engine (Juros e Multas)
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "lateFeeEnabled" integer DEFAULT 1 NOT NULL`, "settings lateFeeEnabled");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "lateFeeType" varchar(20) DEFAULT 'percentage' NOT NULL`, "settings lateFeeType");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "lateFeeValue" numeric(10, 2) DEFAULT 2.00 NOT NULL`, "settings lateFeeValue");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "interestEnabled" integer DEFAULT 1 NOT NULL`, "settings interestEnabled");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "interestType" varchar(20) DEFAULT 'daily' NOT NULL`, "settings interestType");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "interestRate" numeric(10, 4) DEFAULT 0.3300 NOT NULL`, "settings interestRate");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "graceDays" integer DEFAULT 3 NOT NULL`, "settings graceDays");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "autoUpdateInvoice" integer DEFAULT 1 NOT NULL`, "settings autoUpdateInvoice");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "showFeeBreakdown" integer DEFAULT 1 NOT NULL`, "settings showFeeBreakdown");
+
+    await safeExecute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "originalAmount" numeric(10, 2)`, "payment_dues originalAmount");
+    await safeExecute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "lastCalculation" timestamp`, "payment_dues lastCalculation");
+    await safeExecute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "daysOverdueCache" integer`, "payment_dues daysOverdueCache");
+    await safeExecute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "updatedAmountCache" numeric(10, 2)`, "payment_dues updatedAmountCache");
+
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "billing_audit_logs" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer,
+        "invoiceId" integer NOT NULL,
+        "originalAmount" numeric(10, 2) NOT NULL,
+        "lateFeeAmount" numeric(10, 2) NOT NULL,
+        "interestAmount" numeric(10, 2) NOT NULL,
+        "daysOverdue" integer NOT NULL,
+        "updatedAmount" numeric(10, 2) NOT NULL,
+        "userId" integer,
+        "origin" varchar(50) NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create billing_audit_logs table");
 
     // payment_dues.asaasId: usado no processamento de webhooks Asaas (lookup muito frequente)
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_payment_dues_asaas_id" ON "payment_dues" ("asaasId") WHERE "asaasId" IS NOT NULL`, "idx_payment_dues_asaas_id");

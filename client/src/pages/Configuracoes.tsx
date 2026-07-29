@@ -11,11 +11,28 @@ import {
   User, Building2, Bell, Palette, Shield, Save, Users,
   Sun, Moon, Phone, Mail, Globe, MapPin,
   CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles, HelpCircle,
-  FileSpreadsheet, FileText
+  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar
 } from "lucide-react";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
 import { downloadBase64File } from "@/utils/downloadReport";
+
+// ─── Tab types ───────────────────────────────────────────────────────────────
+type Tab = "perfil" | "escola" | "financeiro" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
+
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "perfil", label: "Perfil", icon: User },
+  { id: "escola", label: "Escola", icon: Building2 },
+  { id: "financeiro", label: "Financeiro", icon: DollarSign },
+  { id: "professores", label: "Professores", icon: Users },
+  { id: "notificacoes", label: "Notificações", icon: Bell },
+  { id: "aparencia", label: "Aparência", icon: Palette },
+  { id: "whatsapp", label: "Meu WhatsApp", icon: Smartphone },
+  { id: "integracoes", label: "Integrações", icon: Wallet },
+  { id: "ia", label: "IA Assistente", icon: Sparkles },
+  { id: "seguranca", label: "Segurança", icon: Shield },
+  { id: "ajuda", label: "Ajuda", icon: HelpCircle },
+];
 
 // ─── Export CSV helper ──────────────────────────────────────────────────────
 
@@ -872,6 +889,17 @@ export default function Configuracoes() {
   const [paymentGateway, setPaymentGateway] = useState<"asaas" | "mercadopago">("asaas");
   const [mpAccessToken, setMpAccessToken] = useState("");
 
+  // ── Financeiro (Juros e Multas - Billing Engine) state ──
+  const [lateFeeEnabled, setLateFeeEnabled] = useState(true);
+  const [lateFeeType, setLateFeeType] = useState<"fixed" | "percentage">("percentage");
+  const [lateFeeValue, setLateFeeValue] = useState(2.0);
+  const [interestEnabled, setInterestEnabled] = useState(true);
+  const [interestType, setInterestType] = useState<"daily" | "monthly">("daily");
+  const [interestRate, setInterestRate] = useState(0.33);
+  const [graceDays, setGraceDays] = useState(3);
+  const [autoUpdateInvoice, setAutoUpdateInvoice] = useState(true);
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(true);
+
   // ── IA state ──
   const [aiProvider, setAiProvider] = useState("gemini");
   const [geminiApiKey, setGeminiApiKey] = useState("");
@@ -899,6 +927,16 @@ export default function Configuracoes() {
       setSchoolWebsite(settings.schoolWebsite ?? "");
       setSchoolDescription(settings.schoolDescription ?? "");
       setDueDaysForecast(settings.dueDaysForecast ?? "5,10,15,20");
+
+      setLateFeeEnabled((settings as any).lateFeeEnabled !== 0);
+      setLateFeeType(((settings as any).lateFeeType === "fixed" ? "fixed" : "percentage"));
+      setLateFeeValue(Number((settings as any).lateFeeValue ?? 2.0));
+      setInterestEnabled((settings as any).interestEnabled !== 0);
+      setInterestType(((settings as any).interestType === "monthly" ? "monthly" : "daily"));
+      setInterestRate(Number((settings as any).interestRate ?? 0.33));
+      setGraceDays(Number((settings as any).graceDays ?? 3));
+      setAutoUpdateInvoice((settings as any).autoUpdateInvoice !== 0);
+      setShowFeeBreakdown((settings as any).showFeeBreakdown !== 0);
       if (settings.schoolHours) {
         try {
           setSchoolHours(JSON.parse(settings.schoolHours));
@@ -1040,6 +1078,16 @@ export default function Configuracoes() {
       try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
       toast.error("Erro ao atualizar menu: " + msg);
     },
+  });
+
+  const updateFinancialMutation = trpc.settings.updateFinancialSettings.useMutation({
+    onSuccess: () => {
+      toast.success("Configurações financeiras do BillingEngine salvas com sucesso!", {
+        icon: <DollarSign size={16} className="text-emerald-500" />,
+      });
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao salvar configurações financeiras: " + e.message),
   });
 
   const handleSaveWhatsApp = () => {
@@ -1367,6 +1415,248 @@ export default function Configuracoes() {
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── ABA: FINANCEIRO (JUROS E MULTAS) ── */}
+            {activeTab === "financeiro" && (
+              <div className="space-y-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                      <DollarSign size={20} className="text-emerald-500" />
+                      Motor de Cobranças (Juros e Multas)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
+                      Defina as regras financeiras aplicadas automaticamente em tempo real
+                    </p>
+                  </div>
+                  <Button
+                    className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 shadow-lg shadow-emerald-500/20"
+                    disabled={updateFinancialMutation.isPending}
+                    onClick={() => {
+                      updateFinancialMutation.mutate({
+                        lateFeeEnabled,
+                        lateFeeType,
+                        lateFeeValue: Number(lateFeeValue),
+                        interestEnabled,
+                        interestType,
+                        interestRate: Number(interestRate),
+                        graceDays: Number(graceDays),
+                        autoUpdateInvoice,
+                        showFeeBreakdown,
+                      });
+                    }}
+                  >
+                    {updateFinancialMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span className="text-xs font-black uppercase tracking-widest">Salvar Alterações</span>
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+                  {/* Coluna 1 & 2: Formulário de Configuração */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Card Multa */}
+                    <div className="p-6 rounded-2xl bg-card border border-border space-y-6 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-bold">
+                            %
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-foreground">Cobrar Multa por Atraso</h4>
+                            <p className="text-xs text-muted-foreground">Aplica valor ou percentual fixo após o vencimento</p>
+                          </div>
+                        </div>
+                        <Toggle checked={lateFeeEnabled} onChange={setLateFeeEnabled} />
+                      </div>
+
+                      {lateFeeEnabled && (
+                        <div className="pt-4 border-t border-border space-y-4 animate-in fade-in">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-foreground uppercase tracking-wider">Tipo de Multa</label>
+                            <div className="grid grid-cols-2 gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setLateFeeType("percentage")}
+                                className={cn(
+                                  "flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all",
+                                  lateFeeType === "percentage"
+                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-500"
+                                    : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
+                                )}
+                              >
+                                <Percent size={14} /> Percentual (%)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setLateFeeType("fixed")}
+                                className={cn(
+                                  "flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all",
+                                  lateFeeType === "fixed"
+                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-500"
+                                    : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
+                                )}
+                              >
+                                <DollarSign size={14} /> Valor Fixo (R$)
+                              </button>
+                            </div>
+                          </div>
+
+                          <Field label={lateFeeType === "percentage" ? "Valor da Multa (%)" : "Valor da Multa (R$)"}>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={lateFeeValue}
+                              onChange={(e) => setLateFeeValue(Number(e.target.value))}
+                              className="h-11 font-bold bg-muted/50 rounded-xl"
+                            />
+                          </Field>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Juros */}
+                    <div className="p-6 rounded-2xl bg-card border border-border space-y-6 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold">
+                            <Calculator size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-foreground">Cobrar Juros de Mora</h4>
+                            <p className="text-xs text-muted-foreground">Calcula juros acumulados por dia ou por mês em atraso</p>
+                          </div>
+                        </div>
+                        <Toggle checked={interestEnabled} onChange={setInterestEnabled} />
+                      </div>
+
+                      {interestEnabled && (
+                        <div className="pt-4 border-t border-border space-y-4 animate-in fade-in">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-foreground uppercase tracking-wider">Frequência dos Juros</label>
+                            <div className="grid grid-cols-2 gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setInterestType("daily")}
+                                className={cn(
+                                  "flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all",
+                                  interestType === "daily"
+                                    ? "border-indigo-500 bg-indigo-500/10 text-indigo-500"
+                                    : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
+                                )}
+                              >
+                                <Calendar size={14} /> Ao Dia (% ao dia)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setInterestType("monthly")}
+                                className={cn(
+                                  "flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all",
+                                  interestType === "monthly"
+                                    ? "border-indigo-500 bg-indigo-500/10 text-indigo-500"
+                                    : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
+                                )}
+                              >
+                                <Receipt size={14} /> Ao Mês (% ao mês)
+                              </button>
+                            </div>
+                          </div>
+
+                          <Field label={interestType === "daily" ? "Taxa de Juros ao Dia (%)" : "Taxa de Juros ao Mês (%)"}>
+                            <Input
+                              type="number"
+                              step="0.0001"
+                              value={interestRate}
+                              onChange={(e) => setInterestRate(Number(e.target.value))}
+                              className="h-11 font-bold bg-muted/50 rounded-xl"
+                            />
+                          </Field>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Carência e Exibição */}
+                    <div className="p-6 rounded-2xl bg-card border border-border space-y-6 shadow-sm">
+                      <h4 className="text-xs font-black text-foreground uppercase tracking-widest">Carência e Exibição</h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Field label="Dias de Carência (Tolerância)" hint="Período sem cobrança de juros ou multa após a data de vencimento">
+                          <Input
+                            type="number"
+                            value={graceDays}
+                            onChange={(e) => setGraceDays(Number(e.target.value))}
+                            className="h-11 font-bold bg-muted/50 rounded-xl"
+                          />
+                        </Field>
+
+                        <div className="space-y-4 pt-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-foreground">Atualizar Cobrança Automático</span>
+                              <p className="text-[10px] text-muted-foreground">Recalcular valores dinamicamente no sistema</p>
+                            </div>
+                            <Toggle checked={autoUpdateInvoice} onChange={setAutoUpdateInvoice} />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-foreground">Mostrar Detalhamento ao Aluno</span>
+                              <p className="text-[10px] text-muted-foreground">Exibir discriminação de juros e multa no portal do aluno</p>
+                            </div>
+                            <Toggle checked={showFeeBreakdown} onChange={setShowFeeBreakdown} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Coluna 3: Live Preview / Simulador */}
+                  <div className="space-y-6">
+                    <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-card border border-indigo-500/20 space-y-6 shadow-xl relative overflow-hidden">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-widest text-indigo-400">Simulador ao Vivo</span>
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold uppercase">
+                          Tempo Real
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">Exemplo simulado para mensalidade de R$ 200,00 com 5 dias de atraso:</p>
+
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Valor Original:</span>
+                          <span className="font-bold text-foreground">R$ 200,00</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Multa ({lateFeeEnabled ? (lateFeeType === 'percentage' ? `${lateFeeValue}%` : `R$ ${lateFeeValue}`) : 'Desativada'}):</span>
+                          <span className="font-bold text-emerald-400">
+                            + R$ {lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100).toFixed(2) : lateFeeValue.toFixed(2)) : '0.00'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Juros ({interestEnabled ? (interestType === 'daily' ? `${interestRate}% / dia` : `${interestRate}% / mês`) : 'Desativado'}):</span>
+                          <span className="font-bold text-indigo-400">
+                            + R$ {interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5).toFixed(2) : (200 * (interestRate / 100) * (5/30)).toFixed(2)) : '0.00'}
+                          </span>
+                        </div>
+
+                        <div className="pt-3 border-t border-indigo-500/20 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase text-foreground">Valor Atualizado:</span>
+                          <span className="text-lg font-black text-emerald-400">
+                            R$ {(
+                              200 +
+                              (lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100) : lateFeeValue) : 0) +
+                              (interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5) : (200 * (interestRate / 100) * (5/30))) : 0)
+                            ).toFixed(2).replace('.', ',')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

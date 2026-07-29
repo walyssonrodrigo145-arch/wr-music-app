@@ -230,6 +230,16 @@ export const settings = pgTable("settings", {
   schoolHours: text("schoolHours").default('{"monday":{"active":true,"start":"08:00","end":"18:00"},"tuesday":{"active":true,"start":"08:00","end":"18:00"},"wednesday":{"active":true,"start":"08:00","end":"18:00"},"thursday":{"active":true,"start":"08:00","end":"18:00"},"friday":{"active":true,"start":"08:00","end":"18:00"},"saturday":{"active":false,"start":"08:00","end":"12:00"},"sunday":{"active":false,"start":"08:00","end":"12:00"}}').notNull(),
   // ZapSign Integration (Digital Contracts)
   zapsignApiKey: text("zapsignApiKey"),
+  // Billing Engine (Juros e Multas)
+  lateFeeEnabled: integer("lateFeeEnabled").default(1).notNull(),
+  lateFeeType: varchar("lateFeeType", { length: 20 }).default("percentage").notNull(),
+  lateFeeValue: decimal("lateFeeValue", { precision: 10, scale: 2 }).default("2.00").notNull(),
+  interestEnabled: integer("interestEnabled").default(1).notNull(),
+  interestType: varchar("interestType", { length: 20 }).default("daily").notNull(),
+  interestRate: decimal("interestRate", { precision: 10, scale: 4 }).default("0.3300").notNull(),
+  graceDays: integer("graceDays").default(3).notNull(),
+  autoUpdateInvoice: integer("autoUpdateInvoice").default(1).notNull(),
+  showFeeBreakdown: integer("showFeeBreakdown").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -297,6 +307,11 @@ export const paymentDues = pgTable("payment_dues", {
   mpPaymentId: text("mpPaymentId"),
   mpPaymentLink: text("mpPaymentLink"),
   receiptUrl: text("receiptUrl"),
+  // Billing Engine cache/informative fields
+  originalAmount: decimal("originalAmount", { precision: 10, scale: 2 }),
+  lastCalculation: timestamp("lastCalculation"),
+  daysOverdueCache: integer("daysOverdueCache"),
+  updatedAmountCache: decimal("updatedAmountCache", { precision: 10, scale: 2 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 }, (table) => [
@@ -305,6 +320,23 @@ export const paymentDues = pgTable("payment_dues", {
   index("payment_dues_status_idx").on(table.status),
   index("payment_dues_due_date_idx").on(table.dueDate),
   index("payment_dues_asaas_id_idx").on(table.asaasId),
+]);
+
+export const billingAuditLogs = pgTable("billing_audit_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  invoiceId: integer("invoiceId").notNull(),
+  originalAmount: decimal("originalAmount", { precision: 10, scale: 2 }).notNull(),
+  lateFeeAmount: decimal("lateFeeAmount", { precision: 10, scale: 2 }).notNull(),
+  interestAmount: decimal("interestAmount", { precision: 10, scale: 2 }).notNull(),
+  daysOverdue: integer("daysOverdue").notNull(),
+  updatedAmount: decimal("updatedAmount", { precision: 10, scale: 2 }).notNull(),
+  userId: integer("userId"),
+  origin: varchar("origin", { length: 50 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("billing_audit_logs_invoice_idx").on(table.invoiceId),
+  index("billing_audit_logs_org_idx").on(table.organizationId),
 ]);
 
 export const asaasCustomers = pgTable("asaas_customers", {

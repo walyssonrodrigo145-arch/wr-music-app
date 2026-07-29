@@ -28,6 +28,7 @@ import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQ
 import { buildUserContext } from "./utils/aiContext";
 import { getSystemPrompt } from "./utils/aiPrompts";
 import { callGemini, genAI } from "./utils/gemini";
+import { BillingEngine } from "./services/BillingEngine";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "./utils/whatsapp";
 import { nanoid } from "nanoid";
 import { sdk } from "./_core/sdk";
@@ -3879,6 +3880,32 @@ ${jsonSchemaFormat}`;
       return { success: true };
     }),
 
+    updateFinancialSettings: protectedProcedure.input(z.object({
+      lateFeeEnabled: z.boolean().optional(),
+      lateFeeType: z.enum(["fixed", "percentage"]).optional(),
+      lateFeeValue: z.number().optional(),
+      interestEnabled: z.boolean().optional(),
+      interestType: z.enum(["daily", "monthly"]).optional(),
+      interestRate: z.number().optional(),
+      graceDays: z.number().optional(),
+      autoUpdateInvoice: z.boolean().optional(),
+      showFeeBreakdown: z.boolean().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
+        lateFeeEnabled: input.lateFeeEnabled !== undefined ? (input.lateFeeEnabled ? 1 : 0) : undefined,
+        lateFeeType: input.lateFeeType,
+        lateFeeValue: input.lateFeeValue !== undefined ? input.lateFeeValue.toFixed(2) : undefined,
+        interestEnabled: input.interestEnabled !== undefined ? (input.interestEnabled ? 1 : 0) : undefined,
+        interestType: input.interestType,
+        interestRate: input.interestRate !== undefined ? input.interestRate.toFixed(4) : undefined,
+        graceDays: input.graceDays,
+        autoUpdateInvoice: input.autoUpdateInvoice !== undefined ? (input.autoUpdateInvoice ? 1 : 0) : undefined,
+        showFeeBreakdown: input.showFeeBreakdown !== undefined ? (input.showFeeBreakdown ? 1 : 0) : undefined,
+      });
+      BillingEngine.clearCache();
+      return { success: true };
+    }),
+
     exportData: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -3964,6 +3991,20 @@ ${jsonSchemaFormat}`;
 
       return { studentsData, lessonsData, studentsCsv, lessonsCsv };
     }),
+  }),
+
+  billingEngine: router({
+    calculateInvoice: protectedProcedure
+      .input(z.object({
+        invoiceId: z.number(),
+        origin: z.enum(["Financeiro", "WhatsApp", "Área do Aluno", "API", "PIX", "System"]).optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        return await BillingEngine.calculateInvoice(input.invoiceId, {
+          origin: input.origin ?? "Financeiro",
+          userId: ctx.user.id,
+        });
+      }),
   }),
 
   // ─── LEMBRETES (MÓDULO COMPLETO) ──────────────────────────────────────────────
@@ -4898,8 +4939,16 @@ ${jsonSchemaFormat}`;
           ))
           .orderBy(asc(paymentDues.dueDate));
 
+        const [schoolSettingsObj] = await db
+          .select()
+          .from(settings)
+          .where(eq(settings.organizationId, orgId))
+          .limit(1);
+
+        const enrichedRows = await BillingEngine.enrichInvoicesList(rows, schoolSettingsObj);
+
         const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-        const mappedRows = rows.map(r => {
+        const mappedRows = enrichedRows.map(r => {
           if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
             return { ...r, status: 'atrasado' as const };
           }

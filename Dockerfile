@@ -12,7 +12,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm
 
 # Instalar dependências do projeto
-RUN pnpm install
+RUN pnpm install --shamefully-hoist
 
 # Copiar o resto do código
 COPY . .
