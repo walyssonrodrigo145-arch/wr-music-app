@@ -22,6 +22,7 @@ import {
   analyticsCampaigns,
   analyticsPages,
   analyticsAiInsights,
+  paymentDues,
 } from "../drizzle/schema";
 import {
   analyticsQueue,
@@ -29,7 +30,7 @@ import {
   upsertAnalyticsSession,
   upsertOnlineUser,
 } from "./services/AnalyticsQueue";
-import { eq, sql, desc, gte, lte, and, count, sum, avg, lt } from "drizzle-orm";
+import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
 // ── Middleware Super Admin ────────────────────────────────────────────────────
@@ -401,6 +402,25 @@ const analyticsQueryRouter = router({
     const [revenueTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
       .from(analyticsRevenue);
 
+    let revToday = parseFloat(revenueToday.total);
+    let revMonth = parseFloat(revenueMonth.total);
+    let revTotal = parseFloat(revenueTotal.total);
+
+    if (revTotal === 0) {
+      const [duesToday] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+        .from(paymentDues)
+        .where(and(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`), gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, todayStart)));
+      const [duesMonth] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+        .from(paymentDues)
+        .where(and(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`), gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, monthStart)));
+      const [duesTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+        .from(paymentDues)
+        .where(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`));
+      revToday = parseFloat(duesToday.total);
+      revMonth = parseFloat(duesMonth.total);
+      revTotal = parseFloat(duesTotal.total);
+    }
+
     // Taxa de conversão: visitantes → pagantes (período selecionado)
     const [uniqueVisitorsInPeriod] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
       .from(analyticsSessions)
@@ -421,9 +441,9 @@ const analyticsQueryRouter = router({
       signupsToday: signupsToday.count,
       trialsToday: trialsToday.count,
       subscriptionsToday: subscriptionsToday.count,
-      revenueToday: parseFloat(revenueToday.total),
-      revenueMonth: parseFloat(revenueMonth.total),
-      revenueTotal: parseFloat(revenueTotal.total),
+      revenueToday: revToday,
+      revenueMonth: revMonth,
+      revenueTotal: revTotal,
       conversionRate: parseFloat(conversionRate),
     };
   }),
@@ -639,26 +659,32 @@ const analyticsQueryRouter = router({
 
     const yearStart = new Date(new Date().getFullYear(), 0, 1);
 
-    // MRR = receita do mês atual
-    const [mrr] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
-      .from(analyticsRevenue)
-      .where(gte(analyticsRevenue.createdAt, monthStart));
+    let mrrVal = parseFloat(mrr.total);
+    let pRevVal = parseFloat(periodRevenue.total);
+    let avgTicketVal = parseFloat(ticket.avg);
 
-    // Total do período
-    const [periodRevenue] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
-      .from(analyticsRevenue)
-      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
-
-    // Receita por plano
-    const byPlan = await db.select({
-      planName: analyticsRevenue.planName,
-      revenue: sql<string>`COALESCE(SUM(amount), 0)`,
-      count: sql<number>`CAST(COUNT(*) AS INT)`,
-    })
-      .from(analyticsRevenue)
-      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)))
-      .groupBy(analyticsRevenue.planName)
-      .orderBy(sql`SUM(amount) DESC`);
+    if (mrrVal === 0 && pRevVal === 0) {
+      const [duesMrr] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+        .from(paymentDues)
+        .where(and(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`), gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, monthStart)));
+      const [duesPeriod] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+        .from(paymentDues)
+        .where(and(
+          or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
+          gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, start),
+          lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, end)
+        ));
+      const [duesAvg] = await db.select({ avg: sql<string>`COALESCE(AVG(amount), 0)` })
+        .from(paymentDues)
+        .where(and(
+          or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
+          gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, start),
+          lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, end)
+        ));
+      mrrVal = parseFloat(duesMrr.total);
+      pRevVal = parseFloat(duesPeriod.total);
+      avgTicketVal = parseFloat(duesAvg.avg);
+    }
 
     // Receita por campanha
     const byCampaign = await db.select({
@@ -687,18 +713,14 @@ const analyticsQueryRouter = router({
     // Ticket médio
     const [ticket] = await db.select({ avg: sql<string>`COALESCE(AVG(amount), 0)` })
       .from(analyticsRevenue)
-      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
-
-    const mrrVal = parseFloat(mrr.total);
-
     return {
       mrr: mrrVal,
       arr: mrrVal * 12,
-      periodRevenue: parseFloat(periodRevenue.total),
-      avgTicket: parseFloat(ticket.avg),
-      byPlan: byPlan.map((p) => ({ ...p, revenue: parseFloat(p.revenue) })),
-      byCampaign: byCampaign.map((c) => ({ ...c, revenue: parseFloat(c.revenue) })),
-      byState: byState.map((s) => ({ ...s, revenue: parseFloat(s.revenue) })),
+      periodRevenue: pRevVal,
+      avgTicket: avgTicketVal,
+      byPlan: byPlan ? byPlan.map((p) => ({ ...p, revenue: parseFloat(p.revenue) })) : [],
+      byCampaign: byCampaign ? byCampaign.map((c) => ({ ...c, revenue: parseFloat(c.revenue) })) : [],
+      byState: byState ? byState.map((s) => ({ ...s, revenue: parseFloat(s.revenue) })) : [],
     };
   }),
 
