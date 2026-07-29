@@ -195,6 +195,7 @@ export class BillingEngine {
     }
 
     const db = await getDb();
+    if (!db) throw new Error("Banco de dados não disponível");
 
     // 1. Buscar cobrança
     const [invoice] = await db
