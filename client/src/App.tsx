@@ -205,8 +205,17 @@ import { useEffect } from "react";
 // Initialize analytics outside of the component tree to run once on load
 initAnalytics();
 
+import { setAnalyticsUser } from "./lib/analytics";
+
 function AppTracking() {
   const [location] = useLocation();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      setAnalyticsUser(user.id, user.name);
+    }
+  }, [user]);
 
   useEffect(() => {
     trackPageView(location);

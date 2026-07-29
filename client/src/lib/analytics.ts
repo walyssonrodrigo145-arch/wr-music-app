@@ -177,11 +177,11 @@ function flushEventBuffer() {
 function queueEvent(event: unknown) {
   eventBuffer.push(event);
   if (batchTimer) clearTimeout(batchTimer);
-  if (eventBuffer.length >= 20) {
+  if (eventBuffer.length >= 5) {
     flushEventBuffer();
     return;
   }
-  batchTimer = setTimeout(flushEventBuffer, 5000);
+  batchTimer = setTimeout(flushEventBuffer, 1000);
 }
 
 // ── API Pública ───────────────────────────────────────────────────────────────
@@ -218,6 +218,7 @@ export function trackPageView(path: string) {
     pageTitle: document.title,
     timeOnPageSec: 0,
   });
+  flushEventBuffer();
 }
 
 /**
