@@ -46,10 +46,14 @@ export default function CreateCampaign() {
     const lines = rawContacts.split('\n').filter(l => l.trim().length > 0);
     const parsedContacts = lines.map(line => {
       const parts = line.split(',');
-      if (parts.length >= 2) {
-        return { name: parts[0].trim(), phone: parts[1].trim(), messageText };
-      }
-      return { name: "Contato", phone: parts[0].trim(), messageText };
+      const contactName = parts.length >= 2 ? parts[0].trim() : "Contato";
+      const contactPhone = parts.length >= 2 ? parts[1].trim() : parts[0].trim();
+      return { 
+        name: contactName, 
+        phone: contactPhone, 
+        messageText,
+        variables: { nome: contactName }
+      };
     }).filter(c => c.phone.length >= 8); // basic validation
 
     if (parsedContacts.length === 0) {

@@ -104,7 +104,8 @@ export class MarketingQueueWorker {
       await db.update(marketingContacts).set({ status: 'processing' }).where(eq(marketingContacts.id, nextContact.id));
 
       // 5. Send message
-      const text = this.parseVariables(nextContact.messageText, nextContact.variables || {});
+      const contactVars = { nome: nextContact.name || "Contato", ...((nextContact.variables as Record<string, string>) || {}) };
+      const text = this.parseVariables(nextContact.messageText, contactVars);
       
       let success = false;
       let evolutionResponse = null;
