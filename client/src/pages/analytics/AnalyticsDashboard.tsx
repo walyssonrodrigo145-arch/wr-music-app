@@ -129,8 +129,8 @@ function EmptyState({ message }: { message: string }) {
 
 // ── Aba: Visão Geral ──────────────────────────────────────────────────────────
 function OverviewTab({ preset }: { preset: Preset }) {
-  const cards = trpc.analytics.query.getDashboardCards.useQuery({ preset });
-  const visitors = trpc.analytics.query.getVisitorStats.useQuery({ preset });
+  const cards = trpc.analytics.query.getDashboardCards.useQuery({ preset }, { refetchInterval: 30_000 });
+  const visitors = trpc.analytics.query.getVisitorStats.useQuery({ preset }, { refetchInterval: 30_000 });
 
   const cardData = cards.data;
   const formatCurrency = (v: number) => `R$ ${v.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
@@ -510,7 +510,7 @@ function PagesTab({ preset }: { preset: Preset }) {
 
 // ── Aba: Funil de Conversão ───────────────────────────────────────────────────
 function FunnelTab({ preset }: { preset: Preset }) {
-  const { data } = trpc.analytics.query.getConversionFunnel.useQuery({ preset });
+  const { data } = trpc.analytics.query.getConversionFunnel.useQuery({ preset }, { refetchInterval: 30_000 });
 
   const maxCount = data?.[0]?.count ?? 1;
 
@@ -625,7 +625,7 @@ function CheckoutTab({ preset }: { preset: Preset }) {
 
 // ── Aba: Receita ──────────────────────────────────────────────────────────────
 function RevenueTab({ preset }: { preset: Preset }) {
-  const { data } = trpc.analytics.query.getRevenueStats.useQuery({ preset });
+  const { data } = trpc.analytics.query.getRevenueStats.useQuery({ preset }, { refetchInterval: 30_000 });
   const fmt = (v: number) => `R$ ${v.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
   return (

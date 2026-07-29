@@ -2,13 +2,11 @@ const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
 
-const conn = new Client();
 const config = {
-  host: '179.197.76.174',
-  port: 22,
-  username: 'root',
-  password: 'Walysson2003@',
-  readyTimeout: 30000
+  host: process.env.VPS_HOST || '179.197.76.174',
+  port: parseInt(process.env.VPS_PORT || '22', 10),
+  username: process.env.VPS_USER || 'root',
+  password: process.env.VPS_PASSWORD || 'Walysson2003@',
 };
 
 const filesToUpload = [
@@ -164,10 +162,14 @@ const filesToUpload = [
   'server/services/AnalyticsAIService.ts',
   'server/routers.ts',
   'server/_core/index.ts',
+  'client/src/lib/trpc.ts',
+  'client/src/lib/utils.ts',
   'client/src/lib/analytics.ts',
   'client/src/App.tsx',
   'client/src/pages/analytics/AnalyticsDashboard.tsx',
 ];
+
+const conn = new Client();
 
 conn.on('ready', () => {
   console.log('SSH connection established. Uploading files...');
@@ -188,57 +190,55 @@ conn.on('ready', () => {
       conn.sftp((err, sftp) => {
         if (err) throw err;
         
-        let uploads = 0;
-        const finalize = () => {
-          uploads++;
-          if (uploads === filesToUpload.length) {
-            console.log('Uploads complete. Rebuilding container...');
-            const rebuildCmd = `
-              cd ${repoPath}
-              docker compose down
-              docker compose build --no-cache
-              docker compose up -d
-              echo "Running DB migrations manually via psql..."
-              sleep 5
-              docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"dueDaysForecast\\" text DEFAULT '5,10,15,20';"
-              docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"chatbotEnabled\\" integer NOT NULL DEFAULT 0;"
-            `;
-            conn.exec(rebuildCmd, (err, rebuildStream) => {
-              rebuildStream.stderr.on('data', data => process.stderr.write(data.toString()));
-              rebuildStream.on('close', () => {
-                console.log('Running DB migrations manually via psql...');
-                const migrateCmd = `
-                  cd ${repoPath} && docker compose exec -T db psql -U postgres -d wrmusic -c 'ALTER TABLE settings ADD COLUMN IF NOT EXISTS "dueDaysForecast" text;'
-                  cd ${repoPath} && docker compose exec -T db psql -U postgres -d wrmusic -c 'ALTER TABLE settings ADD COLUMN IF NOT EXISTS "chatbotEnabled" integer NOT NULL DEFAULT 0;'
-                  cd ${repoPath} && docker compose exec -T db psql -U postgres -d wrmusic -c 'ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS "mediaUrl" text;'
-                `;
-                conn.exec(migrateCmd, () => {
-                  console.log('Deploy finished successfully!');
+        // Criar subpastas necessárias antes dos uploads
+        const mkdirCmd = `mkdir -p ${repoPath}/client/src/pages/analytics ${repoPath}/server/services ${repoPath}/client/src/lib`;
+        conn.exec(mkdirCmd, () => {
+          let uploads = 0;
+          const finalize = () => {
+            uploads++;
+            if (uploads === filesToUpload.length) {
+              console.log('Uploads complete. Rebuilding container...');
+              const rebuildCmd = `
+                cd ${repoPath}
+                docker compose down
+                docker compose build --no-cache
+                docker compose up -d
+                echo "Running DB migrations..."
+                sleep 5
+                docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"dueDaysForecast\\" text DEFAULT '5,10,15,20';"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"chatbotEnabled\\" integer NOT NULL DEFAULT 0;"
+              `;
+              conn.exec(rebuildCmd, (err, rebuildStream) => {
+                if (rebuildStream) {
+                  rebuildStream.stdout.on('data', data => process.stdout.write(data.toString()));
+                  rebuildStream.stderr.on('data', data => process.stderr.write(data.toString()));
+                  rebuildStream.on('close', () => {
+                    console.log('Deploy finished successfully!');
+                    conn.end();
+                  });
+                } else {
                   conn.end();
-                });
+                }
               });
-            });
-          }
-        };
-        
-        filesToUpload.forEach(file => {
-          const localPath = path.resolve(__dirname, '../', file);
-          const remotePath = `${repoPath}/${file}`;
-          console.log(`Uploading ${localPath} to ${remotePath}`);
+            }
+          };
           
-          if (fs.existsSync(localPath)) {
-            sftp.fastPut(localPath, remotePath, (err) => {
-              if (err) {
-                console.error(`Error uploading ${file}:`, err);
-              } else {
-                console.log(`${file} uploaded successfully.`);
-              }
+          filesToUpload.forEach(file => {
+            const localPath = path.resolve(__dirname, '../', file);
+            const remotePath = `${repoPath}/${file}`;
+            console.log(`Uploading ${localPath} to ${remotePath}`);
+            
+            if (fs.existsSync(localPath)) {
+              sftp.fastPut(localPath, remotePath, (err) => {
+                if (err) console.error(`Error uploading ${file}:`, err);
+                else console.log(`${file} uploaded successfully.`);
+                finalize();
+              });
+            } else {
+              console.warn(`File not found locally: ${localPath}`);
               finalize();
-            });
-          } else {
-            console.warn(`File ${localPath} does not exist locally!`);
-            finalize();
-          }
+            }
+          });
         });
       });
     });

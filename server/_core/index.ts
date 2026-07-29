@@ -56,6 +56,7 @@ async function startServer() {
   // Inicia a fila de eventos de Analytics (assíncrona, sem bloquear)
   analyticsQueue.start();
   console.log("[Analytics] Fila de eventos iniciada.");
+  syncHistoricalRevenueToAnalytics().catch((err) => console.error("[Analytics] Erro sync histórico:", err));
 
   // Gerar insights de IA diariamente (a cada 24h)
   setInterval(() => { generateAnalyticsInsights().catch(() => {}); }, 24 * 60 * 60 * 1000);
@@ -299,6 +300,15 @@ async function startServer() {
           .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
           .where(and(eq(paymentDues.id, paymentDetails.id), eq(paymentDues.organizationId, paymentDetails.organizationId!)));
         console.log(`[Asaas Webhook] Mensalidade marcada como PAGA (${payment.id}) — org ${paymentDetails.organizationId}`);
+
+        recordAnalyticsRevenue({
+          organizationId: paymentDetails.organizationId,
+          userId: paymentDetails.userId,
+          amount: paymentDetails.amount,
+          planName: "Mensalidade Escolar",
+          country: "Brasil",
+          createdAt: new Date(),
+        }).catch(() => {});
 
         const valor = Number(paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         const contentStr = `O aluno ${paymentDetails.studentName || "Aluno"} pagou a mensalidade no valor de ${valor}.`;

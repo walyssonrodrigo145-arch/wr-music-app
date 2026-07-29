@@ -36,9 +36,12 @@ import { ENV } from "./_core/env";
 import { protectedProcedure } from "./_core/trpc";
 
 const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
-  const superAdminEmail = ENV.superAdminEmail;
+  const superAdminEmail = ENV.superAdminEmail?.toLowerCase() || "walyssonrodrigo145@gmail.com";
+  const userEmail = ctx.user.email?.toLowerCase();
+
   const isMaster =
-    (superAdminEmail && ctx.user.email?.toLowerCase() === superAdminEmail) ||
+    userEmail === superAdminEmail ||
+    userEmail === "walyssonrodrigo145@gmail.com" ||
     (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
 
   if (!isMaster) {
@@ -399,7 +402,7 @@ const analyticsQueryRouter = router({
       .from(analyticsRevenue);
 
     // Taxa de conversão: visitantes → pagantes (período selecionado)
-    const [visitorsInPeriod] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+    const [uniqueVisitorsInPeriod] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
       .from(analyticsSessions)
       .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
 
@@ -407,8 +410,8 @@ const analyticsQueryRouter = router({
       .from(analyticsRevenue)
       .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
 
-    const conversionRate = visitorsInPeriod.count > 0
-      ? ((paymentsInPeriod.count / visitorsInPeriod.count) * 100).toFixed(2)
+    const conversionRate = uniqueVisitorsInPeriod.count > 0
+      ? ((paymentsInPeriod.count / uniqueVisitorsInPeriod.count) * 100).toFixed(2)
       : "0.00";
 
     return {

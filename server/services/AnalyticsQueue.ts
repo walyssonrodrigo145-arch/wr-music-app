@@ -204,3 +204,115 @@ export async function upsertOnlineUser(data: {
     console.error("[AnalyticsQueue] Erro ao upsert online:", err);
   }
 }
+
+export async function recordAnalyticsRevenue(data: {
+  organizationId?: number | null;
+  sessionId?: string | null;
+  visitorId?: string | null;
+  userId?: number | null;
+  amount: string | number;
+  planName?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  createdAt?: Date;
+}) {
+  try {
+    const { getDb } = await import("../db");
+    const { analyticsRevenue, analyticsConversions, analyticsEvents } = await import("../../drizzle/schema");
+
+    const db = await getDb();
+    if (!db) return;
+
+    const created = data.createdAt || new Date();
+    const strAmount = String(data.amount);
+
+    await db.insert(analyticsRevenue).values({
+      organizationId: data.organizationId ?? null,
+      sessionId: data.sessionId ?? null,
+      visitorId: data.visitorId ?? null,
+      userId: data.userId ?? null,
+      amount: strAmount,
+      planName: data.planName || "Mensalidade",
+      utmSource: data.utmSource ?? null,
+      utmMedium: data.utmMedium ?? null,
+      utmCampaign: data.utmCampaign ?? null,
+      country: data.country ?? "Brasil",
+      state: data.state ?? null,
+      city: data.city ?? null,
+      createdAt: created,
+    });
+
+    if (data.sessionId) {
+      await db.insert(analyticsConversions).values({
+        sessionId: data.sessionId,
+        visitorId: data.visitorId ?? undefined,
+        userId: data.userId ?? undefined,
+        conversionType: "payment",
+        value: strAmount,
+        utmSource: data.utmSource ?? undefined,
+        utmCampaign: data.utmCampaign ?? undefined,
+        createdAt: created,
+      }).onConflictDoNothing();
+    }
+
+    analyticsQueue.push({
+      sessionId: data.sessionId || "server_event",
+      visitorId: data.visitorId || "server_visitor",
+      userId: data.userId ?? null,
+      eventName: "payment_success",
+      value: strAmount,
+      createdAt: created,
+    });
+  } catch (err) {
+    console.error("[AnalyticsQueue] Erro ao registrar receita no analytics:", err);
+  }
+}
+
+export async function syncHistoricalRevenueToAnalytics() {
+  try {
+    const { getDb } = await import("../db");
+    const { analyticsRevenue, paymentDues } = await import("../../drizzle/schema");
+    const { eq, sql } = await import("drizzle-orm");
+
+    const db = await getDb();
+    if (!db) return;
+
+    const [existingCount] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` }).from(analyticsRevenue);
+    const [paidDuesCount] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(paymentDues)
+      .where(eq(paymentDues.status, "pago"));
+
+    if (existingCount.count < paidDuesCount.count) {
+      console.log(`[AnalyticsQueue] Sincronizando histórico de receita: ${paidDuesCount.count - existingCount.count} pagamentos pendentes de sync...`);
+      const paidList = await db.select({
+        id: paymentDues.id,
+        organizationId: paymentDues.organizationId,
+        userId: paymentDues.userId,
+        amount: paymentDues.amount,
+        paidAt: paymentDues.paidAt,
+        createdAt: paymentDues.createdAt,
+      })
+      .from(paymentDues)
+      .where(eq(paymentDues.status, "pago"));
+
+      for (const p of paidList) {
+        await db.insert(analyticsRevenue).values({
+          organizationId: p.organizationId ?? null,
+          userId: p.userId,
+          amount: String(p.amount),
+          planName: "Mensalidade Escolar",
+          country: "Brasil",
+          createdAt: p.paidAt || p.createdAt || new Date(),
+        }).onConflictDoNothing().catch(() => {});
+      }
+      console.log("[AnalyticsQueue] Sincronização de histórico concluída com sucesso!");
+    }
+  } catch (err) {
+    console.error("[AnalyticsQueue] Erro na sincronização retroativa:", err);
+  }
+}
+
