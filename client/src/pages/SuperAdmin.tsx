@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
   Loader2, Plus, Edit, Check, X, Tag, ListFilter, Users, Building,
-  ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw
+  ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -187,9 +187,19 @@ function SuperAdminPanel() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
-      <div>
-        <h1 className="text-3xl font-black text-foreground tracking-tight">Painel Super Admin</h1>
-        <p className="text-muted-foreground mt-1 text-sm font-medium">Controle total sobre Planos, Cupons e Visão Geral do Sistema.</p>
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">Painel Super Admin</h1>
+          <p className="text-muted-foreground mt-1 text-sm font-medium">Controle total sobre Planos, Cupons e Visão Geral do Sistema.</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => window.open("/analytics", "_blank")}
+          className="flex items-center gap-2 font-semibold text-sm bg-violet-600/10 text-violet-600 border-violet-500/30 hover:bg-violet-600 hover:text-white transition-all"
+        >
+          <BarChart2 size={16} />
+          MusicPro Analytics ↗
+        </Button>
       </div>
 
       {/* Tabs */}
