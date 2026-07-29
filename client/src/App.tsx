@@ -68,8 +68,8 @@ function Router() {
 
   if (loading) return <PageLoader />;
 
-  // Se o acesso for via subdomínio analytics.wrmusicpro.com.br ou query string ?analytics=true
-  const isAnalyticsHost = host.includes("analytics.") || (typeof window !== "undefined" && window.location.search.includes("analytics=true"));
+  // Se o acesso for via subdomínio analytics.wrmusicpro.com.br
+  const isAnalyticsHost = host.startsWith("analytics.") || (typeof window !== "undefined" && window.location.search.includes("analytics=true"));
 
   if (isAnalyticsHost) {
     if (!isAuthenticated) {
@@ -79,6 +79,7 @@ function Router() {
         </Suspense>
       );
     }
+    // Renderiza EXCLUSIVAMENTE o Dashboard de Analytics (sem barra lateral da escola ou do aluno)
     return (
       <Suspense fallback={<PageLoader />}>
         <AnalyticsDashboard />
