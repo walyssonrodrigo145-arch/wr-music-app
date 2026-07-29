@@ -13,43 +13,66 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
+const promiseWithTimeout = <T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(errorMsg)), ms);
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+};
+
 export const requestForToken = async () => {
   if (!messaging || typeof window === 'undefined') return null;
-  try {
-    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
 
-    let swRegistration: ServiceWorkerRegistration | undefined = undefined;
-    if ('serviceWorker' in navigator) {
-      try {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        if (regs.length > 0) {
-          swRegistration = regs.find(r => r.active && (r.active.scriptURL.includes('firebase-messaging-sw.js') || r.active.scriptURL.includes('sw.js'))) || regs[0];
+  return promiseWithTimeout(
+    (async () => {
+      const vapidKey =
+        import.meta.env.VITE_FIREBASE_VAPID_KEY ||
+        "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
+
+      let swRegistration: ServiceWorkerRegistration | undefined = undefined;
+
+      if ('serviceWorker' in navigator) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          if (regs.length > 0) {
+            swRegistration = regs.find(
+              (r) =>
+                r.active &&
+                (r.active.scriptURL.includes('firebase-messaging-sw.js') || r.active.scriptURL.includes('sw.js'))
+            ) || regs[0];
+          }
+          if (!swRegistration) {
+            swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+          }
+        } catch (swErr) {
+          console.warn('Busca de Service Worker falhou:', swErr);
         }
-        if (!swRegistration) {
-          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        }
-      } catch (swErr) {
-        console.warn('Busca de Service Worker falhou, usando navigator.serviceWorker.ready...', swErr);
-        swRegistration = await navigator.serviceWorker.ready.catch(() => undefined);
       }
-    }
 
-    const currentToken = await getToken(messaging, { 
-      vapidKey,
-      ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {})
-    });
+      const currentToken = await getToken(messaging, {
+        vapidKey,
+        ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
+      });
 
-    if (currentToken) {
-      console.log('FCM Token gerado com sucesso:', currentToken);
-      return currentToken;
-    } else {
-      console.warn('Nenhum token FCM retornado pelo Firebase.');
-      return null;
-    }
-  } catch (err: any) {
-    console.error('Erro ao buscar token FCM:', err);
-    throw err;
-  }
+      if (currentToken) {
+        console.log('FCM Token gerado com sucesso:', currentToken);
+        return currentToken;
+      } else {
+        console.warn('Nenhum token FCM retornado pelo Firebase.');
+        return null;
+      }
+    })(),
+    10000,
+    "O serviço FCM não respondeu a tempo (timeout). Tente novamente."
+  );
 };
 
 export const onMessageListener = () => {

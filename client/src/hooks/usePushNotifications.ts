@@ -31,7 +31,18 @@ export function usePushNotifications() {
       return "denied" as NotificationPermission;
     }
 
-    const result = await Notification.requestPermission();
+    const result = await new Promise<NotificationPermission>((resolve) => {
+      const timer = setTimeout(() => resolve(Notification.permission as NotificationPermission), 5000);
+      Notification.requestPermission()
+        .then((res) => {
+          clearTimeout(timer);
+          resolve(res);
+        })
+        .catch(() => {
+          clearTimeout(timer);
+          resolve("denied" as NotificationPermission);
+        });
+    });
     setPermission(result);
     
     if (result === "granted") {
