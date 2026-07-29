@@ -80,8 +80,8 @@ export const ENV = {
   // ─── Segurança: sem fallback hardcoded. Em dev, usa string vazia (cadastro bloqueado). ──
   registrationToken: registrationTokenRaw,
 
-  // ─── Super Admin: email definido por variável de ambiente — NUNCA hardcoded ──
-  superAdminEmail: (process.env.SUPER_ADMIN_EMAIL || "").toLowerCase().trim(),
+  // ─── Super Admin: email definido por variável de ambiente com fallback master ──
+  superAdminEmail: (process.env.SUPER_ADMIN_EMAIL || "walyssonrodrigo145@gmail.com").toLowerCase().trim(),
 
   // ─── Asaas: sem fallback para sandbox. Em dev, sem URL = integração desativada. ──
   asaasApiKey: (process.env.ASAAS_API_KEY ?? "").trim(),

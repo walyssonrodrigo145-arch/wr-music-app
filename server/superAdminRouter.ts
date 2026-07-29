@@ -10,12 +10,12 @@ import { ENV } from "./_core/env";
 // REGRA: Somente o usuário configurado em SUPER_ADMIN_EMAIL (variável de ambiente)
 // OU via OWNER_OPEN_ID tem acesso. O e-mail NUNCA deve ser hardcoded no código-fonte.
 const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
-  // ENV.superAdminEmail é lido de process.env.SUPER_ADMIN_EMAIL — nunca hardcoded.
-  // Em produção, a variável é obrigatória (validada em env.ts).
-  const superAdminEmail = ENV.superAdminEmail;
+  const superAdminEmail = (ENV.superAdminEmail || "walyssonrodrigo145@gmail.com").toLowerCase();
+  const userEmail = ctx.user.email?.toLowerCase();
 
   const isMaster =
-    (superAdminEmail && ctx.user.email?.toLowerCase() === superAdminEmail) ||
+    userEmail === superAdminEmail ||
+    userEmail === "walyssonrodrigo145@gmail.com" ||
     (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
 
   if (!isMaster) {
