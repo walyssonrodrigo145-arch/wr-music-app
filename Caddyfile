@@ -6,3 +6,7 @@ escola.wrmusicpro.com.br {
     root * /srv/landpage
     file_server
 }
+
+analytics.wrmusicpro.com.br {
+    reverse_proxy app:3000
+}

@@ -64,8 +64,25 @@ const PageLoader = () => (
 
 function Router() {
   const { user, isAuthenticated, loading } = useAuth();
+  const host = typeof window !== "undefined" ? window.location.hostname : "";
 
   if (loading) return <PageLoader />;
+
+  // Se o acesso for via subdomínio analytics.wrmusicpro.com.br
+  if (host.startsWith("analytics.")) {
+    if (!isAuthenticated) {
+      return (
+        <Suspense fallback={<PageLoader />}>
+          <Login />
+        </Suspense>
+      );
+    }
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <AnalyticsDashboard />
+      </Suspense>
+    );
+  }
 
   // Redirect unauthenticated users to login, except for landing page
   if (!isAuthenticated) {
