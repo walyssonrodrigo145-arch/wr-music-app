@@ -730,22 +730,7 @@ function WhatsAppSessionManager() {
   );
 }
 
-// ─── Tab types ───────────────────────────────────────────────────────────────
-// ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: "perfil", label: "Perfil", icon: User },
-  { id: "escola", label: "Escola", icon: Building2 },
-  { id: "professores", label: "Professores", icon: Users },
-  { id: "notificacoes", label: "Notificações", icon: Bell },
-  { id: "aparencia", label: "Aparência", icon: Palette },
-  { id: "whatsapp", label: "Meu WhatsApp", icon: Smartphone },
-  { id: "integracoes", label: "Integrações", icon: Wallet },
-  { id: "ia", label: "IA Assistente", icon: Sparkles },
-  { id: "seguranca", label: "Segurança", icon: Shield },
-  { id: "ajuda", label: "Ajuda", icon: HelpCircle },
-];
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
