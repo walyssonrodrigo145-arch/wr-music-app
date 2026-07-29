@@ -157,6 +157,16 @@ const filesToUpload = [
   'tsconfig.json',
   'evo_run.sh',
   'evolution-v2-compose.yml',
+  // ── MusicPro Analytics (NOVO) ─────────────────────────────────────────────
+  'drizzle/schema.ts',
+  'server/analyticsRouter.ts',
+  'server/services/AnalyticsQueue.ts',
+  'server/services/AnalyticsAIService.ts',
+  'server/routers.ts',
+  'server/_core/index.ts',
+  'client/src/lib/analytics.ts',
+  'client/src/App.tsx',
+  'client/src/pages/analytics/AnalyticsDashboard.tsx',
 ];
 
 conn.on('ready', () => {

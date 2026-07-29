@@ -1,28 +1,368 @@
-import ReactGA from 'react-ga4';
+/**
+ * analytics.ts — MusicPro Analytics Tracker (Sistema Próprio)
+ *
+ * Substitui o Google Analytics por um tracker 100% próprio.
+ * Usa fetch() direto (sem tRPC React context) para funcionar fora do React tree.
+ *
+ * Funcionalidades:
+ * - Gera IDs de visitante (localStorage) e sessão (sessionStorage) únicos
+ * - Captura automaticamente page_view, session_start, session_end
+ * - Detecta dispositivo, SO, browser, resolução, UTMs
+ * - Envia eventos em lote com debounce de 5s para reduzir requests
+ * - Mantém heartbeat a cada 30s para o painel de online
+ * - Registra dados de heatmap (cliques)
+ * - Respeita LGPD: IP mascarado no servidor, sem dados sensíveis no front
+ */
 
-const GA_MEASUREMENT_ID = 'G-TNCFL02S7R';
+// ── Tipos ─────────────────────────────────────────────────────────────────────
+export type EventName =
+  | "page_view" | "session_start" | "session_end" | "button_click" | "link_click"
+  | "signup_started" | "signup_completed" | "trial_started" | "trial_finished"
+  | "login" | "logout" | "plan_selected" | "checkout_started" | "pix_generated"
+  | "payment_success" | "payment_failed" | "subscription_created" | "subscription_cancelled"
+  | "email_open" | "email_click" | "whatsapp_click" | "video_play" | "video_finish"
+  | "download" | "upload" | "form_submit" | "search" | "feature_used" | "error" | "api_error"
+  | "scroll_depth" | "heatmap_click" | "heatmap_move" | "web_vital";
 
-export const initAnalytics = () => {
-  if (GA_MEASUREMENT_ID) {
-    ReactGA.initialize(GA_MEASUREMENT_ID);
-  } else {
-    console.warn('Google Analytics Measurement ID is not defined.');
+export interface TrackEventOptions {
+  pageUrl?: string;
+  pageTitle?: string;
+  referrer?: string;
+  elementId?: string;
+  elementText?: string;
+  elementTag?: string;
+  value?: string;
+  metadata?: Record<string, unknown>;
+  timeOnPageSec?: number;
+  scrollDepth?: number;
+}
+
+type DeviceType = "desktop" | "tablet" | "mobile" | "tv" | "unknown";
+
+// ── Helpers de chamada tRPC via HTTP (sem React context) ──────────────────────
+function callTrpc(procedure: string, input: unknown): Promise<unknown> {
+  return fetch(`/api/trpc/${procedure}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ "0": { json: input } }),
+    credentials: "include",
+  }).catch(() => null);
+}
+
+// ── Estado da sessão ──────────────────────────────────────────────────────────
+const VISITOR_KEY = "mp_visitor_id";
+const SESSION_KEY = "mp_session_id";
+const SESSION_START_KEY = "mp_session_start";
+
+let visitorId = "";
+let sessionId = "";
+let sessionStartTime = 0;
+let pageStartTime = 0;
+let currentUserId: number | null = null;
+let currentUserName: string | null = null;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let isInitialized = false;
+
+// Buffer de eventos para envio em lote
+const eventBuffer: unknown[] = [];
+let batchTimer: ReturnType<typeof setTimeout> | null = null;
+
+// ── Geração de IDs ────────────────────────────────────────────────────────────
+function generateId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function getOrCreateVisitorId(): string {
+  try {
+    let id = localStorage.getItem(VISITOR_KEY);
+    if (!id) {
+      id = generateId();
+      localStorage.setItem(VISITOR_KEY, id);
+    }
+    return id;
+  } catch {
+    return generateId();
   }
-};
+}
 
-export const trackPageView = (path: string) => {
-  if (GA_MEASUREMENT_ID) {
-    ReactGA.send({ hitType: 'pageview', page: path });
+function getOrCreateSessionId(): string {
+  try {
+    let id = sessionStorage.getItem(SESSION_KEY);
+    if (!id) {
+      id = generateId();
+      sessionStorage.setItem(SESSION_KEY, id);
+      sessionStorage.setItem(SESSION_START_KEY, String(Date.now()));
+    }
+    return id;
+  } catch {
+    return generateId();
   }
-};
+}
 
-export const trackEvent = (category: string, action: string, label?: string, value?: number) => {
-  if (GA_MEASUREMENT_ID) {
-    ReactGA.event({
-      category,
-      action,
-      label,
-      value
+// ── Detecção de dispositivo/SO/browser ───────────────────────────────────────
+function detectDevice(): { device: DeviceType; os: string; browser: string } {
+  const ua = navigator.userAgent;
+
+  let device: DeviceType = "desktop";
+  if (/Smart[-_]?TV|WebOS|Tizen|netcast/i.test(ua)) device = "tv";
+  else if (/iPad|Android.*Tablet/i.test(ua)) device = "tablet";
+  else if (/iPhone|Android|Mobile|BlackBerry|Windows Phone/i.test(ua)) device = "mobile";
+
+  let os = "Outros";
+  if (/Windows/i.test(ua)) os = "Windows";
+  else if (/Mac OS X/i.test(ua) && !/iPhone|iPad/i.test(ua)) os = "macOS";
+  else if (/Android/i.test(ua)) os = "Android";
+  else if (/iPhone|iPad/i.test(ua)) os = "iOS";
+  else if (/Linux/i.test(ua)) os = "Linux";
+
+  let browser = "Outros";
+  if (/Edg\//i.test(ua)) browser = "Edge";
+  else if (/OPR|Opera/i.test(ua)) browser = "Opera";
+  else if (/Firefox/i.test(ua)) browser = "Firefox";
+  else if (/Chrome/i.test(ua)) browser = "Chrome";
+  else if (/Safari/i.test(ua)) browser = "Safari";
+
+  return { device, os, browser };
+}
+
+function getScreenRes(): string {
+  return `${window.screen.width}x${window.screen.height}`;
+}
+
+function getUTMParams(): Record<string, string | null> {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      utmSource: params.get("utm_source"),
+      utmMedium: params.get("utm_medium"),
+      utmCampaign: params.get("utm_campaign"),
+      utmContent: params.get("utm_content"),
+      utmTerm: params.get("utm_term"),
+    };
+  } catch {
+    return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null, utmTerm: null };
+  }
+}
+
+// ── Base do evento ────────────────────────────────────────────────────────────
+function buildBaseEvent() {
+  const { device, os, browser } = detectDevice();
+  const utms = getUTMParams();
+  return {
+    sessionId,
+    visitorId,
+    userId: currentUserId,
+    deviceType: device,
+    os,
+    browser,
+    screenRes: getScreenRes(),
+    utmSource: utms.utmSource,
+    utmMedium: utms.utmMedium,
+    utmCampaign: utms.utmCampaign,
+    utmContent: utms.utmContent,
+    utmTerm: utms.utmTerm,
+    pageUrl: window.location.href,
+    pageTitle: document.title,
+    referrer: document.referrer || null,
+  };
+}
+
+// ── Buffer de envio em lote ───────────────────────────────────────────────────
+function flushEventBuffer() {
+  if (eventBuffer.length === 0) return;
+  const events = eventBuffer.splice(0, 50);
+  callTrpc("analytics.event.trackBatch", { events }).catch(() => {});
+}
+
+function queueEvent(event: unknown) {
+  eventBuffer.push(event);
+  if (batchTimer) clearTimeout(batchTimer);
+  if (eventBuffer.length >= 20) {
+    flushEventBuffer();
+    return;
+  }
+  batchTimer = setTimeout(flushEventBuffer, 5000);
+}
+
+// ── API Pública ───────────────────────────────────────────────────────────────
+
+/**
+ * Rastreia um evento customizado.
+ */
+export function trackEvent(eventName: EventName, options: TrackEventOptions = {}) {
+  if (!isInitialized || typeof window === "undefined") return;
+
+  const timeOnPageSec = options.timeOnPageSec ?? Math.floor((Date.now() - pageStartTime) / 1000);
+
+  queueEvent({
+    ...buildBaseEvent(),
+    eventName,
+    timeOnPageSec,
+    ...options,
+  });
+}
+
+/**
+ * Registra um page_view. Chamado automaticamente ao mudar de rota.
+ */
+export function trackPageView(path: string) {
+  if (!isInitialized || typeof window === "undefined") return;
+
+  pageStartTime = Date.now();
+  const fullUrl = `${window.location.origin}${path}`;
+
+  queueEvent({
+    ...buildBaseEvent(),
+    eventName: "page_view" as EventName,
+    pageUrl: fullUrl,
+    pageTitle: document.title,
+    timeOnPageSec: 0,
+  });
+}
+
+/**
+ * Define o usuário autenticado para enriquecer os eventos.
+ */
+export function setAnalyticsUser(id: number | null, name?: string | null) {
+  currentUserId = id;
+  currentUserName = name ?? null;
+}
+
+// ── Scroll Depth ──────────────────────────────────────────────────────────────
+const scrollMilestones = new Set<number>();
+
+function setupScrollTracker() {
+  window.addEventListener("scroll", () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    if (docHeight <= 0) return;
+    const depth = Math.round((scrollTop / docHeight) * 100);
+
+    [25, 50, 75, 100].forEach((milestone) => {
+      if (depth >= milestone && !scrollMilestones.has(milestone)) {
+        scrollMilestones.add(milestone);
+        queueEvent({ ...buildBaseEvent(), eventName: "scroll_depth", scrollDepth: milestone });
+      }
     });
-  }
-};
+  }, { passive: true });
+}
+
+// ── Heatmap (cliques) ─────────────────────────────────────────────────────────
+const heatmapBuffer: Array<{
+  xPercent: number;
+  yPercent: number;
+  eventType: "click";
+  viewportW: number;
+  viewportH: number;
+}> = [];
+let heatmapTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushHeatmap() {
+  if (heatmapBuffer.length === 0) return;
+  const points = heatmapBuffer.splice(0, 100);
+  callTrpc("analytics.event.heatmap", {
+    sessionId,
+    pageUrl: window.location.href,
+    points,
+  }).catch(() => {});
+}
+
+function setupHeatmapTracker() {
+  document.addEventListener("click", (e) => {
+    const xPercent = parseFloat(((e.clientX / window.innerWidth) * 100).toFixed(2));
+    const yPercent = parseFloat(
+      (((e.clientY + window.scrollY) / Math.max(document.documentElement.scrollHeight, 1)) * 100).toFixed(2)
+    );
+    heatmapBuffer.push({
+      xPercent,
+      yPercent,
+      eventType: "click",
+      viewportW: window.innerWidth,
+      viewportH: window.innerHeight,
+    });
+    if (heatmapTimer) clearTimeout(heatmapTimer);
+    heatmapTimer = setTimeout(flushHeatmap, 10_000);
+  }, { passive: true });
+}
+
+// ── Heartbeat ─────────────────────────────────────────────────────────────────
+function startHeartbeat() {
+  const sendPing = () => {
+    const { device, os, browser } = detectDevice();
+    const utms = getUTMParams();
+    callTrpc("analytics.event.heartbeat", {
+      sessionId,
+      visitorId,
+      userId: currentUserId,
+      userName: currentUserName,
+      pageUrl: window.location.href,
+      pageTitle: document.title,
+      deviceType: device,
+      browser,
+      os,
+      screenRes: getScreenRes(),
+      utmSource: utms.utmSource,
+      referrer: document.referrer || null,
+    }).catch(() => {});
+  };
+
+  sendPing();
+  heartbeatTimer = setInterval(sendPing, 30_000);
+}
+
+// ── Inicialização ─────────────────────────────────────────────────────────────
+export function initAnalytics() {
+  if (isInitialized || typeof window === "undefined") return;
+
+  visitorId = getOrCreateVisitorId();
+  sessionId = getOrCreateSessionId();
+  sessionStartTime = parseInt(sessionStorage.getItem(SESSION_START_KEY) ?? String(Date.now()), 10);
+  pageStartTime = Date.now();
+
+  const { device, os, browser } = detectDevice();
+  const utms = getUTMParams();
+
+  // Inicia a sessão no servidor
+  callTrpc("analytics.event.sessionStart", {
+    visitor: { visitorId },
+    session: {
+      sessionId,
+      visitorId,
+      deviceType: device,
+      os,
+      browser,
+      screenRes: getScreenRes(),
+      language: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      referrer: document.referrer || null,
+      userAgent: navigator.userAgent.substring(0, 500),
+      utmSource: utms.utmSource,
+      utmMedium: utms.utmMedium,
+      utmCampaign: utms.utmCampaign,
+      utmContent: utms.utmContent,
+      utmTerm: utms.utmTerm,
+    },
+  }).catch(() => {});
+
+  setupScrollTracker();
+  setupHeatmapTracker();
+  startHeartbeat();
+
+  // Flush ao sair da página
+  window.addEventListener("beforeunload", () => {
+    const durationSec = Math.floor((Date.now() - sessionStartTime) / 1000);
+    const timeOnPageSec = Math.floor((Date.now() - pageStartTime) / 1000);
+
+    queueEvent({
+      ...buildBaseEvent(),
+      eventName: "session_end",
+      timeOnPageSec,
+      metadata: { durationSec },
+    });
+    flushEventBuffer();
+    flushHeatmap();
+  });
+
+  isInitialized = true;
+  console.log("[MusicPro Analytics] Iniciado:", { visitorId, sessionId });
+}

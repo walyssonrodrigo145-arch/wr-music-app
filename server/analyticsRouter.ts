@@ -1,0 +1,924 @@
+/**
+ * analyticsRouter.ts — Router principal do módulo MusicPro Analytics
+ * 
+ * Contém 3 sub-routers:
+ * 1. event — endpoints públicos de coleta (track, batch, heartbeat)
+ * 2. query — queries do dashboard (Super Admin apenas)
+ * 3. realtime — SSE de usuários online
+ */
+
+import { z } from "zod";
+import { router, publicProcedure } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
+import { getDb } from "./db";
+import {
+  analyticsEvents,
+  analyticsSessions,
+  analyticsVisitors,
+  analyticsHeatmap,
+  analyticsOnline,
+  analyticsConversions,
+  analyticsRevenue,
+  analyticsCampaigns,
+  analyticsPages,
+  analyticsAiInsights,
+} from "../drizzle/schema";
+import {
+  analyticsQueue,
+  upsertAnalyticsVisitor,
+  upsertAnalyticsSession,
+  upsertOnlineUser,
+} from "./services/AnalyticsQueue";
+import { eq, sql, desc, gte, lte, and, count, sum, avg, lt } from "drizzle-orm";
+import { ENV } from "./_core/env";
+
+// ── Middleware Super Admin ────────────────────────────────────────────────────
+import { protectedProcedure } from "./_core/trpc";
+
+const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
+  const superAdminEmail = ENV.superAdminEmail;
+  const isMaster =
+    (superAdminEmail && ctx.user.email?.toLowerCase() === superAdminEmail) ||
+    (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
+
+  if (!isMaster) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Acesso restrito ao Super Admin.",
+    });
+  }
+  return next({ ctx });
+});
+
+// ── Schemas de validação ─────────────────────────────────────────────────────
+const EventSchema = z.object({
+  sessionId: z.string().max(64),
+  visitorId: z.string().max(64),
+  userId: z.number().optional().nullable(),
+  eventName: z.enum([
+    "page_view", "session_start", "session_end", "button_click", "link_click",
+    "signup_started", "signup_completed", "trial_started", "trial_finished",
+    "login", "logout", "plan_selected", "checkout_started", "pix_generated",
+    "payment_success", "payment_failed", "subscription_created", "subscription_cancelled",
+    "email_open", "email_click", "whatsapp_click", "video_play", "video_finish",
+    "download", "upload", "form_submit", "search", "feature_used", "error", "api_error",
+    "scroll_depth", "heatmap_click", "heatmap_move", "web_vital",
+  ]),
+  pageUrl: z.string().max(2000).optional().nullable(),
+  pageTitle: z.string().max(255).optional().nullable(),
+  referrer: z.string().max(2000).optional().nullable(),
+  elementId: z.string().max(100).optional().nullable(),
+  elementText: z.string().max(255).optional().nullable(),
+  elementTag: z.string().max(30).optional().nullable(),
+  utmSource: z.string().max(100).optional().nullable(),
+  utmMedium: z.string().max(100).optional().nullable(),
+  utmCampaign: z.string().max(100).optional().nullable(),
+  utmContent: z.string().max(100).optional().nullable(),
+  utmTerm: z.string().max(100).optional().nullable(),
+  country: z.string().max(100).optional().nullable(),
+  state: z.string().max(100).optional().nullable(),
+  city: z.string().max(100).optional().nullable(),
+  deviceType: z.enum(["desktop", "tablet", "mobile", "tv", "unknown"]).optional().nullable(),
+  os: z.string().max(80).optional().nullable(),
+  browser: z.string().max(80).optional().nullable(),
+  screenRes: z.string().max(20).optional().nullable(),
+  value: z.string().optional().nullable(),
+  metadata: z.record(z.unknown()).optional().nullable(),
+  timeOnPageSec: z.number().optional().nullable(),
+  scrollDepth: z.number().min(0).max(100).optional().nullable(),
+});
+
+const SessionSchema = z.object({
+  sessionId: z.string().max(64),
+  visitorId: z.string().max(64),
+  userId: z.number().optional().nullable(),
+  ipMasked: z.string().max(20).optional().nullable(),
+  country: z.string().max(100).optional().nullable(),
+  state: z.string().max(100).optional().nullable(),
+  city: z.string().max(100).optional().nullable(),
+  language: z.string().max(20).optional().nullable(),
+  timezone: z.string().max(60).optional().nullable(),
+  deviceType: z.enum(["desktop", "tablet", "mobile", "tv", "unknown"]).optional().nullable(),
+  os: z.string().max(80).optional().nullable(),
+  browser: z.string().max(80).optional().nullable(),
+  screenRes: z.string().max(20).optional().nullable(),
+  userAgent: z.string().max(500).optional().nullable(),
+  referrer: z.string().max(2000).optional().nullable(),
+  utmSource: z.string().max(100).optional().nullable(),
+  utmMedium: z.string().max(100).optional().nullable(),
+  utmCampaign: z.string().max(100).optional().nullable(),
+  utmContent: z.string().max(100).optional().nullable(),
+  utmTerm: z.string().max(100).optional().nullable(),
+});
+
+const DateRangeSchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  preset: z.enum(["today", "yesterday", "7d", "30d", "90d", "month", "year", "custom"]).default("30d"),
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function getDateRange(preset: string, from?: string, to?: string): { start: Date; end: Date } {
+  const now = new Date();
+  const end = to ? new Date(to) : now;
+
+  switch (preset) {
+    case "today":
+      return { start: new Date(now.setHours(0, 0, 0, 0)), end: new Date() };
+    case "yesterday": {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      return {
+        start: new Date(y.setHours(0, 0, 0, 0)),
+        end: new Date(y.setHours(23, 59, 59, 999)),
+      };
+    }
+    case "7d":
+      return { start: new Date(Date.now() - 7 * 86400000), end: new Date() };
+    case "30d":
+      return { start: new Date(Date.now() - 30 * 86400000), end: new Date() };
+    case "90d":
+      return { start: new Date(Date.now() - 90 * 86400000), end: new Date() };
+    case "month": {
+      const m = new Date();
+      return { start: new Date(m.getFullYear(), m.getMonth(), 1), end: new Date() };
+    }
+    case "year": {
+      const yr = new Date();
+      return { start: new Date(yr.getFullYear(), 0, 1), end: new Date() };
+    }
+    case "custom":
+      return { start: from ? new Date(from) : new Date(Date.now() - 30 * 86400000), end };
+    default:
+      return { start: new Date(Date.now() - 30 * 86400000), end: new Date() };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUTER DE EVENTOS (público — sem autenticação)
+// ─────────────────────────────────────────────────────────────────────────────
+const analyticsEventRouter = router({
+  // Inicia ou atualiza uma sessão
+  sessionStart: publicProcedure
+    .input(z.object({ session: SessionSchema, visitor: z.object({ visitorId: z.string().max(64) }) }))
+    .mutation(async ({ input }) => {
+      // Upsert visitante e sessão de forma assíncrona
+      upsertAnalyticsVisitor({
+        visitorId: input.visitor.visitorId,
+        country: input.session.country,
+        state: input.session.state,
+        city: input.session.city,
+        deviceType: input.session.deviceType ?? "unknown",
+      }).catch(() => {}); // Fire and forget
+
+      upsertAnalyticsSession({
+        sessionId: input.session.sessionId,
+        visitorId: input.session.visitorId,
+        userId: input.session.userId,
+        ipMasked: input.session.ipMasked,
+        country: input.session.country,
+        state: input.session.state,
+        city: input.session.city,
+        language: input.session.language,
+        timezone: input.session.timezone,
+        deviceType: input.session.deviceType ?? "unknown",
+        os: input.session.os,
+        browser: input.session.browser,
+        screenRes: input.session.screenRes,
+        userAgent: input.session.userAgent,
+        referrer: input.session.referrer,
+        utmSource: input.session.utmSource,
+        utmMedium: input.session.utmMedium,
+        utmCampaign: input.session.utmCampaign,
+        utmContent: input.session.utmContent,
+        utmTerm: input.session.utmTerm,
+        startedAt: new Date(),
+        isBounce: true,
+        pageCount: 1,
+      }).catch(() => {});
+
+      return { ok: true };
+    }),
+
+  // Rastreia um único evento
+  track: publicProcedure
+    .input(EventSchema)
+    .mutation(async ({ input }) => {
+      analyticsQueue.push({
+        sessionId: input.sessionId,
+        visitorId: input.visitorId,
+        userId: input.userId,
+        eventName: input.eventName,
+        pageUrl: input.pageUrl,
+        pageTitle: input.pageTitle,
+        referrer: input.referrer,
+        elementId: input.elementId,
+        elementText: input.elementText,
+        elementTag: input.elementTag,
+        utmSource: input.utmSource,
+        utmMedium: input.utmMedium,
+        utmCampaign: input.utmCampaign,
+        utmContent: input.utmContent,
+        utmTerm: input.utmTerm,
+        country: input.country,
+        state: input.state,
+        city: input.city,
+        deviceType: input.deviceType ?? "unknown",
+        os: input.os,
+        browser: input.browser,
+        screenRes: input.screenRes,
+        value: input.value,
+        metadata: input.metadata as Record<string, unknown>,
+        timeOnPageSec: input.timeOnPageSec,
+        scrollDepth: input.scrollDepth,
+        createdAt: new Date(),
+      });
+      return { ok: true };
+    }),
+
+  // Rastreia lote de eventos (enviado pelo debounce do front-end)
+  trackBatch: publicProcedure
+    .input(z.object({ events: z.array(EventSchema).max(50) }))
+    .mutation(async ({ input }) => {
+      const pushed = analyticsQueue.pushMany(
+        input.events.map((e) => ({
+          sessionId: e.sessionId,
+          visitorId: e.visitorId,
+          userId: e.userId,
+          eventName: e.eventName,
+          pageUrl: e.pageUrl,
+          pageTitle: e.pageTitle,
+          referrer: e.referrer,
+          elementId: e.elementId,
+          elementText: e.elementText,
+          elementTag: e.elementTag,
+          utmSource: e.utmSource,
+          utmMedium: e.utmMedium,
+          utmCampaign: e.utmCampaign,
+          utmContent: e.utmContent,
+          utmTerm: e.utmTerm,
+          country: e.country,
+          state: e.state,
+          city: e.city,
+          deviceType: e.deviceType ?? "unknown",
+          os: e.os,
+          browser: e.browser,
+          screenRes: e.screenRes,
+          value: e.value,
+          metadata: e.metadata as Record<string, unknown>,
+          timeOnPageSec: e.timeOnPageSec,
+          scrollDepth: e.scrollDepth,
+          createdAt: new Date(),
+        }))
+      );
+      return { ok: true, pushed };
+    }),
+
+  // Heartbeat de usuário online (chamado a cada 30s)
+  heartbeat: publicProcedure
+    .input(z.object({
+      sessionId: z.string().max(64),
+      visitorId: z.string().max(64),
+      userId: z.number().optional().nullable(),
+      userName: z.string().max(255).optional().nullable(),
+      pageUrl: z.string().max(2000).optional().nullable(),
+      pageTitle: z.string().max(255).optional().nullable(),
+      country: z.string().max(100).optional().nullable(),
+      state: z.string().max(100).optional().nullable(),
+      city: z.string().max(100).optional().nullable(),
+      deviceType: z.enum(["desktop", "tablet", "mobile", "tv", "unknown"]).optional().nullable(),
+      browser: z.string().max(80).optional().nullable(),
+      os: z.string().max(80).optional().nullable(),
+      screenRes: z.string().max(20).optional().nullable(),
+      utmSource: z.string().max(100).optional().nullable(),
+      referrer: z.string().max(2000).optional().nullable(),
+      ipMasked: z.string().max(20).optional().nullable(),
+    }))
+    .mutation(async ({ input }) => {
+      upsertOnlineUser(input).catch(() => {});
+      return { ok: true };
+    }),
+
+  // Registrar dados de heatmap
+  heatmap: publicProcedure
+    .input(z.object({
+      sessionId: z.string().max(64),
+      pageUrl: z.string().max(2000),
+      points: z.array(z.object({
+        xPercent: z.number().min(0).max(100),
+        yPercent: z.number().min(0).max(100),
+        eventType: z.enum(["click", "move", "scroll"]),
+        viewportW: z.number().optional(),
+        viewportH: z.number().optional(),
+      })).max(100),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        const db = await getDb();
+        if (!db) return { ok: false };
+
+        const pageUrlNormalized = input.pageUrl.split("?")[0].substring(0, 255);
+
+        await db.insert(analyticsHeatmap).values(
+          input.points.map((p) => ({
+            sessionId: input.sessionId,
+            pageUrl: input.pageUrl,
+            pageUrlNormalized,
+            xPercent: String(p.xPercent),
+            yPercent: String(p.yPercent),
+            eventType: p.eventType,
+            viewportW: p.viewportW,
+            viewportH: p.viewportH,
+          }))
+        );
+      } catch {}
+      return { ok: true };
+    }),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUTER DE QUERIES (Super Admin)
+// ─────────────────────────────────────────────────────────────────────────────
+const analyticsQueryRouter = router({
+
+  // ── Cards KPI do Dashboard ────────────────────────────────────────────────
+  getDashboardCards: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [visitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(analyticsSessions)
+      .where(gte(analyticsSessions.startedAt, todayStart));
+
+    const [uniqueVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
+      .from(analyticsSessions)
+      .where(gte(analyticsSessions.startedAt, todayStart));
+
+    const [onlineNow] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(analyticsOnline)
+      .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 120_000)));
+
+    const [signupsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(analyticsEvents)
+      .where(and(
+        eq(analyticsEvents.eventName, "signup_completed"),
+        gte(analyticsEvents.createdAt, todayStart)
+      ));
+
+    const [trialsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(analyticsEvents)
+      .where(and(
+        eq(analyticsEvents.eventName, "trial_started"),
+        gte(analyticsEvents.createdAt, todayStart)
+      ));
+
+    const [subscriptionsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(analyticsEvents)
+      .where(and(
+        eq(analyticsEvents.eventName, "subscription_created"),
+        gte(analyticsEvents.createdAt, todayStart)
+      ));
+
+    const [revenueToday] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+      .from(analyticsRevenue)
+      .where(gte(analyticsRevenue.createdAt, todayStart));
+
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const [revenueMonth] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+      .from(analyticsRevenue)
+      .where(gte(analyticsRevenue.createdAt, monthStart));
+
+    const [revenueTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+      .from(analyticsRevenue);
+
+    // Taxa de conversão: visitantes → pagantes (período selecionado)
+    const [visitorsInPeriod] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
+
+    const [paymentsInPeriod] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
+
+    const conversionRate = visitorsInPeriod.count > 0
+      ? ((paymentsInPeriod.count / visitorsInPeriod.count) * 100).toFixed(2)
+      : "0.00";
+
+    return {
+      visitorsToday: visitorsToday.count,
+      uniqueVisitorsToday: uniqueVisitorsToday.count,
+      onlineNow: onlineNow.count,
+      signupsToday: signupsToday.count,
+      trialsToday: trialsToday.count,
+      subscriptionsToday: subscriptionsToday.count,
+      revenueToday: parseFloat(revenueToday.total),
+      revenueMonth: parseFloat(revenueMonth.total),
+      revenueTotal: parseFloat(revenueTotal.total),
+      conversionRate: parseFloat(conversionRate),
+    };
+  }),
+
+  // ── Visitantes por período ────────────────────────────────────────────────
+  getVisitorStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const byDay = await db.select({
+      date: sql<string>`DATE(${analyticsSessions.startedAt})`,
+      sessions: sql<number>`CAST(COUNT(*) AS INT)`,
+      unique: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(sql`DATE(${analyticsSessions.startedAt})`)
+      .orderBy(sql`DATE(${analyticsSessions.startedAt})`);
+
+    const byHour = await db.select({
+      hour: sql<number>`CAST(EXTRACT(HOUR FROM ${analyticsSessions.startedAt}) AS INT)`,
+      sessions: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(sql`EXTRACT(HOUR FROM ${analyticsSessions.startedAt})`)
+      .orderBy(sql`EXTRACT(HOUR FROM ${analyticsSessions.startedAt})`);
+
+    return { byDay, byHour };
+  }),
+
+  // ── Origem do tráfego ─────────────────────────────────────────────────────
+  getTrafficSources: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const sources = await db.select({
+      source: sql<string>`COALESCE(${analyticsSessions.utmSource}, 
+        CASE 
+          WHEN ${analyticsSessions.referrer} ILIKE '%google%' THEN 'google'
+          WHEN ${analyticsSessions.referrer} ILIKE '%instagram%' THEN 'instagram'
+          WHEN ${analyticsSessions.referrer} ILIKE '%facebook%' THEN 'facebook'
+          WHEN ${analyticsSessions.referrer} ILIKE '%whatsapp%' THEN 'whatsapp'
+          WHEN ${analyticsSessions.referrer} ILIKE '%tiktok%' THEN 'tiktok'
+          WHEN ${analyticsSessions.referrer} ILIKE '%youtube%' THEN 'youtube'
+          WHEN ${analyticsSessions.referrer} ILIKE '%linkedin%' THEN 'linkedin'
+          WHEN ${analyticsSessions.referrer} IS NOT NULL AND ${analyticsSessions.referrer} != '' THEN 'referencia'
+          ELSE 'direto'
+        END)`,
+      sessions: sql<number>`CAST(COUNT(*) AS INT)`,
+      uniqueVisitors: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(sql`1`)
+      .orderBy(sql`COUNT(*) DESC`);
+
+    // Receita por source
+    const revenueBySource = await db.select({
+      source: sql<string>`COALESCE(${analyticsRevenue.utmSource}, 'direto')`,
+      revenue: sql<string>`COALESCE(SUM(${analyticsRevenue.amount}), 0)`,
+      conversions: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)))
+      .groupBy(sql`1`);
+
+    const revenueMap = Object.fromEntries(
+      revenueBySource.map((r) => [r.source, { revenue: parseFloat(r.revenue), conversions: r.conversions }])
+    );
+
+    const totalSessions = sources.reduce((acc, s) => acc + s.sessions, 0);
+
+    return sources.map((s) => ({
+      source: s.source,
+      sessions: s.sessions,
+      uniqueVisitors: s.uniqueVisitors,
+      percentage: totalSessions > 0 ? ((s.sessions / totalSessions) * 100).toFixed(1) : "0",
+      conversions: revenueMap[s.source]?.conversions ?? 0,
+      revenue: revenueMap[s.source]?.revenue ?? 0,
+    }));
+  }),
+
+  // ── Páginas mais visitadas ────────────────────────────────────────────────
+  getLandingPages: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const pages = await db.select({
+      pageUrl: analyticsEvents.pageUrl,
+      pageTitle: analyticsEvents.pageTitle,
+      totalViews: sql<number>`CAST(COUNT(*) AS INT)`,
+      uniqueVisitors: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)`,
+      avgTimeSec: sql<number>`CAST(COALESCE(AVG(${analyticsEvents.timeOnPageSec}), 0) AS INT)`,
+    })
+      .from(analyticsEvents)
+      .where(and(
+        eq(analyticsEvents.eventName, "page_view"),
+        gte(analyticsEvents.createdAt, start),
+        lte(analyticsEvents.createdAt, end),
+        sql`${analyticsEvents.pageUrl} IS NOT NULL`,
+      ))
+      .groupBy(analyticsEvents.pageUrl, analyticsEvents.pageTitle)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(50);
+
+    return pages;
+  }),
+
+  // ── Funil de conversão ────────────────────────────────────────────────────
+  getConversionFunnel: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const countEvent = async (eventName: string) => {
+      const [result] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)` })
+        .from(analyticsEvents)
+        .where(and(
+          sql`${analyticsEvents.eventName} = ${eventName}`,
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end),
+        ));
+      return result.count;
+    };
+
+    const [visitors] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
+
+    const landing = await countEvent("page_view");
+    const signupStarted = await countEvent("signup_started");
+    const signupCompleted = await countEvent("signup_completed");
+    const trialStarted = await countEvent("trial_started");
+    const planSelected = await countEvent("plan_selected");
+    const checkoutStarted = await countEvent("checkout_started");
+    const pixGenerated = await countEvent("pix_generated");
+    const paymentSuccess = await countEvent("payment_success");
+
+    const steps = [
+      { label: "Visitante", count: visitors.count },
+      { label: "Landing Page", count: landing },
+      { label: "Início Cadastro", count: signupStarted },
+      { label: "Conta Criada", count: signupCompleted },
+      { label: "Trial Iniciado", count: trialStarted },
+      { label: "Plano Escolhido", count: planSelected },
+      { label: "Checkout Iniciado", count: checkoutStarted },
+      { label: "PIX Gerado", count: pixGenerated },
+      { label: "Pagamento", count: paymentSuccess },
+    ];
+
+    return steps.map((step, i) => {
+      const prev = i > 0 ? steps[i - 1].count : step.count;
+      const loss = Math.max(0, prev - step.count);
+      const convRate = prev > 0 ? ((step.count / prev) * 100).toFixed(1) : "100";
+      return { ...step, loss, conversionRate: parseFloat(convRate) };
+    });
+  }),
+
+  // ── Checkout Analytics ────────────────────────────────────────────────────
+  getCheckoutAnalytics: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const countEvent = async (eventName: string) => {
+      const [r] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)` })
+        .from(analyticsEvents)
+        .where(and(
+          sql`${analyticsEvents.eventName} = ${eventName}`,
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end),
+        ));
+      return r.count;
+    };
+
+    const checkoutStarted = await countEvent("checkout_started");
+    const pixGenerated = await countEvent("pix_generated");
+    const paymentSuccess = await countEvent("payment_success");
+    const paymentFailed = await countEvent("payment_failed");
+    const firstLogin = await countEvent("login");
+
+    return {
+      checkoutStarted,
+      pixGenerated,
+      paymentSuccess,
+      paymentFailed,
+      firstLogin,
+      abandonRate: checkoutStarted > 0
+        ? (((checkoutStarted - paymentSuccess) / checkoutStarted) * 100).toFixed(1)
+        : "0",
+    };
+  }),
+
+  // ── Receita ───────────────────────────────────────────────────────────────
+  getRevenueStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const yearStart = new Date(new Date().getFullYear(), 0, 1);
+
+    // MRR = receita do mês atual
+    const [mrr] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+      .from(analyticsRevenue)
+      .where(gte(analyticsRevenue.createdAt, monthStart));
+
+    // Total do período
+    const [periodRevenue] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
+
+    // Receita por plano
+    const byPlan = await db.select({
+      planName: analyticsRevenue.planName,
+      revenue: sql<string>`COALESCE(SUM(amount), 0)`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)))
+      .groupBy(analyticsRevenue.planName)
+      .orderBy(sql`SUM(amount) DESC`);
+
+    // Receita por campanha
+    const byCampaign = await db.select({
+      campaign: sql<string>`COALESCE(${analyticsRevenue.utmCampaign}, 'Direto')`,
+      revenue: sql<string>`COALESCE(SUM(amount), 0)`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)))
+      .groupBy(sql`1`)
+      .orderBy(sql`SUM(amount) DESC`)
+      .limit(10);
+
+    // Receita por estado
+    const byState = await db.select({
+      state: sql<string>`COALESCE(${analyticsRevenue.state}, 'Desconhecido')`,
+      revenue: sql<string>`COALESCE(SUM(amount), 0)`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)))
+      .groupBy(sql`1`)
+      .orderBy(sql`SUM(amount) DESC`)
+      .limit(27);
+
+    // Ticket médio
+    const [ticket] = await db.select({ avg: sql<string>`COALESCE(AVG(amount), 0)` })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
+
+    const mrrVal = parseFloat(mrr.total);
+
+    return {
+      mrr: mrrVal,
+      arr: mrrVal * 12,
+      periodRevenue: parseFloat(periodRevenue.total),
+      avgTicket: parseFloat(ticket.avg),
+      byPlan: byPlan.map((p) => ({ ...p, revenue: parseFloat(p.revenue) })),
+      byCampaign: byCampaign.map((c) => ({ ...c, revenue: parseFloat(c.revenue) })),
+      byState: byState.map((s) => ({ ...s, revenue: parseFloat(s.revenue) })),
+    };
+  }),
+
+  // ── Dispositivos e Browsers ───────────────────────────────────────────────
+  getDeviceStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const devices = await db.select({
+      device: sql<string>`COALESCE(${analyticsSessions.deviceType}, 'unknown')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.deviceType)
+      .orderBy(sql`COUNT(*) DESC`);
+
+    const browsers = await db.select({
+      browser: sql<string>`COALESCE(${analyticsSessions.browser}, 'Outros')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.browser)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(10);
+
+    const oses = await db.select({
+      os: sql<string>`COALESCE(${analyticsSessions.os}, 'Outros')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.os)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(10);
+
+    const resolutions = await db.select({
+      res: sql<string>`COALESCE(${analyticsSessions.screenRes}, 'Outros')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.screenRes)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(10);
+
+    return { devices, browsers, oses, resolutions };
+  }),
+
+  // ── Mapa Geográfico ───────────────────────────────────────────────────────
+  getGeoStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const byState = await db.select({
+      state: sql<string>`COALESCE(${analyticsSessions.state}, 'Desconhecido')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+      unique: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.state)
+      .orderBy(sql`COUNT(*) DESC`);
+
+    const byCity = await db.select({
+      city: sql<string>`COALESCE(${analyticsSessions.city}, 'Desconhecida')`,
+      state: sql<string>`COALESCE(${analyticsSessions.state}, '')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.city, analyticsSessions.state)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(30);
+
+    const byCountry = await db.select({
+      country: sql<string>`COALESCE(${analyticsSessions.country}, 'Desconhecido')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.country)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(20);
+
+    return { byState, byCity, byCountry };
+  }),
+
+  // ── Heatmap ───────────────────────────────────────────────────────────────
+  getHeatmapData: isSuperAdmin
+    .input(z.object({ pageUrl: z.string(), eventType: z.enum(["click", "move", "scroll"]).default("click"), limit: z.number().default(1000) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const pageUrlNormalized = input.pageUrl.split("?")[0].substring(0, 255);
+
+      return await db.select({
+        xPercent: analyticsHeatmap.xPercent,
+        yPercent: analyticsHeatmap.yPercent,
+        count: sql<number>`CAST(COUNT(*) AS INT)`,
+      })
+        .from(analyticsHeatmap)
+        .where(and(
+          eq(analyticsHeatmap.pageUrlNormalized, pageUrlNormalized),
+          eq(analyticsHeatmap.eventType, input.eventType),
+        ))
+        .groupBy(
+          sql`ROUND(${analyticsHeatmap.xPercent}::numeric, 0)`,
+          sql`ROUND(${analyticsHeatmap.yPercent}::numeric, 0)`,
+          analyticsHeatmap.xPercent,
+          analyticsHeatmap.yPercent,
+        )
+        .limit(input.limit);
+    }),
+
+  // ── AI Insights ───────────────────────────────────────────────────────────
+  getAIInsights: isSuperAdmin.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    return await db.select()
+      .from(analyticsAiInsights)
+      .where(sql`${analyticsAiInsights.expiresAt} IS NULL OR ${analyticsAiInsights.expiresAt} > NOW()`)
+      .orderBy(desc(analyticsAiInsights.generatedAt))
+      .limit(20);
+  }),
+
+  // ── Campanhas UTM ─────────────────────────────────────────────────────────
+  getCampaignStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    const campaigns = await db.select({
+      campaign: sql<string>`COALESCE(${analyticsSessions.utmCampaign}, 'sem-campanha')`,
+      source: sql<string>`COALESCE(${analyticsSessions.utmSource}, 'direto')`,
+      medium: sql<string>`COALESCE(${analyticsSessions.utmMedium}, '')`,
+      sessions: sql<number>`CAST(COUNT(*) AS INT)`,
+      uniqueVisitors: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.utmCampaign, analyticsSessions.utmSource, analyticsSessions.utmMedium)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(50);
+
+    const revenueData = await db.select({
+      campaign: sql<string>`COALESCE(${analyticsRevenue.utmCampaign}, 'sem-campanha')`,
+      revenue: sql<string>`COALESCE(SUM(amount), 0)`,
+      conversions: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)))
+      .groupBy(analyticsRevenue.utmCampaign);
+
+    const revenueMap = Object.fromEntries(
+      revenueData.map((r) => [r.campaign, { revenue: parseFloat(r.revenue), conversions: r.conversions }])
+    );
+
+    // Investimento das campanhas
+    const investmentData = await db.select().from(analyticsCampaigns);
+    const investMap = Object.fromEntries(
+      investmentData.map((c) => [c.utmCampaign, parseFloat(String(c.investment ?? 0))])
+    );
+
+    return campaigns.map((c) => {
+      const revenue = revenueMap[c.campaign]?.revenue ?? 0;
+      const conversions = revenueMap[c.campaign]?.conversions ?? 0;
+      const investment = investMap[c.campaign] ?? 0;
+      const roi = investment > 0 ? (((revenue - investment) / investment) * 100).toFixed(1) : null;
+      const cac = conversions > 0 && investment > 0 ? (investment / conversions).toFixed(2) : null;
+      return { ...c, revenue, conversions, investment, roi, cac };
+    });
+  }),
+
+  // ── Usuários online agora ─────────────────────────────────────────────────
+  getOnlineUsers: isSuperAdmin.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const twoMinAgo = new Date(Date.now() - 120_000);
+
+    return await db.select()
+      .from(analyticsOnline)
+      .where(gte(analyticsOnline.lastPingAt, twoMinAgo))
+      .orderBy(desc(analyticsOnline.lastPingAt))
+      .limit(200);
+  }),
+
+  // Marcar insight como lido
+  markInsightRead: isSuperAdmin
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.update(analyticsAiInsights).set({ isRead: true }).where(eq(analyticsAiInsights.id, input.id));
+      return { ok: true };
+    }),
+
+  // Atualizar investimento de campanha
+  updateCampaignInvestment: isSuperAdmin
+    .input(z.object({ utmCampaign: z.string(), investment: z.number().min(0) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.insert(analyticsCampaigns)
+        .values({ utmSource: "manual", utmCampaign: input.utmCampaign, investment: String(input.investment) })
+        .onConflictDoUpdate({ target: analyticsCampaigns.utmCampaign, set: { investment: String(input.investment) } });
+      return { ok: true };
+    }),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUTER PRINCIPAL DO ANALYTICS
+// ─────────────────────────────────────────────────────────────────────────────
+export const analyticsRouter = router({
+  event: analyticsEventRouter,
+  query: analyticsQueryRouter,
+});

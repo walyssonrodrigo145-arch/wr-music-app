@@ -780,3 +780,351 @@ export type MarketingJob = typeof marketingJobs.$inferSelect;
 export type InsertMarketingJob = typeof marketingJobs.$inferInsert;
 export type MarketingLog = typeof marketingLogs.$inferSelect;
 export type InsertMarketingLog = typeof marketingLogs.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MusicPro Analytics — Tabelas de Rastreamento e Métricas
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const deviceTypeEnum = pgEnum('device_type', ['desktop', 'tablet', 'mobile', 'tv', 'unknown']);
+export const analyticsEventNameEnum = pgEnum('analytics_event_name', [
+  'page_view', 'session_start', 'session_end', 'button_click', 'link_click',
+  'signup_started', 'signup_completed', 'trial_started', 'trial_finished',
+  'login', 'logout', 'plan_selected', 'checkout_started', 'pix_generated',
+  'payment_success', 'payment_failed', 'subscription_created', 'subscription_cancelled',
+  'email_open', 'email_click', 'whatsapp_click', 'video_play', 'video_finish',
+  'download', 'upload', 'form_submit', 'search', 'feature_used', 'error', 'api_error',
+  'scroll_depth', 'heatmap_click', 'heatmap_move', 'web_vital',
+]);
+
+// ── Visitantes únicos (por fingerprint/cookie anônimo) ────────────────────────
+export const analyticsVisitors = pgTable("analytics_visitors", {
+  id: serial("id").primaryKey(),
+  visitorId: varchar("visitor_id", { length: 64 }).notNull().unique(), // UUID do localStorage
+  fingerprint: varchar("fingerprint", { length: 128 }),
+  firstSeenAt: timestamp("first_seen_at").defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  totalSessions: integer("total_sessions").default(1).notNull(),
+  totalEvents: integer("total_events").default(0).notNull(),
+  country: varchar("country", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+  deviceType: deviceTypeEnum("device_type").default("unknown"),
+}, (table) => [
+  index("analytics_visitors_visitor_id_idx").on(table.visitorId),
+  index("analytics_visitors_first_seen_idx").on(table.firstSeenAt),
+  index("analytics_visitors_country_idx").on(table.country),
+]);
+
+// ── Sessões de navegação ───────────────────────────────────────────────────────
+export const analyticsSessions = pgTable("analytics_sessions", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id", { length: 64 }).notNull().unique(),
+  visitorId: varchar("visitor_id", { length: 64 }).notNull(),
+  userId: integer("user_id"),       // null se visitante anônimo
+  organizationId: integer("organization_id"),
+
+  // Geo (via Cloudflare headers ou IP-api)
+  ipMasked: varchar("ip_masked", { length: 20 }), // ex: 189.28.*.*
+  country: varchar("country", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+  language: varchar("language", { length: 20 }),
+  timezone: varchar("timezone", { length: 60 }),
+
+  // Dispositivo
+  deviceType: deviceTypeEnum("device_type").default("unknown"),
+  os: varchar("os", { length: 80 }),
+  browser: varchar("browser", { length: 80 }),
+  screenRes: varchar("screen_res", { length: 20 }),
+  userAgent: text("user_agent"),
+
+  // Origem
+  referrer: text("referrer"),
+  utmSource: varchar("utm_source", { length: 100 }),
+  utmMedium: varchar("utm_medium", { length: 100 }),
+  utmCampaign: varchar("utm_campaign", { length: 100 }),
+  utmContent: varchar("utm_content", { length: 100 }),
+  utmTerm: varchar("utm_term", { length: 100 }),
+
+  // Métricas da sessão
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  durationSec: integer("duration_sec"),
+  pageCount: integer("page_count").default(1).notNull(),
+  isBounce: boolean("is_bounce").default(true).notNull(),
+}, (table) => [
+  index("analytics_sessions_session_id_idx").on(table.sessionId),
+  index("analytics_sessions_visitor_id_idx").on(table.visitorId),
+  index("analytics_sessions_started_at_idx").on(table.startedAt),
+  index("analytics_sessions_utm_source_idx").on(table.utmSource),
+  index("analytics_sessions_utm_campaign_idx").on(table.utmCampaign),
+  index("analytics_sessions_country_idx").on(table.country),
+]);
+
+// ── Todos os eventos rastreados ────────────────────────────────────────────────
+export const analyticsEvents = pgTable("analytics_events", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  visitorId: varchar("visitor_id", { length: 64 }).notNull(),
+  userId: integer("user_id"),
+
+  // Evento
+  eventName: analyticsEventNameEnum("event_name").notNull(),
+  pageUrl: text("page_url"),
+  pageTitle: varchar("page_title", { length: 255 }),
+  referrer: text("referrer"),
+
+  // Elemento (para button_click, link_click)
+  elementId: varchar("element_id", { length: 100 }),
+  elementText: varchar("element_text", { length: 255 }),
+  elementTag: varchar("element_tag", { length: 30 }),
+
+  // UTMs (copiados da sessão para facilitar queries diretas)
+  utmSource: varchar("utm_source", { length: 100 }),
+  utmMedium: varchar("utm_medium", { length: 100 }),
+  utmCampaign: varchar("utm_campaign", { length: 100 }),
+  utmContent: varchar("utm_content", { length: 100 }),
+  utmTerm: varchar("utm_term", { length: 100 }),
+
+  // Geo e Device
+  country: varchar("country", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+  deviceType: deviceTypeEnum("device_type").default("unknown"),
+  os: varchar("os", { length: 80 }),
+  browser: varchar("browser", { length: 80 }),
+  screenRes: varchar("screen_res", { length: 20 }),
+
+  // Valor financeiro (para payment_success, etc.)
+  value: decimal("value", { precision: 10, scale: 2 }),
+
+  // Dados extras (JSON livre)
+  metadata: jsonb("metadata"),
+
+  // Métricas de tempo
+  timeOnPageSec: integer("time_on_page_sec"),
+  scrollDepth: integer("scroll_depth"), // percentual 0-100
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("analytics_events_event_name_idx").on(table.eventName),
+  index("analytics_events_created_at_idx").on(table.createdAt),
+  index("analytics_events_session_id_idx").on(table.sessionId),
+  index("analytics_events_visitor_id_idx").on(table.visitorId),
+  index("analytics_events_utm_campaign_idx").on(table.utmCampaign),
+  index("analytics_events_event_date_idx").on(table.eventName, table.createdAt),
+  index("analytics_events_page_url_idx").on(table.pageUrl),
+  index("analytics_events_country_idx").on(table.country),
+]);
+
+// ── Dados de Heatmap (cliques e movimentos por página) ────────────────────────
+export const analyticsHeatmap = pgTable("analytics_heatmap", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  pageUrl: text("page_url").notNull(),
+  pageUrlNormalized: varchar("page_url_normalized", { length: 255 }).notNull(), // sem query params
+
+  // Coordenadas relativas (0-100%)
+  xPercent: decimal("x_percent", { precision: 5, scale: 2 }).notNull(),
+  yPercent: decimal("y_percent", { precision: 5, scale: 2 }).notNull(),
+
+  eventType: varchar("event_type", { length: 20 }).notNull(), // click | move | scroll
+
+  // Viewport (para normalização)
+  viewportW: integer("viewport_w"),
+  viewportH: integer("viewport_h"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("analytics_heatmap_page_url_idx").on(table.pageUrlNormalized),
+  index("analytics_heatmap_event_type_idx").on(table.eventType),
+  index("analytics_heatmap_created_at_idx").on(table.createdAt),
+]);
+
+// ── Usuários Online (TTL: 2min sem ping = offline) ────────────────────────────
+export const analyticsOnline = pgTable("analytics_online", {
+  sessionId: varchar("session_id", { length: 64 }).primaryKey(),
+  visitorId: varchar("visitor_id", { length: 64 }).notNull(),
+  userId: integer("user_id"),
+  userName: varchar("user_name", { length: 255 }),
+
+  pageUrl: text("page_url"),
+  pageTitle: varchar("page_title", { length: 255 }),
+
+  country: varchar("country", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+
+  deviceType: deviceTypeEnum("device_type").default("unknown"),
+  browser: varchar("browser", { length: 80 }),
+  os: varchar("os", { length: 80 }),
+  screenRes: varchar("screen_res", { length: 20 }),
+
+  utmSource: varchar("utm_source", { length: 100 }),
+  referrer: text("referrer"),
+  ipMasked: varchar("ip_masked", { length: 20 }),
+
+  enteredAt: timestamp("entered_at").defaultNow().notNull(),
+  lastPingAt: timestamp("last_ping_at").defaultNow().notNull(),
+}, (table) => [
+  index("analytics_online_last_ping_idx").on(table.lastPingAt),
+  index("analytics_online_visitor_id_idx").on(table.visitorId),
+]);
+
+// ── Estatísticas agregadas por página ─────────────────────────────────────────
+export const analyticsPages = pgTable("analytics_pages", {
+  id: serial("id").primaryKey(),
+  pageUrlNormalized: varchar("page_url_normalized", { length: 500 }).notNull(),
+  pageTitle: varchar("page_title", { length: 255 }),
+  date: date("date").notNull(), // agrega por dia
+
+  totalViews: integer("total_views").default(0).notNull(),
+  uniqueVisitors: integer("unique_visitors").default(0).notNull(),
+  avgTimeOnPageSec: integer("avg_time_on_page_sec").default(0).notNull(),
+  bounces: integer("bounces").default(0).notNull(),
+  exits: integer("exits").default(0).notNull(),
+  conversions: integer("conversions").default(0).notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("analytics_pages_url_date_idx").on(table.pageUrlNormalized, table.date),
+  index("analytics_pages_date_idx").on(table.date),
+]);
+
+// ── Funil de Conversão (etapas) ───────────────────────────────────────────────
+export const analyticsConversions = pgTable("analytics_conversions", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  visitorId: varchar("visitor_id", { length: 64 }).notNull(),
+  userId: integer("user_id"),
+
+  // Etapas alcançadas (booleano por etapa)
+  reachedLanding: boolean("reached_landing").default(false).notNull(),
+  reachedSignupStart: boolean("reached_signup_start").default(false).notNull(),
+  reachedSignupComplete: boolean("reached_signup_complete").default(false).notNull(),
+  reachedTrialStart: boolean("reached_trial_start").default(false).notNull(),
+  reachedPlanSelect: boolean("reached_plan_select").default(false).notNull(),
+  reachedCheckout: boolean("reached_checkout").default(false).notNull(),
+  reachedPixGenerated: boolean("reached_pix_generated").default(false).notNull(),
+  reachedPayment: boolean("reached_payment").default(false).notNull(),
+  reachedFirstLogin: boolean("reached_first_login").default(false).notNull(),
+
+  utmSource: varchar("utm_source", { length: 100 }),
+  utmCampaign: varchar("utm_campaign", { length: 100 }),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("analytics_conversions_session_id_idx").on(table.sessionId),
+  index("analytics_conversions_created_at_idx").on(table.createdAt),
+  index("analytics_conversions_utm_campaign_idx").on(table.utmCampaign),
+]);
+
+// ── Espelho de Receita para Analytics ─────────────────────────────────────────
+export const analyticsRevenue = pgTable("analytics_revenue", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  sessionId: varchar("session_id", { length: 64 }),
+  visitorId: varchar("visitor_id", { length: 64 }),
+  userId: integer("user_id"),
+
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  planId: varchar("plan_id", { length: 50 }),
+  planName: varchar("plan_name", { length: 100 }),
+
+  utmSource: varchar("utm_source", { length: 100 }),
+  utmMedium: varchar("utm_medium", { length: 100 }),
+  utmCampaign: varchar("utm_campaign", { length: 100 }),
+
+  country: varchar("country", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+
+  type: varchar("type", { length: 50 }).default("subscription").notNull(), // subscription | one_time
+  asaasPaymentId: varchar("asaas_payment_id", { length: 100 }),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("analytics_revenue_created_at_idx").on(table.createdAt),
+  index("analytics_revenue_org_id_idx").on(table.organizationId),
+  index("analytics_revenue_utm_campaign_idx").on(table.utmCampaign),
+  index("analytics_revenue_state_idx").on(table.state),
+]);
+
+// ── Campanhas UTM (agregação) ─────────────────────────────────────────────────
+export const analyticsCampaigns = pgTable("analytics_campaigns", {
+  id: serial("id").primaryKey(),
+  utmSource: varchar("utm_source", { length: 100 }).notNull(),
+  utmMedium: varchar("utm_medium", { length: 100 }),
+  utmCampaign: varchar("utm_campaign", { length: 100 }).notNull(),
+  utmContent: varchar("utm_content", { length: 100 }),
+  utmTerm: varchar("utm_term", { length: 100 }),
+
+  // Investimento (manual, informado pelo usuário)
+  investment: decimal("investment", { precision: 10, scale: 2 }).default("0.00"),
+
+  // Métricas calculadas (cache)
+  totalVisits: integer("total_visits").default(0).notNull(),
+  totalLeads: integer("total_leads").default(0).notNull(),
+  totalConversions: integer("total_conversions").default(0).notNull(),
+  totalRevenue: decimal("total_revenue", { precision: 10, scale: 2 }).default("0.00"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("analytics_campaigns_utm_campaign_idx").on(table.utmCampaign),
+  index("analytics_campaigns_utm_source_idx").on(table.utmSource),
+]);
+
+// ── Relatórios agendados ──────────────────────────────────────────────────────
+export const analyticsReports = pgTable("analytics_reports", {
+  id: serial("id").primaryKey(),
+  type: varchar("type", { length: 50 }).notNull(), // daily | weekly | monthly | annual
+  period: varchar("period", { length: 30 }).notNull(), // ex: 2025-07-28
+  status: varchar("status", { length: 30 }).default("pending").notNull(),
+
+  // Snapshot JSON do relatório
+  data: jsonb("data"),
+
+  emailSentTo: text("email_sent_to"),
+  emailSentAt: timestamp("email_sent_at"),
+
+  generatedAt: timestamp("generated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ── Insights gerados por IA ────────────────────────────────────────────────────
+export const analyticsAiInsights = pgTable("analytics_ai_insights", {
+  id: serial("id").primaryKey(),
+  insightType: varchar("insight_type", { length: 50 }).notNull(), // growth | drop | campaign | revenue | churn | behavior
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  severity: varchar("severity", { length: 20 }).default("info").notNull(), // info | warning | success | critical
+  recommendation: text("recommendation"),
+  metricRef: varchar("metric_ref", { length: 100 }),
+  metricValue: decimal("metric_value", { precision: 10, scale: 2 }),
+
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+  isRead: boolean("is_read").default(false).notNull(),
+}, (table) => [
+  index("analytics_ai_insights_generated_at_idx").on(table.generatedAt),
+  index("analytics_ai_insights_type_idx").on(table.insightType),
+]);
+
+// ── Types exportados ──────────────────────────────────────────────────────────
+export type AnalyticsVisitor = typeof analyticsVisitors.$inferSelect;
+export type InsertAnalyticsVisitor = typeof analyticsVisitors.$inferInsert;
+export type AnalyticsSession = typeof analyticsSessions.$inferSelect;
+export type InsertAnalyticsSession = typeof analyticsSessions.$inferInsert;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = typeof analyticsEvents.$inferInsert;
+export type AnalyticsHeatmap = typeof analyticsHeatmap.$inferSelect;
+export type InsertAnalyticsHeatmap = typeof analyticsHeatmap.$inferInsert;
+export type AnalyticsOnline = typeof analyticsOnline.$inferSelect;
+export type InsertAnalyticsOnline = typeof analyticsOnline.$inferInsert;
+export type AnalyticsRevenue = typeof analyticsRevenue.$inferSelect;
+export type InsertAnalyticsRevenue = typeof analyticsRevenue.$inferInsert;
+export type AnalyticsAiInsight = typeof analyticsAiInsights.$inferSelect;
+export type InsertAnalyticsAiInsight = typeof analyticsAiInsights.$inferInsert;

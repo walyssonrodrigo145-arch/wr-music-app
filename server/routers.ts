@@ -39,6 +39,7 @@ import { pairingActiveSessions } from "./automationJob";
 import { checkFileMagicBytes } from "./utils/fileSecurity";
 import { reportEngineRouter } from "./reportEngineRouter";
 import { marketingRouter } from "./marketingRouter";
+import { analyticsRouter } from "./analyticsRouter";
 
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
@@ -47,6 +48,7 @@ export const appRouter = router({
   superAdmin: superAdminRouter,
   reportEngine: reportEngineRouter,
   marketing: marketingRouter,
+  analytics: analyticsRouter,
   publicData: router({
     getPlans: publicProcedure.query(async () => {
       const db = await getDb();

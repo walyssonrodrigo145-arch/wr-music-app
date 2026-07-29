@@ -14,6 +14,8 @@ import botStatusWebhookRouter from "../webhooks/botStatus";
 import { serveStatic, setupVite } from "./vite";
 import { startAutomationJob } from "../automationJob";
 import { marketingWorker } from "../services/MarketingQueueWorker";
+import { analyticsQueue } from "../services/AnalyticsQueue";
+import { generateAnalyticsInsights } from "../services/AnalyticsAIService";
 import { createRateLimiter } from "./rateLimiter";
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
@@ -50,6 +52,16 @@ async function startServer() {
   // Sincroniza o banco de dados e aplica o isolamento de tenants
   await runAutoMigrations();
   await runTenantMigrations();
+
+  // Inicia a fila de eventos de Analytics (assíncrona, sem bloquear)
+  analyticsQueue.start();
+  console.log("[Analytics] Fila de eventos iniciada.");
+
+  // Gerar insights de IA diariamente (a cada 24h)
+  setInterval(() => { generateAnalyticsInsights().catch(() => {}); }, 24 * 60 * 60 * 1000);
+  // Gera uma vez na inicialização após 30s (aguarda o DB estar pronto)
+  setTimeout(() => { generateAnalyticsInsights().catch(() => {}); }, 30_000);
+
 
   const app = express();
   app.set("trust proxy", 1); // Obrigatório para a Render enviar cookies "Secure"
