@@ -12,6 +12,10 @@ export interface SchoolBillingSettings {
   graceDays: number;
   autoUpdateInvoice: boolean;
   showFeeBreakdown: boolean;
+  earlyDiscountEnabled: boolean;
+  earlyDiscountType: "fixed" | "percentage";
+  earlyDiscountValue: number;
+  earlyDiscountDays: number;
 }
 
 export interface CalculationResult {
@@ -20,6 +24,7 @@ export interface CalculationResult {
   updatedAmount: number;
   lateFeeAmount: number;
   interestAmount: number;
+  earlyDiscountAmount: number;
   daysOverdue: number;
   graceDays: number;
   totalDiscount: number;
@@ -58,6 +63,10 @@ export class BillingEngine {
         graceDays: 3,
         autoUpdateInvoice: true,
         showFeeBreakdown: true,
+        earlyDiscountEnabled: false,
+        earlyDiscountType: "percentage",
+        earlyDiscountValue: 5.0,
+        earlyDiscountDays: 0,
       };
     }
 
@@ -71,6 +80,10 @@ export class BillingEngine {
       graceDays: Number(schoolSettingsObj.graceDays ?? 3),
       autoUpdateInvoice: schoolSettingsObj.autoUpdateInvoice !== 0,
       showFeeBreakdown: schoolSettingsObj.showFeeBreakdown !== 0,
+      earlyDiscountEnabled: Boolean(schoolSettingsObj.earlyDiscountEnabled),
+      earlyDiscountType: (schoolSettingsObj.earlyDiscountType === "fixed" ? "fixed" : "percentage") as "fixed" | "percentage",
+      earlyDiscountValue: Number(schoolSettingsObj.earlyDiscountValue ?? 5.0),
+      earlyDiscountDays: Number(schoolSettingsObj.earlyDiscountDays ?? 0),
     };
   }
 
@@ -102,6 +115,7 @@ export class BillingEngine {
         updatedAmount: finalPaidAmount,
         lateFeeAmount: 0,
         interestAmount: 0,
+        earlyDiscountAmount: 0,
         daysOverdue: 0,
         graceDays: schoolSettings.graceDays,
         totalDiscount: 0,
@@ -131,6 +145,7 @@ export class BillingEngine {
     let daysOverdue = 0;
     let lateFeeAmount = 0;
     let interestAmount = 0;
+    let earlyDiscountAmount = 0;
 
     // Se estiver vencido e além da carência
     if (elapsedDays > 0) {
@@ -155,12 +170,23 @@ export class BillingEngine {
           }
         }
       }
+    } else if (schoolSettings.earlyDiscountEnabled) {
+      // Se estiver em dia (pagamento antecipado ou no próprio vencimento)
+      const daysBeforeDueDate = Math.abs(elapsedDays);
+      if (daysBeforeDueDate >= schoolSettings.earlyDiscountDays) {
+        if (schoolSettings.earlyDiscountType === "percentage") {
+          earlyDiscountAmount = (originalAmount * schoolSettings.earlyDiscountValue) / 100;
+        } else {
+          earlyDiscountAmount = schoolSettings.earlyDiscountValue;
+        }
+      }
     }
 
     // Arredondamento monetário para 2 casas
     lateFeeAmount = Math.round(lateFeeAmount * 100) / 100;
     interestAmount = Math.round(interestAmount * 100) / 100;
-    const totalDiscount = 0; // Preparado para bolsas, cupons e negociações
+    earlyDiscountAmount = Math.round(earlyDiscountAmount * 100) / 100;
+    const totalDiscount = earlyDiscountAmount;
 
     const updatedAmount = Math.max(0, Math.round((originalAmount + lateFeeAmount + interestAmount - totalDiscount) * 100) / 100);
 
@@ -170,6 +196,7 @@ export class BillingEngine {
       updatedAmount,
       lateFeeAmount,
       interestAmount,
+      earlyDiscountAmount,
       daysOverdue,
       graceDays: schoolSettings.graceDays,
       totalDiscount,

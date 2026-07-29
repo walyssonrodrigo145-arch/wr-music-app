@@ -874,7 +874,7 @@ export default function Configuracoes() {
   const [paymentGateway, setPaymentGateway] = useState<"asaas" | "mercadopago">("asaas");
   const [mpAccessToken, setMpAccessToken] = useState("");
 
-  // ── Financeiro (Juros e Multas - Billing Engine) state ──
+  // ── Financeiro (Juros, Multas e Descontos - Billing Engine) state ──
   const [lateFeeEnabled, setLateFeeEnabled] = useState(true);
   const [lateFeeType, setLateFeeType] = useState<"fixed" | "percentage">("percentage");
   const [lateFeeValue, setLateFeeValue] = useState(2.0);
@@ -884,6 +884,10 @@ export default function Configuracoes() {
   const [graceDays, setGraceDays] = useState(3);
   const [autoUpdateInvoice, setAutoUpdateInvoice] = useState(true);
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(true);
+  const [earlyDiscountEnabled, setEarlyDiscountEnabled] = useState(false);
+  const [earlyDiscountType, setEarlyDiscountType] = useState<"fixed" | "percentage">("percentage");
+  const [earlyDiscountValue, setEarlyDiscountValue] = useState(5.0);
+  const [earlyDiscountDays, setEarlyDiscountDays] = useState(0);
 
   // ── IA state ──
   const [aiProvider, setAiProvider] = useState("gemini");
@@ -922,6 +926,10 @@ export default function Configuracoes() {
       setGraceDays(Number((settings as any).graceDays ?? 3));
       setAutoUpdateInvoice((settings as any).autoUpdateInvoice !== 0);
       setShowFeeBreakdown((settings as any).showFeeBreakdown !== 0);
+      setEarlyDiscountEnabled(Boolean((settings as any).earlyDiscountEnabled));
+      setEarlyDiscountType(((settings as any).earlyDiscountType === "fixed" ? "fixed" : "percentage"));
+      setEarlyDiscountValue(Number((settings as any).earlyDiscountValue ?? 5.0));
+      setEarlyDiscountDays(Number((settings as any).earlyDiscountDays ?? 0));
       if (settings.schoolHours) {
         try {
           setSchoolHours(JSON.parse(settings.schoolHours));
@@ -1432,6 +1440,10 @@ export default function Configuracoes() {
                         graceDays: Number(graceDays),
                         autoUpdateInvoice,
                         showFeeBreakdown,
+                        earlyDiscountEnabled,
+                        earlyDiscountType,
+                        earlyDiscountValue: Number(earlyDiscountValue),
+                        earlyDiscountDays: Number(earlyDiscountDays),
                       });
                     }}
                   >
@@ -1443,11 +1455,82 @@ export default function Configuracoes() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                   {/* Coluna 1 & 2: Formulário de Configuração */}
                   <div className="lg:col-span-2 space-y-6">
-                    {/* Card Multa */}
+                    {/* Card Desconto por Pagamento Antecipado */}
                     <div className="p-6 rounded-2xl bg-card border border-border space-y-6 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-bold">
+                            <Sparkles size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-foreground">Desconto por Pagamento Antecipado (Pontualidade)</h4>
+                            <p className="text-xs text-muted-foreground">Concede desconto se o aluno pagar no vencimento ou com antecedência</p>
+                          </div>
+                        </div>
+                        <Toggle checked={earlyDiscountEnabled} onChange={setEarlyDiscountEnabled} />
+                      </div>
+
+                      {earlyDiscountEnabled && (
+                        <div className="pt-4 border-t border-border space-y-4 animate-in fade-in">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-foreground uppercase tracking-wider">Tipo do Desconto</label>
+                            <div className="grid grid-cols-2 gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setEarlyDiscountType("percentage")}
+                                className={cn(
+                                  "flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all",
+                                  earlyDiscountType === "percentage"
+                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-500"
+                                    : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
+                                )}
+                              >
+                                <Percent size={14} /> Percentual (%)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEarlyDiscountType("fixed")}
+                                className={cn(
+                                  "flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all",
+                                  earlyDiscountType === "fixed"
+                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-500"
+                                    : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
+                                )}
+                              >
+                                <DollarSign size={14} /> Valor Fixo (R$)
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Field label={earlyDiscountType === "percentage" ? "Valor do Desconto (%)" : "Valor do Desconto (R$)"}>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={earlyDiscountValue}
+                                onChange={(e) => setEarlyDiscountValue(Number(e.target.value))}
+                                className="h-11 font-bold bg-muted/50 rounded-xl"
+                              />
+                            </Field>
+
+                            <Field label="Dias de Antecedência Exigidos" hint="0 = Válido até a data de vencimento. Ex: 5 = Exige pagamento 5 dias antes">
+                              <Input
+                                type="number"
+                                value={earlyDiscountDays}
+                                onChange={(e) => setEarlyDiscountDays(Number(e.target.value))}
+                                className="h-11 font-bold bg-muted/50 rounded-xl"
+                              />
+                            </Field>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Multa */}
+                    <div className="p-6 rounded-2xl bg-card border border-border space-y-6 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 font-bold">
                             %
                           </div>
                           <div>
@@ -1469,7 +1552,7 @@ export default function Configuracoes() {
                                 className={cn(
                                   "flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all",
                                   lateFeeType === "percentage"
-                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-500"
+                                    ? "border-amber-500 bg-amber-500/10 text-amber-500"
                                     : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
                                 )}
                               >
@@ -1481,7 +1564,7 @@ export default function Configuracoes() {
                                 className={cn(
                                   "flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all",
                                   lateFeeType === "fixed"
-                                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-500"
+                                    ? "border-amber-500 bg-amber-500/10 text-amber-500"
                                     : "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
                                 )}
                               >
@@ -1608,37 +1691,51 @@ export default function Configuracoes() {
                         </span>
                       </div>
 
-                      <p className="text-xs text-muted-foreground">Exemplo simulado para mensalidade de R$ 200,00 com 5 dias de atraso:</p>
-
-                      <div className="space-y-3 pt-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Valor Original:</span>
-                          <span className="font-bold text-foreground">R$ 200,00</span>
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-xl bg-card/60 border border-border space-y-3">
+                          <p className="text-[11px] font-bold text-foreground">Simular Pagamento Antecipado (R$ 200,00):</p>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Valor Original:</span>
+                            <span className="font-bold text-foreground">R$ 200,00</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Desconto ({earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? `${earlyDiscountValue}%` : `R$ ${earlyDiscountValue}`) : 'Desativado'}):</span>
+                            <span className="font-bold text-emerald-400">
+                              - R$ {earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? (200 * earlyDiscountValue / 100).toFixed(2) : earlyDiscountValue.toFixed(2)) : '0.00'}
+                            </span>
+                          </div>
+                          <div className="pt-2 border-t border-border flex items-center justify-between">
+                            <span className="text-xs font-bold text-foreground">Com Desconto:</span>
+                            <span className="text-base font-black text-emerald-400">
+                              R$ {(200 - (earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? (200 * earlyDiscountValue / 100) : earlyDiscountValue) : 0)).toFixed(2).replace('.', ',')}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Multa ({lateFeeEnabled ? (lateFeeType === 'percentage' ? `${lateFeeValue}%` : `R$ ${lateFeeValue}`) : 'Desativada'}):</span>
-                          <span className="font-bold text-emerald-400">
-                            + R$ {lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100).toFixed(2) : lateFeeValue.toFixed(2)) : '0.00'}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Juros ({interestEnabled ? (interestType === 'daily' ? `${interestRate}% / dia` : `${interestRate}% / mês`) : 'Desativado'}):</span>
-                          <span className="font-bold text-indigo-400">
-                            + R$ {interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5).toFixed(2) : (200 * (interestRate / 100) * (5/30)).toFixed(2)) : '0.00'}
-                          </span>
-                        </div>
-
-                        <div className="pt-3 border-t border-indigo-500/20 flex items-center justify-between">
-                          <span className="text-xs font-black uppercase text-foreground">Valor Atualizado:</span>
-                          <span className="text-lg font-black text-emerald-400">
-                            R$ {(
-                              200 +
-                              (lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100) : lateFeeValue) : 0) +
-                              (interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5) : (200 * (interestRate / 100) * (5/30))) : 0)
-                            ).toFixed(2).replace('.', ',')}
-                          </span>
+                        <div className="p-4 rounded-xl bg-card/60 border border-border space-y-3">
+                          <p className="text-[11px] font-bold text-foreground">Simular Pagamento em Atraso (5 Dias):</p>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Multa ({lateFeeEnabled ? (lateFeeType === 'percentage' ? `${lateFeeValue}%` : `R$ ${lateFeeValue}`) : 'Desativada'}):</span>
+                            <span className="font-bold text-amber-400">
+                              + R$ {lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100).toFixed(2) : lateFeeValue.toFixed(2)) : '0.00'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Juros ({interestEnabled ? (interestType === 'daily' ? `${interestRate}% / dia` : `${interestRate}% / mês`) : 'Desativado'}):</span>
+                            <span className="font-bold text-indigo-400">
+                              + R$ {interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5).toFixed(2) : (200 * (interestRate / 100) * (5/30)).toFixed(2)) : '0.00'}
+                            </span>
+                          </div>
+                          <div className="pt-2 border-t border-border flex items-center justify-between">
+                            <span className="text-xs font-bold text-foreground">Com Atraso:</span>
+                            <span className="text-base font-black text-rose-400">
+                              R$ {(
+                                200 +
+                                (lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100) : lateFeeValue) : 0) +
+                                (interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5) : (200 * (interestRate / 100) * (5/30))) : 0)
+                              ).toFixed(2).replace('.', ',')}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

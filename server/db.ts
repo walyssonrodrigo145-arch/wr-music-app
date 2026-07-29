@@ -248,6 +248,10 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "graceDays" integer DEFAULT 3 NOT NULL`, "settings graceDays");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "autoUpdateInvoice" integer DEFAULT 1 NOT NULL`, "settings autoUpdateInvoice");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "showFeeBreakdown" integer DEFAULT 1 NOT NULL`, "settings showFeeBreakdown");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "earlyDiscountEnabled" integer DEFAULT 0 NOT NULL`, "settings earlyDiscountEnabled");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "earlyDiscountType" varchar(20) DEFAULT 'percentage' NOT NULL`, "settings earlyDiscountType");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "earlyDiscountValue" numeric(10, 2) DEFAULT 5.00 NOT NULL`, "settings earlyDiscountValue");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "earlyDiscountDays" integer DEFAULT 0 NOT NULL`, "settings earlyDiscountDays");
 
     await safeExecute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "originalAmount" numeric(10, 2)`, "payment_dues originalAmount");
     await safeExecute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "lastCalculation" timestamp`, "payment_dues lastCalculation");

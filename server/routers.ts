@@ -3890,6 +3890,10 @@ ${jsonSchemaFormat}`;
       graceDays: z.number().optional(),
       autoUpdateInvoice: z.boolean().optional(),
       showFeeBreakdown: z.boolean().optional(),
+      earlyDiscountEnabled: z.boolean().optional(),
+      earlyDiscountType: z.enum(["fixed", "percentage"]).optional(),
+      earlyDiscountValue: z.number().optional(),
+      earlyDiscountDays: z.number().optional(),
     })).mutation(async ({ ctx, input }) => {
       await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
         lateFeeEnabled: input.lateFeeEnabled !== undefined ? (input.lateFeeEnabled ? 1 : 0) : undefined,
@@ -3901,6 +3905,10 @@ ${jsonSchemaFormat}`;
         graceDays: input.graceDays,
         autoUpdateInvoice: input.autoUpdateInvoice !== undefined ? (input.autoUpdateInvoice ? 1 : 0) : undefined,
         showFeeBreakdown: input.showFeeBreakdown !== undefined ? (input.showFeeBreakdown ? 1 : 0) : undefined,
+        earlyDiscountEnabled: input.earlyDiscountEnabled !== undefined ? (input.earlyDiscountEnabled ? 1 : 0) : undefined,
+        earlyDiscountType: input.earlyDiscountType,
+        earlyDiscountValue: input.earlyDiscountValue !== undefined ? input.earlyDiscountValue.toFixed(2) : undefined,
+        earlyDiscountDays: input.earlyDiscountDays,
       });
       BillingEngine.clearCache();
       return { success: true };

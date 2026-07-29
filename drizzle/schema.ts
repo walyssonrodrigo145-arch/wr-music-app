@@ -240,6 +240,10 @@ export const settings = pgTable("settings", {
   graceDays: integer("graceDays").default(3).notNull(),
   autoUpdateInvoice: integer("autoUpdateInvoice").default(1).notNull(),
   showFeeBreakdown: integer("showFeeBreakdown").default(1).notNull(),
+  earlyDiscountEnabled: integer("earlyDiscountEnabled").default(0).notNull(),
+  earlyDiscountType: varchar("earlyDiscountType", { length: 20 }).default("percentage").notNull(),
+  earlyDiscountValue: decimal("earlyDiscountValue", { precision: 10, scale: 2 }).default("5.00").notNull(),
+  earlyDiscountDays: integer("earlyDiscountDays").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
