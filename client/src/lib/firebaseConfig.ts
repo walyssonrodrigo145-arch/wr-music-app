@@ -41,19 +41,23 @@ export const requestForToken = async () => {
 
       if ('serviceWorker' in navigator) {
         try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          if (regs.length > 0) {
-            swRegistration = regs.find(
-              (r) =>
-                r.active &&
-                (r.active.scriptURL.includes('firebase-messaging-sw.js') || r.active.scriptURL.includes('sw.js'))
-            ) || regs[0];
+          let reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+          
+          // Se o Service Worker ainda não estiver no estado 'active', aguarda até que reg.active exista
+          if (!reg.active) {
+            console.log('Aguardando ativação do Service Worker do Firebase FCM...');
+            const startTime = Date.now();
+            while (!reg.active && Date.now() - startTime < 4000) {
+              await new Promise((r) => setTimeout(r, 100));
+              const updatedReg = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+              if (updatedReg) reg = updatedReg;
+            }
           }
-          if (!swRegistration) {
-            swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-          }
+          swRegistration = reg;
         } catch (swErr) {
-          console.warn('Busca de Service Worker falhou:', swErr);
+          console.warn('Falha ao registrar /firebase-messaging-sw.js, tentando getRegistrations...', swErr);
+          const regs = await navigator.serviceWorker.getRegistrations();
+          swRegistration = regs.find((r) => r.active) || regs[0];
         }
       }
 

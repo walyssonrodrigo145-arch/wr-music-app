@@ -10,6 +10,16 @@ const firebaseConfig = {
   appId: "1:357562439771:web:9583a273539352d0cc877e"
 };
 
+self.addEventListener('install', (event) => {
+  console.log('[firebase-messaging-sw.js] Instalando Service Worker...');
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('[firebase-messaging-sw.js] Ativando Service Worker...');
+  event.waitUntil(self.clients.claim());
+});
+
 try {
   firebase.initializeApp(firebaseConfig);
   const messaging = firebase.messaging();
