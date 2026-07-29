@@ -1,5 +1,9 @@
-importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js');
+try {
+  importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js');
+} catch (e) {
+  console.warn('[firebase-messaging-sw.js] Falha ao carregar scripts do Firebase via importScripts:', e);
+}
 
 const firebaseConfig = {
   apiKey: "AIzaSyDhgSbEbtUmXMmgn0dnLoODM0sGS35-fzI",
@@ -21,28 +25,30 @@ self.addEventListener('activate', (event) => {
 });
 
 try {
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  if (firebase.messaging.isSupported()) {
-    const messaging = firebase.messaging();
-    messaging.onBackgroundMessage((payload) => {
-      console.log('[firebase-messaging-sw.js] Background Push FCM recebido:', payload);
-      const notificationTitle = payload.notification?.title || payload.data?.title || 'WR MusicPro';
-      const notificationOptions = {
-        body: payload.notification?.body || payload.data?.body || 'Você tem uma nova mensagem ou lembrete.',
-        icon: payload.notification?.icon || payload.data?.icon || '/icon-192.png',
-        badge: payload.notification?.badge || payload.data?.badge || '/icon-badge.png',
-        data: {
-          url: payload.fcmOptions?.link || payload.data?.url || '/',
-          ...payload.data
-        },
-        vibrate: [200, 100, 200],
-        tag: payload.data?.tag || 'wr-music-notification'
-      };
+  if (typeof firebase !== 'undefined') {
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    if (firebase.messaging && firebase.messaging.isSupported()) {
+      const messaging = firebase.messaging();
+      messaging.onBackgroundMessage((payload) => {
+        console.log('[firebase-messaging-sw.js] Background Push FCM recebido:', payload);
+        const notificationTitle = payload.notification?.title || payload.data?.title || 'WR MusicPro';
+        const notificationOptions = {
+          body: payload.notification?.body || payload.data?.body || 'Você tem uma nova mensagem ou lembrete.',
+          icon: payload.notification?.icon || payload.data?.icon || '/icon-192.png',
+          badge: payload.notification?.badge || payload.data?.badge || '/icon-badge.png',
+          data: {
+            url: payload.fcmOptions?.link || payload.data?.url || '/',
+            ...payload.data
+          },
+          vibrate: [200, 100, 200],
+          tag: payload.data?.tag || 'wr-music-notification'
+        };
 
-      return self.registration.showNotification(notificationTitle, notificationOptions);
-    });
+        return self.registration.showNotification(notificationTitle, notificationOptions);
+      });
+    }
   }
 } catch (err) {
   console.warn('[firebase-messaging-sw.js] Erro ao inicializar:', err);
