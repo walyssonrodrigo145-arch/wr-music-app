@@ -10,6 +10,7 @@ const config = {
 };
 
 const filesToUpload = [
+  'Caddyfile',
   'docker-compose.staging.yml',
   'package.json',
   'pnpm-lock.yaml',
