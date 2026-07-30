@@ -25,6 +25,7 @@ import {
   analyticsSecurityLogs,
   paymentDues,
   users,
+  organizations,
 } from "../drizzle/schema";
 import {
   analyticsQueue,
@@ -421,7 +422,7 @@ const analyticsQueryRouter = router({
       uniqueVisitorsTodayCount = Math.max(uniqueVisitorsTodayCount, onlineTodayRes?.uniqueCount || 0, onlineNowCount);
     } catch (e) {}
 
-    // 3. Novos Cadastros (Hoje)
+    // 3. Novos Cadastros de Clientes/Escolas no MusicPro SaaS (Hoje)
     let signupsTodayCount = 0;
     try {
       const [signupEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
@@ -433,14 +434,14 @@ const analyticsQueryRouter = router({
       signupsTodayCount = signupEvRes?.count || 0;
 
       if (signupsTodayCount === 0) {
-        const [usersTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-          .from(users)
-          .where(gte(users.createdAt, todayStart));
-        signupsTodayCount = usersTodayRes?.count || 0;
+        const [orgsTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+          .from(organizations)
+          .where(gte(organizations.createdAt, todayStart));
+        signupsTodayCount = orgsTodayRes?.count || 0;
       }
     } catch (e) {}
 
-    // 4. Testes Gratuitos (Trials Hoje)
+    // 4. Testes Gratuitos do MusicPro SaaS (Trials Hoje)
     let trialsTodayCount = 0;
     try {
       const [trialEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
@@ -450,9 +451,19 @@ const analyticsQueryRouter = router({
           gte(analyticsEvents.createdAt, todayStart)
         ));
       trialsTodayCount = trialEvRes?.count || 0;
+
+      if (trialsTodayCount === 0) {
+        const [orgsTrialRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+          .from(organizations)
+          .where(and(
+            eq(organizations.subscriptionStatus, "trialing"),
+            gte(organizations.createdAt, todayStart)
+          ));
+        trialsTodayCount = orgsTrialRes?.count || 0;
+      }
     } catch (e) {}
 
-    // 5. Assinaturas (Hoje)
+    // 5. Assinaturas do MusicPro SaaS (Hoje)
     let subscriptionsTodayCount = 0;
     try {
       const [subEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
@@ -462,9 +473,19 @@ const analyticsQueryRouter = router({
           gte(analyticsEvents.createdAt, todayStart)
         ));
       subscriptionsTodayCount = subEvRes?.count || 0;
+
+      if (subscriptionsTodayCount === 0) {
+        const [orgsActiveRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+          .from(organizations)
+          .where(and(
+            eq(organizations.subscriptionStatus, "active"),
+            gte(organizations.createdAt, todayStart)
+          ));
+        subscriptionsTodayCount = orgsActiveRes?.count || 0;
+      }
     } catch (e) {}
 
-    // 6. Receita (Hoje, Mês, Total)
+    // 6. Receita Exclusiva da Plataforma MusicPro SaaS (analyticsRevenue)
     let revToday = 0;
     let revMonth = 0;
     let revTotal = 0;
@@ -484,28 +505,6 @@ const analyticsQueryRouter = router({
       revToday = parseFloat(revTodayRes?.total || "0");
       revMonth = parseFloat(revMonthRes?.total || "0");
       revTotal = parseFloat(revTotalRes?.total || "0");
-
-      if (revTotal === 0) {
-        const [duesToday] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
-          .from(paymentDues)
-          .where(and(
-            eq(paymentDues.status, "pago"),
-            gte(paymentDues.createdAt, todayStart)
-          ));
-        const [duesMonth] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
-          .from(paymentDues)
-          .where(and(
-            eq(paymentDues.status, "pago"),
-            gte(paymentDues.createdAt, monthStart)
-          ));
-        const [duesTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
-          .from(paymentDues)
-          .where(eq(paymentDues.status, "pago"));
-
-        revToday = parseFloat(duesToday?.total || "0");
-        revMonth = parseFloat(duesMonth?.total || "0");
-        revTotal = parseFloat(duesTotal?.total || "0");
-      }
     } catch (e) {}
 
     // 7. Conversão
