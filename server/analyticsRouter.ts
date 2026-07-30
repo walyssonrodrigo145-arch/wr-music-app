@@ -374,6 +374,12 @@ const analyticsQueryRouter = router({
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
+      // 2. Online Agora (mesma query de getOnlineUsers)
+      const onlineUsersList = await db.select()
+        .from(analyticsOnline)
+        .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 300_000)));
+      let onlineNowCount = onlineUsersList.length;
+
       // 1. Visitantes Hoje e Únicos
       const [vTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsSessions)
@@ -396,18 +402,16 @@ const analyticsQueryRouter = router({
         uniqueVisitorsTodayCount = evUniqueVisitorsToday?.count || 0;
       }
 
-      // 2. Online Agora (últimos 5 minutos)
-      const [onlineRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      // Sincronizar com os registros ativos da tabela de online
+      const [onlineTodayRes] = await db.select({
+        count: sql<number>`CAST(COUNT(*) AS INT)`,
+        uniqueCount: sql<number>`CAST(COUNT(DISTINCT ${analyticsOnline.visitorId}) AS INT)`,
+      })
         .from(analyticsOnline)
-        .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 300_000)));
-      let onlineNowCount = onlineRes?.count || 0;
+        .where(gte(analyticsOnline.lastPingAt, todayStart));
 
-      if (onlineNowCount === 0) {
-        const [activeSessionsRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.sessionId}) AS INT)` })
-          .from(analyticsSessions)
-          .where(gte(analyticsSessions.startedAt, new Date(Date.now() - 300_000)));
-        onlineNowCount = activeSessionsRes?.count || 0;
-      }
+      visitorsTodayCount = Math.max(visitorsTodayCount, onlineTodayRes?.count || 0, onlineNowCount);
+      uniqueVisitorsTodayCount = Math.max(uniqueVisitorsTodayCount, onlineTodayRes?.uniqueCount || 0, onlineNowCount);
 
       // 3. Novos Cadastros (Hoje)
       const [signupEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
