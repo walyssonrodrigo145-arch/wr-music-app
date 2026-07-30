@@ -83,6 +83,8 @@ interface KPICardProps {
 }
 
 function KPICard({ title, value, subtitle, icon, gradient, trend, delay = 0 }: KPICardProps) {
+  const displayValue = (value === undefined || value === null || value === "—" || value === "") ? 0 : value;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -94,7 +96,7 @@ function KPICard({ title, value, subtitle, icon, gradient, trend, delay = 0 }: K
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest truncate">{title}</p>
-          <p className="font-outfit text-3xl font-bold text-foreground mt-1 leading-none">{value}</p>
+          <p className="font-outfit text-3xl font-bold text-foreground mt-1 leading-none">{displayValue}</p>
           {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
           {trend !== undefined && (
             <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend >= 0 ? "text-emerald-500" : "text-rose-500"}`}>

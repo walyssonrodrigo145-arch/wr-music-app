@@ -138,37 +138,42 @@ const DateRangeSchema = z.object({
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function getDateRange(preset: string, from?: string, to?: string): { start: Date; end: Date } {
   const now = new Date();
-  const end = to ? new Date(to) : now;
+  const end = to ? new Date(to) : new Date();
 
   switch (preset) {
-    case "today":
-      return { start: new Date(now.setHours(0, 0, 0, 0)), end: new Date() };
+    case "today": {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      return { start, end };
+    }
     case "yesterday": {
-      const y = new Date();
-      y.setDate(y.getDate() - 1);
-      return {
-        start: new Date(y.setHours(0, 0, 0, 0)),
-        end: new Date(y.setHours(23, 59, 59, 999)),
-      };
+      const start = new Date(now);
+      start.setDate(start.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+
+      const endDay = new Date(now);
+      endDay.setDate(endDay.getDate() - 1);
+      endDay.setHours(23, 59, 59, 999);
+      return { start, end: endDay };
     }
     case "7d":
-      return { start: new Date(Date.now() - 7 * 86400000), end: new Date() };
+      return { start: new Date(Date.now() - 7 * 86400000), end };
     case "30d":
-      return { start: new Date(Date.now() - 30 * 86400000), end: new Date() };
+      return { start: new Date(Date.now() - 30 * 86400000), end };
     case "90d":
-      return { start: new Date(Date.now() - 90 * 86400000), end: new Date() };
+      return { start: new Date(Date.now() - 90 * 86400000), end };
     case "month": {
-      const m = new Date();
-      return { start: new Date(m.getFullYear(), m.getMonth(), 1), end: new Date() };
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      return { start, end };
     }
     case "year": {
-      const yr = new Date();
-      return { start: new Date(yr.getFullYear(), 0, 1), end: new Date() };
+      const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      return { start, end };
     }
     case "custom":
       return { start: from ? new Date(from) : new Date(Date.now() - 30 * 86400000), end };
     default:
-      return { start: new Date(Date.now() - 30 * 86400000), end: new Date() };
+      return { start: new Date(Date.now() - 30 * 86400000), end };
   }
 }
 
