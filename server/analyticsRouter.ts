@@ -908,6 +908,9 @@ const analyticsQueryRouter = router({
         .from(analyticsEvents)
         .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
         .groupBy(analyticsEvents.country)
+        .orderBy(sql`COUNT(*) DESC`);
+    }
+
     return { byState, byCity, byCountry };
   }),
 
