@@ -369,27 +369,34 @@ const analyticsQueryRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-    try {
-      const { start, end } = getDateRange(input.preset, input.from, input.to);
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
-      // 2. Online Agora (mesma query de getOnlineUsers)
+    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+
+    // 1. Online Agora (mesma query de getOnlineUsers)
+    let onlineNowCount = 0;
+    try {
       const onlineUsersList = await db.select()
         .from(analyticsOnline)
         .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 300_000)));
-      let onlineNowCount = onlineUsersList.length;
+      onlineNowCount = onlineUsersList.length;
+    } catch (e) {}
 
-      // 1. Visitantes Hoje e Únicos
+    // 2. Visitantes Hoje e Únicos
+    let visitorsTodayCount = 0;
+    let uniqueVisitorsTodayCount = 0;
+    try {
       const [vTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsSessions)
         .where(gte(analyticsSessions.startedAt, todayStart));
-      let visitorsTodayCount = vTodayRes?.count || 0;
+      visitorsTodayCount = vTodayRes?.count || 0;
 
       const [uTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
         .from(analyticsSessions)
         .where(gte(analyticsSessions.startedAt, todayStart));
-      let uniqueVisitorsTodayCount = uTodayRes?.count || 0;
+      uniqueVisitorsTodayCount = uTodayRes?.count || 0;
 
       if (visitorsTodayCount === 0) {
         const [evVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)` })
@@ -402,7 +409,7 @@ const analyticsQueryRouter = router({
         uniqueVisitorsTodayCount = evUniqueVisitorsToday?.count || 0;
       }
 
-      // Sincronizar com os registros ativos da tabela de online
+      // Sincronizar com registros de analyticsOnline
       const [onlineTodayRes] = await db.select({
         count: sql<number>`CAST(COUNT(*) AS INT)`,
         uniqueCount: sql<number>`CAST(COUNT(DISTINCT ${analyticsOnline.visitorId}) AS INT)`,
@@ -412,15 +419,18 @@ const analyticsQueryRouter = router({
 
       visitorsTodayCount = Math.max(visitorsTodayCount, onlineTodayRes?.count || 0, onlineNowCount);
       uniqueVisitorsTodayCount = Math.max(uniqueVisitorsTodayCount, onlineTodayRes?.uniqueCount || 0, onlineNowCount);
+    } catch (e) {}
 
-      // 3. Novos Cadastros (Hoje)
+    // 3. Novos Cadastros (Hoje)
+    let signupsTodayCount = 0;
+    try {
       const [signupEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsEvents)
         .where(and(
           eq(analyticsEvents.eventName, "signup_completed"),
           gte(analyticsEvents.createdAt, todayStart)
         ));
-      let signupsTodayCount = signupEvRes?.count || 0;
+      signupsTodayCount = signupEvRes?.count || 0;
 
       if (signupsTodayCount === 0) {
         const [usersTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
@@ -428,33 +438,41 @@ const analyticsQueryRouter = router({
           .where(gte(users.createdAt, todayStart));
         signupsTodayCount = usersTodayRes?.count || 0;
       }
+    } catch (e) {}
 
-      // 4. Testes Gratuitos (Trials Hoje)
+    // 4. Testes Gratuitos (Trials Hoje)
+    let trialsTodayCount = 0;
+    try {
       const [trialEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsEvents)
         .where(and(
           eq(analyticsEvents.eventName, "trial_started"),
           gte(analyticsEvents.createdAt, todayStart)
         ));
-      let trialsTodayCount = trialEvRes?.count || 0;
+      trialsTodayCount = trialEvRes?.count || 0;
+    } catch (e) {}
 
-      // 5. Assinaturas (Hoje)
+    // 5. Assinaturas (Hoje)
+    let subscriptionsTodayCount = 0;
+    try {
       const [subEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsEvents)
         .where(and(
           eq(analyticsEvents.eventName, "subscription_created"),
           gte(analyticsEvents.createdAt, todayStart)
         ));
-      let subscriptionsTodayCount = subEvRes?.count || 0;
+      subscriptionsTodayCount = subEvRes?.count || 0;
+    } catch (e) {}
 
-      // 6. Receita (Hoje, Mês, Total)
+    // 6. Receita (Hoje, Mês, Total)
+    let revToday = 0;
+    let revMonth = 0;
+    let revTotal = 0;
+
+    try {
       const [revTodayRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
         .from(analyticsRevenue)
         .where(gte(analyticsRevenue.createdAt, todayStart));
-
-      const monthStart = new Date();
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
 
       const [revMonthRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
         .from(analyticsRevenue)
@@ -463,33 +481,36 @@ const analyticsQueryRouter = router({
       const [revTotalRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
         .from(analyticsRevenue);
 
-      let revToday = parseFloat(revTodayRes?.total || "0");
-      let revMonth = parseFloat(revMonthRes?.total || "0");
-      let revTotal = parseFloat(revTotalRes?.total || "0");
+      revToday = parseFloat(revTodayRes?.total || "0");
+      revMonth = parseFloat(revMonthRes?.total || "0");
+      revTotal = parseFloat(revTotalRes?.total || "0");
 
       if (revTotal === 0) {
         const [duesToday] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
           .from(paymentDues)
           .where(and(
-            or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
-            gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, todayStart)
+            eq(paymentDues.status, "pago"),
+            gte(paymentDues.createdAt, todayStart)
           ));
         const [duesMonth] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
           .from(paymentDues)
           .where(and(
-            or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
-            gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, monthStart)
+            eq(paymentDues.status, "pago"),
+            gte(paymentDues.createdAt, monthStart)
           ));
         const [duesTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
           .from(paymentDues)
-          .where(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`));
+          .where(eq(paymentDues.status, "pago"));
 
         revToday = parseFloat(duesToday?.total || "0");
         revMonth = parseFloat(duesMonth?.total || "0");
         revTotal = parseFloat(duesTotal?.total || "0");
       }
+    } catch (e) {}
 
-      // 7. Conversão (Visitantes Únicos vs Pagantes no período)
+    // 7. Conversão
+    let conversionRate = 0;
+    try {
       const [uInPeriodRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
         .from(analyticsSessions)
         .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
@@ -501,37 +522,23 @@ const analyticsQueryRouter = router({
       const uniqueVisitorsPeriod = uInPeriodRes?.count || 0;
       const paymentsPeriod = pInPeriodRes?.count || 0;
 
-      const conversionRate = uniqueVisitorsPeriod > 0
+      conversionRate = uniqueVisitorsPeriod > 0
         ? parseFloat(((paymentsPeriod / uniqueVisitorsPeriod) * 100).toFixed(2))
         : 0;
+    } catch (e) {}
 
-      return {
-        visitorsToday: visitorsTodayCount,
-        uniqueVisitorsToday: uniqueVisitorsTodayCount,
-        onlineNow: onlineNowCount,
-        signupsToday: signupsTodayCount,
-        trialsToday: trialsTodayCount,
-        subscriptionsToday: subscriptionsTodayCount,
-        revenueToday: revToday,
-        revenueMonth: revMonth,
-        revenueTotal: revTotal,
-        conversionRate,
-      };
-    } catch (err) {
-      console.error("[getDashboardCards Error]:", err);
-      return {
-        visitorsToday: 0,
-        uniqueVisitorsToday: 0,
-        onlineNow: 0,
-        signupsToday: 0,
-        trialsToday: 0,
-        subscriptionsToday: 0,
-        revenueToday: 0,
-        revenueMonth: 0,
-        revenueTotal: 0,
-        conversionRate: 0,
-      };
-    }
+    return {
+      visitorsToday: visitorsTodayCount,
+      uniqueVisitorsToday: uniqueVisitorsTodayCount,
+      onlineNow: onlineNowCount,
+      signupsToday: signupsTodayCount,
+      trialsToday: trialsTodayCount,
+      subscriptionsToday: subscriptionsTodayCount,
+      revenueToday: revToday,
+      revenueMonth: revMonth,
+      revenueTotal: revTotal,
+      conversionRate,
+    };
   }),
 
   // ── Visitantes por período ────────────────────────────────────────────────
