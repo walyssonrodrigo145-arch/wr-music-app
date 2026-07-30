@@ -10,7 +10,9 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "deploy:staging": "node vps-script/deploy_staging.js",
+    "deploy:prod": "node vps-script/promote_production.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",

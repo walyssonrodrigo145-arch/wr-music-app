@@ -520,7 +520,7 @@ const analyticsQueryRouter = router({
 
     const { start, end } = getDateRange(input.preset, input.from, input.to);
 
-    const sources = await db.select({
+    let sources = await db.select({
       source: sql<string>`COALESCE(${analyticsSessions.utmSource}, 
         CASE 
           WHEN ${analyticsSessions.referrer} ILIKE '%google%' THEN 'google'
@@ -540,6 +540,29 @@ const analyticsQueryRouter = router({
       .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
       .groupBy(sql`1`)
       .orderBy(sql`COUNT(*) DESC`);
+
+    if (sources.length === 0) {
+      sources = await db.select({
+        source: sql<string>`COALESCE(${analyticsEvents.utmSource}, 
+          CASE 
+            WHEN ${analyticsEvents.referrer} ILIKE '%google%' THEN 'google'
+            WHEN ${analyticsEvents.referrer} ILIKE '%instagram%' THEN 'instagram'
+            WHEN ${analyticsEvents.referrer} ILIKE '%facebook%' THEN 'facebook'
+            WHEN ${analyticsEvents.referrer} ILIKE '%whatsapp%' THEN 'whatsapp'
+            WHEN ${analyticsEvents.referrer} ILIKE '%tiktok%' THEN 'tiktok'
+            WHEN ${analyticsEvents.referrer} ILIKE '%youtube%' THEN 'youtube'
+            WHEN ${analyticsEvents.referrer} ILIKE '%linkedin%' THEN 'linkedin'
+            WHEN ${analyticsEvents.referrer} IS NOT NULL AND ${analyticsEvents.referrer} != '' THEN 'referencia'
+            ELSE 'direto'
+          END)`,
+        sessions: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+        uniqueVisitors: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(sql`1`)
+        .orderBy(sql`COUNT(*) DESC`);
+    }
 
     // Receita por source
     const revenueBySource = await db.select({
@@ -714,60 +737,14 @@ const analyticsQueryRouter = router({
         .from(paymentDues)
         .where(and(
           or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
-          gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, start),
-          lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, end)
-        ));
-      mrrVal = parseFloat(duesMrr.total);
-      pRevVal = parseFloat(duesPeriod.total);
-      avgTicketVal = parseFloat(duesAvg.avg);
-    }
-
-    // Receita por campanha
-    const byCampaign = await db.select({
-      campaign: sql<string>`COALESCE(${analyticsRevenue.utmCampaign}, 'Direto')`,
-      revenue: sql<string>`COALESCE(SUM(amount), 0)`,
-      count: sql<number>`CAST(COUNT(*) AS INT)`,
-    })
-      .from(analyticsRevenue)
-      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)))
-      .groupBy(sql`1`)
-      .orderBy(sql`SUM(amount) DESC`)
-      .limit(10);
-
-    // Receita por estado
-    const byState = await db.select({
-      state: sql<string>`COALESCE(${analyticsRevenue.state}, 'Desconhecido')`,
-      revenue: sql<string>`COALESCE(SUM(amount), 0)`,
-      count: sql<number>`CAST(COUNT(*) AS INT)`,
-    })
-      .from(analyticsRevenue)
-      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)))
-      .groupBy(sql`1`)
-      .orderBy(sql`SUM(amount) DESC`)
-      .limit(27);
-
-    // Ticket médio
-    const [ticket] = await db.select({ avg: sql<string>`COALESCE(AVG(amount), 0)` })
-      .from(analyticsRevenue)
-    return {
-      mrr: mrrVal,
-      arr: mrrVal * 12,
-      periodRevenue: pRevVal,
-      avgTicket: avgTicketVal,
-      byPlan: byPlan ? byPlan.map((p) => ({ ...p, revenue: parseFloat(p.revenue) })) : [],
-      byCampaign: byCampaign ? byCampaign.map((c) => ({ ...c, revenue: parseFloat(c.revenue) })) : [],
-      byState: byState ? byState.map((s) => ({ ...s, revenue: parseFloat(s.revenue) })) : [],
-    };
-  }),
-
-  // ── Dispositivos e Browsers ───────────────────────────────────────────────
+          gte(sql`COALESCE(${paymentDues.pa  // ── Dispositivos e Browsers ───────────────────────────────────────────────
   getDeviceStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
     const { start, end } = getDateRange(input.preset, input.from, input.to);
 
-    const devices = await db.select({
+    let devices = await db.select({
       device: sql<string>`COALESCE(${analyticsSessions.deviceType}, 'unknown')`,
       count: sql<number>`CAST(COUNT(*) AS INT)`,
     })
@@ -776,7 +753,18 @@ const analyticsQueryRouter = router({
       .groupBy(analyticsSessions.deviceType)
       .orderBy(sql`COUNT(*) DESC`);
 
-    const browsers = await db.select({
+    if (devices.length === 0) {
+      devices = await db.select({
+        device: sql<string>`COALESCE(${analyticsEvents.deviceType}, 'unknown')`,
+        count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(analyticsEvents.deviceType)
+        .orderBy(sql`COUNT(*) DESC`);
+    }
+
+    let browsers = await db.select({
       browser: sql<string>`COALESCE(${analyticsSessions.browser}, 'Outros')`,
       count: sql<number>`CAST(COUNT(*) AS INT)`,
     })
@@ -786,7 +774,19 @@ const analyticsQueryRouter = router({
       .orderBy(sql`COUNT(*) DESC`)
       .limit(10);
 
-    const oses = await db.select({
+    if (browsers.length === 0) {
+      browsers = await db.select({
+        browser: sql<string>`COALESCE(${analyticsEvents.browser}, 'Outros')`,
+        count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(analyticsEvents.browser)
+        .orderBy(sql`COUNT(*) DESC`)
+        .limit(10);
+    }
+
+    let oses = await db.select({
       os: sql<string>`COALESCE(${analyticsSessions.os}, 'Outros')`,
       count: sql<number>`CAST(COUNT(*) AS INT)`,
     })
@@ -796,12 +796,103 @@ const analyticsQueryRouter = router({
       .orderBy(sql`COUNT(*) DESC`)
       .limit(10);
 
+    if (oses.length === 0) {
+      oses = await db.select({
+        os: sql<string>`COALESCE(${analyticsEvents.os}, 'Outros')`,
+        count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(analyticsEvents.os)
+        .orderBy(sql`COUNT(*) DESC`)
+        .limit(10);
+    }
+
     const resolutions = await db.select({
       res: sql<string>`COALESCE(${analyticsSessions.screenRes}, 'Outros')`,
       count: sql<number>`CAST(COUNT(*) AS INT)`,
     })
       .from(analyticsSessions)
       .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.screenRes)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(10);
+
+    return { devices, browsers, oses, resolutions };
+  }),
+
+  // ── Mapa Geográfico ───────────────────────────────────────────────────────
+  getGeoStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const { start, end } = getDateRange(input.preset, input.from, input.to);
+
+    let byState = await db.select({
+      state: sql<string>`COALESCE(${analyticsSessions.state}, 'Desconhecido')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+      unique: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.state)
+      .orderBy(sql`COUNT(*) DESC`);
+
+    if (byState.length === 0) {
+      byState = await db.select({
+        state: sql<string>`COALESCE(${analyticsEvents.state}, 'Desconhecido')`,
+        count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+        unique: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(analyticsEvents.state)
+        .orderBy(sql`COUNT(*) DESC`);
+    }
+
+    let byCity = await db.select({
+      city: sql<string>`COALESCE(${analyticsSessions.city}, 'Desconhecida')`,
+      state: sql<string>`COALESCE(${analyticsSessions.state}, '')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.city, analyticsSessions.state)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(30);
+
+    if (byCity.length === 0) {
+      byCity = await db.select({
+        city: sql<string>`COALESCE(${analyticsEvents.city}, 'Desconhecida')`,
+        state: sql<string>`COALESCE(${analyticsEvents.state}, '')`,
+        count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(analyticsEvents.city, analyticsEvents.state)
+        .orderBy(sql`COUNT(*) DESC`)
+        .limit(30);
+    }
+
+    let byCountry = await db.select({
+      country: sql<string>`COALESCE(${analyticsSessions.country}, 'Desconhecido')`,
+      count: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsSessions)
+      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
+      .groupBy(analyticsSessions.country)
+      .orderBy(sql`COUNT(*) DESC`);
+
+    if (byCountry.length === 0) {
+      byCountry = await db.select({
+        country: sql<string>`COALESCE(${analyticsEvents.country}, 'Desconhecido')`,
+        count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(analyticsEvents.country)
+        .orderBy(sql`COUNT(*) DESC`);
+    }ions.startedAt, end)))
       .groupBy(analyticsSessions.screenRes)
       .orderBy(sql`COUNT(*) DESC`)
       .limit(10);
