@@ -12,13 +12,10 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
 
 function getRedirectUri(req: Request): string {
-  if (ENV.appUrl && !ENV.appUrl.includes("localhost")) {
-    const cleanUrl = ENV.appUrl.replace(/\/$/, "");
-    return `${cleanUrl}/api/auth/google/callback`;
-  }
+  const rawHost = (req.headers["x-forwarded-host"] as string) || req.headers.host || "";
+  const host = rawHost.split(",")[0].trim() || (ENV.appUrl ? new URL(ENV.appUrl).host : "wrmusicpro.com.br");
   const proto = (req.headers["x-forwarded-proto"] as string) || (req.secure ? "https" : "http");
-  const host = (req.headers["x-forwarded-host"] as string) || req.headers.host || "wrmusicpro.com.br";
-  const finalProto = host.includes("wrmusicpro.com.br") ? "https" : proto;
+  const finalProto = host.includes("wrmusicpro.com.br") || ENV.isProduction ? "https" : proto;
   return `${finalProto}://${host}/api/auth/google/callback`;
 }
 
