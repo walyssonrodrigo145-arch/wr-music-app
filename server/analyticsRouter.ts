@@ -737,7 +737,24 @@ const analyticsQueryRouter = router({
         .from(paymentDues)
         .where(and(
           or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
-          gte(sql`COALESCE(${paymentDues.pa  // ── Dispositivos e Browsers ───────────────────────────────────────────────
+          gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, start),
+          lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, end)
+        ));
+      mrrVal = parseFloat(duesMrr.total);
+      pRevVal = parseFloat(duesPeriod.total);
+      avgTicketVal = parseFloat(duesAvg.avg);
+    }
+
+    return {
+      mrr: mrrVal,
+      arr: mrrVal * 12,
+      periodRevenue: pRevVal,
+      avgTicket: avgTicketVal,
+      byPlan: [],
+    };
+  }),
+
+  // ── Dispositivos e Browsers ───────────────────────────────────────────────
   getDeviceStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
