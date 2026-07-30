@@ -48,7 +48,7 @@ function getMonthName(month: number, year: number) {
 
 // ─── Stat Card Component ────────────────────────────────────────────────────────
 function ReportMetricCard({ 
-  title, value, trend, gradient, icon: Icon, subtitle, delay = 0
+  title, value, trend, gradient, icon: Icon, subtitle, delay = 0, invertTrend = false
 }: { 
   title: string; 
   value: string | number; 
@@ -57,9 +57,11 @@ function ReportMetricCard({
   icon: React.ElementType; 
   subtitle?: string;
   delay?: number;
+  invertTrend?: boolean;
 }) {
-  const isPositive = !trend.startsWith('-') && trend !== '0%';
-  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+  const isUp = !trend.startsWith('-') && trend !== '0%';
+  const isGood = invertTrend ? !isUp : isUp;
+  const TrendIcon = isUp ? TrendingUp : TrendingDown;
   
   return (
     <motion.div
@@ -82,9 +84,11 @@ function ReportMetricCard({
         <div className="flex items-center gap-2">
           <span className={cn(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold",
-            isPositive 
-              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
-              : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+            trend === '0%'
+              ? "bg-muted text-muted-foreground"
+              : isGood 
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
           )}>
             <TrendIcon className="w-3 h-3" /> {trend}
           </span>
@@ -289,7 +293,7 @@ const Relatorios: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <ReportMetricCard title="Receita Recebida"  value={currencyFormat(cur?.pago     || 0)} trend={trendPago}     gradient="bg-emerald-500" icon={DollarSign}  subtitle="vs mês anterior" delay={0.05} />
           <ReportMetricCard title="A Receber"         value={currencyFormat(cur?.pendente  || 0)} trend={trendPendente} gradient="bg-amber-500"   icon={Clock}        subtitle="vs mês anterior" delay={0.1} />
-          <ReportMetricCard title="Inadimplência"     value={currencyFormat(cur?.atrasado  || 0)} trend={trendAtrasado} gradient="bg-rose-500"    icon={CreditCard}   subtitle="vs mês anterior" delay={0.15} />
+          <ReportMetricCard title="Inadimplência"     value={currencyFormat(cur?.atrasado  || 0)} trend={trendAtrasado} gradient="bg-rose-500"    icon={CreditCard}   subtitle="vs mês anterior" delay={0.15} invertTrend={true} />
           <ReportMetricCard title="Total Projetado"   value={currencyFormat(cur?.total     || 0)} trend={trendTotal}    gradient="bg-indigo-500"  icon={Activity}     subtitle="vs mês anterior" delay={0.2} />
         </div>
 
@@ -377,7 +381,7 @@ const Relatorios: React.FC = () => {
       <div className="space-y-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <ReportMetricCard title="Receita Total"    value={currencyFormat(receitaPrevista)} trend={trendReceita}  gradient="bg-indigo-500"  icon={DollarSign}  subtitle="mês selecionado" delay={0.05} />
-          <ReportMetricCard title="Despesas do Mês"  value={currencyFormat(despesasTotal)}   trend={trendDespesas} gradient="bg-rose-500"    icon={CreditCard}  subtitle="saídas registradas" delay={0.1} />
+          <ReportMetricCard title="Despesas do Mês"  value={currencyFormat(despesasTotal)}   trend={trendDespesas} gradient="bg-rose-500"    icon={CreditCard}  subtitle="saídas registradas" delay={0.1} invertTrend={true} />
           <ReportMetricCard title="Lucro Líquido"    value={currencyFormat(lucroLiquido)}    trend={trendLucro}    gradient={lucroLiquido >= 0 ? "bg-emerald-500" : "bg-rose-500"} icon={TrendingUp}  subtitle="receita − despesa" delay={0.15} />
           <ReportMetricCard title="Margem de Lucro"  value={`${margem.toFixed(1)}%`}         trend={trendMargem}   gradient="bg-purple-500"  icon={PieIcon}     subtitle="sobre faturamento" delay={0.2} />
         </div>

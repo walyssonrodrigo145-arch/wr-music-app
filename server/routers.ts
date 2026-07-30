@@ -4952,8 +4952,18 @@ ${jsonSchemaFormat}`;
         const enrichedRows = await BillingEngine.enrichInvoicesList(rows, schoolSettingsObj);
 
         const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const toISODate = (d: any) => {
+          if (!d) return "";
+          if (d instanceof Date) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+          }
+          return String(d).slice(0, 10);
+        };
         const mappedRows = enrichedRows.map(r => {
-          if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
+          if (r.status === 'pendente' && toISODate(r.dueDate) < today) {
             return { ...r, status: 'atrasado' as const };
           }
           return r;
@@ -5536,8 +5546,18 @@ ${jsonSchemaFormat}`;
         ))
         .orderBy(asc(paymentDues.dueDate));
 
+      const toISODate = (d: any) => {
+        if (!d) return "";
+        if (d instanceof Date) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        }
+        return String(d).slice(0, 10);
+      };
       const mappedRows = rows.map(r => {
-        if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
+        if (r.status === 'pendente' && toISODate(r.dueDate) < today) {
           return { ...r, status: 'atrasado' as const };
         }
         return r;
@@ -5566,8 +5586,18 @@ ${jsonSchemaFormat}`;
           .orderBy(asc(paymentDues.year), asc(paymentDues.month));
 
         const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const toISODate = (d: any) => {
+          if (!d) return "";
+          if (d instanceof Date) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+          }
+          return String(d).slice(0, 10);
+        };
         const mappedRows = rows.map(r => {
-          if (r.status === 'pendente' && String(r.dueDate).slice(0, 10) < today) {
+          if (r.status === 'pendente' && toISODate(r.dueDate) < today) {
             return { ...r, status: 'atrasado' as const };
           }
           return r;
@@ -5826,14 +5856,24 @@ ${jsonSchemaFormat}`;
         };
 
         const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const toISODate = (d: any) => {
+          if (!d) return "";
+          if (d instanceof Date) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+          }
+          return String(d).slice(0, 10);
+        };
 
         payments.forEach(p => {
           const amt = Number(p.amount);
-          const isAtrasado = p.status === 'atrasado' || (p.status === 'pendente' && String(p.dueDate).slice(0, 10) < today);
+          const isAtrasado = p.status === 'atrasado' || (p.status === 'pendente' && toISODate(p.dueDate) < today);
           if (p.status === 'pago') {
             summary.pago += amt;
             summary.total += amt;
-          } else if (p.studentStatus === 'ativo') {
+          } else {
             if (isAtrasado) summary.atrasado += amt;
             else summary.pendente += amt;
             summary.total += amt;

@@ -641,15 +641,11 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
 
   const stats = useMemo(() => {
     const sum = (arr: any[]) => arr.reduce((acc, p) => acc + Number(p.amount), 0);
-    const validPaymentsForForecast = payments.filter(p => 
-      p.status === "pago" || p.studentStatus === "ativo"
-    );
-    return {
-      recebido: sum(payments.filter(p => p.status === "pago")),
-      pendente: sum(validPaymentsForForecast.filter(p => p.status === "pendente")),
-      atrasado: sum(validPaymentsForForecast.filter(p => p.status === "atrasado")),
-      total: sum(validPaymentsForForecast)
-    };
+    const recebido = sum(payments.filter(p => p.status === "pago"));
+    const pendente = sum(payments.filter(p => p.status === "pendente"));
+    const atrasado = sum(payments.filter(p => p.status === "atrasado"));
+    const total = recebido + pendente + atrasado;
+    return { recebido, pendente, atrasado, total };
   }, [payments]);
 
   const currencyFormat = (val: number) => 
