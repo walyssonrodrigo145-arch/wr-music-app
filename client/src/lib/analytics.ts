@@ -44,7 +44,7 @@ function callTrpc(procedure: string, input: unknown): Promise<unknown> {
   return fetch(`/api/trpc/${procedure}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ json: input }),
     credentials: "include",
   }).catch(() => null);
 }

@@ -43,7 +43,8 @@ const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
   const isMaster =
     userEmail === superAdminEmail ||
     userEmail === "walyssonrodrigo145@gmail.com" ||
-    (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
+    (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId) ||
+    ctx.user.role === "admin";
 
   if (!isMaster) {
     throw new TRPCError({

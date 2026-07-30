@@ -31,11 +31,11 @@ export async function generateAnalyticsInsights(): Promise<void> {
 
     const [paymentSuccessCount] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
       .from(analyticsEvents)
-      .where(sql`event_name = 'payment_success' AND created_at >= ${lastWeek}`);
+      .where(sql`event_name = 'payment_success' AND created_at >= ${lastWeek.toISOString()}`);
 
     const [checkoutStartedCount] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
       .from(analyticsEvents)
-      .where(sql`event_name = 'checkout_started' AND created_at >= ${lastWeek}`);
+      .where(sql`event_name = 'checkout_started' AND created_at >= ${lastWeek.toISOString()}`);
 
     const checkoutAbandon = checkoutStartedCount.count > 0
       ? (((checkoutStartedCount.count - paymentSuccessCount.count) / checkoutStartedCount.count) * 100).toFixed(1)
