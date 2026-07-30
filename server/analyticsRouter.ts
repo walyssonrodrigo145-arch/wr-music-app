@@ -716,11 +716,20 @@ const analyticsQueryRouter = router({
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
 
-    const yearStart = new Date(new Date().getFullYear(), 0, 1);
+    const [mrr] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+      .from(analyticsRevenue)
+      .where(gte(analyticsRevenue.createdAt, monthStart));
 
-    let mrrVal = parseFloat(mrr.total);
-    let pRevVal = parseFloat(periodRevenue.total);
-    let avgTicketVal = parseFloat(ticket.avg);
+    const [periodRevenue] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+      .from(analyticsRevenue)
+      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
+
+    const [ticket] = await db.select({ avg: sql<string>`COALESCE(AVG(amount), 0)` })
+      .from(analyticsRevenue);
+
+    let mrrVal = parseFloat(mrr?.total || "0");
+    let pRevVal = parseFloat(periodRevenue?.total || "0");
+    let avgTicketVal = parseFloat(ticket?.avg || "0");
 
     if (mrrVal === 0 && pRevVal === 0) {
       const [duesMrr] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
