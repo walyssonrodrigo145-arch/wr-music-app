@@ -684,12 +684,12 @@ const LandingPage = () => {
 
               <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 {[
-                  { value: '500+', label: 'Escolas ativas', color: 'text-primary' },
-                  { value: '10mil+', label: 'Alunos gerenciados', color: 'text-indigo-500' },
-                  { value: '99%', label: 'Satisfação', color: 'text-emerald-500' },
+                  { value: '100% Online', label: 'Acesso em qualquer lugar', color: 'text-primary' },
+                  { value: '7 Dias Grátis', label: 'Sem cartão de crédito', color: 'text-indigo-500' },
+                  { value: 'WhatsApp', label: 'Automação de lembretes', color: 'text-emerald-500' },
                 ].map(stat => (
                   <div key={stat.label} className="text-center p-3 sm:p-4 bg-card/60 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
-                    <div className={`text-xl sm:text-2xl font-black ${stat.color}`}>{stat.value}</div>
+                    <div className={`text-sm sm:text-base font-black ${stat.color}`}>{stat.value}</div>
                     <div className="text-[10px] sm:text-xs text-muted-foreground font-medium mt-0.5 leading-tight">{stat.label}</div>
                   </div>
                 ))}
