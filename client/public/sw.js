@@ -45,7 +45,7 @@ try {
   console.warn('[sw.js] Erro ao inicializar Firebase no SW:', err);
 }
 
-const CACHE_NAME = 'wr-music-cache-v3';
+const CACHE_NAME = 'wr-music-cache-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
