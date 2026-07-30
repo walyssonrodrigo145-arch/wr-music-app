@@ -87,6 +87,43 @@ class AnalyticsQueue {
       }
 
       await db.insert(analyticsEvents).values(batch).onConflictDoNothing();
+
+      // Upsert automático das sessões e visitantes para os cartões de métricas do Analytics
+      const sessionMap = new Map<string, any>();
+      const visitorSet = new Set<string>();
+
+      for (const ev of batch) {
+        if (ev.visitorId) visitorSet.add(ev.visitorId);
+        if (ev.sessionId && !sessionMap.has(ev.sessionId)) {
+          sessionMap.set(ev.sessionId, {
+            sessionId: ev.sessionId,
+            visitorId: ev.visitorId,
+            userId: ev.userId,
+            startedAt: ev.createdAt || new Date(),
+            deviceType: ev.deviceType || "unknown",
+            os: ev.os,
+            browser: ev.browser,
+            screenRes: ev.screenRes,
+            referrer: ev.referrer,
+            utmSource: ev.utmSource,
+            utmMedium: ev.utmMedium,
+            utmCampaign: ev.utmCampaign,
+            utmContent: ev.utmContent,
+            utmTerm: ev.utmTerm,
+            country: ev.country,
+            state: ev.state,
+            city: ev.city,
+          });
+        }
+      }
+
+      for (const vId of visitorSet) {
+        upsertAnalyticsVisitor({ visitorId: vId }).catch(() => {});
+      }
+
+      for (const sess of sessionMap.values()) {
+        upsertAnalyticsSession(sess).catch(() => {});
+      }
       
       this.stats.processed += batch.length;
       this.stats.lastDrainAt = new Date();

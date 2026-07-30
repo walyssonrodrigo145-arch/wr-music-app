@@ -356,13 +356,24 @@ const analyticsQueryRouter = router({
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [visitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+    let [visitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
       .from(analyticsSessions)
       .where(gte(analyticsSessions.startedAt, todayStart));
 
-    const [uniqueVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
+    let [uniqueVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
       .from(analyticsSessions)
       .where(gte(analyticsSessions.startedAt, todayStart));
+
+    if (visitorsToday.count === 0) {
+      const [evVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)` })
+        .from(analyticsEvents)
+        .where(gte(analyticsEvents.createdAt, todayStart));
+      const [evUniqueVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)` })
+        .from(analyticsEvents)
+        .where(gte(analyticsEvents.createdAt, todayStart));
+      visitorsToday = { count: evVisitorsToday?.count || 0 };
+      uniqueVisitorsToday = { count: evUniqueVisitorsToday?.count || 0 };
+    }
 
     const [onlineNow] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
       .from(analyticsOnline)
@@ -457,7 +468,7 @@ const analyticsQueryRouter = router({
 
     const { start, end } = getDateRange(input.preset, input.from, input.to);
 
-    const byDay = await db.select({
+    let byDay = await db.select({
       date: sql<string>`DATE(${analyticsSessions.startedAt})`,
       sessions: sql<number>`CAST(COUNT(*) AS INT)`,
       unique: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)`,
@@ -467,7 +478,19 @@ const analyticsQueryRouter = router({
       .groupBy(sql`DATE(${analyticsSessions.startedAt})`)
       .orderBy(sql`DATE(${analyticsSessions.startedAt})`);
 
-    const byHour = await db.select({
+    if (byDay.length === 0) {
+      byDay = await db.select({
+        date: sql<string>`DATE(${analyticsEvents.createdAt})`,
+        sessions: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+        unique: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(sql`DATE(${analyticsEvents.createdAt})`)
+        .orderBy(sql`DATE(${analyticsEvents.createdAt})`);
+    }
+
+    let byHour = await db.select({
       hour: sql<number>`CAST(EXTRACT(HOUR FROM ${analyticsSessions.startedAt}) AS INT)`,
       sessions: sql<number>`CAST(COUNT(*) AS INT)`,
     })
@@ -475,6 +498,17 @@ const analyticsQueryRouter = router({
       .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
       .groupBy(sql`EXTRACT(HOUR FROM ${analyticsSessions.startedAt})`)
       .orderBy(sql`EXTRACT(HOUR FROM ${analyticsSessions.startedAt})`);
+
+    if (byHour.length === 0) {
+      byHour = await db.select({
+        hour: sql<number>`CAST(EXTRACT(HOUR FROM ${analyticsEvents.createdAt}) AS INT)`,
+        sessions: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
+      })
+        .from(analyticsEvents)
+        .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
+        .groupBy(sql`EXTRACT(HOUR FROM ${analyticsEvents.createdAt})`)
+        .orderBy(sql`EXTRACT(HOUR FROM ${analyticsEvents.createdAt})`);
+    }
 
     return { byDay, byHour };
   }),
