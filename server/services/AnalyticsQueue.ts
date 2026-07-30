@@ -117,13 +117,13 @@ class AnalyticsQueue {
         }
       }
 
-      for (const vId of visitorSet) {
+      Array.from(visitorSet).forEach((vId) => {
         upsertAnalyticsVisitor({ visitorId: vId }).catch(() => {});
-      }
+      });
 
-      for (const sess of sessionMap.values()) {
+      Array.from(sessionMap.values()).forEach((sess) => {
         upsertAnalyticsSession(sess).catch(() => {});
-      }
+      });
       
       this.stats.processed += batch.length;
       this.stats.lastDrainAt = new Date();
