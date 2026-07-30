@@ -75,7 +75,7 @@ export const ENV = {
   resendFromEmail: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
   googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE || "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.SECRET_GOOGLE || "",
-  appUrl: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000",
+  appUrl: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.NODE_ENV === "production" ? "https://wrmusicpro.com.br" : "http://localhost:3000"),
 
   // ─── Segurança: sem fallback hardcoded. Em dev, usa string vazia (cadastro bloqueado). ──
   registrationToken: registrationTokenRaw,

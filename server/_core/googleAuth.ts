@@ -11,6 +11,17 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
 
+function getRedirectUri(req: Request): string {
+  if (ENV.appUrl && !ENV.appUrl.includes("localhost")) {
+    const cleanUrl = ENV.appUrl.replace(/\/$/, "");
+    return `${cleanUrl}/api/auth/google/callback`;
+  }
+  const proto = (req.headers["x-forwarded-proto"] as string) || (req.secure ? "https" : "http");
+  const host = (req.headers["x-forwarded-host"] as string) || req.headers.host || "wrmusicpro.com.br";
+  const finalProto = host.includes("wrmusicpro.com.br") ? "https" : proto;
+  return `${finalProto}://${host}/api/auth/google/callback`;
+}
+
 export function registerGoogleAuthRoutes(app: Express) {
   // 1. Redirecionar para o Google
   app.get("/api/auth/google", (req: Request, res: Response) => {
@@ -18,7 +29,7 @@ export function registerGoogleAuthRoutes(app: Express) {
       return res.status(500).json({ error: "Google Client ID não configurado." });
     }
 
-    const redirectUri = `${ENV.appUrl}/api/auth/google/callback`;
+    const redirectUri = getRedirectUri(req);
     const scope = ["openid", "email", "profile"].join(" ");
     
     const params = new URLSearchParams({
@@ -42,7 +53,7 @@ export function registerGoogleAuthRoutes(app: Express) {
     }
 
     try {
-      const redirectUri = `${ENV.appUrl}/api/auth/google/callback`;
+      const redirectUri = getRedirectUri(req);
 
       // Trocar código por token
       const tokenResponse = await axios.post(GOOGLE_TOKEN_URL, {

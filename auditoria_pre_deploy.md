@@ -1,23 +1,29 @@
-# Relatório de Auditoria Pré-Deploy - MusicPro Analytics Fix
+# Relatório de Auditoria Pré-Deploy - Google OAuth redirect_uri_mismatch Fix
 
 ## Causa Raiz Estrutural Identificada (Auditoria WRAUDITOR)
 
-Após análise aprofundada nos logs do servidor e nas rotas de captação de métricas do **MusicPro Analytics**, foram identificadas e corrigidas as seguintes falhas:
-
-1. **Rejeição de Payload no Client-Side Tracker (`client/src/lib/analytics.ts`):**
-   - O método `callTrpc` fazia envios HTTP nativos para `/api/trpc/analytics.event.*` passando o payload sem envelopamento `{ json: input }`. O tRPC v10 via Express adapter rejeitava 100% dos eventos com erro `invalid_type: expected object, received undefined`.
-   - **Correção:** Atualizado `callTrpc` em `client/src/lib/analytics.ts` para envelopar as requisições em `{ json: input }`.
-
-2. **Interpolação de Objeto Date no Driver Postgres (`server/services/AnalyticsAIService.ts`):**
-   - A query SQL `created_at >= ${lastWeek}` tentava interpolar a instância de `Date` diretamente no template literal, resultando em exceções `TypeError: The "string" argument must be of type string` no driver `postgres-js`.
-   - **Correção:** Adicionado `.toISOString()` nas instâncias de `Date` utilizadas em queries SQL raw.
-
-3. **Permissão de Acesso ao Painel Analytics (`server/analyticsRouter.ts`):**
-   - A validação `isSuperAdmin` aceitava apenas o e-mail máster e `ownerOpenId`.
-   - **Correção:** Incluída a permissão `ctx.user.role === 'admin'` para permitir acesso completo aos administradores autenticados.
+1. **Redirect URI Nulo/Localhost em Produção (`server/_core/googleAuth.ts` & `env.ts`):**
+   - O servidor estava utilizando o fallback `http://localhost:3000` / `http://localhost:5000` para construir a `redirect_uri` do Google OAuth quando a variável `APP_URL` não estava configurada na VPS.
+   - O Google OAuth rejeitava as requisições vindas da VPS com erro `400: redirect_uri_mismatch` pois esperava a URL oficial cadastrada no console.
+   - **Correção:** 
+     1. Atualizado `env.ts` para usar `https://wrmusicpro.com.br` como fallback em produção.
+     2. Criado o método dinâmico `getRedirectUri(req)` em `googleAuth.ts` para detectar o domínio do cabeçalho HTTP (`x-forwarded-host`/`x-forwarded-proto`), garantindo que a URL enviada ao Google seja `https://wrmusicpro.com.br/api/auth/google/callback`.
 
 ---
 
-## Validação e Próximos Passos
-- **Status do Código:** 3 arquivos atualizados com precisão (`client/src/lib/analytics.ts`, `server/analyticsRouter.ts`, `server/services/AnalyticsAIService.ts`).
-- **Próximo Passo:** Execução de commit, push para `main` e deploy seguro via `devopsmaster`.
+## Instruções para o Desenvolvedor no Google Cloud Console
+
+No **Google Cloud Console** (https://console.cloud.google.com/apis/credentials):
+1. Selecione o projeto do Google OAuth.
+2. Em **Origens JavaScript autorizadas**, cadastre:
+   - `https://wrmusicpro.com.br`
+   - `http://localhost:3000` (para ambiente local)
+3. Em **URIs de redirecionamento autorizados**, cadastre:
+   - `https://wrmusicpro.com.br/api/auth/google/callback`
+   - `http://localhost:3000/api/auth/google/callback` (para ambiente local)
+
+---
+
+## Validação e Deploy
+- **Git Status:** `server/_core/env.ts` e `server/_core/googleAuth.ts` atualizados.
+- **Deploy:** Commit, push e execução do script de deploy `upload_and_deploy_fixed.js` via `devopsmaster`.

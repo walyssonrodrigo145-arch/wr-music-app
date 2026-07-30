@@ -17,6 +17,7 @@ const filesToUpload = [
   'server/_core/rateLimiter.ts',
   'server/_core/index.ts',
   'server/_core/env.ts',
+  'server/_core/googleAuth.ts',
   'server/seedDemo.ts',
   'server/utils/aiContext.ts',
   'server/superAdminRouter.ts',
