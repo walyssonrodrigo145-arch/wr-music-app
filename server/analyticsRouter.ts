@@ -908,53 +908,6 @@ const analyticsQueryRouter = router({
         .from(analyticsEvents)
         .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)))
         .groupBy(analyticsEvents.country)
-        .orderBy(sql`COUNT(*) DESC`);
-    }ions.startedAt, end)))
-      .groupBy(analyticsSessions.screenRes)
-      .orderBy(sql`COUNT(*) DESC`)
-      .limit(10);
-
-    return { devices, browsers, oses, resolutions };
-  }),
-
-  // ── Mapa Geográfico ───────────────────────────────────────────────────────
-  getGeoStats: isSuperAdmin.input(DateRangeSchema).query(async ({ input }) => {
-    const db = await getDb();
-    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-    const { start, end } = getDateRange(input.preset, input.from, input.to);
-
-    const byState = await db.select({
-      state: sql<string>`COALESCE(${analyticsSessions.state}, 'Desconhecido')`,
-      count: sql<number>`CAST(COUNT(*) AS INT)`,
-      unique: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)`,
-    })
-      .from(analyticsSessions)
-      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
-      .groupBy(analyticsSessions.state)
-      .orderBy(sql`COUNT(*) DESC`);
-
-    const byCity = await db.select({
-      city: sql<string>`COALESCE(${analyticsSessions.city}, 'Desconhecida')`,
-      state: sql<string>`COALESCE(${analyticsSessions.state}, '')`,
-      count: sql<number>`CAST(COUNT(*) AS INT)`,
-    })
-      .from(analyticsSessions)
-      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
-      .groupBy(analyticsSessions.city, analyticsSessions.state)
-      .orderBy(sql`COUNT(*) DESC`)
-      .limit(30);
-
-    const byCountry = await db.select({
-      country: sql<string>`COALESCE(${analyticsSessions.country}, 'Desconhecido')`,
-      count: sql<number>`CAST(COUNT(*) AS INT)`,
-    })
-      .from(analyticsSessions)
-      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)))
-      .groupBy(analyticsSessions.country)
-      .orderBy(sql`COUNT(*) DESC`)
-      .limit(20);
-
     return { byState, byCity, byCountry };
   }),
 
