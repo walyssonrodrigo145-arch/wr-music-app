@@ -24,6 +24,7 @@ import {
   analyticsAiInsights,
   analyticsSecurityLogs,
   paymentDues,
+  users,
 } from "../drizzle/schema";
 import {
   analyticsQueue,
@@ -363,113 +364,165 @@ const analyticsQueryRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-    const { start, end } = getDateRange(input.preset, input.from, input.to);
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    try {
+      const { start, end } = getDateRange(input.preset, input.from, input.to);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
 
-    let [visitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-      .from(analyticsSessions)
-      .where(gte(analyticsSessions.startedAt, todayStart));
+      // 1. Visitantes Hoje e Únicos
+      const [vTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+        .from(analyticsSessions)
+        .where(gte(analyticsSessions.startedAt, todayStart));
+      let visitorsTodayCount = vTodayRes?.count || 0;
 
-    let [uniqueVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
-      .from(analyticsSessions)
-      .where(gte(analyticsSessions.startedAt, todayStart));
+      const [uTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
+        .from(analyticsSessions)
+        .where(gte(analyticsSessions.startedAt, todayStart));
+      let uniqueVisitorsTodayCount = uTodayRes?.count || 0;
 
-    if (visitorsToday.count === 0) {
-      const [evVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)` })
+      if (visitorsTodayCount === 0) {
+        const [evVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)` })
+          .from(analyticsEvents)
+          .where(gte(analyticsEvents.createdAt, todayStart));
+        const [evUniqueVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)` })
+          .from(analyticsEvents)
+          .where(gte(analyticsEvents.createdAt, todayStart));
+        visitorsTodayCount = evVisitorsToday?.count || 0;
+        uniqueVisitorsTodayCount = evUniqueVisitorsToday?.count || 0;
+      }
+
+      // 2. Online Agora (últimos 5 minutos)
+      const [onlineRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+        .from(analyticsOnline)
+        .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 300_000)));
+      let onlineNowCount = onlineRes?.count || 0;
+
+      if (onlineNowCount === 0) {
+        const [activeSessionsRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.sessionId}) AS INT)` })
+          .from(analyticsSessions)
+          .where(gte(analyticsSessions.startedAt, new Date(Date.now() - 300_000)));
+        onlineNowCount = activeSessionsRes?.count || 0;
+      }
+
+      // 3. Novos Cadastros (Hoje)
+      const [signupEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsEvents)
-        .where(gte(analyticsEvents.createdAt, todayStart));
-      const [evUniqueVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)` })
+        .where(and(
+          eq(analyticsEvents.eventName, "signup_completed"),
+          gte(analyticsEvents.createdAt, todayStart)
+        ));
+      let signupsTodayCount = signupEvRes?.count || 0;
+
+      if (signupsTodayCount === 0) {
+        const [usersTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+          .from(users)
+          .where(gte(users.createdAt, todayStart));
+        signupsTodayCount = usersTodayRes?.count || 0;
+      }
+
+      // 4. Testes Gratuitos (Trials Hoje)
+      const [trialEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsEvents)
-        .where(gte(analyticsEvents.createdAt, todayStart));
-      visitorsToday = { count: evVisitorsToday?.count || 0 };
-      uniqueVisitorsToday = { count: evUniqueVisitorsToday?.count || 0 };
+        .where(and(
+          eq(analyticsEvents.eventName, "trial_started"),
+          gte(analyticsEvents.createdAt, todayStart)
+        ));
+      let trialsTodayCount = trialEvRes?.count || 0;
+
+      // 5. Assinaturas (Hoje)
+      const [subEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+        .from(analyticsEvents)
+        .where(and(
+          eq(analyticsEvents.eventName, "subscription_created"),
+          gte(analyticsEvents.createdAt, todayStart)
+        ));
+      let subscriptionsTodayCount = subEvRes?.count || 0;
+
+      // 6. Receita (Hoje, Mês, Total)
+      const [revTodayRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
+        .from(analyticsRevenue)
+        .where(gte(analyticsRevenue.createdAt, todayStart));
+
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const [revMonthRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
+        .from(analyticsRevenue)
+        .where(gte(analyticsRevenue.createdAt, monthStart));
+
+      const [revTotalRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
+        .from(analyticsRevenue);
+
+      let revToday = parseFloat(revTodayRes?.total || "0");
+      let revMonth = parseFloat(revMonthRes?.total || "0");
+      let revTotal = parseFloat(revTotalRes?.total || "0");
+
+      if (revTotal === 0) {
+        const [duesToday] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
+          .from(paymentDues)
+          .where(and(
+            or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
+            gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, todayStart)
+          ));
+        const [duesMonth] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
+          .from(paymentDues)
+          .where(and(
+            or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
+            gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, monthStart)
+          ));
+        const [duesTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
+          .from(paymentDues)
+          .where(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`));
+
+        revToday = parseFloat(duesToday?.total || "0");
+        revMonth = parseFloat(duesMonth?.total || "0");
+        revTotal = parseFloat(duesTotal?.total || "0");
+      }
+
+      // 7. Conversão (Visitantes Únicos vs Pagantes no período)
+      const [uInPeriodRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
+        .from(analyticsSessions)
+        .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
+
+      const [pInPeriodRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+        .from(analyticsRevenue)
+        .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
+
+      const uniqueVisitorsPeriod = uInPeriodRes?.count || 0;
+      const paymentsPeriod = pInPeriodRes?.count || 0;
+
+      const conversionRate = uniqueVisitorsPeriod > 0
+        ? parseFloat(((paymentsPeriod / uniqueVisitorsPeriod) * 100).toFixed(2))
+        : 0;
+
+      return {
+        visitorsToday: visitorsTodayCount,
+        uniqueVisitorsToday: uniqueVisitorsTodayCount,
+        onlineNow: onlineNowCount,
+        signupsToday: signupsTodayCount,
+        trialsToday: trialsTodayCount,
+        subscriptionsToday: subscriptionsTodayCount,
+        revenueToday: revToday,
+        revenueMonth: revMonth,
+        revenueTotal: revTotal,
+        conversionRate,
+      };
+    } catch (err) {
+      console.error("[getDashboardCards Error]:", err);
+      return {
+        visitorsToday: 0,
+        uniqueVisitorsToday: 0,
+        onlineNow: 0,
+        signupsToday: 0,
+        trialsToday: 0,
+        subscriptionsToday: 0,
+        revenueToday: 0,
+        revenueMonth: 0,
+        revenueTotal: 0,
+        conversionRate: 0,
+      };
     }
-
-    const [onlineNow] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-      .from(analyticsOnline)
-      .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 120_000)));
-
-    const [signupsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-      .from(analyticsEvents)
-      .where(and(
-        eq(analyticsEvents.eventName, "signup_completed"),
-        gte(analyticsEvents.createdAt, todayStart)
-      ));
-
-    const [trialsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-      .from(analyticsEvents)
-      .where(and(
-        eq(analyticsEvents.eventName, "trial_started"),
-        gte(analyticsEvents.createdAt, todayStart)
-      ));
-
-    const [subscriptionsToday] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-      .from(analyticsEvents)
-      .where(and(
-        eq(analyticsEvents.eventName, "subscription_created"),
-        gte(analyticsEvents.createdAt, todayStart)
-      ));
-
-    const [revenueToday] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
-      .from(analyticsRevenue)
-      .where(gte(analyticsRevenue.createdAt, todayStart));
-
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-
-    const [revenueMonth] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
-      .from(analyticsRevenue)
-      .where(gte(analyticsRevenue.createdAt, monthStart));
-
-    const [revenueTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
-      .from(analyticsRevenue);
-
-    let revToday = parseFloat(revenueToday.total);
-    let revMonth = parseFloat(revenueMonth.total);
-    let revTotal = parseFloat(revenueTotal.total);
-
-    if (revTotal === 0) {
-      const [duesToday] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
-        .from(paymentDues)
-        .where(and(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`), gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, todayStart)));
-      const [duesMonth] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
-        .from(paymentDues)
-        .where(and(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`), gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, monthStart)));
-      const [duesTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
-        .from(paymentDues)
-        .where(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`));
-      revToday = parseFloat(duesToday.total);
-      revMonth = parseFloat(duesMonth.total);
-      revTotal = parseFloat(duesTotal.total);
-    }
-
-    // Taxa de conversão: visitantes → pagantes (período selecionado)
-    const [uniqueVisitorsInPeriod] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
-      .from(analyticsSessions)
-      .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
-
-    const [paymentsInPeriod] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-      .from(analyticsRevenue)
-      .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
-
-    const conversionRate = uniqueVisitorsInPeriod.count > 0
-      ? ((paymentsInPeriod.count / uniqueVisitorsInPeriod.count) * 100).toFixed(2)
-      : "0.00";
-
-    return {
-      visitorsToday: visitorsToday.count,
-      uniqueVisitorsToday: uniqueVisitorsToday.count,
-      onlineNow: onlineNow.count,
-      signupsToday: signupsToday.count,
-      trialsToday: trialsToday.count,
-      subscriptionsToday: subscriptionsToday.count,
-      revenueToday: revToday,
-      revenueMonth: revMonth,
-      revenueTotal: revTotal,
-      conversionRate: parseFloat(conversionRate),
-    };
   }),
 
   // ── Visitantes por período ────────────────────────────────────────────────

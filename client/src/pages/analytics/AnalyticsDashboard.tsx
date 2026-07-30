@@ -134,7 +134,8 @@ function OverviewTab({ preset }: { preset: Preset }) {
   const visitors = trpc.analytics.query.getVisitorStats.useQuery({ preset }, { refetchInterval: 30_000 });
 
   const cardData = cards.data;
-  const formatCurrency = (v: number) => `R$ ${v.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+  const isLoading = cards.isLoading;
+  const formatCurrency = (v?: number) => `R$ ${(v || 0).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
   return (
     <div className="space-y-8">
@@ -142,14 +143,14 @@ function OverviewTab({ preset }: { preset: Preset }) {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         <KPICard
           title="Visitantes Hoje"
-          value={cardData?.visitorsToday ?? "—"}
+          value={isLoading ? "..." : (cardData?.visitorsToday ?? 0)}
           icon={<Users size={20} className="text-white" />}
           gradient={GRADIENT_PURPLE}
           delay={0}
         />
         <KPICard
           title="Online Agora"
-          value={cardData?.onlineNow ?? "—"}
+          value={isLoading ? "..." : (cardData?.onlineNow ?? 0)}
           subtitle="em tempo real"
           icon={<Activity size={20} className="text-white" />}
           gradient={GRADIENT_TEAL}
@@ -157,56 +158,56 @@ function OverviewTab({ preset }: { preset: Preset }) {
         />
         <KPICard
           title="Novos Cadastros"
-          value={cardData?.signupsToday ?? "—"}
+          value={isLoading ? "..." : (cardData?.signupsToday ?? 0)}
           icon={<Users size={20} className="text-white" />}
           gradient={GRADIENT_PURPLE}
           delay={0.1}
         />
         <KPICard
           title="Assinaturas"
-          value={cardData?.subscriptionsToday ?? "—"}
+          value={isLoading ? "..." : (cardData?.subscriptionsToday ?? 0)}
           icon={<CheckCircle size={20} className="text-white" />}
           gradient={GRADIENT_TEAL}
           delay={0.15}
         />
         <KPICard
           title="Conversão"
-          value={`${cardData?.conversionRate ?? 0}%`}
+          value={isLoading ? "..." : `${cardData?.conversionRate ?? 0}%`}
           icon={<Target size={20} className="text-white" />}
           gradient={GRADIENT_AMBER}
           delay={0.2}
         />
         <KPICard
           title="Receita Hoje"
-          value={formatCurrency(cardData?.revenueToday ?? 0)}
+          value={isLoading ? "..." : formatCurrency(cardData?.revenueToday)}
           icon={<DollarSign size={20} className="text-white" />}
           gradient={GRADIENT_ROSE}
           delay={0.25}
         />
         <KPICard
           title="Receita do Mês"
-          value={formatCurrency(cardData?.revenueMonth ?? 0)}
+          value={isLoading ? "..." : formatCurrency(cardData?.revenueMonth)}
           icon={<TrendingUp size={20} className="text-white" />}
           gradient={GRADIENT_ROSE}
           delay={0.3}
         />
         <KPICard
           title="Receita Total"
-          value={formatCurrency(cardData?.revenueTotal ?? 0)}
+          value={isLoading ? "..." : formatCurrency(cardData?.revenueTotal)}
           icon={<DollarSign size={20} className="text-white" />}
           gradient={GRADIENT_AMBER}
           delay={0.35}
         />
         <KPICard
           title="Testes Gratuitos"
-          value={cardData?.trialsToday ?? "—"}
+          value={isLoading ? "..." : (cardData?.trialsToday ?? 0)}
           icon={<Zap size={20} className="text-white" />}
           gradient={GRADIENT_PURPLE}
           delay={0.4}
         />
         <KPICard
           title="Visitantes Únicos"
-          value={cardData?.uniqueVisitorsToday ?? "—"}
+          value={isLoading ? "..." : (cardData?.uniqueVisitorsToday ?? 0)}
           icon={<Eye size={20} className="text-white" />}
           gradient={GRADIENT_TEAL}
           delay={0.45}
