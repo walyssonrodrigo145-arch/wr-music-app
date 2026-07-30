@@ -248,27 +248,44 @@ function setupScrollTracker() {
   }, { passive: true });
 }
 
-// ── Heatmap (cliques) ─────────────────────────────────────────────────────────
+// ── Heatmap (cliques, movimento, scroll) ──────────────────────────────────────
 const heatmapBuffer: Array<{
   xPercent: number;
   yPercent: number;
-  eventType: "click";
+  eventType: "click" | "move" | "scroll";
   viewportW: number;
   viewportH: number;
 }> = [];
 let heatmapTimer: ReturnType<typeof setTimeout> | null = null;
 
-function flushHeatmap() {
+export function flushHeatmap() {
   if (heatmapBuffer.length === 0) return;
   const points = heatmapBuffer.splice(0, 100);
+  const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
   callTrpc("analytics.event.heatmap", {
     sessionId,
-    pageUrl: window.location.href,
+    pageUrl: currentPath,
     points,
   }).catch(() => {});
 }
 
+function scheduleFlush() {
+  if (heatmapBuffer.length >= 20) {
+    if (heatmapTimer) clearTimeout(heatmapTimer);
+    heatmapTimer = null;
+    flushHeatmap();
+  } else if (!heatmapTimer) {
+    heatmapTimer = setTimeout(() => {
+      heatmapTimer = null;
+      flushHeatmap();
+    }, 3_000);
+  }
+}
+
 function setupHeatmapTracker() {
+  if (typeof window === "undefined") return;
+
+  // Track Cliques
   document.addEventListener("click", (e) => {
     const xPercent = parseFloat(((e.clientX / window.innerWidth) * 100).toFixed(2));
     const yPercent = parseFloat(
@@ -281,8 +298,48 @@ function setupHeatmapTracker() {
       viewportW: window.innerWidth,
       viewportH: window.innerHeight,
     });
-    if (heatmapTimer) clearTimeout(heatmapTimer);
-    heatmapTimer = setTimeout(flushHeatmap, 10_000);
+    scheduleFlush();
+  }, { passive: true });
+
+  // Track Movimento do Mouse (Throttled)
+  let lastMoveTime = 0;
+  document.addEventListener("mousemove", (e) => {
+    const now = Date.now();
+    if (now - lastMoveTime < 300) return; // a cada 300ms
+    lastMoveTime = now;
+
+    const xPercent = parseFloat(((e.clientX / window.innerWidth) * 100).toFixed(2));
+    const yPercent = parseFloat(
+      (((e.clientY + window.scrollY) / Math.max(document.documentElement.scrollHeight, 1)) * 100).toFixed(2)
+    );
+    heatmapBuffer.push({
+      xPercent,
+      yPercent,
+      eventType: "move",
+      viewportW: window.innerWidth,
+      viewportH: window.innerHeight,
+    });
+    scheduleFlush();
+  }, { passive: true });
+
+  // Track Scroll (Throttled)
+  let lastScrollTime = 0;
+  window.addEventListener("scroll", () => {
+    const now = Date.now();
+    if (now - lastScrollTime < 500) return; // a cada 500ms
+    lastScrollTime = now;
+
+    const scrollY = window.scrollY;
+    const docHeight = Math.max(document.documentElement.scrollHeight, 1);
+    const yPercent = parseFloat(((scrollY / docHeight) * 100).toFixed(2));
+    heatmapBuffer.push({
+      xPercent: 50, // scroll é focado no centro da viewport
+      yPercent,
+      eventType: "scroll",
+      viewportW: window.innerWidth,
+      viewportH: window.innerHeight,
+    });
+    scheduleFlush();
   }, { passive: true });
 }
 

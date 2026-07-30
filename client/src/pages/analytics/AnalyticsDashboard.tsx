@@ -854,27 +854,46 @@ function HeatmapTab() {
   const [eventType, setEventType] = useState<"click" | "move" | "scroll">("click");
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const { data } = trpc.analytics.query.getHeatmapData.useQuery({ pageUrl, eventType, limit: 2000 });
+  const { data: pagesData } = trpc.analytics.query.getHeatmapPages.useQuery();
+  const { data, isLoading } = trpc.analytics.query.getHeatmapData.useQuery(
+    { pageUrl, eventType, limit: 2000 },
+    { keepPreviousData: true }
+  );
+
+  // Auto-seleciona a primeira página registrada se a atual for "/" sem dados e houver páginas
+  useEffect(() => {
+    if (pagesData && pagesData.length > 0 && pageUrl === "/") {
+      const hasRoot = pagesData.some((p) => p.pageUrlNormalized === "/");
+      if (!hasRoot) {
+        setPageUrl(pagesData[0].pageUrlNormalized);
+      }
+    }
+  }, [pagesData]);
 
   useEffect(() => {
-    if (!canvasRef.current || !data || data.length === 0) return;
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!data || data.length === 0) return;
+
     const maxCount = Math.max(...data.map((d) => d.count), 1);
 
     data.forEach((point) => {
       const x = (parseFloat(String(point.xPercent)) / 100) * canvas.width;
       const y = (parseFloat(String(point.yPercent)) / 100) * canvas.height;
-      const intensity = point.count / maxCount;
-      const radius = 20 + intensity * 20;
+      const intensity = Math.min(Math.max(point.count / maxCount, 0.15), 1);
+      const radius = Math.min(25 + intensity * 35, 60);
 
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-      gradient.addColorStop(0, `rgba(139, 92, 246, ${intensity * 0.8})`);
-      gradient.addColorStop(0.5, `rgba(99, 102, 241, ${intensity * 0.3})`);
-      gradient.addColorStop(1, "rgba(99, 102, 241, 0)");
+      gradient.addColorStop(0, `rgba(239, 68, 68, ${Math.min(intensity * 0.95, 0.9)})`); // Red center
+      gradient.addColorStop(0.3, `rgba(245, 158, 11, ${intensity * 0.75})`); // Yellow
+      gradient.addColorStop(0.6, `rgba(16, 185, 129, ${intensity * 0.5})`); // Green
+      gradient.addColorStop(0.85, `rgba(59, 130, 246, ${intensity * 0.3})`); // Blue
+      gradient.addColorStop(1, "rgba(59, 130, 246, 0)"); // Transparent
 
       ctx.fillStyle = gradient;
       ctx.beginPath();
@@ -885,47 +904,100 @@ function HeatmapTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 items-center">
-        <input
-          className="px-3 py-2 rounded-xl border border-border bg-card text-sm min-w-[200px]"
-          placeholder="URL da página (ex: /)"
-          value={pageUrl}
-          onChange={(e) => setPageUrl(e.target.value)}
-        />
-        {(["click", "move", "scroll"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setEventType(t)}
-            className={`px-3 py-2 rounded-lg text-xs font-medium capitalize transition-all ${
-              eventType === t ? "bg-violet-600 text-white" : "bg-card border border-border text-muted-foreground"
-            }`}
-          >
-            {t === "click" ? "🖱️ Cliques" : t === "move" ? "↗️ Movimento" : "📜 Scroll"}
-          </button>
-        ))}
+      {/* Barra de Controles e Filtros */}
+      <div className="flex flex-wrap gap-3 items-center justify-between bg-card/60 backdrop-blur-md p-4 rounded-2xl border border-border">
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Seletor de Páginas Registradas */}
+          {pagesData && pagesData.length > 0 && (
+            <select
+              className="px-3 py-2 rounded-xl border border-border bg-card text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              value={pagesData.some((p) => p.pageUrlNormalized === pageUrl) ? pageUrl : ""}
+              onChange={(e) => e.target.value && setPageUrl(e.target.value)}
+            >
+              <option value="" disabled>Páginas gravadas...</option>
+              {pagesData.map((p) => (
+                <option key={p.pageUrlNormalized} value={p.pageUrlNormalized}>
+                  {p.pageUrlNormalized} ({p.totalPoints} interações)
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Campo manual de URL */}
+          <input
+            className="px-3 py-2 rounded-xl border border-border bg-card text-sm min-w-[220px] focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+            placeholder="Path da página (ex: /dashboard)"
+            value={pageUrl}
+            onChange={(e) => setPageUrl(e.target.value)}
+          />
+        </div>
+
+        {/* Tipos de Eventos */}
+        <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/50">
+          {(["click", "move", "scroll"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setEventType(t)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                eventType === t ? "bg-violet-600 text-white shadow-md shadow-violet-500/20" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t === "click" ? "🖱️ Cliques" : t === "move" ? "↗️ Movimento" : "📜 Scroll"}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* Visualizador de Heatmap Canvas */}
       <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6">
-        <SectionTitle><MousePointer size={18} className="text-violet-500" /> Mapa de Calor</SectionTitle>
-        <div className="mt-4 relative">
-          <div className="w-full bg-muted/30 rounded-xl" style={{ paddingBottom: "56.25%" }}>
+        <div className="flex items-center justify-between mb-4">
+          <SectionTitle><MousePointer size={18} className="text-violet-500" /> Mapa de Calor de Interação</SectionTitle>
+          
+          {/* Legenda Térmica */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-xl border border-border/40">
+            <span>Frio (Pouco)</span>
+            <div className="h-3 w-24 rounded-full bg-gradient-to-r from-blue-500 via-emerald-500 via-amber-500 to-rose-500 opacity-90" />
+            <span>Quente (Muito)</span>
+          </div>
+        </div>
+
+        <div className="relative rounded-xl border border-border/60 overflow-hidden bg-slate-950/40">
+          {/* Mock Layout Grid de fundo para contextualização visual */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none grid grid-cols-12 grid-rows-6 gap-2 p-4">
+            <div className="col-span-12 h-10 bg-slate-400 rounded-lg" />
+            <div className="col-span-3 row-span-5 bg-slate-400 rounded-lg" />
+            <div className="col-span-9 row-span-2 bg-slate-400 rounded-lg" />
+            <div className="col-span-4 row-span-3 bg-slate-400 rounded-lg" />
+            <div className="col-span-5 row-span-3 bg-slate-400 rounded-lg" />
+          </div>
+
+          <div className="w-full relative" style={{ paddingBottom: "56.25%" }}>
             <canvas
               ref={canvasRef}
               width={1200}
               height={675}
-              className="absolute inset-0 w-full h-full rounded-xl"
+              className="absolute inset-0 w-full h-full rounded-xl z-10"
             />
-            {(!data || data.length === 0) && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <EmptyState message={`Nenhum dado de ${eventType} para esta página ainda.`} />
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
+                <div className="animate-pulse text-sm text-violet-400">Carregando dados do heatmap...</div>
+              </div>
+            )}
+            {!isLoading && (!data || data.length === 0) && (
+              <div className="absolute inset-0 flex items-center justify-center z-20">
+                <EmptyState message={`Nenhum dado de ${eventType === "click" ? "clique" : eventType === "move" ? "movimento" : "scroll"} para a página "${pageUrl}".`} />
               </div>
             )}
           </div>
         </div>
+
         {data && data.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            {data.length} pontos de interação registrados na página "{pageUrl}"
-          </p>
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Página analisada: <strong className="text-foreground">{pageUrl}</strong></span>
+            <span className="bg-violet-500/10 text-violet-400 px-2.5 py-1 rounded-lg border border-violet-500/20 font-medium">
+              {data.length} regiões de interação ({eventType})
+            </span>
+          </div>
         )}
       </div>
     </div>

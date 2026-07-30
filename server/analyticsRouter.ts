@@ -56,6 +56,17 @@ const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
   return next({ ctx });
 });
 
+function extractPathname(urlStr: string): string {
+  if (!urlStr) return "/";
+  try {
+    if (urlStr.startsWith("http://") || urlStr.startsWith("https://")) {
+      const parsed = new URL(urlStr);
+      return parsed.pathname || "/";
+    }
+  } catch {}
+  return urlStr.split("?")[0].substring(0, 255) || "/";
+}
+
 // ── Schemas de validação ─────────────────────────────────────────────────────
 const EventSchema = z.object({
   sessionId: z.string().max(64),
@@ -323,7 +334,7 @@ const analyticsEventRouter = router({
         const db = await getDb();
         if (!db) return { ok: false };
 
-        const pageUrlNormalized = input.pageUrl.split("?")[0].substring(0, 255);
+        const pageUrlNormalized = extractPathname(input.pageUrl);
 
         await db.insert(analyticsHeatmap).values(
           input.points.map((p) => ({
@@ -924,13 +935,27 @@ const analyticsQueryRouter = router({
   }),
 
   // ── Heatmap ───────────────────────────────────────────────────────────────
+  getHeatmapPages: isSuperAdmin.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    return await db.select({
+      pageUrlNormalized: analyticsHeatmap.pageUrlNormalized,
+      totalPoints: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(analyticsHeatmap)
+      .groupBy(analyticsHeatmap.pageUrlNormalized)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(50);
+  }),
+
   getHeatmapData: isSuperAdmin
-    .input(z.object({ pageUrl: z.string(), eventType: z.enum(["click", "move", "scroll"]).default("click"), limit: z.number().default(1000) }))
+    .input(z.object({ pageUrl: z.string(), eventType: z.enum(["click", "move", "scroll"]).default("click"), limit: z.number().default(2000) }))
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-      const pageUrlNormalized = input.pageUrl.split("?")[0].substring(0, 255);
+      const targetPath = extractPathname(input.pageUrl);
 
       return await db.select({
         xPercent: analyticsHeatmap.xPercent,
@@ -939,7 +964,11 @@ const analyticsQueryRouter = router({
       })
         .from(analyticsHeatmap)
         .where(and(
-          eq(analyticsHeatmap.pageUrlNormalized, pageUrlNormalized),
+          or(
+            eq(analyticsHeatmap.pageUrlNormalized, targetPath),
+            eq(analyticsHeatmap.pageUrlNormalized, input.pageUrl),
+            eq(analyticsHeatmap.pageUrl, input.pageUrl)
+          ),
           eq(analyticsHeatmap.eventType, input.eventType),
         ))
         .groupBy(
