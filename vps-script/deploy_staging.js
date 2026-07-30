@@ -59,7 +59,8 @@ conn.on('ready', () => {
                 docker compose -f docker-compose.staging.yml down || true
                 docker compose -f docker-compose.staging.yml build
                 docker compose -f docker-compose.staging.yml up -d
-                echo "STAGING deploy complete! Accessible at http://179.197.76.174:3001"
+                docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile || docker compose restart caddy
+                echo "STAGING deploy complete! Accessible at https://staging.wrmusicpro.com.br"
               `;
               conn.exec(rebuildCmd, (err, rebuildStream) => {
                 if (rebuildStream) {
