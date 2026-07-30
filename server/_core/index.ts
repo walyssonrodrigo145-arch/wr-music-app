@@ -16,7 +16,7 @@ import { startAutomationJob } from "../automationJob";
 import { marketingWorker } from "../services/MarketingQueueWorker";
 import { analyticsQueue, recordAnalyticsRevenue, syncHistoricalRevenueToAnalytics } from "../services/AnalyticsQueue";
 import { generateAnalyticsInsights } from "../services/AnalyticsAIService";
-import { createRateLimiter } from "./rateLimiter";
+import { createRateLimiter, logSecurityEvent, detectAttackCategory } from "./rateLimiter";
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
@@ -612,6 +612,44 @@ async function startServer() {
     origin: process.env.NODE_ENV === "production" ? process.env.APP_URL : "*",
     credentials: true
   }));
+
+  // ─── Middleware de Auditoria de Acessos & Detecção de Ataques ─────────────
+  app.use((req, res, next) => {
+    const rawIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
+    const path = req.originalUrl || req.path || "/";
+    const method = req.method;
+
+    const attackCheck = detectAttackCategory(path);
+
+    if (attackCheck.isAttack) {
+      logSecurityEvent({
+        ip: rawIp,
+        route: path,
+        method: method,
+        statusCode: 403,
+        eventCategory: attackCheck.category,
+        severity: attackCheck.severity,
+        userAgent: req.headers["user-agent"] as string,
+        referer: req.headers["referer"] as string,
+        details: "Detecção proativa de robô/scanner de vulnerabilidades.",
+      });
+    } else {
+      const isApi = path.includes("/api/") || path.includes("/trpc");
+      if (isApi || Math.random() < 0.1) {
+        logSecurityEvent({
+          ip: rawIp,
+          route: path,
+          method: method,
+          statusCode: res.statusCode || 200,
+          eventCategory: "access",
+          severity: "info",
+          userAgent: req.headers["user-agent"] as string,
+          referer: req.headers["referer"] as string,
+        });
+      }
+    }
+    next();
+  });
 
   // ─── Rate Limiting para a API (Global) ────────────────────────────────────
   // Limite de 5000 req/min por usuário autenticado (identificado pelo cookie

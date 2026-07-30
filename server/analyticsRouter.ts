@@ -22,6 +22,7 @@ import {
   analyticsCampaigns,
   analyticsPages,
   analyticsAiInsights,
+  analyticsSecurityLogs,
   paymentDues,
 } from "../drizzle/schema";
 import {
@@ -938,6 +939,135 @@ const analyticsQueryRouter = router({
         .values({ utmSource: "manual", utmCampaign: input.utmCampaign, investment: String(input.investment) })
         .onConflictDoUpdate({ target: analyticsCampaigns.utmCampaign, set: { investment: String(input.investment) } });
       return { ok: true };
+    }),
+
+  // Auditoria de Segurança & Ataques - Visão Geral
+  getSecurityOverview: isSuperAdmin
+    .input(z.object({
+      dateRange: z.enum(["7d", "30d", "90d", "all"]).optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      let days = 30;
+      if (input?.dateRange === "7d") days = 7;
+      if (input?.dateRange === "90d") days = 90;
+      const startDate = input?.dateRange === "all" ? new Date(0) : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const [reqStats] = await db
+        .select({
+          totalRequests: count(analyticsSecurityLogs.id),
+          rateLimitBlocked: count(sql`CASE WHEN ${analyticsSecurityLogs.eventCategory} = 'blocked_rate_limit' THEN 1 END`),
+          attacksDetected: count(sql`CASE WHEN ${analyticsSecurityLogs.eventCategory} = 'bot_scanner' OR ${analyticsSecurityLogs.severity} IN ('high', 'critical') THEN 1 END`),
+        })
+        .from(analyticsSecurityLogs)
+        .where(gte(analyticsSecurityLogs.createdAt, startDate));
+
+      const [uniqueIpStats] = await db
+        .select({
+          uniqueIps: count(sql`DISTINCT ${analyticsSecurityLogs.ip}`),
+        })
+        .from(analyticsSecurityLogs)
+        .where(gte(analyticsSecurityLogs.createdAt, startDate));
+
+      const topAttackedRoutes = await db
+        .select({
+          route: analyticsSecurityLogs.route,
+          count: count(analyticsSecurityLogs.id),
+        })
+        .from(analyticsSecurityLogs)
+        .where(and(
+          gte(analyticsSecurityLogs.createdAt, startDate),
+          or(
+            eq(analyticsSecurityLogs.eventCategory, "bot_scanner"),
+            eq(analyticsSecurityLogs.eventCategory, "blocked_rate_limit"),
+            eq(analyticsSecurityLogs.severity, "high"),
+            eq(analyticsSecurityLogs.severity, "critical")
+          )
+        ))
+        .groupBy(analyticsSecurityLogs.route)
+        .orderBy(desc(count(analyticsSecurityLogs.id)))
+        .limit(5);
+
+      const topSuspiciousIps = await db
+        .select({
+          ip: analyticsSecurityLogs.ip,
+          count: count(analyticsSecurityLogs.id),
+          highRiskCount: count(sql`CASE WHEN ${analyticsSecurityLogs.severity} IN ('high', 'critical') OR ${analyticsSecurityLogs.eventCategory} = 'blocked_rate_limit' THEN 1 END`),
+        })
+        .from(analyticsSecurityLogs)
+        .where(gte(analyticsSecurityLogs.createdAt, startDate))
+        .groupBy(analyticsSecurityLogs.ip)
+        .orderBy(desc(count(analyticsSecurityLogs.id)))
+        .limit(5);
+
+      return {
+        totalRequests: Number(reqStats?.totalRequests || 0),
+        uniqueIps: Number(uniqueIpStats?.uniqueIps || 0),
+        rateLimitBlocked: Number(reqStats?.rateLimitBlocked || 0),
+        attacksDetected: Number(reqStats?.attacksDetected || 0),
+        topAttackedRoutes,
+        topSuspiciousIps,
+      };
+    }),
+
+  // Tabela Paginada de Logs de Segurança e Rotas
+  getSecurityLogs: isSuperAdmin
+    .input(z.object({
+      page: z.number().min(1).default(1),
+      limit: z.number().min(1).max(100).default(20),
+      search: z.string().optional(),
+      category: z.string().optional(),
+      severity: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const offset = (input.page - 1) * input.limit;
+      const conditions = [];
+
+      if (input.search && input.search.trim()) {
+        const term = `%${input.search.trim()}%`;
+        conditions.push(or(
+          sql`${analyticsSecurityLogs.ip} ILIKE ${term}`,
+          sql`${analyticsSecurityLogs.route} ILIKE ${term}`,
+          sql`${analyticsSecurityLogs.details} ILIKE ${term}`
+        ));
+      }
+
+      if (input.category && input.category !== "all") {
+        conditions.push(eq(analyticsSecurityLogs.eventCategory, input.category));
+      }
+
+      if (input.severity && input.severity !== "all") {
+        conditions.push(eq(analyticsSecurityLogs.severity, input.severity));
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [countResult] = await db
+        .select({ total: count(analyticsSecurityLogs.id) })
+        .from(analyticsSecurityLogs)
+        .where(whereClause);
+
+      const logs = await db
+        .select()
+        .from(analyticsSecurityLogs)
+        .where(whereClause)
+        .orderBy(desc(analyticsSecurityLogs.createdAt))
+        .limit(input.limit)
+        .offset(offset);
+
+      const total = Number(countResult?.total || 0);
+
+      return {
+        logs,
+        total,
+        page: input.page,
+        totalPages: Math.ceil(total / input.limit) || 1,
+      };
     }),
 });
 

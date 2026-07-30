@@ -1,25 +1,79 @@
 import { Request, Response, NextFunction } from "express";
 import { COOKIE_NAME } from "../../shared/const";
+import { getDb } from "../db";
+import { analyticsSecurityLogs } from "../../drizzle/schema";
 
 interface RateLimitEntry {
   count: number;
   resetTime: number;
 }
 
+export async function logSecurityEvent(data: {
+  ip: string;
+  route: string;
+  method: string;
+  statusCode?: number;
+  eventCategory: string;
+  severity?: string;
+  userAgent?: string;
+  referer?: string;
+  userId?: number;
+  organizationId?: number;
+  details?: string;
+}) {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.insert(analyticsSecurityLogs).values({
+      ip: (data.ip || "127.0.0.1").slice(0, 45),
+      route: data.route || "/",
+      method: (data.method || "GET").toUpperCase(),
+      statusCode: data.statusCode || 200,
+      eventCategory: data.eventCategory,
+      severity: data.severity || "info",
+      userAgent: data.userAgent ? data.userAgent.slice(0, 500) : null,
+      referer: data.referer ? data.referer.slice(0, 500) : null,
+      userId: data.userId || null,
+      organizationId: data.organizationId || null,
+      details: data.details || null,
+    });
+  } catch (err) {
+    console.error("[SecurityAudit] Erro ao gravar log de segurança:", err);
+  }
+}
+
+const SUSPICIOUS_PATTERNS = [
+  /\.env/i,
+  /wp-config/i,
+  /wp-admin/i,
+  /wp-login/i,
+  /phpmyadmin/i,
+  /actuator/i,
+  /\.git/i,
+  /select\s+.*from/i,
+  /union\s+select/i,
+  /<script/i,
+  /eval\(/i,
+  /etc\/passwd/i,
+  /cmd\.exe/i,
+  /powershell/i,
+  /cgi-bin/i,
+  /\.aws/i,
+  /dump/i
+];
+
+export function detectAttackCategory(path: string): { category: string; severity: string; isAttack: boolean } {
+  const p = path || "";
+  for (const pattern of SUSPICIOUS_PATTERNS) {
+    if (pattern.test(p)) {
+      return { category: "bot_scanner", severity: "high", isAttack: true };
+    }
+  }
+  return { category: "access", severity: "info", isAttack: false };
+}
+
 /**
  * Filtro de Rate Limiting (Anti-DDoS / Brute Force)
- *
- * CORREÇÃO CRÍTICA (v2):
- * - Agora usa COOKIE_NAME ("app_session_id") importado de shared/const — mesmo nome
- *   que o SDK do servidor seta ao autenticar o usuário.
- * - Antes, buscava "sessionId" / "connect.sid" que nunca existem neste sistema,
- *   fazendo com que TODOS os usuários fossem agrupados pelo IP — esgotando o
- *   contador em conjunto.
- *
- * @param windowMs   Janela de tempo em milissegundos
- * @param max        Máximo de requisições por janela por chave (usuário/IP)
- * @param message    Mensagem de erro amigável
- * @param skipRoutes Lista de sufixos de rota que ficam isentos do limite (ex.: automações internas)
  */
 export const createRateLimiter = (
   windowMs: number,
@@ -27,10 +81,8 @@ export const createRateLimiter = (
   message: string,
   skipRoutes: string[] = []
 ) => {
-  // Store isolado por closure — cada limiter tem o seu próprio
   const store: Record<string, RateLimitEntry> = {};
 
-  // Limpeza periódica para evitar vazamento de memória (a cada windowMs)
   setInterval(() => {
     const now = Date.now();
     for (const key in store) {
@@ -41,8 +93,6 @@ export const createRateLimiter = (
   }, windowMs).unref();
 
   return (req: Request, res: Response, next: NextFunction) => {
-    // Permite isentar rotas específicas (ex.: mutations de automações que
-    // já são protectedProcedures com autenticação própria)
     if (skipRoutes.length > 0) {
       const path = req.path || "";
       if (skipRoutes.some((r) => path.includes(r))) {
@@ -50,8 +100,6 @@ export const createRateLimiter = (
       }
     }
 
-    // ✅ FIX v2: usa COOKIE_NAME = "app_session_id" — o mesmo nome que o SDK
-    // seta ao autenticar. Antes era "sessionId"/"connect.sid" que nunca existem.
     const sessionId =
       (req.cookies && req.cookies[COOKIE_NAME]) ||
       req.headers["authorization"] ||
@@ -62,9 +110,7 @@ export const createRateLimiter = (
       req.ip ||
       "unknown";
 
-    // Chave composta: se há sessão usa ela (mais precisa), senão cai no IP
     const key = sessionId ? `sess_${sessionId}_${ip}` : `ip_${ip}`;
-
     const now = Date.now();
 
     if (!store[key] || now > store[key].resetTime) {
@@ -82,12 +128,23 @@ export const createRateLimiter = (
       res.setHeader("X-RateLimit-Remaining", "0");
       res.setHeader("X-RateLimit-Reset", String(Math.ceil(store[key].resetTime / 1000)));
 
-      // Formato compatível com tRPC + SuperJSON
+      logSecurityEvent({
+        ip,
+        route: req.originalUrl || req.path || "/",
+        method: req.method,
+        statusCode: 429,
+        eventCategory: "blocked_rate_limit",
+        severity: "medium",
+        userAgent: req.headers["user-agent"] as string,
+        referer: req.headers["referer"] as string,
+        details: `Bloqueado por exceder o limite de ${max} requisições em ${windowMs / 1000}s.`,
+      });
+
       return res.status(429).json({
         error: {
           json: {
             message: message,
-            code: -32005, // TRPC TOO_MANY_REQUESTS code
+            code: -32005,
             data: {
               code: "TOO_MANY_REQUESTS",
               httpStatus: 429,

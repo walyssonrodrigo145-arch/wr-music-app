@@ -1149,6 +1149,28 @@ export const analyticsAiInsights = pgTable("analytics_ai_insights", {
   index("analytics_ai_insights_type_idx").on(table.insightType),
 ]);
 
+// ── Security & Audit Logs ───────────────────────────────────────────────────
+export const analyticsSecurityLogs = pgTable("analytics_security_logs", {
+  id: serial("id").primaryKey(),
+  ip: varchar("ip", { length: 45 }).notNull(),
+  route: text("route").notNull(),
+  method: varchar("method", { length: 10 }).notNull(),
+  statusCode: integer("status_code").default(200).notNull(),
+  eventCategory: varchar("event_category", { length: 50 }).notNull(), // 'access' | 'blocked_rate_limit' | 'unauthorized' | 'bot_scanner' | 'brute_force'
+  severity: varchar("severity", { length: 20 }).default("info").notNull(), // 'info' | 'low' | 'medium' | 'high' | 'critical'
+  userAgent: text("user_agent"),
+  referer: text("referer"),
+  userId: integer("user_id"),
+  organizationId: integer("organization_id"),
+  details: text("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("analytics_security_logs_ip_idx").on(table.ip),
+  index("analytics_security_logs_created_at_idx").on(table.createdAt),
+  index("analytics_security_logs_category_idx").on(table.eventCategory),
+  index("analytics_security_logs_severity_idx").on(table.severity),
+]);
+
 // ── Types exportados ──────────────────────────────────────────────────────────
 export type AnalyticsVisitor = typeof analyticsVisitors.$inferSelect;
 export type InsertAnalyticsVisitor = typeof analyticsVisitors.$inferInsert;
@@ -1164,3 +1186,5 @@ export type AnalyticsRevenue = typeof analyticsRevenue.$inferSelect;
 export type InsertAnalyticsRevenue = typeof analyticsRevenue.$inferInsert;
 export type AnalyticsAiInsight = typeof analyticsAiInsights.$inferSelect;
 export type InsertAnalyticsAiInsight = typeof analyticsAiInsights.$inferInsert;
+export type AnalyticsSecurityLog = typeof analyticsSecurityLogs.$inferSelect;
+export type InsertAnalyticsSecurityLog = typeof analyticsSecurityLogs.$inferInsert;

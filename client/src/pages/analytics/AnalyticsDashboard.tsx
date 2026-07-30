@@ -18,7 +18,8 @@ import {
   Target, MousePointer, Eye, Clock, ArrowRight, Layers,
   BarChart2, Map, Cpu, Brain, FileText, Download, Search,
   AlertCircle, CheckCircle, Info, ArrowUp, ArrowDown,
-  RefreshCw, Filter, Calendar,
+  RefreshCw, Filter, Calendar, Shield, ShieldAlert, Lock,
+  AlertTriangle, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -34,7 +35,7 @@ const GRADIENT_AMBER = "from-amber-500 to-orange-500";
 type TabId =
   | "overview" | "realtime" | "visitors" | "sources" | "pages"
   | "heatmap" | "funnel" | "journey" | "checkout" | "revenue"
-  | "subscriptions" | "campaigns" | "map" | "devices" | "performance" | "ai";
+  | "subscriptions" | "campaigns" | "map" | "devices" | "performance" | "ai" | "security";
 
 type Preset = "today" | "yesterday" | "7d" | "30d" | "90d" | "month" | "year" | "custom";
 
@@ -1071,10 +1072,307 @@ function GeoTab({ preset }: { preset: Preset }) {
   );
 }
 
+// ── ABA DE SEGURANÇA E AUDITORIA DE ROTAS ──────────────────────────────────
+function SecurityTab({ preset }: { preset: Preset }) {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<string>("all");
+  const [severity, setSeverity] = useState<string>("all");
+
+  const overviewQuery = trpc.analytics.query.getSecurityOverview.useQuery({
+    dateRange: preset === "7d" || preset === "30d" || preset === "90d" ? preset : "30d",
+  });
+
+  const logsQuery = trpc.analytics.query.getSecurityLogs.useQuery({
+    page,
+    limit: 15,
+    search: search.trim() || undefined,
+    category: category !== "all" ? category : undefined,
+    severity: severity !== "all" ? severity : undefined,
+  });
+
+  const data = overviewQuery.data;
+  const logsData = logsQuery.data;
+
+  const categoryLabels: Record<string, { label: string; cls: string }> = {
+    access: { label: "Acesso Normal", cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+    blocked_rate_limit: { label: "Rate Limit Excedido", cls: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+    bot_scanner: { label: "Bot / Scanner Suspeito", cls: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
+    unauthorized: { label: "Não Autorizado", cls: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+    brute_force: { label: "Brute Force", cls: "bg-red-500/10 text-red-600 border-red-500/20" },
+  };
+
+  const severityBadges: Record<string, { label: string; cls: string }> = {
+    info: { label: "Baixo", cls: "bg-slate-500/10 text-slate-600" },
+    low: { label: "Baixo", cls: "bg-blue-500/10 text-blue-600" },
+    medium: { label: "Médio", cls: "bg-amber-500/10 text-amber-600" },
+    high: { label: "Alto", cls: "bg-rose-500/10 text-rose-600" },
+    critical: { label: "Crítico", cls: "bg-red-600 text-white font-bold" },
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Cards de Métricas de Segurança */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard
+          title="Total de Requisições"
+          value={data ? data.totalRequests.toLocaleString() : "..."}
+          subtitle="tráfego auditado"
+          icon={<Globe size={20} className="text-violet-400" />}
+          gradient="from-violet-600 to-indigo-600"
+          delay={0.05}
+        />
+        <KPICard
+          title="IPs Distintos"
+          value={data ? data.uniqueIps.toLocaleString() : "..."}
+          subtitle="endereços rastreados"
+          icon={<Users size={20} className="text-cyan-400" />}
+          gradient="from-cyan-500 to-blue-600"
+          delay={0.1}
+        />
+        <KPICard
+          title="Bloqueios Anti-DDoS / Rate Limit"
+          value={data ? data.rateLimitBlocked.toLocaleString() : "..."}
+          subtitle="estouros de limite de API"
+          icon={<Zap size={20} className="text-amber-400" />}
+          gradient="from-amber-500 to-orange-600"
+          delay={0.15}
+        />
+        <KPICard
+          title="Ataques & Scanners Detectados"
+          value={data ? data.attacksDetected.toLocaleString() : "..."}
+          subtitle="tentativas de varredura"
+          icon={<AlertCircle size={20} className="text-rose-400" />}
+          gradient="from-rose-500 to-pink-600"
+          delay={0.2}
+        />
+      </div>
+
+      {/* Top Rotas Visadas e Top IPs Suspeitos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                <AlertTriangle size={16} />
+              </div>
+              <h3 className="font-bold text-foreground text-sm">Top Rotas Visadas / Atacadas</h3>
+            </div>
+            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Período</span>
+          </div>
+          <div className="space-y-2">
+            {!data || data.topAttackedRoutes.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-6 text-center">Nenhum ataque ou rota suspeita registrada no período.</p>
+            ) : (
+              data.topAttackedRoutes.map((r, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/50 text-xs">
+                  <div className="truncate pr-2 font-mono text-[11px] text-foreground font-semibold">
+                    {r.route}
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 font-extrabold text-[11px] shrink-0">
+                    {r.count} tentativas
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                <Shield size={16} />
+              </div>
+              <h3 className="font-bold text-foreground text-sm">Top IPs com Mais Atividade / Bloqueios</h3>
+            </div>
+            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Período</span>
+          </div>
+          <div className="space-y-2">
+            {!data || data.topSuspiciousIps.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-6 text-center">Nenhum IP atípico registrado no período.</p>
+            ) : (
+              data.topSuspiciousIps.map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/50 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-foreground text-[11px]">{item.ip}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {item.highRiskCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 text-[10px] font-bold">
+                        {item.highRiskCount} risco
+                      </span>
+                    )}
+                    <span className="px-2.5 py-1 rounded-lg bg-violet-500/10 text-violet-600 font-extrabold text-[11px]">
+                      {item.count} reqs
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela Detalhada de Auditoria de Acessos */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+          <div>
+            <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+              <Lock size={16} className="text-violet-600" />
+              Auditoria de Acessos & Tentativas em Tempo Real
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Logs detalhados de IP, rotas requisitadas, status e alertas de segurança.</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full md:w-48">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+              <input
+                type="text"
+                placeholder="Buscar IP ou Rota..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="w-full pl-9 pr-3 py-1.5 bg-muted/50 border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+            </div>
+
+            <select
+              value={category}
+              onChange={(e) => { setCategory(e.target.value); setPage(1); }}
+              className="py-1.5 px-3 bg-muted/50 border border-border rounded-xl text-xs text-foreground font-medium cursor-pointer"
+            >
+              <option value="all">Todas as Categorias</option>
+              <option value="access">Acesso Normal</option>
+              <option value="blocked_rate_limit">Rate Limit Excedido</option>
+              <option value="bot_scanner">Bot / Scanner</option>
+            </select>
+
+            <select
+              value={severity}
+              onChange={(e) => { setSeverity(e.target.value); setPage(1); }}
+              className="py-1.5 px-3 bg-muted/50 border border-border rounded-xl text-xs text-foreground font-medium cursor-pointer"
+            >
+              <option value="all">Todas Severidades</option>
+              <option value="info">Baixo</option>
+              <option value="medium">Médio</option>
+              <option value="high">Alto</option>
+              <option value="critical">Crítico</option>
+            </select>
+
+            <button
+              onClick={() => logsQuery.refetch()}
+              className="p-2 rounded-xl bg-muted/50 border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+              title="Atualizar Logs"
+            >
+              <RefreshCw size={14} className={logsQuery.isFetching ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
+
+        {/* Tabela de Logs */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-border text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                <th className="py-3 px-3">Data / Hora</th>
+                <th className="py-3 px-3">IP do Cliente</th>
+                <th className="py-3 px-3">Método & Rota</th>
+                <th className="py-3 px-3">Categoria</th>
+                <th className="py-3 px-3">Risco</th>
+                <th className="py-3 px-3">User Agent</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40 text-xs font-medium">
+              {logsQuery.isLoading ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    Carregando logs de auditoria...
+                  </td>
+                </tr>
+              ) : !logsData || logsData.logs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    Nenhum log encontrado para os filtros selecionados.
+                  </td>
+                </tr>
+              ) : (
+                logsData.logs.map((log) => {
+                  const catInfo = categoryLabels[log.eventCategory] || { label: log.eventCategory, cls: "bg-slate-500/10 text-slate-600 border-slate-500/20" };
+                  const sevInfo = severityBadges[log.severity] || { label: log.severity, cls: "bg-slate-500/10 text-slate-600" };
+                  return (
+                    <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="py-3 px-3 text-muted-foreground whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleString("pt-BR")}
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold text-foreground">
+                        {log.ip}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                            {log.method}
+                          </span>
+                          <span className="font-mono text-[11px] text-foreground truncate max-w-[280px]" title={log.route}>
+                            {log.route}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-lg border ${catInfo.cls}`}>
+                          {catInfo.label}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-lg ${sevInfo.cls}`}>
+                          {sevInfo.label}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-muted-foreground truncate max-w-[200px]" title={log.userAgent || ""}>
+                        {log.userAgent || "—"}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Paginação */}
+        {logsData && logsData.totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4 border-t border-border text-xs">
+            <span className="text-muted-foreground">
+              Página {logsData.page} de {logsData.totalPages} ({logsData.total} logs no total)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="p-1.5 rounded-lg border border-border bg-card disabled:opacity-40 hover:bg-muted transition-all"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                disabled={page >= logsData.totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="p-1.5 rounded-lg border border-border bg-card disabled:opacity-40 hover:bg-muted transition-all"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── TABS config ───────────────────────────────────────────────────────────────
 const TABS: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: "overview", label: "Visão Geral", icon: <BarChart2 size={16} /> },
   { id: "realtime", label: "Tempo Real", icon: <Activity size={16} /> },
+  { id: "security", label: "Segurança & Ataques", icon: <Shield size={16} /> },
   { id: "visitors", label: "Visitantes", icon: <Users size={16} /> },
   { id: "sources", label: "Origens", icon: <Globe size={16} /> },
   { id: "pages", label: "Páginas", icon: <FileText size={16} /> },
@@ -1094,13 +1392,14 @@ export default function AnalyticsDashboard() {
   const [preset, setPreset] = useState<Preset>("30d");
   const { user } = useAuth();
 
-  const tabsWithFilter: TabId[] = ["overview", "visitors", "sources", "pages", "funnel", "checkout", "revenue", "campaigns", "map", "devices"];
+  const tabsWithFilter: TabId[] = ["overview", "visitors", "sources", "pages", "funnel", "checkout", "revenue", "campaigns", "map", "devices", "security"];
   const showFilter = tabsWithFilter.includes(activeTab);
 
   const renderTab = () => {
     switch (activeTab) {
       case "overview": return <OverviewTab preset={preset} />;
       case "realtime": return <RealtimeTab />;
+      case "security": return <SecurityTab preset={preset} />;
       case "visitors": return <OverviewTab preset={preset} />;  // shares visitor graphs
       case "sources": return <SourcesTab preset={preset} />;
       case "pages": return <PagesTab preset={preset} />;

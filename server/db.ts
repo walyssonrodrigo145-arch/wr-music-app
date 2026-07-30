@@ -274,6 +274,27 @@ async function ensureSchemaConsistency(db: any) {
       )
     `, "create billing_audit_logs table");
 
+    // analytics_security_logs table
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "analytics_security_logs" (
+        "id" serial PRIMARY KEY,
+        "ip" varchar(45) NOT NULL,
+        "route" text NOT NULL,
+        "method" varchar(10) NOT NULL,
+        "status_code" integer DEFAULT 200 NOT NULL,
+        "event_category" varchar(50) NOT NULL,
+        "severity" varchar(20) DEFAULT 'info' NOT NULL,
+        "user_agent" text,
+        "referer" text,
+        "user_id" integer,
+        "organization_id" integer,
+        "details" text,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create analytics_security_logs table");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_analytics_security_logs_ip" ON "analytics_security_logs" ("ip")`, "idx_analytics_security_logs_ip");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_analytics_security_logs_created" ON "analytics_security_logs" ("created_at")`, "idx_analytics_security_logs_created");
+
     // payment_dues.asaasId: usado no processamento de webhooks Asaas (lookup muito frequente)
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_payment_dues_asaas_id" ON "payment_dues" ("asaasId") WHERE "asaasId" IS NOT NULL`, "idx_payment_dues_asaas_id");
 
