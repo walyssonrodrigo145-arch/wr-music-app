@@ -122,5 +122,105 @@ export const marketingRouter = router({
       const logs = await db.select().from(marketingLogs).where(eq(marketingLogs.campaignId, campaign.id)).orderBy(desc(marketingLogs.createdAt)).limit(100);
 
       return { campaign, contacts, logs };
+    }),
+
+  deleteCampaign: protectedProcedure
+    .input(z.object({ campaignId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      ensureSuperAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      await db.delete(marketingCampaigns)
+        .where(
+          and(
+            eq(marketingCampaigns.id, input.campaignId),
+            eq(marketingCampaigns.organizationId, ctx.user.organizationId!)
+          )
+        );
+
+      return { ok: true };
+    }),
+
+  reactivateCampaign: protectedProcedure
+    .input(z.object({ campaignId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      ensureSuperAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [campaign] = await db.select()
+        .from(marketingCampaigns)
+        .where(and(
+          eq(marketingCampaigns.id, input.campaignId),
+          eq(marketingCampaigns.organizationId, ctx.user.organizationId!)
+        ));
+
+      if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "Campanha não encontrada." });
+
+      // Resetar status dos contatos da campanha para 'pending'
+      await db.update(marketingContacts)
+        .set({
+          status: "pending",
+          sentAt: null,
+          failedAt: null,
+          errorMessage: null,
+        })
+        .where(eq(marketingContacts.campaignId, input.campaignId));
+
+      // Limpar jobs de envio pendentes antigos
+      await db.delete(marketingJobs)
+        .where(eq(marketingJobs.campaignId, input.campaignId));
+
+      // Reiniciar status e contadores da campanha
+      const [updated] = await db.update(marketingCampaigns)
+        .set({
+          status: "running",
+          sentCount: 0,
+          failedCount: 0,
+          consecutiveErrors: 0,
+          startedAt: new Date(),
+          completedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(marketingCampaigns.id, input.campaignId))
+        .returning();
+
+      return updated;
+    }),
+
+  editCampaign: protectedProcedure
+    .input(z.object({
+      campaignId: z.number(),
+      name: z.string(),
+      description: z.string().optional(),
+      mediaUrl: z.string().optional(),
+      minDelay: z.number().default(10),
+      batchSize: z.number().default(20),
+      batchDelay: z.number().default(600),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      ensureSuperAdmin(ctx);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [updated] = await db.update(marketingCampaigns)
+        .set({
+          name: input.name,
+          description: input.description,
+          mediaUrl: input.mediaUrl,
+          minDelay: input.minDelay,
+          maxDelay: input.minDelay,
+          batchSize: input.batchSize,
+          batchDelay: input.batchDelay,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(marketingCampaigns.id, input.campaignId),
+          eq(marketingCampaigns.organizationId, ctx.user.organizationId!)
+        ))
+        .returning();
+
+      return updated;
     })
 });

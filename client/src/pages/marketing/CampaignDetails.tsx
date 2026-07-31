@@ -29,10 +29,38 @@ export default function CampaignDetails() {
     onError: (err) => toast.error(err.message)
   });
 
+  const reactivate = trpc.marketing.reactivateCampaign.useMutation({
+    onSuccess: () => {
+      toast.success("Campanha reativada e envios reiniciados!");
+      refetch();
+    },
+    onError: (err) => toast.error(`Erro ao reativar: ${err.message}`)
+  });
+
+  const deleteCampaign = trpc.marketing.deleteCampaign.useMutation({
+    onSuccess: () => {
+      toast.success("Campanha excluída!");
+      setLocation('/marketing');
+    },
+    onError: (err) => toast.error(`Erro ao excluir: ${err.message}`)
+  });
+
   if (isLoading) return <div className="p-8">Carregando detalhes...</div>;
   if (!data?.campaign) return <div className="p-8">Campanha não encontrada.</div>;
 
   const { campaign, contacts, logs } = data;
+
+  const handleReactivate = () => {
+    if (confirm(`Deseja reativar a campanha "${campaign.name}"? Todos os contatos serão marcados para reenvio e as estatísticas serão zeradas.`)) {
+      reactivate.mutate({ campaignId: campaign.id });
+    }
+  };
+
+  const handleDelete = () => {
+    if (confirm(`Tem certeza que deseja excluir a campanha "${campaign.name}"? Esta ação não pode ser desfeita.`)) {
+      deleteCampaign.mutate({ campaignId: campaign.id });
+    }
+  };
 
   const progress = campaign.totalContacts > 0 
     ? Math.round((campaign.sentCount / campaign.totalContacts) * 100) 
@@ -73,7 +101,7 @@ export default function CampaignDetails() {
           </div>
         </div>
         
-        <div className="space-x-2">
+        <div className="flex items-center gap-2">
           {campaign.status === 'paused' || campaign.status === 'draft' || campaign.status === 'error' ? (
             <Button onClick={() => updateStatus.mutate({ campaignId: campaign.id, status: 'running' })} className="gap-2">
               <Play className="w-4 h-4" /> {campaign.status === 'draft' ? "Iniciar Envio" : "Retomar Envio"}
@@ -83,6 +111,14 @@ export default function CampaignDetails() {
               <Pause className="w-4 h-4 mr-2" /> Pausar
             </Button>
           ) : null}
+
+          <Button variant="outline" onClick={handleReactivate} title="Reativar e Reenviar Campanha" className="gap-2 border-blue-500 text-blue-500 hover:bg-blue-50">
+            Reativar & Reenviar
+          </Button>
+
+          <Button variant="destructive" onClick={handleDelete} title="Excluir Campanha">
+            Excluir
+          </Button>
         </div>
       </div>
 
