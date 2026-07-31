@@ -283,42 +283,50 @@ export default function MarketingDashboard() {
         </CardContent>
       </Card>
 
-      {/* Modal de Edição de Campanha */}
+      {/* Modal de Edição de Campanha - Refinado pelo Layout Especialista */}
       <Dialog open={!!editingCampaign} onOpenChange={(open) => !open && setEditingCampaign(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Campanha</DialogTitle>
+        <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col p-6 overflow-hidden rounded-2xl shadow-2xl border border-border/60 backdrop-blur-md">
+          <DialogHeader className="pb-3 border-b">
+            <DialogTitle className="text-xl font-bold font-outfit flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              Editar Campanha
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Nome da Campanha</Label>
-              <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Nome da campanha" />
+          <div className="space-y-4 py-3 overflow-y-auto pr-2 flex-1 max-h-[60vh] custom-scrollbar">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nome da Campanha</Label>
+                <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Ex: Lançamento MusicPro" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Intervalo (seg)</Label>
+                <Input type="number" min="1" value={editMinDelay} onChange={e => setEditMinDelay(Number(e.target.value))} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Intervalo entre mensagens (segundos)</Label>
-              <Input type="number" min="1" value={editMinDelay} onChange={e => setEditMinDelay(Number(e.target.value))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Texto da Mensagem</Label>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Texto da Mensagem</Label>
               <Textarea 
                 value={editMessageText} 
                 onChange={e => setEditMessageText(e.target.value)} 
-                placeholder="Texto da mensagem (pode usar {{nome}})" 
-                className="min-h-[120px]"
+                placeholder="Digite a mensagem do WhatsApp (use {{nome}} para personalizar)" 
+                className="min-h-[140px] max-h-[220px] text-sm font-sans leading-relaxed resize-y border-border/80 focus:border-primary"
               />
             </div>
-            <div className="space-y-2">
-              <Label>URL da Imagem / Mídia (Opcional)</Label>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">URL da Imagem / Mídia (Opcional)</Label>
               <Input value={editMediaUrl} onChange={e => setEditMediaUrl(e.target.value)} placeholder="https://exemplo.com/imagem.png" />
             </div>
-            <div className="space-y-2">
-              <Label>Descrição (Interna)</Label>
-              <Input value={editDescription} onChange={e => setEditDescription(e.target.value)} placeholder="Descrição da campanha" />
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Descrição Interna</Label>
+              <Input value={editDescription} onChange={e => setEditDescription(e.target.value)} placeholder="Notas ou observações da campanha..." />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingCampaign(null)}>Cancelar</Button>
-            <Button onClick={handleSaveEdit} disabled={editCampaign.isPending}>
+          <DialogFooter className="pt-3 border-t flex flex-row items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditingCampaign(null)} className="rounded-xl">Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={editCampaign.isPending} className="rounded-xl gap-2 font-semibold">
               {editCampaign.isPending ? "Salvando..." : "Salvar Alterações"}
             </Button>
           </DialogFooter>
