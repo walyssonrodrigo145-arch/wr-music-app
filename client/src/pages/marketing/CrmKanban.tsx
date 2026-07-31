@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,27 +9,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { 
   Users, Plus, MessageCircle, Calendar, CheckCircle2, XCircle, 
-  ArrowRight, Trash2, UserPlus, DollarSign, Music, Search, TrendingUp, Sparkles, Filter 
+  ArrowRight, Trash2, UserPlus, DollarSign, Music, Search, TrendingUp, Sparkles, Filter, Inbox
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type StageKey = "novo" | "contato" | "aula_agendada" | "aula_realizada" | "matriculado" | "perdido";
 
 interface StageConfig {
   key: StageKey;
   label: string;
-  badgeBg: string;
+  badgeCls: string;
+  dotCls: string;
   icon: any;
-  color: string;
+  colorCls: string;
 }
 
 const STAGES: StageConfig[] = [
-  { key: "novo", label: "Novos Leads", badgeBg: "bg-blue-500/10 text-blue-600 border-blue-500/20", icon: Users, color: "text-blue-500" },
-  { key: "contato", label: "Em Contato", badgeBg: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20", icon: MessageCircle, color: "text-indigo-500" },
-  { key: "aula_agendada", label: "Aula Agendada", badgeBg: "bg-amber-500/10 text-amber-600 border-amber-500/20", icon: Calendar, color: "text-amber-500" },
-  { key: "aula_realizada", label: "Aula Realizada", badgeBg: "bg-purple-500/10 text-purple-600 border-purple-500/20", icon: Music, color: "text-purple-500" },
-  { key: "matriculado", label: "Matriculado 🎉", badgeBg: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: CheckCircle2, color: "text-emerald-500" },
-  { key: "perdido", label: "Perdido", badgeBg: "bg-rose-500/10 text-rose-600 border-rose-500/20", icon: XCircle, color: "text-rose-500" },
+  { key: "novo", label: "Novos Leads", badgeCls: "bg-blue-500/10 text-blue-600 border-blue-500/20", dotCls: "bg-blue-500", icon: Users, colorCls: "text-blue-500" },
+  { key: "contato", label: "Em Contato", badgeCls: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20", dotCls: "bg-indigo-500", icon: MessageCircle, colorCls: "text-indigo-500" },
+  { key: "aula_agendada", label: "Aula Agendada", badgeCls: "bg-amber-500/10 text-amber-600 border-amber-500/20", dotCls: "bg-amber-500", icon: Calendar, colorCls: "text-amber-500" },
+  { key: "aula_realizada", label: "Aula Realizada", badgeCls: "bg-purple-500/10 text-purple-600 border-purple-500/20", dotCls: "bg-purple-500", icon: Music, colorCls: "text-purple-500" },
+  { key: "matriculado", label: "Matriculado", badgeCls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", dotCls: "bg-emerald-500", icon: CheckCircle2, colorCls: "text-emerald-500" },
+  { key: "perdido", label: "Perdido", badgeCls: "bg-rose-500/10 text-rose-600 border-rose-500/20", dotCls: "bg-rose-500", icon: XCircle, colorCls: "text-rose-500" },
 ];
 
 export default function CrmKanban() {
@@ -111,103 +114,125 @@ export default function CrmKanban() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Metrics */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold font-outfit tracking-tight flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-primary" />
-            Funil Comercial (CRM)
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">Acompanhe a jornada de novos interessados desde o WhatsApp até a matrícula.</p>
+      {/* Action Controls Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-card/40 backdrop-blur-xl p-4 rounded-2xl border border-border/60 shadow-lg shadow-primary/5">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input 
+            placeholder="Buscar por nome, telefone ou instrumento..." 
+            value={search} 
+            onChange={e => setSearch(e.target.value)}
+            className="pl-10 h-10 text-xs rounded-xl bg-background/80 border-border/60"
+          />
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input 
-              placeholder="Buscar lead ou instrumento..." 
-              value={search} 
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9 h-10 text-xs rounded-xl"
-            />
-          </div>
-          <Button onClick={() => setNewLeadOpen(true)} className="h-10 rounded-xl px-4 gap-2 font-bold shadow-lg shadow-primary/20 shrink-0">
-            <Plus size={16} /> Novo Lead
+
+        <div className="flex items-center gap-3 justify-end">
+          <Button 
+            onClick={() => setNewLeadOpen(true)} 
+            className="h-10 rounded-xl px-5 gap-2 font-bold bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-500 text-white shadow-lg shadow-primary/25 transition-all active:scale-95 shrink-0"
+          >
+            <Plus size={18} /> Novo Lead
           </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards (Visual WOW & Glassmorphism) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 rounded-2xl border border-border/60 bg-gradient-to-br from-blue-500/5 to-background">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total no Funil</p>
-          <p className="text-2xl font-black text-foreground mt-1">{leads.length} <span className="text-xs font-normal text-muted-foreground">leads</span></p>
-        </Card>
-        <Card className="p-4 rounded-2xl border border-border/60 bg-gradient-to-br from-amber-500/5 to-background">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Aulas Experimentais</p>
-          <p className="text-2xl font-black text-amber-600 mt-1">{totalAgendados}</p>
-        </Card>
-        <Card className="p-4 rounded-2xl border border-border/60 bg-gradient-to-br from-emerald-500/5 to-background">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Matriculados</p>
-          <p className="text-2xl font-black text-emerald-600 mt-1">{totalMatriculados} <span className="text-xs text-muted-foreground font-semibold">({conversionRate}%)</span></p>
-        </Card>
-        <Card className="p-4 rounded-2xl border border-border/60 bg-gradient-to-br from-purple-500/5 to-background">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Valor em Potencial</p>
-          <p className="text-2xl font-black text-foreground mt-1">R$ {totalValue.toFixed(2)}</p>
-        </Card>
+        {[
+          { label: "Total no Funil", value: `${leads.length}`, sub: "interessados", icon: Users, color: "text-blue-500", bg: "from-blue-500/10 via-blue-500/5 to-transparent", border: "border-blue-500/20" },
+          { label: "Aulas Experimentais", value: `${totalAgendados}`, sub: "agendadas/feitas", icon: Calendar, color: "text-amber-500", bg: "from-amber-500/10 via-amber-500/5 to-transparent", border: "border-amber-500/20" },
+          { label: "Matriculados", value: `${totalMatriculados}`, sub: `${conversionRate}% conversão`, icon: CheckCircle2, color: "text-emerald-500", bg: "from-emerald-500/10 via-emerald-500/5 to-transparent", border: "border-emerald-500/20" },
+          { label: "Valor em Potencial", value: `R$ ${totalValue.toFixed(2)}`, sub: "previsão mensal", icon: DollarSign, color: "text-purple-500", bg: "from-purple-500/10 via-purple-500/5 to-transparent", border: "border-purple-500/20" },
+        ].map((kpi, idx) => (
+          <motion.div
+            key={idx}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: idx * 0.05 }}
+            className={cn(
+              "relative p-4 lg:p-5 rounded-2xl bg-gradient-to-br border shadow-xl shadow-primary/5 backdrop-blur-xl overflow-hidden hover:-translate-y-1 transition-all duration-300",
+              kpi.bg, kpi.border
+            )}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{kpi.label}</span>
+              <div className={cn("w-8 h-8 rounded-xl bg-card flex items-center justify-center shadow-sm", kpi.color)}>
+                <kpi.icon size={16} />
+              </div>
+            </div>
+            <p className="text-2xl lg:text-3xl font-black font-outfit text-foreground leading-tight">{kpi.value}</p>
+            <p className="text-[10px] font-semibold text-muted-foreground/80 mt-1">{kpi.sub}</p>
+          </motion.div>
+        ))}
       </div>
 
       {/* KANBAN BOARD */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 overflow-x-auto pb-4">
-        {STAGES.map((stg) => {
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-start overflow-x-auto pb-6 custom-scrollbar">
+        {STAGES.map((stg, stgIdx) => {
           const stageLeads = filteredLeads.filter((l: any) => l.stage === stg.key);
           return (
-            <div key={stg.key} className="flex flex-col bg-card/60 backdrop-blur-md rounded-2xl border border-border/60 p-3 min-h-[500px]">
+            <motion.div 
+              key={stg.key}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: stgIdx * 0.06 }}
+              className="flex flex-col bg-card/40 backdrop-blur-xl rounded-2xl border border-border/60 p-3.5 min-h-[520px] shadow-xl shadow-primary/5"
+            >
               {/* Header da Coluna */}
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-border/50">
-                <div className="flex items-center gap-2">
-                  <stg.icon className={`w-4 h-4 ${stg.color}`} />
-                  <h3 className="text-xs font-bold font-outfit uppercase tracking-wider text-foreground">{stg.label}</h3>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn("w-2 h-2 rounded-full shrink-0 animate-pulse", stg.dotCls)} />
+                  <h3 className="text-xs font-bold font-outfit uppercase tracking-wider text-foreground truncate">{stg.label}</h3>
                 </div>
-                <Badge variant="secondary" className="text-[10px] font-black">{stageLeads.length}</Badge>
+                <Badge variant="secondary" className="text-[10px] font-black shrink-0 px-2 py-0.5">{stageLeads.length}</Badge>
               </div>
 
               {/* Lista de Cards */}
               <div className="space-y-3 flex-1">
                 {stageLeads.length === 0 ? (
-                  <div className="h-32 flex items-center justify-center text-center p-3 text-[11px] text-muted-foreground italic border border-dashed border-border/40 rounded-xl">
-                    Nenhum lead nesta etapa
+                  <div className="h-40 flex flex-col items-center justify-center text-center p-4 text-[11px] text-muted-foreground/60 italic border-2 border-dashed border-border/30 rounded-2xl bg-muted/10">
+                    <Inbox className="w-6 h-6 mb-2 text-muted-foreground/40" />
+                    <span>Nenhum lead nesta etapa</span>
                   </div>
                 ) : (
                   stageLeads.map((lead: any) => (
-                    <Card key={lead.id} className="p-3 rounded-xl border border-border/80 hover:border-primary/50 transition-all shadow-sm group bg-background/80">
+                    <motion.div
+                      key={lead.id}
+                      layout
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="group bg-card hover:bg-card/90 border border-border/60 hover:border-primary/40 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-all duration-300"
+                    >
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0">
                           <h4 className="text-xs font-bold text-foreground truncate">{lead.name}</h4>
-                          {lead.instrument && (
-                            <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1 mt-0.5">
-                              <Music size={10} className="text-primary" /> {lead.instrument}
+                          {lead.instrument ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary mt-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
+                              <Music size={10} /> {lead.instrument}
                             </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">Origem: {lead.source}</span>
                           )}
                         </div>
-                        <button onClick={() => deleteLeadMutation.mutate({ leadId: lead.id })} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-500 transition-all">
+                        <button onClick={() => deleteLeadMutation.mutate({ leadId: lead.id })} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-500 transition-all p-1">
                           <Trash2 size={12} />
                         </button>
                       </div>
 
                       {lead.notes && (
-                        <p className="text-[10px] text-muted-foreground line-clamp-2 mt-2 bg-muted/30 p-1.5 rounded-lg border border-border/30">
+                        <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2 mt-2 bg-muted/40 p-2 rounded-lg border border-border/30">
                           {lead.notes}
                         </p>
                       )}
 
-                      <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-primary">R$ {Number(lead.value).toFixed(0)}/mês</span>
+                      <div className="mt-3 pt-2.5 border-t border-border/40 flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-bold text-foreground">R$ {Number(lead.value).toFixed(0)}/mês</span>
                         <div className="flex items-center gap-1">
                           {lead.phone && (
                             <Button 
                               size="icon" 
                               variant="ghost" 
-                              className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                              className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10 rounded-lg"
                               onClick={() => window.open(`https://wa.me/55${lead.phone.replace(/\D/g, '')}?text=Olá ${lead.name}! Tudo bem? Gostaria de saber se podemos agendar sua aula experimental no MusicPro.`, '_blank')}
                               title="Abrir WhatsApp"
                             >
@@ -219,14 +244,14 @@ export default function CrmKanban() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-7 w-7 text-blue-600 hover:bg-blue-500/10"
+                              className="h-7 w-7 text-blue-600 hover:bg-blue-500/10 rounded-lg"
                               onClick={() => {
                                 const nextIndex = STAGES.findIndex(s => s.key === stg.key) + 1;
                                 if (nextIndex < STAGES.length) {
                                   updateStageMutation.mutate({ leadId: lead.id, stage: STAGES[nextIndex].key });
                                 }
                               }}
-                              title="Avançar Estágio"
+                              title="Avançar para próximo estágio"
                             >
                               <ArrowRight size={14} />
                             </Button>
@@ -236,7 +261,7 @@ export default function CrmKanban() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-7 w-7 text-purple-600 hover:bg-purple-500/10"
+                              className="h-7 w-7 text-purple-600 hover:bg-purple-500/10 rounded-lg"
                               onClick={() => {
                                 if (confirm(`Deseja matricular ${lead.name} oficialmente como aluno?`)) {
                                   convertToStudentMutation.mutate({ leadId: lead.id, monthlyFee: Number(lead.value) });
@@ -249,51 +274,51 @@ export default function CrmKanban() {
                           )}
                         </div>
                       </div>
-                    </Card>
+                    </motion.div>
                   ))
                 )}
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
 
       {/* Modal Novo Lead */}
       <Dialog open={newLeadOpen} onOpenChange={setNewLeadOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md rounded-2xl border border-border/80 shadow-2xl">
+          <DialogHeader className="pb-3 border-b">
             <DialogTitle className="text-lg font-bold font-outfit flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-primary" />
               Novo Lead (Interessado)
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Nome Completo</Label>
+          <div className="space-y-3 py-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nome Completo</Label>
               <Input placeholder="Ex: João da Silva" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Telefone / WhatsApp</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">WhatsApp / Celular</Label>
                 <Input placeholder="11999998888" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Instrumento</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Instrumento</Label>
                 <Input placeholder="Ex: Violão, Canto" value={form.instrument} onChange={e => setForm(f => ({ ...f, instrument: e.target.value }))} />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Valor Estimado (R$/mês)</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Valor Estimado (R$/mês)</Label>
                 <Input type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Origem</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Origem</Label>
                 <select 
-                  className="w-full h-9 text-xs rounded-lg border border-border px-3 bg-background"
+                  className="w-full h-9 text-xs rounded-lg border border-border px-3 bg-background font-medium"
                   value={form.source}
                   onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
                 >
@@ -305,13 +330,13 @@ export default function CrmKanban() {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Observações / Notas</Label>
-              <Textarea placeholder="Interesse em aulas de violão para iniciante..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Observações / Notas</Label>
+              <Textarea placeholder="Interesse em aulas de violão para iniciante..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="min-h-[90px]" />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="pt-3 border-t">
             <Button variant="outline" onClick={() => setNewLeadOpen(false)} className="rounded-xl">Cancelar</Button>
             <Button onClick={handleCreateLead} disabled={createLeadMutation.isPending} className="rounded-xl gap-2 font-bold">
               {createLeadMutation.isPending ? "Cadastrando..." : "Adicionar ao Funil"}
@@ -319,6 +344,5 @@ export default function CrmKanban() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
   );
 }
