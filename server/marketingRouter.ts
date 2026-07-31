@@ -193,6 +193,7 @@ export const marketingRouter = router({
     .input(z.object({
       campaignId: z.number(),
       name: z.string(),
+      messageText: z.string().optional(),
       description: z.string().optional(),
       mediaUrl: z.string().optional(),
       minDelay: z.number().default(10),
@@ -220,6 +221,12 @@ export const marketingRouter = router({
           eq(marketingCampaigns.organizationId, ctx.user.organizationId!)
         ))
         .returning();
+
+      if (input.messageText && input.messageText.trim().length > 0) {
+        await db.update(marketingContacts)
+          .set({ messageText: input.messageText.trim() })
+          .where(eq(marketingContacts.campaignId, input.campaignId));
+      }
 
       return updated;
     })

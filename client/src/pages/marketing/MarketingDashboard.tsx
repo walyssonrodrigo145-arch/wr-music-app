@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Megaphone, Plus, ArrowRight, Play, Pause, CheckCircle2, AlertTriangle, Send, RotateCcw, Pencil, Trash2 } from "lucide-react";
@@ -23,7 +24,10 @@ export default function MarketingDashboard() {
   const [editDescription, setEditDescription] = useState("");
   const [editMediaUrl, setEditMediaUrl] = useState("");
   const [editMinDelay, setEditMinDelay] = useState(10);
-  
+  const [editMessageText, setEditMessageText] = useState("");
+
+  const utils = trpc.useUtils();
+
   if (user?.role !== 'admin') {
     return (
       <div className="p-8 flex flex-col items-center justify-center text-center">
@@ -103,12 +107,20 @@ export default function MarketingDashboard() {
     }
   };
 
-  const handleOpenEdit = (c: any) => {
+  const handleOpenEdit = async (c: any) => {
     setEditingCampaign(c);
     setEditName(c.name || "");
     setEditDescription(c.description || "");
     setEditMediaUrl(c.mediaUrl || "");
     setEditMinDelay(c.minDelay || 10);
+    setEditMessageText("");
+
+    try {
+      const details = await utils.marketing.getCampaignDetails.fetch({ campaignId: c.id });
+      if (details?.contacts && details.contacts.length > 0) {
+        setEditMessageText(details.contacts[0].messageText || "");
+      }
+    } catch (e) {}
   };
 
   const handleSaveEdit = () => {
@@ -116,6 +128,7 @@ export default function MarketingDashboard() {
     editCampaign.mutate({
       campaignId: editingCampaign.id,
       name: editName.trim(),
+      messageText: editMessageText.trim() || undefined,
       description: editDescription.trim() || undefined,
       mediaUrl: editMediaUrl.trim() || undefined,
       minDelay: editMinDelay,
@@ -284,6 +297,15 @@ export default function MarketingDashboard() {
             <div className="space-y-2">
               <Label>Intervalo entre mensagens (segundos)</Label>
               <Input type="number" min="1" value={editMinDelay} onChange={e => setEditMinDelay(Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Texto da Mensagem</Label>
+              <Textarea 
+                value={editMessageText} 
+                onChange={e => setEditMessageText(e.target.value)} 
+                placeholder="Texto da mensagem (pode usar {{nome}})" 
+                className="min-h-[120px]"
+              />
             </div>
             <div className="space-y-2">
               <Label>URL da Imagem / Mídia (Opcional)</Label>
