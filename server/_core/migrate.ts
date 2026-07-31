@@ -68,7 +68,7 @@ export async function runAutoMigrations() {
           "email" text,
           "instrument" text,
           "stage" text DEFAULT 'novo' NOT NULL,
-          "value" numeric(10, 2) DEFAULT '0.00',
+          "value" decimal(10, 2) DEFAULT '0.00',
           "notes" text,
           "source" text DEFAULT 'WhatsApp',
           "created_at" timestamp DEFAULT now() NOT NULL,

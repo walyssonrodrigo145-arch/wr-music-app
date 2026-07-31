@@ -1198,7 +1198,7 @@ export const crmLeads = pgTable("crm_leads", {
   email: text("email"),
   instrument: text("instrument"),
   stage: text("stage").notNull().default("novo"), // 'novo' | 'contato' | 'aula_agendada' | 'aula_realizada' | 'matriculado' | 'perdido'
-  value: numeric("value", { precision: 10, scale: 2 }).default("0.00"),
+  value: decimal("value", { precision: 10, scale: 2 }).default("0.00"),
   notes: text("notes"),
   source: text("source").default("WhatsApp"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
