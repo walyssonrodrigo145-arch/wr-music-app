@@ -5,8 +5,10 @@ import {
   Loader2, Trash2, ChevronLeft, ChevronRight, Pencil,
   Search, MoreVertical, CreditCard,
   ChevronDown, TrendingUp, Zap, Link2, Copy, QrCode, Ban,
-  FileUp, FileCheck, FileText, Info, Wallet
+  FileUp, FileCheck, FileText, Info, Wallet, Download, Send
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { exportToCSV } from "@/lib/exportUtils";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -556,6 +558,39 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
   const itemsPerPage = 15;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState<number[]>([]);
+
+  const handleExportCSV = (itemsToExport: PaymentRow[]) => {
+    const headers = ["ID", "Aluno", "Telefone", "E-mail", "Valor (R$)", "Vencimento", "Data Pagamento", "Status", "Notas"];
+    const rows = itemsToExport.map(p => [
+      p.id,
+      p.studentName || "Sem Aluno",
+      p.studentPhone || "",
+      p.email || "",
+      p.amount,
+      p.dueDate ? format(new Date(p.dueDate), "dd/MM/yyyy") : "",
+      p.paidAt ? format(new Date(p.paidAt), "dd/MM/yyyy") : "",
+      p.status,
+      p.notes || ""
+    ]);
+    exportToCSV(`mensalidades_${viewMonth}_${viewYear}`, headers, rows);
+    toast.success(`${itemsToExport.length} mensalidades exportadas!`);
+  };
+
+  const handleSelectAll = (checked: boolean, allList: PaymentRow[]) => {
+    if (checked) {
+      setSelectedPaymentIds(allList.map((p) => p.id));
+    } else {
+      setSelectedPaymentIds([]);
+    }
+  };
+
+  const handleToggleSelect = (id: number) => {
+    setSelectedPaymentIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const { data: students = [] } = trpc.students.list.useQuery();
 
   const updateMutation = trpc.paymentDues.update.useMutation({
@@ -682,6 +717,16 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                   onChange={(e) => setSearch(e.target.value)}
                 />
              </div>
+             <Button
+               variant="outline"
+               onClick={() => handleExportCSV(payments)}
+               className="h-10 rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
+               title="Exportar mensalidades atuais para Excel/CSV"
+             >
+               <Download size={16} />
+               <span className="hidden md:inline">Exportar CSV</span>
+             </Button>
+
              <Button 
                id="tour-new-charge"
                onClick={() => setNovaOpen(true)}
@@ -818,22 +863,34 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Aluno</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valor</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Vencimento</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Status</th>
-                    <th className="px-8 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Ações</th>
+                    <th className="w-[5%] px-4 py-5 text-center">
+                      <Checkbox
+                        checked={paginated.length > 0 && selectedPaymentIds.length === paginated.length}
+                        onCheckedChange={(c) => handleSelectAll(!!c, paginated)}
+                      />
+                    </th>
+                    <th className="px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Aluno</th>
+                    <th className="px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valor</th>
+                    <th className="px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Vencimento</th>
+                    <th className="px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">Status</th>
+                    <th className="px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {isLoading ? (
-                    <tr><td colSpan={5} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></td></tr>
+                    <tr><td colSpan={6} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr><td colSpan={5} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhuma mensalidade encontrada.</td></tr>
+                    <tr><td colSpan={6} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhuma mensalidade encontrada.</td></tr>
                   ) : (
                     paginated.map((payment) => (
-                      <tr key={payment.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailsPaymentId(payment.id)}>
-                        <td className="px-8 py-4">
+                      <tr key={payment.id} className={cn("group hover:bg-muted/50 transition-colors cursor-pointer", selectedPaymentIds.includes(payment.id) && "bg-primary/10")} onClick={() => setDetailsPaymentId(payment.id)}>
+                        <td className="px-4 py-4 text-center" onClick={e => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedPaymentIds.includes(payment.id)}
+                            onCheckedChange={() => handleToggleSelect(payment.id)}
+                          />
+                        </td>
+                        <td className="px-6 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-9 h-9 border-2 border-background shadow-sm shrink-0">
                               <AvatarFallback className="bg-blue-500/10 text-blue-600 text-[10px] font-black uppercase">
@@ -1137,6 +1194,40 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
            </div>
         </div>
       
+      {/* Barra de Ações em Massa (Bulk Actions - Financeiro) */}
+      {selectedPaymentIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-xl w-[90%] bg-slate-950/90 text-white dark:bg-slate-900/90 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-center gap-3">
+            <span className="bg-primary text-white font-bold text-xs px-2.5 py-1 rounded-lg">{selectedPaymentIds.length} selecionadas</span>
+            <button onClick={() => setSelectedPaymentIds([])} className="text-xs text-muted-foreground hover:text-white underline">Desmarcar</button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => {
+                const selected = payments.filter((p: PaymentRow) => selectedPaymentIds.includes(p.id));
+                handleExportCSV(selected);
+              }}
+              className="h-8 text-xs font-bold gap-1 bg-white/10 hover:bg-white/20 border-white/20 text-white"
+            >
+              <Download size={14} /> Exportar CSV
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={() => {
+                selectedPaymentIds.forEach(id => updateMutation.mutate({ id, status: "pago" }));
+                toast.success(`${selectedPaymentIds.length} mensalidades marcadas como pagas!`);
+                setSelectedPaymentIds([]);
+              }}
+              className="h-8 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              <CheckCircle2 size={14} /> Marcar como Pagas
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* MODALS */}
       {novaOpen && (
         <NovaModal open={novaOpen} onClose={() => setNovaOpen(false)} students={students} />

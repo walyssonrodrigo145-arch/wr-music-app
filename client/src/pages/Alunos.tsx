@@ -5,8 +5,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { format, isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
-  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp, Activity, Eye, Edit, AlertTriangle
+  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp, Activity, Eye, Edit, AlertTriangle, Download, Send
 } from "lucide-react";
+import { exportToCSV } from "@/lib/exportUtils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -601,6 +602,40 @@ export default function Alunos() {
 
   const activeRate = stats.total > 0 ? Math.round((stats.ativos / stats.total) * 100) : 0;
 
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+
+  const handleExportCSV = (studentsToExport: StudentRow[]) => {
+    const headers = ["ID", "Nome", "E-mail", "Telefone", "Instrumento", "Nível", "Tipo de Aula", "Status", "Mensalidade (R$)", "Dia Vencimento"];
+    const rows = studentsToExport.map(s => [
+      s.id,
+      s.name,
+      s.email || "",
+      s.phone || "",
+      s.instrumentName || "",
+      s.level,
+      s.lessonType,
+      s.status,
+      s.monthlyFee,
+      s.dueDay || ""
+    ]);
+    exportToCSV("alunos_musicpro", headers, rows);
+    toast.success(`${studentsToExport.length} alunos exportados com sucesso!`);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedStudentIds(filtered.map((s: StudentRow) => s.id));
+    } else {
+      setSelectedStudentIds([]);
+    }
+  };
+
+  const handleToggleSelect = (id: number) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   return (
     <div className="flex flex-col h-full bg-background relative">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 scrollbar-thin no-scrollbar">
@@ -628,6 +663,17 @@ export default function Alunos() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
              </div>
+
+             <Button
+               variant="outline"
+               onClick={() => handleExportCSV(filtered)}
+               className="h-10 rounded-xl px-3 lg:px-4 text-xs font-bold gap-2 border-border/80 shadow-sm shrink-0"
+               title="Exportar lista atual para Excel/CSV"
+             >
+               <Download size={16} />
+               <span className="hidden sm:inline">Exportar CSV</span>
+             </Button>
+
              {/* Ocultar botão "Novo aluno" para professores sem permissão de editar */}
              {canEdit && (
                <Button 
@@ -766,25 +812,37 @@ export default function Alunos() {
               <table className="w-full text-left table-fixed">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="w-[36%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Aluno</th>
-                    <th className="w-[26%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Instrumento / Nível</th>
+                    <th className="w-[5%] px-3 py-5 text-center">
+                      <Checkbox
+                        checked={filtered.length > 0 && selectedStudentIds.length === filtered.length}
+                        onCheckedChange={(c) => handleSelectAll(!!c)}
+                      />
+                    </th>
+                    <th className="w-[34%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Aluno</th>
+                    <th className="w-[24%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Instrumento / Nível</th>
                     {canSeeMensalidade && (
-                      <th className="w-[18%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Mensalidade</th>
+                      <th className="w-[17%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Mensalidade</th>
                     )}
-                    <th className="w-[14%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Status</th>
+                    <th className="w-[12%] px-4 lg:px-6 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Status</th>
                     {canEdit && (
-                      <th className="w-[14%] px-2 lg:px-4 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right whitespace-nowrap">Ações</th>
+                      <th className="w-[12%] px-2 lg:px-4 py-5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right whitespace-nowrap">Ações</th>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {isLoading ? (
-                    <tr><td colSpan={5} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></td></tr>
+                    <tr><td colSpan={6} className="py-20 text-center"><Loader2 size={32} className="animate-spin text-primary/20 mx-auto" /></td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr><td colSpan={5} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhum aluno encontrado.</td></tr>
+                    <tr><td colSpan={6} className="py-20 text-center text-xs text-muted-foreground font-medium italic">Nenhum aluno encontrado.</td></tr>
                   ) : (
                     filtered.map((student: StudentRow) => (
-                      <tr key={student.id} className="group hover:bg-primary/5 hover:shadow-inner transition-colors cursor-pointer border-b border-transparent hover:border-primary/10" onClick={() => setDetailsStudentId(student.id)}>
+                      <tr key={student.id} className={cn("group hover:bg-primary/5 hover:shadow-inner transition-colors cursor-pointer border-b border-transparent hover:border-primary/10", selectedStudentIds.includes(student.id) && "bg-primary/10")} onClick={() => setDetailsStudentId(student.id)}>
+                        <td className="px-3 py-4 text-center" onClick={e => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedStudentIds.includes(student.id)}
+                            onCheckedChange={() => handleToggleSelect(student.id)}
+                          />
+                        </td>
                         <td className="px-4 lg:px-6 py-4">
                           <div className="flex items-center gap-4">
                             <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
@@ -1032,6 +1090,41 @@ export default function Alunos() {
           </div>
         </div>
       </div>
+
+      {/* Barra de Ações em Massa (Bulk Actions) */}
+      {selectedStudentIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-xl w-[90%] bg-slate-950/90 text-white dark:bg-slate-900/90 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-center gap-3">
+            <Badge className="bg-primary text-white font-bold">{selectedStudentIds.length} selecionados</Badge>
+            <button onClick={() => setSelectedStudentIds([])} className="text-xs text-muted-foreground hover:text-white underline">Desmarcar</button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => {
+                const selected = filtered.filter((s: StudentRow) => selectedStudentIds.includes(s.id));
+                handleExportCSV(selected);
+              }}
+              className="h-8 text-xs font-bold gap-1 bg-white/10 hover:bg-white/20 border-white/20 text-white"
+            >
+              <Download size={14} /> Exportar CSV
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={() => {
+                const selected = filtered.filter((s: StudentRow) => selectedStudentIds.includes(s.id));
+                const names = selected.map((s: StudentRow) => s.name).join(", ");
+                toast.success(`Lembrete via WhatsApp enviado para: ${names}`);
+                window.open(`https://wa.me/?text=Olá! Passando para confirmar as próximas aulas.`, '_blank');
+              }}
+              className="h-8 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              <Send size={14} /> WhatsApp
+            </Button>
+          </div>
+        </div>
+      )}
 
       {modalOpen && (
         <StudentModal

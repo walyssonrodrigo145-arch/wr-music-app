@@ -75,6 +75,7 @@ const filesToUpload = [
   'client/src/hooks/useBreakpoint.tsx',
   'client/src/pages/Aulas.tsx',
   'client/src/pages/Financeiro.tsx',
+  'client/src/lib/exportUtils.ts',
   'client/src/pages/financeiro/MensalidadesTab.tsx',
   'client/src/pages/Progresso.tsx',
   'client/src/pages/marketing/MarketingDashboard.tsx',
