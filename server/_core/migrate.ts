@@ -57,6 +57,8 @@ export async function runAutoMigrations() {
           "grade" decimal(3, 1),
           "achievedAt" timestamp NOT NULL,
           "createdAt" timestamp DEFAULT now() NOT NULL
+        );`
+      },
       { table: 'crm_leads', sql: `
         CREATE TABLE IF NOT EXISTS "crm_leads" (
           "id" serial PRIMARY KEY NOT NULL,
