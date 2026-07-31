@@ -344,5 +344,6 @@ export default function CrmKanban() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
   );
 }
