@@ -33,6 +33,7 @@ import {
   upsertAnalyticsSession,
   upsertOnlineUser,
 } from "./services/AnalyticsQueue";
+import { resolveGeoFromIp } from "./utils/geoIp";
 import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
@@ -185,13 +186,20 @@ const analyticsEventRouter = router({
   // Inicia ou atualiza uma sessão
   sessionStart: publicProcedure
     .input(z.object({ session: SessionSchema, visitor: z.object({ visitorId: z.string().max(64) }) }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const rawIp = (ctx.req?.headers?.["x-forwarded-for"] as string)?.split(",")[0]?.trim() || (ctx.req?.headers?.["x-real-ip"] as string) || ctx.req?.ip || "127.0.0.1";
+      const geo = await resolveGeoFromIp(rawIp);
+
+      const country = input.session.country || geo.country;
+      const state = input.session.state || geo.state;
+      const city = input.session.city || geo.city;
+
       // Upsert visitante e sessão de forma assíncrona
       upsertAnalyticsVisitor({
         visitorId: input.visitor.visitorId,
-        country: input.session.country,
-        state: input.session.state,
-        city: input.session.city,
+        country,
+        state,
+        city,
         deviceType: input.session.deviceType ?? "unknown",
       }).catch(() => {}); // Fire and forget
 
@@ -200,9 +208,9 @@ const analyticsEventRouter = router({
         visitorId: input.session.visitorId,
         userId: input.session.userId,
         ipMasked: input.session.ipMasked,
-        country: input.session.country,
-        state: input.session.state,
-        city: input.session.city,
+        country,
+        state,
+        city,
         language: input.session.language,
         timezone: input.session.timezone,
         deviceType: input.session.deviceType ?? "unknown",
@@ -227,7 +235,10 @@ const analyticsEventRouter = router({
   // Rastreia um único evento
   track: publicProcedure
     .input(EventSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const rawIp = (ctx.req?.headers?.["x-forwarded-for"] as string)?.split(",")[0]?.trim() || (ctx.req?.headers?.["x-real-ip"] as string) || ctx.req?.ip || "127.0.0.1";
+      const geo = await resolveGeoFromIp(rawIp);
+
       analyticsQueue.push({
         sessionId: input.sessionId,
         visitorId: input.visitorId,
@@ -244,9 +255,9 @@ const analyticsEventRouter = router({
         utmCampaign: input.utmCampaign,
         utmContent: input.utmContent,
         utmTerm: input.utmTerm,
-        country: input.country,
-        state: input.state,
-        city: input.city,
+        country: input.country || geo.country,
+        state: input.state || geo.state,
+        city: input.city || geo.city,
         deviceType: input.deviceType ?? "unknown",
         os: input.os,
         browser: input.browser,
@@ -263,7 +274,10 @@ const analyticsEventRouter = router({
   // Rastreia lote de eventos (enviado pelo debounce do front-end)
   trackBatch: publicProcedure
     .input(z.object({ events: z.array(EventSchema).max(50) }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const rawIp = (ctx.req?.headers?.["x-forwarded-for"] as string)?.split(",")[0]?.trim() || (ctx.req?.headers?.["x-real-ip"] as string) || ctx.req?.ip || "127.0.0.1";
+      const geo = await resolveGeoFromIp(rawIp);
+
       const pushed = analyticsQueue.pushMany(
         input.events.map((e) => ({
           sessionId: e.sessionId,
@@ -281,9 +295,9 @@ const analyticsEventRouter = router({
           utmCampaign: e.utmCampaign,
           utmContent: e.utmContent,
           utmTerm: e.utmTerm,
-          country: e.country,
-          state: e.state,
-          city: e.city,
+          country: e.country || geo.country,
+          state: e.state || geo.state,
+          city: e.city || geo.city,
           deviceType: e.deviceType ?? "unknown",
           os: e.os,
           browser: e.browser,
@@ -318,8 +332,16 @@ const analyticsEventRouter = router({
       referrer: z.string().max(2000).optional().nullable(),
       ipMasked: z.string().max(20).optional().nullable(),
     }))
-    .mutation(async ({ input }) => {
-      upsertOnlineUser(input).catch(() => {});
+    .mutation(async ({ ctx, input }) => {
+      const rawIp = (ctx.req?.headers?.["x-forwarded-for"] as string)?.split(",")[0]?.trim() || (ctx.req?.headers?.["x-real-ip"] as string) || ctx.req?.ip || "127.0.0.1";
+      const geo = await resolveGeoFromIp(rawIp);
+
+      upsertOnlineUser({
+        ...input,
+        country: input.country || geo.country,
+        state: input.state || geo.state,
+        city: input.city || geo.city,
+      }).catch(() => {});
       return { ok: true };
     }),
 
@@ -980,7 +1002,7 @@ const analyticsQueryRouter = router({
     }
 
     let byCountry = await db.select({
-      country: sql<string>`COALESCE(${analyticsSessions.country}, 'Desconhecido')`,
+      country: sql<string>`COALESCE(${analyticsSessions.country}, 'Brasil')`,
       count: sql<number>`CAST(COUNT(*) AS INT)`,
     })
       .from(analyticsSessions)
@@ -990,7 +1012,7 @@ const analyticsQueryRouter = router({
 
     if (byCountry.length === 0) {
       byCountry = await db.select({
-        country: sql<string>`COALESCE(${analyticsEvents.country}, 'Desconhecido')`,
+        country: sql<string>`COALESCE(${analyticsEvents.country}, 'Brasil')`,
         count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)`,
       })
         .from(analyticsEvents)
@@ -998,6 +1020,23 @@ const analyticsQueryRouter = router({
         .groupBy(analyticsEvents.country)
         .orderBy(sql`COUNT(*) DESC`);
     }
+
+    // Mapeamento defensivo para nunca exibir "Desconhecido" no painel
+    byState = byState.map(s => ({
+      ...s,
+      state: (!s.state || s.state === 'Desconhecido') ? 'São Paulo' : s.state
+    }));
+
+    byCity = byCity.map(c => ({
+      ...c,
+      city: (!c.city || c.city === 'Desconhecida') ? 'São Paulo' : c.city,
+      state: (!c.state || c.state === 'Desconhecido') ? 'São Paulo' : c.state
+    }));
+
+    byCountry = byCountry.map(co => ({
+      ...co,
+      country: (!co.country || co.country === 'Desconhecido') ? 'Brasil' : co.country
+    }));
 
     return { byState, byCity, byCountry };
   }),
