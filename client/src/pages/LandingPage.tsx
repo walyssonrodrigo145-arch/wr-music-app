@@ -685,7 +685,7 @@ const LandingPage = () => {
               <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 {[
                   { value: '100% Online', label: 'Acesso em qualquer lugar', color: 'text-primary' },
-                  { value: '7 Dias Grátis', label: 'Sem cartão de crédito', color: 'text-indigo-500' },
+                  { value: '30 Dias Grátis', label: 'Sem cartão de crédito', color: 'text-indigo-500' },
                   { value: 'WhatsApp', label: 'Automação de lembretes', color: 'text-emerald-500' },
                 ].map(stat => (
                   <div key={stat.label} className="text-center p-3 sm:p-4 bg-card/60 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
