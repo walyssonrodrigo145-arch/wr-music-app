@@ -9,16 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Megaphone, Plus, ArrowRight, Play, Pause, CheckCircle2, AlertTriangle, Send, RotateCcw, Pencil, Trash2 } from "lucide-react";
+import { Megaphone, Plus, ArrowRight, Play, Pause, CheckCircle2, AlertTriangle, Send, RotateCcw, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import CrmKanban from "./CrmKanban";
 
 export default function MarketingDashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
 
+  const [activeTab, setActiveTab] = useState<"campanhas" | "crm">("crm");
   const [editingCampaign, setEditingCampaign] = useState<any | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -141,14 +143,47 @@ export default function MarketingDashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Megaphone className="w-8 h-8 text-primary" />
-            Marketing e Campanhas
+            Marketing & CRM Comercial
           </h1>
-          <p className="text-muted-foreground">Envie mensagens em massa via WhatsApp de forma segura.</p>
+          <p className="text-muted-foreground">Gerencie o funil de vendas dos alunos e envie mensagens em massa no WhatsApp.</p>
         </div>
-        <Button onClick={() => setLocation('/marketing/nova')} className="gap-2">
-          <Plus className="w-4 h-4" /> Nova Campanha
-        </Button>
+        {activeTab === "campanhas" && (
+          <Button onClick={() => setLocation('/marketing/nova')} className="gap-2">
+            <Plus className="w-4 h-4" /> Nova Campanha
+          </Button>
+        )}
       </div>
+
+      {/* Seletor de Abas */}
+      <div className="flex bg-muted/40 p-1.5 rounded-2xl w-fit border border-border/60 gap-1.5 shadow-sm">
+        <button
+          onClick={() => setActiveTab("crm")}
+          className={cn(
+            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold font-outfit uppercase tracking-wider transition-all",
+            activeTab === "crm"
+              ? "bg-primary text-white shadow-md shadow-primary/25"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <TrendingUp size={16} /> Funil Comercial (CRM)
+        </button>
+        <button
+          onClick={() => setActiveTab("campanhas")}
+          className={cn(
+            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold font-outfit uppercase tracking-wider transition-all",
+            activeTab === "campanhas"
+              ? "bg-primary text-white shadow-md shadow-primary/25"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <Megaphone size={16} /> Disparos WhatsApp
+        </button>
+      </div>
+
+      {activeTab === "crm" ? (
+        <CrmKanban />
+      ) : (
+        <>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -282,6 +317,8 @@ export default function MarketingDashboard() {
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* Modal de Edição de Campanha - Refinado pelo Layout Especialista */}
       <Dialog open={!!editingCampaign} onOpenChange={(open) => !open && setEditingCampaign(null)}>

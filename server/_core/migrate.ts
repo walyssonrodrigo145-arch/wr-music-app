@@ -57,6 +57,20 @@ export async function runAutoMigrations() {
           "grade" decimal(3, 1),
           "achievedAt" timestamp NOT NULL,
           "createdAt" timestamp DEFAULT now() NOT NULL
+      { table: 'crm_leads', sql: `
+        CREATE TABLE IF NOT EXISTS "crm_leads" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "organization_id" integer NOT NULL,
+          "name" text NOT NULL,
+          "phone" text,
+          "email" text,
+          "instrument" text,
+          "stage" text DEFAULT 'novo' NOT NULL,
+          "value" numeric(10, 2) DEFAULT '0.00',
+          "notes" text,
+          "source" text DEFAULT 'WhatsApp',
+          "created_at" timestamp DEFAULT now() NOT NULL,
+          "updated_at" timestamp DEFAULT now() NOT NULL
         );`
       },
       { table: 'enum', sql: "ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'concluida'" },

@@ -1188,3 +1188,22 @@ export type AnalyticsAiInsight = typeof analyticsAiInsights.$inferSelect;
 export type InsertAnalyticsAiInsight = typeof analyticsAiInsights.$inferInsert;
 export type AnalyticsSecurityLog = typeof analyticsSecurityLogs.$inferSelect;
 export type InsertAnalyticsSecurityLog = typeof analyticsSecurityLogs.$inferInsert;
+
+// ── CRM / Funil de Vendas ───────────────────────────────────────────────────
+export const crmLeads = pgTable("crm_leads", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  instrument: text("instrument"),
+  stage: text("stage").notNull().default("novo"), // 'novo' | 'contato' | 'aula_agendada' | 'aula_realizada' | 'matriculado' | 'perdido'
+  value: numeric("value", { precision: 10, scale: 2 }).default("0.00"),
+  notes: text("notes"),
+  source: text("source").default("WhatsApp"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type CrmLead = typeof crmLeads.$inferSelect;
+export type InsertCrmLead = typeof crmLeads.$inferInsert;
