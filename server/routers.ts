@@ -2896,25 +2896,34 @@ ${jsonSchemaFormat}`;
           }
         }
   
-        // Prevenção de conflitos (mesmo professor/userId)
-        // Se for aula individual, não permite sobreposição com NADA.
-        // Se for aula em turma, permite sobreposição com outras aulas em turma, mas não com individuais.
-        const conflictQuery = and(
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+        // Prevenção de conflitos (mesmo professor/userId ou mesma organização para admin)
+        const startOfDay = new Date(scheduledAt);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(scheduledAt);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const existingLessons = await db.select({
+          id: lessons.id,
+          scheduledAt: lessons.scheduledAt,
+          duration: lessons.duration,
+          lessonType: lessons.lessonType,
+        }).from(lessons).where(and(
           eq(lessons.organizationId, orgId),
-          eq(lessons.userId, ctx.user.id),
+          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
           eq(lessons.status, 'agendada'),
-          sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
-        );
+          gte(lessons.scheduledAt, startOfDay),
+          lte(lessons.scheduledAt, endOfDay)
+        ));
 
-        const conflict = await db.select({ id: lessons.id, lessonType: lessons.lessonType }).from(lessons)
-          .where(conflictQuery).limit(1);
-
-        if (conflict.length > 0) {
-          const conflictingLesson = conflict[0];
-          // Se a nova é individual OU a existente é individual, bloqueia.
-          // Só permite se AMBAS forem 'turma'.
-          if (input.lessonType === 'individual' || conflictingLesson.lessonType === 'individual') {
-            throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+        for (const existing of existingLessons) {
+          const exStart = new Date(existing.scheduledAt);
+          const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
+          if (exStart < endsAt && exEnd > scheduledAt) {
+            if (input.lessonType === 'individual' || existing.lessonType === 'individual') {
+              throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+            }
           }
         }
 
@@ -2962,17 +2971,21 @@ ${jsonSchemaFormat}`;
         if (!db) throw new Error("Database not available");
 
         const orgId = ctx.user.organizationId!;
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const { id, ...data } = input;
         const updateData: any = { ...data };
         const updateSeries = (input as any).updateSeries === true;
 
         // Buscar aula atual para pegar o recurringGroupId e data original
-        const [currentLesson] = await db.select().from(lessons).where(and(eq(lessons.id, id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id))).limit(1);
+        const [currentLesson] = await db.select().from(lessons).where(and(
+          eq(lessons.id, id), 
+          eq(lessons.organizationId, orgId), 
+          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
+        )).limit(1);
         if (!currentLesson) throw new Error("Aula não encontrada ou você não tem permissão.");
 
         // Segurança: Verificar propriedade do aluno se estiver sendo alterado
         if (data.studentId) {
-          const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const [ownedStudent] = await db.select({ id: students.id }).from(students)
             .where(and(
               eq(students.id, data.studentId), 
@@ -2985,7 +2998,6 @@ ${jsonSchemaFormat}`;
 
         // Segurança: Verificar propriedade do instrumento se estiver sendo alterado
         if (data.instrumentId) {
-          const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const [ownedInstrument] = await db.select({ id: instruments.id }).from(instruments)
             .where(and(
               eq(instruments.id, data.instrumentId), 
@@ -3002,20 +3014,33 @@ ${jsonSchemaFormat}`;
           const endsAt = new Date(scheduledAt.getTime() + duration * 60000);
 
           // Prevenção de conflitos para a aula atual
-          const conflict = await db.select({ id: lessons.id, lessonType: lessons.lessonType }).from(lessons)
-            .where(and(
-              eq(lessons.organizationId, orgId),
-              eq(lessons.userId, ctx.user.id),
-              eq(lessons.status, 'agendada'),
-              sql`id != ${id}`,
-              sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
-            )).limit(1);
+          const startOfDay = new Date(scheduledAt);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(scheduledAt);
+          endOfDay.setHours(23, 59, 59, 999);
 
-          if (conflict.length > 0) {
-            const conflictingLesson = conflict[0];
-            const newLessonType = data.lessonType ?? currentLesson.lessonType;
-            if (newLessonType === 'individual' || conflictingLesson.lessonType === 'individual') {
-              throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+          const existingLessons = await db.select({
+            id: lessons.id,
+            scheduledAt: lessons.scheduledAt,
+            duration: lessons.duration,
+            lessonType: lessons.lessonType,
+          }).from(lessons).where(and(
+            eq(lessons.organizationId, orgId),
+            isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
+            eq(lessons.status, 'agendada'),
+            gte(lessons.scheduledAt, startOfDay),
+            lte(lessons.scheduledAt, endOfDay)
+          ));
+
+          const newLessonType = data.lessonType ?? currentLesson.lessonType;
+          for (const existing of existingLessons) {
+            if (existing.id === id) continue;
+            const exStart = new Date(existing.scheduledAt);
+            const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
+            if (exStart < endsAt && exEnd > scheduledAt) {
+              if (newLessonType === 'individual' || existing.lessonType === 'individual') {
+                throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+              }
             }
           }
           updateData.scheduledAt = scheduledAt;
@@ -3038,7 +3063,7 @@ ${jsonSchemaFormat}`;
             const futureLessons = await db.select().from(lessons).where(and(
               eq(lessons.organizationId, orgId),
               eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
-              eq(lessons.userId, ctx.user.id),
+              isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
               gte(lessons.scheduledAt, currentLesson.scheduledAt),
               sql`id != ${id}`
             ));
@@ -3052,7 +3077,7 @@ ${jsonSchemaFormat}`;
                 notes: data.notes ?? future.notes,
                 scheduledAt: nextDate,
                 updatedAt: new Date()
-              }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+              }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId)));
 
               // Cancelar lembretes pendentes da aula futura da série pois a data mudou
               await db.update(reminders)
@@ -3073,12 +3098,16 @@ ${jsonSchemaFormat}`;
           }).where(and(
             eq(lessons.organizationId, orgId),
             eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
-            eq(lessons.userId, ctx.user.id),
+            isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
             gte(lessons.scheduledAt, currentLesson.scheduledAt)
           ));
         }
 
-        await db.update(lessons).set(updateData).where(and(eq(lessons.id, id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+        await db.update(lessons).set(updateData).where(and(
+          eq(lessons.id, id), 
+          eq(lessons.organizationId, orgId), 
+          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
+        ));
         return { success: true };
       } catch (error) {
         return handleDbError(error, "atualizar a aula");
@@ -3096,6 +3125,8 @@ ${jsonSchemaFormat}`;
         if (!db) throw new Error("Banco de dados não disponível");
 
         const orgId = ctx.user.organizationId!;
+        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
         const updateData: any = {
           status: input.status,
           rating: input.rating,
@@ -3112,22 +3143,40 @@ ${jsonSchemaFormat}`;
         // Se estiver remarcando com uma nova data, validar conflitos
         if (input.scheduledAt) {
           const newDate = new Date(input.scheduledAt);
-          const [current] = await db.select({ duration: lessons.duration, scheduledAt: lessons.scheduledAt, recurringGroupId: lessons.recurringGroupId }).from(lessons).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))).limit(1);
+          const [current] = await db.select({ duration: lessons.duration, scheduledAt: lessons.scheduledAt, recurringGroupId: lessons.recurringGroupId, lessonType: lessons.lessonType }).from(lessons).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))).limit(1);
           const duration = current?.duration || 60;
           const endsAt = new Date(newDate.getTime() + duration * 60000);
 
-          const conflict = await db.select({ id: lessons.id }).from(lessons)
-            .where(and(
-              eq(lessons.organizationId, orgId),
-              eq(lessons.userId, ctx.user.id),
-              eq(lessons.status, 'agendada'),
-              sql`id != ${input.id}`,
-              sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${newDate.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
-            )).limit(1);
+          const startOfDay = new Date(newDate);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(newDate);
+          endOfDay.setHours(23, 59, 59, 999);
 
-          if (conflict.length > 0) {
-            throw new Error("Conflito: Já existe uma aula agendada para este novo horário.");
+          const existingLessons = await db.select({
+            id: lessons.id,
+            scheduledAt: lessons.scheduledAt,
+            duration: lessons.duration,
+            lessonType: lessons.lessonType,
+          }).from(lessons).where(and(
+            eq(lessons.organizationId, orgId),
+            isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
+            eq(lessons.status, 'agendada'),
+            gte(lessons.scheduledAt, startOfDay),
+            lte(lessons.scheduledAt, endOfDay)
+          ));
+
+          const curLessonType = current?.lessonType || 'individual';
+          for (const existing of existingLessons) {
+            if (existing.id === input.id) continue;
+            const exStart = new Date(existing.scheduledAt);
+            const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
+            if (exStart < endsAt && exEnd > newDate) {
+              if (curLessonType === 'individual' || existing.lessonType === 'individual') {
+                throw new Error("Conflito: Já existe uma aula agendada para este novo horário.");
+              }
+            }
           }
+
           updateData.scheduledAt = newDate;
 
           // Cancelar lembretes pendentes da aula pois a data/hora mudou
@@ -3148,7 +3197,6 @@ ${jsonSchemaFormat}`;
             const futureLessons = await db.select().from(lessons).where(and(
               eq(lessons.organizationId, orgId),
               eq(lessons.recurringGroupId, current.recurringGroupId),
-              eq(lessons.userId, ctx.user.id),
               gte(lessons.scheduledAt, current.scheduledAt),
               sql`id != ${input.id}`
             ));
@@ -3161,7 +3209,7 @@ ${jsonSchemaFormat}`;
                 // Se a aula estava remarcada, volta para agendada para que a automação processe
                 status: future.status === 'remarcada' || input.status === 'remarcada' ? 'agendada' : future.status,
                 updatedAt: new Date()
-              }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+              }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId)));
 
               // Cancelar lembretes pendentes da aula futura da série pois a data mudou
               await db.update(reminders)
@@ -3197,7 +3245,11 @@ ${jsonSchemaFormat}`;
             ));
         }
 
-        await db.update(lessons).set(updateData).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id)));
+        await db.update(lessons).set(updateData).where(and(
+          eq(lessons.id, input.id), 
+          eq(lessons.organizationId, orgId), 
+          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
+        ));
         
         // --- NOTIFICAÇÃO DE FALTA DE ALUNO ---
         if (input.status === 'falta') {
