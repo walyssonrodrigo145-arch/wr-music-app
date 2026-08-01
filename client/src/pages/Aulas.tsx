@@ -233,7 +233,7 @@ export default function Aulas() {
       }
     });
 
-    // Agrupar aulas em turma para que apareÃ§am como apenas 1 card representando a turma na agenda
+    // Agrupar aulas em turma para que apareçam como apenas 1 card representando a turma na agenda
     const grouped: any[] = [];
     const turmaMap = new Map<string, any>();
 
@@ -310,7 +310,7 @@ export default function Aulas() {
     const todayPending = todayLessons.filter(l => l.status === 'agendada').length;
     const todayCancelled = todayLessons.filter(l => l.status === 'cancelada').length;
 
-    // CÃ¡lculo estÃ¡tico/dinÃ¢mico de ocupaÃ§Ã£o semanal (Domingo a SÃ¡bado)
+    // Cálculo estático/dinâmico de ocupação semanal (Domingo a Sábado)
     const weekDays = eachDayOfInterval({ start: startOfWeek(new Date(), { weekStartsOn: 0 }), end: endOfWeek(new Date(), { weekStartsOn: 0 }) });
     const occupancy = weekDays.map(day => {
       const count = lessons.filter(l => isSameDay(new Date(l.scheduledAt), day)).length;
@@ -326,10 +326,10 @@ export default function Aulas() {
           ? "fixed inset-0 z-[45] p-6 lg:p-8 overflow-y-auto m-0 h-screen max-w-none animate-in fade-in zoom-in-95 duration-300 bg-background" 
           : "h-[calc(100vh-4rem)] -m-4 sm:-m-6 -mt-6 sm:-mt-8"
       )}>
-        {/* Sub-Header de Filtros, VisÃµes e AÃ§Ã£o Nova Aula (Alinhado ao Topo) */}
+        {/* Sub-Header de Filtros, Visões e Ação Nova Aula (Alinhado ao Topo) */}
         <div className="px-6 py-4 border-b border-border/30 bg-card/40 backdrop-blur-xl flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3 flex-wrap">
-            {/* BotÃµes de VisÃ£o (MÃªs, Semana, Dia, Lista) - PÃ­lula Deslizante Ultra-Fluida */}
+            {/* Botões de Visão (Mês, Semana, Dia, Lista) - Pílula Deslizante Ultra-Fluida */}
             <div className="flex p-1 bg-card rounded-xl border border-border/60 shadow-sm relative">
               {(["mes", "semana", "dia", "eventos"] as const).map(v => {
                 const isActive = view === v;
@@ -416,7 +416,7 @@ export default function Aulas() {
             </div>
           </div>
 
-          {/* Filtros Suspensos e BotÃ£o PrimÃ¡rio + Nova Aula */}
+          {/* Filtros Suspensos e Botão Primário + Nova Aula */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-muted-foreground uppercase">Professor:</span>
@@ -510,9 +510,9 @@ export default function Aulas() {
           </div>
         </div>
 
-        {/* ConteÃºdo Principal Split (CalendÃ¡rio + Painel Direita) */}
+        {/* Conteúdo Principal Split (Calendário + Painel Direita) */}
         <div className="flex-1 flex min-h-0 overflow-hidden">
-          {/* Coluna Esquerda: CalendÃ¡rio Principal */}
+          {/* Coluna Esquerda: Calendário Principal */}
           <div className="flex-1 p-6 overflow-y-auto space-y-4 no-scrollbar">
             <div id="tour-calendar-view" className="relative min-h-[500px]">
               <AnimatePresence mode="popLayout" initial={false}>
@@ -777,19 +777,19 @@ export default function Aulas() {
           }}
         />
 
-        {/* Dialog de confirmaÃ§Ã£o para aÃ§Ãµes recorrentes */}
+        {/* Dialog de confirmação para ações recorrentes */}
         <ResponsiveDialog
           open={!!recurringAction}
           onOpenChange={(open) => { if (!open) setRecurringAction(null); }}
           title={
             hasRecurrence
               ? (recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente')
-              : (recurringAction?.type === 'delete' ? 'Confirmar ExclusÃ£o' : 'Confirmar RemarcaÃ§Ã£o')
+              : (recurringAction?.type === 'delete' ? 'Confirmar Exclusão' : 'Confirmar Remarcação')
           }
           description={
             hasRecurrence
-              ? "Esta aula faz parte de uma sÃ©rie recorrente. Como deseja aplicar esta alteraÃ§Ã£o?"
-              : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta aÃ§Ã£o nÃ£o pode ser desfeita.' : 'Deseja confirmar a remarcaÃ§Ã£o desta aula?')
+              ? "Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?"
+              : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.' : 'Deseja confirmar a remarcação desta aula?')
           }
         >
           <div className="flex flex-col gap-3 pb-8 md:pb-0">
@@ -825,7 +825,7 @@ export default function Aulas() {
                   }}
                   className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
                 >
-                  {recurringAction?.type === 'delete' ? 'Excluir toda a sÃ©rie (futuras)' : 'Remarcar toda a sÃ©rie (futuras)'}
+                  {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
                 </button>
               </>
             ) : (
@@ -891,7 +891,7 @@ export default function Aulas() {
 
       {/* Filter Chips */}
       <section className="flex flex-wrap items-center gap-2">
-        {["Todas", "Hoje", "Agendadas", "ConcluÃ­das", "Canceladas"].map(chip => (
+        {["Todas", "Hoje", "Agendadas", "Concluídas", "Canceladas"].map(chip => (
           <button key={chip} onClick={() => setStatusFilterMobile(chip)} className={cn("px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border", statusFilterMobile === chip ? "bg-blue-600 text-white border-blue-600 shadow-blue-200" : "bg-card text-muted-foreground border-border hover:border-blue-200 hover:text-blue-600")}>{chip}</button>
         ))}
         <div className="h-6 w-[1px] bg-border mx-1" />
@@ -976,19 +976,19 @@ export default function Aulas() {
         }} 
       />
 
-      {/* â”€â”€ Dialog de confirmaÃ§Ã£o compartilhado desktop+mobile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Dialog de confirmação compartilhado desktop+mobile ──────────────── */}
       <ResponsiveDialog
         open={!!recurringAction}
         onOpenChange={(open) => { if (!open) setRecurringAction(null); }}
         title={
           hasRecurrence
             ? (recurringAction?.type === 'delete' ? 'Excluir Aula Recorrente' : 'Remarcar Aula Recorrente')
-            : (recurringAction?.type === 'delete' ? 'Confirmar ExclusÃ£o' : 'Confirmar RemarcaÃ§Ã£o')
+            : (recurringAction?.type === 'delete' ? 'Confirmar Exclusão' : 'Confirmar Remarcação')
         }
         description={
           hasRecurrence
-            ? "Esta aula faz parte de uma sÃ©rie recorrente. Como deseja aplicar esta alteraÃ§Ã£o?"
-            : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta aÃ§Ã£o nÃ£o pode ser desfeita.' : 'Deseja confirmar a remarcaÃ§Ã£o desta aula?')
+            ? "Esta aula faz parte de uma série recorrente. Como deseja aplicar esta alteração?"
+            : (recurringAction?.type === 'delete' ? 'Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.' : 'Deseja confirmar a remarcação desta aula?')
         }
       >
         <div className="flex flex-col gap-3 pb-8 md:pb-0">
@@ -1024,7 +1024,7 @@ export default function Aulas() {
                 }}
                 className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
               >
-                {recurringAction?.type === 'delete' ? 'Excluir toda a sÃ©rie (futuras)' : 'Remarcar toda a sÃ©rie (futuras)'}
+                {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
               </button>
             </>
           ) : (
