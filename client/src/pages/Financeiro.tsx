@@ -47,7 +47,7 @@ export default function Financeiro() {
   }, [payments, expenses]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 bg-background">
+    <div className="flex flex-col h-full min-h-0 flex-1 overflow-hidden -m-4 sm:-m-6 bg-background">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4 lg:space-y-8 scrollbar-thin no-scrollbar">
         
         {/* Date Selector & Year Filter */}

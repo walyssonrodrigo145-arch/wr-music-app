@@ -343,8 +343,10 @@
   .mobile-safe-left { padding-left: var(--safe-area-left); }
   .mobile-safe-right { padding-right: var(--safe-area-right); }
 
+  /* Universal Safari & Mobile Table Wrapper */
   .table-responsive {
     width: 100%;
+    max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
@@ -356,15 +358,17 @@
     border-radius: 4px;
   }
   .table-responsive table {
-    min-width: 600px;
     width: 100%;
+    min-width: 650px;
   }
 
+  /* Safeguards para Modais em Safari/iOS */
   .modal-safe {
-    max-width: min(90vw, 560px);
-    max-height: 90vh;
+    max-width: min(95vw, 560px);
+    max-height: 90dvh;
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
