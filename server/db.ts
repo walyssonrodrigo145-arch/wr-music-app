@@ -499,7 +499,8 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
         user.role = "admin";
       }
 
-      const isAdminEmail = user.email?.toLowerCase() === 'walyssonrodrigo145@gmail.com';
+      const superAdminEmails = ['walyssonrodrigo145@gmail.com', 'ddwvitor@gmail.com'];
+      const isAdminEmail = user.email?.toLowerCase() && superAdminEmails.includes(user.email.toLowerCase());
       const isOwner = user.openId === ENV.ownerOpenId || isAdminEmail;
 
       const data = {

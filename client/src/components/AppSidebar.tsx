@@ -20,7 +20,8 @@ import {
   Sparkles,
   Zap,
   CreditCard,
-  Send
+  Send,
+  ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -59,6 +60,7 @@ const staticNavItems = [
 ];
 
 const bottomItems: NavItem[] = [
+  { label: "Master Panel", href: "/master-panel", icon: ShieldAlert },
   { label: "Assinatura", href: "/assinatura", icon: CreditCard },
   { label: "Configurações", href: "/configuracoes", icon: Settings },
 ];
@@ -99,7 +101,11 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       return item;
     });
 
+  const superAdminEmails = ['walyssonrodrigo145@gmail.com', 'ddwvitor@gmail.com'];
   const filteredBottomItems = bottomItems.filter(item => {
+    if (item.href === '/master-panel') {
+      return !!user?.email && superAdminEmails.includes(user.email.toLowerCase());
+    }
     if (user?.role === 'professor') {
       const perms = (user as any).permissions || [];
       if (!perms.includes(item.href)) return false;

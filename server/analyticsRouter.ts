@@ -45,8 +45,10 @@ const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
   const userEmail = ctx.user.email?.toLowerCase();
 
   const isMaster =
+    ENV.superAdminEmails.includes(userEmail || "") ||
     userEmail === superAdminEmail ||
     userEmail === "walyssonrodrigo145@gmail.com" ||
+    userEmail === "ddwvitor@gmail.com" ||
     (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId) ||
     ctx.user.role === "admin";
 

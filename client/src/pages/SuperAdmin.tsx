@@ -17,8 +17,8 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
 // ─── REGRA DE ACESSO ──────────────────────────────────────────────────────────
-// SOMENTE walyssonrodrigo145@gmail.com pode acessar este painel.
-const SUPER_ADMIN_EMAIL = 'walyssonrodrigo145@gmail.com';
+// SOMENTE Super Admins autorizados podem acessar este painel.
+const SUPER_ADMIN_EMAILS = ['walyssonrodrigo145@gmail.com', 'ddwvitor@gmail.com'];
 
 export default function SuperAdmin() {
   const { user, loading } = useAuth();
@@ -26,9 +26,8 @@ export default function SuperAdmin() {
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons">("dashboard");
 
-  // ─── Proteção de rota: apenas o Super Admin email ─────────────────────────
-  // FIX: removida condição &&. Agora verifica EXCLUSIVAMENTE o email.
-  if (!loading && (!user || user.email?.toLowerCase() !== SUPER_ADMIN_EMAIL)) {
+  // ─── Proteção de rota: apenas os emails de Super Admin ─────────────────────────
+  if (!loading && (!user || !user.email || !SUPER_ADMIN_EMAILS.includes(user.email.toLowerCase()))) {
     if (!loading && !user) { setLocation('/login'); return null; }
     return (
       <div className="flex flex-col items-center justify-center h-full pt-20 gap-4">

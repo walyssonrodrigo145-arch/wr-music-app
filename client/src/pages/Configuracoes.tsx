@@ -2316,7 +2316,7 @@ export default function Configuracoes() {
                 
                 <PwaInstallSection />
                 <ExportDataSection />
-                {user?.email?.toLowerCase() === 'walyssonrodrigo145@gmail.com' && (
+                {user?.email?.toLowerCase() && ['walyssonrodrigo145@gmail.com', 'ddwvitor@gmail.com'].includes(user.email.toLowerCase()) && (
                   <CleanupTestDataSection />
                 )}
               </div>
