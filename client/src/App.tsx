@@ -62,9 +62,23 @@ const PageLoader = () => (
   </div>
 );
 
+const PublicEnrollmentPage = lazy(() => import("./pages/PublicEnrollment"));
+
 function Router() {
   const { user, isAuthenticated, loading } = useAuth();
   const host = typeof window !== "undefined" ? window.location.hostname : "";
+  const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+
+  // Rota pública de matrícula — acessível independente de autenticação
+  if (currentPath.startsWith("/matricula/")) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Switch>
+          <Route path="/matricula/:code" component={PublicEnrollmentPage} />
+        </Switch>
+      </Suspense>
+    );
+  }
 
   if (loading) return <PageLoader />;
 
@@ -98,7 +112,6 @@ function Router() {
           <Route path="/" component={LandingPage} />
           <Route path="/login" component={Login} />
           <Route path="/cadastro" component={Cadastro} />
-          <Route path="/matricula/:code" component={lazy(() => import("./pages/PublicEnrollment"))} />
           <Route path="/termos-de-uso" component={TermosDeUso} />
           <Route path="/politica-de-privacidade" component={PoliticaPrivacidade} />
           <Route>
