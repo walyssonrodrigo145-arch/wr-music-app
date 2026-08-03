@@ -251,6 +251,7 @@ function StudentModal({
   const createMutation = trpc.students.create.useMutation({
     onSuccess: (data: any) => {
       toast.success("Aluno cadastrado!");
+      utils.dashboard.stats.invalidate();
       if (generatePortalAccess && data.studentId) {
         enableAccessMutation.mutate({ studentId: data.studentId });
       } else {
