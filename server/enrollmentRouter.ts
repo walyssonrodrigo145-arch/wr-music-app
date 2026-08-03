@@ -5,6 +5,8 @@ import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, st
 import { eq, and, gte, lte } from "drizzle-orm";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
+import { createMPPreference } from "./utils/mercadopago";
+import { ENV } from "./_core/env";
 
 export const enrollmentRouter = router({
   // 1. Gera um link de auto-matrícula exclusivo (Admin/CRM)
@@ -38,7 +40,7 @@ export const enrollmentRouter = router({
       return { code: link.code, url: `/matricula/${link.code}` };
     }),
 
-  // 2. Rota Pública: Retorna detalhes da escola, cursos e valor da mensalidade
+  // 2. Rota Pública: Retorna detalhes da escola, cursos, valor da mensalidade e método de pagamento configurado
   getPublicDetails: publicProcedure
     .input(z.object({ code: z.string() }))
     .query(async ({ input }) => {
@@ -66,19 +68,33 @@ export const enrollmentRouter = router({
 
       const allInstruments = await db.select().from(instruments).where(eq(instruments.organizationId, orgId));
 
+      const paymentGateway = schoolSet?.paymentGateway || "asaas";
+      const hasAsaas = !!(schoolSet?.asaasApiKey && schoolSet?.asaasEnabled);
+      const hasMercadoPago = !!schoolSet?.mpAccessToken;
+
+      let activeGateway: "asaas" | "mercadopago" | "none" = "none";
+      if (paymentGateway === "mercadopago" && hasMercadoPago) {
+        activeGateway = "mercadopago";
+      } else if (hasAsaas) {
+        activeGateway = "asaas";
+      } else if (hasMercadoPago) {
+        activeGateway = "mercadopago";
+      }
+
       return {
         code: link.code,
         schoolName: schoolSet?.schoolName || "Escola de Música",
         schoolPhone: schoolSet?.schoolPhone || schoolSet?.phone,
         monthlyFee: link.monthlyFee ? Number(link.monthlyFee) : 150,
+        lessonDuration: schoolSet?.lessonDuration ?? 60,
         preselectedInstrumentId: link.instrumentId,
         lead: leadData,
         instruments: allInstruments,
-        hasAsaas: !!(schoolSet?.asaasApiKey && schoolSet?.asaasEnabled),
+        paymentGateway: activeGateway,
       };
     }),
 
-  // 3. Rota Pública: Retorna os horários disponíveis por instrumento e data
+  // 3. Rota Pública: Retorna os horários disponíveis por instrumento e data, considerando lessonDuration
   getAvailableSlots: publicProcedure
     .input(
       z.object({
@@ -131,12 +147,14 @@ export const enrollmentRouter = router({
         .from(studioRooms)
         .where(and(eq(studioRooms.organizationId, orgId), eq(studioRooms.active, true)));
 
-      // Busca horários de funcionamento da escola
+      // Busca horários de funcionamento da escola e tempo padrão de aula
       const [schoolSet] = await db
-        .select({ schoolHours: settings.schoolHours })
+        .select({ schoolHours: settings.schoolHours, lessonDuration: settings.lessonDuration })
         .from(settings)
         .where(eq(settings.organizationId, orgId))
         .limit(1);
+
+      const duration = schoolSet?.lessonDuration ?? 60;
 
       // Mapeia o dia da semana da data escolhida para a chave do schoolHours
       const DAY_MAP: Record<number, string> = {
@@ -169,10 +187,11 @@ export const enrollmentRouter = router({
           room: rooms[0] || null,
           slots: [],
           closedDay: true,
+          lessonDuration: duration,
         };
       }
 
-      // Gera slots de hora em hora dentro do horário de funcionamento
+      // Gera slots com passo igual a lessonDuration dentro do horário de funcionamento
       const [startH, startM] = dayConfig.start.split(":").map(Number);
       const [endH, endM] = dayConfig.end.split(":").map(Number);
 
@@ -180,12 +199,12 @@ export const enrollmentRouter = router({
       let cursor = startH * 60 + (startM || 0);
       const endMinutes = endH * 60 + (endM || 0);
 
-      // Cada aula tem duração de 1h, então o último slot deve terminar antes do fechamento
-      while (cursor + 60 <= endMinutes) {
+      // Cada slot tem duração de duration minutos
+      while (cursor + duration <= endMinutes) {
         const hh = String(Math.floor(cursor / 60)).padStart(2, "0");
         const mm = String(cursor % 60).padStart(2, "0");
         generatedSlots.push(`${hh}:${mm}`);
-        cursor += 60;
+        cursor += duration;
       }
 
       // Busca aulas agendadas para essa data (início e fim do dia, horário de Brasília)
@@ -225,10 +244,11 @@ export const enrollmentRouter = router({
         room: rooms[0] || null,
         slots,
         closedDay: false,
+        lessonDuration: duration,
       };
     }),
 
-  // 4. Gerar Cobrança Asaas (PIX/Boleto) para o Aluno pagar
+  // 4. Gerar Cobrança (Asaas ou Mercado Pago) para o Aluno pagar
   createPaymentCharge: publicProcedure
     .input(
       z.object({
@@ -262,84 +282,97 @@ export const enrollmentRouter = router({
       const orgId = link.organizationId;
       const [schoolSet] = await db.select().from(settings).where(eq(settings.organizationId, orgId)).limit(1);
 
-      if (!schoolSet?.asaasApiKey || !schoolSet?.asaasEnabled) {
-        // Sem gateway: cadastrar diretamente sem pagamento online
-        return { skipPayment: true };
-      }
-
       const monthlyFee = link.monthlyFee ? Number(link.monthlyFee) : 150;
-
-      // Cria cliente no Asaas
-      const asaasCustomerId = await createAsaasCustomer(
-        {
-          name: input.studentName,
-          email: input.studentEmail,
-          phone: input.studentPhone,
-          cpfCnpj: input.studentCpf,
-        },
-        schoolSet.asaasApiKey
-      );
-
-      // Data de vencimento: hoje + 3 dias
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 3);
-      const dueDateStr = dueDate.toISOString().split("T")[0];
-
-      // Cria cobrança PIX ou Boleto
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       const courseName = inst?.name || "Música";
 
-      const charge = await createAsaasCharge(
-        {
-          asaasCustomerId,
-          billingType: input.billingType,
-          value: monthlyFee,
-          dueDate: dueDateStr,
-          description: `Matrícula - Aula de ${courseName} em ${schoolSet.schoolName || "Escola de Música"}`,
-        },
-        schoolSet.asaasApiKey
-      );
+      // Qual gateway a escola usa?
+      const gateway = schoolSet?.paymentGateway || "asaas";
+      const hasAsaas = !!(schoolSet?.asaasApiKey && schoolSet?.asaasEnabled);
+      const hasMercadoPago = !!schoolSet?.mpAccessToken;
 
-      // Se PIX, busca QR code
-      let pixQrCode = null;
-      let pixCopiaECola = null;
-      if (input.billingType === "PIX" && charge.id) {
-        try {
-          const pix = await getAsaasPixQrCode(charge.id, schoolSet.asaasApiKey);
-          pixQrCode = pix.encodedImage;
-          pixCopiaECola = pix.payload;
-        } catch (_) {}
+      // MERCADO PAGO
+      if ((gateway === "mercadopago" && hasMercadoPago) || (!hasAsaas && hasMercadoPago)) {
+        const mpResult = await createMPPreference(
+          {
+            items: [
+              {
+                title: `Matrícula - Curso de ${courseName}`,
+                quantity: 1,
+                currency_id: "BRL",
+                unit_price: monthlyFee,
+              },
+            ],
+            payer: {
+              name: input.studentName,
+              email: input.studentEmail || "cliente@wrmusicpro.com.br",
+            },
+            external_reference: `enrollment_${link.code}`,
+            successUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/matricula/${link.code}?status=success`,
+          },
+          schoolSet!.mpAccessToken!
+        );
+
+        return {
+          skipPayment: false,
+          gateway: "mercadopago",
+          invoiceUrl: mpResult.init_point,
+          value: monthlyFee,
+          billingType: input.billingType,
+        };
       }
 
-      // Armazena dados pendentes no link (sem criar aluno ainda — aguarda confirmação de pagamento)
-      // Salva referência no link para o webhook depois processar
-      await db.update(enrollmentLinks).set({
-        status: "pending_payment",
-        // guardamos como JSON no campo expiresAt, na prática usaríamos um campo JSON
-        // mas como workaround, salvamos o paymentId no código do campo expiresAt
-      } as any).where(eq(enrollmentLinks.id, link.id));
+      // ASAAS
+      if (hasAsaas) {
+        const asaasCustomerId = await createAsaasCustomer(
+          {
+            name: input.studentName,
+            email: input.studentEmail,
+            phone: input.studentPhone,
+            cpfCnpj: input.studentCpf,
+          },
+          schoolSet.asaasApiKey
+        );
 
-      return {
-        skipPayment: false,
-        chargeId: charge.id,
-        invoiceUrl: charge.invoiceUrl,
-        pixQrCode,
-        pixCopiaECola,
-        value: monthlyFee,
-        billingType: input.billingType,
-        // Passamos de volta para confirmar após pagamento
-        enrollmentData: {
-          code: input.code,
-          studentName: input.studentName,
-          studentPhone: input.studentPhone,
-          studentEmail: input.studentEmail,
-          instrumentId: input.instrumentId,
-          teacherUserId: input.teacherUserId,
-          studioRoomId: input.studioRoomId,
-          dateStr: input.dateStr,
-          timeStr: input.timeStr,
-        },
-      };
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 3);
+        const dueDateStr = dueDate.toISOString().split("T")[0];
+
+        const charge = await createAsaasCharge(
+          {
+            asaasCustomerId,
+            billingType: input.billingType,
+            value: monthlyFee,
+            dueDate: dueDateStr,
+            description: `Matrícula - Aula de ${courseName} em ${schoolSet.schoolName || "Escola de Música"}`,
+          },
+          schoolSet.asaasApiKey
+        );
+
+        let pixQrCode = null;
+        let pixCopiaECola = null;
+        if (input.billingType === "PIX" && charge.id) {
+          try {
+            const pix = await getAsaasPixQrCode(charge.id, schoolSet.asaasApiKey);
+            pixQrCode = pix.encodedImage;
+            pixCopiaECola = pix.payload;
+          } catch (_) {}
+        }
+
+        return {
+          skipPayment: false,
+          gateway: "asaas",
+          chargeId: charge.id,
+          invoiceUrl: charge.invoiceUrl,
+          pixQrCode,
+          pixCopiaECola,
+          value: monthlyFee,
+          billingType: input.billingType,
+        };
+      }
+
+      // Sem gateway configurado na escola
+      return { skipPayment: true, gateway: "none" };
     }),
 
   // 5. Confirma a Matrícula após pagamento (ou sem gateway)
@@ -373,6 +406,9 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
+      const [schoolSet] = await db.select({ lessonDuration: settings.lessonDuration }).from(settings).where(eq(settings.organizationId, orgId)).limit(1);
+      const lessonDuration = schoolSet?.lessonDuration ?? 60;
+
       const scheduledAt = new Date(`${input.dateStr}T${input.timeStr}:00.000-03:00`);
 
       // Cadastra o Aluno
@@ -392,7 +428,7 @@ export const enrollmentRouter = router({
         })
         .returning();
 
-      // Cadastra a Aula
+      // Cadastra a Aula usando lessonDuration da escola
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       const courseName = inst?.name || "Música";
 
@@ -404,7 +440,7 @@ export const enrollmentRouter = router({
           studentId: newStudent.id,
           title: `Aula de ${courseName} - ${newStudent.name}`,
           scheduledAt,
-          duration: 60,
+          duration: lessonDuration,
           status: "agendada",
           instrumentId: input.instrumentId,
           studioRoomId: input.studioRoomId || undefined,

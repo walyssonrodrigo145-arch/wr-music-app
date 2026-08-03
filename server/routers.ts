@@ -3828,6 +3828,7 @@ ${jsonSchemaFormat}`;
       schoolWebsite: z.string().optional(),
       schoolDescription: z.string().optional(),
       schoolHours: z.string().optional(),
+      lessonDuration: z.number().optional(),
       dueDaysForecast: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;

@@ -289,23 +289,31 @@ export default function PublicEnrollment() {
                     </div>
 
                     {/* Escolha do método de pagamento */}
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Método de Pagamento</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(["PIX", "BOLETO"] as const).map(type => (
-                          <button
-                            key={type}
-                            onClick={() => setBillingType(type)}
-                            className={`py-3 rounded-xl border-2 text-xs font-bold transition-all
-                              ${billingType === type
-                                ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
-                                : "border-border/40 text-muted-foreground"}`}
-                          >
-                            {type === "PIX" ? "🔑 PIX" : "📄 Boleto"}
-                          </button>
-                        ))}
+                    {details.paymentGateway === "asaas" && (
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Método de Pagamento</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(["PIX", "BOLETO"] as const).map(type => (
+                            <button
+                              key={type}
+                              onClick={() => setBillingType(type)}
+                              className={`py-3 rounded-xl border-2 text-xs font-bold transition-all
+                                ${billingType === type
+                                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
+                                  : "border-border/40 text-muted-foreground"}`}
+                            >
+                              {type === "PIX" ? "🔑 PIX" : "📄 Boleto"}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {details.paymentGateway === "mercadopago" && (
+                      <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 font-bold flex items-center gap-2">
+                        <span>💳 Pagamento seguro via Mercado Pago (PIX / Cartão)</span>
+                      </div>
+                    )}
                   </div>
 
                   <Button

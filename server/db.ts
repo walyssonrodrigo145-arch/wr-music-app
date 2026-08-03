@@ -458,6 +458,8 @@ async function ensureSchemaConsistency(db: any) {
       )
     `);
 
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "lessonDuration" integer DEFAULT 60 NOT NULL`, "settings lessonDuration");
+
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
   }

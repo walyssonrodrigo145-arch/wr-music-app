@@ -854,6 +854,7 @@ export default function Configuracoes() {
     sunday: { active: false, start: "08:00", end: "12:00" }
   };
   const [schoolHours, setSchoolHours] = useState<any>(defaultHours);
+  const [lessonDuration, setLessonDuration] = useState<number>(60);
 
   // ── Notificações state ──
   const [notifyLesson, setNotifyLesson] = useState(true);
@@ -930,6 +931,9 @@ export default function Configuracoes() {
       setEarlyDiscountType(((settings as any).earlyDiscountType === "fixed" ? "fixed" : "percentage"));
       setEarlyDiscountValue(Number((settings as any).earlyDiscountValue ?? 5.0));
       setEarlyDiscountDays(Number((settings as any).earlyDiscountDays ?? 0));
+      if ((settings as any).lessonDuration) {
+        setLessonDuration(Number((settings as any).lessonDuration));
+      }
       if (settings.schoolHours) {
         try {
           setSchoolHours(JSON.parse(settings.schoolHours));
@@ -1291,7 +1295,7 @@ export default function Configuracoes() {
                             return;
                          }
                       }
-                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, schoolHours: JSON.stringify(schoolHours), dueDaysForecast });
+                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
                     }}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -1410,6 +1414,28 @@ export default function Configuracoes() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="pt-4 border-t border-border space-y-2">
+                  <Label className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+                    <Clock size={14} className="text-indigo-500" />
+                    Duração Padrão das Aulas
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Define o tempo (em minutos) de cada aula no agendamento da agenda e nos links de matrícula pública.
+                  </p>
+                  <Select value={String(lessonDuration)} onValueChange={(val) => setLessonDuration(Number(val))}>
+                    <SelectTrigger className="w-full sm:w-64 h-10 rounded-xl bg-muted/50 border-border font-bold">
+                      <SelectValue placeholder="Selecione a duração" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30">30 Minutos</SelectItem>
+                      <SelectItem value="45">45 Minutos</SelectItem>
+                      <SelectItem value="60">60 Minutos (1 Hora)</SelectItem>
+                      <SelectItem value="90">90 Minutos (1h 30m)</SelectItem>
+                      <SelectItem value="120">120 Minutos (2 Horas)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}

@@ -40,11 +40,13 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const { data: students } = trpc.students.list.useQuery(undefined, { enabled: open });
   const { data: instruments } = trpc.instruments.list.useQuery(undefined, { enabled: open });
   
+  const { data: settings } = trpc.settings.get.useQuery(undefined, { enabled: open });
+  
   const [formData, setFormData] = useState({
     studentId: "",
     title: "",
     time: "09:00",
-    duration: 60,
+    duration: settings?.lessonDuration ?? 60,
     notes: "",
     instrumentId: "",
     weeksCount: 1,
