@@ -276,6 +276,22 @@ export default function PublicEnrollment() {
                       <Loader2 size={16} className="animate-spin text-indigo-400" />
                       Verificando disponibilidade...
                     </div>
+                  ) : slotsData?.closedDay ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                      <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400">
+                        <Clock size={18} />
+                      </div>
+                      <p className="text-xs font-bold text-foreground">Escola fechada neste dia</p>
+                      <p className="text-[10px] text-muted-foreground">Escolha outro dia disponível</p>
+                    </div>
+                  ) : slotsData?.slots.filter((s: any) => s.available).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                      <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-400">
+                        <Clock size={18} />
+                      </div>
+                      <p className="text-xs font-bold text-foreground">Sem horários disponíveis</p>
+                      <p className="text-[10px] text-muted-foreground">Todos os horários deste dia já estão ocupados. Escolha outra data.</p>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-4 gap-2">
                       {slotsData?.slots.map((slot: any) => {

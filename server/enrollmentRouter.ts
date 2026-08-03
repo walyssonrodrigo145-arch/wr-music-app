@@ -132,12 +132,63 @@ export const enrollmentRouter = router({
         .where(and(eq(studioRooms.organizationId, orgId), eq(studioRooms.active, true)));
 
       // Busca horários de funcionamento da escola
-      const [schoolSet] = await db.select({ schoolHours: settings.schoolHours }).from(settings).where(eq(settings.organizationId, orgId)).limit(1);
+      const [schoolSet] = await db
+        .select({ schoolHours: settings.schoolHours })
+        .from(settings)
+        .where(eq(settings.organizationId, orgId))
+        .limit(1);
 
-      // Grade padrão de horários (de 8h às 20h de hora em hora)
-      const allSlots = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"];
+      // Mapeia o dia da semana da data escolhida para a chave do schoolHours
+      const DAY_MAP: Record<number, string> = {
+        0: "sunday",
+        1: "monday",
+        2: "tuesday",
+        3: "wednesday",
+        4: "thursday",
+        5: "friday",
+        6: "saturday",
+      };
 
-      // Busca aulas agendadas para essa data
+      // Parseia a data como local (Brasil) para evitar erro de UTC
+      const [year, month, day] = input.dateStr.split("-").map(Number);
+      const dateObj = new Date(year, month - 1, day);
+      const weekdayKey = DAY_MAP[dateObj.getDay()];
+
+      // Parse do schoolHours
+      let schoolHoursObj: Record<string, { active: boolean; start: string; end: string }> = {};
+      try {
+        schoolHoursObj = JSON.parse(schoolSet?.schoolHours || "{}");
+      } catch (_) {}
+
+      const dayConfig = schoolHoursObj[weekdayKey];
+
+      // Se a escola não funciona nesse dia, retorna vazio
+      if (!dayConfig || !dayConfig.active) {
+        return {
+          teacher: targetTeacher,
+          room: rooms[0] || null,
+          slots: [],
+          closedDay: true,
+        };
+      }
+
+      // Gera slots de hora em hora dentro do horário de funcionamento
+      const [startH, startM] = dayConfig.start.split(":").map(Number);
+      const [endH, endM] = dayConfig.end.split(":").map(Number);
+
+      const generatedSlots: string[] = [];
+      let cursor = startH * 60 + (startM || 0);
+      const endMinutes = endH * 60 + (endM || 0);
+
+      // Cada aula tem duração de 1h, então o último slot deve terminar antes do fechamento
+      while (cursor + 60 <= endMinutes) {
+        const hh = String(Math.floor(cursor / 60)).padStart(2, "0");
+        const mm = String(cursor % 60).padStart(2, "0");
+        generatedSlots.push(`${hh}:${mm}`);
+        cursor += 60;
+      }
+
+      // Busca aulas agendadas para essa data (início e fim do dia, horário de Brasília)
       const startOfDay = new Date(`${input.dateStr}T00:00:00.000-03:00`);
       const endOfDay = new Date(`${input.dateStr}T23:59:59.999-03:00`);
 
@@ -152,25 +203,28 @@ export const enrollmentRouter = router({
           )
         );
 
-      const busyTimes = existingLessons.map(l => {
-        const d = new Date(l.scheduledAt);
-        return d.toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "America/Sao_Paulo",
-        });
-      });
+      // Converte as aulas existentes para strings HH:mm (horário de Brasília)
+      const busyTimes = new Set(
+        existingLessons.map(l => {
+          const d = new Date(l.scheduledAt);
+          return d.toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "America/Sao_Paulo",
+          });
+        })
+      );
 
-      const slots = allSlots.map(time => ({
+      const slots = generatedSlots.map(time => ({
         time,
-        available: !busyTimes.includes(time),
+        available: !busyTimes.has(time),
       }));
 
       return {
         teacher: targetTeacher,
         room: rooms[0] || null,
         slots,
-        schoolName: schoolSet ? undefined : undefined,
+        closedDay: false,
       };
     }),
 
