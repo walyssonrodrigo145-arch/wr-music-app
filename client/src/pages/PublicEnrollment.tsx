@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ export default function PublicEnrollment() {
   const params = useParams<{ code: string }>();
   const code = params.code || "";
 
+  // ─── State ───────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>("course");
   const [selectedInstrument, setSelectedInstrument] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -36,6 +37,20 @@ export default function PublicEnrollment() {
     value: number;
     skipPayment?: boolean;
   } | null>(null);
+
+  // Detecta retorno do Mercado Pago via ?status=success na URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get("status");
+    if (status === "success") {
+      // Remove o param da URL sem recarregar a página
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
+      // Avança para seleção de horário
+      setStep("schedule");
+      toast.success("Pagamento confirmado! Agora escolha seu horário.");
+    }
+  }, []);
 
   // ─── Queries ─────────────────────────────────────────────────────────────────
   const { data: details, isLoading: detailsLoading, error: detailsError } =
@@ -60,7 +75,11 @@ export default function PublicEnrollment() {
       if (data.skipPayment) {
         // Sem gateway: vai direto para seleção de horário
         setStep("schedule");
+      } else if ((data as any).gateway === "mercadopago" && (data as any).invoiceUrl) {
+        // Mercado Pago: redireciona imediatamente para o checkout externo
+        window.location.href = (data as any).invoiceUrl;
       } else {
+        // Asaas: exibe QR Code PIX ou link de boleto na tela
         setPaymentData({
           chargeId: (data as any).chargeId,
           invoiceUrl: (data as any).invoiceUrl,
@@ -68,7 +87,6 @@ export default function PublicEnrollment() {
           pixCopiaECola: (data as any).pixCopiaECola,
           value: (data as any).value,
         });
-        // Ainda na mesma tela de pagamento, exibe o QR code/boleto
       }
     },
     onError: (e) => toast.error("Erro ao gerar cobrança: " + e.message),
@@ -82,11 +100,13 @@ export default function PublicEnrollment() {
   // ─── Helpers ─────────────────────────────────────────────────────────────────
   const nextDays = useMemo(() => {
     const days = [];
-    const today = new Date();
+    // Obtém a data atual no fuso horário de Brasília (UTC-3)
+    const nowBrasilia = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
     for (let i = 1; i <= 14; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
+      const d = new Date(nowBrasilia);
+      d.setDate(nowBrasilia.getDate() + i);
+      // dateStr no formato YYYY-MM-DD usando locale "sv" (sueco) que retorna o padrão ISO sem conversão UTC
+      const dateStr = d.toLocaleDateString("sv", { timeZone: "America/Sao_Paulo" });
       const weekday = d.toLocaleDateString("pt-BR", { weekday: "short", timeZone: "America/Sao_Paulo" });
       const day = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
       days.push({ dateStr, weekday, day });
