@@ -9,59 +9,48 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Music, Calendar, Clock, CheckCircle2, User, Phone,
-  Mail, Sparkles, Loader2, Copy, ExternalLink, ChevronRight,
-  QrCode, CreditCard, ArrowLeft, BadgeCheck,
+  Mail, Sparkles, Loader2, Copy, ExternalLink,
+  ChevronRight, CreditCard, ArrowLeft, BadgeCheck, QrCode,
 } from "lucide-react";
 
-type Step = "instrument" | "datetime" | "personal" | "payment" | "success";
+// Fluxo: Curso → Dados + Pagamento → Horário → Confirmação → Sucesso
+type Step = "course" | "payment" | "schedule" | "success";
 
 export default function PublicEnrollment() {
   const params = useParams<{ code: string }>();
   const code = params.code || "";
 
-  const [step, setStep] = useState<Step>("instrument");
+  const [step, setStep] = useState<Step>("course");
   const [selectedInstrument, setSelectedInstrument] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [billingType, setBillingType] = useState<"PIX" | "BOLETO">("PIX");
-  const [paymentData, setPaymentData] = useState<{
-    chargeId: string;
-    invoiceUrl: string;
-    pixQrCode: string | null;
-    pixCopiaECola: string | null;
-    value: number;
-    billingType: string;
-    enrollmentData: any;
-    skipPayment?: boolean;
-  } | null>(null);
 
   const [form, setForm] = useState({ name: "", phone: "", email: "", cpf: "" });
+
+  const [paymentData, setPaymentData] = useState<{
+    chargeId?: string;
+    invoiceUrl?: string;
+    pixQrCode?: string | null;
+    pixCopiaECola?: string | null;
+    value: number;
+    skipPayment?: boolean;
+  } | null>(null);
 
   // ─── Queries ─────────────────────────────────────────────────────────────────
   const { data: details, isLoading: detailsLoading, error: detailsError } =
     trpc.enrollment.getPublicDetails.useQuery(
       { code },
-      {
-        enabled: Boolean(code),
-        retry: 1,
-        staleTime: 0,
-        gcTime: 0,
-        refetchOnMount: "always",
-        refetchOnWindowFocus: true,
-      }
+      { enabled: Boolean(code), retry: 1, staleTime: 0, gcTime: 0, refetchOnMount: "always" }
     );
 
   const { data: slotsData, isLoading: slotsLoading } =
     trpc.enrollment.getAvailableSlots.useQuery(
       { code, instrumentId: selectedInstrument!, dateStr: selectedDate },
       {
-        enabled: Boolean(code && selectedInstrument && selectedDate),
-        staleTime: 0,
-        gcTime: 0,
-        refetchOnMount: "always",
-        refetchOnWindowFocus: true,
-        refetchInterval: 30_000, // Revalida a cada 30s caso admin mude os horários
-        refetchIntervalInBackground: false,
+        enabled: Boolean(code && selectedInstrument && selectedDate && step === "schedule"),
+        staleTime: 0, gcTime: 0, refetchOnMount: "always",
+        refetchOnWindowFocus: true, refetchInterval: 30_000,
       }
     );
 
@@ -69,21 +58,17 @@ export default function PublicEnrollment() {
   const createChargeMutation = trpc.enrollment.createPaymentCharge.useMutation({
     onSuccess: (data) => {
       if (data.skipPayment) {
-        // Sem gateway configurado — cadastra direto
-        confirmMutation.mutate({
-          code,
-          studentName: form.name,
-          studentPhone: form.phone,
-          studentEmail: form.email || undefined,
-          instrumentId: selectedInstrument!,
-          teacherUserId: slotsData?.teacher?.userId!,
-          studioRoomId: slotsData?.room?.id,
-          dateStr: selectedDate,
-          timeStr: selectedTime,
-        });
+        // Sem gateway: vai direto para seleção de horário
+        setStep("schedule");
       } else {
-        setPaymentData(data as any);
-        setStep("payment");
+        setPaymentData({
+          chargeId: (data as any).chargeId,
+          invoiceUrl: (data as any).invoiceUrl,
+          pixQrCode: (data as any).pixQrCode,
+          pixCopiaECola: (data as any).pixCopiaECola,
+          value: (data as any).value,
+        });
+        // Ainda na mesma tela de pagamento, exibe o QR code/boleto
       }
     },
     onError: (e) => toast.error("Erro ao gerar cobrança: " + e.message),
@@ -115,7 +100,11 @@ export default function PublicEnrollment() {
     toast.success("Chave PIX copiada!");
   };
 
-  // ─── Loading / Error states ───────────────────────────────────────────────────
+  const handleGoToSchedule = () => {
+    setStep("schedule");
+  };
+
+  // ─── Loading / Error ──────────────────────────────────────────────────────────
   if (detailsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -141,17 +130,17 @@ export default function PublicEnrollment() {
     );
   }
 
-  // ─── Step indicator ───────────────────────────────────────────────────────────
-  const STEPS: { key: Step; label: string }[] = [
-    { key: "instrument", label: "Curso" },
-    { key: "datetime", label: "Horário" },
-    { key: "personal", label: "Dados" },
-    { key: "payment", label: "Pagamento" },
+  // ─── Steps config ─────────────────────────────────────────────────────────────
+  const STEPS = [
+    { key: "course",   label: "Curso" },
+    { key: "payment",  label: "Dados & Pagamento" },
+    { key: "schedule", label: "Horário" },
   ];
-  const currentStepIdx = STEPS.findIndex(s => s.key === step);
+  const currentIdx = STEPS.findIndex(s => s.key === step);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-indigo-950/10 text-foreground">
+
       {/* ── Header ── */}
       <div className="sticky top-0 z-10 backdrop-blur-md bg-background/80 border-b border-border/40 px-4 py-3">
         <div className="max-w-xl mx-auto flex items-center justify-between">
@@ -171,22 +160,22 @@ export default function PublicEnrollment() {
 
       <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
 
-        {/* ── Step Progress Bar ── */}
+        {/* ── Progress Bar ── */}
         {step !== "success" && (
           <div className="flex items-center gap-1">
             {STEPS.map((s, i) => (
               <div key={s.key} className="flex items-center flex-1 last:flex-none">
-                <div className={`flex items-center gap-1.5 ${i <= currentStepIdx ? "text-indigo-400" : "text-muted-foreground/40"}`}>
+                <div className={`flex items-center gap-1.5 ${i <= currentIdx ? "text-indigo-400" : "text-muted-foreground/40"}`}>
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 transition-all
-                    ${i < currentStepIdx ? "bg-indigo-600 border-indigo-600 text-white" :
-                    i === currentStepIdx ? "border-indigo-500 text-indigo-400" :
+                    ${i < currentIdx ? "bg-indigo-600 border-indigo-600 text-white" :
+                    i === currentIdx ? "border-indigo-500 text-indigo-400" :
                     "border-border/40 text-muted-foreground/40"}`}>
-                    {i < currentStepIdx ? <CheckCircle2 size={12} /> : i + 1}
+                    {i < currentIdx ? <CheckCircle2 size={12} /> : i + 1}
                   </div>
                   <span className="text-[10px] font-bold hidden sm:block">{s.label}</span>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${i < currentStepIdx ? "bg-indigo-600" : "bg-border/40"}`} />
+                  <div className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${i < currentIdx ? "bg-indigo-600" : "bg-border/40"}`} />
                 )}
               </div>
             ))}
@@ -196,13 +185,13 @@ export default function PublicEnrollment() {
         <AnimatePresence mode="wait">
 
           {/* ═══════════════════════════════════════════════
-              PASSO 1 — Selecione o Instrumento / Curso
+              PASSO 1 — Selecione o Curso / Instrumento
           ═══════════════════════════════════════════════ */}
-          {step === "instrument" && (
-            <motion.div key="instrument" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
+          {step === "course" && (
+            <motion.div key="course" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
               <div className="space-y-1">
-                <h1 className="text-xl font-black text-foreground">Qual instrumento você quer aprender?</h1>
-                <p className="text-xs text-muted-foreground">Escolha o curso que mais combina com você</p>
+                <h1 className="text-2xl font-black text-foreground">Qual curso você quer fazer?</h1>
+                <p className="text-xs text-muted-foreground">Selecione o instrumento que você quer aprender</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -231,9 +220,18 @@ export default function PublicEnrollment() {
                 })}
               </div>
 
+              {selectedInstrument && (
+                <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 space-y-1 animate-in fade-in">
+                  <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">💡 Como funciona</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Você vai preencher seus dados e pagar a <span className="font-bold text-foreground">primeira mensalidade (R$ {Number(details.monthlyFee).toFixed(0)})</span>. Depois de confirmar, você escolhe o melhor dia e horário para sua aula!
+                  </p>
+                </div>
+              )}
+
               <Button
                 disabled={!selectedInstrument}
-                onClick={() => setStep("datetime")}
+                onClick={() => setStep("payment")}
                 className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-40"
               >
                 Continuar <ChevronRight size={16} />
@@ -242,45 +240,210 @@ export default function PublicEnrollment() {
           )}
 
           {/* ═══════════════════════════════════════════════
-              PASSO 2 — Escolha o Dia e Horário
+              PASSO 2 — Dados Pessoais + Pagamento
           ═══════════════════════════════════════════════ */}
-          {step === "datetime" && (
-            <motion.div key="datetime" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setStep("instrument")} className="w-8 h-8 rounded-xl border border-border/50 flex items-center justify-center hover:bg-muted/40">
-                  <ArrowLeft size={14} />
-                </button>
-                <div>
-                  <h2 className="text-xl font-black text-foreground">Escolha o dia da aula</h2>
-                  <p className="text-xs text-muted-foreground">Próximos 14 dias disponíveis</p>
+          {step === "payment" && (
+            <motion.div key="payment" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
+
+              {/* Se o pagamento ainda não foi gerado, mostra o formulário */}
+              {!paymentData && (
+                <>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setStep("course")} className="w-8 h-8 rounded-xl border border-border/50 flex items-center justify-center hover:bg-muted/40">
+                      <ArrowLeft size={14} />
+                    </button>
+                    <div>
+                      <h2 className="text-xl font-black text-foreground">Seus dados e pagamento</h2>
+                      <p className="text-xs text-muted-foreground">Preencha para garantir sua vaga</p>
+                    </div>
+                  </div>
+
+                  {/* Resumo do curso selecionado */}
+                  <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase">Curso selecionado</p>
+                      <p className="text-sm font-black text-foreground">{details.instruments.find((i: any) => i.id === selectedInstrument)?.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase">Mensalidade</p>
+                      <p className="text-lg font-black text-emerald-400">R$ {Number(details.monthlyFee).toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><User size={10} /> Nome Completo *</Label>
+                      <Input id="enrollment-name" placeholder="Seu nome completo" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Phone size={10} /> WhatsApp *</Label>
+                      <Input id="enrollment-phone" placeholder="(00) 00000-0000" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Mail size={10} /> E-mail</Label>
+                      <Input id="enrollment-email" type="email" placeholder="seu@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">CPF (para gerar PIX ou Boleto)</Label>
+                      <Input id="enrollment-cpf" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm({ ...form, cpf: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                    </div>
+
+                    {/* Escolha do método de pagamento */}
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Método de Pagamento</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["PIX", "BOLETO"] as const).map(type => (
+                          <button
+                            key={type}
+                            onClick={() => setBillingType(type)}
+                            className={`py-3 rounded-xl border-2 text-xs font-bold transition-all
+                              ${billingType === type
+                                ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
+                                : "border-border/40 text-muted-foreground"}`}
+                          >
+                            {type === "PIX" ? "🔑 PIX" : "📄 Boleto"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    disabled={!form.name.trim() || !form.phone.trim() || createChargeMutation.isPending}
+                    onClick={() => {
+                      if (!form.name.trim() || !form.phone.trim()) {
+                        toast.error("Preencha seu nome e telefone.");
+                        return;
+                      }
+                      createChargeMutation.mutate({
+                        code,
+                        studentName: form.name.trim(),
+                        studentPhone: form.phone.trim(),
+                        studentEmail: form.email.trim() || undefined,
+                        studentCpf: form.cpf.trim() || undefined,
+                        instrumentId: selectedInstrument!,
+                        teacherUserId: 0, // será resolvido no backend
+                        dateStr: "pending",
+                        timeStr: "pending",
+                        billingType,
+                      });
+                    }}
+                    className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-40"
+                  >
+                    {createChargeMutation.isPending
+                      ? <><Loader2 size={16} className="animate-spin" /> Gerando cobrança...</>
+                      : <><CreditCard size={16} /> Gerar Cobrança e Pagar</>}
+                  </Button>
+                </>
+              )}
+
+              {/* Cobrança gerada — exibe QR Code PIX ou Boleto */}
+              {paymentData && (
+                <div className="space-y-5">
+                  <div className="text-center space-y-1">
+                    <h2 className="text-xl font-black text-foreground">Realize o pagamento</h2>
+                    <p className="text-xs text-muted-foreground">Após pagar, clique no botão abaixo para escolher seu horário</p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-card border border-border/50 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">Valor da mensalidade</span>
+                      <span className="text-xl font-black text-emerald-400">R$ {paymentData.value.toFixed(2)}</span>
+                    </div>
+
+                    {paymentData.pixQrCode && (
+                      <div className="space-y-3">
+                        <div className="flex justify-center">
+                          <img
+                            src={`data:image/png;base64,${paymentData.pixQrCode}`}
+                            alt="QR Code PIX"
+                            className="w-52 h-52 rounded-2xl border-2 border-border/40 shadow-md"
+                          />
+                        </div>
+                        {paymentData.pixCopiaECola && (
+                          <button
+                            onClick={copyPix}
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
+                          >
+                            <Copy size={14} /> Copiar código PIX (Copia e Cola)
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {paymentData.invoiceUrl && (
+                      <a
+                        href={paymentData.invoiceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
+                      >
+                        <ExternalLink size={14} />
+                        Abrir link de pagamento
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Após pagar → vai escolher o horário */}
+                  <Button
+                    onClick={handleGoToSchedule}
+                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20"
+                  >
+                    <BadgeCheck size={18} /> Já paguei — Escolher meu Horário
+                  </Button>
+                  <p className="text-center text-[10px] text-muted-foreground">Clique somente após realizar o pagamento acima</p>
                 </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ═══════════════════════════════════════════════
+              PASSO 3 — Escolha o Dia e Horário (pós-pagamento)
+          ═══════════════════════════════════════════════ */}
+          {step === "schedule" && (
+            <motion.div key="schedule" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Pagamento confirmado!</span>
+                </div>
+                <h2 className="text-2xl font-black text-foreground">Agora escolha seu horário</h2>
+                <p className="text-xs text-muted-foreground">Selecione o dia e o horário disponível para suas aulas</p>
               </div>
 
               {/* Seleção de data */}
-              <div className="overflow-x-auto pb-2">
-                <div className="flex gap-2 min-w-max">
-                  {nextDays.map((day) => {
-                    const isSelected = selectedDate === day.dateStr;
-                    return (
-                      <button
-                        key={day.dateStr}
-                        onClick={() => { setSelectedDate(day.dateStr); setSelectedTime(""); }}
-                        className={`flex flex-col items-center px-4 py-3 rounded-2xl border-2 min-w-[72px] transition-all
-                          ${isSelected
-                            ? "border-indigo-500 bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
-                            : "border-border/40 bg-card/50 hover:border-indigo-400/40"}`}
-                      >
-                        <span className={`text-[10px] font-bold uppercase ${isSelected ? "text-indigo-100" : "text-muted-foreground"}`}>{day.weekday}</span>
-                        <span className={`text-sm font-black ${isSelected ? "text-white" : "text-foreground"}`}>{day.day}</span>
-                      </button>
-                    );
-                  })}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar size={14} className="text-indigo-400" />
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Escolha o dia</span>
+                </div>
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex gap-2 min-w-max">
+                    {nextDays.map((day) => {
+                      const isSelected = selectedDate === day.dateStr;
+                      return (
+                        <button
+                          key={day.dateStr}
+                          onClick={() => { setSelectedDate(day.dateStr); setSelectedTime(""); }}
+                          className={`flex flex-col items-center px-4 py-3 rounded-2xl border-2 min-w-[72px] transition-all
+                            ${isSelected
+                              ? "border-indigo-500 bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                              : "border-border/40 bg-card/50 hover:border-indigo-400/40"}`}
+                        >
+                          <span className={`text-[10px] font-bold uppercase ${isSelected ? "text-indigo-100" : "text-muted-foreground"}`}>{day.weekday}</span>
+                          <span className={`text-sm font-black ${isSelected ? "text-white" : "text-foreground"}`}>{day.day}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
               {/* Seleção de horário */}
               {selectedDate && (
-                <div className="space-y-3">
+                <div className="space-y-3 animate-in fade-in duration-300">
                   <div className="flex items-center gap-2">
                     <Clock size={14} className="text-indigo-400" />
                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Horários Disponíveis</span>
@@ -305,7 +468,7 @@ export default function PublicEnrollment() {
                         <Clock size={18} />
                       </div>
                       <p className="text-xs font-bold text-foreground">Sem horários disponíveis</p>
-                      <p className="text-[10px] text-muted-foreground">Todos os horários deste dia já estão ocupados. Escolha outra data.</p>
+                      <p className="text-[10px] text-muted-foreground">Todos os horários deste dia estão ocupados. Escolha outra data.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-4 gap-2">
@@ -345,202 +508,32 @@ export default function PublicEnrollment() {
               )}
 
               <Button
-                disabled={!selectedDate || !selectedTime}
-                onClick={() => setStep("personal")}
-                className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-40"
-              >
-                Continuar <ChevronRight size={16} />
-              </Button>
-            </motion.div>
-          )}
-
-          {/* ═══════════════════════════════════════════════
-              PASSO 3 — Dados Pessoais
-          ═══════════════════════════════════════════════ */}
-          {step === "personal" && (
-            <motion.div key="personal" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setStep("datetime")} className="w-8 h-8 rounded-xl border border-border/50 flex items-center justify-center hover:bg-muted/40">
-                  <ArrowLeft size={14} />
-                </button>
-                <div>
-                  <h2 className="text-xl font-black text-foreground">Seus dados</h2>
-                  <p className="text-xs text-muted-foreground">Para finalizar sua matrícula</p>
-                </div>
-              </div>
-
-              {/* Resumo da aula escolhida */}
-              <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 space-y-2">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Resumo da sua aula</p>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <p className="text-muted-foreground">Instrumento</p>
-                    <p className="font-bold text-foreground">{details.instruments.find((i: any) => i.id === selectedInstrument)?.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Data</p>
-                    <p className="font-bold text-foreground">{new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Horário</p>
-                    <p className="font-bold text-foreground">{selectedTime}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Mensalidade</p>
-                    <p className="font-bold text-emerald-400">R$ {Number(details.monthlyFee).toFixed(2)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><User size={10} /> Nome Completo *</Label>
-                  <Input id="enrollment-name" placeholder="Seu nome completo" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Phone size={10} /> WhatsApp *</Label>
-                  <Input id="enrollment-phone" placeholder="(00) 00000-0000" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Mail size={10} /> E-mail</Label>
-                  <Input id="enrollment-email" type="email" placeholder="seu@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">CPF (para gerar PIX/Boleto)</Label>
-                  <Input id="enrollment-cpf" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm({ ...form, cpf: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
-                </div>
-              </div>
-
-              <Button
-                disabled={!form.name.trim() || !form.phone.trim() || createChargeMutation.isPending}
+                disabled={!selectedDate || !selectedTime || confirmMutation.isPending}
                 onClick={() => {
-                  if (!form.name.trim() || !form.phone.trim()) {
-                    toast.error("Preencha seu nome e telefone.");
-                    return;
-                  }
-                  createChargeMutation.mutate({
+                  confirmMutation.mutate({
                     code,
-                    studentName: form.name.trim(),
-                    studentPhone: form.phone.trim(),
-                    studentEmail: form.email.trim() || undefined,
-                    studentCpf: form.cpf.trim() || undefined,
+                    studentName: form.name,
+                    studentPhone: form.phone,
+                    studentEmail: form.email || undefined,
                     instrumentId: selectedInstrument!,
                     teacherUserId: slotsData?.teacher?.userId!,
                     studioRoomId: slotsData?.room?.id,
                     dateStr: selectedDate,
                     timeStr: selectedTime,
-                    billingType,
+                    asaasChargeId: paymentData?.chargeId,
                   });
                 }}
                 className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-40"
               >
-                {createChargeMutation.isPending
-                  ? <><Loader2 size={16} className="animate-spin" /> Gerando cobrança...</>
-                  : <><CreditCard size={16} /> Ir para o Pagamento</>}
+                {confirmMutation.isPending
+                  ? <><Loader2 size={16} className="animate-spin" /> Confirmando...</>
+                  : <><BadgeCheck size={16} /> Confirmar Matrícula</>}
               </Button>
             </motion.div>
           )}
 
           {/* ═══════════════════════════════════════════════
-              PASSO 4 — Pagamento (PIX / Boleto)
-          ═══════════════════════════════════════════════ */}
-          {step === "payment" && paymentData && (
-            <motion.div key="payment" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
-              <div className="text-center space-y-1">
-                <h2 className="text-xl font-black text-foreground">Realize o pagamento</h2>
-                <p className="text-xs text-muted-foreground">Sua matrícula será confirmada após o pagamento</p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-card border border-border/50 space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Valor da mensalidade</span>
-                  <span className="text-lg font-black text-emerald-400">R$ {paymentData.value.toFixed(2)}</span>
-                </div>
-
-                {/* Escolha o tipo de pagamento */}
-                <div className="grid grid-cols-2 gap-2">
-                  {(["PIX", "BOLETO"] as const).map(type => (
-                    <button
-                      key={type}
-                      onClick={() => setBillingType(type)}
-                      className={`py-3 rounded-xl border-2 text-xs font-bold transition-all
-                        ${billingType === type
-                          ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
-                          : "border-border/40 text-muted-foreground"}`}
-                    >
-                      {type === "PIX" ? "🔑 PIX" : "📄 Boleto"}
-                    </button>
-                  ))}
-                </div>
-
-                {/* QR Code PIX */}
-                {paymentData.billingType === "PIX" && paymentData.pixQrCode && (
-                  <div className="space-y-3">
-                    <div className="flex justify-center">
-                      <img
-                        src={`data:image/png;base64,${paymentData.pixQrCode}`}
-                        alt="QR Code PIX"
-                        className="w-48 h-48 rounded-xl border border-border/40"
-                      />
-                    </div>
-                    {paymentData.pixCopiaECola && (
-                      <button
-                        onClick={copyPix}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
-                      >
-                        <Copy size={14} /> Copiar código PIX
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Link do Boleto */}
-                {paymentData.invoiceUrl && (
-                  <a
-                    href={paymentData.invoiceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
-                  >
-                    <ExternalLink size={14} />
-                    {paymentData.billingType === "PIX" ? "Abrir link de pagamento" : "Abrir Boleto"}
-                  </a>
-                )}
-              </div>
-
-              {/* Botão confirmar (para casos onde pagamento pode ser confirmado manualmente ou sem gateway) */}
-              <div className="space-y-2">
-                <Button
-                  onClick={() => {
-                    confirmMutation.mutate({
-                      code,
-                      studentName: form.name,
-                      studentPhone: form.phone,
-                      studentEmail: form.email || undefined,
-                      instrumentId: selectedInstrument!,
-                      teacherUserId: slotsData?.teacher?.userId!,
-                      studioRoomId: slotsData?.room?.id,
-                      dateStr: selectedDate,
-                      timeStr: selectedTime,
-                      asaasChargeId: paymentData.chargeId,
-                    });
-                  }}
-                  disabled={confirmMutation.isPending}
-                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20"
-                >
-                  {confirmMutation.isPending
-                    ? <><Loader2 size={16} className="animate-spin" /> Confirmando matrícula...</>
-                    : <><BadgeCheck size={16} /> Já paguei — Confirmar Matrícula</>}
-                </Button>
-                <p className="text-center text-[10px] text-muted-foreground">
-                  Clique somente após realizar o pagamento acima
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ═══════════════════════════════════════════════
-              PASSO 5 — Sucesso!
+              SUCESSO!
           ═══════════════════════════════════════════════ */}
           {step === "success" && (
             <motion.div
