@@ -69,12 +69,14 @@ export const enrollmentRouter = router({
       const allInstruments = await db.select().from(instruments).where(eq(instruments.organizationId, orgId));
 
       const paymentGateway = schoolSet?.paymentGateway || "asaas";
-      const hasAsaas = !!(schoolSet?.asaasApiKey && schoolSet?.asaasEnabled);
+      const hasAsaas = !!(schoolSet?.asaasApiKey && (schoolSet?.asaasEnabled === 1 || (schoolSet?.asaasEnabled as any) === true));
       const hasMercadoPago = !!schoolSet?.mpAccessToken;
 
       let activeGateway: "asaas" | "mercadopago" | "none" = "none";
       if (paymentGateway === "mercadopago" && hasMercadoPago) {
         activeGateway = "mercadopago";
+      } else if (paymentGateway === "asaas" && hasAsaas) {
+        activeGateway = "asaas";
       } else if (hasAsaas) {
         activeGateway = "asaas";
       } else if (hasMercadoPago) {
@@ -287,7 +289,7 @@ export const enrollmentRouter = router({
 
       // Qual gateway a escola usa?
       const gateway = schoolSet?.paymentGateway || "asaas";
-      const hasAsaas = !!(schoolSet?.asaasApiKey && schoolSet?.asaasEnabled);
+      const hasAsaas = !!(schoolSet?.asaasApiKey && (schoolSet?.asaasEnabled === 1 || (schoolSet?.asaasEnabled as any) === true));
       const hasMercadoPago = !!schoolSet?.mpAccessToken;
 
       // MERCADO PAGO
