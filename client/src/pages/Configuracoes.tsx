@@ -9,10 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   User, Building2, Bell, Palette, Shield, Save, Users,
   Sun, Moon, Phone, Mail, Globe, MapPin,
   CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles, HelpCircle,
-  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar
+  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock
 } from "lucide-react";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
