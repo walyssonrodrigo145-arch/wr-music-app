@@ -24,10 +24,10 @@ if (!getApps().length) {
 
 export const messaging = getApps().length ? getMessaging() : null;
 
-export async function sendPushNotification(token: string, title: string, body: string, data?: Record<string, string>, opts?: { icon?: string, badge?: string, url?: string }) {
+export async function sendPushNotification(token: string, title: string, body: string, data?: Record<string, string>, opts?: { icon?: string, badge?: string, url?: string }): Promise<{ success: boolean; error?: string }> {
   if (!messaging) {
     console.log('Firebase messaging não está configurado.');
-    return false;
+    return { success: false, error: 'NOT_CONFIGURED' };
   }
   
   try {
@@ -86,9 +86,10 @@ export async function sendPushNotification(token: string, title: string, body: s
       },
     });
     console.log('Notificação push enviada para o dispositivo com sucesso:', response);
-    return true;
-  } catch (error) {
-    console.error('Erro ao enviar notificação push:', error);
-    return false;
+    return { success: true };
+  } catch (error: any) {
+    const errCode = error?.code || error?.message || 'UNKNOWN_ERROR';
+    console.error('Erro ao enviar notificação push:', errCode);
+    return { success: false, error: errCode };
   }
 }

@@ -133,12 +133,12 @@ export async function notifyUser(
       } else {
         let sentCount = 0;
         for (const device of tokens) {
-          const success = await sendPushNotification(device.token, title, content, undefined, {
+          const res = await sendPushNotification(device.token, title, content, undefined, {
             icon: payload.icon,
             badge: payload.badge,
             url: payload.url,
           });
-          if (success) sentCount++;
+          if (res.success) sentCount++;
         }
         console.log(`[Push] Sent ${sentCount} notifications to userId ${userId}`);
       }

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { requestForToken } from "@/lib/firebaseConfig";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type AutomationRule = {
@@ -759,8 +760,16 @@ export default function Automacoes() {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
+  const cleanPush = trpc.fcm.cleanAndRegisterToken.useMutation();
+
   const testPush = trpc.fcm.testNotification.useMutation({
-    onSuccess: (r) => toast.success(`Notificação enviada para ${r.sentCount} dispositivo(s)!`),
+    onSuccess: (r) => {
+      let msg = `Enviado para ${r.sentCount} de ${r.totalTokens} dispositivo(s).`;
+      if (r.cleanedCount > 0) {
+        msg += ` (${r.cleanedCount} token(s) antigo(s) removido(s) do banco)`;
+      }
+      toast.success(msg);
+    },
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
@@ -899,6 +908,21 @@ export default function Automacoes() {
           <div className="flex gap-2 w-full sm:w-auto">
             <Button size="sm" variant="outline" disabled={isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={handleSyncNotifications}>
               {isSyncing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Sincronizar
+            </Button>
+            <Button size="sm" variant="outline" disabled={cleanPush.isPending || isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-amber-500/40 text-amber-700 dark:text-amber-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-amber-500/20" onClick={async () => {
+              try {
+                const token = await requestForToken();
+                if (token) {
+                  const res = await cleanPush.mutateAsync({ token, deviceInfo: navigator.userAgent });
+                  toast.success(res.message);
+                } else {
+                  toast.error("Não foi possível capturar a chave deste dispositivo.");
+                }
+              } catch (e: any) {
+                toast.error("Erro ao resetar: " + (e.message || String(e)));
+              }
+            }}>
+              {cleanPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Resetar e Definir como Principal
             </Button>
             <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => testPush.mutate()} disabled={testPush.isPending || isSyncing}>
               {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Disparar Teste
