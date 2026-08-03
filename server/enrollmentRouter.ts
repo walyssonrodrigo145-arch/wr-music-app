@@ -167,9 +167,8 @@ export const enrollmentRouter = router({
         6: "saturday",
       };
 
-      // Parseia a data como local (Brasil) para evitar erro de UTC
-      const [year, month, day] = input.dateStr.split("-").map(Number);
-      const dateObj = new Date(year, month - 1, day);
+      // Parseia a data garantindo fuso de Brasília (UTC-3)
+      const dateObj = new Date(`${input.dateStr}T12:00:00.000-03:00`);
       const weekdayKey = DAY_MAP[dateObj.getDay()];
 
       // Parse do schoolHours
