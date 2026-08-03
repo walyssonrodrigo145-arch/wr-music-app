@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   User, Building2, Bell, Palette, Shield, Save, Users,
   Sun, Moon, Phone, Mail, Globe, MapPin,
