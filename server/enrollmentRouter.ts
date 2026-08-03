@@ -2,7 +2,7 @@ import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms } from "../drizzle/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
 import { createMPPreference } from "./utils/mercadopago";
@@ -58,7 +58,7 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
-      const [schoolSet] = await db.select().from(settings).where(eq(settings.organizationId, orgId)).limit(1);
+      const [schoolSet] = await db.select().from(settings).where(eq(settings.organizationId, orgId)).orderBy(desc(settings.id)).limit(1);
 
       let leadData = null;
       if (link.leadId) {
@@ -154,6 +154,7 @@ export const enrollmentRouter = router({
         .select({ schoolHours: settings.schoolHours, lessonDuration: settings.lessonDuration })
         .from(settings)
         .where(eq(settings.organizationId, orgId))
+        .orderBy(desc(settings.id))
         .limit(1);
 
       const duration = schoolSet?.lessonDuration ?? 60;
@@ -281,7 +282,7 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
-      const [schoolSet] = await db.select().from(settings).where(eq(settings.organizationId, orgId)).limit(1);
+      const [schoolSet] = await db.select().from(settings).where(eq(settings.organizationId, orgId)).orderBy(desc(settings.id)).limit(1);
 
       const monthlyFee = link.monthlyFee ? Number(link.monthlyFee) : 150;
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
@@ -407,7 +408,7 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
-      const [schoolSet] = await db.select({ lessonDuration: settings.lessonDuration }).from(settings).where(eq(settings.organizationId, orgId)).limit(1);
+      const [schoolSet] = await db.select({ lessonDuration: settings.lessonDuration }).from(settings).where(eq(settings.organizationId, orgId)).orderBy(desc(settings.id)).limit(1);
       const lessonDuration = schoolSet?.lessonDuration ?? 60;
 
       const scheduledAt = new Date(`${input.dateStr}T${input.timeStr}:00.000-03:00`);
