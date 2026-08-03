@@ -41,13 +41,28 @@ export default function PublicEnrollment() {
   const { data: details, isLoading: detailsLoading, error: detailsError } =
     trpc.enrollment.getPublicDetails.useQuery(
       { code },
-      { enabled: Boolean(code), retry: 1 }
+      {
+        enabled: Boolean(code),
+        retry: 1,
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnMount: "always",
+        refetchOnWindowFocus: true,
+      }
     );
 
   const { data: slotsData, isLoading: slotsLoading } =
     trpc.enrollment.getAvailableSlots.useQuery(
       { code, instrumentId: selectedInstrument!, dateStr: selectedDate },
-      { enabled: Boolean(code && selectedInstrument && selectedDate) }
+      {
+        enabled: Boolean(code && selectedInstrument && selectedDate),
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnMount: "always",
+        refetchOnWindowFocus: true,
+        refetchInterval: 30_000, // Revalida a cada 30s caso admin mude os horários
+        refetchIntervalInBackground: false,
+      }
     );
 
   // ─── Mutations ───────────────────────────────────────────────────────────────
