@@ -714,6 +714,7 @@ export async function getMonthlyStats(organizationId: number, userId?: number, l
           .where(and(
             eq(lessons.organizationId, organizationId),
             userId ? eq(lessons.userId, userId) : undefined,
+            eq(lessons.status, 'concluida'),
             gte(lessons.scheduledAt, startOfMonth),
             lte(lessons.scheduledAt, endOfMonth)
           )),
