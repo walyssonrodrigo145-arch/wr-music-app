@@ -98,6 +98,7 @@ function Router() {
           <Route path="/" component={LandingPage} />
           <Route path="/login" component={Login} />
           <Route path="/cadastro" component={Cadastro} />
+          <Route path="/matricula/:code" component={lazy(() => import("./pages/PublicEnrollment"))} />
           <Route path="/termos-de-uso" component={TermosDeUso} />
           <Route path="/politica-de-privacidade" component={PoliticaPrivacidade} />
           <Route>

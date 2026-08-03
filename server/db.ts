@@ -248,6 +248,36 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "graceDays" integer DEFAULT 3 NOT NULL`, "settings graceDays");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "autoUpdateInvoice" integer DEFAULT 1 NOT NULL`, "settings autoUpdateInvoice");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "showFeeBreakdown" integer DEFAULT 1 NOT NULL`, "settings showFeeBreakdown");
+    await safeExecute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "studioRoomId" integer`, "lessons studioRoomId");
+
+    // Tabela studio_rooms
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "studio_rooms" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "name" varchar(100) NOT NULL,
+        "description" text,
+        "color" varchar(20) DEFAULT '#3b82f6' NOT NULL,
+        "active" boolean DEFAULT true NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create studio_rooms table");
+
+    // Tabela enrollment_links
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "enrollment_links" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "code" varchar(64) NOT NULL UNIQUE,
+        "instrumentId" integer,
+        "monthlyFee" numeric(10, 2),
+        "leadId" integer,
+        "status" varchar(20) DEFAULT 'active' NOT NULL,
+        "expiresAt" timestamp,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create enrollment_links table");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "earlyDiscountEnabled" integer DEFAULT 0 NOT NULL`, "settings earlyDiscountEnabled");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "earlyDiscountType" varchar(20) DEFAULT 'percentage' NOT NULL`, "settings earlyDiscountType");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "earlyDiscountValue" numeric(10, 2) DEFAULT 5.00 NOT NULL`, "settings earlyDiscountValue");

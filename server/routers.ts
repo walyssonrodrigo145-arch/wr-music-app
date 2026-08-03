@@ -42,6 +42,8 @@ import { reportEngineRouter } from "./reportEngineRouter";
 import { marketingRouter } from "./marketingRouter";
 import { analyticsRouter } from "./analyticsRouter";
 import { crmRouter } from "./crmRouter";
+import { studioRoomsRouter } from "./studioRoomsRouter";
+import { enrollmentRouter } from "./enrollmentRouter";
 
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
@@ -52,6 +54,8 @@ export const appRouter = router({
   marketing: marketingRouter,
   analytics: analyticsRouter,
   crm: crmRouter,
+  studioRooms: studioRoomsRouter,
+  enrollment: enrollmentRouter,
   publicData: router({
     getPlans: publicProcedure.query(async () => {
       const db = await getDb();

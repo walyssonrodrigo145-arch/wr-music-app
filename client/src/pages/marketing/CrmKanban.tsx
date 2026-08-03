@@ -37,6 +37,7 @@ const STAGES: StageConfig[] = [
 
 export default function CrmKanban() {
   const utils = trpc.useUtils();
+  const trpcUtils = trpc.useUtils();
 
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -239,6 +240,29 @@ export default function CrmKanban() {
                               <MessageCircle size={14} />
                             </Button>
                           )}
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-indigo-600 hover:bg-indigo-500/10 rounded-lg"
+                            onClick={async () => {
+                              try {
+                                const res = await trpcUtils.client.enrollment.generateLink.mutate({ leadId: lead.id, monthlyFee: Number(lead.value) || 150 });
+                                const fullUrl = `${window.location.origin}${res.url}`;
+                                await navigator.clipboard.writeText(fullUrl);
+                                toast.success("Link de matrícula copiado para a área de transferência!");
+                                if (lead.phone) {
+                                  const text = encodeURIComponent(`Olá ${lead.name}! Escolha o melhor dia e horário para suas aulas no link: ${fullUrl}`);
+                                  window.open(`https://wa.me/55${lead.phone.replace(/\D/g, '')}?text=${text}`, '_blank');
+                                }
+                              } catch (err: any) {
+                                toast.error("Erro ao gerar link: " + (err.message || String(err)));
+                              }
+                            }}
+                            title="Gerar Link de Auto-Matrícula"
+                          >
+                            <UserPlus size={14} />
+                          </Button>
 
                           {stg.key !== "matriculado" && (
                             <Button

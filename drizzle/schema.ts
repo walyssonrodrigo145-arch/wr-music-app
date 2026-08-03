@@ -159,6 +159,7 @@ export const lessons = pgTable("lessons", {
   notes: text("notes"),
   rating: integer("rating"),
   instrumentId: integer("instrumentId"),
+  studioRoomId: integer("studioRoomId"),
   recurringGroupId: varchar("recurringGroupId", { length: 100 }),
   alertSent1h: boolean("alertSent1h").default(false).notNull(),
   alertSent30m: boolean("alertSent30m").default(false).notNull(),
@@ -1207,3 +1208,35 @@ export const crmLeads = pgTable("crm_leads", {
 
 export type CrmLead = typeof crmLeads.$inferSelect;
 export type InsertCrmLead = typeof crmLeads.$inferInsert;
+
+// ── Salas de Estúdio / Ensaio ───────────────────────────────────────────────
+export const studioRooms = pgTable("studio_rooms", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  color: varchar("color", { length: 20 }).default("#3b82f6").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type StudioRoom = typeof studioRooms.$inferSelect;
+export type InsertStudioRoom = typeof studioRooms.$inferInsert;
+
+// ── Convites e Links de Auto-Matrícula do Aluno ──────────────────────────────
+export const enrollmentLinks = pgTable("enrollment_links", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  code: varchar("code", { length: 64 }).notNull().unique(),
+  instrumentId: integer("instrumentId"),
+  monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }),
+  leadId: integer("leadId"),
+  status: varchar("status", { length: 20 }).default("active").notNull(), // 'active' | 'used' | 'expired'
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EnrollmentLink = typeof enrollmentLinks.$inferSelect;
+export type InsertEnrollmentLink = typeof enrollmentLinks.$inferInsert;
+
