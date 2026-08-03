@@ -4185,7 +4185,6 @@ ${jsonSchemaFormat}`;
           and(
             eq(lessons.organizationId, orgId),
             eq(lessons.userId, ctx.user.id),
-            eq(lessons.lessonType, "individual"),
             gte(lessons.scheduledAt, monday),
             lte(lessons.scheduledAt, sunday)
           )

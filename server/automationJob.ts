@@ -524,8 +524,8 @@ async function runAutomation() {
 
         const sentMap = new Set(sentToday.map(s => getRemKey(s.studentId, s.type, s.refId)));
 
-        let messagesSentThisCycle = 0; // LIMITE GERAL POR CICLO (1 POR MINUTO)
-        const MAX_MESSAGES_PER_MINUTE = 1;
+        let messagesSentThisCycle = 0; // LIMITE GERAL POR CICLO
+        const MAX_MESSAGES_PER_MINUTE = 10;
 
         for (const rem of pendingReminders) {
                 if (rem.allowAutoReminders === false) continue;
@@ -1485,12 +1485,11 @@ async function runAutomation() {
 }
 
 export function startAutomationJob() {
-  setTimeout(() => {
-    runAutomation().catch(err => console.error("[Automation] Initial run error:", err));
-    setInterval(() => {
-      runAutomation().catch(err => console.error("[Automation] Scheduled run error:", err));
-    }, 60 * 1000); 
-  }, 60 * 1000); 
+  // Executa imediatamente na subida do servidor e agenda repetições a cada 1 minuto
+  runAutomation().catch(err => console.error("[Automation] Initial run error:", err));
+  setInterval(() => {
+    runAutomation().catch(err => console.error("[Automation] Scheduled run error:", err));
+  }, 60 * 1000);
 
   console.log("[Automation] Job scheduler started — runs every 1 minute");
 }
