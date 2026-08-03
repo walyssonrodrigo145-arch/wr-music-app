@@ -34,16 +34,19 @@ try {
       messaging.onBackgroundMessage((payload) => {
         console.log('[firebase-messaging-sw.js] Background Push FCM recebido:', payload);
         const notificationTitle = payload.notification?.title || payload.data?.title || 'WR MusicPro';
+        const notificationBody = payload.notification?.body || payload.data?.body || 'Você tem uma nova mensagem ou lembrete.';
         const notificationOptions = {
-          body: payload.notification?.body || payload.data?.body || 'Você tem uma nova mensagem ou lembrete.',
+          body: notificationBody,
           icon: payload.notification?.icon || payload.data?.icon || '/icon-192.png',
           badge: payload.notification?.badge || payload.data?.badge || '/icon-badge.png',
           data: {
             url: payload.fcmOptions?.link || payload.data?.url || '/',
             ...payload.data
           },
-          vibrate: [200, 100, 200],
-          tag: payload.data?.tag || 'wr-music-notification'
+          vibrate: [300, 100, 300, 100, 300],
+          requireInteraction: true,
+          renotify: true,
+          tag: (payload.data?.tag || 'wr-music') + '-' + Date.now()
         };
 
         return self.registration.showNotification(notificationTitle, notificationOptions);

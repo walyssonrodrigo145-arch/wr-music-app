@@ -37,19 +37,55 @@ export async function sendPushNotification(token: string, title: string, body: s
         title,
         body,
       },
-      webpush: {
+      android: {
+        priority: 'high',
         notification: {
+          title,
+          body,
+          icon: opts?.icon || 'https://wrmusicpro.com.br/icon-192.png',
+          sound: 'default',
+          clickAction: opts?.url || 'https://wrmusicpro.com.br/',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            alert: {
+              title,
+              body,
+            },
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+      webpush: {
+        headers: {
+          Urgency: 'high',
+        },
+        notification: {
+          title,
+          body,
           icon: opts?.icon || 'https://wrmusicpro.com.br/icon-192.png',
           badge: opts?.badge || 'https://wrmusicpro.com.br/icon-badge.png',
           vibrate: [200, 100, 200],
+          requireInteraction: true,
+          actions: [
+            { action: 'open', title: 'Abrir App' }
+          ],
         },
         fcmOptions: {
           link: opts?.url || 'https://wrmusicpro.com.br/'
         }
       },
-      data,
+      data: {
+        title,
+        body,
+        url: opts?.url || '/',
+        ...data,
+      },
     });
-    console.log('Notificação push enviada com sucesso:', response);
+    console.log('Notificação push enviada para o dispositivo com sucesso:', response);
     return true;
   } catch (error) {
     console.error('Erro ao enviar notificação push:', error);

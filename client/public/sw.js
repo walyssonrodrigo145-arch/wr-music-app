@@ -109,16 +109,19 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
   try {
     const data = event.data.json();
-    const title = data.notification?.title || data.title || 'Novo Lembrete';
+    const title = data.notification?.title || data.title || 'Novo Lembrete WR MusicPro';
     const options = {
-      body: data.notification?.body || data.content || 'Você tem um novo aviso no sistema de música.',
+      body: data.notification?.body || data.content || data.body || 'Você tem um novo aviso no sistema de música.',
       icon: data.notification?.icon || '/icon-192.png',
       badge: data.notification?.badge || '/icon-badge.png',
       data: {
         url: data.fcmOptions?.link || data.url || '/',
         ...data
       },
-      vibrate: [200, 100, 200]
+      vibrate: [300, 100, 300, 100, 300],
+      requireInteraction: true,
+      renotify: true,
+      tag: 'wr-music-' + Date.now()
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
