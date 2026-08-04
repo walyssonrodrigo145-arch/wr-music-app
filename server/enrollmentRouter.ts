@@ -2,7 +2,7 @@ import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms } from "../drizzle/schema";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, isNotNull, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
 import { createMPPreference } from "./utils/mercadopago";
@@ -58,7 +58,11 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
-      const [schoolSet] = await db.select().from(settings).where(eq(settings.organizationId, orgId)).orderBy(desc(settings.id)).limit(1);
+      // Busca o settings mais completo: prioriza quem tem schoolName ou chaves de pagamento
+      const allSettings = await db.select().from(settings).where(eq(settings.organizationId, orgId));
+      const schoolSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '')
+        || allSettings.find(s => s.asaasApiKey || s.mpAccessToken)
+        || allSettings.sort((a, b) => b.id - a.id)[0];
 
       let leadData = null;
       if (link.leadId) {
@@ -149,13 +153,11 @@ export const enrollmentRouter = router({
         .from(studioRooms)
         .where(and(eq(studioRooms.organizationId, orgId), eq(studioRooms.active, true)));
 
-      // Busca horários de funcionamento da escola e tempo padrão de aula
-      const [schoolSet] = await db
-        .select({ schoolHours: settings.schoolHours, lessonDuration: settings.lessonDuration })
-        .from(settings)
-        .where(eq(settings.organizationId, orgId))
-        .orderBy(desc(settings.id))
-        .limit(1);
+      // Busca o settings mais completo: prioriza quem tem schoolName ou chaves de pagamento
+      const allSettingsForSlots = await db.select({ schoolHours: settings.schoolHours, lessonDuration: settings.lessonDuration, schoolName: settings.schoolName, asaasApiKey: settings.asaasApiKey, mpAccessToken: settings.mpAccessToken }).from(settings).where(eq(settings.organizationId, orgId));
+      const schoolSet = allSettingsForSlots.find(s => s.schoolName && s.schoolName.trim() !== '')
+        || allSettingsForSlots.find(s => s.asaasApiKey || s.mpAccessToken)
+        || allSettingsForSlots[0];
 
       const duration = schoolSet?.lessonDuration ?? 60;
 
@@ -282,7 +284,11 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
-      const [schoolSet] = await db.select().from(settings).where(eq(settings.organizationId, orgId)).orderBy(desc(settings.id)).limit(1);
+      // Busca o settings mais completo: prioriza quem tem schoolName ou chaves de pagamento
+      const allSettings2 = await db.select().from(settings).where(eq(settings.organizationId, orgId));
+      const schoolSet = allSettings2.find(s => s.schoolName && s.schoolName.trim() !== '')
+        || allSettings2.find(s => s.asaasApiKey || s.mpAccessToken)
+        || allSettings2.sort((a, b) => b.id - a.id)[0];
 
       const monthlyFee = link.monthlyFee ? Number(link.monthlyFee) : 150;
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
@@ -408,7 +414,12 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
-      const [schoolSet] = await db.select({ lessonDuration: settings.lessonDuration }).from(settings).where(eq(settings.organizationId, orgId)).orderBy(desc(settings.id)).limit(1);
+      // Busca o settings mais completo para pegar lessonDuration correto
+      const allSettings3 = await db.select({ lessonDuration: settings.lessonDuration, schoolName: settings.schoolName, asaasApiKey: settings.asaasApiKey, mpAccessToken: settings.mpAccessToken }).from(settings).where(eq(settings.organizationId, orgId));
+      const bestSettings3 = allSettings3.find(s => s.schoolName && s.schoolName.trim() !== '')
+        || allSettings3.find(s => s.asaasApiKey || s.mpAccessToken)
+        || allSettings3[0];
+      const schoolSet = bestSettings3;
       const lessonDuration = schoolSet?.lessonDuration ?? 60;
 
       const scheduledAt = new Date(`${input.dateStr}T${input.timeStr}:00.000-03:00`);
