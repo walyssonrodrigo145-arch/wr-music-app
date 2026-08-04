@@ -2776,6 +2776,7 @@ ${jsonSchemaFormat}`;
             recurringGroupId: lessons.recurringGroupId,
             studioRoomId: lessons.studioRoomId,
             studioRoomName: studioRooms.name,
+            studioRoomColor: studioRooms.color,
             teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
             teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
           }).from(lessons)
