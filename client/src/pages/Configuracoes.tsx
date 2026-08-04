@@ -19,18 +19,20 @@ import {
   User, Building2, Bell, Palette, Shield, Save, Users,
   Sun, Moon, Phone, Mail, Globe, MapPin,
   CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles, HelpCircle,
-  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock
+  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, DoorOpen
 } from "lucide-react";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
+import { SalasEstudioTab } from "./SalasEstudioTab";
 import { downloadBase64File } from "@/utils/downloadReport";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "financeiro" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
+type Tab = "perfil" | "escola" | "salas" | "financeiro" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
+  { id: "salas", label: "Salas de Estúdio", icon: DoorOpen },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
   { id: "professores", label: "Professores", icon: Users },
   { id: "notificacoes", label: "Notificações", icon: Bell },
@@ -2359,6 +2361,11 @@ export default function Configuracoes() {
             {/* ── ABA: PROFESSORES ── */}
             {activeTab === "professores" && (
               <ProfessoresTab />
+            )}
+
+            {/* ── ABA: SALAS DE ESTÚDIO ── */}
+            {activeTab === "salas" && (
+              <SalasEstudioTab />
             )}
 
             {/* ── ABA: AJUDA ── */}

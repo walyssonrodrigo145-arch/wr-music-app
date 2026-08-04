@@ -175,6 +175,16 @@ const filesToUpload = [
   'client/src/lib/analytics.ts',
   'client/src/App.tsx',
   'client/src/pages/analytics/AnalyticsDashboard.tsx',
+  // ── Fixes: gateway redirect + horários timezone + settings ORDER BY ──────
+  'client/src/pages/PublicEnrollment.tsx',
+  'server/enrollmentRouter.ts',
+  // ── Arquivos faltantes nos commits de hoje ───────────────────────────────
+  'server/_core/notification.ts',
+  'server/fcmRouter.ts',
+  'server/firebaseAdmin.ts',
+  'server/studioRoomsRouter.ts',
+  'client/src/pages/SalasEstudioTab.tsx',
+  'client/src/pages/Configuracoes.tsx',
 ];
 
 const conn = new Client();
