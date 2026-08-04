@@ -135,9 +135,10 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
            )}
         </div>
         {lesson.studioRoomName && (
-           <div className="flex items-center gap-1 mt-1 font-bold text-indigo-700 dark:text-indigo-400 text-[9px] truncate">
-             <LayoutList size={10} className="shrink-0" />
-             <span className="truncate">{lesson.studioRoomName}</span>
+           <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-black/5 dark:border-white/5 font-black text-indigo-700 dark:text-indigo-300 text-[10px]">
+             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lesson.studioRoomColor || '#6366f1' }} />
+             <LayoutList size={11} className="shrink-0 text-indigo-500" />
+             <span className="truncate uppercase font-extrabold">{lesson.studioRoomName}</span>
            </div>
          )}
         {isTurma && (
