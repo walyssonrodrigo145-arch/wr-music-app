@@ -7,12 +7,12 @@ try {
   importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js');
 
   firebase.initializeApp({
-    apiKey: "AIzaSyDhgSbEbtUmXMmgn0dnLoODM0sGS35-fzI",
-    authDomain: "wr-music.firebaseapp.com",
-    projectId: "wr-music",
-    storageBucket: "wr-music.appspot.com",
-    messagingSenderId: "357562439771",
-    appId: "1:357562439771:web:9583a273539352d0cc877e"
+    apiKey: "AIzaSyCiDBmF_QsBy9Dk4Fzssy1djlhGhzo5Yo_I",
+    authDomain: "music-novo.firebaseapp.com",
+    projectId: "music-novo",
+    storageBucket: "music-novo.firebasestorage.app",
+    messagingSenderId: "491750077201",
+    appId: "1:491750077201:web:5d5aa167a714330cf452b0"
   });
 
   const messaging = firebase.messaging();

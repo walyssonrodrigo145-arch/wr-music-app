@@ -2,15 +2,15 @@ import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage, deleteToken, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDhgSbEbtUmXMmgn0dnLoODM0sGS35-fzI",
-  authDomain: "wr-music.firebaseapp.com",
-  projectId: "wr-music",
-  storageBucket: "wr-music.appspot.com",
-  messagingSenderId: "357562439771",
-  appId: "1:357562439771:web:9583a273539352d0cc877e"
+  apiKey: "AIzaSyCiDBmF_QsBy9Dk4Fzssy1djlhGhzo5Yo_I",
+  authDomain: "music-novo.firebaseapp.com",
+  projectId: "music-novo",
+  storageBucket: "music-novo.firebasestorage.app",
+  messagingSenderId: "491750077201",
+  appId: "1:491750077201:web:5d5aa167a714330cf452b0"
 };
 
-const VAPID_KEY = "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
+const VAPID_KEY = "BODXXfLBc2PMIEZqd2_cj_xKtZxVGRIuPYFi8lAz44t9bblYYNdACGKIxRZIyV3z2n3Uh64b1hPoij7w5Nr7zGE";
 
 const app = initializeApp(firebaseConfig);
 
