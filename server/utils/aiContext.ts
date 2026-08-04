@@ -6,10 +6,14 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
   try {
-    // 1. Busca configurações básicas
-    const [userSettings] = await db.select().from(settings).where(
-      and(eq(settings.organizationId, orgId))
-    ).limit(1);
+    // 1. Busca configurações da ESCOLA (não do usuário/professor aleatório).
+    //    Usa a mesma lógica do enrollmentRouter: prioriza o registro com schoolName
+    //    configurado (esse é o do admin/dono da escola), depois o com chave de pagamento,
+    //    e por último o mais recente — NUNCA o primeiro aleatório com .limit(1).
+    const allSettingsRows = await db.select().from(settings).where(eq(settings.organizationId, orgId));
+    const userSettings = allSettingsRows.find((s: any) => s.schoolName && s.schoolName.trim() !== '')
+      || allSettingsRows.find((s: any) => s.asaasApiKey || s.mpAccessToken || s.schoolHours)
+      || allSettingsRows.sort((a: any, b: any) => b.id - a.id)[0];
 
     // 1.5. Verifica se é dono da organização
     if (!isUserAdmin) {
