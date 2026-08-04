@@ -35,9 +35,6 @@ export async function sendPushNotification(
     console.log('Firebase messaging não está configurado.');
     return { success: false, error: 'NOT_CONFIGURED' };
   }
-    console.log('Firebase messaging não está configurado.');
-    return { success: false, error: 'NOT_CONFIGURED' };
-  }
   
   try {
     const response = await messaging.send({
