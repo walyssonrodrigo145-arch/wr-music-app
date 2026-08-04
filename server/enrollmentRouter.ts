@@ -23,6 +23,9 @@ export const enrollmentRouter = router({
       if (!db) throw new Error("Database unavailable");
       const orgId = ctx.user.organizationId!;
 
+      // Se não foi passado um monthlyFee, mantém undefined (o frontend mostrará o default da escola)
+      const resolvedFee = input.monthlyFee;
+
       const code = crypto.randomBytes(16).toString("hex");
 
       const [link] = await db
@@ -32,7 +35,7 @@ export const enrollmentRouter = router({
           code,
           leadId: input.leadId,
           instrumentId: input.instrumentId,
-          monthlyFee: input.monthlyFee ? String(input.monthlyFee) : undefined,
+          monthlyFee: resolvedFee ? String(resolvedFee) : undefined,
           status: "active",
         })
         .returning();

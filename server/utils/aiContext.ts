@@ -151,6 +151,9 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
       if (userSettings?.schoolHours) {
         const hours = typeof userSettings.schoolHours === 'string' ? JSON.parse(userSettings.schoolHours) : userSettings.schoolHours;
         const daysMap: Record<string, string> = { monday: "Segunda-feira", tuesday: "Terça-feira", wednesday: "Quarta-feira", thursday: "Quinta-feira", friday: "Sexta-feira", saturday: "Sábado", sunday: "Domingo" };
+        const dayIndexMap: Record<number, string> = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
+        const lessonDuration = userSettings?.lessonDuration ?? 60;
+
         context += `HORÁRIO DE FUNCIONAMENTO DA ESCOLA:\n`;
         Object.keys(hours).forEach(day => {
           const config = hours[day];
@@ -160,7 +163,76 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
             context += `- ${daysMap[day] || day}: Fechado\n`;
           }
         });
-        context += `\n(Atenção: Ao sugerir horários para alunos, respeite OBRIGATORIAMENTE o horário de funcionamento acima. Não sugira aulas quando a escola estiver fechada.)\n\n`;
+        context += `\n`;
+
+        // --- Calcula slots livres reais para os próximos 7 dias ---
+        const tz = "America/Sao_Paulo";
+
+        // Busca aulas agendadas nos próximos 7 dias para calcular slots ocupados
+        const next7Start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const next7End = new Date(next7Start.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        const scheduledInNext7 = await db.select({ scheduledAt: lessons.scheduledAt })
+          .from(lessons)
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            isUserAdmin ? undefined : eq(lessons.userId, userId),
+            inArray(lessons.status, ["agendada", "remarcada"]),
+            gte(lessons.scheduledAt, next7Start),
+            lte(lessons.scheduledAt, next7End),
+          ));
+
+        // Agrupa aulas ocupadas por data (YYYY-MM-DD) → Set de "HH:MM"
+        const occupiedByDate: Record<string, Set<string>> = {};
+        scheduledInNext7.forEach((l: any) => {
+          const d = new Date(l.scheduledAt);
+          const dateKey = d.toLocaleDateString("sv", { timeZone: tz }); // YYYY-MM-DD
+          const timeKey = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: tz });
+          if (!occupiedByDate[dateKey]) occupiedByDate[dateKey] = new Set();
+          occupiedByDate[dateKey].add(timeKey);
+        });
+
+        // Para cada um dos próximos 7 dias, lista os slots livres
+        context += `HORÁRIOS LIVRES (PRÓXIMOS 7 DIAS — slots de ${lessonDuration} minutos):\n`;
+        context += `(Use ESTES horários ao sugerir agendamentos. Não invente horários fora desta lista.)\n`;
+
+        let hasAnyFreeSlot = false;
+        for (let i = 0; i < 7; i++) {
+          const dayDate = new Date(next7Start.getTime() + i * 24 * 60 * 60 * 1000);
+          // Pega o índice do dia da semana no fuso de Brasília
+          const localDateStr = dayDate.toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
+          const weekdayIdx = new Date(`${localDateStr}T12:00:00-03:00`).getDay(); // 0=Dom, 1=Seg...
+          const dayKey = dayIndexMap[weekdayIdx];
+          const dayConfig = hours[dayKey];
+          if (!dayConfig || !dayConfig.active) continue;
+
+          const dateKey = dayDate.toLocaleDateString("sv", { timeZone: tz });
+          const occupied = occupiedByDate[dateKey] || new Set();
+
+          const [startH, startM] = dayConfig.start.split(":").map(Number);
+          const [endH, endM] = dayConfig.end.split(":").map(Number);
+          let cursor = startH * 60 + (startM || 0);
+          const endMinutes = endH * 60 + (endM || 0);
+
+          const freeSlots: string[] = [];
+          while (cursor + lessonDuration <= endMinutes) {
+            const hh = String(Math.floor(cursor / 60)).padStart(2, "0");
+            const mm = String(cursor % 60).padStart(2, "0");
+            const slotStr = `${hh}:${mm}`;
+            if (!occupied.has(slotStr)) freeSlots.push(slotStr);
+            cursor += lessonDuration;
+          }
+
+          const ptDate = dayDate.toLocaleDateString("pt-BR", { timeZone: tz, weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+          if (freeSlots.length > 0) {
+            context += `- ${ptDate}: ${freeSlots.join(", ")}\n`;
+            hasAnyFreeSlot = true;
+          } else {
+            context += `- ${ptDate}: Sem horários livres (agenda lotada)\n`;
+          }
+        }
+        if (!hasAnyFreeSlot) context += `Nenhum horário livre nos próximos 7 dias.\n`;
+        context += `\n(Atenção: Ao sugerir horários para alunos, respeite OBRIGATORIAMENTE os horários livres listados acima. Nunca sugira slots já ocupados ou fora do horário de funcionamento.)\n\n`;
       }
     } catch (e) {
       console.error("Erro ao fazer parse dos horários para a IA", e);
