@@ -26,46 +26,54 @@ const promiseWithTimeout = <T>(promise: Promise<T>, ms: number, errorMsg: string
   });
 };
 
-async function getOrRegisterServiceWorker(): Promise<ServiceWorkerRegistration | undefined> {
+/**
+ * Obtém o SW ativo do Firebase.
+ * ESTRATÉGIA: usa o sw.js principal (que já tem Firebase Messaging embutido)
+ * como service worker para o FCM. Isso evita conflito entre dois SWs.
+ */
+async function getActiveServiceWorker(): Promise<ServiceWorkerRegistration | undefined> {
   if (!('serviceWorker' in navigator)) return undefined;
 
   try {
-    // Remove TODOS os service workers antigos para evitar cache de token inválido
-    const allRegs = await navigator.serviceWorker.getRegistrations();
-    for (const reg of allRegs) {
-      if (reg.scope.includes(window.location.origin)) {
-        // Só remove se não for o firebase-messaging-sw.js atual
-        const swUrl = reg.active?.scriptURL || reg.installing?.scriptURL || reg.waiting?.scriptURL || '';
-        if (!swUrl.includes('firebase-messaging-sw.js')) {
-          await reg.unregister();
-          console.log('[FCM] SW antigo removido:', swUrl);
-        }
+    // Aguarda o SW principal (sw.js) ficar pronto
+    const ready = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000))
+    ]);
+
+    if (!ready) {
+      console.warn('[FCM] SW não ficou pronto em 4s, tentando registro manual...');
+    }
+
+    // Retorna o SW que está controlando a página (sw.js)
+    const controlling = navigator.serviceWorker.controller;
+    if (controlling) {
+      const reg = await navigator.serviceWorker.getRegistration(controlling.scriptURL);
+      if (reg) {
+        console.log('[FCM] Usando SW ativo:', controlling.scriptURL);
+        return reg;
       }
     }
 
-    // Registra (ou reutiliza) o firebase-messaging-sw.js
-    let reg = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
-    if (!reg) {
-      reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-      console.log('[FCM] SW registrado.');
-    } else {
-      // Força update para pegar a versão mais recente do SW
-      await reg.update();
-      console.log('[FCM] SW atualizado.');
-    }
-
-    // Aguarda o SW ficar ativo (máx 5s)
-    if (reg && !reg.active) {
-      const startTime = Date.now();
-      while (!reg.active && Date.now() - startTime < 5000) {
-        await new Promise((r) => setTimeout(r, 100));
+    // Fallback: pega qualquer registro disponível
+    const regs = await navigator.serviceWorker.getRegistrations();
+    if (regs.length > 0) {
+      // Prefere sw.js (tem Firebase embutido)
+      const swJs = regs.find(r =>
+        (r.active?.scriptURL || r.installing?.scriptURL || '').includes('sw.js') &&
+        !(r.active?.scriptURL || r.installing?.scriptURL || '').includes('firebase-messaging')
+      );
+      if (swJs) {
+        console.log('[FCM] Usando sw.js como SW do FCM');
+        return swJs;
       }
+      return regs[0];
     }
 
-    return reg ?? (await navigator.serviceWorker.ready.catch(() => undefined));
+    return undefined;
   } catch (err) {
-    console.warn('[FCM] Erro ao gerenciar Service Worker:', err);
-    return await navigator.serviceWorker.ready.catch(() => undefined);
+    console.warn('[FCM] Erro ao obter SW:', err);
+    return undefined;
   }
 }
 
@@ -80,46 +88,45 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
           await deleteToken(messaging);
           console.log('[FCM] Token anterior deletado para forçar refresh.');
         } catch (e) {
-          console.warn('[FCM] Não foi possível deletar token anterior:', e);
+          // Pode falhar se não havia token — é normal
+          console.warn('[FCM] Nenhum token anterior para deletar:', e);
         }
       }
 
-      const swRegistration = await getOrRegisterServiceWorker();
+      const swRegistration = await getActiveServiceWorker();
 
-      // Nível 1: FCM token com serviceWorkerRegistration explícito (preferencial)
-      try {
-        const token1 = await getToken(messaging, {
-          vapidKey: VAPID_KEY,
-          ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
-        });
-        if (token1 && !token1.startsWith('{')) {
-          console.log('[FCM] ✅ Token FCM (Nível 1) gerado:', token1.substring(0, 30) + '...');
-          return token1;
+      // Tentativa 1: com SW explícito (mais confiável em PWA instalado)
+      if (swRegistration) {
+        try {
+          const token1 = await getToken(messaging, {
+            vapidKey: VAPID_KEY,
+            serviceWorkerRegistration: swRegistration,
+          });
+          if (token1 && token1.length > 50) {
+            console.log('[FCM] ✅ Token FCM obtido com SW explícito:', token1.substring(0, 30) + '...');
+            return token1;
+          }
+        } catch (err1: any) {
+          console.warn('[FCM] Tentativa 1 (com SW) falhou:', err1?.message || err1);
         }
-      } catch (err1) {
-        console.warn('[FCM] Token (Nível 1) falhou:', err1);
       }
 
-      // Nível 2: FCM token sem serviceWorkerRegistration
+      // Tentativa 2: sem SW explícito (Firebase escolhe o SW automaticamente)
       try {
         const token2 = await getToken(messaging, { vapidKey: VAPID_KEY });
-        if (token2 && !token2.startsWith('{')) {
-          console.log('[FCM] ✅ Token FCM (Nível 2) gerado:', token2.substring(0, 30) + '...');
+        if (token2 && token2.length > 50) {
+          console.log('[FCM] ✅ Token FCM obtido sem SW explícito:', token2.substring(0, 30) + '...');
           return token2;
         }
-      } catch (err2) {
-        console.warn('[FCM] Token (Nível 2) falhou:', err2);
+      } catch (err2: any) {
+        console.warn('[FCM] Tentativa 2 (sem SW) falhou:', err2?.message || err2);
       }
 
-      // IMPORTANTE: Nível 3 (Web Push nativo) REMOVIDO.
-      // O Firebase Admin SDK NÃO consegue enviar para tokens no formato PushSubscription JSON.
-      // Apenas tokens FCM reais (strings longas) são aceitos pelo sendPushNotification().
-
-      console.warn('[FCM] ❌ Não foi possível gerar token FCM. Verifique se o Service Worker está instalado corretamente.');
+      console.warn('[FCM] ❌ Não foi possível obter token FCM. Verifique permissões e conexão.');
       return null;
     })(),
-    15000,
-    "O serviço de notificações não respondeu a tempo. Tente novamente."
+    20000,
+    "O serviço de notificações demorou muito para responder. Feche o app completamente e tente novamente."
   );
 };
 

@@ -1,9 +1,12 @@
-// Firebase Messaging Scripts para Web Push FCM
+// WR MusicPro Service Worker — v5 (2026-08-04)
+// SW unificado: PWA cache + Firebase Cloud Messaging
+
+// ─── Firebase Messaging (FCM background push) ───────────────────────────────
 try {
   importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js');
   importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js');
 } catch (e) {
-  console.warn('[sw.js] Falha ao carregar scripts do Firebase via importScripts:', e);
+  console.warn('[sw.js] Falha ao carregar Firebase via importScripts:', e);
 }
 
 const firebaseConfig = {
@@ -15,37 +18,43 @@ const firebaseConfig = {
   appId: "1:357562439771:web:9583a273539352d0cc877e"
 };
 
+let firebaseMessaging = null;
+
 try {
   if (typeof firebase !== 'undefined') {
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
     if (firebase.messaging && firebase.messaging.isSupported()) {
-      const messaging = firebase.messaging();
-      messaging.onBackgroundMessage((payload) => {
+      firebaseMessaging = firebase.messaging();
+      firebaseMessaging.onBackgroundMessage((payload) => {
         console.log('[sw.js] Background Push FCM recebido:', payload);
         const notificationTitle = payload.notification?.title || payload.data?.title || 'WR MusicPro';
+        const notificationBody = payload.notification?.body || payload.data?.body || 'Você tem um novo aviso.';
         const notificationOptions = {
-          body: payload.notification?.body || payload.data?.body || 'Você tem uma nova mensagem ou lembrete.',
-          icon: payload.notification?.icon || payload.data?.icon || '/icon-192.png',
-          badge: payload.notification?.badge || payload.data?.badge || '/icon-badge.png',
+          body: notificationBody,
+          icon: '/icon-192.png',
+          badge: '/icon-badge.png',
           data: {
             url: payload.fcmOptions?.link || payload.data?.url || '/',
             ...payload.data
           },
-          vibrate: [200, 100, 200],
-          tag: payload.data?.tag || 'wr-music-notification'
+          vibrate: [300, 100, 300, 100, 300],
+          requireInteraction: true,
+          renotify: true,
+          tag: 'wr-music-fcm-' + Date.now()
         };
-
         return self.registration.showNotification(notificationTitle, notificationOptions);
       });
+      console.log('[sw.js] ✅ Firebase Messaging inicializado com sucesso.');
     }
   }
 } catch (err) {
-  console.warn('[sw.js] Erro ao inicializar Firebase no SW:', err);
+  console.warn('[sw.js] Erro ao inicializar Firebase:', err);
 }
 
-const CACHE_NAME = 'wr-music-cache-v4';
+// ─── PWA Cache ───────────────────────────────────────────────────────────────
+const CACHE_NAME = 'wr-music-cache-v5';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -54,98 +63,79 @@ const ASSETS_TO_CACHE = [
   '/icon-512.png'
 ];
 
-// Instalação do Service Worker
 self.addEventListener('install', (event) => {
+  console.log('[sw.js] Instalando SW v5...');
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
   );
   self.skipWaiting();
 });
 
-// Ativação e limpeza de cache antigo
 self.addEventListener('activate', (event) => {
+  console.log('[sw.js] Ativando SW v5...');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
+            console.log('[sw.js] Removendo cache antigo:', cache);
             return caches.delete(cache);
           }
         })
-      );
-    })
+      )
+    )
   );
   self.clients.claim();
 });
 
-// Intercepter requisições
 self.addEventListener('fetch', (event) => {
-  // Ignorar requisições de API e extensões
   if (event.request.url.includes('/api/') || event.request.url.startsWith('chrome-extension')) return;
 
-  // Estratégia Network-First para o index.html e navegação
-  // Isso garante que sempre pegamos a versão mais nova do app se houver rede
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/index.html');
-      })
+      fetch(event.request).catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  // Para outros assets (imagens, etc), usa Cache-First com fallback para rede
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    caches.match(event.request).then((response) => response || fetch(event.request))
   );
 });
 
-// Escutar notificações push (preparação e fallback)
+// ─── Push nativo (fallback caso Firebase compat não capture) ─────────────────
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   try {
     const data = event.data.json();
-    const title = data.notification?.title || data.title || 'Novo Lembrete WR MusicPro';
+    // Se o Firebase compat já tratou, não duplicar
+    if (firebaseMessaging) return;
+    const title = data.notification?.title || data.title || 'WR MusicPro 🎵';
     const options = {
-      body: data.notification?.body || data.content || data.body || 'Você tem um novo aviso no sistema de música.',
-      icon: data.notification?.icon || '/icon-192.png',
-      badge: data.notification?.badge || '/icon-badge.png',
-      data: {
-        url: data.fcmOptions?.link || data.url || '/',
-        ...data
-      },
-      vibrate: [300, 100, 300, 100, 300],
+      body: data.notification?.body || data.body || 'Você tem um novo aviso.',
+      icon: '/icon-192.png',
+      badge: '/icon-badge.png',
+      data: { url: data.fcmOptions?.link || data.url || '/', ...data },
+      vibrate: [300, 100, 300],
       requireInteraction: true,
-      renotify: true,
-      tag: 'wr-music-' + Date.now()
+      tag: 'wr-music-push-' + Date.now()
     };
-
     event.waitUntil(self.registration.showNotification(title, options));
   } catch (e) {
-    console.error('[sw.js] Erro ao processar evento push:', e);
+    console.error('[sw.js] Erro ao processar push nativo:', e);
   }
 });
 
+// ─── Clique na notificação ────────────────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
-  console.log('[sw.js] Notificação clicada:', event.notification);
   event.notification.close();
-
   const urlToOpen = event.notification.data?.url || '/';
-
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(urlToOpen) && 'focus' in client) {
-          return client.focus();
-        }
+        if (client.url.includes(urlToOpen) && 'focus' in client) return client.focus();
       }
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
+      if (clients.openWindow) return clients.openWindow(urlToOpen);
     })
   );
 });
