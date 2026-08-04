@@ -706,6 +706,8 @@ export const systemPlans = pgTable("system_plans", {
   showOnLanding: boolean("show_on_landing").default(true).notNull(),
   isPopular: boolean("is_popular").default(false).notNull(),
   order: integer("order").default(0).notNull(),
+  allowExtraStudents: boolean("allow_extra_students").default(true).notNull(),
+  extraStudentPrice: decimal("extra_student_price").default("1.49").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

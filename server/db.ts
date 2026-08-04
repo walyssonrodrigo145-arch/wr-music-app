@@ -32,6 +32,9 @@ async function ensureSchemaConsistency(db: any) {
           "features" jsonb NOT NULL,
           "isActive" boolean DEFAULT true NOT NULL,
           "showOnLanding" boolean DEFAULT true NOT NULL,
+          "order" integer DEFAULT 0 NOT NULL,
+          "allow_extra_students" boolean DEFAULT true NOT NULL,
+          "extra_student_price" numeric DEFAULT 1.49 NOT NULL,
           "createdAt" timestamp DEFAULT now() NOT NULL,
           "updatedAt" timestamp DEFAULT now() NOT NULL
         )
@@ -53,6 +56,10 @@ async function ensureSchemaConsistency(db: any) {
       console.log("[Database] Failed to execute create system tables:", e);
     }
     
+    // system_plans: allow_extra_students e extra_student_price
+    await db.execute(sql`ALTER TABLE "system_plans" ADD COLUMN IF NOT EXISTS "allow_extra_students" boolean DEFAULT true NOT NULL`);
+    await db.execute(sql`ALTER TABLE "system_plans" ADD COLUMN IF NOT EXISTS "extra_student_price" numeric DEFAULT 1.49 NOT NULL`);
+
     // lessons.studentId (nullable)
     await db.execute(sql`ALTER TABLE "lessons" ALTER COLUMN "studentId" DROP NOT NULL`);
     

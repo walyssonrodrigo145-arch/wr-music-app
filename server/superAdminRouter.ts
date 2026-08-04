@@ -176,6 +176,8 @@ export const superAdminRouter = router({
       showOnLanding: z.boolean(),
       isPopular: z.boolean().default(false),
       order: z.number().int().default(0),
+      allowExtraStudents: z.boolean().default(true),
+      extraStudentPrice: z.number().min(0, "Valor do excedente não pode ser negativo").default(1.49),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
@@ -193,6 +195,8 @@ export const superAdminRouter = router({
           showOnLanding: input.showOnLanding,
           isPopular: input.isPopular,
           order: input.order,
+          allowExtraStudents: input.allowExtraStudents,
+          extraStudentPrice: input.extraStudentPrice.toString(),
           updatedAt: new Date(),
         }).where(eq(systemPlans.id, input.id));
       } else {
@@ -207,6 +211,8 @@ export const superAdminRouter = router({
           showOnLanding: input.showOnLanding,
           isPopular: input.isPopular,
           order: input.order,
+          allowExtraStudents: input.allowExtraStudents,
+          extraStudentPrice: input.extraStudentPrice.toString(),
         });
       }
       return { success: true };

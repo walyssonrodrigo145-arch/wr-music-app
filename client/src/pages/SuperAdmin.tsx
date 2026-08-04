@@ -66,6 +66,7 @@ function SuperAdminPanel() {
   const [planIsActive, setPlanIsActive] = useState(true);
   const [planShowOnLanding, setPlanShowOnLanding] = useState(true);
   const [planIsPopular, setPlanIsPopular] = useState(false);
+  const [planAllowExtraStudents, setPlanAllowExtraStudents] = useState(true);
 
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<any>(null);
@@ -148,10 +149,12 @@ function SuperAdminPanel() {
       priceYearly: Number(formData.get("priceYearly")),
       maxStudents: Number(formData.get("maxStudents")),
       features: (formData.get("features") as string).split(";").map(f => f.trim()).filter(Boolean),
-      isActive: planIsActive,           // FIX: vem do estado React, não do FormData
-      showOnLanding: planShowOnLanding, // FIX: vem do estado React, não do FormData
-      isPopular: planIsPopular,         // FIX: vem do estado React, não do FormData
+      isActive: planIsActive,
+      showOnLanding: planShowOnLanding,
+      isPopular: planIsPopular,
       order: Number(formData.get("order")) || 0,
+      allowExtraStudents: planAllowExtraStudents,
+      extraStudentPrice: Number(formData.get("extraStudentPrice")) || 1.49,
     });
   };
 
@@ -430,6 +433,7 @@ function SuperAdminPanel() {
                     setPlanIsActive(true);
                     setPlanShowOnLanding(true);
                     setPlanIsPopular(false);
+                    setPlanAllowExtraStudents(true);
                   }}
                   className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary/90"
                 >
@@ -467,6 +471,10 @@ function SuperAdminPanel() {
                       <Label>Ordem de Exibição</Label>
                       <Input name="order" type="number" defaultValue={editingPlan?.order ?? 0} required />
                     </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label>Valor por Aluno Excedente (R$/mês)</Label>
+                      <Input name="extraStudentPrice" type="number" step="0.01" min="0" defaultValue={editingPlan?.extraStudentPrice ?? 1.49} required />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Funcionalidades (separe por ; ponto e vírgula)</Label>
@@ -487,6 +495,10 @@ function SuperAdminPanel() {
                     <div className="flex items-center justify-between">
                       <Label htmlFor="sw-popular" className="cursor-pointer">Destaque "Mais Escolhido"</Label>
                       <Switch id="sw-popular" checked={planIsPopular} onCheckedChange={setPlanIsPopular} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sw-extra" className="cursor-pointer">Permitir Alunos Excedentes (+ R$ 1,49/aluno)</Label>
+                      <Switch id="sw-extra" checked={planAllowExtraStudents} onCheckedChange={setPlanAllowExtraStudents} />
                     </div>
                   </div>
 
@@ -514,6 +526,9 @@ function SuperAdminPanel() {
                   <p className="text-2xl font-black">R$ {Number(p.priceMonthly).toFixed(2)}<span className="text-xs text-muted-foreground font-medium">/mês</span></p>
                   <p className="text-xs text-muted-foreground mt-0.5">Anual: R$ {Number(p.priceYearly).toFixed(2)}</p>
                   <p className="text-sm text-muted-foreground mt-1">Limite: {p.maxStudents} alunos</p>
+                  <p className="text-xs text-primary font-semibold mt-1">
+                    Excedente: {p.allowExtraStudents !== false ? `+ R$ ${Number(p.extraStudentPrice ?? 1.49).toFixed(2)}/aluno` : "Não permitido"}
+                  </p>
                   <div className="mt-4 pt-4 border-t border-border flex justify-between items-center">
                     <span className="text-xs flex flex-col gap-1 font-medium">
                       <div className="flex items-center gap-1">{p.isActive ? <Check size={14} className="text-green-500" /> : <X size={14} className="text-red-500" />} Ativo</div>
@@ -527,6 +542,7 @@ function SuperAdminPanel() {
                         setPlanIsActive(p.isActive);
                         setPlanShowOnLanding(p.showOnLanding);
                         setPlanIsPopular(p.isPopular);
+                        setPlanAllowExtraStudents(p.allowExtraStudents !== false);
                         setIsPlanModalOpen(true);
                       }}
                       className="text-primary hover:underline text-xs font-bold flex items-center gap-1"
