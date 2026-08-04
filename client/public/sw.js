@@ -54,7 +54,7 @@ try {
 }
 
 // ─── PWA Cache ───────────────────────────────────────────────────────────────
-const CACHE_NAME = 'wr-music-cache-v5';
+const CACHE_NAME = 'wr-music-cache-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -89,8 +89,22 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/api/') || event.request.url.startsWith('chrome-extension')) return;
+  const url = event.request.url;
 
+  // CRÍTICO: Não interceptar chamadas para APIs do Google/Firebase
+  // O SW interceptando essas chamadas causa "Failed to fetch" no getToken()
+  if (
+    url.includes('/api/') ||
+    url.startsWith('chrome-extension') ||
+    url.includes('googleapis.com') ||
+    url.includes('gstatic.com') ||
+    url.includes('firebaseio.com') ||
+    url.includes('firebaseapp.com') ||
+    url.includes('firebase.com') ||
+    url.includes('google.com')
+  ) return;
+
+  // Estratégia Network-First para navegação
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('/index.html'))
@@ -98,6 +112,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Cache-First para outros assets
   event.respondWith(
     caches.match(event.request).then((response) => response || fetch(event.request))
   );
