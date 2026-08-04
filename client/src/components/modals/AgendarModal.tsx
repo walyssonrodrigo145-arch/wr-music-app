@@ -17,7 +17,8 @@ import {
   Users,
   Search,
   ChevronDown,
-  X
+  X,
+  LayoutList
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
