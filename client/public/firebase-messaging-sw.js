@@ -1,3 +1,5 @@
+// firebase-messaging-sw.js — WR MusicPro v2.1 (2026-08-04)
+// IMPORTANTE: Alterar este comentário força o browser a reinstalar o Service Worker.
 try {
   importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js');
   importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js');

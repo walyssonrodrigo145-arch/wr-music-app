@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getMessaging, getToken, onMessage, deleteToken } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDhgSbEbtUmXMmgn0dnLoODM0sGS35-fzI",
@@ -13,110 +13,113 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
+const VAPID_KEY =
+  import.meta.env.VITE_FIREBASE_VAPID_KEY ||
+  "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
+
 const promiseWithTimeout = <T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> => {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(errorMsg)), ms);
     promise
-      .then((res) => {
-        clearTimeout(timer);
-        resolve(res);
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
+      .then((res) => { clearTimeout(timer); resolve(res); })
+      .catch((err) => { clearTimeout(timer); reject(err); });
   });
 };
 
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+async function getOrRegisterServiceWorker(): Promise<ServiceWorkerRegistration | undefined> {
+  if (!('serviceWorker' in navigator)) return undefined;
+
+  try {
+    // Remove TODOS os service workers antigos para evitar cache de token inválido
+    const allRegs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of allRegs) {
+      if (reg.scope.includes(window.location.origin)) {
+        // Só remove se não for o firebase-messaging-sw.js atual
+        const swUrl = reg.active?.scriptURL || reg.installing?.scriptURL || reg.waiting?.scriptURL || '';
+        if (!swUrl.includes('firebase-messaging-sw.js')) {
+          await reg.unregister();
+          console.log('[FCM] SW antigo removido:', swUrl);
+        }
+      }
+    }
+
+    // Registra (ou reutiliza) o firebase-messaging-sw.js
+    let reg = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+    if (!reg) {
+      reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+      console.log('[FCM] SW registrado.');
+    } else {
+      // Força update para pegar a versão mais recente do SW
+      await reg.update();
+      console.log('[FCM] SW atualizado.');
+    }
+
+    // Aguarda o SW ficar ativo (máx 5s)
+    if (reg && !reg.active) {
+      const startTime = Date.now();
+      while (!reg.active && Date.now() - startTime < 5000) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+
+    return reg ?? (await navigator.serviceWorker.ready.catch(() => undefined));
+  } catch (err) {
+    console.warn('[FCM] Erro ao gerenciar Service Worker:', err);
+    return await navigator.serviceWorker.ready.catch(() => undefined);
   }
-  return outputArray;
 }
 
-export const requestForToken = async () => {
+export const requestForToken = async (forceRefresh = false): Promise<string | null> => {
   if (!messaging || typeof window === 'undefined') return null;
 
   return promiseWithTimeout(
     (async () => {
-      const vapidKey =
-        import.meta.env.VITE_FIREBASE_VAPID_KEY ||
-        "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
-
-      let swRegistration: ServiceWorkerRegistration | undefined = undefined;
-
-      if ('serviceWorker' in navigator) {
+      // Se forceRefresh, apaga o token existente para forçar geração de novo
+      if (forceRefresh) {
         try {
-          let reg = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
-          if (!reg) {
-            reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-          }
-          if (reg && !reg.active) {
-            const startTime = Date.now();
-            while (!reg.active && Date.now() - startTime < 3000) {
-              await new Promise((r) => setTimeout(r, 100));
-            }
-          }
-          swRegistration = reg || (await navigator.serviceWorker.ready.catch(() => undefined));
-        } catch (swErr) {
-          console.warn('Falha ao obter Service Worker:', swErr);
-          swRegistration = await navigator.serviceWorker.ready.catch(() => undefined);
+          await deleteToken(messaging);
+          console.log('[FCM] Token anterior deletado para forçar refresh.');
+        } catch (e) {
+          console.warn('[FCM] Não foi possível deletar token anterior:', e);
         }
       }
 
-      // Nível 1: Tenta obter token FCM com serviceWorkerRegistration explícito
+      const swRegistration = await getOrRegisterServiceWorker();
+
+      // Nível 1: FCM token com serviceWorkerRegistration explícito (preferencial)
       try {
         const token1 = await getToken(messaging, {
-          vapidKey,
+          vapidKey: VAPID_KEY,
           ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
         });
-        if (token1) {
-          console.log('FCM Token (Nível 1) gerado com sucesso:', token1);
+        if (token1 && !token1.startsWith('{')) {
+          console.log('[FCM] ✅ Token FCM (Nível 1) gerado:', token1.substring(0, 30) + '...');
           return token1;
         }
       } catch (err1) {
-        console.warn('FCM Token (Nível 1) falhou:', err1);
+        console.warn('[FCM] Token (Nível 1) falhou:', err1);
       }
 
-      // Nível 2: Tenta obter token FCM sem serviceWorkerRegistration explícito
+      // Nível 2: FCM token sem serviceWorkerRegistration
       try {
-        const token2 = await getToken(messaging, { vapidKey });
-        if (token2) {
-          console.log('FCM Token (Nível 2) gerado com sucesso:', token2);
+        const token2 = await getToken(messaging, { vapidKey: VAPID_KEY });
+        if (token2 && !token2.startsWith('{')) {
+          console.log('[FCM] ✅ Token FCM (Nível 2) gerado:', token2.substring(0, 30) + '...');
           return token2;
         }
       } catch (err2) {
-        console.warn('FCM Token (Nível 2) falhou:', err2);
+        console.warn('[FCM] Token (Nível 2) falhou:', err2);
       }
 
-      // Nível 3: Fallback para assinatura Web Push nativa da API do navegador
-      if (swRegistration && 'pushManager' in swRegistration) {
-        try {
-          console.log('Tentando assinatura Web Push nativa como fallback...');
-          const sub = await swRegistration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidKey),
-          });
-          if (sub) {
-            const nativeToken = JSON.stringify(sub);
-            console.log('Token Web Push Nativo (Nível 3) gerado:', nativeToken);
-            return nativeToken;
-          }
-        } catch (nativeErr) {
-          console.warn('Fallback Web Push nativo (Nível 3) falhou:', nativeErr);
-        }
-      }
+      // IMPORTANTE: Nível 3 (Web Push nativo) REMOVIDO.
+      // O Firebase Admin SDK NÃO consegue enviar para tokens no formato PushSubscription JSON.
+      // Apenas tokens FCM reais (strings longas) são aceitos pelo sendPushNotification().
 
-      console.warn('Não foi possível gerar chave de notificação por nenhum dos 3 métodos.');
+      console.warn('[FCM] ❌ Não foi possível gerar token FCM. Verifique se o Service Worker está instalado corretamente.');
       return null;
     })(),
-    12000,
-    "O serviço de notificações não respondeu a tempo. Verifique sua conexão e tente novamente."
+    15000,
+    "O serviço de notificações não respondeu a tempo. Tente novamente."
   );
 };
 
