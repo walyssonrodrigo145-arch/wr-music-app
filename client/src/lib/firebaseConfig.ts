@@ -26,52 +26,68 @@ async function getMsg() {
   } catch { return null; }
 }
 
-async function registerDedicatedSW(): Promise<ServiceWorkerRegistration | null> {
-  if (!('serviceWorker' in navigator)) return null;
-  try {
-    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    console.log('[FCM] Dedicated SW registered:', reg.scope);
-    return reg;
-  } catch (e) {
-    console.warn('[FCM] Dedicated SW registration failed:', e);
-    return null;
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
   }
+  return outputArray;
 }
 
 export const requestForToken = async (forceRefresh = false): Promise<string | null> => {
-  const msg = await getMsg();
-  if (!msg) {
-    throw new Error("Firebase Messaging não é suportado neste navegador/dispositivo.");
-  }
-
   if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
     throw new Error("Permissão de notificação não concedida. Vá nas configurações do navegador e permita notificações para este site.");
   }
 
-  if (forceRefresh) {
-    try { await deleteToken(msg); } catch { /* normal */ }
-  }
-
-  // Garantir que firebase-messaging-sw.js está registrado no escopo padrão '/'
-  const swReg = await registerDedicatedSW();
-
+  // 1. Tentar Firebase FCM SDK
   try {
-    console.log('[FCM] Solicitando token ao Firebase com SW registrado...');
-    const options: any = { vapidKey: VAPID_KEY };
-    if (swReg) {
-      options.serviceWorkerRegistration = swReg;
+    const msg = await getMsg();
+    if (msg) {
+      if (forceRefresh) {
+        try { await deleteToken(msg); } catch {}
+      }
+      let swReg: ServiceWorkerRegistration | undefined = undefined;
+      if ('serviceWorker' in navigator) {
+        try {
+          swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        } catch {}
+      }
+      const token = await getToken(msg, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+      if (token && token.length > 50 && !token.startsWith('{')) {
+        console.log('[FCM] ✅ Token FCM obtido:', token.substring(0, 30));
+        return token;
+      }
     }
-    const token = await getToken(msg, options);
-    if (token && token.length > 50) {
-      console.log('[FCM] ✅ Token obtido:', token.substring(0, 30) + '...');
-      return token;
-    }
-  } catch (e: any) {
-    console.error('[FCM] Erro no getToken:', e);
-    throw new Error(`Firebase falhou: ${e?.message || e?.code || String(e)}`);
+  } catch (fcmErr: any) {
+    console.warn('[FCM] SDK falhou ou deu fetch error. Ativando fallback WebPush nativo:', fcmErr);
   }
 
-  throw new Error("Token FCM não gerado. Verifique se as notificações estão PERMITIDAS nas configurações do navegador.");
+  // 2. Fallback Infalível: PushManager nativo do navegador
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_KEY)
+        });
+      }
+      if (sub) {
+        const nativeToken = JSON.stringify(sub);
+        console.log('[Push] ✅ Subscription Nativa obtida com sucesso.');
+        return nativeToken;
+      }
+    } catch (nativeErr: any) {
+      console.error('[Push] Fallback nativo falhou:', nativeErr);
+      throw new Error(`Falha ao obter chave push: ${nativeErr.message || String(nativeErr)}`);
+    }
+  }
+
+  throw new Error("Push não suportado neste navegador.");
 };
 
 export const onMessageListener = async () => {
