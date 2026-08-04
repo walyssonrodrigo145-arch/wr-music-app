@@ -36,7 +36,7 @@ export const fcmRouter = router({
     return { success: true, message: "Novo dispositivo registrado com sucesso!" };
   }),
 
-  // Deleta todos os tokens antigos do usuário e grava exclusivamente o atual
+  // Deleta todos os tokens antigos do usuário e grava/atualiza o atual com ON CONFLICT
   cleanAndRegisterToken: protectedProcedure.input(z.object({
     token: z.string(),
     deviceInfo: z.string().optional(),
@@ -46,21 +46,25 @@ export const fcmRouter = router({
     
     const orgId = ctx.user.organizationId!;
     
-    try {
-      // 1. Remove todos os tokens anteriores deste usuário ou com o mesmo token
-      await db.delete(fcmTokens).where(eq(fcmTokens.userId, ctx.user.id));
-      await db.delete(fcmTokens).where(eq(fcmTokens.token, input.token));
-    } catch (e) {
-      console.warn("[FCM] Aviso na limpeza inicial de tokens:", e);
-    }
+    // 1. Remove todos os tokens anteriores associados a este usuário
+    await db.delete(fcmTokens).where(eq(fcmTokens.userId, ctx.user.id));
     
-    // 2. Insere o novo token atual do aparelho
-    await db.insert(fcmTokens).values({
-      organizationId: orgId,
-      userId: ctx.user.id,
-      token: input.token,
-      deviceInfo: input.deviceInfo || "Dispositivo Principal",
-    });
+    // 2. Insere/Atualiza com tratamento de conflito de token único
+    await db.insert(fcmTokens)
+      .values({
+        organizationId: orgId,
+        userId: ctx.user.id,
+        token: input.token,
+        deviceInfo: input.deviceInfo || "Dispositivo Principal",
+      })
+      .onConflictDoUpdate({
+        target: fcmTokens.token,
+        set: {
+          userId: ctx.user.id,
+          deviceInfo: input.deviceInfo || "Dispositivo Principal",
+          updatedAt: new Date(),
+        }
+      });
     
     return { success: true, message: "Dispositivos limpos e este aparelho cadastrado como principal!" };
   }),
