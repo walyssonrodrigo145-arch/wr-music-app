@@ -11,6 +11,7 @@ export function usePushNotifications() {
   );
   
   const registerToken = trpc.fcm.registerToken.useMutation();
+  const cleanAndRegisterToken = trpc.fcm.cleanAndRegisterToken.useMutation();
   const isSupported = typeof Notification !== "undefined";
 
   /** Solicita permissão ao usuário e cadastra o Token no backend FCM */
@@ -61,7 +62,7 @@ export function usePushNotifications() {
       if (token) {
         try {
           console.log("Registrando token no backend...");
-          await registerToken.mutateAsync({
+          await cleanAndRegisterToken.mutateAsync({
             token,
             deviceInfo: navigator.userAgent
           });

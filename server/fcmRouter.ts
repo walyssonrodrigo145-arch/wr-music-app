@@ -46,15 +46,20 @@ export const fcmRouter = router({
     
     const orgId = ctx.user.organizationId!;
     
-    // Remove todos os tokens anteriores deste usuário
-    await db.delete(fcmTokens).where(eq(fcmTokens.userId, ctx.user.id));
+    try {
+      // 1. Remove todos os tokens anteriores deste usuário ou com o mesmo token
+      await db.delete(fcmTokens).where(eq(fcmTokens.userId, ctx.user.id));
+      await db.delete(fcmTokens).where(eq(fcmTokens.token, input.token));
+    } catch (e) {
+      console.warn("[FCM] Aviso na limpeza inicial de tokens:", e);
+    }
     
-    // Insere o novo token atual do aparelho
+    // 2. Insere o novo token atual do aparelho
     await db.insert(fcmTokens).values({
       organizationId: orgId,
       userId: ctx.user.id,
       token: input.token,
-      deviceInfo: input.deviceInfo || "Dispositivo Atual",
+      deviceInfo: input.deviceInfo || "Dispositivo Principal",
     });
     
     return { success: true, message: "Dispositivos limpos e este aparelho cadastrado como principal!" };
