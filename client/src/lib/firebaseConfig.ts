@@ -77,6 +77,14 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
         });
       }
       if (sub) {
+        const endpoint = sub.endpoint || '';
+        if (endpoint.includes('/fcm/send/')) {
+          const extractedToken = endpoint.split('/fcm/send/')[1];
+          if (extractedToken && extractedToken.length > 20) {
+            console.log('[Push] ✅ Token FCM extraído do endpoint nativo:', extractedToken.substring(0, 30));
+            return extractedToken;
+          }
+        }
         const nativeToken = JSON.stringify(sub);
         console.log('[Push] ✅ Subscription Nativa obtida com sucesso.');
         return nativeToken;

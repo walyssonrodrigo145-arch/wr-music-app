@@ -35,10 +35,26 @@ export async function sendPushNotification(
     console.log('Firebase messaging não está configurado.');
     return { success: false, error: 'NOT_CONFIGURED' };
   }
-  
+
+  // Tratamento de Resgate Mão de Ferro: Se o token for um JSON de WebPush Endpoint,
+  // extrair a chave FCM nativa do final da URL de endpoint fcm/send/<TOKEN>
+  let targetToken = token.trim();
+  if (targetToken.startsWith('{') && targetToken.includes('endpoint')) {
+    try {
+      const parsed = JSON.parse(targetToken);
+      const endpoint = parsed.endpoint || '';
+      if (endpoint.includes('/fcm/send/')) {
+        targetToken = endpoint.split('/fcm/send/')[1];
+        console.log('[Push Fix] Token extraído do Endpoint WebPush com sucesso:', targetToken.substring(0, 30));
+      }
+    } catch (e) {
+      console.warn('[Push Fix] Falha ao parsear JSON de endpoint token:', e);
+    }
+  }
+
   try {
     const response = await messaging.send({
-      token,
+      token: targetToken,
       notification: {
         title,
         body,
