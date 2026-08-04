@@ -38,11 +38,11 @@ export default function PublicEnrollment() {
     skipPayment?: boolean;
   } | null>(null);
 
-  // Detecta retorno do Mercado Pago via ?status=success na URL
+  // Detecta retorno do Mercado Pago via ?status=success ou ?status=pending na URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const status = urlParams.get("status");
-    if (status === "success") {
+    if (status === "success" || status === "pending" || status === "approved") {
       // Remove o param da URL sem recarregar a página
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanUrl);
@@ -60,7 +60,11 @@ export default function PublicEnrollment() {
 
       // Avança para seleção de horário
       setStep("schedule");
-      toast.success("Pagamento confirmado! Agora escolha seu horário.");
+      if (status === "pending") {
+        toast.success("Pagamento PIX recebido! Agora escolha seu horário.");
+      } else {
+        toast.success("Pagamento confirmado! Agora escolha seu horário.");
+      }
     }
   }, []);
 
