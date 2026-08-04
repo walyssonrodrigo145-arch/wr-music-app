@@ -530,4 +530,59 @@ export const enrollmentRouter = router({
         externalReference: result.externalReference,
       };
     }),
+
+  // 7. Verifica pagamento MP buscando pelos pagamentos mais recentes com external_reference = enrollment_${code}
+  verifyMPByReference: publicProcedure
+    .input(
+      z.object({
+        code: z.string(),
+      })
+    )
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      const [link] = await db
+        .select()
+        .from(enrollmentLinks)
+        .where(eq(enrollmentLinks.code, input.code))
+        .limit(1);
+
+      if (!link) throw new Error("Link não encontrado");
+
+      const allSettings = await db.select().from(settings).where(eq(settings.organizationId, link.organizationId));
+      const schoolSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '')
+        || allSettings.find(s => s.asaasApiKey || s.mpAccessToken)
+        || allSettings[0];
+
+      if (!schoolSet?.mpAccessToken) {
+        throw new Error("Escola sem Mercado Pago configurado.");
+      }
+
+      // Busca na API do Mercado Pago por pagamentos referentes a essa matrícula
+      const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=enrollment_${input.code}&sort=date_created&criteria=desc`;
+      const response = await fetch(searchUrl, {
+        headers: { Authorization: `Bearer ${schoolSet.mpAccessToken}` },
+      });
+
+      if (!response.ok) {
+        return { verified: false, status: "unknown" };
+      }
+
+      const data = await response.json();
+      const latestPayment = data.results?.[0];
+
+      if (!latestPayment) {
+        return { verified: false, status: "not_found" };
+      }
+
+      const status = latestPayment.status as string;
+      const verified = status === "approved" || status === "pending" || status === "in_process";
+
+      return {
+        verified,
+        status,
+        paymentId: String(latestPayment.id),
+      };
+    }),
 });

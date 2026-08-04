@@ -40,6 +40,9 @@ export default function PublicEnrollment() {
 
   // ── Estado de verificação de pagamento MP ────────────────────────────────────
   const [mpVerifying, setMpVerifying] = useState(false);
+  // URL do checkout MP (quando aberto em nova aba)
+  const [mpCheckoutUrl, setMpCheckoutUrl] = useState<string | null>(null);
+  const [mpPaymentValue, setMpPaymentValue] = useState<number>(0);
 
   // Verifica pagamento MP via API do backend (não confia apenas na URL)
   const verifyMPMutation = trpc.enrollment.verifyMPPayment.useQuery(
@@ -127,15 +130,17 @@ export default function PublicEnrollment() {
         // Sem gateway: vai direto para seleção de horário
         setStep("schedule");
       } else if ((data as any).gateway === "mercadopago" && (data as any).invoiceUrl) {
-        // Salva estado no localStorage ANTES de redirecionar (será restaurado ao voltar)
+        // Salva estado no localStorage ANTES de abrir o checkout MP
         try {
           localStorage.setItem(`mp_enrollment_${window.location.pathname}`, JSON.stringify({
             instrumentId: selectedInstrument,
             form,
           }));
         } catch (_) {}
-        // Mercado Pago: redireciona imediatamente para o checkout externo
-        window.location.href = (data as any).invoiceUrl;
+        // Mercado Pago: abre em nova aba e mostra tela de aguardo com botão de verificação
+        window.open((data as any).invoiceUrl, "_blank");
+        setMpCheckoutUrl((data as any).invoiceUrl);
+        setMpPaymentValue((data as any).value || 0);
       } else {
         // Asaas: exibe QR Code PIX ou link de boleto na tela
         setPaymentData({
@@ -182,6 +187,34 @@ export default function PublicEnrollment() {
     setStep("schedule");
   };
 
+  // Verifica manualmente o pagamento MP (sem depender do redirect automático)
+  const handleVerifyMPPayment = async () => {
+    setMpVerifying(true);
+    try {
+      // Tenta buscar o payment_id mais recente via API do backend (external_reference = enrollment_${code})
+      const res = await fetch(
+        `/api/trpc/enrollment.verifyMPByReference?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code } } }))}`
+      );
+      const resJson: any = await res.json();
+      const result = resJson?.[0]?.result?.data?.json;
+      if (result?.verified) {
+        setMpCheckoutUrl(null);
+        setStep("schedule");
+        toast.success("Pagamento confirmado! Agora escolha seu horário.");
+      } else {
+        toast.error(
+          result?.status === "pending"
+            ? "Pagamento PIX pendente — aguarde a confirmação do banco (pode levar alguns instantes)."
+            : `Pagamento ainda não confirmado (status: ${result?.status ?? "aguardando"}). Tente novamente em alguns segundos.`
+        );
+      }
+    } catch {
+      toast.error("Não foi possível verificar. Certifique-se de que concluiu o pagamento e tente novamente.");
+    } finally {
+      setMpVerifying(false);
+    }
+  };
+
   // ─── Loading / Error ──────────────────────────────────────────────────────────
   if (detailsLoading) {
     return (
@@ -202,6 +235,62 @@ export default function PublicEnrollment() {
           <p className="text-sm font-bold text-foreground">Verificando pagamento...</p>
           <p className="text-xs text-muted-foreground">Consultando o Mercado Pago. Aguarde um momento.</p>
         </div>
+      </div>
+    );
+  }
+
+  // Tela de aguardo quando o checkout MP foi aberto em nova aba
+  if (mpCheckoutUrl) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-indigo-950/10 p-4">
+        <Card className="max-w-sm w-full p-8 space-y-6 rounded-3xl border-border bg-card shadow-2xl text-center">
+          {/* Ícone animado */}
+          <div className="relative mx-auto w-20 h-20">
+            <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
+            <div className="relative w-20 h-20 rounded-full bg-blue-500/10 flex items-center justify-center">
+              <CreditCard size={36} className="text-blue-400" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-foreground">Conclua o pagamento</h2>
+            <p className="text-xs text-muted-foreground">
+              O checkout do Mercado Pago foi aberto em uma nova aba. Realize o pagamento e depois clique no botão abaixo para confirmar.
+            </p>
+            {mpPaymentValue > 0 && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black">
+                Valor: R$ {mpPaymentValue.toFixed(2)}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              onClick={handleVerifyMPPayment}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20"
+            >
+              <BadgeCheck size={18} className="mr-2" />
+              Já paguei — Verificar Pagamento
+            </Button>
+
+            <a
+              href={mpCheckoutUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
+            >
+              <ExternalLink size={14} />
+              Reabrir checkout do Mercado Pago
+            </a>
+
+            <button
+              onClick={() => setMpCheckoutUrl(null)}
+              className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
+            >
+              Cancelar e voltar
+            </button>
+          </div>
+        </Card>
       </div>
     );
   }
