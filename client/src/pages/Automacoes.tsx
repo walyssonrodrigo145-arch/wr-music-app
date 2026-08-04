@@ -902,14 +902,20 @@ export default function Automacoes() {
       )}
 
       {isSupported && permission === "granted" && (
-        <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-sm shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0"><BellRing size={20} /></div>
-          <p className="text-[11px] lg:text-xs text-emerald-800 dark:text-emerald-300 font-bold uppercase tracking-widest flex-1 leading-snug text-center sm:text-left">Notificações Ativadas! Seu celular receberá os avisos mesmo com o app fechado.</p>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button size="sm" variant="outline" disabled={isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={handleSyncNotifications}>
-              {isSyncing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Sincronizar
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-sm shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+              <BellRing size={20} />
+            </div>
+            <p className="text-[11px] lg:text-xs text-emerald-800 dark:text-emerald-300 font-bold uppercase tracking-widest leading-snug">
+              Notificações Ativadas! Seu celular receberá os avisos mesmo com o app fechado.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-emerald-500/20">
+            <Button size="sm" variant="outline" disabled={isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-3.5 hover:bg-emerald-500/20" onClick={handleSyncNotifications}>
+              {isSyncing ? <Loader2 size={14} className="animate-spin mr-1.5" /> : null}Sincronizar
             </Button>
-            <Button size="sm" variant="outline" disabled={cleanPush.isPending || isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-amber-500/40 text-amber-700 dark:text-amber-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-amber-500/20" onClick={async () => {
+            <Button size="sm" variant="outline" disabled={cleanPush.isPending || isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-amber-500/40 text-amber-700 dark:text-amber-300 font-black uppercase tracking-widest text-[9px] px-3.5 hover:bg-amber-500/20" onClick={async () => {
               try {
                 const token = await requestForToken();
                 if (token) {
@@ -922,10 +928,10 @@ export default function Automacoes() {
                 toast.error("Erro ao resetar: " + (e.message || String(e)));
               }
             }}>
-              {cleanPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Resetar e Definir como Principal
+              {cleanPush.isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : null}Resetar / Definir Principal
             </Button>
-            <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-4 hover:bg-emerald-500/20" onClick={() => testPush.mutate()} disabled={testPush.isPending || isSyncing}>
-              {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : null}Disparar Teste
+            <Button size="sm" variant="outline" className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-3.5 hover:bg-emerald-500/20" onClick={() => testPush.mutate()} disabled={testPush.isPending || isSyncing}>
+              {testPush.isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : null}Disparar Teste
             </Button>
           </div>
         </div>
