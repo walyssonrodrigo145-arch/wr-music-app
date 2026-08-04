@@ -31,7 +31,7 @@ export const studioRoomsRouter = router({
           organizationId: orgId,
           name: input.name,
           description: input.description,
-          color: input.color || "#3b82f6",
+          color: input.color || "#6366f1",
           active: true,
         })
         .returning();
@@ -75,6 +75,23 @@ export const studioRoomsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
       const orgId = ctx.user.organizationId!;
+
+      // Verifica se há aulas ativas associadas a essa sala
+      const { lessons } = await import("../drizzle/schema");
+      const { count } = await import("drizzle-orm");
+      const [result] = await db
+        .select({ total: count() })
+        .from(lessons)
+        .where(
+          and(
+            eq(lessons.studioRoomId, input.id),
+            eq(lessons.organizationId, orgId)
+          )
+        );
+
+      if (result?.total && result.total > 0) {
+        throw new Error(`Esta sala possui ${result.total} aula(s) associada(s). Remova ou realoque as aulas antes de excluir a sala.`);
+      }
 
       await db
         .delete(studioRooms)

@@ -87,6 +87,10 @@ export const enrollmentRouter = router({
         activeGateway = "mercadopago";
       }
 
+      // Retorna schoolHours para o frontend poder cinzar dias fechados
+      let parsedSchoolHours: Record<string, { active: boolean; start: string; end: string }> = {};
+      try { parsedSchoolHours = JSON.parse(schoolSet?.schoolHours || "{}"); } catch (_) {}
+
       return {
         code: link.code,
         schoolName: schoolSet?.schoolName || "Escola de Música",
@@ -97,6 +101,7 @@ export const enrollmentRouter = router({
         lead: leadData,
         instruments: allInstruments,
         paymentGateway: activeGateway,
+        schoolHours: parsedSchoolHours,
       };
     }),
 
@@ -211,7 +216,7 @@ export const enrollmentRouter = router({
         cursor += duration;
       }
 
-      // Busca aulas agendadas para essa data (início e fim do dia, horário de Brasília)
+      // Busca aulas agendadas para essa data filtrando por professor E organização
       const startOfDay = new Date(`${input.dateStr}T00:00:00.000-03:00`);
       const endOfDay = new Date(`${input.dateStr}T23:59:59.999-03:00`);
 
@@ -221,6 +226,7 @@ export const enrollmentRouter = router({
         .where(
           and(
             eq(lessons.organizationId, orgId),
+            eq(lessons.userId, targetTeacher.userId),
             gte(lessons.scheduledAt, startOfDay),
             lte(lessons.scheduledAt, endOfDay)
           )

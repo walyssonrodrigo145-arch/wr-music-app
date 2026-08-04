@@ -420,7 +420,7 @@ export default function PublicEnrollment() {
                         studentEmail: form.email.trim() || undefined,
                         studentCpf: form.cpf.trim() || undefined,
                         instrumentId: selectedInstrument!,
-                        teacherUserId: 0, // será resolvido no backend
+                        teacherUserId: 0,
                         dateStr: "pending",
                         timeStr: "pending",
                         billingType,
@@ -521,17 +521,27 @@ export default function PublicEnrollment() {
                   <div className="flex gap-2 min-w-max">
                     {nextDays.map((day) => {
                       const isSelected = selectedDate === day.dateStr;
+                      // Verifica se a escola está fechada nesse dia da semana
+                      const DAY_MAP: Record<number, string> = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
+                      const weekdayIdx = new Date(`${day.dateStr}T12:00:00-03:00`).getDay();
+                      const dayKey = DAY_MAP[weekdayIdx];
+                      const schoolHours = (details as any).schoolHours || {};
+                      const isClosed = !schoolHours[dayKey]?.active;
                       return (
                         <button
                           key={day.dateStr}
-                          onClick={() => { setSelectedDate(day.dateStr); setSelectedTime(""); }}
+                          disabled={isClosed}
+                          onClick={() => { if (!isClosed) { setSelectedDate(day.dateStr); setSelectedTime(""); } }}
                           className={`flex flex-col items-center px-4 py-3 rounded-2xl border-2 min-w-[72px] transition-all
-                            ${isSelected
+                            ${isClosed
+                              ? "opacity-30 border-border/20 bg-muted/10 cursor-not-allowed"
+                              : isSelected
                               ? "border-indigo-500 bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
                               : "border-border/40 bg-card/50 hover:border-indigo-400/40"}`}
                         >
-                          <span className={`text-[10px] font-bold uppercase ${isSelected ? "text-indigo-100" : "text-muted-foreground"}`}>{day.weekday}</span>
-                          <span className={`text-sm font-black ${isSelected ? "text-white" : "text-foreground"}`}>{day.day}</span>
+                          <span className={`text-[10px] font-bold uppercase ${isSelected ? "text-indigo-100" : isClosed ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{day.weekday}</span>
+                          <span className={`text-sm font-black ${isSelected ? "text-white" : isClosed ? "text-muted-foreground/40" : "text-foreground"}`}>{day.day}</span>
+                          {isClosed && <span className="text-[8px] font-bold text-rose-400/60 uppercase mt-0.5">Fechado</span>}
                         </button>
                       );
                     })}
