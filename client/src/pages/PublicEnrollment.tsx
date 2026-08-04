@@ -46,6 +46,18 @@ export default function PublicEnrollment() {
       // Remove o param da URL sem recarregar a página
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanUrl);
+
+      // Restaura dados salvos antes do redirect para o MP
+      try {
+        const saved = localStorage.getItem(`mp_enrollment_${window.location.pathname}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.instrumentId) setSelectedInstrument(parsed.instrumentId);
+          if (parsed.form) setForm(parsed.form);
+          localStorage.removeItem(`mp_enrollment_${window.location.pathname}`);
+        }
+      } catch (_) {}
+
       // Avança para seleção de horário
       setStep("schedule");
       toast.success("Pagamento confirmado! Agora escolha seu horário.");
@@ -59,11 +71,16 @@ export default function PublicEnrollment() {
       { enabled: Boolean(code), retry: 1, staleTime: 0, gcTime: 0, refetchOnMount: "always" }
     );
 
+  // instrumentId resolvido: usa o selecionado, ou o pré-selecionado do link, ou o primeiro disponível
+  const resolvedInstrumentId = selectedInstrument
+    ?? details?.preselectedInstrumentId
+    ?? (details?.instruments?.[0]?.id ?? null);
+
   const { data: slotsData, isLoading: slotsLoading } =
     trpc.enrollment.getAvailableSlots.useQuery(
-      { code, instrumentId: selectedInstrument!, dateStr: selectedDate },
+      { code, instrumentId: resolvedInstrumentId!, dateStr: selectedDate },
       {
-        enabled: Boolean(code && selectedInstrument && selectedDate && step === "schedule"),
+        enabled: Boolean(code && resolvedInstrumentId && selectedDate && step === "schedule"),
         staleTime: 0, gcTime: 0, refetchOnMount: "always",
         refetchOnWindowFocus: true, refetchInterval: 30_000,
       }
@@ -76,6 +93,13 @@ export default function PublicEnrollment() {
         // Sem gateway: vai direto para seleção de horário
         setStep("schedule");
       } else if ((data as any).gateway === "mercadopago" && (data as any).invoiceUrl) {
+        // Salva estado no localStorage ANTES de redirecionar (será restaurado ao voltar)
+        try {
+          localStorage.setItem(`mp_enrollment_${window.location.pathname}`, JSON.stringify({
+            instrumentId: selectedInstrument,
+            form,
+          }));
+        } catch (_) {}
         // Mercado Pago: redireciona imediatamente para o checkout externo
         window.location.href = (data as any).invoiceUrl;
       } else {

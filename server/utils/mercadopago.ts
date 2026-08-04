@@ -39,7 +39,8 @@ export async function createMPPreference(
       failure: params.successUrl,
       pending: params.successUrl,
     },
-    auto_return: "approved",
+    // auto_return só funciona se success url for HTTPS válida — só ativa em produção
+    ...(params.successUrl.startsWith("https://") ? { auto_return: "approved" } : {}),
     external_reference: params.external_reference,
     // Webhook nativo de IPN/Notificação para atualização automática
     notification_url: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/api/webhooks/mercadopago/student?dueId=${params.external_reference}`,
