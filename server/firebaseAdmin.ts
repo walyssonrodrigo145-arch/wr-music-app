@@ -26,7 +26,16 @@ if (!getApps().length) {
 export const messaging = getApps().length ? getMessaging() : null;
 
 // Configurar WebPush nativo se VAPID key estiver configurada
-const vapidKey = process.env.VITE_FIREBASE_VAPID_KEY || "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
+const vapidPublicKey = process.env.VITE_FIREBASE_VAPID_KEY || "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
+
+try {
+  webpush.setVapidDetails(
+    'mailto:contato@wrmusicpro.com.br',
+    vapidPublicKey,
+    vapidPrivateKey
+  );
+} catch (e) {}
 
 export async function sendPushNotification(
   token: string,
@@ -35,7 +44,7 @@ export async function sendPushNotification(
   data?: Record<string, string>,
   opts?: { icon?: string; badge?: string; url?: string }
 ): Promise<{ success: boolean; error?: string }> {
-  // Se o token for um JSON de assinatura WebPush nativa (fallback)
+  // 1. Se o token for um JSON de assinatura WebPush nativa (PushSubscription JSON)
   if (token.startsWith('{') && token.includes('endpoint')) {
     try {
       const subscription = JSON.parse(token);
@@ -48,12 +57,12 @@ export async function sendPushNotification(
         ...data,
       });
 
-      // Configuração para envio via web-push nativo caso seja PushSubscription
-      // Nota: enviando payload direto via FCM se for token FCM, ou tratando formato JSON
-      console.log('[Push] Enviando via WebPush Nativo para subscription JSON');
-      // Em caso de subscription nativa, tratamos com suporte a VAPID ou fallback inteligente
+      console.log('[Push] Enviando via WebPush Nativo...');
+      await webpush.sendNotification(subscription, payload);
+      return { success: true };
     } catch (e: any) {
-      console.error('[Push] Erro ao parsear PushSubscription JSON:', e);
+      console.error('[Push] Erro ao enviar via WebPush nativo:', e);
+      return { success: false, error: e?.message || 'WEBPUSH_FAILED' };
     }
   }
 

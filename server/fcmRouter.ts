@@ -135,8 +135,8 @@ export const fcmRouter = router({
       const errorSummary = [...new Set(failedErrors)].join(", ");
       throw new Error(
         `Envio falhou para todos os ${tokens.length} dispositivo(s). ` +
-        `Erro(s): ${errorSummary || "desconhecido"}. ` +
-        `Clique em 'Resetar / Definir Principal' para re-registrar este aparelho e tente novamente.`
+        `Erro: ${errorSummary || "desconhecido"}. ` +
+        `O token foi removido automaticamente. Clique em 'Resetar / Definir Principal' uma vez mais para gerar o novo token atualizado!`
       );
     }
     
