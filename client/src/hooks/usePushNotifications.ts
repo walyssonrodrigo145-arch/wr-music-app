@@ -50,10 +50,10 @@ export function usePushNotifications() {
       try {
         token = await requestForToken();
       } catch (err: any) {
-        console.error("Erro na API do Firebase ao obter Token FCM:", err);
+        console.error("Erro ao obter Token FCM:", err);
         const detail = err?.message || err?.code || String(err);
         if (!silent) {
-          toast.error(`Falha ao obter Token FCM: ${detail}`);
+          toast.error(`Falha ao registrar dispositivo: ${detail}`);
         }
         return result;
       }
@@ -66,17 +66,17 @@ export function usePushNotifications() {
             deviceInfo: navigator.userAgent
           });
           if (!silent) {
-            toast.success("Celular e dispositivo sincronizados para receber notificações!");
+            toast.success("Celular sincronizado para receber notificações!");
           }
         } catch (err: any) {
-          console.error("Erro no backend ao salvar FCM token:", err);
+          console.error("Erro ao salvar token no backend:", err);
           if (!silent) {
             toast.error("Servidor indisponível ao salvar token: " + (err.message || "Erro de conexão"));
           }
         }
       } else {
         if (!silent) {
-          toast.error("Não foi possível gerar a chave de notificação do dispositivo.");
+          toast.error("Token FCM não gerado. Verifique se as notificações estão PERMITIDAS nas configurações do navegador e tente novamente.");
         }
       }
     } else if (result === "denied") {
