@@ -182,9 +182,10 @@ export default function Aulas() {
   } | null>(null);
 
   const utils = trpc.useUtils();
-  const { data: lessons = [], isLoading } = trpc.lessons.list.useQuery();
+  const { data: lessons = [], isLoading } = trpc.lessons.list.useQuery(undefined, { refetchInterval: 10_000 });
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
   const { data: professoresList = [] } = trpc.professores.list.useQuery();
+  const { data: studioRoomsList = [] } = trpc.studioRooms.list.useQuery(undefined, { refetchInterval: 10_000 });
   const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
 
   const targetLessonForAction = useMemo(() => {
@@ -763,6 +764,88 @@ export default function Aulas() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Status das Salas ao Vivo (Full Time 24h) */}
+              <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </div>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Salas Ao Vivo (24h)</span>
+                  </div>
+                  <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    LIVE
+                  </span>
+                </div>
+
+                {studioRoomsList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic text-center py-3">Nenhuma sala cadastrada.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {studioRoomsList.map((room) => {
+                      const now = new Date();
+                      // Encontra aula agendada nesta sala que esteja acontecendo exato AGORA
+                      const currentLesson = lessons.find((l) => {
+                        if (l.studioRoomId !== room.id || l.status !== "agendada") return false;
+                        const start = new Date(l.scheduledAt);
+                        const end = new Date(start.getTime() + (l.duration || 60) * 60000);
+                        return now >= start && now < end;
+                      });
+
+                      const isOccupied = !!currentLesson;
+                      const studentName = currentLesson
+                        ? currentLesson.lessonType === "turma"
+                          ? currentLesson.title || "Turma"
+                          : currentLesson.studentName || currentLesson.experimentalName || "Aluno"
+                        : null;
+
+                      return (
+                        <div
+                          key={room.id}
+                          className={cn(
+                            "p-3 rounded-xl border transition-all flex items-center justify-between gap-2",
+                            isOccupied
+                              ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                          )}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: room.color || "#6366f1" }}
+                              />
+                              <p className="text-xs font-black text-foreground truncate">{room.name}</p>
+                            </div>
+                            {isOccupied ? (
+                              <p className="text-[10px] font-bold text-rose-400 truncate mt-0.5">
+                                👤 {studentName}
+                              </p>
+                            ) : (
+                              <p className="text-[10px] font-bold text-emerald-400 mt-0.5">
+                                ✨ Livre agora
+                              </p>
+                            )}
+                          </div>
+
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 border",
+                              isOccupied
+                                ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                                : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            )}
+                          >
+                            {isOccupied ? "Ocupada" : "Livre"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
