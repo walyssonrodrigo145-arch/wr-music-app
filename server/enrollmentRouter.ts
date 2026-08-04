@@ -5,7 +5,7 @@ import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, st
 import { eq, and, gte, lte, desc, isNotNull, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
-import { createMPPreference } from "./utils/mercadopago";
+import { createMPPreference, verifyMPPayment } from "./utils/mercadopago";
 import { ENV } from "./_core/env";
 
 export const enrollmentRouter = router({
@@ -478,6 +478,47 @@ export const enrollmentRouter = router({
         success: true,
         studentId: newStudent.id,
         lessonId: newLesson.id,
+      };
+    }),
+
+  // 6. Verifica se o pagamento MP foi realmente efetuado antes de prosseguir
+  verifyMPPayment: publicProcedure
+    .input(
+      z.object({
+        code: z.string(),        // código do link de matrícula (para buscar o accessToken da escola)
+        paymentId: z.string(),   // payment_id retornado pelo MP na URL de redirect
+      })
+    )
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      // Busca o link para obter orgId
+      const [link] = await db
+        .select()
+        .from(enrollmentLinks)
+        .where(eq(enrollmentLinks.code, input.code))
+        .limit(1);
+
+      if (!link) throw new Error("Link não encontrado");
+
+      // Busca o settings com mpAccessToken
+      const allSettings = await db.select().from(settings).where(eq(settings.organizationId, link.organizationId));
+      const schoolSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '')
+        || allSettings.find(s => s.asaasApiKey || s.mpAccessToken)
+        || allSettings[0];
+
+      if (!schoolSet?.mpAccessToken) {
+        throw new Error("Escola sem Mercado Pago configurado.");
+      }
+
+      // Consulta a API do MP com o payment_id real
+      const result = await verifyMPPayment(input.paymentId, schoolSet.mpAccessToken);
+
+      return {
+        verified: result.verified,
+        status: result.status,       // "approved" | "pending" | "rejected" | etc.
+        externalReference: result.externalReference,
       };
     }),
 });

@@ -24,13 +24,13 @@ export async function createMPPreference(
   accessToken: string
 ) {
   const url = "https://api.mercadopago.com/checkout/preferences";
-  
+
   const payload = {
     items: params.items,
     payer: params.payer,
     payment_methods: {
       excluded_payment_types: [
-        { id: "ticket" } // Desabilitar boleto se quisermos forçar Pix/Cartão apenas
+        { id: "ticket" }
       ],
       installments: 1
     },
@@ -40,10 +40,8 @@ export async function createMPPreference(
       pending: params.successUrl,
     },
     // auto_return: "all" redireciona para qualquer status (aprovado, pendente, falha)
-    // Necessário para PIX que fica em estado "pending" antes de ser confirmado
     ...(params.successUrl.startsWith("https://") ? { auto_return: "all" } : {}),
     external_reference: params.external_reference,
-    // Webhook nativo de IPN/Notificação para atualização automática
     notification_url: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/api/webhooks/mercadopago/student?dueId=${params.external_reference}`,
   };
 
@@ -62,10 +60,40 @@ export async function createMPPreference(
   }
 
   const data = await response.json();
-  
+
   return {
     id: data.id,
     init_point: data.init_point,
     sandbox_init_point: data.sandbox_init_point
+  };
+}
+
+// ── Verifica status real de um pagamento na API do Mercado Pago ───────────────
+// MP redireciona com ?payment_id=XXX&status=YYY na URL de retorno.
+// Esta função consulta a API oficial para garantir que o status é legítimo.
+export async function verifyMPPayment(paymentId: string, accessToken: string): Promise<{
+  verified: boolean;
+  status: string; // "approved" | "pending" | "rejected" | "cancelled" | "in_process"
+  externalReference: string | null;
+}> {
+  const url = `https://api.mercadopago.com/v1/payments/${paymentId}`;
+  const response = await fetch(url, {
+    headers: { "Authorization": `Bearer ${accessToken}` }
+  });
+
+  if (!response.ok) {
+    return { verified: false, status: "unknown", externalReference: null };
+  }
+
+  const data = await response.json();
+  const status = data.status as string;
+
+  // Válido: aprovado (cartão) ou pendente (PIX aguardando confirmação do banco)
+  const verified = status === "approved" || status === "pending" || status === "in_process";
+
+  return {
+    verified,
+    status,
+    externalReference: data.external_reference ?? null,
   };
 }

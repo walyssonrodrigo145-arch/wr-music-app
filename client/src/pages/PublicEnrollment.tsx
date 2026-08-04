@@ -38,34 +38,64 @@ export default function PublicEnrollment() {
     skipPayment?: boolean;
   } | null>(null);
 
-  // Detecta retorno do Mercado Pago via ?status=success ou ?status=pending na URL
+  // ── Estado de verificação de pagamento MP ────────────────────────────────────
+  const [mpVerifying, setMpVerifying] = useState(false);
+
+  // Verifica pagamento MP via API do backend (não confia apenas na URL)
+  const verifyMPMutation = trpc.enrollment.verifyMPPayment.useQuery(
+    { code, paymentId: new URLSearchParams(window.location.search).get("payment_id") || "" },
+    { enabled: false } // só roda quando chamado manualmente via refetch
+  );
+
+  // Detecta retorno do Mercado Pago via ?payment_id=XXX&status=YYY na URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const status = urlParams.get("status");
-    if (status === "success" || status === "pending" || status === "approved") {
-      // Remove o param da URL sem recarregar a página
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, "", cleanUrl);
+    const mpStatus = urlParams.get("status");
+    const paymentId = urlParams.get("payment_id") || urlParams.get("collection_id");
 
-      // Restaura dados salvos antes do redirect para o MP
-      try {
-        const saved = localStorage.getItem(`mp_enrollment_${window.location.pathname}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.instrumentId) setSelectedInstrument(parsed.instrumentId);
-          if (parsed.form) setForm(parsed.form);
-          localStorage.removeItem(`mp_enrollment_${window.location.pathname}`);
-        }
-      } catch (_) {}
+    if (!mpStatus || !paymentId) return;
 
-      // Avança para seleção de horário
-      setStep("schedule");
-      if (status === "pending") {
-        toast.success("Pagamento PIX recebido! Agora escolha seu horário.");
-      } else {
-        toast.success("Pagamento confirmado! Agora escolha seu horário.");
+    // Remove os params da URL imediatamente
+    window.history.replaceState({}, "", window.location.pathname);
+
+    // Restaura dados salvos antes do redirect para o MP
+    try {
+      const saved = localStorage.getItem(`mp_enrollment_${window.location.pathname}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.instrumentId) setSelectedInstrument(parsed.instrumentId);
+        if (parsed.form) setForm(parsed.form);
+        localStorage.removeItem(`mp_enrollment_${window.location.pathname}`);
       }
-    }
+    } catch (_) {}
+
+    // Verifica pagamento real na API do Mercado Pago via backend
+    setMpVerifying(true);
+    fetch(`/api/trpc/enrollment.verifyMPPayment?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code, paymentId } } }))}`)
+      .then(r => r.json())
+      .then((res: any) => {
+        const result = res?.[0]?.result?.data?.json;
+        if (result?.verified) {
+          setStep("schedule");
+          if (result.status === "approved") {
+            toast.success("Pagamento aprovado! Agora escolha seu horário.");
+          } else {
+            toast.success("Pagamento recebido! Assim que confirmado, sua vaga estará garantida.");
+          }
+        } else {
+          toast.error(`Pagamento não confirmado (status: ${result?.status ?? "desconhecido"}). Tente novamente.`);
+        }
+      })
+      .catch(() => {
+        // Fallback: confia no status da URL se a verificação falhar
+        if (mpStatus === "approved" || mpStatus === "pending") {
+          setStep("schedule");
+          toast.success("Pagamento recebido! Agora escolha seu horário.");
+        } else {
+          toast.error("Não foi possível verificar o pagamento. Tente novamente.");
+        }
+      })
+      .finally(() => setMpVerifying(false));
   }, []);
 
   // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -159,6 +189,18 @@ export default function PublicEnrollment() {
         <div className="text-center space-y-3">
           <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mx-auto" />
           <p className="text-xs text-muted-foreground font-semibold">Carregando dados da escola...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (mpVerifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 animate-spin text-indigo-500 mx-auto" />
+          <p className="text-sm font-bold text-foreground">Verificando pagamento...</p>
+          <p className="text-xs text-muted-foreground">Consultando o Mercado Pago. Aguarde um momento.</p>
         </div>
       </div>
     );
