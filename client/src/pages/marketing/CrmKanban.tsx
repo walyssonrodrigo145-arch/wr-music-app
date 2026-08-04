@@ -247,19 +247,28 @@ export default function CrmKanban() {
                             className="h-7 w-7 text-indigo-600 hover:bg-indigo-500/10 rounded-lg"
                             onClick={async () => {
                               try {
-                                const res = await trpcUtils.client.enrollment.generateLink.mutate({ leadId: lead.id, monthlyFee: Number(lead.value) || 150 });
+                                const res = await trpcUtils.client.enrollment.generateLink.mutate({
+                                  leadId: lead.id,
+                                  monthlyFee: Number(lead.value) || 150,
+                                  autoSendWhatsapp: true,
+                                });
                                 const fullUrl = `${window.location.origin}${res.url}`;
                                 await navigator.clipboard.writeText(fullUrl);
-                                toast.success("Link de matrícula copiado para a área de transferência!");
-                                if (lead.phone) {
-                                  const text = encodeURIComponent(`Olá ${lead.name}! Escolha o melhor dia e horário para suas aulas no link: ${fullUrl}`);
-                                  window.open(`https://wa.me/55${lead.phone.replace(/\D/g, '')}?text=${text}`, '_blank');
+
+                                if (res.sentViaBot) {
+                                  toast.success(`Link de matrícula gerado e enviado automaticamente via WhatsApp para ${lead.name}!`);
+                                } else {
+                                  toast.success("Link gerado e copiado! Redirecionando para o WhatsApp...");
+                                  if (lead.phone) {
+                                    const text = encodeURIComponent(`Olá ${lead.name}! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${fullUrl}\n\nAcesse o link acima para escolher o melhor dia e horário para suas aulas!`);
+                                    window.open(`https://wa.me/55${lead.phone.replace(/\D/g, '')}?text=${text}`, '_blank');
+                                  }
                                 }
                               } catch (err: any) {
                                 toast.error("Erro ao gerar link: " + (err.message || String(err)));
                               }
                             }}
-                            title="Gerar Link de Auto-Matrícula"
+                            title="Gerar Link e Enviar via WhatsApp"
                           >
                             <UserPlus size={14} />
                           </Button>

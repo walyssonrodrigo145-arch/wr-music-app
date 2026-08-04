@@ -16,6 +16,7 @@ export const enrollmentRouter = router({
         leadId: z.number().optional(),
         instrumentId: z.number().optional(),
         monthlyFee: z.number().optional(),
+        autoSendWhatsapp: z.boolean().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -40,7 +41,45 @@ export const enrollmentRouter = router({
         })
         .returning();
 
-      return { code: link.code, url: `/matricula/${link.code}` };
+      const url = `/matricula/${link.code}`;
+      const appUrl = ENV.appUrl || 'https://wrmusicpro.com.br';
+      const fullUrl = `${appUrl}${url}`;
+      let sentViaBot = false;
+
+      // Se solicitado autoSendWhatsapp e o link tem leadId associado com telefone
+      if (input.autoSendWhatsapp && input.leadId) {
+        try {
+          const [lead] = await db.select().from(crmLeads).where(eq(crmLeads.id, input.leadId)).limit(1);
+          if (lead?.phone) {
+            // Busca configurações do bot do WhatsApp da escola
+            const allSettings = await db.select().from(settings).where(eq(settings.organizationId, orgId));
+            const schoolSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '')
+              || allSettings.find(s => s.whatsappBotUrl)
+              || allSettings[0];
+
+            if (schoolSet?.whatsappBotUrl && schoolSet?.whatsappBotToken) {
+              const { sendWhatsAppMessage } = await import("./utils/whatsapp");
+              const messageText = `Olá ${lead.name}! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${fullUrl}\n\nAcesse o link acima para escolher o melhor dia e horário para suas aulas!`;
+              
+              const sendRes = await sendWhatsAppMessage({
+                url: schoolSet.whatsappBotUrl,
+                token: schoolSet.whatsappBotToken,
+                sessionId: `org_${orgId}_user_${ctx.user.id}`,
+                phone: lead.phone,
+                message: messageText,
+              });
+
+              if (sendRes.success) {
+                sentViaBot = true;
+              }
+            }
+          }
+        } catch (e) {
+          console.error("[generateLink] Erro ao enviar WhatsApp automático:", e);
+        }
+      }
+
+      return { code: link.code, url, fullUrl, sentViaBot };
     }),
 
   // 2. Rota Pública: Retorna detalhes da escola, cursos, valor da mensalidade e método de pagamento configurado
