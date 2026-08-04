@@ -2691,6 +2691,50 @@ ${jsonSchemaFormat}`;
   }),
 
   lessons: router({
+    getById: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const orgId = ctx.user.organizationId!;
+      const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const profUsers = aliasedTable(users, "prof_users");
+      const creatorUsers = aliasedTable(users, "creator_users");
+      const [lesson] = await db.select({
+        id: lessons.id,
+        title: lessons.title,
+        scheduledAt: lessons.scheduledAt,
+        duration: lessons.duration,
+        status: lessons.status,
+        rating: lessons.rating,
+        notes: lessons.notes,
+        description: lessons.description,
+        isExperimental: lessons.isExperimental,
+        experimentalName: lessons.experimentalName,
+        experimentalPhone: lessons.experimentalPhone,
+        instrumentId: lessons.instrumentId,
+        instrumentName: instruments.name,
+        studentName: students.name,
+        studentId: students.id,
+        lessonType: lessons.lessonType,
+        recurringGroupId: lessons.recurringGroupId,
+        studioRoomId: lessons.studioRoomId,
+        studioRoomName: studioRooms.name,
+        studioRoomColor: studioRooms.color,
+        teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
+        teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
+      }).from(lessons)
+        .leftJoin(students, eq(lessons.studentId, students.id))
+        .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
+        .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
+        .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+        .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
+        .where(and(
+          eq(lessons.id, input.id),
+          eq(lessons.organizationId, orgId),
+          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
+        )).limit(1);
+      return lesson ?? null;
+    }),
+
     list: protectedProcedure
       .input(z.object({
         // BUG#5 FIX: filtro opcional de data para reduzir payload
@@ -2995,9 +3039,14 @@ ${jsonSchemaFormat}`;
 
         const orgId = ctx.user.organizationId!;
         const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-        const { id, ...data } = input;
+        const { id, updateSeries: _updateSeries, ...data } = input as any;
+        // CRÍTICO: nunca passar updateSeries para o db.update (não é coluna do banco)
         const updateData: any = { ...data };
-        const updateSeries = (input as any).updateSeries === true;
+        // CRÍTICO: se studioRoomId não foi enviado (undefined), preserva o valor atual do banco
+        if (updateData.studioRoomId === undefined) {
+          delete updateData.studioRoomId; // Drizzle ignorará campos ausentes no .set()
+        }
+        const updateSeries = _updateSeries === true;
 
         // Buscar aula atual para pegar o recurringGroupId e data original
         const [currentLesson] = await db.select().from(lessons).where(and(
@@ -3135,7 +3184,16 @@ ${jsonSchemaFormat}`;
           ));
         }
 
-        await db.update(lessons).set(updateData).where(and(
+        // Sanitize: remover campos não-coluna e campos undefined antes do update
+        const finalUpdateData: any = {};
+        const allowedColumns = ['title','scheduledAt','duration','description','notes','status','rating','isExperimental','experimentalName','experimentalPhone','studentId','instrumentId','studioRoomId','lessonType','updatedAt'];
+        for (const key of allowedColumns) {
+          if (key in updateData && updateData[key] !== undefined) {
+            finalUpdateData[key] = updateData[key];
+          }
+        }
+        finalUpdateData.updatedAt = new Date();
+        await db.update(lessons).set(finalUpdateData).where(and(
           eq(lessons.id, id), 
           eq(lessons.organizationId, orgId), 
           isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)

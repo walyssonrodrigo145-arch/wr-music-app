@@ -2,8 +2,8 @@ import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { fcmTokens } from "../drizzle/schema";
-import { eq, and } from "drizzle-orm";
-import { sendPushNotification } from "./firebaseAdmin";
+import { eq } from "drizzle-orm";
+import { sendPushNotification, messaging as firebaseMessaging } from "./firebaseAdmin";
 
 export const fcmRouter = router({
   registerToken: protectedProcedure.input(z.object({
@@ -60,28 +60,66 @@ export const fcmRouter = router({
     return { success: true, message: "Dispositivos limpos e este aparelho cadastrado como principal!" };
   }),
 
+  // Diagnóstico: verifica se o Firebase Admin está configurado corretamente
+  getFirebaseStatus: protectedProcedure.query(async () => {
+    const isConfigured = !!firebaseMessaging;
+    const hasProjectId = !!process.env.FIREBASE_PROJECT_ID;
+    const hasClientEmail = !!process.env.FIREBASE_CLIENT_EMAIL;
+    const hasPrivateKey = !!process.env.FIREBASE_PRIVATE_KEY;
+
+    return {
+      isConfigured,
+      hasProjectId,
+      hasClientEmail,
+      hasPrivateKey,
+      message: isConfigured
+        ? "Firebase Admin configurado e pronto para enviar notificações."
+        : "Firebase Admin NÃO configurado. Verifique as variáveis de ambiente FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY na VPS.",
+    };
+  }),
+
   testNotification: protectedProcedure.mutation(async ({ ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
+
+    // Verificação crítica: Firebase Admin configurado?
+    if (!firebaseMessaging) {
+      throw new Error(
+        "Serviço de push não configurado no servidor. " +
+        "Certifique-se de que as variáveis FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY estão definidas na VPS."
+      );
+    }
     
     const tokens = await db.select().from(fcmTokens).where(eq(fcmTokens.userId, ctx.user.id));
     if (tokens.length === 0) {
-      throw new Error("Nenhum dispositivo registrado para notificações. Clique em 'Sincronizar Celular'.");
+      throw new Error("Nenhum dispositivo registrado. Clique em 'Resetar / Definir Principal' para registrar este aparelho.");
     }
     
     let sentCount = 0;
     const deadTokens: string[] = [];
+    const failedErrors: string[] = [];
 
     for (const device of tokens) {
+      console.log(`[Push Test] Tentando enviar para device: ${device.deviceInfo} | token: ${device.token.substring(0, 30)}...`);
       const res = await sendPushNotification(
         device.token,
         "Teste de Notificação 🎉",
-        `Dispositivo: ${device.deviceInfo || 'Celular/Web'} - Teste de envio em tempo real!`
+        `Olá! Notificação de teste do WR MusicPro enviada às ${new Date().toLocaleTimeString('pt-BR')}. Tudo funcionando!`
       );
       if (res.success) {
         sentCount++;
-      } else if (res.error === "messaging/registration-token-not-registered" || res.error === "messaging/invalid-registration-token") {
-        deadTokens.push(device.token);
+        console.log(`[Push Test] ✅ Sucesso para device: ${device.deviceInfo}`);
+      } else {
+        console.warn(`[Push Test] ❌ Falha para device: ${device.deviceInfo} — erro: ${res.error}`);
+        failedErrors.push(res.error || "UNKNOWN");
+        if (
+          res.error === "messaging/registration-token-not-registered" ||
+          res.error === "messaging/invalid-registration-token" ||
+          res.error?.includes("registration-token-not-registered") ||
+          res.error?.includes("invalid-registration-token")
+        ) {
+          deadTokens.push(device.token);
+        }
       }
     }
     
@@ -91,6 +129,15 @@ export const fcmRouter = router({
         await db.delete(fcmTokens).where(eq(fcmTokens.token, deadToken));
       }
       console.log(`[Push Clean] Removidos ${deadTokens.length} tokens mortos para userId ${ctx.user.id}`);
+    }
+
+    if (sentCount === 0 && tokens.length > 0) {
+      const errorSummary = [...new Set(failedErrors)].join(", ");
+      throw new Error(
+        `Envio falhou para todos os ${tokens.length} dispositivo(s). ` +
+        `Erro(s): ${errorSummary || "desconhecido"}. ` +
+        `Clique em 'Resetar / Definir Principal' para re-registrar este aparelho e tente novamente.`
+      );
     }
     
     return { success: true, sentCount, totalTokens: tokens.length, cleanedCount: deadTokens.length };

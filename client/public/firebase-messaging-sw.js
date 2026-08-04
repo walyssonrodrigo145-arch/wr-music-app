@@ -77,3 +77,35 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
+// Listener Nativo Web Push (Garante exibição caso a mensagem venha via PushManager)
+self.addEventListener('push', (event) => {
+  console.log('[firebase-messaging-sw.js] Evento push nativo recebido:', event);
+  if (!event.data) return;
+
+  try {
+    const payload = event.data.json();
+    const notificationTitle = payload.notification?.title || payload.title || payload.data?.title || 'WR MusicPro 🎉';
+    const notificationBody = payload.notification?.body || payload.body || payload.data?.body || 'Você tem um novo aviso ou lembrete.';
+    
+    const notificationOptions = {
+      body: notificationBody,
+      icon: payload.notification?.icon || payload.icon || '/icon-192.png',
+      badge: '/icon-badge.png',
+      data: {
+        url: payload.data?.url || payload.url || '/',
+        ...payload.data
+      },
+      vibrate: [300, 100, 300, 100, 300],
+      requireInteraction: true,
+      renotify: true,
+      tag: 'wr-music-' + Date.now()
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(notificationTitle, notificationOptions)
+    );
+  } catch (err) {
+    console.warn('[firebase-messaging-sw.js] Falha ao ler payload JSON do push nativo:', err);
+  }
+});
+

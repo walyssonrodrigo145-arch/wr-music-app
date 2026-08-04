@@ -41,6 +41,11 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const { data: students } = trpc.students.list.useQuery(undefined, { enabled: open });
   const { data: instruments } = trpc.instruments.list.useQuery(undefined, { enabled: open });
   const { data: studioRooms } = trpc.studioRooms.list.useQuery(undefined, { enabled: open });
+  // Busca os dados completos da aula diretamente do banco ao editar (garante studioRoomId atualizado)
+  const { data: freshLesson } = trpc.lessons.getById.useQuery(
+    { id: editingLesson?.id ?? 0 },
+    { enabled: open && !!editingLesson?.id, staleTime: 0 }
+  );
   
   const { data: settings } = trpc.settings.get.useQuery(undefined, { enabled: open });
   
@@ -95,21 +100,23 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   useEffect(() => {
     if (open) {
       if (editingLesson) {
+        // Usa freshLesson (do banco) se disponível, caso contrário usa editingLesson da memória
+        const source = freshLesson ?? editingLesson;
         setFormData({
-          studentId: editingLesson.studentId?.toString() || "",
-          title: editingLesson.title || "",
-          time: format(new Date(editingLesson.scheduledAt), "HH:mm"),
-          date: format(new Date(editingLesson.scheduledAt), "yyyy-MM-dd"),
-          duration: editingLesson.duration || 60,
-          notes: editingLesson.notes || "",
-          instrumentId: editingLesson.instrumentId?.toString() || "",
-          studioRoomId: editingLesson.studioRoomId?.toString() || "",
+          studentId: source.studentId?.toString() || "",
+          title: source.title || "",
+          time: format(new Date(source.scheduledAt), "HH:mm"),
+          date: format(new Date(source.scheduledAt), "yyyy-MM-dd"),
+          duration: source.duration || 60,
+          notes: source.notes || "",
+          instrumentId: source.instrumentId?.toString() || "",
+          studioRoomId: source.studioRoomId != null ? source.studioRoomId.toString() : "",
           weeksCount: 1,
           updateSeries: false,
-          isExperimental: !!editingLesson.isExperimental,
-          experimentalName: editingLesson.experimentalName || "",
-          experimentalPhone: (editingLesson as any).experimentalPhone || "",
-          lessonType: editingLesson.lessonType || "individual",
+          isExperimental: !!source.isExperimental,
+          experimentalName: source.experimentalName || "",
+          experimentalPhone: (source as any).experimentalPhone || "",
+          lessonType: source.lessonType || "individual",
           turmaStudentIds: []
         });
       } else {
@@ -135,6 +142,25 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       setStep("form");
     }
   }, [open, initialDate, editingLesson]);
+
+  // Quando os dados frescos do banco chegarem (async), re-popula o formulário
+  // Isso garante que studioRoomId sempre reflita o valor real do banco
+  useEffect(() => {
+    if (open && editingLesson && freshLesson) {
+      setFormData(prev => ({
+        ...prev,
+        studentId: freshLesson.studentId?.toString() || prev.studentId,
+        title: freshLesson.title || prev.title,
+        notes: freshLesson.notes || prev.notes,
+        instrumentId: freshLesson.instrumentId?.toString() || prev.instrumentId,
+        studioRoomId: freshLesson.studioRoomId != null ? freshLesson.studioRoomId.toString() : "",
+        isExperimental: !!freshLesson.isExperimental,
+        experimentalName: freshLesson.experimentalName || prev.experimentalName,
+        experimentalPhone: (freshLesson as any).experimentalPhone || prev.experimentalPhone,
+        lessonType: freshLesson.lessonType || prev.lessonType,
+      }));
+    }
+  }, [freshLesson]);
 
   const checkConflicts = trpc.lessons.checkConflicts.useQuery({
     firstDate: (() => {
