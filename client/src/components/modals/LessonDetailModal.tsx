@@ -16,7 +16,8 @@ import {
   Save,
   Users,
   Loader2,
-  Check
+  Check,
+  LayoutList
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
@@ -176,6 +177,19 @@ export default function LessonDetailModal({
                      <h4 className="font-bold text-foreground">{lesson.instrumentName || "Geral"}</h4>
                   </div>
                </div>
+               </div>
+               
+               {lesson.studioRoomName && (
+                 <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-muted-foreground/40 shrink-0">
+                       <LayoutList size={20} className="text-indigo-500" />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-bold text-indigo-500/60 uppercase tracking-widest">Sala Reservada</p>
+                       <h4 className="font-bold text-foreground">{lesson.studioRoomName}</h4>
+                    </div>
+                 </div>
+               )}
             </div>
 
             {/* Lista de Alunos e Chamada de Frequência se for Turma */}

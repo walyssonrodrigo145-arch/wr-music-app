@@ -2,7 +2,11 @@ import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, inArray, aliasedTable
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { InsertUser, users, students, instruments, lessons, monthlyStats, settings, InsertSettings, paymentDues, studentGoals, studentTimeline, organizations, marketingCampaigns, marketingContacts, marketingJobs, marketingLogs } from "../drizzle/schema";
+import { 
+  students, lessons, instruments, users, paymentDues, 
+  studentGoals, studentTimeline, asaasCustomers, 
+  organizations, settings, professores, studioRooms, monthlyStats, InsertSettings, InsertUser, marketingCampaigns, marketingContacts, marketingJobs, marketingLogs 
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -861,11 +865,14 @@ export async function getRecentLessons(
     studentId: students.id,
     lessonType: lessons.lessonType,
     recurringGroupId: lessons.recurringGroupId,
+    studioRoomId: lessons.studioRoomId,
+    studioRoomName: studioRooms.name,
     teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
     teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
   }).from(lessons)
     .leftJoin(students, eq(lessons.studentId, students.id))
     .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
+    .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
     .leftJoin(profUsers, eq(students.professorId, profUsers.id))
     .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
     .where(and(

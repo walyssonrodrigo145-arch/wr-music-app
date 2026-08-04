@@ -168,7 +168,7 @@ export default function CrmKanban() {
       </div>
 
       {/* KANBAN BOARD */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-start overflow-x-auto pb-6 custom-scrollbar">
+      <div className="flex gap-4 items-start overflow-x-auto pb-6 custom-scrollbar snap-x snap-mandatory px-1">
         {STAGES.map((stg, stgIdx) => {
           const stageLeads = filteredLeads.filter((l: any) => l.stage === stg.key);
           return (
@@ -177,7 +177,7 @@ export default function CrmKanban() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: stgIdx * 0.06 }}
-              className="flex flex-col bg-card/40 backdrop-blur-xl rounded-2xl border border-border/60 p-3.5 min-h-[520px] shadow-xl shadow-primary/5"
+              className="flex flex-col shrink-0 snap-center w-[85vw] sm:w-[320px] bg-card/40 backdrop-blur-xl rounded-2xl border border-border/60 p-3.5 min-h-[520px] shadow-xl shadow-primary/5"
             >
               {/* Header da Coluna */}
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-border/50">

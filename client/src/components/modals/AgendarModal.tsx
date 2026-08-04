@@ -39,6 +39,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const utils = trpc.useUtils();
   const { data: students } = trpc.students.list.useQuery(undefined, { enabled: open });
   const { data: instruments } = trpc.instruments.list.useQuery(undefined, { enabled: open });
+  const { data: studioRooms } = trpc.studioRooms.list.useQuery(undefined, { enabled: open });
   
   const { data: settings } = trpc.settings.get.useQuery(undefined, { enabled: open });
   
@@ -49,6 +50,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     duration: settings?.lessonDuration ?? 60,
     notes: "",
     instrumentId: "",
+    studioRoomId: "",
     weeksCount: 1,
     updateSeries: false,
     date: format(new Date(), "yyyy-MM-dd"),
@@ -100,6 +102,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           duration: editingLesson.duration || 60,
           notes: editingLesson.notes || "",
           instrumentId: editingLesson.instrumentId?.toString() || "",
+          studioRoomId: editingLesson.studioRoomId?.toString() || "",
           weeksCount: 1,
           updateSeries: false,
           isExperimental: !!editingLesson.isExperimental,
@@ -117,6 +120,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           duration: 60,
           notes: "",
           instrumentId: "",
+          studioRoomId: "",
           weeksCount: 1,
           updateSeries: false,
           isExperimental: false,
@@ -143,7 +147,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       }
     })(),
     duration: formData.duration,
-    weeksCount: formData.weeksCount
+    weeksCount: formData.weeksCount,
+    studioRoomId: formData.studioRoomId ? parseInt(formData.studioRoomId) : undefined
   }, { enabled: false });
 
   const createBatchMutation = trpc.lessons.createBatch.useMutation({
@@ -179,6 +184,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       duration: 60,
       notes: "",
       instrumentId: "",
+      studioRoomId: "",
       weeksCount: 1,
       updateSeries: false,
       isExperimental: false,
@@ -254,6 +260,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         duration: formData.duration,
         notes: formData.notes,
         instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+        studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
         weeksCount: formData.weeksCount,
       });
       return;
@@ -295,6 +302,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         duration: formData.duration,
         notes: formData.notes,
         instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+        studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
         scheduledAt: scheduledDate.toISOString(),
         lessonType: formData.lessonType,
         updateSeries: updateSeriesFlag
@@ -325,6 +333,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
               duration: formData.duration,
               notes: formData.notes,
               instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+              studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
               items: conflicts.data.map((c: any) => ({ scheduledAt: c.date, force: false }))
             });
           }
@@ -343,7 +352,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         duration: formData.duration,
         notes: formData.notes,
         lessonType: formData.lessonType,
-        instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null
+        instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+        studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null
       });
     }
   };
@@ -488,6 +498,23 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                    ))}
                  </select>
               </div>
+
+              {/* Sala de Estúdio */}
+              <div className="space-y-2">
+                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500/60 px-2">
+                   <LayoutList size={12} /> Sala (Opcional)
+                 </label>
+                 <select
+                   value={formData.studioRoomId}
+                   onChange={(e) => setFormData({...formData, studioRoomId: e.target.value})}
+                   className="w-full h-14 bg-background border border-indigo-500/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all appearance-none cursor-pointer"
+                 >
+                   <option value="">Nenhuma sala...</option>
+                   {studioRooms?.map(room => (
+                     <option key={room.id} value={room.id.toString()}>{room.name}</option>
+                   ))}
+                 </select>
+              </div>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-4">
@@ -613,6 +640,23 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                    <option value="">Opcional...</option>
                    {instruments?.map(inst => (
                      <option key={inst.id} value={inst.id.toString()}>{inst.name}</option>
+                   ))}
+                 </select>
+              </div>
+
+              {/* Sala de Estúdio */}
+              <div className="space-y-2">
+                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
+                   <LayoutList size={12} className="text-primary/40" /> Sala de Estúdio
+                 </label>
+                 <select
+                   value={formData.studioRoomId}
+                   onChange={(e) => setFormData({...formData, studioRoomId: e.target.value})}
+                   className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
+                 >
+                   <option value="">Opcional...</option>
+                   {studioRooms?.map(room => (
+                     <option key={room.id} value={room.id.toString()}>{room.name}</option>
                    ))}
                  </select>
               </div>

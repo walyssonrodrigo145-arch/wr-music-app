@@ -33,6 +33,8 @@ const filesToUpload = [
   'client/src/pages/marketing/CrmKanban.tsx',
   'client/src/pages/marketing/CampaignDetails.tsx',
   'client/src/pages/marketing/CreateCampaign.tsx',
+  'client/src/pages/PublicEnrollment.tsx',
+  'server/enrollmentRouter.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

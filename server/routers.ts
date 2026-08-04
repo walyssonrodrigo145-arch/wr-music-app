@@ -2739,11 +2739,14 @@ ${jsonSchemaFormat}`;
               studentId: students.id,
               lessonType: lessons.lessonType,
               recurringGroupId: lessons.recurringGroupId,
+              studioRoomId: lessons.studioRoomId,
+              studioRoomName: studioRooms.name,
               teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
               teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
             }).from(lessons)
               .leftJoin(students, eq(lessons.studentId, students.id))
               .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
+              .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
               .leftJoin(profUsers, eq(students.professorId, profUsers.id))
               .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
               .where(and(
@@ -2770,11 +2773,14 @@ ${jsonSchemaFormat}`;
             studentId: students.id,
             lessonType: lessons.lessonType,
             recurringGroupId: lessons.recurringGroupId,
+            studioRoomId: lessons.studioRoomId,
+            studioRoomName: studioRooms.name,
             teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
             teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
           }).from(lessons)
             .leftJoin(students, eq(lessons.studentId, students.id))
             .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
+            .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
             .leftJoin(profUsers, eq(students.professorId, profUsers.id))
             .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
             .where(and(
@@ -2856,6 +2862,7 @@ ${jsonSchemaFormat}`;
       description: z.string().optional(),
       notes: z.string().optional(),
       instrumentId: z.number().nullable().optional(),
+      studioRoomId: z.number().nullable().optional(),
       lessonType: z.enum(['individual', 'turma']).default('individual'),
     })).mutation(async ({ ctx, input }) => {
       try {
@@ -2913,9 +2920,10 @@ ${jsonSchemaFormat}`;
           scheduledAt: lessons.scheduledAt,
           duration: lessons.duration,
           lessonType: lessons.lessonType,
+          userId: lessons.userId,
+          studioRoomId: lessons.studioRoomId,
         }).from(lessons).where(and(
           eq(lessons.organizationId, orgId),
-          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
           eq(lessons.status, 'agendada'),
           gte(lessons.scheduledAt, startOfDay),
           lte(lessons.scheduledAt, endOfDay)
@@ -2925,8 +2933,15 @@ ${jsonSchemaFormat}`;
           const exStart = new Date(existing.scheduledAt);
           const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
           if (exStart < endsAt && exEnd > scheduledAt) {
-            if (input.lessonType === 'individual' || existing.lessonType === 'individual') {
-              throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+            // Teacher conflict check
+            if (existing.userId === ctx.user.id) {
+              if (input.lessonType === 'individual' || existing.lessonType === 'individual') {
+                throw new Error("Conflito de horário: Já existe uma aula sua agendada para este período.");
+              }
+            }
+            // Room conflict check (even for different teachers)
+            if (input.studioRoomId && existing.studioRoomId === input.studioRoomId) {
+              throw new Error("Conflito de sala: Esta sala já está ocupada neste horário.");
             }
           }
         }
@@ -2944,6 +2959,7 @@ ${jsonSchemaFormat}`;
           description: input.description ?? null,
           notes: input.notes ?? null,
           instrumentId: input.instrumentId ?? null,
+          studioRoomId: input.studioRoomId ?? null,
           status: 'agendada',
           lessonType: input.lessonType,
           createdAt: new Date(),
@@ -2967,6 +2983,7 @@ ${jsonSchemaFormat}`;
       experimentalPhone: z.string().optional(),
       studentId: z.number().optional().nullable(),
       instrumentId: z.number().optional().nullable(),
+      studioRoomId: z.number().optional().nullable(),
       lessonType: z.enum(['individual', 'turma']).optional(),
       updateSeries: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
@@ -3012,8 +3029,8 @@ ${jsonSchemaFormat}`;
           if (!ownedInstrument) throw new Error("O instrumento selecionado não pertence ao seu perfil.");
         }
 
-        if (data.scheduledAt) {
-          const scheduledAt = new Date(data.scheduledAt);
+        if (data.scheduledAt || data.studioRoomId !== undefined || data.lessonType) {
+          const scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : new Date(currentLesson.scheduledAt);
           const duration = data.duration ?? currentLesson.duration;
           const endsAt = new Date(scheduledAt.getTime() + duration * 60000);
 
@@ -3028,22 +3045,29 @@ ${jsonSchemaFormat}`;
             scheduledAt: lessons.scheduledAt,
             duration: lessons.duration,
             lessonType: lessons.lessonType,
+            userId: lessons.userId,
+            studioRoomId: lessons.studioRoomId,
           }).from(lessons).where(and(
             eq(lessons.organizationId, orgId),
-            isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
             eq(lessons.status, 'agendada'),
+            ne(lessons.id, id),
             gte(lessons.scheduledAt, startOfDay),
             lte(lessons.scheduledAt, endOfDay)
           ));
 
-          const newLessonType = data.lessonType ?? currentLesson.lessonType;
           for (const existing of existingLessons) {
-            if (existing.id === id) continue;
             const exStart = new Date(existing.scheduledAt);
             const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
             if (exStart < endsAt && exEnd > scheduledAt) {
-              if (newLessonType === 'individual' || existing.lessonType === 'individual') {
-                throw new Error("Conflito de horário: Já existe uma aula agendada para este período.");
+              const lessonTypeToCheck = data.lessonType ?? currentLesson.lessonType;
+              if (existing.userId === currentLesson.userId) {
+                if (lessonTypeToCheck === 'individual' || existing.lessonType === 'individual') {
+                  throw new Error("Conflito de horário: O professor já tem aula agendada para este período.");
+                }
+              }
+              const roomToCheck = data.studioRoomId !== undefined ? data.studioRoomId : currentLesson.studioRoomId;
+              if (roomToCheck && existing.studioRoomId === roomToCheck) {
+                throw new Error("Conflito de sala: Esta sala já está ocupada neste horário.");
               }
             }
           }
@@ -3079,6 +3103,7 @@ ${jsonSchemaFormat}`;
                 title: data.title ?? future.title,
                 duration: data.duration ?? future.duration,
                 notes: data.notes ?? future.notes,
+                studioRoomId: data.studioRoomId !== undefined ? data.studioRoomId : future.studioRoomId,
                 scheduledAt: nextDate,
                 updatedAt: new Date()
               }).where(and(eq(lessons.id, future.id), eq(lessons.organizationId, orgId)));
@@ -3098,6 +3123,7 @@ ${jsonSchemaFormat}`;
             title: data.title,
             notes: data.notes,
             duration: data.duration,
+            studioRoomId: data.studioRoomId,
             updatedAt: new Date()
           }).where(and(
             eq(lessons.organizationId, orgId),
@@ -3433,6 +3459,7 @@ ${jsonSchemaFormat}`;
       firstDate: z.string(),
       duration: z.number(),
       weeksCount: z.number().min(1).max(104),
+      studioRoomId: z.number().optional().nullable(),
     })).query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) return [];
@@ -3454,8 +3481,11 @@ ${jsonSchemaFormat}`;
           .leftJoin(students, and(eq(lessons.studentId, students.id), eq(lessons.organizationId, orgId)))
           .where(and(
             eq(lessons.organizationId, orgId),
-            eq(lessons.userId, ctx.user.id),
             eq(lessons.status, 'agendada'),
+            or(
+              eq(lessons.userId, ctx.user.id),
+              input.studioRoomId ? eq(lessons.studioRoomId, input.studioRoomId) : sql`false`
+            ),
             sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${d.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
           )).limit(1);
           
@@ -3476,6 +3506,7 @@ ${jsonSchemaFormat}`;
       description: z.string().optional(),
       notes: z.string().optional(),
       instrumentId: z.number().nullable().optional(),
+      studioRoomId: z.number().nullable().optional(),
       items: z.array(z.object({
         scheduledAt: z.string(),
         force: z.boolean().default(false)
@@ -3510,8 +3541,11 @@ ${jsonSchemaFormat}`;
             const [conflict] = await db.select({ id: lessons.id }).from(lessons)
               .where(and(
                 eq(lessons.organizationId, orgId),
-                eq(lessons.userId, ctx.user.id),
                 eq(lessons.status, 'agendada'),
+                or(
+                  eq(lessons.userId, ctx.user.id),
+                  input.studioRoomId ? eq(lessons.studioRoomId, input.studioRoomId) : sql`false`
+                ),
                 sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${scheduledAt.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
               )).limit(1);
               
@@ -3528,6 +3562,7 @@ ${jsonSchemaFormat}`;
             description: input.description || null,
             notes: input.notes || null,
             instrumentId: input.instrumentId || null,
+            studioRoomId: input.studioRoomId || null,
             rating: null,
             recurringGroupId: groupId,
             status: 'agendada' as const,
@@ -3554,6 +3589,7 @@ ${jsonSchemaFormat}`;
       duration: z.number().default(60),
       notes: z.string().optional(),
       instrumentId: z.number().nullable().optional(),
+      studioRoomId: z.number().nullable().optional(),
       weeksCount: z.number().default(1),
     })).mutation(async ({ ctx, input }) => {
       try {
@@ -3585,6 +3621,20 @@ ${jsonSchemaFormat}`;
           
           const groupId = nanoid(); // Cada sessão/data de turma ganha um groupId unificado
 
+          // Checar conflito de sala e professor antes de processar os alunos
+          if (input.studioRoomId) {
+            const [roomConflict] = await db.select({ id: lessons.id }).from(lessons)
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.studioRoomId, input.studioRoomId),
+                eq(lessons.status, 'agendada'),
+                sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${d.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
+              )).limit(1);
+            if (roomConflict) {
+              throw new Error("Conflito de sala: Esta sala já está ocupada neste horário.");
+            }
+          }
+
           for (const studentId of input.studentIds) {
             // Verificar se o aluno específico tem conflito de horário.
             // Para turmas, só nos importamos se *este* aluno tem outra aula na mesma hora.
@@ -3610,6 +3660,7 @@ ${jsonSchemaFormat}`;
               duration: input.duration,
               notes: input.notes || null,
               instrumentId: input.instrumentId || null,
+              studioRoomId: input.studioRoomId || null,
               rating: null,
               recurringGroupId: groupId, // Todas as linhas desta turma terão o mesmo groupId
               status: 'agendada' as const,

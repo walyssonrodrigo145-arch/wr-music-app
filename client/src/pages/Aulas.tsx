@@ -134,6 +134,12 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
              </div>
            )}
         </div>
+        {lesson.studioRoomName && (
+           <div className="flex items-center gap-1 mt-1 font-bold text-indigo-700 dark:text-indigo-400 text-[9px] truncate">
+             <LayoutList size={10} className="shrink-0" />
+             <span className="truncate">{lesson.studioRoomName}</span>
+           </div>
+         )}
         {isTurma && (
           <div className="mt-1 py-0.5 px-2 bg-purple-600/10 dark:bg-purple-400/10 rounded-full w-fit flex items-center gap-1 border border-purple-500/20">
             <Users size={10} className="text-purple-700 dark:text-purple-300" />
@@ -716,6 +722,12 @@ export default function Aulas() {
                                 <>
                                   <span>•</span>
                                   <span className="text-blue-600 font-bold">Prof. {l.teacherName}</span>
+                                </>
+                              )}
+                              {l.studioRoomName && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-indigo-600 font-bold">{l.studioRoomName}</span>
                                 </>
                               )}
                               {isTurma && <span className="text-[8px] font-black text-purple-600 bg-purple-500/10 px-1.5 py-0.2 rounded-full border border-purple-500/20">Turma</span>}
