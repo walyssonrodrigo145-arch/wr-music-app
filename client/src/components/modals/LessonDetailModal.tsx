@@ -177,7 +177,6 @@ export default function LessonDetailModal({
                      <h4 className="font-bold text-foreground">{lesson.instrumentName || "Geral"}</h4>
                   </div>
                </div>
-               </div>
                
                {lesson.studioRoomName && (
                  <div className="flex items-center gap-4">
