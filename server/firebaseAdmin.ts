@@ -1,6 +1,5 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
-import webpush from 'web-push';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -25,18 +24,6 @@ if (!getApps().length) {
 
 export const messaging = getApps().length ? getMessaging() : null;
 
-// Configurar WebPush nativo se VAPID key estiver configurada
-const vapidPublicKey = process.env.VITE_FIREBASE_VAPID_KEY || "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || "BPwWTFTQ0tHqNkipjYq4LtuaLDwQzkjdCuiQdj3IAtakqyJQ9i9XEWx16Vcorcgot6cqKYaaPiv-5hRO40SKIgo";
-
-try {
-  webpush.setVapidDetails(
-    'mailto:contato@wrmusicpro.com.br',
-    vapidPublicKey,
-    vapidPrivateKey
-  );
-} catch (e) {}
-
 export async function sendPushNotification(
   token: string,
   title: string,
@@ -44,29 +31,10 @@ export async function sendPushNotification(
   data?: Record<string, string>,
   opts?: { icon?: string; badge?: string; url?: string }
 ): Promise<{ success: boolean; error?: string }> {
-  // 1. Se o token for um JSON de assinatura WebPush nativa (PushSubscription JSON)
-  if (token.startsWith('{') && token.includes('endpoint')) {
-    try {
-      const subscription = JSON.parse(token);
-      const payload = JSON.stringify({
-        title,
-        body,
-        icon: opts?.icon || 'https://wrmusicpro.com.br/icon-192.png',
-        badge: opts?.badge || 'https://wrmusicpro.com.br/icon-badge.png',
-        url: opts?.url || '/',
-        ...data,
-      });
-
-      console.log('[Push] Enviando via WebPush Nativo...');
-      await webpush.sendNotification(subscription, payload);
-      return { success: true };
-    } catch (e: any) {
-      console.error('[Push] Erro ao enviar via WebPush nativo:', e);
-      return { success: false, error: e?.message || 'WEBPUSH_FAILED' };
-    }
-  }
-
   if (!messaging) {
+    console.log('Firebase messaging não está configurado.');
+    return { success: false, error: 'NOT_CONFIGURED' };
+  }
     console.log('Firebase messaging não está configurado.');
     return { success: false, error: 'NOT_CONFIGURED' };
   }
