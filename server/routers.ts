@@ -9083,7 +9083,6 @@ Texto original para reescrever:
         if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada" });
 
         const [profData] = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
-
         const { createAsaasCustomer, createAsaasSubscription, getAsaasSubscriptionPayments } = await import('./utils/asaas');
         
         let customerId = org.asaasCustomerId;
@@ -9097,21 +9096,37 @@ Texto original para reescrever:
 
         let subId = org.asaasSubscriptionId;
         if (!subId) {
-          // FIX-6: Buscar preço real do banco de dados em vez de valores hardcoded
-          // Garante que alterações de preço no Super Admin são refletidas imediatamente no checkout
           const { systemPlans } = await import("../drizzle/schema");
           const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, org.planId)).limit(1);
-          const planValue = planInfo
+
+          const baseValue = planInfo
             ? (input.planType === "YEARLY" ? Number(planInfo.priceYearly) : Number(planInfo.priceMonthly))
-            : (input.planType === "YEARLY" ? 59.90 * 10 : 59.90); // fallback seguro se plano não encontrado
+            : (input.planType === "YEARLY" ? 59.90 * 10 : 59.90);
+
+          // Cálculo de Alunos Excedentes
+          const activeStudentsCountObj = await db.select({ count: sql<number>`count(*)` })
+            .from(students)
+            .where(and(eq(students.organizationId, orgId), eq(students.status, "ativo")));
+          const activeStudentsCount = Number(activeStudentsCountObj[0]?.count ?? 0);
+
+          const maxStudents = planInfo?.maxStudents ?? 999999;
+          const allowExtra = planInfo?.allowExtraStudents ?? true;
+          const extraPrice = Number(planInfo?.extraStudentPrice ?? 1.49);
+          const excessCount = Math.max(0, activeStudentsCount - maxStudents);
+          const excessFee = (allowExtra && excessCount > 0) ? excessCount * extraPrice : 0;
+          const totalValue = baseValue + excessFee;
+
+          const description = excessCount > 0
+            ? `Assinatura MusicPro - Plano ${planInfo?.name || org.planId} (${input.planType}) + ${excessCount} alunos excedentes`
+            : `Assinatura MusicPro - Plano ${planInfo?.name || org.planId} (${input.planType})`;
 
           const sub = await createAsaasSubscription({
             customer: customerId,
             billingType: 'UNDEFINED',
-            value: planValue,
+            value: totalValue,
             nextDueDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
             cycle: input.planType,
-            description: `Assinatura MusicPro - Plano ${org.planId} (${input.planType})`,
+            description,
             successUrl: `${ENV.appUrl}/checkout?payment=success`,
             maxPayments: input.planType === 'YEARLY' ? 1 : 6
           });
@@ -9159,16 +9174,13 @@ Texto original para reescrever:
       const { getAsaasSubscriptionPayments } = await import('./utils/asaas');
       const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
 
-      // FIX-5: Filtrar pagamentos por data (últimos 35 dias = 1 ciclo mensal + margem)
-      // Evita ativar assinatura com pagamento antigo quando o ciclo atual está em aberto.
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - 35);
 
       const confirmedPayment = payments.find((p: any) => {
         if (p.status !== 'RECEIVED' && p.status !== 'CONFIRMED') return false;
-        // Verificar se o pagamento foi feito recentemente
         const paymentDate = p.confirmedDate || p.paymentDate || p.dueDate;
-        if (!paymentDate) return true; // se não tem data, aceitar (compatibilidade)
+        if (!paymentDate) return true;
         return new Date(paymentDate) >= cutoffDate;
       });
       
@@ -9209,7 +9221,6 @@ Texto original para reescrever:
       const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
       if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada" });
 
-      // BUG 5 FIX: Buscar preço real do banco de dados em vez de usar valores hardcoded
       const { systemPlans } = await import("../drizzle/schema");
       const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, input.planId)).limit(1);
       if (!planInfo) {
@@ -9221,26 +9232,36 @@ Texto original para reescrever:
       const activeStudentsCountObj = await db.select({ count: sql<number>`count(*)` })
         .from(students)
         .where(and(eq(students.organizationId, orgId), eq(students.status, "ativo")));
-      const activeStudentsCount = Number(activeStudentsCountObj[0].count);
+      const activeStudentsCount = Number(activeStudentsCountObj[0]?.count ?? 0);
 
-      if (activeStudentsCount > newMaxStudents) {
+      if (!planInfo.allowExtraStudents && activeStudentsCount > newMaxStudents) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: `Você possui ${activeStudentsCount} alunos ativos. Exclua ou arquive ${activeStudentsCount - newMaxStudents} alunos para poder migrar para o plano de ${newMaxStudents} Alunos.`
         });
       }
 
-      // Preço real vindo do banco de dados
-      const planValue = input.planType === "YEARLY"
+      // Preço real + Taxa de alunos excedentes
+      const baseValue = input.planType === "YEARLY"
         ? Number(planInfo.priceYearly)
         : Number(planInfo.priceMonthly);
+
+      const allowExtra = planInfo.allowExtraStudents ?? true;
+      const extraPrice = Number(planInfo.extraStudentPrice ?? 1.49);
+      const excessCount = Math.max(0, activeStudentsCount - newMaxStudents);
+      const excessFee = (allowExtra && excessCount > 0) ? excessCount * extraPrice : 0;
+      const totalValue = baseValue + excessFee;
+
+      const description = excessCount > 0
+        ? `Assinatura MusicPro - Plano ${planInfo.name} (${input.planType}) + ${excessCount} alunos excedentes`
+        : `Assinatura MusicPro - Plano ${planInfo.name} (${input.planType})`;
 
       if (org.asaasSubscriptionId) {
         const { updateAsaasSubscription, getAsaasSubscription, deleteAsaasSubscription } = await import('./utils/asaas');
         try {
           await updateAsaasSubscription(org.asaasSubscriptionId, {
-            value: planValue,
-            description: `Assinatura MusicPro - Plano ${input.planId} (${input.planType})`,
+            value: totalValue,
+            description,
             cycle: input.planType
           });
         } catch (err: any) {
@@ -9305,27 +9326,6 @@ Texto original para reescrever:
         if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada" });
 
         const planId = input.planId || org.planId;
-        
-        // Verifica se o trial do usuário ainda está no prazo (ex: cancelou durante o teste)
-        const now = new Date();
-        const trialValid = org.trialEndsAt && new Date(org.trialEndsAt) > now;
-
-        if (trialValid) {
-          // Reativa mantendo o trial restante
-          await db.update(organizations).set({
-            planId,
-            subscriptionStatus: "trialing",
-            updatedAt: new Date()
-          }).where(eq(organizations.id, orgId));
-
-          return { 
-            success: true, 
-            status: "trialing", 
-            message: "Plano reabilitado com sucesso! Seu período de teste foi restaurado." 
-          };
-        }
-
-        // Se o trial expirou ou não existe, reativa criando/obtendo uma nova fatura via checkout
         const [profData] = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
         const { createAsaasCustomer, createAsaasSubscription, getAsaasSubscriptionPayments } = await import('./utils/asaas');
 
@@ -9340,17 +9340,36 @@ Texto original para reescrever:
 
         const { systemPlans } = await import("../drizzle/schema");
         const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, planId)).limit(1);
-        const planValue = planInfo
+
+        const baseValue = planInfo
           ? (input.planType === "YEARLY" ? Number(planInfo.priceYearly) : Number(planInfo.priceMonthly))
           : (input.planType === "YEARLY" ? 59.90 * 10 : 59.90);
 
+        // Cálculo de Alunos Excedentes
+        const activeStudentsCountObj = await db.select({ count: sql<number>`count(*)` })
+          .from(students)
+          .where(and(eq(students.organizationId, orgId), eq(students.status, "ativo")));
+        const activeStudentsCount = Number(activeStudentsCountObj[0]?.count ?? 0);
+
+        const maxStudents = planInfo?.maxStudents ?? 999999;
+        const allowExtra = planInfo?.allowExtraStudents ?? true;
+        const extraPrice = Number(planInfo?.extraStudentPrice ?? 1.49);
+        const excessCount = Math.max(0, activeStudentsCount - maxStudents);
+        const excessFee = (allowExtra && excessCount > 0) ? excessCount * extraPrice : 0;
+        const totalValue = baseValue + excessFee;
+
+        const description = excessCount > 0
+          ? `Assinatura MusicPro - Plano ${planInfo?.name || planId} (${input.planType}) + ${excessCount} alunos excedentes`
+          : `Assinatura MusicPro - Plano ${planInfo?.name || planId} (${input.planType})`;
+
+        // Cria nova assinatura no Asaas
         const sub = await createAsaasSubscription({
           customer: customerId,
           billingType: 'UNDEFINED',
-          value: planValue,
+          value: totalValue,
           nextDueDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
           cycle: input.planType,
-          description: `Assinatura MusicPro - Plano ${planId} (${input.planType})`,
+          description,
           successUrl: `${ENV.appUrl}/checkout?payment=success`,
           maxPayments: input.planType === 'YEARLY' ? 1 : 6
         });
@@ -9370,7 +9389,7 @@ Texto original para reescrever:
           success: true,
           status: "active",
           paymentLink: pendingPayment?.invoiceUrl,
-          message: "Plano reabilitado com sucesso!"
+          message: "Plano reabilitado com sucesso! Redirecionando para o pagamento no Asaas..."
         };
       }),
   }),
