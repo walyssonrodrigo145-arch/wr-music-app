@@ -9292,6 +9292,87 @@ Texto original para reescrever:
 
       return { success: true };
     }),
+    reactivateSubscription: protectedProcedure
+      .input(z.object({
+        planId: z.string().optional(),
+        planType: z.enum(["MONTHLY", "YEARLY"]).optional().default("MONTHLY"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+        const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+        if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Organização não encontrada" });
+
+        const planId = input.planId || org.planId;
+        
+        // Verifica se o trial do usuário ainda está no prazo (ex: cancelou durante o teste)
+        const now = new Date();
+        const trialValid = org.trialEndsAt && new Date(org.trialEndsAt) > now;
+
+        if (trialValid) {
+          // Reativa mantendo o trial restante
+          await db.update(organizations).set({
+            planId,
+            subscriptionStatus: "trialing",
+            updatedAt: new Date()
+          }).where(eq(organizations.id, orgId));
+
+          return { 
+            success: true, 
+            status: "trialing", 
+            message: "Plano reabilitado com sucesso! Seu período de teste foi restaurado." 
+          };
+        }
+
+        // Se o trial expirou ou não existe, reativa criando/obtendo uma nova fatura via checkout
+        const [profData] = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+        const { createAsaasCustomer, createAsaasSubscription, getAsaasSubscriptionPayments } = await import('./utils/asaas');
+
+        let customerId = org.asaasCustomerId;
+        if (!customerId) {
+          customerId = await createAsaasCustomer({
+            name: org.name || "Escola",
+            email: profData?.email ?? undefined,
+          });
+          await db.update(organizations).set({ asaasCustomerId: customerId }).where(eq(organizations.id, orgId));
+        }
+
+        const { systemPlans } = await import("../drizzle/schema");
+        const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, planId)).limit(1);
+        const planValue = planInfo
+          ? (input.planType === "YEARLY" ? Number(planInfo.priceYearly) : Number(planInfo.priceMonthly))
+          : (input.planType === "YEARLY" ? 59.90 * 10 : 59.90);
+
+        const sub = await createAsaasSubscription({
+          customer: customerId,
+          billingType: 'UNDEFINED',
+          value: planValue,
+          nextDueDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+          cycle: input.planType,
+          description: `Assinatura MusicPro - Plano ${planId} (${input.planType})`,
+          successUrl: `${ENV.appUrl}/checkout?payment=success`,
+          maxPayments: input.planType === 'YEARLY' ? 1 : 6
+        });
+
+        const payments = await getAsaasSubscriptionPayments(sub.id);
+        const pendingPayment = payments.find(p => p.status === 'PENDING' || p.status === 'OVERDUE');
+
+        // Atualiza a organização com novo ID de assinatura Asaas e status active
+        await db.update(organizations).set({
+          planId,
+          asaasSubscriptionId: sub.id,
+          subscriptionStatus: "active",
+          updatedAt: new Date()
+        }).where(eq(organizations.id, orgId));
+
+        return {
+          success: true,
+          status: "active",
+          paymentLink: pendingPayment?.invoiceUrl,
+          message: "Plano reabilitado com sucesso!"
+        };
+      }),
   }),
 
   // ─── PILAR 3: DIGITAL CONTRACTS (ZAPSIGN) ───────────────────────

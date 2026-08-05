@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { CreditCard, CheckCircle2, ArrowRight, Loader2, Zap, ShieldAlert, X, Calendar, TrendingDown, TrendingUp, AlertTriangle, Users } from "lucide-react";
+import { CreditCard, CheckCircle2, ArrowRight, Loader2, Zap, ShieldAlert, X, Calendar, TrendingDown, TrendingUp, AlertTriangle, Users, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ export default function Assinatura() {
   
   const changePlanMutation = trpc.platform.changePlan.useMutation();
   const cancelMutation = trpc.platform.cancelSubscription.useMutation();
+  const reactivateMutation = trpc.platform.reactivateSubscription.useMutation();
 
   const [selectedPlanType, setSelectedPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
@@ -26,6 +27,22 @@ export default function Assinatura() {
   const trialEndsAt = mySub?.trialEndsAt ? new Date(mySub.trialEndsAt) : null;
   const isTrial = mySub?.subscriptionStatus === "trialing";
   const isCanceled = mySub?.subscriptionStatus === "canceled";
+
+  const handleReactivate = async (planId?: string) => {
+    try {
+      const res = await reactivateMutation.mutateAsync({
+        planId: planId || mySub?.planId,
+        planType: selectedPlanType
+      });
+      toast.success(res.message || "Plano reabilitado com sucesso!");
+      utils.platform.mySubscription.invalidate();
+      if (res.paymentLink) {
+        window.location.href = res.paymentLink;
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao reabilitar o plano");
+    }
+  };
 
   const handleChangePlan = async (planId: string) => {
     try {
@@ -168,6 +185,31 @@ export default function Assinatura() {
         </div>
       </div>
 
+      {/* Banner de Plano Cancelado / Opção de Reabilitar */}
+      {isCanceled && (
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-foreground">Sua assinatura está cancelada</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Você pode reabilitar seu plano a qualquer momento para manter seu acesso ativo e preservar todas as suas configurações, alunos e aulas.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleReactivate()}
+            disabled={reactivateMutation.isPending}
+            className="shrink-0 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-md shadow-emerald-600/20 disabled:opacity-50"
+          >
+            {reactivateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={15} />}
+            Reabilitar Plano
+          </button>
+        </div>
+      )}
+
       {/* Card da Política de Alunos Excedentes */}
       {maxStudentsLimit < 999999 && (
         <div className={`rounded-2xl p-5 border shadow-sm transition-all ${
@@ -280,15 +322,30 @@ export default function Assinatura() {
                 </div>
 
                 <button
-                  onClick={() => handleChangePlan(p.id)}
-                  disabled={isActive || changePlanMutation.isPending || isCanceled}
-                  className={`w-full h-10 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${
+                  onClick={() => isCanceled ? handleReactivate(p.id) : handleChangePlan(p.id)}
+                  disabled={(isActive && !isCanceled) || changePlanMutation.isPending || reactivateMutation.isPending}
+                  className={`w-full h-10 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                    isCanceled ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20' :
                     isActive ? 'bg-muted text-muted-foreground cursor-not-allowed' :
                     isPopular ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20' :
                     'bg-muted/40 hover:bg-muted text-foreground border border-border/60'
                   }`}
                 >
-                  {isActive ? 'Plano Ativo' : changePlanMutation.isPending ? 'Processando...' : 'Fazer Upgrade'}
+                  {(changePlanMutation.isPending || reactivateMutation.isPending) ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Processando...</span>
+                    </>
+                  ) : isCanceled ? (
+                    <>
+                      <RefreshCw size={14} />
+                      <span>Reabilitar este Plano</span>
+                    </>
+                  ) : isActive ? (
+                    'Plano Ativo'
+                  ) : (
+                    'Fazer Upgrade'
+                  )}
                 </button>
               </motion.div>
             );
