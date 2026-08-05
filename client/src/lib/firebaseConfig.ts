@@ -536,27 +536,25 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
     });
   }
 
-  // 4. Executar SDK Firebase getToken (Etapa 1)
+  // 4. Executar SDK Firebase getToken (com auto-recovery para push service error)
   const msg = await getMsg();
   if (!msg) {
     throw new Error("Firebase Messaging não é suportado neste navegador.");
   }
 
-  const startGetToken = performance.now();
-  try {
+  // Helper interno para tentar getToken
+  const tryGetToken = async (registration: ServiceWorkerRegistration): Promise<string> => {
+    const startGetToken = performance.now();
     addForensicLog({
       category: 'FIREBASE',
       action: 'getToken_sdk_start',
-      params: { vapidKeyLength: VAPID_KEY.length, swScope: swReg.scope }
+      params: { vapidKeyLength: VAPID_KEY.length, swScope: registration.scope }
     });
-
-    const token = await getToken(msg, {
+    const token = await getToken(msg!, {
       vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: swReg
+      serviceWorkerRegistration: registration
     });
-
     const durationGetToken = performance.now() - startGetToken;
-
     if (token && token.length > 10) {
       addForensicLog({
         category: 'FIREBASE',
@@ -566,29 +564,70 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
       });
       return token;
     }
-    throw new Error("Token retornado pelo SDK do Firebase veio vazio.");
-  } catch (fcmErr: any) {
-    const durationGetToken = performance.now() - startGetToken;
+    throw new Error('Token retornado pelo SDK do Firebase veio vazio.');
+  };
 
-    // ETAPA 10 — REGISTRO EXAUSTIVO DE STACK TRACE DE ABORTERROR
+  try {
+    const token = await tryGetToken(swReg);
+    return token;
+  } catch (fcmErr: any) {
+    const detail = fcmErr?.message || fcmErr?.code || String(fcmErr);
+    const isPushServiceError = detail.includes('push service error') ||
+      detail.includes('AbortError') ||
+      detail.includes('Registration failed');
+
     addForensicLog({
       category: 'FIREBASE',
-      action: 'getToken_sdk_error',
-      durationMs: durationGetToken,
-      error: {
-        name: fcmErr?.name || 'FCMError',
-        message: fcmErr?.message || String(fcmErr),
-        stack: fcmErr?.stack,
-        code: fcmErr?.code
-      }
+      action: 'getToken_sdk_error_attempt1',
+      error: { name: fcmErr?.name || 'FCMError', message: detail, stack: fcmErr?.stack, code: fcmErr?.code }
     });
 
-    const detail = fcmErr?.message || fcmErr?.code || String(fcmErr);
-    if (detail.includes('push service error') || detail.includes('AbortError')) {
-      throw new Error(
-        `[FORENSIC-ABORT-ERROR] Push Service Error / AbortError capturado! Stack: ${fcmErr?.stack || detail}`
-      );
+    // ── AUTO-RECOVERY: Push Service Error → reset completo dos SWs e retry ──
+    if (isPushServiceError) {
+      addForensicLog({
+        category: 'FIREBASE',
+        action: 'push_service_error_auto_recovery_start',
+        params: { detail }
+      });
+
+      try {
+        // 1. Desregistrar TODOS os Service Workers
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+        addForensicLog({ category: 'BROWSER', action: 'all_sw_unregistered', params: { count: regs.length } });
+
+        // 2. Aguardar 1.5s para o navegador liberar o estado
+        await new Promise(res => setTimeout(res, 1500));
+
+        // 3. Re-registrar o Service Worker limpo
+        const freshReg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        await navigator.serviceWorker.ready;
+        addForensicLog({ category: 'BROWSER', action: 'sw_re_registered_fresh', params: { scope: freshReg.scope } });
+
+        // 4. Limpar instância de messaging para forçar reinicialização
+        _messaging = null;
+        const freshMsg = await getMsg();
+        if (!freshMsg) throw new Error('Firebase Messaging não disponível após reset.');
+
+        // 5. Retry do getToken com SW limpo
+        const retryToken = await tryGetToken(freshReg);
+        addForensicLog({ category: 'FIREBASE', action: 'push_service_error_auto_recovery_success' });
+        return retryToken;
+
+      } catch (retryErr: any) {
+        addForensicLog({
+          category: 'FIREBASE',
+          action: 'push_service_error_auto_recovery_failed',
+          error: { name: retryErr?.name, message: retryErr?.message, stack: retryErr?.stack }
+        });
+        // Mensagem amigável para o usuário final
+        throw new Error(
+          'Seu navegador não conseguiu conectar ao serviço de Push do Google. ' +
+          'Tente: 1) Conectar ao WiFi; 2) Limpar dados do app Chrome (Configurações > Apps > Chrome > Armazenamento > Limpar dados); 3) Reiniciar o celular.'
+        );
+      }
     }
+
     throw new Error(`Falha no SDK Firebase: ${detail}`);
   }
 };
