@@ -141,7 +141,7 @@ export const fcmRouter = router({
     }
 
     if (sentCount === 0 && tokens.length > 0) {
-      const errorSummary = [...new Set(failedErrors)].join(", ");
+      const errorSummary = Array.from(new Set(failedErrors)).join(", ");
       throw new Error(
         `Envio falhou para todos os ${tokens.length} dispositivo(s). ` +
         `Erro: ${errorSummary || "desconhecido"}. ` +

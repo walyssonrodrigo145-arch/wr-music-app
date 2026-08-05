@@ -500,6 +500,9 @@ const LandingPage = () => {
       features: parseFeatures(p.features),
       cta: 'Começar 30 Dias Grátis',
       ctaStyle: isHighlight ? 'solid' : 'border',
+      allowExtraStudents: (p as any).allowExtraStudents ?? true,
+      extraStudentPrice: Number((p as any).extraStudentPrice ?? 1.49),
+      maxStudents: p.maxStudents,
     };
   }) || [];
 
@@ -995,6 +998,11 @@ const LandingPage = () => {
                   <p className={`text-sm font-medium ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
                     {plan.subtitle}
                   </p>
+                  {plan.allowExtraStudents && plan.maxStudents < 999999 && (
+                    <p className={`text-xs font-semibold mt-1 ${plan.highlight ? 'text-blue-400' : 'text-primary/60'}`}>
+                      + R$ {plan.extraStudentPrice.toFixed(2)}/aluno adicional
+                    </p>
+                  )}
                 </div>
 
                 {/* Price */}

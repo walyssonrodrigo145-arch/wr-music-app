@@ -121,12 +121,14 @@ export function usePushNotifications() {
     return () => window.removeEventListener("focus", check);
   }, [isSupported]);
 
-  /** Se a permissão já foi concedida antes, garante que o token seja registrado silenciosamente */
+  /** Se a permissão já foi concedida antes, garante que o token seja registrado silenciosamente uma única vez */
   useEffect(() => {
-    if (isSupported && Notification.permission === "granted") {
+    let done = false;
+    if (isSupported && Notification.permission === "granted" && !done) {
+      done = true;
       requestPermission({ silent: true });
     }
-  }, [isSupported, requestPermission]);
+  }, [isSupported]);
 
   /** Escuta notificações FCM no Foreground (Aba aberta) */
 

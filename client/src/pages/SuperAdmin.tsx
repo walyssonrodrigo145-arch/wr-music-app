@@ -119,10 +119,12 @@ function SuperAdminPanel() {
   });
 
   const updateOrgSub = trpc.superAdmin.updateOrgSubscription.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success("Status da escola atualizado!");
       utils.superAdmin.getOrganizations.invalidate();
       utils.superAdmin.getDashboardStats.invalidate();
+      // FIX: Atualiza estado local para refletir imediatamente no modal
+      setSelectedSchool((prev: any) => prev ? { ...prev, subscriptionStatus: variables.subscriptionStatus } : prev);
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
@@ -143,7 +145,7 @@ function SuperAdminPanel() {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     savePlan.mutate({
-      id: formData.get("id") as string || "plano-" + Date.now(),
+      id: ((formData.get("id") as string) || "plano-" + Date.now()).toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
       name: formData.get("name") as string,
       priceMonthly: Number(formData.get("priceMonthly")),
       priceYearly: Number(formData.get("priceYearly")),
@@ -166,8 +168,8 @@ function SuperAdminPanel() {
       code: formData.get("code") as string,
       discountType: formData.get("discountType") as "PERCENTAGE" | "FIXED",
       discountValue: Number(formData.get("discountValue")),
-      durationMonths: formData.get("durationMonths") ? Number(formData.get("durationMonths")) : null,
-      maxUses: formData.get("maxUses") ? Number(formData.get("maxUses")) : null,
+      durationMonths: formData.get("durationMonths") && Number(formData.get("durationMonths")) > 0 ? Number(formData.get("durationMonths")) : null,
+      maxUses: formData.get("maxUses") && Number(formData.get("maxUses")) > 0 ? Number(formData.get("maxUses")) : null,
       isActive: couponIsActive, // FIX: vem do estado React
     });
   };
@@ -357,7 +359,7 @@ function SuperAdminPanel() {
                   <div className="border-t border-border pt-4">
                     <p className="text-xs font-bold text-muted-foreground mb-2">ALTERAR STATUS DA ASSINATURA</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {(['active', 'trial', 'inactive', 'suspended'] as const).map(s => (
+                      {(['active', 'trialing', 'inactive', 'suspended'] as const).map(s => (
                         <button
                           key={s}
                           disabled={updateOrgSub.isPending || selectedSchool.subscriptionStatus === s}
@@ -367,7 +369,7 @@ function SuperAdminPanel() {
                               ? 'bg-primary text-white border-primary cursor-default'
                               : 'bg-muted hover:bg-muted/60 text-foreground border-border'}`}
                         >
-                          {s === 'active' ? '✅ Ativo' : s === 'trial' ? '🕒 Trial' : s === 'inactive' ? '❌ Inativo' : '🚫 Suspenso'}
+                          {s === 'active' ? '✅ Ativo' : s === 'trialing' ? '🕒 Trial' : s === 'inactive' ? '❌ Inativo' : '🚫 Suspenso'}
                         </button>
                       ))}
                     </div>

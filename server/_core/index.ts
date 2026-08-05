@@ -583,10 +583,11 @@ async function startServer() {
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
-          // Necessário para React e bundlers modernos (hash ou nonce deve substituir em v2)
           "'unsafe-inline'",
-          "'unsafe-eval'", // remover após migrar para hash-based CSP
+          "'unsafe-eval'",
           "https://www.googletagmanager.com",
+          "https://www.gstatic.com",
+          "https://*.firebaseapp.com",
         ],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
@@ -598,6 +599,12 @@ async function startServer() {
           "https://generativelanguage.googleapis.com",
           "https://api.mercadopago.com",
           "https://www.mercadopago.com",
+          "https://firebaseinstallations.googleapis.com",
+          "https://fcmregistrations.googleapis.com",
+          "https://fcm.googleapis.com",
+          "https://*.googleapis.com",
+          "https://*.firebaseio.com",
+          "https://*.firebaseapp.com",
           "wss:",
         ],
         mediaSrc: ["'self'", "blob:", "https:"],

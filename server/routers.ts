@@ -48,6 +48,26 @@ import { enrollmentRouter } from "./enrollmentRouter";
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
 
+// ─── Helper: busca limites do plano da organização no banco ──────────────────
+async function getOrgPlanLimits(db: any, orgId: number) {
+  const { systemPlans } = await import("../drizzle/schema");
+  const [org] = await db.select({ planId: organizations.planId })
+    .from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  
+  if (!org) return { maxStudents: 999999, allowExtraStudents: false, extraStudentPrice: 0, planId: '', planName: '' };
+  
+  const [plan] = await db.select().from(systemPlans)
+    .where(eq(systemPlans.id, org.planId)).limit(1);
+  
+  return {
+    maxStudents: plan?.maxStudents ?? 999999,
+    allowExtraStudents: plan?.allowExtraStudents ?? false,
+    extraStudentPrice: Number(plan?.extraStudentPrice ?? 0),
+    planId: org.planId,
+    planName: plan?.name ?? org.planId,
+  };
+}
+
 export const appRouter = router({
   superAdmin: superAdminRouter,
   reportEngine: reportEngineRouter,
@@ -2259,26 +2279,22 @@ ${jsonSchemaFormat}`;
         const orgId = ctx.user.organizationId!;
 
         // --- Verificação de limite de plano ---
-        const [org] = await db.select({ planId: organizations.planId }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
-        const planLimits: Record<string, number> = {
-          "basico": 50,
-          "profissional": 200,
-          "premium": 999999, // ilimitado
-          "30alunos": 30,
-          "20alunos": 20,
-          "10alunos": 10,
-        };
-        const limit = org ? (planLimits[org.planId] ?? 999999) : 999999;
+        const planInfo = await getOrgPlanLimits(db, orgId);
         
         const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
           .from(students)
           .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
         
-        if (input.status === 'ativo' && activeStudentsCount >= limit) {
-          throw new TRPCError({ 
-            code: 'FORBIDDEN', 
-            message: `Limite de alunos atingido (${limit} alunos). Faça upgrade do seu plano para continuar crescendo!` 
-          });
+        if (input.status === 'ativo' && activeStudentsCount >= planInfo.maxStudents) {
+          if (planInfo.allowExtraStudents) {
+            // Permitido como excedente — continua normalmente
+            console.log(`[ExcessStudent] Org #${orgId}: aluno excedente (${activeStudentsCount + 1}/${planInfo.maxStudents}). Taxa: R$ ${planInfo.extraStudentPrice}/aluno`);
+          } else {
+            throw new TRPCError({ 
+              code: 'FORBIDDEN', 
+              message: `Limite de alunos atingido (${planInfo.maxStudents} alunos). Faça upgrade do seu plano para continuar crescendo!` 
+            });
+          }
         }
         // ---------------------------------------
 
@@ -2466,26 +2482,22 @@ ${jsonSchemaFormat}`;
 
         // --- Verificação de limite de plano na reativação ---
         if (updateData.status === 'ativo' && existing.status !== 'ativo') {
-          const [org] = await db.select({ planId: organizations.planId }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
-          const planLimits: Record<string, number> = {
-            "basico": 50,
-            "profissional": 200,
-            "premium": 999999,
-            "30alunos": 30,
-            "20alunos": 20,
-            "10alunos": 10,
-          };
-          const limit = org ? (planLimits[org.planId] ?? 999999) : 999999;
+          const planInfo = await getOrgPlanLimits(db, orgId);
           
           const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
             .from(students)
             .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
           
-          if (activeStudentsCount >= limit) {
-            throw new TRPCError({ 
-              code: 'FORBIDDEN', 
-              message: `Limite de alunos atingido (${limit} alunos). Faça upgrade do seu plano para continuar crescendo!` 
-            });
+          if (activeStudentsCount >= planInfo.maxStudents) {
+            if (planInfo.allowExtraStudents) {
+              // Permitido como excedente — continua normalmente
+              console.log(`[ExcessStudent] Org #${orgId}: aluno excedente (${activeStudentsCount + 1}/${planInfo.maxStudents}). Taxa: R$ ${planInfo.extraStudentPrice}/aluno`);
+            } else {
+              throw new TRPCError({ 
+                code: 'FORBIDDEN', 
+                message: `Limite de alunos atingido (${planInfo.maxStudents} alunos). Faça upgrade do seu plano para continuar crescendo!` 
+              });
+            }
           }
         }
         // ---------------------------------------
@@ -2551,26 +2563,22 @@ ${jsonSchemaFormat}`;
           .where(and(eq(students.id, input.id), eq(students.organizationId, orgId))).limit(1);
         
         if (existing && input.status === 'ativo' && existing.status !== 'ativo') {
-          const [org] = await db.select({ planId: organizations.planId }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
-          const planLimits: Record<string, number> = {
-            "basico": 50,
-            "profissional": 200,
-            "premium": 999999,
-            "30alunos": 30,
-            "20alunos": 20,
-            "10alunos": 10,
-          };
-          const limit = org ? (planLimits[org.planId] ?? 999999) : 999999;
+          const planInfo = await getOrgPlanLimits(db, orgId);
           
           const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
             .from(students)
             .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
           
-          if (activeStudentsCount >= limit) {
-            throw new TRPCError({ 
-              code: 'FORBIDDEN', 
-              message: `Limite de alunos atingido (${limit} alunos). Faça upgrade do seu plano para continuar crescendo!` 
-            });
+          if (activeStudentsCount >= planInfo.maxStudents) {
+            if (planInfo.allowExtraStudents) {
+              // Permitido como excedente — continua normalmente
+              console.log(`[ExcessStudent] Org #${orgId}: aluno excedente (${activeStudentsCount + 1}/${planInfo.maxStudents}). Taxa: R$ ${planInfo.extraStudentPrice}/aluno`);
+            } else {
+              throw new TRPCError({ 
+                code: 'FORBIDDEN', 
+                message: `Limite de alunos atingido (${planInfo.maxStudents} alunos). Faça upgrade do seu plano para continuar crescendo!` 
+              });
+            }
           }
         }
         // ---------------------------------------
@@ -9042,6 +9050,8 @@ Texto original para reescrever:
         features: (() => { try { return JSON.parse(p.features as string); } catch { return []; } })(),
         isPopular: p.isPopular ?? false,
         order: p.order ?? 0,
+        allowExtraStudents: p.allowExtraStudents ?? true,
+        extraStudentPrice: Number(p.extraStudentPrice ?? 1.49),
       }));
     }),
     checkout: protectedProcedure
@@ -9189,16 +9199,7 @@ Texto original para reescrever:
         throw new TRPCError({ code: "NOT_FOUND", message: "Plano selecionado não encontrado." });
       }
 
-      const planLimits: Record<string, number> = {
-        "10alunos": 10,
-        "20alunos": 20,
-        "30alunos": 30,
-        "basico": 999999,
-        "profissional": 999999,
-        "premium": 999999,
-      };
-      
-      const newMaxStudents = planLimits[input.planId] ?? (planInfo.maxStudents ?? 999999);
+      const newMaxStudents = planInfo.maxStudents ?? 999999;
       
       const activeStudentsCountObj = await db.select({ count: sql<number>`count(*)` })
         .from(students)

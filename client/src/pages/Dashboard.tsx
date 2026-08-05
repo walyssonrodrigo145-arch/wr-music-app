@@ -115,6 +115,8 @@ export default function Dashboard() {
   const { data: upcomingLessons } = trpc.lessons.upcoming.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
   const { data: overduePayments = [] } = trpc.paymentDues.overdue.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
   const { data: todaySummaryData, error: todaySummaryError } = trpc.dashboard.todaySummary.useQuery(undefined, { staleTime: 2 * 60 * 1000 });
+  const { data: mySubscription } = trpc.platform.mySubscription.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: allPlans } = trpc.platform.getPublicPlans.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
 
   // BUG-003: Filtrar dados do gráfico pelo período selecionado
   const monthlyData = useMemo(() => {
@@ -181,6 +183,27 @@ export default function Dashboard() {
     };
   }, [monthlyData]);
 
+  const planUsageInfo = useMemo(() => {
+    if (!mySubscription || !allPlans || !stats) return null;
+    const currentPlan = allPlans.find((p: any) => p.id === mySubscription.planId);
+    if (!currentPlan) return null;
+    const maxStudents = currentPlan.maxStudents;
+    const activeStudents = stats.activeStudents;
+    const excessCount = Math.max(0, activeStudents - maxStudents);
+    const extraPrice = Number((currentPlan as any).extraStudentPrice ?? 1.49);
+    const allowExtra = (currentPlan as any).allowExtraStudents ?? true;
+    return {
+      planName: currentPlan.name,
+      maxStudents,
+      activeStudents,
+      excessCount,
+      extraPrice,
+      excessTotal: excessCount * extraPrice,
+      allowExtra,
+      usagePercent: maxStudents >= 999999 ? 0 : Math.round((activeStudents / maxStudents) * 100),
+    };
+  }, [mySubscription, allPlans, stats]);
+
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -243,6 +266,55 @@ export default function Dashboard() {
           isLoading={statsLoading}
         />
       </div>
+
+      {/* ── Card de Uso do Plano / Alunos Excedentes ── */}
+      {planUsageInfo && planUsageInfo.maxStudents < 999999 && (
+        <div className={`rounded-[2rem] p-5 border shadow-lg transition-all duration-300 ${
+          planUsageInfo.excessCount > 0
+            ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30'
+            : planUsageInfo.usagePercent >= 80
+              ? 'bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border-yellow-500/20'
+              : 'bg-card/40 backdrop-blur-xl border-white/10'
+        }`}>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                planUsageInfo.excessCount > 0 ? 'bg-amber-500/20' : 'bg-primary/10'
+              }`}>
+                <Users size={20} className={planUsageInfo.excessCount > 0 ? 'text-amber-500' : 'text-primary'} />
+              </div>
+              <div>
+                <p className="text-sm font-black text-foreground">
+                  {planUsageInfo.activeStudents} / {planUsageInfo.maxStudents} alunos
+                  <span className="text-xs font-medium text-muted-foreground ml-2">Plano {planUsageInfo.planName}</span>
+                </p>
+                <div className="w-48 h-2 bg-muted rounded-full mt-1.5 overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      planUsageInfo.usagePercent >= 100 ? 'bg-amber-500' :
+                      planUsageInfo.usagePercent >= 80 ? 'bg-yellow-500' : 'bg-primary'
+                    }`}
+                    style={{ width: `${Math.min(planUsageInfo.usagePercent, 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+            {planUsageInfo.excessCount > 0 && (
+              <div className="text-right">
+                <p className="text-xs font-bold text-amber-600">
+                  {planUsageInfo.excessCount} aluno{planUsageInfo.excessCount > 1 ? 's' : ''} excedente{planUsageInfo.excessCount > 1 ? 's' : ''}
+                </p>
+                <p className="text-lg font-black text-amber-500">+ R$ {planUsageInfo.excessTotal.toFixed(2)}/mês</p>
+              </div>
+            )}
+            {planUsageInfo.excessCount === 0 && planUsageInfo.usagePercent >= 80 && (
+              <p className="text-xs font-semibold text-yellow-600">
+                ⚠️ Você está usando {planUsageInfo.usagePercent}% do seu limite
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
         <div id="tour-dashboard-charts" className="md:col-span-1 lg:col-span-2 bg-card/40 backdrop-blur-xl rounded-[2rem] p-4 sm:p-6 lg:p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-6 sm:space-y-8">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { CreditCard, CheckCircle2, ArrowRight, Loader2, Zap, ShieldAlert, X, Calendar, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
+import { CreditCard, CheckCircle2, ArrowRight, Loader2, Zap, ShieldAlert, X, Calendar, TrendingDown, TrendingUp, AlertTriangle, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ export default function Assinatura() {
   const { data: pendingInvoice, isLoading: loadingInvoice } = trpc.platform.getPendingInvoice.useQuery();
   // ─── Busca planos DINÂMICOS do banco de dados ─────────────────────────────
   const { data: PLANOS = [], isLoading: loadingPlans } = trpc.platform.getPublicPlans.useQuery();
+  const { data: stats } = trpc.dashboard.stats.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   
   const changePlanMutation = trpc.platform.changePlan.useMutation();
   const cancelMutation = trpc.platform.cancelSubscription.useMutation();
@@ -58,6 +59,12 @@ export default function Assinatura() {
   }
 
   const currentPlan = PLANOS.find(p => p.id === mySub?.planId) || PLANOS[0];
+  const activeStudentsCount = stats?.activeStudents ?? 0;
+  const maxStudentsLimit = currentPlan ? (currentPlan.maxStudents ?? 999999) : 999999;
+  const allowExtra = currentPlan ? ((currentPlan as any).allowExtraStudents ?? true) : true;
+  const extraStudentPrice = currentPlan ? Number((currentPlan as any).extraStudentPrice ?? 1.49) : 1.49;
+  const excessCount = Math.max(0, activeStudentsCount - maxStudentsLimit);
+  const totalExcessFee = excessCount * extraStudentPrice;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-400 max-w-4xl mx-auto pb-10">
@@ -160,6 +167,47 @@ export default function Assinatura() {
           )}
         </div>
       </div>
+
+      {/* Card da Política de Alunos Excedentes */}
+      {maxStudentsLimit < 999999 && (
+        <div className={`rounded-2xl p-5 border shadow-sm transition-all ${
+          excessCount > 0
+            ? 'bg-amber-500/10 border-amber-500/30'
+            : 'bg-card border-border/60'
+        }`}>
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Users size={18} className={excessCount > 0 ? "text-amber-500" : "text-primary"} />
+                <h3 className="font-bold text-sm text-foreground">Política de Alunos Excedentes</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Seu plano ({currentPlan.name}) possui limite base de <strong>{maxStudentsLimit} alunos</strong>.
+                {allowExtra ? (
+                  <span>
+                    {" "}Alunos excedentes são permitidos por <strong>R$ {extraStudentPrice.toFixed(2)}/mês por aluno</strong>.
+                  </span>
+                ) : (
+                  <span> Alunos excedentes não são permitidos neste plano.</span>
+                )}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Alunos Ativos</span>
+                <p className="text-lg font-black text-foreground">{activeStudentsCount} / {maxStudentsLimit}</p>
+              </div>
+              {excessCount > 0 && (
+                <div className="text-right bg-amber-500/15 px-3 py-1.5 rounded-xl border border-amber-500/30">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Excedente ({excessCount})</span>
+                  <p className="text-lg font-black text-amber-600">+ R$ {totalExcessFee.toFixed(2)}/mês</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upgrade Section / Escolha seu Nível */}
       <div className="pt-4 space-y-6">
