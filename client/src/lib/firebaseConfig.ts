@@ -10,7 +10,7 @@ const firebaseConfig = {
   appId: "1:491750077201:web:5d5aa167a714330cf452b0"
 };
 
-const VAPID_KEY = "BODXXfLBc2PMIEZqd2_cj_xKtZxVGRIuPYFi8lAz44t9bblYYNdACGKIxRZIyV3z2n3Uh64b1hPoij7w5Nr7zGE";
+const VAPID_KEY = "BDlduzxrP1XvNEai25cc2lIgwuU6bFipBmkk28AMIAm_lsVTU4NZpiNRTiHvqlAp1ZFzvEJrzMHUZeytDa-XTAk";
 
 const app = initializeApp(firebaseConfig);
 
