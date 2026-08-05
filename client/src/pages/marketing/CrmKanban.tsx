@@ -252,7 +252,7 @@ export default function CrmKanban() {
                                   monthlyFee: Number(lead.value) || 150,
                                   autoSendWhatsapp: true,
                                 });
-                                const fullUrl = `${window.location.origin}${res.url}`;
+                                const fullUrl = res.fullUrl || (window.location.origin.includes('localhost') ? `https://wrmusicpro.com.br${res.url}` : `${window.location.origin}${res.url}`);
                                 await navigator.clipboard.writeText(fullUrl);
 
                                 if (res.sentViaBot) {

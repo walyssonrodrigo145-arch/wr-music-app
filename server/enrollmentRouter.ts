@@ -42,7 +42,9 @@ export const enrollmentRouter = router({
         .returning();
 
       const url = `/matricula/${link.code}`;
-      const appUrl = ENV.appUrl || 'https://wrmusicpro.com.br';
+      const appUrl = (ENV.appUrl && !ENV.appUrl.includes('localhost')) 
+        ? ENV.appUrl.replace(/\/+$/, '') 
+        : 'https://wrmusicpro.com.br';
       const fullUrl = `${appUrl}${url}`;
       let sentViaBot = false;
 
