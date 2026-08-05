@@ -202,6 +202,11 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "analytics_visitors" ADD COLUMN IF NOT EXISTS "total_events" integer DEFAULT 0 NOT NULL`, "analytics_visitors.total_events");
     await safeExecute(sql`ALTER TABLE "analytics_sessions" ADD COLUMN IF NOT EXISTS "organization_id" integer`, "analytics_sessions.organization_id");
     await safeExecute(sql`ALTER TABLE "analytics_events" ADD COLUMN IF NOT EXISTS "organization_id" integer`, "analytics_events.organization_id");
+    await safeExecute(sql`CREATE TABLE IF NOT EXISTS "analytics_ai_insights" ("id" serial PRIMARY KEY, "insight_type" varchar(50) NOT NULL, "title" varchar(255) NOT NULL, "description" text NOT NULL, "severity" varchar(20) DEFAULT 'info' NOT NULL, "recommendation" text, "metric_ref" varchar(100), "metric_value" numeric(10,2), "generated_at" timestamp DEFAULT now() NOT NULL, "expires_at" timestamp, "is_read" boolean DEFAULT false NOT NULL)`, "analytics_ai_insights table");
+    await safeExecute(sql`ALTER TABLE "analytics_ai_insights" ADD COLUMN IF NOT EXISTS "description" text`, "analytics_ai_insights.description");
+    await safeExecute(sql`ALTER TABLE "analytics_ai_insights" ADD COLUMN IF NOT EXISTS "recommendation" text`, "analytics_ai_insights.recommendation");
+    await safeExecute(sql`ALTER TABLE "analytics_ai_insights" ADD COLUMN IF NOT EXISTS "metric_ref" varchar(100)`, "analytics_ai_insights.metric_ref");
+    await safeExecute(sql`ALTER TABLE "analytics_ai_insights" ADD COLUMN IF NOT EXISTS "metric_value" numeric(10,2)`, "analytics_ai_insights.metric_value");
 
     // automations and students missing fields
     await safeExecute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "allowAutoReminders" boolean DEFAULT true NOT NULL`, "students.allowAutoReminders");
