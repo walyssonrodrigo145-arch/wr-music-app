@@ -323,10 +323,16 @@ export default function PublicEnrollment() {
       {/* ── Header ── */}
       <div className="sticky top-0 z-10 backdrop-blur-md bg-background/80 border-b border-border/40 px-4 py-3">
         <div className="max-w-xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-500 flex items-center justify-center">
-              <Music size={16} />
-            </div>
+          <div className="flex items-center gap-2.5">
+            {details.schoolLogo ? (
+              <div className="w-8 h-8 rounded-lg bg-indigo-600/10 p-0.5 border border-indigo-500/20 flex items-center justify-center overflow-hidden shrink-0">
+                <img src={details.schoolLogo} alt={details.schoolName} className="max-w-full max-h-full object-contain" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-500 flex items-center justify-center shrink-0">
+                <Music size={16} />
+              </div>
+            )}
             <span className="text-sm font-black text-foreground truncate max-w-[180px]">{details.schoolName}</span>
           </div>
           {details.monthlyFee && (

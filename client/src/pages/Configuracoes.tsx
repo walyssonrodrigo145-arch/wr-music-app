@@ -19,7 +19,7 @@ import {
   User, Building2, Bell, Palette, Shield, Save, Users,
   Sun, Moon, Phone, Mail, Globe, MapPin,
   CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles, HelpCircle,
-  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, DoorOpen
+  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, DoorOpen, Upload, Trash2, Image
 } from "lucide-react";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
@@ -853,6 +853,7 @@ export default function Configuracoes() {
   const [schoolPhone, setSchoolPhone] = useState("");
   const [schoolWebsite, setSchoolWebsite] = useState("");
   const [schoolDescription, setSchoolDescription] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [dueDaysForecast, setDueDaysForecast] = useState("5,10,15,20");
   const defaultHours = {
     monday: { active: true, start: "08:00", end: "18:00" },
@@ -926,6 +927,7 @@ export default function Configuracoes() {
       setSchoolPhone(settings.schoolPhone ?? "");
       setSchoolWebsite(settings.schoolWebsite ?? "");
       setSchoolDescription(settings.schoolDescription ?? "");
+      setLogoUrl((settings as any).logoUrl ?? (user as any)?.schoolLogo ?? "");
       setDueDaysForecast(settings.dueDaysForecast ?? "5,10,15,20");
 
       setLateFeeEnabled(Number((settings as any).lateFeeEnabled ?? 1) === 1);
@@ -1305,12 +1307,101 @@ export default function Configuracoes() {
                             return;
                          }
                       }
-                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
+                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, logoUrl, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
                     }}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
                   </Button>
+                </div>
+
+                {/* 🎨 SEÇÃO LOGO DA ESCOLA (WHITE-LABEL BRANDING) */}
+                <div className="p-5 rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-transparent space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-wider text-foreground flex items-center gap-2">
+                        <Upload size={16} className="text-indigo-500" />
+                        Logo da Escola (Branding Personalizado)
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                        Sua logo será exibida no menu do sistema, portal do aluno e na página de matrícula pública.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row items-center gap-6 pt-2">
+                    {/* Preview da Logo */}
+                    <div className="relative w-24 h-24 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-background/50 flex flex-col items-center justify-center overflow-hidden shadow-inner group shrink-0">
+                      {logoUrl ? (
+                        <>
+                          <img src={logoUrl} alt="Logo da Escola" className="w-full h-full object-contain p-2" />
+                          <button
+                            type="button"
+                            onClick={() => setLogoUrl("")}
+                            className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
+                          >
+                            <Trash2 size={16} className="mr-1" /> Remover
+                          </button>
+                        </>
+                      ) : (
+                        <div className="text-center p-2">
+                          <Image size={24} className="mx-auto text-indigo-400 mb-1" />
+                          <span className="text-[10px] text-muted-foreground font-bold">Sem Logo</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Inputs de Upload / URL */}
+                    <div className="space-y-3 flex-1 w-full">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95">
+                          <Upload size={14} />
+                          <span>Selecionar Imagem</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 3 * 1024 * 1024) {
+                                toast.error("A imagem da logo deve ter no máximo 3MB.");
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setLogoUrl(reader.result as string);
+                                toast.success("Logo carregada! Clique em Salvar para aplicar.");
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+
+                        {logoUrl && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setLogoUrl("")}
+                            className="text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-xl"
+                          >
+                            <Trash2 size={14} className="mr-1" /> Usar Logo Padrão
+                          </Button>
+                        )}
+                      </div>
+
+                      <div>
+                        <span className="text-[11px] font-bold text-muted-foreground block mb-1">Ou cole a URL direta da logo:</span>
+                        <DebouncedInput
+                          value={logoUrl}
+                          onChange={e => setLogoUrl(e.target.value)}
+                          placeholder="https://suaescola.com.br/logo.png"
+                          className="h-10 text-xs font-bold rounded-xl border-border bg-background focus:bg-card transition-all shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">

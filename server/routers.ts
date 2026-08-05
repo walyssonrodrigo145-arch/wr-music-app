@@ -203,9 +203,17 @@ export const appRouter = router({
       
       if (ctx.user.organizationId) {
         const [org] = await db.select({
+          logo: organizations.logo,
           subscriptionStatus: organizations.subscriptionStatus,
           trialEndsAt: organizations.trialEndsAt
         }).from(organizations).where(eq(organizations.id, ctx.user.organizationId)).limit(1);
+
+        const [userSet] = await db.select({
+          logoUrl: settings.logoUrl,
+          schoolName: settings.schoolName,
+        }).from(settings).where(eq(settings.organizationId, ctx.user.organizationId)).limit(1);
+
+        const schoolLogo = userSet?.logoUrl || org?.logo || null;
         
         let permissions: string[] = [];
         if (ctx.user.role === 'professor') {
@@ -226,6 +234,8 @@ export const appRouter = router({
           subscriptionStatus: org?.subscriptionStatus || null,
           trialEndsAt: org?.trialEndsAt || null,
           permissions,
+          schoolLogo,
+          schoolName: userSet?.schoolName || null,
         };
       }
       
@@ -3946,12 +3956,19 @@ ${jsonSchemaFormat}`;
       schoolPhone: z.string().optional(),
       schoolWebsite: z.string().optional(),
       schoolDescription: z.string().optional(),
+      logoUrl: z.string().optional().nullable(),
       schoolHours: z.string().optional(),
       lessonDuration: z.number().optional(),
       dueDaysForecast: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
       await upsertSettings(orgId, ctx.user.id, input);
+      if (input.logoUrl !== undefined && orgId) {
+        const db = await getDb();
+        if (db) {
+          await db.update(organizations).set({ logo: input.logoUrl, updatedAt: new Date() }).where(eq(organizations.id, orgId));
+        }
+      }
       return { success: true };
     }),
 

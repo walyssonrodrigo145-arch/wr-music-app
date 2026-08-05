@@ -197,6 +197,7 @@ async function ensureSchemaConsistency(db: any) {
 
     // student_files folder and viewedAt
     await safeExecute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "folder" text`, "student_files.folder");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "logoUrl" text`, "settings.logoUrl");
     await safeExecute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "viewedAt" timestamp`, "student_files.viewedAt");
 
     // automations and students missing fields

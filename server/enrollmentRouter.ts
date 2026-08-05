@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms } from "../drizzle/schema";
+import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms, organizations } from "../drizzle/schema";
 import { eq, and, gte, lte, desc, isNotNull, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
@@ -158,9 +158,13 @@ export const enrollmentRouter = router({
       let parsedSchoolHours: Record<string, { active: boolean; start: string; end: string }> = {};
       try { parsedSchoolHours = JSON.parse(schoolSet?.schoolHours || "{}"); } catch (_) {}
 
+      const [org] = await db.select({ logo: organizations.logo }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      const schoolLogo = schoolSet?.logoUrl || org?.logo || null;
+
       return {
         code: link.code,
         schoolName: schoolSet?.schoolName || "Escola de Música",
+        schoolLogo,
         schoolPhone: schoolSet?.schoolPhone || schoolSet?.phone,
         monthlyFee: link.monthlyFee ? Number(link.monthlyFee) : 150,
         lessonDuration: schoolSet?.lessonDuration ?? 60,
