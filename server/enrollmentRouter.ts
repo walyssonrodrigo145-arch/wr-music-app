@@ -60,13 +60,36 @@ export const enrollmentRouter = router({
             const { sendWhatsAppMessage } = await import("./utils/whatsapp");
             const messageText = `Olá ${lead.name}! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${fullUrl}\n\nAcesse o link acima para escolher o melhor dia e horário para suas aulas!`;
             
-            const sendRes = await sendWhatsAppMessage({
+            // Tenta enviar com a sessão do usuário logado (prof_${ctx.user.id})
+            let sendRes = await sendWhatsAppMessage({
               url: schoolSet?.whatsappBotUrl || undefined,
               token: schoolSet?.whatsappBotToken || undefined,
-              sessionId: `org_${orgId}_user_${ctx.user.id}`,
+              sessionId: `prof_${ctx.user.id}`,
               phone: lead.phone,
               message: messageText,
             });
+
+            // Se falhou, tenta com a sessão do dono/configuração da escola (prof_${schoolSet.userId})
+            if (!sendRes.success && schoolSet?.userId && schoolSet.userId !== ctx.user.id) {
+              sendRes = await sendWhatsAppMessage({
+                url: schoolSet?.whatsappBotUrl || undefined,
+                token: schoolSet?.whatsappBotToken || undefined,
+                sessionId: `prof_${schoolSet.userId}`,
+                phone: lead.phone,
+                message: messageText,
+              });
+            }
+
+            // Se falhou, tenta com a sessão padrão (prof_1)
+            if (!sendRes.success) {
+              sendRes = await sendWhatsAppMessage({
+                url: schoolSet?.whatsappBotUrl || undefined,
+                token: schoolSet?.whatsappBotToken || undefined,
+                sessionId: `prof_1`,
+                phone: lead.phone,
+                message: messageText,
+              });
+            }
 
             if (sendRes.success) {
               sentViaBot = true;
