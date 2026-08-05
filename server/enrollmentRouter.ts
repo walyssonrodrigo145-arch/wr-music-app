@@ -57,21 +57,21 @@ export const enrollmentRouter = router({
               || allSettings.find(s => s.whatsappBotUrl)
               || allSettings[0];
 
-            if (schoolSet?.whatsappBotUrl && schoolSet?.whatsappBotToken) {
-              const { sendWhatsAppMessage } = await import("./utils/whatsapp");
-              const messageText = `Olá ${lead.name}! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${fullUrl}\n\nAcesse o link acima para escolher o melhor dia e horário para suas aulas!`;
-              
-              const sendRes = await sendWhatsAppMessage({
-                url: schoolSet.whatsappBotUrl,
-                token: schoolSet.whatsappBotToken,
-                sessionId: `org_${orgId}_user_${ctx.user.id}`,
-                phone: lead.phone,
-                message: messageText,
-              });
+            const { sendWhatsAppMessage } = await import("./utils/whatsapp");
+            const messageText = `Olá ${lead.name}! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${fullUrl}\n\nAcesse o link acima para escolher o melhor dia e horário para suas aulas!`;
+            
+            const sendRes = await sendWhatsAppMessage({
+              url: schoolSet?.whatsappBotUrl || undefined,
+              token: schoolSet?.whatsappBotToken || undefined,
+              sessionId: `org_${orgId}_user_${ctx.user.id}`,
+              phone: lead.phone,
+              message: messageText,
+            });
 
-              if (sendRes.success) {
-                sentViaBot = true;
-              }
+            if (sendRes.success) {
+              sentViaBot = true;
+            } else {
+              console.warn("[generateLink] Bot tentou enviar mas retornou erro:", sendRes.error);
             }
           }
         } catch (e) {
