@@ -68,6 +68,51 @@ async function getOrgPlanLimits(db: any, orgId: number) {
   };
 }
 
+// ─── Helper: Sincroniza valor da assinatura no Asaas considerando Alunos Excedentes ──────
+export async function syncOrgAsaasSubscription(db: any, orgId: number) {
+  try {
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+    if (!org || !org.asaasSubscriptionId) return;
+
+    const { systemPlans } = await import("../drizzle/schema");
+    const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, org.planId)).limit(1);
+    if (!planInfo) return;
+
+    const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(students)
+      .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
+
+    const maxStudents = planInfo.maxStudents ?? 999999;
+    const allowExtra = planInfo.allowExtraStudents ?? true;
+    const extraPrice = Number(planInfo.extraStudentPrice ?? 1.49);
+    const excessCount = Math.max(0, activeStudentsCount - maxStudents);
+    const excessFee = (allowExtra && excessCount > 0) ? excessCount * extraPrice : 0;
+
+    const { getAsaasSubscription, updateAsaasSubscription } = await import('./utils/asaas');
+    const asaasSub = await getAsaasSubscription(org.asaasSubscriptionId).catch(() => null);
+    if (!asaasSub) return;
+    
+    const cycle = asaasSub.cycle || "MONTHLY";
+    const baseValue = cycle === "YEARLY" ? Number(planInfo.priceYearly) : Number(planInfo.priceMonthly);
+    const totalValue = baseValue + excessFee;
+
+    const description = excessCount > 0
+      ? `Assinatura MusicPro - Plano ${planInfo.name} (${cycle}) + ${excessCount} alunos excedentes`
+      : `Assinatura MusicPro - Plano ${planInfo.name} (${cycle})`;
+
+    if (Math.abs(Number(asaasSub.value) - totalValue) > 0.01) {
+      await updateAsaasSubscription(org.asaasSubscriptionId, {
+        value: totalValue,
+        description,
+        cycle
+      });
+      console.log(`[AsaasSync] Org #${orgId} atualizada no Asaas. Ativos: ${activeStudentsCount}, Excedentes: ${excessCount}, Novo valor: R$ ${totalValue.toFixed(2)}`);
+    }
+  } catch (err) {
+    console.error(`[AsaasSync] Erro ao sincronizar assinatura da Org #${orgId}:`, err);
+  }
+}
+
 export const appRouter = router({
   superAdmin: superAdminRouter,
   reportEngine: reportEngineRouter,
@@ -2394,6 +2439,7 @@ ${jsonSchemaFormat}`;
           console.error("Erro ao notificar novo aluno:", e);
         }
         
+        await syncOrgAsaasSubscription(db, orgId).catch(console.error);
         return { success: true, studentId: newStudentId };
       } catch (error) {
         return handleDbError(error, "cadastrar o aluno");
@@ -2553,6 +2599,7 @@ ${jsonSchemaFormat}`;
           }
         }
         
+        await syncOrgAsaasSubscription(db, orgId).catch(console.error);
         return { success: true };
       } catch (error) {
         return handleDbError(error, "atualizar o aluno");
@@ -2617,6 +2664,7 @@ ${jsonSchemaFormat}`;
           ));
         }
 
+        await syncOrgAsaasSubscription(db, orgId).catch(console.error);
         return { success: true };
       } catch (error) {
         return handleDbError(error, "atualizar o status do aluno");
