@@ -46,9 +46,9 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
   try {
     const msg = await getMsg();
     if (msg) {
-      if (forceRefresh) {
-        try { await deleteToken(msg); } catch {}
-      }
+      // Deleta o token cached localmente no navegador antes de pedir um novo
+      try { await deleteToken(msg); } catch (e) { console.log('[FCM Delete] Erro ou sem token prévio:', e); }
+      
       let swReg: ServiceWorkerRegistration | undefined = undefined;
       if ('serviceWorker' in navigator) {
         try {
