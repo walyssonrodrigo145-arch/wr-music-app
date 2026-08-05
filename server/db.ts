@@ -199,6 +199,9 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "folder" text`, "student_files.folder");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "logoUrl" text`, "settings.logoUrl");
     await safeExecute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "viewedAt" timestamp`, "student_files.viewedAt");
+    await safeExecute(sql`ALTER TABLE "analytics_visitors" ADD COLUMN IF NOT EXISTS "total_events" integer DEFAULT 0 NOT NULL`, "analytics_visitors.total_events");
+    await safeExecute(sql`ALTER TABLE "analytics_sessions" ADD COLUMN IF NOT EXISTS "organization_id" integer`, "analytics_sessions.organization_id");
+    await safeExecute(sql`ALTER TABLE "analytics_events" ADD COLUMN IF NOT EXISTS "organization_id" integer`, "analytics_events.organization_id");
 
     // automations and students missing fields
     await safeExecute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "allowAutoReminders" boolean DEFAULT true NOT NULL`, "students.allowAutoReminders");
