@@ -78,7 +78,7 @@ export async function syncOrgAsaasSubscription(db: any, orgId: number) {
     const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, org.planId)).limit(1);
     if (!planInfo) return;
 
-    const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
+    const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)` })
       .from(students)
       .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
 
@@ -2336,7 +2336,7 @@ ${jsonSchemaFormat}`;
         // --- Verificação de limite de plano ---
         const planInfo = await getOrgPlanLimits(db, orgId);
         
-        const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
+        const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)` })
           .from(students)
           .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
         
@@ -2540,7 +2540,7 @@ ${jsonSchemaFormat}`;
         if (updateData.status === 'ativo' && existing.status !== 'ativo') {
           const planInfo = await getOrgPlanLimits(db, orgId);
           
-          const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
+          const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)` })
             .from(students)
             .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
           
@@ -2622,7 +2622,7 @@ ${jsonSchemaFormat}`;
         if (existing && input.status === 'ativo' && existing.status !== 'ativo') {
           const planInfo = await getOrgPlanLimits(db, orgId);
           
-          const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)::int` })
+          const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)` })
             .from(students)
             .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
           
@@ -10001,7 +10001,7 @@ Texto original para reescrever:
 
         // Count sent/error from reminders with auto-rule prefix
         const [sentCount] = await db
-          .select({ count: sql<number>`count(*)::int` })
+          .select({ count: sql<number>`count(*)` })
           .from(reminders)
           .where(
             and(
@@ -10013,7 +10013,7 @@ Texto original para reescrever:
           );
 
         const [totalCount] = await db
-          .select({ count: sql<number>`count(*)::int` })
+          .select({ count: sql<number>`count(*)` })
           .from(reminders)
           .where(
             and(
