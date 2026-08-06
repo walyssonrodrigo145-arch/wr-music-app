@@ -60,6 +60,10 @@ function SuperAdminPanel() {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<any>(null);
 
+  // Redefinir Senha
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+
   // FIX: estados controlados para os Switches dos planos
   const [planIsActive, setPlanIsActive] = useState(true);
   const [planShowOnLanding, setPlanShowOnLanding] = useState(true);
@@ -125,6 +129,15 @@ function SuperAdminPanel() {
       setSelectedSchool((prev: any) => prev ? { ...prev, subscriptionStatus: variables.subscriptionStatus } : prev);
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
+
+  const resetPasswordMutation = trpc.superAdmin.resetUserPassword.useMutation({
+    onSuccess: () => {
+      toast.success("Nova senha definida com sucesso!");
+      setIsResetPasswordOpen(false);
+      setNewPasswordInput("");
+    },
+    onError: (err) => toast.error(`Erro ao redefinir senha: ${err.message}`),
   });
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -340,10 +353,30 @@ function SuperAdminPanel() {
                       <p className="text-muted-foreground font-medium">Criada em</p>
                       <p className="font-bold">{new Date(selectedSchool.createdAt).toLocaleDateString('pt-BR')}</p>
                     </div>
-                    <div className="col-span-2 bg-muted/50 p-3 rounded-lg">
-                      <p className="text-muted-foreground font-medium text-xs mb-1">Dono / Administrador Principal</p>
-                      <p className="font-bold">{selectedSchool.owner?.name || "Não encontrado"}</p>
-                      <p className="text-muted-foreground text-sm">{selectedSchool.owner?.email || "N/A"}</p>
+                    <div className="col-span-2 bg-muted/50 p-3 rounded-lg flex items-center justify-between">
+                      <div>
+                        <p className="text-muted-foreground font-medium text-xs mb-1">Dono / Administrador Principal</p>
+                        <p className="font-bold">{selectedSchool.owner?.name || selectedSchool.name}</p>
+                        <p className="text-muted-foreground text-sm">{selectedSchool.owner?.email || "Email não informado"}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 border-l border-border/60 pl-4">
+                        {selectedSchool.lastSignedIn && (
+                          <div className="text-right">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground/70">Último Acesso</p>
+                            <p className="text-xs font-bold text-emerald-500">
+                              {new Date(selectedSchool.lastSignedIn).toLocaleDateString('pt-BR')} às {new Date(selectedSchool.lastSignedIn).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        )}
+                        {selectedSchool.owner?.id && (
+                          <button
+                            onClick={() => { setNewPasswordInput(""); setIsResetPasswordOpen(true); }}
+                            className="text-[11px] font-bold text-indigo-500 hover:text-indigo-600 hover:underline flex items-center gap-1"
+                          >
+                            🔑 Definir Nova Senha
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="bg-muted/50 p-3 rounded-lg text-center">
                       <p className="text-3xl font-black text-primary">{selectedSchool.totalUsers}</p>
@@ -390,7 +423,45 @@ function SuperAdminPanel() {
             </DialogContent>
           </Dialog>
 
-          {/* Modal de Confirmação de Exclusão (Desaninhado do Dialog Pai para evitar bug do Radix UI) */}
+          {/* Modal de Alteração de Senha */}
+          <Dialog open={isResetPasswordOpen} onOpenChange={setIsResetPasswordOpen}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Definir Nova Senha de Acesso</DialogTitle>
+                <DialogDescription>
+                  Defina uma nova senha temporária para o usuário <strong>{selectedSchool?.owner?.name || selectedSchool?.name}</strong> ({selectedSchool?.owner?.email}).
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Nova Senha</Label>
+                  <Input 
+                    type="text"
+                    placeholder="Mínimo 6 caracteres"
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsResetPasswordOpen(false)}>Cancelar</Button>
+                <Button
+                  disabled={resetPasswordMutation.isPending || newPasswordInput.length < 6}
+                  onClick={() => {
+                    if (selectedSchool?.owner?.id) {
+                      resetPasswordMutation.mutate({
+                        userId: selectedSchool.owner.id,
+                        newPassword: newPasswordInput,
+                      });
+                    }
+                  }}
+                >
+                  {resetPasswordMutation.isPending && <Loader2 className="animate-spin mr-2" size={16} />}
+                  Salvar Nova Senha
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
             <DialogContent>
               <DialogHeader>

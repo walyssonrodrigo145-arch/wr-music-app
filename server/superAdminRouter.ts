@@ -141,22 +141,46 @@ export const superAdminRouter = router({
       total: sql<number>`CAST(count(*) AS INT)`,
     }).from(students).groupBy(students.organizationId);
 
-    // FIX: buscar owner com apenas campos seguros (sem passwordHash, tokens)
-    const admins = await db.select({
+    // Busca os usuários admins e o último acesso por organização
+    const allUsers = await db.select({
       id: users.id,
       name: users.name,
       email: users.email,
       organizationId: users.organizationId,
       role: users.role,
-    }).from(users).where(eq(users.role, 'admin'));
+      lastSignedIn: users.lastSignedIn,
+      createdAt: users.createdAt,
+    }).from(users);
 
     const userCountMap = new Map(userCounts.map(r => [r.organizationId, r.total]));
     const studentCountMap = new Map(studentCounts.map(r => [r.organizationId, r.total]));
-    const adminMap = new Map(admins.map(a => [a.organizationId, a]));
+    
+    // Mapeia donos por org (priorizando role='admin', senão o primeiro usuário criado da org)
+    const ownerMap = new Map<number | null, any>();
+    const lastAccessMap = new Map<number | null, Date>();
+
+    for (const u of allUsers) {
+      if (!u.organizationId) continue;
+
+      // Guarda a data do último acesso mais recente da organização
+      const currentLatest = lastAccessMap.get(u.organizationId);
+      if (!currentLatest || (u.lastSignedIn && new Date(u.lastSignedIn) > new Date(currentLatest))) {
+        lastAccessMap.set(u.organizationId, u.lastSignedIn);
+      }
+
+      // Define dono
+      const existingOwner = ownerMap.get(u.organizationId);
+      if (!existingOwner) {
+        ownerMap.set(u.organizationId, u);
+      } else if (existingOwner.role !== 'admin' && u.role === 'admin') {
+        ownerMap.set(u.organizationId, u);
+      }
+    }
 
     return orgsList.map(org => ({
       ...org,
-      owner: adminMap.get(org.id) ?? null,
+      owner: ownerMap.get(org.id) ?? null,
+      lastSignedIn: lastAccessMap.get(org.id) ?? null,
       totalUsers: userCountMap.get(org.id) ?? 0,
       totalStudents: studentCountMap.get(org.id) ?? 0,
     }));
@@ -381,6 +405,27 @@ export const superAdminRouter = router({
         .where(eq(organizations.id, input.orgId));
 
       console.log(`[SuperAdmin] Status da org #${input.orgId} alterado para "${input.subscriptionStatus}".`);
+      return { success: true };
+    }),
+
+  // ─── Ação de suporte: redefinir senha do usuário administrador da escola ─────
+  resetUserPassword: isSuperAdmin
+    .input(z.object({
+      userId: z.number().int().positive(),
+      newPassword: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const { hashPassword } = await import("./_core/auth");
+      const passwordHash = await hashPassword(input.newPassword);
+
+      await db.update(users)
+        .set({ passwordHash, mustChangePassword: true, updatedAt: new Date() })
+        .where(eq(users.id, input.userId));
+
+      console.log(`[SuperAdmin] Senha do usuário #${input.userId} redefinida pelo Super Admin.`);
       return { success: true };
     }),
 });

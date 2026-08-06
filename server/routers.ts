@@ -9447,6 +9447,17 @@ Texto original para reescrever:
           ? `Assinatura MusicPro - Plano ${planInfo?.name || planId} (${input.planType}) + ${excessCount} alunos excedentes`
           : `Assinatura MusicPro - Plano ${planInfo?.name || planId} (${input.planType})`;
 
+        // Se já existia uma assinatura antiga no Asaas, cancela ela para não gerar cobrança duplicada
+        if (org.asaasSubscriptionId) {
+          try {
+            const { deleteAsaasSubscription } = await import('./utils/asaas');
+            await deleteAsaasSubscription(org.asaasSubscriptionId);
+            console.log(`[Reactivate] Assinatura anterior #${org.asaasSubscriptionId} cancelada no Asaas.`);
+          } catch (err) {
+            console.warn(`[Reactivate] Erro ao cancelar assinatura anterior #${org.asaasSubscriptionId}:`, err);
+          }
+        }
+
         // Cria nova assinatura no Asaas
         const sub = await createAsaasSubscription({
           customer: customerId,
