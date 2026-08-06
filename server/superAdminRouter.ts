@@ -3,7 +3,53 @@ import { router, protectedProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "./db";
 import { eq, sql, count } from "drizzle-orm";
-import { systemPlans, systemCoupons, organizations, users, students } from "../drizzle/schema";
+import {
+  systemPlans,
+  systemCoupons,
+  organizations,
+  users,
+  students,
+  professores,
+  instruments,
+  lessons,
+  monthlyStats,
+  settings,
+  reminders,
+  reminderTemplates,
+  paymentDues,
+  billingAuditLogs,
+  asaasCustomers,
+  expenses,
+  studentGoals,
+  studentTimeline,
+  studentFiles,
+  fileComments,
+  announcements,
+  chatMessages,
+  rescheduleRequests,
+  studentEvolution,
+  dailyStudyPlans,
+  notifications,
+  aiConversations,
+  aiDocuments,
+  chatbotSessions,
+  fcmTokens,
+  contracts,
+  professorPayments,
+  attendanceTokens,
+  attendanceLogs,
+  messageAutomationRules,
+  marketingCampaigns,
+  marketingContacts,
+  marketingJobs,
+  marketingLogs,
+  analyticsSessions,
+  analyticsRevenue,
+  analyticsSecurityLogs,
+  crmLeads,
+  studioRooms,
+  enrollmentLinks,
+} from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 // ─── Middleware de autorização ────────────────────────────────────────────────
@@ -116,7 +162,7 @@ export const superAdminRouter = router({
     }));
   }),
 
-  // ─── Exclusão de organização: com transação e SQL parametrizado ──────────
+  // ─── Exclusão de organização: com transação e Drizzle tipado ─────────────
   deleteOrganization: isSuperAdmin
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ input }) => {
@@ -136,21 +182,62 @@ export const superAdminRouter = router({
       }
 
       // FIX: envolver em transação para garantir atomicidade
-      // FIX: usar sql`` parametrizado para cada tabela (sem sql.raw + concatenação)
+      // FIX: usar Drizzle delete tipado com schema oficial (evita erros de tabelas inexistentes como "messages")
       await db.transaction(async (tx) => {
-        // Deleção em cascata usando queries Drizzle tipadas e seguras
-        await tx.execute(sql`DELETE FROM "payment_dues" WHERE "organizationId" = ${orgId}`);
-        await tx.execute(sql`DELETE FROM "lessons" WHERE "organizationId" = ${orgId}`);
-        await tx.execute(sql`DELETE FROM "students" WHERE "organizationId" = ${orgId}`);
-        await tx.execute(sql`DELETE FROM "expenses" WHERE "organizationId" = ${orgId}`);
-        await tx.execute(sql`DELETE FROM "settings" WHERE "organizationId" = ${orgId}`);
-        await tx.execute(sql`DELETE FROM "messages" WHERE "organizationId" = ${orgId}`);
-        await tx.execute(sql`DELETE FROM "notices" WHERE "organizationId" = ${orgId}`);
-        await tx.execute(sql`DELETE FROM "automations" WHERE "organizationId" = ${orgId}`);
+        // Deleção em ordem respeitando dependências / FKs
+        await tx.delete(marketingLogs).where(eq(marketingLogs.organizationId, orgId));
+        await tx.delete(marketingJobs).where(eq(marketingJobs.organizationId, orgId));
+        await tx.delete(marketingContacts).where(eq(marketingContacts.organizationId, orgId));
+        await tx.delete(marketingCampaigns).where(eq(marketingCampaigns.organizationId, orgId));
+
+        await tx.delete(fileComments).where(eq(fileComments.organizationId, orgId));
+        await tx.delete(studentFiles).where(eq(studentFiles.organizationId, orgId));
+        await tx.delete(studentTimeline).where(eq(studentTimeline.organizationId, orgId));
+        await tx.delete(studentGoals).where(eq(studentGoals.organizationId, orgId));
+        await tx.delete(studentEvolution).where(eq(studentEvolution.organizationId, orgId));
+        await tx.delete(dailyStudyPlans).where(eq(dailyStudyPlans.organizationId, orgId));
+        await tx.delete(rescheduleRequests).where(eq(rescheduleRequests.organizationId, orgId));
+
+        await tx.delete(attendanceLogs).where(eq(attendanceLogs.organizationId, orgId));
+        await tx.delete(attendanceTokens).where(eq(attendanceTokens.organizationId, orgId));
+        await tx.delete(professorPayments).where(eq(professorPayments.organizationId, orgId));
+        await tx.delete(contracts).where(eq(contracts.organizationId, orgId));
+        await tx.delete(asaasCustomers).where(eq(asaasCustomers.organizationId, orgId));
+        await tx.delete(billingAuditLogs).where(eq(billingAuditLogs.organizationId, orgId));
+        await tx.delete(paymentDues).where(eq(paymentDues.organizationId, orgId));
+        await tx.delete(reminders).where(eq(reminders.organizationId, orgId));
+        await tx.delete(reminderTemplates).where(eq(reminderTemplates.organizationId, orgId));
+
+        await tx.delete(chatMessages).where(eq(chatMessages.organizationId, orgId));
+        await tx.delete(announcements).where(eq(announcements.organizationId, orgId));
+        await tx.delete(messageAutomationRules).where(eq(messageAutomationRules.organizationId, orgId));
+
+        await tx.delete(notifications).where(eq(notifications.organizationId, orgId));
+        await tx.delete(fcmTokens).where(eq(fcmTokens.organizationId, orgId));
+        await tx.delete(aiConversations).where(eq(aiConversations.organizationId, orgId));
+        await tx.delete(aiDocuments).where(eq(aiDocuments.organizationId, orgId));
+        await tx.delete(chatbotSessions).where(eq(chatbotSessions.organizationId, orgId));
+
+        await tx.delete(crmLeads).where(eq(crmLeads.organizationId, orgId));
+        await tx.delete(studioRooms).where(eq(studioRooms.organizationId, orgId));
+        await tx.delete(enrollmentLinks).where(eq(enrollmentLinks.organizationId, orgId));
+
+        await tx.delete(analyticsSessions).where(eq(analyticsSessions.organizationId, orgId));
+        await tx.delete(analyticsRevenue).where(eq(analyticsRevenue.organizationId, orgId));
+        await tx.delete(analyticsSecurityLogs).where(eq(analyticsSecurityLogs.organizationId, orgId));
+
+        await tx.delete(lessons).where(eq(lessons.organizationId, orgId));
+        await tx.delete(students).where(eq(students.organizationId, orgId));
+        await tx.delete(professores).where(eq(professores.organizationId, orgId));
+        await tx.delete(instruments).where(eq(instruments.organizationId, orgId));
+        await tx.delete(expenses).where(eq(expenses.organizationId, orgId));
+        await tx.delete(settings).where(eq(settings.organizationId, orgId));
+        await tx.delete(monthlyStats).where(eq(monthlyStats.organizationId, orgId));
+
         // Deleta usuários da organização (professores, admins)
-        await tx.execute(sql`DELETE FROM "users" WHERE "organizationId" = ${orgId}`);
+        await tx.delete(users).where(eq(users.organizationId, orgId));
         // Por último, deleta a organização em si
-        await tx.execute(sql`DELETE FROM "organizations" WHERE "id" = ${orgId}`);
+        await tx.delete(organizations).where(eq(organizations.id, orgId));
       });
 
       console.log(`[SuperAdmin] Organização #${orgId} ("${org.name}") excluída permanentemente.`);
