@@ -95,13 +95,21 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     } catch {
       return "Inválida";
     }
-  };
+  };  const lastLoadedLessonId = useRef<string | number | null>(null);
 
   useEffect(() => {
-    if (open) {
-      if (editingLesson) {
-        // Usa freshLesson (do banco) se disponível, caso contrário usa editingLesson da memória
-        const source = freshLesson ?? editingLesson;
+    if (!open) {
+      lastLoadedLessonId.current = null;
+      return;
+    }
+
+    if (editingLesson) {
+      const lessonId = editingLesson.id;
+      const hasFresh = freshLesson && freshLesson.id === lessonId;
+      const currentKey = hasFresh ? `fresh_${lessonId}` : `editing_${lessonId}`;
+
+      if (lastLoadedLessonId.current !== currentKey) {
+        const source = hasFresh ? freshLesson : editingLesson;
         setFormData({
           studentId: source.studentId?.toString() || "",
           title: source.title || "",
@@ -119,48 +127,31 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           lessonType: source.lessonType || "individual",
           turmaStudentIds: []
         });
-      } else {
-        setFormData({
-          studentId: "",
-          title: "",
-          time: initialDate ? format(initialDate, "HH:mm") : "09:00",
-          date: initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-          duration: 60,
-          notes: "",
-          instrumentId: "",
-          studioRoomId: "",
-          weeksCount: 1,
-          updateSeries: false,
-          isExperimental: false,
-          experimentalName: "",
-          experimentalPhone: "",
-          lessonType: "individual",
-          turmaStudentIds: []
-        });
+        lastLoadedLessonId.current = currentKey;
       }
-      setConflictError(null);
-      setStep("form");
+    } else if (lastLoadedLessonId.current !== "new") {
+      setFormData({
+        studentId: "",
+        title: "",
+        time: initialDate ? format(initialDate, "HH:mm") : "09:00",
+        date: initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        duration: 60,
+        notes: "",
+        instrumentId: "",
+        studioRoomId: "",
+        weeksCount: 1,
+        updateSeries: false,
+        isExperimental: false,
+        experimentalName: "",
+        experimentalPhone: "",
+        lessonType: "individual",
+        turmaStudentIds: []
+      });
+      lastLoadedLessonId.current = "new";
     }
-  }, [open, initialDate, editingLesson]);
-
-  // Quando os dados frescos do banco chegarem (async), re-popula o formulário
-  // Isso garante que studioRoomId sempre reflita o valor real do banco
-  useEffect(() => {
-    if (open && editingLesson && freshLesson) {
-      setFormData(prev => ({
-        ...prev,
-        studentId: freshLesson.studentId?.toString() || prev.studentId,
-        title: freshLesson.title || prev.title,
-        notes: freshLesson.notes || prev.notes,
-        instrumentId: freshLesson.instrumentId?.toString() || prev.instrumentId,
-        studioRoomId: freshLesson.studioRoomId != null ? freshLesson.studioRoomId.toString() : "",
-        isExperimental: !!freshLesson.isExperimental,
-        experimentalName: freshLesson.experimentalName || prev.experimentalName,
-        experimentalPhone: (freshLesson as any).experimentalPhone || prev.experimentalPhone,
-        lessonType: freshLesson.lessonType || prev.lessonType,
-      }));
-    }
-  }, [freshLesson]);
+    setConflictError(null);
+    setStep("form");
+  }, [open, initialDate, editingLesson, freshLesson]);
 
   const checkConflicts = trpc.lessons.checkConflicts.useQuery({
     firstDate: (() => {
@@ -183,6 +174,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       toast.success(`${data.count} aula(s) agendada(s) com sucesso!`);
       utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
+      utils.lessons.getById.invalidate();
+      utils.studioRooms.list.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
       resetForm();
@@ -195,11 +188,13 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       toast.success(`${data.count} aula(s) de turma agendada(s)!`);
       utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
+      utils.lessons.getById.invalidate();
+      utils.studioRooms.list.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
       resetForm();
     },
-    onError: (e) => toast.error("Erro no agendamento em turma: " + e.message)
+    onError: (e) => toast.error("Erro no agendamento de turma: " + e.message)
   });
 
   const resetForm = () => {
@@ -230,6 +225,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       toast.success("Aula agendada com sucesso!");
       utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
+      utils.lessons.getById.invalidate();
+      utils.studioRooms.list.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
       resetForm();
@@ -238,8 +235,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       if (e.message.includes("conflito") || e.message.includes("sobrepõe")) {
         setConflictError(e.message);
       } else {
-        // Mostra o erro detalhado vindo do banco (handleDbError já formata isso)
-        toast.error(e.message);
+        toast.error("Erro ao agendar: " + e.message);
       }
     }
   });
@@ -249,6 +245,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       toast.success("Aula atualizada com sucesso!");
       utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
+      utils.lessons.getById.invalidate();
+      utils.studioRooms.list.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
       resetForm();

@@ -2801,7 +2801,10 @@ ${jsonSchemaFormat}`;
         .where(and(
           eq(lessons.id, input.id),
           eq(lessons.organizationId, orgId),
-          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
+          isUserAdmin ? undefined : or(
+            eq(lessons.userId, ctx.user.id),
+            eq(students.professorId, ctx.user.id)
+          )
         )).limit(1);
       return lesson ?? null;
     }),
@@ -3120,11 +3123,25 @@ ${jsonSchemaFormat}`;
         const updateSeries = _updateSeries === true;
 
         // Buscar aula atual para pegar o recurringGroupId e data original
-        const [currentLesson] = await db.select().from(lessons).where(and(
-          eq(lessons.id, id), 
-          eq(lessons.organizationId, orgId), 
-          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
-        )).limit(1);
+        const [currentLesson] = await db.select({
+          id: lessons.id,
+          title: lessons.title,
+          scheduledAt: lessons.scheduledAt,
+          duration: lessons.duration,
+          lessonType: lessons.lessonType,
+          userId: lessons.userId,
+          recurringGroupId: lessons.recurringGroupId,
+          studioRoomId: lessons.studioRoomId,
+        }).from(lessons)
+          .leftJoin(students, eq(lessons.studentId, students.id))
+          .where(and(
+            eq(lessons.id, id), 
+            eq(lessons.organizationId, orgId), 
+            isUserAdmin ? undefined : or(
+              eq(lessons.userId, ctx.user.id),
+              eq(students.professorId, ctx.user.id)
+            )
+          )).limit(1);
         if (!currentLesson) throw new Error("Aula não encontrada ou você não tem permissão.");
 
         // Segurança: Verificar propriedade do aluno se estiver sendo alterado
@@ -3266,8 +3283,7 @@ ${jsonSchemaFormat}`;
         finalUpdateData.updatedAt = new Date();
         await db.update(lessons).set(finalUpdateData).where(and(
           eq(lessons.id, id), 
-          eq(lessons.organizationId, orgId), 
-          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
+          eq(lessons.organizationId, orgId)
         ));
         return { success: true };
       } catch (error) {
