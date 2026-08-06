@@ -136,10 +136,11 @@ export const superAdminRouter = router({
       total: sql<number>`CAST(count(*) AS INT)`,
     }).from(professores).groupBy(professores.organizationId);
 
+    // Busca a quantidade real de alunos ATIVOS cadastrados por escola
     const studentCounts = await db.select({
       organizationId: students.organizationId,
       total: sql<number>`CAST(count(*) AS INT)`,
-    }).from(students).groupBy(students.organizationId);
+    }).from(students).where(eq(students.status, "ativo")).groupBy(students.organizationId);
 
     // Busca os usuários admins e o último acesso por organização
     const allUsers = await db.select({
