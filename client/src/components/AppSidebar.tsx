@@ -80,6 +80,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   const { data: settings } = trpc.settings.get.useQuery();
 
   const hiddenTabs = settings?.hiddenTabs ? settings.hiddenTabs.split(",") : [];
+  const isProfessor = user?.role === 'professor';
   
   const navItems: NavItem[] = staticNavItems
     .filter(item => {
