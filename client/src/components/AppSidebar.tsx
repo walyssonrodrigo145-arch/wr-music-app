@@ -281,7 +281,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
           );
         })}
 
-        {!collapsed && (
+        {!collapsed && !isProfessor && (
           <div className="mx-1 my-4 p-4 rounded-2xl bg-gradient-to-br from-indigo-950/60 to-slate-900 border border-indigo-500/20 shadow-lg shadow-indigo-950/40 relative overflow-hidden group">
              <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all" />
              <div className="flex items-center gap-2.5 mb-2">
