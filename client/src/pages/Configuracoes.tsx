@@ -1166,7 +1166,13 @@ export default function Configuracoes() {
           {/* Sidebar de abas - Horizontal scroll on mobile */}
           <div className="w-full lg:w-64 shrink-0 overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
             <div className="flex lg:flex-col gap-2 bg-card p-2 rounded-2xl border border-border shadow-sm min-w-max lg:min-w-0">
-              {TABS.map(tab => {
+              {TABS.filter(tab => {
+                // Se o usuário for professor, exibe APENAS as abas permitidas
+                if (user?.role === 'professor') {
+                  return ['perfil', 'aparencia', 'seguranca', 'ajuda'].includes(tab.id);
+                }
+                return true;
+              }).map(tab => {
                 const Icon = tab.icon;
                 return (
                   <button
