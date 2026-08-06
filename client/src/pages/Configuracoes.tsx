@@ -1011,7 +1011,8 @@ export default function Configuracoes() {
   const updateSchool = trpc.settings.updateSchool.useMutation({
     onSuccess: () => {
       toast.success("Dados da escola atualizados!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
-    utils.settings.get.invalidate();
+      utils.settings.get.invalidate();
+      utils.auth.me.invalidate();
     },
     onError: (e) => {
       let msg = e.message;

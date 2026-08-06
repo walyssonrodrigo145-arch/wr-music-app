@@ -480,6 +480,10 @@ async function ensureSchemaConsistency(db: any) {
 
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "lessonDuration" integer DEFAULT 60 NOT NULL`, "settings lessonDuration");
 
+    // M-01 FIX: billingPeriodicity — nova coluna adicionada no schema mas sem migration explícita
+    await safeExecute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "billingPeriodicity" varchar(20) DEFAULT 'mensal' NOT NULL`, "students.billingPeriodicity");
+    await safeExecute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "billingPeriodicity" varchar(20) DEFAULT 'mensal'`, "payment_dues.billingPeriodicity");
+
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
   }

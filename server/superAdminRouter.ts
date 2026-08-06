@@ -85,15 +85,15 @@ export const superAdminRouter = router({
     // FIX: usar COUNT(*) em vez de SELECT * para evitar Full Table Scan em memória
     const [{ totalOrgs }] = await db.select({ totalOrgs: sql<number>`CAST(count(*) AS INT)` }).from(organizations);
     const [{ totalProfs }] = await db.select({ totalProfs: sql<number>`CAST(count(*) AS INT)` }).from(users).where(eq(users.role, "professor"));
-    const [{ totalStuds }] = await db.select({ totalStuds: sql<number>`CAST(count(*) AS INT)` }).from(students);
+    const [{ totalStuds }] = await db.select({ totalStuds: sql<number>`CAST(count(*) AS INT)` }).from(students).where(eq(students.status, "ativo"));
 
-    // Últimas 10 organizações para o painel — apenas campos seguros
+    // Últimas 10 organizações para o painel — ordenadas por criação
     const recentOrgs = await db.select({
       id: organizations.id,
       name: organizations.name,
       subscriptionStatus: organizations.subscriptionStatus,
       createdAt: organizations.createdAt,
-    }).from(organizations).limit(10);
+    }).from(organizations).orderBy(sql`${organizations.createdAt} DESC`).limit(10);
 
     return {
       totalOrganizations: totalOrgs,
@@ -360,7 +360,7 @@ export const superAdminRouter = router({
     .input(z.object({
       orgId: z.number().int().positive(),
       // Valores válidos que correspondem aos usados no sistema
-      subscriptionStatus: z.enum(['active', 'trialing', 'past_due', 'canceled', 'inactive', 'suspended']),
+      subscriptionStatus: z.enum(['active', 'trialing', 'pending', 'past_due', 'canceled', 'inactive', 'suspended']),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();

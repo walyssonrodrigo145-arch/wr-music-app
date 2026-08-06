@@ -393,6 +393,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       duration: formData.duration,
       notes: formData.notes,
       instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+      studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
       items: batchItems.map(item => ({
         scheduledAt: item.scheduledAt,
         force: item.force

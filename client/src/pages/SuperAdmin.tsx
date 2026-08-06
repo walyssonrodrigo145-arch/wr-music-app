@@ -23,8 +23,6 @@ const SUPER_ADMIN_EMAILS = ['walyssonrodrigo145@gmail.com', 'ddwvitor@gmail.com'
 export default function SuperAdmin() {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons">("dashboard");
 
   // ─── Proteção de rota: apenas os emails de Super Admin ─────────────────────────
   if (!loading && (!user || !user.email || !SUPER_ADMIN_EMAILS.includes(user.email.toLowerCase()))) {
@@ -261,8 +259,9 @@ function SuperAdminPanel() {
                       <span className={`text-xs px-2 py-1 rounded-full font-bold ${
                         org.subscriptionStatus === 'active' ? 'bg-green-500/10 text-green-600' :
                         org.subscriptionStatus === 'trial' ? 'bg-blue-500/10 text-blue-600' :
+                        org.subscriptionStatus === 'pending' ? 'bg-yellow-500/10 text-yellow-600' :
                         'bg-red-500/10 text-red-600'
-                      }`}>{org.subscriptionStatus}</span>
+                      }`}>{org.subscriptionStatus === 'pending' ? 'aguardando' : org.subscriptionStatus}</span>
                     </div>
                   ))}
                 </div>
@@ -305,8 +304,9 @@ function SuperAdminPanel() {
                         <span className={`text-xs px-2 py-1 rounded-full font-bold ${
                           org.subscriptionStatus === 'active' ? 'bg-green-500/10 text-green-600' :
                           org.subscriptionStatus === 'trial' ? 'bg-blue-500/10 text-blue-600' :
+                          org.subscriptionStatus === 'pending' ? 'bg-yellow-500/10 text-yellow-600' :
                           'bg-red-500/10 text-red-600'
-                        }`}>{org.subscriptionStatus}</span>
+                        }`}>{org.subscriptionStatus === 'pending' ? 'aguardando' : org.subscriptionStatus}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
@@ -359,7 +359,7 @@ function SuperAdminPanel() {
                   <div className="border-t border-border pt-4">
                     <p className="text-xs font-bold text-muted-foreground mb-2">ALTERAR STATUS DA ASSINATURA</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {(['active', 'trialing', 'inactive', 'suspended'] as const).map(s => (
+                      {(['active', 'trialing', 'pending', 'inactive', 'suspended'] as const).map(s => (
                         <button
                           key={s}
                           disabled={updateOrgSub.isPending || selectedSchool.subscriptionStatus === s}
@@ -369,7 +369,7 @@ function SuperAdminPanel() {
                               ? 'bg-primary text-white border-primary cursor-default'
                               : 'bg-muted hover:bg-muted/60 text-foreground border-border'}`}
                         >
-                          {s === 'active' ? '✅ Ativo' : s === 'trialing' ? '🕒 Trial' : s === 'inactive' ? '❌ Inativo' : '🚫 Suspenso'}
+                          {s === 'active' ? '✅ Ativo' : s === 'trialing' ? '🕒 Trial' : s === 'pending' ? '⏳ Pendente' : s === 'inactive' ? '❌ Inativo' : '🚫 Suspenso'}
                         </button>
                       ))}
                     </div>
@@ -378,41 +378,43 @@ function SuperAdminPanel() {
                   {/* Zona de Perigo: Excluir */}
                   <div className="border-t border-red-200 pt-4">
                     <p className="text-xs text-red-500 font-bold text-center mb-3">ZONA DE PERIGO — Ação irreversível</p>
-                    {/* FIX: substituído confirm() por Dialog de confirmação */}
-                    <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-                      <DialogTrigger asChild>
-                        <button className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
-                          <Trash2 size={16} /> Excluir Escola e Todos os Dados
-                        </button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2 text-red-500">
-                            <AlertTriangle size={20} /> Confirmar Exclusão
-                          </DialogTitle>
-                          <DialogDescription className="pt-2">
-                            Você está prestes a excluir permanentemente a escola <strong>{selectedSchool.name}</strong> e{" "}
-                            <strong>todos os {selectedSchool.totalStudents} alunos</strong> e{" "}
-                            <strong>{selectedSchool.totalUsers} professores</strong> vinculados.{" "}
-                            Esta ação <strong>não pode ser desfeita</strong>.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter className="gap-2 pt-2">
-                          <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancelar</Button>
-                          <Button
-                            variant="destructive"
-                            disabled={deleteSchool.isPending}
-                            onClick={() => deleteSchool.mutate({ id: selectedSchool.id })}
-                          >
-                            {deleteSchool.isPending ? <Loader2 className="animate-spin mr-2" size={16} /> : <Trash2 size={16} className="mr-2" />}
-                            Sim, excluir permanentemente
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                    <button 
+                      onClick={() => setIsDeleteConfirmOpen(true)}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={16} /> Excluir Escola e Todos os Dados
+                    </button>
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Modal de Confirmação de Exclusão (Desaninhado do Dialog Pai para evitar bug do Radix UI) */}
+          <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-500">
+                  <AlertTriangle size={20} /> Confirmar Exclusão
+                </DialogTitle>
+                <DialogDescription className="pt-2">
+                  Você está prestes a excluir permanentemente a escola <strong>{selectedSchool?.name}</strong> e{" "}
+                  <strong>todos os {selectedSchool?.totalStudents} alunos</strong> e{" "}
+                  <strong>{selectedSchool?.totalUsers} professores</strong> vinculados.{" "}
+                  Esta ação <strong>não pode ser desfeita</strong>.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancelar</Button>
+                <Button
+                  variant="destructive"
+                  disabled={deleteSchool.isPending || !selectedSchool}
+                  onClick={() => selectedSchool && deleteSchool.mutate({ id: selectedSchool.id })}
+                >
+                  {deleteSchool.isPending ? <Loader2 className="animate-spin mr-2" size={16} /> : <Trash2 size={16} className="mr-2" />}
+                  Sim, excluir permanentemente
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>

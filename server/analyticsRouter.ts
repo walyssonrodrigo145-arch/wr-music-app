@@ -49,8 +49,7 @@ const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
     userEmail === superAdminEmail ||
     userEmail === "walyssonrodrigo145@gmail.com" ||
     userEmail === "ddwvitor@gmail.com" ||
-    (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId) ||
-    ctx.user.role === "admin";
+    (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
 
   if (!isMaster) {
     throw new TRPCError({
@@ -1023,16 +1022,16 @@ const analyticsQueryRouter = router({
         .orderBy(sql`COUNT(*) DESC`);
     }
 
-    // Mapeamento defensivo para nunca exibir "Desconhecido" no painel
+    // Mapeamento sem forçar dados fictícios no painel
     byState = byState.map(s => ({
       ...s,
-      state: (!s.state || s.state === 'Desconhecido') ? 'São Paulo' : s.state
+      state: (!s.state || s.state === 'Desconhecido') ? 'Outros' : s.state
     }));
 
     byCity = byCity.map(c => ({
       ...c,
-      city: (!c.city || c.city === 'Desconhecida') ? 'São Paulo' : c.city,
-      state: (!c.state || c.state === 'Desconhecido') ? 'São Paulo' : c.state
+      city: (!c.city || c.city === 'Desconhecida') ? 'Outras' : c.city,
+      state: (!c.state || c.state === 'Desconhecido') ? 'Outros' : c.state
     }));
 
     byCountry = byCountry.map(co => ({
@@ -1155,11 +1154,11 @@ const analyticsQueryRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-    const twoMinAgo = new Date(Date.now() - 120_000);
+    const fiveMinAgo = new Date(Date.now() - 300_000);
 
     return await db.select()
       .from(analyticsOnline)
-      .where(gte(analyticsOnline.lastPingAt, twoMinAgo))
+      .where(gte(analyticsOnline.lastPingAt, fiveMinAgo))
       .orderBy(desc(analyticsOnline.lastPingAt))
       .limit(200);
   }),

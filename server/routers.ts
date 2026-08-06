@@ -9420,9 +9420,15 @@ Texto original para reescrever:
         const { systemPlans } = await import("../drizzle/schema");
         const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, planId)).limit(1);
 
-        const baseValue = planInfo
-          ? (input.planType === "YEARLY" ? Number(planInfo.priceYearly) : Number(planInfo.priceMonthly))
-          : (input.planType === "YEARLY" ? 59.90 * 10 : 59.90);
+        // A-02 FIX: Lança erro se o plano não existir — nunca usar fallback hardcoded de preço
+        if (!planInfo) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Plano "${planId}" não encontrado. Verifique os planos disponíveis e tente novamente.`
+          });
+        }
+
+        const baseValue = input.planType === "YEARLY" ? Number(planInfo.priceYearly) : Number(planInfo.priceMonthly);
 
         // Cálculo de Alunos Excedentes
         const activeStudentsCountObj = await db.select({ count: sql<number>`count(*)` })
@@ -9456,19 +9462,20 @@ Texto original para reescrever:
         const payments = await getAsaasSubscriptionPayments(sub.id);
         const pendingPayment = payments.find(p => p.status === 'PENDING' || p.status === 'OVERDUE');
 
-        // Atualiza a organização com novo ID de assinatura Asaas e status active
+        // A-01 FIX: Seta status como "pending" — o webhook do Asaas atualizará para "active"
+        // após confirmação do pagamento. Setar "active" antes do pagamento é um risco de segurança.
         await db.update(organizations).set({
           planId,
           asaasSubscriptionId: sub.id,
-          subscriptionStatus: "active",
+          subscriptionStatus: "pending",
           updatedAt: new Date()
         }).where(eq(organizations.id, orgId));
 
         return {
           success: true,
-          status: "active",
+          status: "pending",
           paymentLink: pendingPayment?.invoiceUrl,
-          message: "Plano reabilitado com sucesso! Redirecionando para o pagamento no Asaas..."
+          message: "Plano reabilitado! Finalize o pagamento no link abaixo para ativar o acesso."
         };
       }),
   }),
@@ -10032,7 +10039,7 @@ Texto original para reescrever:
 
         // Count sent/error from reminders with auto-rule prefix
         const [sentCount] = await db
-          .select({ count: sql<number>`count(*)` })
+          .select({ count: sql<number>`count(*)::int` })
           .from(reminders)
           .where(
             and(
@@ -10044,7 +10051,7 @@ Texto original para reescrever:
           );
 
         const [totalCount] = await db
-          .select({ count: sql<number>`count(*)` })
+          .select({ count: sql<number>`count(*)::int` })
           .from(reminders)
           .where(
             and(
