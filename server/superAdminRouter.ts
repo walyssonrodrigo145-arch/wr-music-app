@@ -130,11 +130,11 @@ export const superAdminRouter = router({
       asaasSubscriptionId: organizations.asaasSubscriptionId,
     }).from(organizations);
 
-    // FIX: usar COUNT agrupado por org em vez de carregar todos os users/alunos em memória
-    const userCounts = await db.select({
-      organizationId: users.organizationId,
+    // Busca a quantidade real de professores vinculados por escola na tabela 'professores' (ou role='professor')
+    const profCounts = await db.select({
+      organizationId: professores.organizationId,
       total: sql<number>`CAST(count(*) AS INT)`,
-    }).from(users).groupBy(users.organizationId);
+    }).from(professores).groupBy(professores.organizationId);
 
     const studentCounts = await db.select({
       organizationId: students.organizationId,
@@ -152,7 +152,7 @@ export const superAdminRouter = router({
       createdAt: users.createdAt,
     }).from(users);
 
-    const userCountMap = new Map(userCounts.map(r => [r.organizationId, r.total]));
+    const profCountMap = new Map(profCounts.map(r => [r.organizationId, r.total]));
     const studentCountMap = new Map(studentCounts.map(r => [r.organizationId, r.total]));
     
     // Mapeia donos por org (priorizando role='admin', senão o primeiro usuário criado da org)
@@ -181,7 +181,7 @@ export const superAdminRouter = router({
       ...org,
       owner: ownerMap.get(org.id) ?? null,
       lastSignedIn: lastAccessMap.get(org.id) ?? null,
-      totalUsers: userCountMap.get(org.id) ?? 0,
+      totalUsers: profCountMap.get(org.id) ?? 0,
       totalStudents: studentCountMap.get(org.id) ?? 0,
     }));
   }),
