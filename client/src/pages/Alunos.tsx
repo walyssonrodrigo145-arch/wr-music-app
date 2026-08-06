@@ -38,7 +38,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StudentRow = {
   id: number; name: string; email: string; phone?: string | null;
-  level: string; status: string; monthlyFee: string; dueDay?: number | null;
+  level: string; status: string; monthlyFee: string; billingPeriodicity?: string | null; dueDay?: number | null;
   startDate?: string | null; instrumentName?: string | null;
   instrumentColor?: string | null; instrumentIcon?: string | null;
   instrumentId?: number | null;
@@ -56,6 +56,7 @@ interface FormData {
   instrumentId: string;
   level: "iniciante" | "intermediario" | "avancado";
   monthlyFee: string;
+  billingPeriodicity: "mensal" | "bimestral" | "trimestral" | "semestral" | "anual";
   dueDay: string;
   notes: string;
   status: "ativo" | "inativo" | "pausado";
@@ -70,6 +71,7 @@ const EMPTY_FORM: FormData = {
   instrumentId: "",
   level: "iniciante",
   monthlyFee: "0",
+  billingPeriodicity: "mensal",
   dueDay: "10",
   notes: "",
   status: "ativo",
@@ -195,6 +197,7 @@ function StudentModal({
           instrumentId: String(editData.instrumentId || ""), 
           level: editData.level as FormData["level"],
           monthlyFee: String(Number(editData.monthlyFee)),
+          billingPeriodicity: ((editData as any).billingPeriodicity || "mensal") as FormData["billingPeriodicity"],
           dueDay: String(editData.dueDay || 10),
           notes: editData.notes || "",
           status: editData.status as FormData["status"],
@@ -306,6 +309,7 @@ function StudentModal({
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
       level: form.level,
       monthlyFee: parseFee(form.monthlyFee),
+      billingPeriodicity: form.billingPeriodicity,
       dueDay: Number(form.dueDay) || 10,
       notes: form.notes.trim() || undefined,
       status: form.status,
@@ -430,6 +434,21 @@ function StudentModal({
                 {[5, 10, 15, 20].map(d => <option key={d} value={d}>Dia {d}</option>)}
               </select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Periodicidade de Cobrança</label>
+            <select
+              value={form.billingPeriodicity}
+              onChange={e => set("billingPeriodicity", e.target.value as FormData["billingPeriodicity"])}
+              className="w-full h-9 text-xs rounded-lg border border-border/40 bg-muted/10 px-3 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground"
+            >
+              <option value="mensal">Mensal (1 em 1 mês)</option>
+              <option value="bimestral">Bimestral (2 em 2 meses)</option>
+              <option value="trimestral">Trimestral (3 em 3 meses)</option>
+              <option value="semestral">Semestral (6 em 6 meses)</option>
+              <option value="anual">Anual (12 em 12 meses)</option>
+            </select>
           </div>
 
           <div className="space-y-1.5">

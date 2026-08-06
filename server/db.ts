@@ -809,6 +809,7 @@ export async function getStudentsWithInstrument(organizationId: number, userId?:
     level: students.level,
     status: students.status,
     monthlyFee: students.monthlyFee,
+    billingPeriodicity: students.billingPeriodicity,
     startDate: students.startDate,
     dueDay: students.dueDay,
     avatar: students.avatar,

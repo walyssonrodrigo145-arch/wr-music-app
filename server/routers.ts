@@ -1978,6 +1978,7 @@ ${jsonSchemaFormat}`;
         level: students.level,
         status: students.status,
         monthlyFee: students.monthlyFee,
+        billingPeriodicity: students.billingPeriodicity,
         dueDay: students.dueDay,
         lessonType: students.lessonType,
         notes: students.notes,
@@ -2030,6 +2031,7 @@ ${jsonSchemaFormat}`;
         level: students.level,
         status: students.status,
         monthlyFee: students.monthlyFee,
+        billingPeriodicity: students.billingPeriodicity,
         dueDay: students.dueDay,
         lessonType: students.lessonType,
         notes: students.notes,
@@ -2316,6 +2318,7 @@ ${jsonSchemaFormat}`;
       instrumentId: z.number().optional(),
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
       monthlyFee: z.number().default(0),
+      billingPeriodicity: z.enum(['mensal','bimestral','trimestral','semestral','anual']).default('mensal'),
       dueDay: z.number().default(15),
       lessonType: z.enum(['individual','turma','online']).default('individual'),
       onlineMeetingLink: z.string().url().optional().nullable(),
@@ -2375,6 +2378,7 @@ ${jsonSchemaFormat}`;
             instrumentId: input.instrumentId || undefined,
             level: input.level,
             monthlyFee: String(input.monthlyFee),
+            billingPeriodicity: input.billingPeriodicity || 'mensal',
             dueDay: input.dueDay,
             lessonType: input.lessonType,
             onlineMeetingLink: input.onlineMeetingLink || undefined,
@@ -2497,6 +2501,7 @@ ${jsonSchemaFormat}`;
       instrumentId: z.number().optional().nullable(),
       level: z.enum(['iniciante', 'intermediario', 'avancado']).optional(),
       monthlyFee: z.number().optional(),
+      billingPeriodicity: z.enum(['mensal', 'bimestral', 'trimestral', 'semestral', 'anual']).optional(),
       dueDay: z.number().optional(),
       status: z.enum(['ativo', 'inativo', 'pausado']).optional(),
       lessonType: z.enum(['individual', 'turma', 'online']).optional(),
@@ -5647,15 +5652,23 @@ ${jsonSchemaFormat}`;
         const db = await getDb();
         if (!db) throw new Error("Database not available");
 
+        const orgId = ctx.user.organizationId!;
+        const [student] = await db.select({ billingPeriodicity: students.billingPeriodicity })
+          .from(students)
+          .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)))
+          .limit(1);
+
+        const periodicity = student?.billingPeriodicity || "mensal";
+        const step = periodicity === "bimestral" ? 2 : periodicity === "trimestral" ? 3 : periodicity === "semestral" ? 6 : periodicity === "anual" ? 12 : 1;
+
         const rows = [];
-        for (let i = 0; i < input.monthsCount; i++) {
+        for (let i = 0; i < input.monthsCount; i += step) {
           let m = input.startMonth - 1 + i; // 0-based
           const y = input.startYear + Math.floor(m / 12);
           m = m % 12;
           const dueDate = new Date(y, m, input.dueDay);
           const month = m + 1; // 1-based
 
-          const orgId = ctx.user.organizationId!;
           // Verificar duplicidade (mesmo aluno, mesmo mês/ano)
           const existing = await db.select({ id: paymentDues.id }).from(paymentDues)
             .where(and(
@@ -5677,6 +5690,7 @@ ${jsonSchemaFormat}`;
             year: y,
             status: 'pendente' as const,
             notes: input.notes ?? null,
+            billingPeriodicity: periodicity,
           });
         }
 
@@ -5701,16 +5715,14 @@ ${jsonSchemaFormat}`;
         const activeStudents = await db.select({
           id: students.id,
           monthlyFee: students.monthlyFee,
-          dueDay: students.dueDay
+          dueDay: students.dueDay,
+          billingPeriodicity: students.billingPeriodicity,
         }).from(students).where(and(
           eq(students.organizationId, orgId),
           eq(students.professorId, ctx.user.id),
           eq(students.status, 'ativo')
         ));
 
-        // ALTO-4 FIX: Buscar todos os pagamentos existentes de uma vez (elimina loop N+1)
-        // Antes: 1 query por aluno por mês (ex: 50 alunos × 3 meses = 150 queries)
-        // Agora: 1 única query + lookup O(1) via Set
         const existingPayments = await db.select({
           studentId: paymentDues.studentId,
           month: paymentDues.month,
@@ -5729,14 +5741,16 @@ ${jsonSchemaFormat}`;
           const fee = Number(student.monthlyFee);
           if (fee <= 0) continue;
 
-          for (let i = 0; i < input.monthsCount; i++) {
+          const periodicity = student.billingPeriodicity || "mensal";
+          const step = periodicity === "bimestral" ? 2 : periodicity === "trimestral" ? 3 : periodicity === "semestral" ? 6 : periodicity === "anual" ? 12 : 1;
+
+          for (let i = 0; i < input.monthsCount; i += step) {
             let m = input.startMonth - 1 + i;
             const y = input.startYear + Math.floor(m / 12);
             m = m % 12;
             const dueDate = new Date(y, m, student.dueDay);
             const month = m + 1;
 
-            // Verificação O(1) sem query adicional
             if (existingSet.has(`${student.id}_${month}_${y}`)) continue;
 
             rows.push({
@@ -5748,6 +5762,7 @@ ${jsonSchemaFormat}`;
               month,
               year: y,
               status: 'pendente' as const,
+              billingPeriodicity: periodicity,
               createdAt: new Date(),
               updatedAt: new Date(),
             });

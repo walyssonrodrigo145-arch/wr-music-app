@@ -74,6 +74,7 @@ export default function NovoAluno() {
     level: "iniciante",
     startDate: new Date().toISOString().split('T')[0],
     monthlyFee: "",
+    billingPeriodicity: "mensal",
     dueDay: "10",
     lessonType: "individual",
     onlineMeetingLink: "",
@@ -105,6 +106,7 @@ export default function NovoAluno() {
         level: studentData.level ?? "iniciante",
         startDate: studentData.startDate ? String(studentData.startDate).slice(0, 10) : new Date().toISOString().split('T')[0],
         monthlyFee: studentData.monthlyFee ? String(Number(studentData.monthlyFee)) : "",
+        billingPeriodicity: (studentData as any).billingPeriodicity ?? "mensal",
         dueDay: studentData.dueDay ? String(studentData.dueDay) : "10",
         lessonType: (studentData as any).lessonType ?? "individual",
         onlineMeetingLink: (studentData as any).onlineMeetingLink ?? "",
@@ -388,6 +390,7 @@ export default function NovoAluno() {
       professorId: form.professorId ? Number(form.professorId) : undefined,
       level: form.level as "iniciante" | "intermediario" | "avancado",
       monthlyFee: parseFee(form.monthlyFee),
+      billingPeriodicity: form.billingPeriodicity as any,
       dueDay: Number(form.dueDay) || 10,
       lessonType: form.lessonType as any,
       onlineMeetingLink: form.onlineMeetingLink?.trim() || undefined,
@@ -856,9 +859,9 @@ export default function NovoAluno() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Mensalidade (R$)</label>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Valor / Mensalidade (R$)</label>
                     <div className="relative group/input">
                       <Input 
                         placeholder="0,00" 
@@ -868,6 +871,21 @@ export default function NovoAluno() {
                       />
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 font-bold text-sm group-focus-within/input:text-violet-500 transition-colors">R$</span>
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Periodicidade de Cobrança</label>
+                    <Select value={form.billingPeriodicity} onValueChange={(v) => setForm(prev => ({ ...prev, billingPeriodicity: v }))}>
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                        <SelectItem value="mensal" className="rounded-lg font-medium">Mensal (1 em 1 mês)</SelectItem>
+                        <SelectItem value="bimestral" className="rounded-lg font-medium">Bimestral (2 em 2 meses)</SelectItem>
+                        <SelectItem value="trimestral" className="rounded-lg font-medium">Trimestral (3 em 3 meses)</SelectItem>
+                        <SelectItem value="semestral" className="rounded-lg font-medium">Semestral (6 em 6 meses)</SelectItem>
+                        <SelectItem value="anual" className="rounded-lg font-medium">Anual (12 em 12 meses)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Tipo de Aula</label>

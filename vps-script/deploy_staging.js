@@ -28,6 +28,7 @@ const filesToUpload = [
   'server/db.ts',
   'client/src/lib/exportUtils.ts',
   'client/src/pages/Alunos.tsx',
+  'client/src/pages/NovoAluno.tsx',
   'client/src/pages/financeiro/MensalidadesTab.tsx',
   'client/src/pages/marketing/MarketingDashboard.tsx',
   'client/src/pages/marketing/CrmKanban.tsx',

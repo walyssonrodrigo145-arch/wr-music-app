@@ -127,6 +127,7 @@ export const students = pgTable("students", {
   level: levelEnum("level").default("iniciante").notNull(),
   status: statusEnum("status").default("ativo").notNull(),
   monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  billingPeriodicity: varchar("billingPeriodicity", { length: 20 }).default("mensal").notNull(),
   dueDay: integer("dueDay").default(10).notNull(),
   lessonType: lessonTypeEnum("lessonType").default("individual").notNull(),
   onlineMeetingLink: text("onlineMeetingLink"),
@@ -307,6 +308,7 @@ export const paymentDues = pgTable("payment_dues", {
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   notes: text("notes"),
+  billingPeriodicity: varchar("billingPeriodicity", { length: 20 }).default("mensal"),
   // Asaas integration
   asaasId: text("asaasId"),
   asaasPaymentLink: text("asaasPaymentLink"),
