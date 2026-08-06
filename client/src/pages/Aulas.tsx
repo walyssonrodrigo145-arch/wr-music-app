@@ -1032,6 +1032,11 @@ export default function Aulas() {
                       <h4 className="text-sm font-black text-foreground leading-tight group-hover:text-blue-600 transition-colors">{titleText}</h4>
                       <div className="flex items-center gap-4 flex-wrap">
                          <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest"><Music size={14} className="text-blue-500" /> {lesson.instrumentName || "Geral"}</div>
+                         {lesson.studioRoomName && (
+                           <div className="flex items-center gap-2 text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+                             <LayoutList size={12} className="text-indigo-500" /> {lesson.studioRoomName}
+                           </div>
+                         )}
                          {isTurma && (
                            <div className="flex items-center gap-2 text-[10px] font-bold text-purple-600 uppercase tracking-widest"><Users size={14} className="text-purple-500" /> {lesson.studentCount} Alunos na turma</div>
                          )}
