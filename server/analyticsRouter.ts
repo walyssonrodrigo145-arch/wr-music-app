@@ -408,115 +408,121 @@ const analyticsQueryRouter = router({
       onlineNowCount = onlineUsersList.length;
     } catch (e) {}
 
-    // 2. Visitantes Hoje e Únicos
-    let visitorsTodayCount = 0;
-    let uniqueVisitorsTodayCount = 0;
+    // 2. Visitantes no Período e Únicos
+    let visitorsCount = 0;
+    let uniqueVisitorsCount = 0;
     try {
-      const [vTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      const [vRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsSessions)
-        .where(gte(analyticsSessions.startedAt, todayStart));
-      visitorsTodayCount = vTodayRes?.count || 0;
+        .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
+      visitorsCount = vRes?.count || 0;
 
-      const [uTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
+      const [uRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
         .from(analyticsSessions)
-        .where(gte(analyticsSessions.startedAt, todayStart));
-      uniqueVisitorsTodayCount = uTodayRes?.count || 0;
+        .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
+      uniqueVisitorsCount = uRes?.count || 0;
 
-      if (visitorsTodayCount === 0) {
-        const [evVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)` })
+      if (visitorsCount === 0) {
+        const [evVisitors] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.sessionId}) AS INT)` })
           .from(analyticsEvents)
-          .where(gte(analyticsEvents.createdAt, todayStart));
-        const [evUniqueVisitorsToday] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)` })
+          .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)));
+        const [evUniqueVisitors] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsEvents.visitorId}) AS INT)` })
           .from(analyticsEvents)
-          .where(gte(analyticsEvents.createdAt, todayStart));
-        visitorsTodayCount = evVisitorsToday?.count || 0;
-        uniqueVisitorsTodayCount = evUniqueVisitorsToday?.count || 0;
+          .where(and(gte(analyticsEvents.createdAt, start), lte(analyticsEvents.createdAt, end)));
+        visitorsCount = evVisitors?.count || 0;
+        uniqueVisitorsCount = evUniqueVisitors?.count || 0;
       }
 
-      // Sincronizar com registros de analyticsOnline
-      const [onlineTodayRes] = await db.select({
-        count: sql<number>`CAST(COUNT(*) AS INT)`,
-        uniqueCount: sql<number>`CAST(COUNT(DISTINCT ${analyticsOnline.visitorId}) AS INT)`,
-      })
-        .from(analyticsOnline)
-        .where(gte(analyticsOnline.lastPingAt, todayStart));
+      if (input.preset === "today") {
+        const [onlineTodayRes] = await db.select({
+          count: sql<number>`CAST(COUNT(*) AS INT)`,
+          uniqueCount: sql<number>`CAST(COUNT(DISTINCT ${analyticsOnline.visitorId}) AS INT)`,
+        })
+          .from(analyticsOnline)
+          .where(gte(analyticsOnline.lastPingAt, todayStart));
 
-      visitorsTodayCount = Math.max(visitorsTodayCount, onlineTodayRes?.count || 0, onlineNowCount);
-      uniqueVisitorsTodayCount = Math.max(uniqueVisitorsTodayCount, onlineTodayRes?.uniqueCount || 0, onlineNowCount);
+        visitorsCount = Math.max(visitorsCount, onlineTodayRes?.count || 0, onlineNowCount);
+        uniqueVisitorsCount = Math.max(uniqueVisitorsCount, onlineTodayRes?.uniqueCount || 0, onlineNowCount);
+      }
     } catch (e) {}
 
-    // 3. Novos Cadastros de Clientes/Escolas no MusicPro SaaS (Hoje)
-    let signupsTodayCount = 0;
+    // 3. Novos Cadastros de Clientes/Escolas no MusicPro SaaS no Período
+    let signupsCount = 0;
     try {
       const [signupEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsEvents)
         .where(and(
           eq(analyticsEvents.eventName, "signup_completed"),
-          gte(analyticsEvents.createdAt, todayStart)
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end)
         ));
-      signupsTodayCount = signupEvRes?.count || 0;
+      signupsCount = signupEvRes?.count || 0;
 
-      if (signupsTodayCount === 0) {
-        const [orgsTodayRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+      if (signupsCount === 0) {
+        const [orgsRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
           .from(organizations)
-          .where(gte(organizations.createdAt, todayStart));
-        signupsTodayCount = orgsTodayRes?.count || 0;
+          .where(and(gte(organizations.createdAt, start), lte(organizations.createdAt, end)));
+        signupsCount = orgsRes?.count || 0;
       }
     } catch (e) {}
 
-    // 4. Testes Gratuitos do MusicPro SaaS (Trials Hoje)
-    let trialsTodayCount = 0;
+    // 4. Testes Gratuitos do MusicPro SaaS (Trials no Período)
+    let trialsCount = 0;
     try {
       const [trialEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsEvents)
         .where(and(
           eq(analyticsEvents.eventName, "trial_started"),
-          gte(analyticsEvents.createdAt, todayStart)
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end)
         ));
-      trialsTodayCount = trialEvRes?.count || 0;
+      trialsCount = trialEvRes?.count || 0;
 
-      if (trialsTodayCount === 0) {
+      if (trialsCount === 0) {
         const [orgsTrialRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
           .from(organizations)
           .where(and(
             eq(organizations.subscriptionStatus, "trialing"),
-            gte(organizations.createdAt, todayStart)
+            gte(organizations.createdAt, start),
+            lte(organizations.createdAt, end)
           ));
-        trialsTodayCount = orgsTrialRes?.count || 0;
+        trialsCount = orgsTrialRes?.count || 0;
       }
     } catch (e) {}
 
-    // 5. Assinaturas do MusicPro SaaS (Hoje)
-    let subscriptionsTodayCount = 0;
+    // 5. Assinaturas do MusicPro SaaS no Período
+    let subscriptionsCount = 0;
     try {
       const [subEvRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsEvents)
         .where(and(
           eq(analyticsEvents.eventName, "subscription_created"),
-          gte(analyticsEvents.createdAt, todayStart)
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end)
         ));
-      subscriptionsTodayCount = subEvRes?.count || 0;
+      subscriptionsCount = subEvRes?.count || 0;
 
-      if (subscriptionsTodayCount === 0) {
+      if (subscriptionsCount === 0) {
         const [orgsActiveRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
           .from(organizations)
           .where(and(
             eq(organizations.subscriptionStatus, "active"),
-            gte(organizations.createdAt, todayStart)
+            gte(organizations.createdAt, start),
+            lte(organizations.createdAt, end)
           ));
-        subscriptionsTodayCount = orgsActiveRes?.count || 0;
+        subscriptionsCount = orgsActiveRes?.count || 0;
       }
     } catch (e) {}
 
     // 6. Receita Exclusiva da Plataforma MusicPro SaaS (analyticsRevenue)
-    let revToday = 0;
+    let revPeriod = 0;
     let revMonth = 0;
     let revTotal = 0;
 
     try {
-      const [revTodayRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
+      const [revPeriodRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
         .from(analyticsRevenue)
-        .where(gte(analyticsRevenue.createdAt, todayStart));
+        .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
 
       const [revMonthRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
         .from(analyticsRevenue)
@@ -525,7 +531,7 @@ const analyticsQueryRouter = router({
       const [revTotalRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
         .from(analyticsRevenue);
 
-      revToday = parseFloat(revTodayRes?.total || "0");
+      revPeriod = parseFloat(revPeriodRes?.total || "0");
       revMonth = parseFloat(revMonthRes?.total || "0");
       revTotal = parseFloat(revTotalRes?.total || "0");
     } catch (e) {}
@@ -550,13 +556,13 @@ const analyticsQueryRouter = router({
     } catch (e) {}
 
     return {
-      visitorsToday: visitorsTodayCount,
-      uniqueVisitorsToday: uniqueVisitorsTodayCount,
+      visitorsToday: visitorsCount,
+      uniqueVisitorsToday: uniqueVisitorsCount,
       onlineNow: onlineNowCount,
-      signupsToday: signupsTodayCount,
-      trialsToday: trialsTodayCount,
-      subscriptionsToday: subscriptionsTodayCount,
-      revenueToday: revToday,
+      signupsToday: signupsCount,
+      trialsToday: trialsCount,
+      subscriptionsToday: subscriptionsCount,
+      revenueToday: revPeriod,
       revenueMonth: revMonth,
       revenueTotal: revTotal,
       conversionRate,

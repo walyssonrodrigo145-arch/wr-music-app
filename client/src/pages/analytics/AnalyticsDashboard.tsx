@@ -139,12 +139,15 @@ function OverviewTab({ preset }: { preset: Preset }) {
   const isLoading = cards.isLoading;
   const formatCurrency = (v?: number) => `R$ ${(v || 0).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
+  const isToday = preset === "today";
+  const periodLabel = isToday ? "Hoje" : presetLabels[preset] || "no Período";
+
   return (
     <div className="space-y-8">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         <KPICard
-          title="Visitantes Hoje"
+          title={`Visitantes (${periodLabel})`}
           value={isLoading ? "..." : (cardData?.visitorsToday ?? 0)}
           icon={<Users size={20} className="text-white" />}
           gradient={GRADIENT_PURPLE}
@@ -159,14 +162,14 @@ function OverviewTab({ preset }: { preset: Preset }) {
           delay={0.05}
         />
         <KPICard
-          title="Novos Cadastros"
+          title={`Novos Cadastros (${periodLabel})`}
           value={isLoading ? "..." : (cardData?.signupsToday ?? 0)}
           icon={<Users size={20} className="text-white" />}
           gradient={GRADIENT_PURPLE}
           delay={0.1}
         />
         <KPICard
-          title="Assinaturas"
+          title={`Assinaturas (${periodLabel})`}
           value={isLoading ? "..." : (cardData?.subscriptionsToday ?? 0)}
           icon={<CheckCircle size={20} className="text-white" />}
           gradient={GRADIENT_TEAL}
@@ -180,7 +183,7 @@ function OverviewTab({ preset }: { preset: Preset }) {
           delay={0.2}
         />
         <KPICard
-          title="Receita Hoje"
+          title={`Receita (${periodLabel})`}
           value={isLoading ? "..." : formatCurrency(cardData?.revenueToday)}
           icon={<DollarSign size={20} className="text-white" />}
           gradient={GRADIENT_ROSE}
@@ -201,14 +204,14 @@ function OverviewTab({ preset }: { preset: Preset }) {
           delay={0.35}
         />
         <KPICard
-          title="Testes Gratuitos"
+          title={`Testes Gratuitos (${periodLabel})`}
           value={isLoading ? "..." : (cardData?.trialsToday ?? 0)}
           icon={<Zap size={20} className="text-white" />}
           gradient={GRADIENT_PURPLE}
           delay={0.4}
         />
         <KPICard
-          title="Visitantes Únicos"
+          title={`Visitantes Únicos (${periodLabel})`}
           value={isLoading ? "..." : (cardData?.uniqueVisitorsToday ?? 0)}
           icon={<Eye size={20} className="text-white" />}
           gradient={GRADIENT_TEAL}
