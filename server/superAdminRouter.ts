@@ -418,8 +418,10 @@ export const superAdminRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-      const { hashPassword } = await import("./_core/auth");
-      const passwordHash = await hashPassword(input.newPassword);
+      const crypto = await import("crypto");
+      const salt = crypto.randomBytes(16).toString("hex");
+      const derivedKey = crypto.scryptSync(input.newPassword, salt, 64).toString("hex");
+      const passwordHash = `${salt}:${derivedKey}`;
 
       await db.update(users)
         .set({ passwordHash, mustChangePassword: true, updatedAt: new Date() })
