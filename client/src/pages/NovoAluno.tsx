@@ -854,24 +854,24 @@ export default function NovoAluno() {
                   </div>
                 </div>
 
-                {/* Linha 3: Cobrança (Valor, Periodicidade, Vencimento) */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div className="space-y-2">
+                {/* Linha 3: Cobrança - Valor e Periodicidade */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2 w-full">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Valor / Mensalidade (R$)</label>
-                    <div className="relative group/input">
+                    <div className="relative group/input w-full">
                       <Input 
                         placeholder="0,00" 
                         value={form.monthlyFee}
                         onChange={(e) => handleInputChange('monthlyFee', e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold pl-11"
+                        className="h-12 w-full rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold pl-11"
                       />
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 font-bold text-sm group-focus-within/input:text-violet-500 transition-colors">R$</span>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Periodicidade</label>
+                  <div className="space-y-2 w-full">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Periodicidade de Cobrança</label>
                     <Select value={form.billingPeriodicity} onValueChange={(v) => setForm(prev => ({ ...prev, billingPeriodicity: v }))}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                      <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4 truncate">
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border shadow-2xl p-1">
@@ -883,10 +883,14 @@ export default function NovoAluno() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Dia Vencimento</label>
+                </div>
+
+                {/* Linha 4: Dia de Vencimento e Tipo de Aula */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2 w-full">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Vencimento (Dia)</label>
                     <Select value={String(form.dueDay)} onValueChange={(v) => setForm(prev => ({ ...prev, dueDay: v }))}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                      <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
                         <SelectValue placeholder="Dia" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border shadow-2xl p-1">
@@ -896,14 +900,10 @@ export default function NovoAluno() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                {/* Linha 4: Tipo de Aula e Link Online */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Tipo de Aula</label>
                     <Select value={form.lessonType} onValueChange={(v) => handleInputChange('lessonType', v)}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                      <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border shadow-2xl p-1">
@@ -914,13 +914,13 @@ export default function NovoAluno() {
                     </Select>
                   </div>
                   {form.lessonType === 'online' && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 md:col-span-2 w-full">
                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Link da Reunião Online</label>
                       <Input
                         placeholder="https://meet.google.com/xxx ou https://zoom.us/j/xxx"
                         value={form.onlineMeetingLink || ''}
                         onChange={(e) => handleInputChange('onlineMeetingLink', e.target.value)}
-                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold"
+                        className="h-12 w-full rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold"
                       />
                     </div>
                   )}
