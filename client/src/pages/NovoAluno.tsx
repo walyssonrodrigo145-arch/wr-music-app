@@ -774,7 +774,8 @@ export default function NovoAluno() {
               </div>
 
               <div className="space-y-6 relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Linha 1: Instrumento e Nível */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento principal</label>
                     <Select value={form.instrumentId} onValueChange={(v) => handleInputChange('instrumentId', v)}>
@@ -814,7 +815,8 @@ export default function NovoAluno() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Linha 2: Professor e Data de Início */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Professor Responsável</label>
                     <Select value={form.professorId} onValueChange={(v) => handleInputChange('professorId', v)}>
@@ -845,21 +847,10 @@ export default function NovoAluno() {
                       <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-violet-500 transition-colors" size={18} />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Vencimento (Dia)</label>
-                    <Select value={String(form.dueDay)} onValueChange={(v) => setForm(prev => ({ ...prev, dueDay: v }))}>
-                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
-                        <SelectValue placeholder="Dia" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        {[5, 10, 15, 20].map(d => (
-                          <SelectItem key={d} value={String(d)} className="rounded-lg font-medium">Dia {d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                {/* Linha 3: Cobrança (Valor, Periodicidade, Vencimento) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Valor / Mensalidade (R$)</label>
                     <div className="relative group/input">
@@ -873,7 +864,7 @@ export default function NovoAluno() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Periodicidade de Cobrança</label>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Periodicidade</label>
                     <Select value={form.billingPeriodicity} onValueChange={(v) => setForm(prev => ({ ...prev, billingPeriodicity: v }))}>
                       <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
                         <SelectValue placeholder="Selecione..." />
@@ -888,6 +879,23 @@ export default function NovoAluno() {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Dia Vencimento</label>
+                    <Select value={String(form.dueDay)} onValueChange={(v) => setForm(prev => ({ ...prev, dueDay: v }))}>
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                        <SelectValue placeholder="Dia" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                        {[5, 10, 15, 20].map(d => (
+                          <SelectItem key={d} value={String(d)} className="rounded-lg font-medium">Dia {d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Linha 4: Tipo de Aula e Link Online */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Tipo de Aula</label>
                     <Select value={form.lessonType} onValueChange={(v) => handleInputChange('lessonType', v)}>
                       <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
@@ -901,17 +909,16 @@ export default function NovoAluno() {
                     </Select>
                   </div>
                   {form.lessonType === 'online' && (
-                     <div className="space-y-2 md:col-span-2">
-                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Link da Reunião Online</label>
-                       <Input
-                         placeholder="https://meet.google.com/xxx ou https://zoom.us/j/xxx"
-                         value={form.onlineMeetingLink || ''}
-                         onChange={(e) => handleInputChange('onlineMeetingLink', e.target.value)}
-                         className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold"
-                       />
-                       <p className="text-[10px] text-muted-foreground ml-1">Cole o link fixo da sua sala de videoconferência. Ele aparecerá para o aluno na aba de Aulas.</p>
-                     </div>
-                   )}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Link da Reunião Online</label>
+                      <Input
+                        placeholder="https://meet.google.com/xxx ou https://zoom.us/j/xxx"
+                        value={form.onlineMeetingLink || ''}
+                        onChange={(e) => handleInputChange('onlineMeetingLink', e.target.value)}
+                        className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
