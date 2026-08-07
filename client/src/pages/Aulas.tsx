@@ -216,7 +216,7 @@ export default function Aulas() {
     const duration = settings?.lessonDuration || 60; // minutos
 
     // Monta todos os slots possíveis do dia
-    const slots: { timeStr: string; dateObj: Date; isOccupied: boolean }[] = [];
+    const slots: { timeStr: string; dateObj: Date; isOccupied: boolean; freeRoomsCount: number }[] = [];
     let currentSlot = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startH, startM, 0);
     const endSlotLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endH, endM, 0);
 
@@ -235,13 +235,14 @@ export default function Aulas() {
         return isSameDay(lStart, now) && lStart < slotEnd && lEnd > slotStart;
       });
 
-      // O slot está ocupado apenas se o número de aulas sobrepostas for maior ou igual ao número de salas ativas
-      const isOccupied = overlappingLessons.length >= totalRooms;
+      const freeRoomsCount = Math.max(0, totalRooms - overlappingLessons.length);
+      const isOccupied = freeRoomsCount === 0;
 
       slots.push({
         timeStr,
         dateObj: slotStart,
-        isOccupied
+        isOccupied,
+        freeRoomsCount
       });
 
       currentSlot = new Date(currentSlot.getTime() + duration * 60000);
@@ -951,11 +952,16 @@ export default function Aulas() {
                             setCurrentDate(slot.dateObj);
                             setAgendarOpen(true);
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold transition-all active:scale-95 flex items-center gap-1 group"
-                          title="Clique para agendar neste horário"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5 group"
+                          title={studioRoomsList.length > 1 ? `Clique para agendar (${slot.freeRoomsCount} de ${studioRoomsList.length} salas livres neste horário)` : "Clique para agendar neste horário"}
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:scale-125 transition-transform" />
-                          {slot.timeStr}
+                          <span>{slot.timeStr}</span>
+                          {studioRoomsList.length > 1 && (
+                            <span className="text-[9px] opacity-70 font-semibold bg-emerald-500/20 px-1 rounded">
+                              {slot.freeRoomsCount} {slot.freeRoomsCount === 1 ? "sala" : "salas"}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
