@@ -33,7 +33,7 @@ const GRADIENT_AMBER = "from-amber-500 to-orange-500";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type TabId =
-  | "overview" | "realtime" | "visitors" | "sources" | "pages"
+  | "overview" | "evolution" | "realtime" | "visitors" | "sources" | "pages"
   | "heatmap" | "funnel" | "journey" | "checkout" | "revenue"
   | "subscriptions" | "campaigns" | "map" | "devices" | "performance" | "ai" | "security";
 
@@ -202,6 +202,13 @@ function OverviewTab({ preset }: { preset: Preset }) {
           icon={<DollarSign size={20} className="text-white" />}
           gradient={GRADIENT_AMBER}
           delay={0.35}
+        />
+        <KPICard
+          title="Receita Prevista (Próx. Mês)"
+          value={isLoading ? "..." : formatCurrency((cardData as any)?.nextMonthForecast)}
+          icon={<TrendingUp size={20} className="text-white" />}
+          gradient={GRADIENT_TEAL}
+          delay={0.38}
         />
         <KPICard
           title={`Testes Gratuitos (${periodLabel})`}
@@ -1446,9 +1453,156 @@ function SecurityTab({ preset }: { preset: Preset }) {
   );
 }
 
+// ── TAB: EVOLUÇÃO DO SISTEMA (CRESCIMENTO DE RECEITA E USUÁRIOS) ──────────────
+function EvolutionTab() {
+  const evolutionQuery = (trpc.analytics as any).getEvolutionStats.useQuery();
+  const formatCurrency = (v?: number) => `R$ ${(v || 0).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+  if (evolutionQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-violet-500" />
+      </div>
+    );
+  }
+
+  const data = evolutionQuery.data || {
+    monthlyHistory: [],
+    revenueGrowthPercent: 0,
+    userGrowthPercent: 0,
+    isRevenueIncreasing: true,
+    isUserBaseIncreasing: true,
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Cards de Tendência do Sistema */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* Tendência Financeira */}
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6 relative overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white", data.isRevenueIncreasing ? "bg-emerald-500" : "bg-rose-500")}>
+                {data.isRevenueIncreasing ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Evolução Financeira</h3>
+                <p className="text-xs text-muted-foreground">Comparativo com o mês anterior (MoM)</p>
+              </div>
+            </div>
+            <span className={cn(
+              "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 border",
+              data.isRevenueIncreasing
+                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+            )}>
+              {data.isRevenueIncreasing ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+              {Math.abs(data.revenueGrowthPercent)}% {data.isRevenueIncreasing ? "AUMENTOU" : "DIMINUIU"}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {data.isRevenueIncreasing
+              ? "🟢 O faturamento da plataforma apresentou trajetória de crescimento no último período."
+              : "🔴 Atenção: O faturamento teve uma retração em relação ao mês anterior."}
+          </p>
+        </div>
+
+        {/* Tendência de Usuários / Alunos */}
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6 relative overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white", data.isUserBaseIncreasing ? "bg-indigo-500" : "bg-amber-500")}>
+                <Users size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Base de Usuários & Alunos</h3>
+                <p className="text-xs text-muted-foreground">Evolução do total de usuários ativos</p>
+              </div>
+            </div>
+            <span className={cn(
+              "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 border",
+              data.isUserBaseIncreasing
+                ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
+                : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+            )}>
+              {data.isUserBaseIncreasing ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+              {Math.abs(data.userGrowthPercent)}% {data.isUserBaseIncreasing ? "CRESCENDO" : "EM QUEDA"}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {data.isUserBaseIncreasing
+              ? "🟢 A base de alunos e escolas cadastradas está expandindo de forma consistente."
+              : "🟡 O ritmo de novos cadastros desacelerou no período recente."}
+          </p>
+        </div>
+      </div>
+
+      {/* Gráfico de Evolução Financeira vs Alunos */}
+      <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6">
+        <SectionTitle><TrendingUp size={20} className="text-emerald-500" /> Histórico de Evolução Mês a Mês</SectionTitle>
+        <div className="mt-6 h-72">
+          {data.monthlyHistory && data.monthlyHistory.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.monthlyHistory}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                <XAxis dataKey="month" stroke="#888888" fontSize={11} />
+                <YAxis yAxisId="left" stroke="#10b981" fontSize={11} tickFormatter={(v) => `R$${v}`} />
+                <YAxis yAxisId="right" orientation="right" stroke="#8b5cf6" fontSize={11} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#1e1e2d", borderColor: "#333", borderRadius: "12px" }}
+                  formatter={(value: any, name: string) => [
+                    name === "revenue" ? formatCurrency(Number(value)) : value,
+                    name === "revenue" ? "Receita (R$)" : name === "activeStudents" ? "Alunos Ativos" : "Novos Cadastros"
+                  ]}
+                />
+                <Legend />
+                <Bar yAxisId="left" dataKey="revenue" name="Receita (R$)" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="right" dataKey="activeStudents" name="Alunos Ativos" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState message="Sem histórico de evolução suficiente ainda." />
+          )}
+        </div>
+      </div>
+
+      {/* Tabela Detalhada de Evolução Mês a Mês */}
+      <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6">
+        <SectionTitle><BarChart2 size={20} className="text-violet-500" /> Detalhamento do Desempenho Mensal</SectionTitle>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground font-black uppercase tracking-wider">
+                <th className="py-3 px-4">Mês</th>
+                <th className="py-3 px-4">Receita Gerada</th>
+                <th className="py-3 px-4">Novos Alunos</th>
+                <th className="py-3 px-4">Total Alunos Ativos</th>
+                <th className="py-3 px-4">Novas Escolas / Orgs</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40 font-medium">
+              {data.monthlyHistory.map((item: any, idx: number) => (
+                <tr key={idx} className="hover:bg-muted/20 transition-colors">
+                  <td className="py-3.5 px-4 font-bold text-foreground">{item.month}</td>
+                  <td className="py-3.5 px-4 font-bold text-emerald-500">{formatCurrency(item.revenue)}</td>
+                  <td className="py-3.5 px-4">{item.newStudents}</td>
+                  <td className="py-3.5 px-4 font-bold text-violet-500">{item.activeStudents}</td>
+                  <td className="py-3.5 px-4">{item.newOrganizations}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── TABS config ───────────────────────────────────────────────────────────────
 const TABS: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: "overview", label: "Visão Geral", icon: <BarChart2 size={16} /> },
+  { id: "evolution", label: "Evolução do Sistema", icon: <TrendingUp size={16} /> },
   { id: "realtime", label: "Tempo Real", icon: <Activity size={16} /> },
   { id: "security", label: "Segurança & Ataques", icon: <Shield size={16} /> },
   { id: "visitors", label: "Visitantes", icon: <Users size={16} /> },
@@ -1476,6 +1630,7 @@ export default function AnalyticsDashboard() {
   const renderTab = () => {
     switch (activeTab) {
       case "overview": return <OverviewTab preset={preset} />;
+      case "evolution": return <EvolutionTab />;
       case "realtime": return <RealtimeTab />;
       case "security": return <SecurityTab preset={preset} />;
       case "visitors": return <OverviewTab preset={preset} />;  // shares visitor graphs

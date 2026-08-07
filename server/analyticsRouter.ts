@@ -536,7 +536,34 @@ const analyticsQueryRouter = router({
       revTotal = parseFloat(revTotalRes?.total || "0");
     } catch (e) {}
 
-    // 7. Conversão
+    // 7. Receita Prevista Próximo Mês (nextMonthForecast)
+    let nextMonthForecast = 0;
+    try {
+      // Soma das mensalidades dos alunos ativos no sistema
+      const [studentsFeeRes] = await db.select({
+        total: sql<string>`COALESCE(SUM(CAST(${students.monthlyFee} AS NUMERIC)), 0)`
+      })
+      .from(students)
+      .where(eq(students.status, "ativo"));
+
+      const studentsTotal = parseFloat(studentsFeeRes?.total || "0");
+
+      // Soma de receitas recorrentes ou assinaturas de escolas ativas
+      const [analyticsFeeRes] = await db.select({
+        total: sql<string>`COALESCE(SUM(amount), 0)`
+      })
+      .from(analyticsRevenue)
+      .where(gte(analyticsRevenue.createdAt, monthStart));
+
+      const analyticsTotal = parseFloat(analyticsFeeRes?.total || "0");
+
+      // Previsão combinada (mensalidades ativas dos alunos + receita recorrente SaaS)
+      nextMonthForecast = studentsTotal > 0 ? studentsTotal : (analyticsTotal > 0 ? analyticsTotal : revMonth * 1.08);
+    } catch (e) {
+      nextMonthForecast = revMonth > 0 ? revMonth : 0;
+    }
+
+    // 8. Conversão
     let conversionRate = 0;
     try {
       const [uInPeriodRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
@@ -565,7 +592,78 @@ const analyticsQueryRouter = router({
       revenueToday: revPeriod,
       revenueMonth: revMonth,
       revenueTotal: revTotal,
+      nextMonthForecast,
       conversionRate,
+    };
+  }),
+
+  // ── 9. Procedure de Evolução do Sistema (Financeiro e Usuários Mês a Mês) ────────
+  getEvolutionStats: isSuperAdmin.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    // Histórico dos últimos 6 meses
+    const now = new Date();
+    const months: { label: string; year: number; month: number; start: Date; end: Date }[] = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+      const label = d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).toUpperCase();
+      months.push({ label, year: d.getFullYear(), month: d.getMonth(), start, end });
+    }
+
+    const monthlyData = [];
+
+    for (const m of months) {
+      // Receita no mês
+      const [revRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
+        .from(analyticsRevenue)
+        .where(and(gte(analyticsRevenue.createdAt, m.start), lte(analyticsRevenue.createdAt, m.end)));
+
+      // Novos alunos no mês
+      const [studentsRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+        .from(students)
+        .where(and(gte(students.createdAt, m.start), lte(students.createdAt, m.end)));
+
+      // Total acumulado de alunos ativos no final daquele mês
+      const [activeStudentsRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+        .from(students)
+        .where(and(lte(students.createdAt, m.end), eq(students.status, "ativo")));
+
+      // Novas organizações no mês
+      const [orgsRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
+        .from(organizations)
+        .where(and(gte(organizations.createdAt, m.start), lte(organizations.createdAt, m.end)));
+
+      monthlyData.push({
+        month: m.label,
+        revenue: parseFloat(revRes?.total || "0"),
+        newStudents: studentsRes?.count || 0,
+        activeStudents: activeStudentsRes?.count || 0,
+        newOrganizations: orgsRes?.count || 0,
+      });
+    }
+
+    // Calcula taxas de variação comparando o último mês com o penúltimo
+    const curr = monthlyData[monthlyData.length - 1];
+    const prev = monthlyData[monthlyData.length - 2] || curr;
+
+    const revenueGrowth = prev.revenue > 0
+      ? parseFloat((((curr.revenue - prev.revenue) / prev.revenue) * 100).toFixed(1))
+      : (curr.revenue > 0 ? 100 : 0);
+
+    const userGrowth = prev.activeStudents > 0
+      ? parseFloat((((curr.activeStudents - prev.activeStudents) / prev.activeStudents) * 100).toFixed(1))
+      : (curr.activeStudents > 0 ? 100 : 0);
+
+    return {
+      monthlyHistory: monthlyData,
+      revenueGrowthPercent: revenueGrowth,
+      userGrowthPercent: userGrowth,
+      isRevenueIncreasing: revenueGrowth >= 0,
+      isUserBaseIncreasing: userGrowth >= 0,
     };
   }),
 
