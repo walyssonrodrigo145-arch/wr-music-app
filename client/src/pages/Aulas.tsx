@@ -188,6 +188,74 @@ export default function Aulas() {
   const { data: professoresList = [] } = trpc.professores.list.useQuery();
   const { data: studioRoomsList = [] } = trpc.studioRooms.list.useQuery(undefined, { refetchInterval: 10_000 });
   const { data: pendingReminders = [] } = trpc.reminders.list.useQuery({ status: "pendente" });
+  const { data: settings } = trpc.settings.get.useQuery();
+
+  // ─── LÓGICA DE HORÁRIOS LIVRES DO DIA ────────────────────────────────────────
+  const todayAvailableSlots = useMemo(() => {
+    const dayMap = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const now = new Date();
+    const currentDayKey = dayMap[now.getDay()];
+    
+    // Parse das horas da escola
+    let schoolHours: any = null;
+    try {
+      if (settings?.schoolHours) {
+        schoolHours = typeof settings.schoolHours === 'string' ? JSON.parse(settings.schoolHours) : settings.schoolHours;
+      }
+    } catch {
+      schoolHours = null;
+    }
+
+    const todayConfig = schoolHours?.[currentDayKey] || { active: true, start: "08:00", end: "18:00" };
+    if (!todayConfig.active) {
+      return { isClosed: true, slots: [], total: 0, config: todayConfig };
+    }
+
+    const [startH, startM] = (todayConfig.start || "08:00").split(":").map(Number);
+    const [endH, endM] = (todayConfig.end || "18:00").split(":").map(Number);
+    const duration = settings?.lessonDuration || 60; // minutos
+
+    // Monta todos os slots possíveis do dia
+    const slots: { timeStr: string; dateObj: Date; isOccupied: boolean }[] = [];
+    let currentSlot = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startH, startM, 0);
+    const endSlotLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endH, endM, 0);
+
+    const totalRooms = Math.max(studioRoomsList.length, 1);
+
+    while (currentSlot < endSlotLimit) {
+      const slotStart = new Date(currentSlot);
+      const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+      const timeStr = format(slotStart, "HH:mm");
+
+      // Conta quantas aulas agendadas hoje se sobrepõem a este slot
+      const overlappingLessons = lessons.filter(l => {
+        if (l.status !== "agendada") return false;
+        const lStart = new Date(l.scheduledAt);
+        const lEnd = new Date(lStart.getTime() + (l.duration || 60) * 60000);
+        return isSameDay(lStart, now) && lStart < slotEnd && lEnd > slotStart;
+      });
+
+      // O slot está ocupado apenas se o número de aulas sobrepostas for maior ou igual ao número de salas ativas
+      const isOccupied = overlappingLessons.length >= totalRooms;
+
+      slots.push({
+        timeStr,
+        dateObj: slotStart,
+        isOccupied
+      });
+
+      currentSlot = new Date(currentSlot.getTime() + duration * 60000);
+    }
+
+    const availableSlots = slots.filter(s => !s.isOccupied);
+
+    return {
+      isClosed: false,
+      slots: availableSlots,
+      total: availableSlots.length,
+      config: todayConfig
+    };
+  }, [settings, lessons, studioRoomsList]);
 
   const targetLessonForAction = useMemo(() => {
     if (!recurringAction) return null;
@@ -845,6 +913,53 @@ export default function Aulas() {
                         </div>
                       );
                     })}
+              </div>
+
+              {/* ─── Mini Relatório de Horários Disponíveis do Dia ─── */}
+              <div className="bg-card/90 rounded-2xl p-4 border border-border/80 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock size={14} className="text-violet-500" />
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Horários Livres Hoje</span>
+                  </div>
+                  <span className={cn(
+                    "text-[9px] font-bold px-2 py-0.5 rounded-full border",
+                    todayAvailableSlots.isClosed || todayAvailableSlots.total === 0
+                      ? "text-amber-500 bg-amber-500/10 border-amber-500/20"
+                      : "text-violet-500 bg-violet-500/10 border-violet-500/20"
+                  )}>
+                    {todayAvailableSlots.isClosed ? "Fechado" : `${todayAvailableSlots.total} livre(s)`}
+                  </span>
+                </div>
+
+                {todayAvailableSlots.isClosed ? (
+                  <p className="text-xs text-muted-foreground italic text-center py-2">Escola fechada hoje.</p>
+                ) : todayAvailableSlots.total === 0 ? (
+                  <p className="text-xs text-muted-foreground italic text-center py-2">Agenda de hoje lotada!</p>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-muted-foreground font-medium">
+                      Atendimento hoje ({todayAvailableSlots.config.start} às {todayAvailableSlots.config.end}):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto scrollbar-none pr-1">
+                      {todayAvailableSlots.slots.map((slot, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setCurrentDate(slot.dateObj);
+                            setAgendarOpen(true);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold transition-all active:scale-95 flex items-center gap-1 group"
+                          title="Clique para agendar neste horário"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:scale-125 transition-transform" />
+                          {slot.timeStr}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-muted-foreground/70 italic text-center pt-1">
+                      💡 Clique no horário para agendar rápido
+                    </p>
                   </div>
                 )}
               </div>
