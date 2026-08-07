@@ -1473,10 +1473,12 @@ export default function NovoAluno() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">1 vez (aula avulsa)</SelectItem>
-                          <SelectItem value="4">4 semanas (1 mês)</SelectItem>
-                          <SelectItem value="8">8 semanas (2 meses)</SelectItem>
-                          <SelectItem value="12">12 semanas (3 meses)</SelectItem>
-                          <SelectItem value="24">24 semanas (semestre)</SelectItem>
+                          <SelectItem value="4">4 semanas (~1 mês)</SelectItem>
+                          <SelectItem value="8">8 semanas (~2 meses)</SelectItem>
+                          <SelectItem value="12">12 semanas (~3 meses)</SelectItem>
+                          <SelectItem value="26">26 semanas (~6 meses)</SelectItem>
+                          <SelectItem value="52">52 semanas (~1 ano)</SelectItem>
+                          <SelectItem value="104">104 semanas (~2 anos)</SelectItem>
                         </SelectContent>
                       </Select>
                       {scheduleForm.weeksCount > 1 && (
