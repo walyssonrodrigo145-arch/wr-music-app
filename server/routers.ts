@@ -3896,6 +3896,48 @@ ${jsonSchemaFormat}`;
             .set({ status: item.status, updatedAt: new Date() })
             .where(and(eq(lessons.id, item.lessonId), eq(lessons.organizationId, orgId)));
         }
+
+        // Sincronizar status geral da turma no calendário
+        const sample = input.attendances[0];
+        if (sample) {
+          const [target] = await db.select({
+            title: lessons.title,
+            scheduledAt: lessons.scheduledAt,
+            lessonType: lessons.lessonType,
+          }).from(lessons).where(and(eq(lessons.id, sample.lessonId), eq(lessons.organizationId, orgId))).limit(1);
+
+          if (target && target.lessonType === 'turma') {
+            const allTurma = await db.select({ status: lessons.status })
+              .from(lessons)
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.title, target.title),
+                eq(lessons.scheduledAt, target.scheduledAt)
+              ));
+
+            const statuses = allTurma.map(t => t.status);
+            const hasConcluida = statuses.includes('concluida');
+            const allFalta = statuses.length > 0 && statuses.every(s => s === 'falta');
+
+            let overallStatus: 'concluida' | 'falta' | 'agendada' = 'agendada';
+            if (hasConcluida) {
+              overallStatus = 'concluida';
+            } else if (allFalta) {
+              overallStatus = 'falta';
+            }
+
+            if (overallStatus !== 'agendada') {
+              await db.update(lessons)
+                .set({ status: overallStatus, updatedAt: new Date() })
+                .where(and(
+                  eq(lessons.organizationId, orgId),
+                  eq(lessons.title, target.title),
+                  eq(lessons.scheduledAt, target.scheduledAt)
+                ));
+            }
+          }
+        }
+
         return { success: true };
       } catch (error) {
         return handleDbError(error, "dar baixa na frequência da turma");
