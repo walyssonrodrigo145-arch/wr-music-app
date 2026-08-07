@@ -5658,7 +5658,7 @@ ${jsonSchemaFormat}`;
       .input(z.object({
         studentId: z.number(),
         amount: z.number(),
-        dueDay: z.number().min(1).max(28), // dia do vencimento
+        dueDay: z.number().min(1).max(31), // dia do vencimento (1-31)
         startMonth: z.number().min(1).max(12),
         startYear: z.number(),
         monthsCount: z.number().min(1).max(12),
@@ -5682,7 +5682,10 @@ ${jsonSchemaFormat}`;
           let m = input.startMonth - 1 + i; // 0-based
           const y = input.startYear + Math.floor(m / 12);
           m = m % 12;
-          const dueDate = new Date(y, m, input.dueDay);
+          // Ajusta o dia para o último dia válido do mês (ex: dia 31 em fevereiro -> 28/29)
+          const lastDay = new Date(y, m + 1, 0).getDate();
+          const day = Math.min(input.dueDay, lastDay);
+          const dueDate = new Date(y, m, day);
           const month = m + 1; // 1-based
 
           // Verificar duplicidade (mesmo aluno, mesmo mês/ano)
@@ -5764,7 +5767,10 @@ ${jsonSchemaFormat}`;
             let m = input.startMonth - 1 + i;
             const y = input.startYear + Math.floor(m / 12);
             m = m % 12;
-            const dueDate = new Date(y, m, student.dueDay);
+            // Ajusta o dia para o último dia válido do mês (ex: dia 31 em fevereiro -> 28/29)
+            const lastDay = new Date(y, m + 1, 0).getDate();
+            const day = Math.min(student.dueDay, lastDay);
+            const dueDate = new Date(y, m, day);
             const month = m + 1;
 
             if (existingSet.has(`${student.id}_${month}_${y}`)) continue;
