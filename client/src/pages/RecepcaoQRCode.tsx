@@ -117,7 +117,9 @@ export default function RecepcaoQRCode() {
   }, []);
 
   const lastScans = (recentLogs ?? []).slice(0, 5);
-  const schoolName = "MusicPro";
+  // Usa o nome/logo da escola (branding white-label) com fallback para MusicPro.
+  const schoolName = (user as any)?.schoolName || "MusicPro";
+  const schoolLogo = (user as any)?.schoolLogo || null;
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col relative w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-[2.5rem] overflow-hidden select-none shadow-2xl border border-white/5">
@@ -141,8 +143,12 @@ export default function RecepcaoQRCode() {
         {/* ── Header ─────────────────────────────────────────────── */}
         <header className="flex items-center justify-between px-8 py-5">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Music size={24} className="text-white" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 overflow-hidden">
+              {schoolLogo ? (
+                <img src={schoolLogo} alt={schoolName} className="w-full h-full object-contain p-1 bg-white" />
+              ) : (
+                <Music size={24} className="text-white" />
+              )}
             </div>
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">

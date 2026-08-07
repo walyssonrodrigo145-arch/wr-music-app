@@ -54,20 +54,26 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
           <div className="relative group">
             <div className="absolute -inset-4 bg-gradient-to-br from-primary/30 to-violet-500/30 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500" />
             <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-2xl border border-white/10 overflow-hidden">
-              <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-3xl flex items-center justify-center relative z-10">
-                <div className="flex items-center gap-[5px] h-8">
-                  <div className="w-2 bg-white/90 rounded-full h-4 group-hover:scale-110 transition-transform duration-500" />
-                  <div className="w-2 bg-white/90 rounded-full h-8 group-hover:scale-110 transition-transform duration-500" />
-                  <div className="w-2 bg-white rounded-full h-full shadow-[0_0_12px_rgba(255,255,255,0.8)] group-hover:scale-110 transition-transform duration-500" />
-                  <div className="w-2 bg-white/90 rounded-full h-6 group-hover:scale-110 transition-transform duration-500" />
+              {(user as any)?.schoolLogo ? (
+                <div className="w-full h-full rounded-3xl bg-white flex items-center justify-center overflow-hidden">
+                  <img src={(user as any).schoolLogo} alt="Logo da escola" className="w-full h-full object-contain p-1.5" />
                 </div>
-              </div>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-3xl flex items-center justify-center relative z-10">
+                  <div className="flex items-center gap-[5px] h-8">
+                    <div className="w-2 bg-white/90 rounded-full h-4 group-hover:scale-110 transition-transform duration-500" />
+                    <div className="w-2 bg-white/90 rounded-full h-8 group-hover:scale-110 transition-transform duration-500" />
+                    <div className="w-2 bg-white rounded-full h-full shadow-[0_0_12px_rgba(255,255,255,0.8)] group-hover:scale-110 transition-transform duration-500" />
+                    <div className="w-2 bg-white/90 rounded-full h-6 group-hover:scale-110 transition-transform duration-500" />
+                  </div>
+                </div>
+              )}
             </div>
             <div className="absolute inset-0 rounded-[2rem] border-2 border-white/20 animate-ping opacity-20" />
           </div>
           
           <div className="flex flex-col items-center gap-3">
-            <h2 className="text-white text-xl font-black tracking-tight">MusicPro Portal</h2>
+            <h2 className="text-white text-xl font-black tracking-tight">{(user as any)?.schoolName || "MusicPro"} Portal</h2>
             <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
               <Loader2 size={16} className="animate-spin text-primary" />
               <span className="text-xs font-black text-white/60 uppercase tracking-[0.2em]">Sincronizando seus dados...</span>

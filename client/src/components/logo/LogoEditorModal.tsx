@@ -166,6 +166,21 @@ export function LogoEditorModal({
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
+  // Pré-visualização em tempo real (captura do canvas).
+  const [livePreview, setLivePreview] = useState("");
+
+  // Atualiza o preview ao vivo a cada redesenho.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      try {
+        const c = canvasRef.current;
+        if (c) setLivePreview(c.toDataURL("image/png"));
+      } catch { /* ignora */ }
+    }, 80);
+    return () => clearTimeout(t);
+  }, [open, x, y, scale, rotation, removeBg]);
+
   // Carrega a imagem e aplica enquadramento inicial inteligente.
   useEffect(() => {
     if (!open || !src) return;
@@ -403,6 +418,39 @@ export function LogoEditorModal({
                 {t === "light" ? <Sun size={14} /> : <Moon size={14} />} {t === "light" ? "Claro" : "Escuro"}
               </button>
             ))}
+          </div>
+
+          {/* Preview em tempo real — menu lateral e portal do aluno */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`rounded-2xl border p-3 ${theme === "dark" ? "bg-slate-900 border-white/10" : "bg-white border-border"}`}>
+              <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${theme === "dark" ? "text-slate-400" : "text-muted-foreground"}`}>Menu Lateral</p>
+              <div className="flex items-center gap-2">
+                <div className="relative w-9 h-9 rounded-full overflow-hidden border bg-background/40 flex-shrink-0 flex items-center justify-center">
+                  {livePreview ? (
+                    <img src={livePreview} alt="Preview menu lateral" className="w-full h-full object-contain" />
+                  ) : (
+                    <ImageIcon size={16} className="opacity-40" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-[11px] font-black truncate ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Sua Escola</p>
+                  <p className={`text-[8px] uppercase tracking-widest font-bold ${theme === "dark" ? "text-slate-400/60" : "text-slate-400"}`}>Escola de Música</p>
+                </div>
+              </div>
+            </div>
+            <div className={`rounded-2xl border p-3 ${theme === "dark" ? "bg-slate-900 border-white/10" : "bg-white border-border"}`}>
+              <p className={`text-[9px] font-black uppercase tracking-widest mb-2 ${theme === "dark" ? "text-slate-400" : "text-muted-foreground"}`}>Portal do Aluno</p>
+              <div className="flex items-center justify-center gap-2">
+                <div className="relative w-8 h-8 rounded-full overflow-hidden border bg-background/40 flex-shrink-0 flex items-center justify-center">
+                  {livePreview ? (
+                    <img src={livePreview} alt="Preview portal do aluno" className="w-full h-full object-contain" />
+                  ) : (
+                    <ImageIcon size={14} className="opacity-40" />
+                  )}
+                </div>
+                <p className={`text-[11px] font-black truncate ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Bem-vindo!</p>
+              </div>
+            </div>
           </div>
 
           {/* Área circular com máscara */}
