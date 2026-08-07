@@ -1,21 +1,23 @@
 # AUDITORIA PRÉ-DEPLOY (QA SÊNIOR - WRAUDITOR)
 
 ## Data: 2026-08-07
-## Alteração: Correção da Exibição do Nome da Escola (SchoolName Branding Fallback)
+## Alteração: Correção do Bug de Exclusão de Organização no Super Admin (file_comments)
 
 ### 1. Resumo das Alterações
-- `server/routers.ts`:
-  - No procedimento `auth.me`, incluída a seleção da coluna `name` na tabela `organizations`.
-  - A busca em `settings` foi alterada para selecionar prioritariamente o registro que possuir `schoolName` preenchido e não-vazio.
-  - Definido o fallback estruturado: `schoolName = (userSet?.schoolName) || org?.name || null`.
-  - No procedimento `settings.updateSchool`, adicionada a atualização síncrona da coluna `organizations.name` sempre que um novo `schoolName` for salvo.
+- `server/superAdminRouter.ts` — Procedimento `deleteOrganization`:
+  - **Antes:** `tx.delete(fileComments).where(eq(fileComments.organizationId, orgId))` — não capturava registros com `organizationId NULL`.
+  - **Depois:** A deleção é feita em dois passos dentro da mesma transação:
+    1. Busca todos os `student_files.id` da organização e deleta `file_comments` por `fileId` via `inArray` — cobre 100% dos registros associados, independente do `organizationId`.
+    2. Fallback por `organizationId` direto para garantir limpeza completa.
+  - A ordem `fileComments → studentFiles` permanece preservada.
 
 ### 2. Validação QA / Checklist
-- [x] Nenhuma rota ou contrato tRPC foi quebrado.
-- [x] O campo `schoolName` agora é retornado corretamente no payload de `auth.me`.
-- [x] Ao salvar em Configurações, tanto `settings` quanto `organizations` recebem o nome da escola atualizado.
-- [x] A invalidação de cache `utils.auth.me.invalidate()` no cliente garante que o nome "WR Escola de Música" substitua "MusicPro" na sidebar.
+- [x] A transação continua sendo atômica (rollback automático em caso de falha).
+- [x] Zero alterações de schema ou migrations.
+- [x] `studentFiles` e `inArray` já estavam importados no arquivo — sem novas dependências.
+- [x] Sem quebra de rotas ou contratos tRPC.
+- [x] Cobre o caso de borda: registros com `organizationId NULL`.
 
 ### 3. Parecer Final
 - **Status:** APROVADO para Deploy.
-- **Nível de Risco:** Baixo (0 erros críticos ou altos).
+- **Nível de Risco:** Muito Baixo.

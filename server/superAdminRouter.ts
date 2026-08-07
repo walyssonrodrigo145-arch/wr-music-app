@@ -216,6 +216,17 @@ export const superAdminRouter = router({
         await tx.delete(marketingContacts).where(eq(marketingContacts.organizationId, orgId));
         await tx.delete(marketingCampaigns).where(eq(marketingCampaigns.organizationId, orgId));
 
+        // Passo 1: busca todos os IDs de arquivos da organização para deletar
+        // file_comments via fileId — cobre registros com organizationId NULL ou de outros usuários
+        const orgFileIds = await tx
+          .select({ id: studentFiles.id })
+          .from(studentFiles)
+          .where(eq(studentFiles.organizationId, orgId));
+        if (orgFileIds.length > 0) {
+          await tx.delete(fileComments)
+            .where(inArray(fileComments.fileId, orgFileIds.map(f => f.id)));
+        }
+        // Passo 2: fallback — deleta file_comments restantes pelo organizationId direto
         await tx.delete(fileComments).where(eq(fileComments.organizationId, orgId));
         await tx.delete(studentFiles).where(eq(studentFiles.organizationId, orgId));
         await tx.delete(studentTimeline).where(eq(studentTimeline.organizationId, orgId));
