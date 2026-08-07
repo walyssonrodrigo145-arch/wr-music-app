@@ -57,7 +57,7 @@ export function isAsaasEnabled(email?: string | null): boolean {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type AsaasBillingType = "PIX" | "CREDIT_CARD" | "UNDEFINED";
+export type AsaasBillingType = "PIX" | "BOLETO" | "CREDIT_CARD" | "UNDEFINED";
 
 export interface AsaasCustomer {
   id: string;

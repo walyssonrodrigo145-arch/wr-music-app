@@ -271,7 +271,7 @@ function SuperAdminPanel() {
                       <span className="font-bold">{org.name}</span>
                       <span className={`text-xs px-2 py-1 rounded-full font-bold ${
                         org.subscriptionStatus === 'active' ? 'bg-green-500/10 text-green-600' :
-                        org.subscriptionStatus === 'trial' ? 'bg-blue-500/10 text-blue-600' :
+                        org.subscriptionStatus === 'trialing' ? 'bg-blue-500/10 text-blue-600' :
                         org.subscriptionStatus === 'pending' ? 'bg-yellow-500/10 text-yellow-600' :
                         'bg-red-500/10 text-red-600'
                       }`}>{org.subscriptionStatus === 'pending' ? 'aguardando' : org.subscriptionStatus}</span>
@@ -316,7 +316,7 @@ function SuperAdminPanel() {
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-1 rounded-full font-bold ${
                           org.subscriptionStatus === 'active' ? 'bg-green-500/10 text-green-600' :
-                          org.subscriptionStatus === 'trial' ? 'bg-blue-500/10 text-blue-600' :
+                          org.subscriptionStatus === 'trialing' ? 'bg-blue-500/10 text-blue-600' :
                           org.subscriptionStatus === 'pending' ? 'bg-yellow-500/10 text-yellow-600' :
                           'bg-red-500/10 text-red-600'
                         }`}>{org.subscriptionStatus === 'pending' ? 'aguardando' : org.subscriptionStatus}</span>

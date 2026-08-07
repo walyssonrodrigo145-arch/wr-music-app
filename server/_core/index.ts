@@ -20,7 +20,7 @@ import { createRateLimiter, logSecurityEvent, detectAttackCategory } from "./rat
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
-import { settings, paymentDues, organizations, asaasWebhooksLog, students } from "../../drizzle/schema";
+import { settings, paymentDues, organizations, students } from "../../drizzle/schema";
 import { ENV } from './env';
 import { eq, and } from "drizzle-orm";
 import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whatsapp";

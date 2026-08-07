@@ -432,7 +432,7 @@ router.post("/", async (req, res) => {
             .set({
               status: "pago",
               paidAt: new Date(),
-              paymentMethod: "pix",
+              asaasBillingType: "PIX",
               updatedAt: new Date(),
             })
             .where(eq(paymentDues.id, targetDue.id));
@@ -596,13 +596,13 @@ router.post("/", async (req, res) => {
       if (input === "0") {
         await updateState("PAUSED_HUMAN");
         await notifyProfessor(`👤 *Solicitação de Atendimento Humano!*\n\nContato *${student?.name || pushName}* (${phone}) solicitou falar com o professor pelo robô (opção 0).`);
-        await sendReply("Claro! Chamei o professor para te atender. Aguarde um instante! 🎸👤\n\n_Quando quiser voltar ao robô automático no futuro, é só digitar *MENU*._", false);
+        await sendReply("Claro! Chamei o professor para te atender. Aguarde um instante! 🎸👤\n\n_Quando quiser voltar ao robô automático no futuro, é só digitar *MENU*._");
         return res.status(200).json({ ok: true });
       }
 
       if (input === "99" || inputUpper === "SAIR" || inputUpper === "ENCERRAR" || inputUpper === "TCHAU") {
         await updateState("AGUARDANDO_MENU");
-        await sendReply("Atendimento encerrado! 😊\n\nFoi um prazer falar com você. Se precisar de algo no futuro, é só mandar uma mensagem ou digitar *MENU*! 🎵👋", false);
+        await sendReply("Atendimento encerrado! 😊\n\nFoi um prazer falar com você. Se precisar de algo no futuro, é só mandar uma mensagem ou digitar *MENU*! 🎵👋");
         return res.status(200).json({ ok: true });
       }
     }

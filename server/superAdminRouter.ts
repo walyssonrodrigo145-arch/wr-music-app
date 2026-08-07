@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "./db";
-import { eq, sql, count } from "drizzle-orm";
+import { eq, sql, count, inArray } from "drizzle-orm";
 import {
   systemPlans,
   systemCoupons,
@@ -31,6 +31,7 @@ import {
   dailyStudyPlans,
   notifications,
   aiConversations,
+  aiMessages,
   aiDocuments,
   chatbotSessions,
   fcmTokens,
@@ -239,10 +240,16 @@ export const superAdminRouter = router({
 
         await tx.delete(notifications).where(eq(notifications.organizationId, orgId));
         await tx.delete(fcmTokens).where(eq(fcmTokens.organizationId, orgId));
-        await tx.delete(aiConversations).where(eq(aiConversations.organizationId, orgId));
         await tx.delete(aiDocuments).where(eq(aiDocuments.organizationId, orgId));
+        // Deleta mensagens de IA vinculadas às conversas da organização antes das conversas
+        const orgConversationIds = await tx.select({ id: aiConversations.id })
+          .from(aiConversations)
+          .where(eq(aiConversations.organizationId, orgId));
+        if (orgConversationIds.length > 0) {
+          await tx.delete(aiMessages).where(inArray(aiMessages.conversationId, orgConversationIds.map(c => c.id)));
+        }
+        await tx.delete(aiConversations).where(eq(aiConversations.organizationId, orgId));
         await tx.delete(chatbotSessions).where(eq(chatbotSessions.organizationId, orgId));
-
         await tx.delete(crmLeads).where(eq(crmLeads.organizationId, orgId));
         await tx.delete(studioRooms).where(eq(studioRooms.organizationId, orgId));
         await tx.delete(enrollmentLinks).where(eq(enrollmentLinks.organizationId, orgId));

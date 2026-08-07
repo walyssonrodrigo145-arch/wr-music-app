@@ -121,14 +121,15 @@ export const crmRouter = router({
       const [student] = await db.insert(students)
         .values({
           userId: ctx.user.id,
+          professorId: ctx.user.id,
           name: lead.name,
-          phone: lead.phone,
+          phone: lead.phone || "",
           email: lead.email || `${lead.name.toLowerCase().replace(/\s+/g, ".")}@aluno.local`,
           monthlyFee: String(input.monthlyFee > 0 ? input.monthlyFee : lead.value || 0),
           dueDay: input.dueDay,
           status: "ativo",
           notes: `Convertido do Funil Comercial. Obs: ${lead.notes || ""}`,
-          startDate: new Date(),
+          startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
         })
         .returning();
 

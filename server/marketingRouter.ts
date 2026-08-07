@@ -162,8 +162,7 @@ export const marketingRouter = router({
       await db.update(marketingContacts)
         .set({
           status: "pending",
-          sentAt: null,
-          failedAt: null,
+          processedAt: null,
           errorMessage: null,
         })
         .where(eq(marketingContacts.campaignId, input.campaignId));

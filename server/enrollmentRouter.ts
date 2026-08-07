@@ -416,7 +416,7 @@ export const enrollmentRouter = router({
             phone: input.studentPhone,
             cpfCnpj: input.studentCpf,
           },
-          schoolSet.asaasApiKey
+          schoolSet.asaasApiKey!
         );
 
         const dueDate = new Date();
@@ -431,14 +431,14 @@ export const enrollmentRouter = router({
             dueDate: dueDateStr,
             description: `Matrícula - Aula de ${courseName} em ${schoolSet.schoolName || "Escola de Música"}`,
           },
-          schoolSet.asaasApiKey
+          schoolSet.asaasApiKey!
         );
 
         let pixQrCode = null;
         let pixCopiaECola = null;
         if (input.billingType === "PIX" && charge.id) {
           try {
-            const pix = await getAsaasPixQrCode(charge.id, schoolSet.asaasApiKey);
+            const pix = await getAsaasPixQrCode(charge.id, schoolSet.asaasApiKey!);
             pixQrCode = pix.encodedImage;
             pixCopiaECola = pix.payload;
           } catch (_) {}

@@ -734,9 +734,6 @@ export const systemCoupons = pgTable("system_coupons", {
 export type SystemCoupon = typeof systemCoupons.$inferSelect;
 export type InsertSystemCoupon = typeof systemCoupons.$inferInsert;
 
-export type SystemReport = typeof systemReports.$inferSelect;
-export type InsertSystemReport = typeof systemReports.$inferInsert;
-
 // --- Marketing Tables ---
 
 export const marketingCampaigns = pgTable("marketing_campaigns", {

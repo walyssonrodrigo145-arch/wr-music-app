@@ -2365,7 +2365,7 @@ ${jsonSchemaFormat}`;
             name: input.name,
             socialName: input.socialName || undefined,
             email: input.email || undefined,
-            phone: input.phone,
+            phone: input.phone || "",
             birthDate: input.birthDate || undefined,
             gender: input.gender || undefined,
             cpf: input.cpf || undefined,
@@ -7559,6 +7559,9 @@ Instruções de análise:
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const [student] = await db.select({ professorId: students.professorId, name: students.name }).from(students).where(eq(students.id, ctx.user.studentId!));
+
+        // FIX: extrair o primeiro nome do aluno (era usado no prompt mas nunca definido → ReferenceError)
+        const firstName = (student?.name || "Aluno").trim().split(" ")[0];
         
         const instrument = input.instrument || "seu instrumento";
         const dayFocus = input.dayFocus || "evoluir a prática do dia";
