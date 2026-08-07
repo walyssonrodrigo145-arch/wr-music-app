@@ -767,13 +767,13 @@ export default function NovoAluno() {
 
       {/* ─── Tab Navigation (apenas em modo edição) ─── */}
       {isEditMode && (
-        <div className="bg-card/60 backdrop-blur-md border-b border-border sticky top-0 z-10">
+        <div className="bg-card/60 backdrop-blur-md border-b border-border mb-6">
           <div className="max-w-7xl mx-auto px-6">
             <div className="flex gap-0">
               <button
                 onClick={() => setActiveTab("dados")}
                 className={cn(
-                  "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all",
+                  "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all cursor-pointer",
                   activeTab === "dados"
                     ? "border-indigo-600 text-indigo-600"
                     : "border-transparent text-muted-foreground hover:text-foreground"
@@ -785,7 +785,7 @@ export default function NovoAluno() {
               <button
                 onClick={() => setActiveTab("agendar")}
                 className={cn(
-                  "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all",
+                  "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all cursor-pointer",
                   activeTab === "agendar"
                     ? "border-violet-600 text-violet-600"
                     : "border-transparent text-muted-foreground hover:text-foreground"
