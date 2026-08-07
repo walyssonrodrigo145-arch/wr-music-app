@@ -25,6 +25,8 @@ import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
 import { SalasEstudioTab } from "./SalasEstudioTab";
 import { downloadBase64File } from "@/utils/downloadReport";
+import { LogoUploadZone } from "@/components/logo/LogoUploadZone";
+import { LogoEditorModal, type LogoEditParams } from "@/components/logo/LogoEditorModal";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
 type Tab = "perfil" | "escola" | "salas" | "financeiro" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
@@ -854,6 +856,10 @@ export default function Configuracoes() {
   const [schoolWebsite, setSchoolWebsite] = useState("");
   const [schoolDescription, setSchoolDescription] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [logoEditorOpen, setLogoEditorOpen] = useState(false);
+  const [logoDraftSrc, setLogoDraftSrc] = useState("");
+  const [logoOriginalName, setLogoOriginalName] = useState("");
+  const [logoEditParams, setLogoEditParams] = useState<LogoEditParams | null>(null);
   const [dueDaysForecast, setDueDaysForecast] = useState("5,10,15,20");
   const defaultHours = {
     monday: { active: true, start: "08:00", end: "18:00" },
@@ -866,6 +872,29 @@ export default function Configuracoes() {
   };
   const [schoolHours, setSchoolHours] = useState<any>(defaultHours);
   const [lessonDuration, setLessonDuration] = useState<number>(60);
+
+  // ── Logo handler: imagem selecionada abre o editor ──
+  const handleLogoImageSelected = (dataUrl: string, file: File) => {
+    setLogoDraftSrc(dataUrl);
+    setLogoOriginalName(file.name);
+    setLogoEditParams(null);
+    setLogoEditorOpen(true);
+  };
+
+  // ── Logo handler: editor salvo ──
+  const handleLogoEditorSave = (params: LogoEditParams) => {
+    setLogoUrl(params.dataUrl);
+    setLogoEditParams(params);
+    setLogoEditorOpen(false);
+    toast.success("Logo ajustada! Clique em Salvar Alterações para aplicar.");
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoUrl("");
+    setLogoEditParams(null);
+    setLogoDraftSrc("");
+  };
+
 
   // ── Notificações state ──
   const [notifyLesson, setNotifyLesson] = useState(true);
@@ -1336,16 +1365,17 @@ export default function Configuracoes() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col md:flex-row items-center gap-6 pt-2">
+                  <div className="flex flex-col md:flex-row items-start gap-6 pt-2">
                     {/* Preview da Logo */}
-                    <div className="relative w-24 h-24 rounded-2xl border-2 border-dashed border-indigo-500/30 bg-background/50 flex flex-col items-center justify-center overflow-hidden shadow-inner group shrink-0">
+                    <div className="relative w-28 h-28 rounded-full border-2 border-dashed border-indigo-500/30 bg-background/50 flex flex-col items-center justify-center overflow-hidden shadow-inner group shrink-0">
                       {logoUrl ? (
                         <>
                           <img src={logoUrl} alt="Logo da Escola" className="w-full h-full object-contain p-2" />
                           <button
                             type="button"
-                            onClick={() => setLogoUrl("")}
+                            onClick={handleRemoveLogo}
                             className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
+                            aria-label="Remover logo"
                           >
                             <Trash2 size={16} className="mr-1" /> Remover
                           </button>
@@ -1358,50 +1388,42 @@ export default function Configuracoes() {
                       )}
                     </div>
 
-                    {/* Inputs de Upload / URL */}
+                    {/* Upload Drag & Drop + Editor */}
                     <div className="space-y-3 flex-1 w-full">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95">
-                          <Upload size={14} />
-                          <span>Selecionar Imagem</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              if (file.size > 3 * 1024 * 1024) {
-                                toast.error("A imagem da logo deve ter no máximo 3MB.");
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setLogoUrl(reader.result as string);
-                                toast.success("Logo carregada! Clique em Salvar para aplicar.");
-                              };
-                              reader.readAsDataURL(file);
-                            }}
-                          />
-                        </label>
+                      <LogoUploadZone
+                        value={logoUrl ? logoUrl : null}
+                        onImageSelected={handleLogoImageSelected}
+                        onRemove={handleRemoveLogo}
+                        maxSizeMB={5}
+                      />
 
-                        {logoUrl && (
+                      {logoUrl && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setLogoDraftSrc(logoUrl); setLogoEditorOpen(true); }}
+                            className="text-xs font-bold text-indigo-500 hover:bg-indigo-500/10 rounded-xl"
+                          >
+                            <Upload size={14} className="mr-1" /> Reabrir Editor
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => setLogoUrl("")}
+                            onClick={handleRemoveLogo}
                             className="text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-xl"
                           >
                             <Trash2 size={14} className="mr-1" /> Usar Logo Padrão
                           </Button>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       <div>
                         <span className="text-[11px] font-bold text-muted-foreground block mb-1">Ou cole a URL direta da logo:</span>
                         <DebouncedInput
-                          value={logoUrl}
+                          value={logoUrl.startsWith("data:") ? "" : logoUrl}
                           onChange={e => setLogoUrl(e.target.value)}
                           placeholder="https://suaescola.com.br/logo.png"
                           className="h-10 text-xs font-bold rounded-xl border-border bg-background focus:bg-card transition-all shadow-sm"
@@ -1409,6 +1431,14 @@ export default function Configuracoes() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Editor de Logo */}
+                  <LogoEditorModal
+                    open={logoEditorOpen}
+                    onOpenChange={setLogoEditorOpen}
+                    src={logoDraftSrc}
+                    onSave={handleLogoEditorSave}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
