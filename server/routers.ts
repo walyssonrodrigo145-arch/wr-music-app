@@ -248,17 +248,21 @@ export const appRouter = router({
       
       if (ctx.user.organizationId) {
         const [org] = await db.select({
+          name: organizations.name,
           logo: organizations.logo,
           subscriptionStatus: organizations.subscriptionStatus,
           trialEndsAt: organizations.trialEndsAt
         }).from(organizations).where(eq(organizations.id, ctx.user.organizationId)).limit(1);
 
-        const [userSet] = await db.select({
+        const allSettings = await db.select({
           logoUrl: settings.logoUrl,
           schoolName: settings.schoolName,
-        }).from(settings).where(eq(settings.organizationId, ctx.user.organizationId)).limit(1);
+        }).from(settings).where(eq(settings.organizationId, ctx.user.organizationId));
+
+        const userSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '') || allSettings.find(s => s.logoUrl) || allSettings[0];
 
         const schoolLogo = userSet?.logoUrl || org?.logo || null;
+        const schoolName = (userSet?.schoolName && userSet.schoolName.trim() !== '') ? userSet.schoolName : (org?.name || null);
         
         let permissions: string[] = [];
         if (ctx.user.role === 'professor') {
@@ -280,7 +284,7 @@ export const appRouter = router({
           trialEndsAt: org?.trialEndsAt || null,
           permissions,
           schoolLogo,
-          schoolName: userSet?.schoolName || null,
+          schoolName,
         };
       }
       
@@ -4032,11 +4036,12 @@ ${jsonSchemaFormat}`;
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
       await upsertSettings(orgId, ctx.user.id, input);
-      if (input.logoUrl !== undefined && orgId) {
-        const db = await getDb();
-        if (db) {
-          await db.update(organizations).set({ logo: input.logoUrl, updatedAt: new Date() }).where(eq(organizations.id, orgId));
-        }
+      const db = await getDb();
+      if (db && orgId) {
+        const updateOrgObj: Record<string, any> = { updatedAt: new Date() };
+        if (input.logoUrl !== undefined) updateOrgObj.logo = input.logoUrl;
+        if (input.schoolName !== undefined && input.schoolName.trim() !== '') updateOrgObj.name = input.schoolName;
+        await db.update(organizations).set(updateOrgObj).where(eq(organizations.id, orgId));
       }
       return { success: true };
     }),

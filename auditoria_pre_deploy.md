@@ -1,19 +1,20 @@
 # AUDITORIA PRÉ-DEPLOY (QA SÊNIOR - WRAUDITOR)
 
 ## Data: 2026-08-07
-## Alteração: Ajuste Fino de Enquadramento e Container da Logo da Escola
+## Alteração: Correção da Exibição do Nome da Escola (SchoolName Branding Fallback)
 
 ### 1. Resumo das Alterações
-- `AppSidebar.tsx`: Remoção do fundo cinza `bg-background/40` e do padding `p-1` forçado; atualização para `object-cover w-full h-full` dentro do container `rounded-xl overflow-hidden`.
-- `StudentSidebar.tsx`: Alinhamento do container da logo do aluno ao mesmo padrão de preenchimento `object-cover`.
-- `StudentPortalLayout.tsx`: Ajuste do portal de login do aluno para integrar a logo da escola sem recuo desproporcional.
-- `Configuracoes.tsx`: Ajuste da foto de preview da logo para refletir exatamente o preenchimento sem margens indesejadas (`p-2`).
+- `server/routers.ts`:
+  - No procedimento `auth.me`, incluída a seleção da coluna `name` na tabela `organizations`.
+  - A busca em `settings` foi alterada para selecionar prioritariamente o registro que possuir `schoolName` preenchido e não-vazio.
+  - Definido o fallback estruturado: `schoolName = (userSet?.schoolName) || org?.name || null`.
+  - No procedimento `settings.updateSchool`, adicionada a atualização síncrona da coluna `organizations.name` sempre que um novo `schoolName` for salvo.
 
 ### 2. Validação QA / Checklist
-- [x] Nenhuma rota ou página foi quebrada.
-- [x] Nenhuma propriedade ou parâmetro de API foi alterado.
-- [x] O container visual da logo da escola agora se integra perfeitamente ao design dark premium, preenchendo a borda curva (`rounded-xl`) assim como a logo nativa do MusicPro.
-- [x] Não há erros de tipo ou regressões nos componentes alterados.
+- [x] Nenhuma rota ou contrato tRPC foi quebrado.
+- [x] O campo `schoolName` agora é retornado corretamente no payload de `auth.me`.
+- [x] Ao salvar em Configurações, tanto `settings` quanto `organizations` recebem o nome da escola atualizado.
+- [x] A invalidação de cache `utils.auth.me.invalidate()` no cliente garante que o nome "WR Escola de Música" substitua "MusicPro" na sidebar.
 
 ### 3. Parecer Final
 - **Status:** APROVADO para Deploy.
