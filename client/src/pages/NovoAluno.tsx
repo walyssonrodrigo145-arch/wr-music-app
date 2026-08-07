@@ -79,6 +79,10 @@ export default function NovoAluno() {
     instrumentId: "",
     notes: "",
     weeksCount: 1,
+    lessonsPerWeek: 1,
+    weeklySlots: [
+      { dayOfWeek: 1, time: "09:00", studioRoomId: "" }
+    ] as Array<{ dayOfWeek: number; time: string; studioRoomId: string }>,
   });
   const [scheduleStep, setScheduleStep] = useState<"form" | "conflicts">("form");
   const [batchItems, setBatchItems] = useState<any[]>([]);
@@ -433,6 +437,28 @@ export default function NovoAluno() {
     } else {
       // Aula recorrente: verificar conflitos primeiro
       try {
+        const allItems: Array<{ scheduledAt: string }> = [];
+        const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
+        const slotsToUse = (scheduleForm.weeklySlots && scheduleForm.weeklySlots.length > 0)
+          ? scheduleForm.weeklySlots
+          : [{ dayOfWeek: new Date(startY, startM - 1, startD).getDay(), time: scheduleForm.time, studioRoomId: "" }];
+
+        for (let w = 0; w < scheduleForm.weeksCount; w++) {
+          for (const slot of slotsToUse) {
+            const baseDate = new Date(startY, startM - 1, startD);
+            const baseDay = baseDate.getDay();
+            let dayDiff = slot.dayOfWeek - baseDay;
+            if (dayDiff < 0) dayDiff += 7;
+
+            const targetDate = new Date(baseDate);
+            targetDate.setDate(baseDate.getDate() + (w * 7) + dayDiff);
+            const [sh, sm] = slot.time.split(":").map(Number);
+            targetDate.setHours(sh, sm, 0, 0);
+
+            allItems.push({ scheduledAt: targetDate.toISOString() });
+          }
+        }
+
         const conflicts = await checkConflicts.refetch();
         if (conflicts.data) {
           const hasAny = conflicts.data.some((c: any) => c.hasConflict);
@@ -451,7 +477,7 @@ export default function NovoAluno() {
               duration: scheduleForm.duration,
               instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
               notes: scheduleForm.notes,
-              items: conflicts.data.map((c: any) => ({ scheduledAt: c.date, force: false })),
+              items: allItems.map(item => ({ scheduledAt: item.scheduledAt, force: false })),
             });
           }
         }
@@ -1456,10 +1482,92 @@ export default function NovoAluno() {
                       {scheduleForm.weeksCount > 1 && (
                         <p className="text-xs text-violet-600 font-medium ml-1 flex items-center gap-1">
                           <CalendarRange size={12} />
-                          {scheduleForm.weeksCount} aulas serão agendadas semanalmente neste mesmo dia e horário.
+                          {scheduleForm.weeksCount * scheduleForm.lessonsPerWeek} aula(s) serão agendadas ao longo das {scheduleForm.weeksCount} semanas.
                         </p>
                       )}
                     </div>
+
+                    {/* Múltiplas Aulas por Semana */}
+                    {scheduleForm.weeksCount > 1 && (
+                      <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
+                            <CalendarIcon size={14} /> Aulas na mesma semana
+                          </label>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4].map(num => (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => {
+                                  const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
+                                  const initialDay = new Date(startY, startM - 1, startD).getDay();
+                                  const newSlots = [];
+                                  for (let i = 0; i < num; i++) {
+                                    newSlots.push({
+                                      dayOfWeek: (initialDay + (i * 2)) % 7,
+                                      time: scheduleForm.time,
+                                      studioRoomId: ""
+                                    });
+                                  }
+                                  setScheduleForm(p => ({ ...p, lessonsPerWeek: num, weeklySlots: newSlots }));
+                                }}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border",
+                                  scheduleForm.lessonsPerWeek === num
+                                    ? "bg-primary text-white border-primary"
+                                    : "bg-card text-muted-foreground border-border hover:bg-muted"
+                                )}
+                              >
+                                {num}x/sem
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {scheduleForm.lessonsPerWeek > 1 && (
+                          <div className="space-y-2 pt-2 border-t border-primary/10">
+                            <p className="text-xs text-muted-foreground font-medium">Configure os dias e horários das aulas:</p>
+                            <div className="grid gap-2">
+                              {scheduleForm.weeklySlots.map((slot, idx) => (
+                                <div key={idx} className="flex items-center gap-2 bg-card/60 p-2 rounded-xl border border-border/40 text-xs">
+                                  <span className="font-bold text-foreground min-w-[50px]">Aula {idx + 1}:</span>
+                                  <select
+                                    value={slot.dayOfWeek}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      const updated = [...scheduleForm.weeklySlots];
+                                      updated[idx].dayOfWeek = val;
+                                      setScheduleForm(p => ({ ...p, weeklySlots: updated }));
+                                    }}
+                                    className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
+                                  >
+                                    <option value={0}>Domingo</option>
+                                    <option value={1}>Segunda-feira</option>
+                                    <option value={2}>Terça-feira</option>
+                                    <option value={3}>Quarta-feira</option>
+                                    <option value={4}>Quinta-feira</option>
+                                    <option value={5}>Sexta-feira</option>
+                                    <option value={6}>Sábado</option>
+                                  </select>
+                                  <input
+                                    type="time"
+                                    value={slot.time}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const updated = [...scheduleForm.weeklySlots];
+                                      updated[idx].time = val;
+                                      setScheduleForm(p => ({ ...p, weeklySlots: updated }));
+                                    }}
+                                    className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Observações */}
                     <div className="space-y-2">

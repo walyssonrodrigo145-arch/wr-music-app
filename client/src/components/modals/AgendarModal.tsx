@@ -65,6 +65,10 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     experimentalPhone: "",
     lessonType: "individual" as "individual" | "turma",
     turmaStudentIds: [] as number[],
+    lessonsPerWeek: 1,
+    weeklySlots: [
+      { dayOfWeek: 1, time: "09:00", studioRoomId: "" }
+    ] as Array<{ dayOfWeek: number; time: string; studioRoomId: string }>,
   });
 
   const [conflictError, setConflictError] = useState<string | null>(null);
@@ -345,6 +349,34 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
 
     if (formData.weeksCount > 1 && !formData.isExperimental) {
       try {
+        // Gerar todas as datas dos múltiplos dias por semana
+        const allItems: Array<{ scheduledAt: string; studioRoomId?: number | null }> = [];
+        const [startY, startM, startD] = formData.date.split("-").map(Number);
+
+        // Se tiver slots adicionais configurados
+        const slotsToUse = (formData.weeklySlots && formData.weeklySlots.length > 0)
+          ? formData.weeklySlots
+          : [{ dayOfWeek: new Date(startY, startM - 1, startD).getDay(), time: formData.time, studioRoomId: formData.studioRoomId }];
+
+        for (let w = 0; w < formData.weeksCount; w++) {
+          for (const slot of slotsToUse) {
+            const baseDate = new Date(startY, startM - 1, startD);
+            const baseDay = baseDate.getDay();
+            let dayDiff = slot.dayOfWeek - baseDay;
+            if (dayDiff < 0) dayDiff += 7;
+
+            const targetDate = new Date(baseDate);
+            targetDate.setDate(baseDate.getDate() + (w * 7) + dayDiff);
+            const [sh, sm] = slot.time.split(":").map(Number);
+            targetDate.setHours(sh, sm, 0, 0);
+
+            allItems.push({
+              scheduledAt: targetDate.toISOString(),
+              studioRoomId: slot.studioRoomId ? Number(slot.studioRoomId) : (formData.studioRoomId ? Number(formData.studioRoomId) : null)
+            });
+          }
+        }
+
         const conflicts = await checkConflicts.refetch();
         if (conflicts.data) {
           const hasAnyConflict = conflicts.data.some((c: any) => c.hasConflict);
@@ -359,7 +391,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
               notes: formData.notes,
               instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
               studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
-              items: conflicts.data.map((c: any) => ({ scheduledAt: c.date, force: false }))
+              items: allItems.map((c: any) => ({ scheduledAt: c.scheduledAt, force: false }))
             });
           }
         }
@@ -781,6 +813,105 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
               )}
             </div>
           </div>
+
+          {/* Configuração de Múltiplos Dias por Semana */}
+          {formData.weeksCount > 1 && !editingLesson && (
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
+                  <CalendarDays size={14} /> Frequência de Aulas na Semana
+                </label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4].map(num => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => {
+                        const [startY, startM, startD] = formData.date.split("-").map(Number);
+                        const initialDay = new Date(startY, startM - 1, startD).getDay();
+                        const newSlots = [];
+                        for (let i = 0; i < num; i++) {
+                          newSlots.push({
+                            dayOfWeek: (initialDay + (i * 2)) % 7,
+                            time: formData.time,
+                            studioRoomId: formData.studioRoomId
+                          });
+                        }
+                        setFormData({ ...formData, lessonsPerWeek: num, weeklySlots: newSlots });
+                      }}
+                      className={cn(
+                        "px-3 py-1 rounded-lg text-xs font-bold transition-all border",
+                        formData.lessonsPerWeek === num
+                          ? "bg-primary text-white border-primary"
+                          : "bg-card text-muted-foreground border-border hover:bg-muted"
+                      )}
+                    >
+                      {num}x/sem
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {formData.lessonsPerWeek > 1 && (
+                <div className="space-y-2 pt-2 border-t border-primary/10">
+                  <p className="text-xs text-muted-foreground font-medium">Dias e horários das aulas na mesma semana:</p>
+                  <div className="grid gap-2">
+                    {formData.weeklySlots.map((slot, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-card/60 p-2 rounded-xl border border-border/40 text-xs">
+                        <span className="font-bold text-foreground min-w-[50px]">Aula {idx + 1}:</span>
+                        <select
+                          value={slot.dayOfWeek}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            const updated = [...formData.weeklySlots];
+                            updated[idx].dayOfWeek = val;
+                            setFormData({ ...formData, weeklySlots: updated });
+                          }}
+                          className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
+                        >
+                          <option value={0}>Domingo</option>
+                          <option value={1}>Segunda-feira</option>
+                          <option value={2}>Terça-feira</option>
+                          <option value={3}>Quarta-feira</option>
+                          <option value={4}>Quinta-feira</option>
+                          <option value={5}>Sexta-feira</option>
+                          <option value={6}>Sábado</option>
+                        </select>
+                        <input
+                          type="time"
+                          value={slot.time}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const updated = [...formData.weeklySlots];
+                            updated[idx].time = val;
+                            setFormData({ ...formData, weeklySlots: updated });
+                          }}
+                          className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
+                        />
+                        {studioRooms && studioRooms.length > 0 && (
+                          <select
+                            value={slot.studioRoomId}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const updated = [...formData.weeklySlots];
+                              updated[idx].studioRoomId = val;
+                              setFormData({ ...formData, weeklySlots: updated });
+                            }}
+                            className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none flex-1 truncate"
+                          >
+                            <option value="">Sala Padrão</option>
+                            {studioRooms.map((room: any) => (
+                              <option key={room.id} value={room.id}>{room.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notas (Opcional) */}
           <div className="space-y-2">

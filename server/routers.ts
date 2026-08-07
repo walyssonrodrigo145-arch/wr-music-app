@@ -3605,24 +3605,43 @@ ${jsonSchemaFormat}`;
         .orderBy(asc(lessons.scheduledAt));
     }),
 
-    // ─ Verificar conflitos para agendamentos recorrentes ─────────────────────
+    // ─ Verificar conflitos para agendamentos recorrentes (suporta múltiplos dias/semana) ────
     checkConflicts: protectedProcedure.input(z.object({
-      firstDate: z.string(),
+      firstDate: z.string().optional(),
       duration: z.number(),
       weeksCount: z.number().min(1).max(104),
       studioRoomId: z.number().optional().nullable(),
+      slots: z.array(z.object({
+        scheduledAt: z.string(),
+        studioRoomId: z.number().optional().nullable(),
+      })).optional(),
     })).query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) return [];
       
       const orgId = ctx.user.organizationId!;
       const results = [];
-      const base = new Date(input.firstDate);
-      
-      for (let i = 0; i < input.weeksCount; i++) {
-        const d = new Date(base);
-        d.setDate(base.getDate() + i * 7);
+
+      let datesToCheck: Array<{ scheduledAt: Date; roomId?: number | null }> = [];
+
+      if (input.slots && input.slots.length > 0) {
+        datesToCheck = input.slots.map(s => ({
+          scheduledAt: new Date(s.scheduledAt),
+          roomId: s.studioRoomId ?? input.studioRoomId
+        }));
+      } else if (input.firstDate) {
+        const base = new Date(input.firstDate);
+        for (let i = 0; i < input.weeksCount; i++) {
+          const d = new Date(base);
+          d.setDate(base.getDate() + i * 7);
+          datesToCheck.push({ scheduledAt: d, roomId: input.studioRoomId });
+        }
+      }
+
+      for (const item of datesToCheck) {
+        const d = item.scheduledAt;
         const endsAt = new Date(d.getTime() + input.duration * 60000);
+        const roomId = item.roomId;
         
         const [conflict] = await db.select({ 
           id: lessons.id, 
@@ -3635,7 +3654,7 @@ ${jsonSchemaFormat}`;
             eq(lessons.status, 'agendada'),
             or(
               eq(lessons.userId, ctx.user.id),
-              input.studioRoomId ? eq(lessons.studioRoomId, input.studioRoomId) : sql`false`
+              roomId ? eq(lessons.studioRoomId, roomId) : sql`false`
             ),
             sql`(${lessons.scheduledAt}, (${lessons.scheduledAt} + (${lessons.duration} || ' minutes')::interval)) OVERLAPS (${d.toISOString()}::timestamp, ${endsAt.toISOString()}::timestamp)`
           )).limit(1);
