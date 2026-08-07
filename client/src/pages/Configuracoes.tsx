@@ -27,6 +27,7 @@ import { SalasEstudioTab } from "./SalasEstudioTab";
 import { downloadBase64File } from "@/utils/downloadReport";
 import { LogoUploadZone } from "@/components/logo/LogoUploadZone";
 import { LogoEditorModal, type LogoEditParams } from "@/components/logo/LogoEditorModal";
+import { DueDaysSelector } from "@/components/financeiro/DueDaysSelector";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
 type Tab = "perfil" | "escola" | "salas" | "financeiro" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
@@ -1499,15 +1500,10 @@ export default function Configuracoes() {
                 </Field>
 
                 <Field label="Dias de Previsão por Vencimento">
-                  <DebouncedInput
-                    type="text"
+                  <DueDaysSelector
                     value={dueDaysForecast}
-                    onChange={e => setDueDaysForecast(e.target.value)}
-                    placeholder="Ex: 5,10,15,20"
+                    onChange={setDueDaysForecast}
                   />
-                  <p className="text-[10px] text-muted-foreground mt-2 px-1">
-                    Insira os dias do mês separados por vírgula para exibir no card de previsão (Financeiro). Ex: 5,10,15,20. Outros dias serão somados na aba "Outros".
-                  </p>
                 </Field>
 
                 <div className="pt-6 border-t border-border">
