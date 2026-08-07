@@ -913,6 +913,8 @@ export default function Aulas() {
                         </div>
                       );
                     })}
+                  </div>
+                )}
               </div>
 
               {/* ─── Mini Relatório de Horários Disponíveis do Dia ─── */}
