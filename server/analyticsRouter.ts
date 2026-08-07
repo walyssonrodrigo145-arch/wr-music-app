@@ -539,7 +539,7 @@ const analyticsQueryRouter = router({
     // 7. Receita Prevista Próximo Mês (nextMonthForecast)
     let nextMonthForecast = 0;
     try {
-      // Soma das mensalidades dos alunos ativos no sistema
+      // 1. Mensalidades dos alunos ativos cadastrados na escola (students.monthlyFee)
       const [studentsFeeRes] = await db.select({
         total: sql<string>`COALESCE(SUM(CAST(${students.monthlyFee} AS NUMERIC)), 0)`
       })
@@ -548,7 +548,23 @@ const analyticsQueryRouter = router({
 
       const studentsTotal = parseFloat(studentsFeeRes?.total || "0");
 
-      // Soma de receitas recorrentes ou assinaturas de escolas ativas
+      // 2. Cobranças geradas / faturas pendentes do próximo mês em paymentDues
+      const nextMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
+      const nextMonthEnd = new Date(todayStart.getFullYear(), todayStart.getMonth() + 2, 0, 23, 59, 59);
+
+      const [paymentDuesRes] = await db.select({
+        total: sql<string>`COALESCE(SUM(CAST(${paymentDues.amount} AS NUMERIC)), 0)`
+      })
+      .from(paymentDues)
+      .where(and(
+        ne(paymentDues.status, "cancelado"),
+        gte(paymentDues.dueDate, nextMonthStart),
+        lte(paymentDues.dueDate, nextMonthEnd)
+      ));
+
+      const paymentDuesTotal = parseFloat(paymentDuesRes?.total || "0");
+
+      // 3. Receita de assinaturas recorrentes na plataforma (analyticsRevenue)
       const [analyticsFeeRes] = await db.select({
         total: sql<string>`COALESCE(SUM(amount), 0)`
       })
@@ -557,9 +573,25 @@ const analyticsQueryRouter = router({
 
       const analyticsTotal = parseFloat(analyticsFeeRes?.total || "0");
 
-      // Previsão combinada (mensalidades ativas dos alunos + receita recorrente SaaS)
-      nextMonthForecast = studentsTotal > 0 ? studentsTotal : (analyticsTotal > 0 ? analyticsTotal : revMonth * 1.08);
+      // 4. Receita histórica de mensalidades em paymentDues do mês atual se tudo falhar
+      const [currentMonthDuesRes] = await db.select({
+        total: sql<string>`COALESCE(SUM(CAST(${paymentDues.amount} AS NUMERIC)), 0)`
+      })
+      .from(paymentDues)
+      .where(gte(paymentDues.dueDate, monthStart));
+
+      const currentMonthDues = parseFloat(currentMonthDuesRes?.total || "0");
+
+      // Combina as fontes de receita prevista
+      nextMonthForecast = studentsTotal > 0 
+        ? studentsTotal 
+        : (paymentDuesTotal > 0 
+            ? paymentDuesTotal 
+            : (currentMonthDues > 0 
+                ? currentMonthDues 
+                : (analyticsTotal > 0 ? analyticsTotal : (revMonth > 0 ? revMonth * 1.05 : 0))));
     } catch (e) {
+      console.error("[analyticsRouter] Erro ao calcular receita prevista:", e);
       nextMonthForecast = revMonth > 0 ? revMonth : 0;
     }
 
@@ -617,10 +649,22 @@ const analyticsQueryRouter = router({
     const monthlyData = [];
 
     for (const m of months) {
-      // Receita no mês
+      // Receita no mês (analyticsRevenue ou fallback em paymentDues)
       const [revRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
         .from(analyticsRevenue)
         .where(and(gte(analyticsRevenue.createdAt, m.start), lte(analyticsRevenue.createdAt, m.end)));
+
+      let revVal = parseFloat(revRes?.total || "0");
+      if (revVal === 0) {
+        const [duesRevRes] = await db.select({ total: sql<string>`COALESCE(SUM(CAST(${paymentDues.amount} AS NUMERIC)), 0)` })
+          .from(paymentDues)
+          .where(and(
+            or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
+            gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.dueDate})`, m.start),
+            lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.dueDate})`, m.end)
+          ));
+        revVal = parseFloat(duesRevRes?.total || "0");
+      }
 
       // Novos alunos no mês
       const [studentsRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
@@ -639,7 +683,7 @@ const analyticsQueryRouter = router({
 
       monthlyData.push({
         month: m.label,
-        revenue: parseFloat(revRes?.total || "0"),
+        revenue: revVal,
         newStudents: studentsRes?.count || 0,
         activeStudents: activeStudentsRes?.count || 0,
         newOrganizations: orgsRes?.count || 0,
