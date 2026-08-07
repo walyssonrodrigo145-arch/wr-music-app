@@ -21,7 +21,14 @@ import {
   UserCheck,
   Pencil,
   Bot,
-  Info
+  Info,
+  CalendarDays,
+  CalendarRange,
+  RefreshCw,
+  Clock,
+  Timer,
+  CheckCircle2,
+  AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -58,6 +65,24 @@ export default function NovoAluno() {
     { id: studentId! },
     { enabled: isEditMode, staleTime: 0 }
   );
+  const { data: settings } = trpc.settings.get.useQuery(undefined, { staleTime: 60000 });
+
+  // ─── Estado das abas ─────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"dados" | "agendar">("dados");
+
+  // ─── Estado do formulário de agendamento ──────────────────────────────────────
+  const [scheduleForm, setScheduleForm] = useState({
+    title: "",
+    date: new Date().toISOString().split("T")[0],
+    time: "09:00",
+    duration: 60,
+    instrumentId: "",
+    notes: "",
+    weeksCount: 1,
+  });
+  const [scheduleStep, setScheduleStep] = useState<"form" | "conflicts">("form");
+  const [batchItems, setBatchItems] = useState<any[]>([]);
+  const [scheduleErrors, setScheduleErrors] = useState<Record<string, string>>({}); 
 
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
@@ -233,10 +258,15 @@ export default function NovoAluno() {
   };
 
   const createMutation = trpc.students.create.useMutation({
-    onSuccess: () => {
-      toast.success("Aluno cadastrado com sucesso!");
+    onSuccess: (data) => {
+      toast.success("Aluno cadastrado! Agora você pode agendar a primeira aula.");
       utils.students.list.invalidate();
-      setLocation("/alunos");
+      // Redireciona para edição do aluno recém-criado para que a aba "Agendar Aula" fique disponível
+      if (data?.studentId) {
+        setLocation(`/alunos/${data.studentId}/editar`);
+      } else {
+        setLocation("/alunos");
+      }
     },
     onError: (e) => {
       let msg = e.message;
@@ -298,6 +328,172 @@ export default function NovoAluno() {
     },
     onError: (e) => toast.error(`Erro ao gerar contrato: ${e.message}`)
   });
+
+  // ─── Agendamento de aulas ─────────────────────────────────────────────────────
+
+  // Query de aulas do aluno (lazy — ativa apenas na aba "agendar")
+  const { data: studentLessons = [], refetch: refetchStudentLessons } = trpc.lessons.list.useQuery(
+    undefined,
+    { enabled: false, staleTime: 0 }
+  );
+  const studentUpcomingLessons = isEditMode
+    ? studentLessons.filter((l: any) => l.studentId === studentId && l.status === "agendada")
+        .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+        .slice(0, 5)
+    : [];
+
+  // Query lazy de verificação de conflitos (recorrência)
+  const checkConflicts = trpc.lessons.checkConflicts.useQuery(
+    (() => {
+      try {
+        const [y, M, d] = scheduleForm.date.split("-").map(Number);
+        const [h, m] = scheduleForm.time.split(":").map(Number);
+        const date = new Date(y, M - 1, d, h, m, 0, 0);
+        return {
+          scheduledAt: date.toISOString(),
+          duration: scheduleForm.duration,
+          weeksCount: scheduleForm.weeksCount,
+          studioRoomId: undefined as any,
+        };
+      } catch {
+        return { scheduledAt: new Date().toISOString(), duration: 60, weeksCount: 1, studioRoomId: undefined as any };
+      }
+    })(),
+    { enabled: false }
+  );
+
+  // Mutation: agendar 1 aula avulsa
+  const createLessonMutation = trpc.lessons.create.useMutation({
+    onSuccess: () => {
+      toast.success("✅ Aula agendada com sucesso!");
+      utils.lessons.list.invalidate();
+      utils.lessons.listRange?.invalidate();
+      utils.dashboard.stats?.invalidate();
+      setScheduleForm(prev => ({
+        ...prev,
+        title: "",
+        notes: "",
+        weeksCount: 1,
+      }));
+      setScheduleStep("form");
+      setBatchItems([]);
+      refetchStudentLessons();
+    },
+    onError: (e) => toast.error("Erro ao agendar aula: " + e.message),
+  });
+
+  // Mutation: agendar N aulas recorrentes (batch)
+  const createBatchLessonMutation = trpc.lessons.createBatch.useMutation({
+    onSuccess: (data) => {
+      toast.success(`✅ ${data.count} aula(s) agendada(s) com sucesso!`);
+      utils.lessons.list.invalidate();
+      utils.lessons.listRange?.invalidate();
+      utils.dashboard.stats?.invalidate();
+      setScheduleForm(prev => ({
+        ...prev,
+        title: "",
+        notes: "",
+        weeksCount: 1,
+      }));
+      setScheduleStep("form");
+      setBatchItems([]);
+      refetchStudentLessons();
+    },
+    onError: (e) => toast.error("Erro ao agendar aulas: " + e.message),
+  });
+
+  const buildScheduledAt = () => {
+    const [y, M, d] = scheduleForm.date.split("-").map(Number);
+    const [h, m] = scheduleForm.time.split(":").map(Number);
+    return new Date(y, M - 1, d, h, m, 0, 0);
+  };
+
+  const handleScheduleSubmit = async () => {
+    const errs: Record<string, string> = {};
+    if (!scheduleForm.title.trim()) errs.title = "Título obrigatório";
+    if (!scheduleForm.date) errs.date = "Data obrigatória";
+    if (!scheduleForm.time) errs.time = "Horário obrigatório";
+    if (Object.keys(errs).length > 0) { setScheduleErrors(errs); return; }
+    setScheduleErrors({});
+
+    const instrument = instruments.find((i: any) => i.id.toString() === scheduleForm.instrumentId);
+    const submissionTitle = scheduleForm.title || (instrument ? `Aula de ${instrument.name}` : "Aula de Música");
+    const scheduledDate = buildScheduledAt();
+
+    if (scheduleForm.weeksCount <= 1) {
+      // Aula avulsa
+      createLessonMutation.mutate({
+        studentId: studentId!,
+        title: submissionTitle,
+        scheduledAt: scheduledDate.toISOString(),
+        duration: scheduleForm.duration,
+        instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
+        notes: scheduleForm.notes,
+      });
+    } else {
+      // Aula recorrente: verificar conflitos primeiro
+      try {
+        const conflicts = await checkConflicts.refetch();
+        if (conflicts.data) {
+          const hasAny = conflicts.data.some((c: any) => c.hasConflict);
+          if (hasAny) {
+            setBatchItems(conflicts.data.map((c: any) => ({
+              scheduledAt: c.date,
+              hasConflict: c.hasConflict,
+              conflictingWith: c.conflictingWith,
+              force: false,
+            })));
+            setScheduleStep("conflicts");
+          } else {
+            createBatchLessonMutation.mutate({
+              studentId: studentId!,
+              title: submissionTitle,
+              duration: scheduleForm.duration,
+              instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
+              notes: scheduleForm.notes,
+              items: conflicts.data.map((c: any) => ({ scheduledAt: c.date, force: false })),
+            });
+          }
+        }
+      } catch {
+        toast.error("Erro ao verificar conflitos de horário.");
+      }
+    }
+  };
+
+  const handleConfirmBatch = () => {
+    const instrument = instruments.find((i: any) => i.id.toString() === scheduleForm.instrumentId);
+    const submissionTitle = scheduleForm.title || (instrument ? `Aula de ${instrument.name}` : "Aula de Música");
+    createBatchLessonMutation.mutate({
+      studentId: studentId!,
+      title: submissionTitle,
+      duration: scheduleForm.duration,
+      instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
+      notes: scheduleForm.notes,
+      items: batchItems.map(item => ({ scheduledAt: item.scheduledAt, force: item.force })),
+    });
+  };
+
+  // Auto-preencher título quando instrumento ou nome do aluno mudar
+  useEffect(() => {
+    if (!isEditMode) return;
+    const instrument = instruments.find((i: any) => i.id.toString() === form.instrumentId);
+    if (instrument && form.name) {
+      setScheduleForm(prev => ({
+        ...prev,
+        instrumentId: form.instrumentId,
+        title: prev.title || `Aula de ${instrument.name} - ${form.name}`,
+      }));
+    }
+  }, [form.instrumentId, form.name, instruments, isEditMode]);
+
+  // Ao abrir aba de agendamento, buscar aulas existentes do aluno
+  useEffect(() => {
+    if (activeTab === "agendar" && isEditMode) {
+      refetchStudentLessons();
+    }
+  }, [activeTab, isEditMode]);
+
 
   const handleSave = async () => {
     // Basic validation
@@ -543,6 +739,42 @@ export default function NovoAluno() {
         </div>
       </header>
 
+      {/* ─── Tab Navigation (apenas em modo edição) ─── */}
+      {isEditMode && (
+        <div className="bg-card/60 backdrop-blur-md border-b border-border sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex gap-0">
+              <button
+                onClick={() => setActiveTab("dados")}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all",
+                  activeTab === "dados"
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <User size={16} />
+                Dados do Aluno
+              </button>
+              <button
+                onClick={() => setActiveTab("agendar")}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all",
+                  activeTab === "agendar"
+                    ? "border-violet-600 text-violet-600"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <CalendarDays size={16} />
+                Agendar Aula
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Aba: Dados do Aluno ─── */}
+      {(!isEditMode || activeTab === "dados") && (
       <main className="max-w-7xl mx-auto px-6 py-8">
         <motion.div 
           variants={containerVariants}
@@ -1088,6 +1320,293 @@ export default function NovoAluno() {
             </Button>
         </div>
       </main>
+      )}
+
+      {/* ─── Aba: Agendar Aula ─── */}
+      {isEditMode && activeTab === "agendar" && (
+        <main className="max-w-3xl mx-auto px-6 py-8">
+          <AnimatePresence mode="wait">
+
+            {/* ─ Formulário de Agendamento ─ */}
+            {scheduleStep === "form" && (
+              <motion.div
+                key="schedule-form"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="space-y-6"
+              >
+                {/* Card principal */}
+                <div className="bg-card rounded-[2rem] p-8 shadow-sm border border-border/50 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-violet-500/10 rounded-full -translate-y-20 translate-x-20 blur-3xl opacity-50" />
+                  <div className="flex items-center gap-4 mb-8 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20">
+                      <CalendarDays size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-foreground tracking-tight">Nova Aula</h3>
+                      <p className="text-[10px] text-violet-600/70 font-bold uppercase tracking-[0.2em]">Agendamento para {form.name || "este aluno"}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-5 relative z-10">
+                    {/* Título */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Título da Aula *</label>
+                      <Input
+                        value={scheduleForm.title}
+                        onChange={e => setScheduleForm(p => ({ ...p, title: e.target.value }))}
+                        placeholder={`Aula de ${instruments.find((i: any) => i.id.toString() === scheduleForm.instrumentId)?.name ?? "Música"} - ${form.name}`}
+                        className={cn("h-12 rounded-xl text-sm font-semibold", scheduleErrors.title && "border-red-500")}
+                      />
+                      {scheduleErrors.title && <p className="text-xs text-red-500 ml-1">{scheduleErrors.title}</p>}
+                    </div>
+
+                    {/* Data + Horário */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data *</label>
+                        <div className="relative">
+                          <Input
+                            type="date"
+                            value={scheduleForm.date}
+                            onChange={e => setScheduleForm(p => ({ ...p, date: e.target.value }))}
+                            className={cn("h-12 rounded-xl pl-10 text-sm font-semibold", scheduleErrors.date && "border-red-500")}
+                          />
+                          <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                        </div>
+                        {scheduleErrors.date && <p className="text-xs text-red-500 ml-1">{scheduleErrors.date}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Horário *</label>
+                        <div className="relative">
+                          <Input
+                            type="time"
+                            value={scheduleForm.time}
+                            onChange={e => setScheduleForm(p => ({ ...p, time: e.target.value }))}
+                            className={cn("h-12 rounded-xl pl-10 text-sm font-semibold", scheduleErrors.time && "border-red-500")}
+                          />
+                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                        </div>
+                        {scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
+                      </div>
+                    </div>
+
+                    {/* Duração + Instrumento */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Duração</label>
+                        <Select
+                          value={String(scheduleForm.duration)}
+                          onValueChange={v => setScheduleForm(p => ({ ...p, duration: Number(v) }))}
+                        >
+                          <SelectTrigger className="h-12 rounded-xl">
+                            <div className="flex items-center gap-2">
+                              <Timer size={14} className="text-muted-foreground" />
+                              <SelectValue />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="30">30 minutos</SelectItem>
+                            <SelectItem value="45">45 minutos</SelectItem>
+                            <SelectItem value="60">60 minutos</SelectItem>
+                            <SelectItem value="90">90 minutos</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento</label>
+                        <Select
+                          value={scheduleForm.instrumentId}
+                          onValueChange={v => setScheduleForm(p => ({ ...p, instrumentId: v }))}
+                        >
+                          <SelectTrigger className="h-12 rounded-xl">
+                            <SelectValue placeholder="Selecionar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {instruments.map((inst: any) => (
+                              <SelectItem key={inst.id} value={String(inst.id)}>{inst.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Recorrência */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Recorrência Semanal</label>
+                      <Select
+                        value={String(scheduleForm.weeksCount)}
+                        onValueChange={v => setScheduleForm(p => ({ ...p, weeksCount: Number(v) }))}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl">
+                          <div className="flex items-center gap-2">
+                            <RefreshCw size={14} className="text-muted-foreground" />
+                            <SelectValue />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 vez (aula avulsa)</SelectItem>
+                          <SelectItem value="4">4 semanas (1 mês)</SelectItem>
+                          <SelectItem value="8">8 semanas (2 meses)</SelectItem>
+                          <SelectItem value="12">12 semanas (3 meses)</SelectItem>
+                          <SelectItem value="24">24 semanas (semestre)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {scheduleForm.weeksCount > 1 && (
+                        <p className="text-xs text-violet-600 font-medium ml-1 flex items-center gap-1">
+                          <CalendarRange size={12} />
+                          {scheduleForm.weeksCount} aulas serão agendadas semanalmente neste mesmo dia e horário.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Observações */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Observações</label>
+                      <Textarea
+                        value={scheduleForm.notes}
+                        onChange={e => setScheduleForm(p => ({ ...p, notes: e.target.value }))}
+                        placeholder="Conteúdo da aula, objetivos, materiais..."
+                        className="rounded-xl text-sm resize-none"
+                        rows={3}
+                      />
+                    </div>
+
+                    {/* Botão de Agendar */}
+                    <Button
+                      className="w-full h-13 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-violet-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                      onClick={handleScheduleSubmit}
+                      disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching}
+                    >
+                      {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching) ? (
+                        <><Loader2 size={18} className="animate-spin" /> Agendando...</>
+                      ) : scheduleForm.weeksCount > 1 ? (
+                        <><CalendarRange size={18} /> Validar e Agendar {scheduleForm.weeksCount} Aulas</>
+                      ) : (
+                        <><CheckCircle2 size={18} /> Agendar Aula</>                       
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Mini-lista de próximas aulas */}
+                {studentUpcomingLessons.length > 0 && (
+                  <div className="bg-card rounded-[2rem] p-6 shadow-sm border border-border/50">
+                    <h4 className="text-sm font-black text-foreground mb-4 flex items-center gap-2">
+                      <CalendarDays size={16} className="text-indigo-500" />
+                      Próximas Aulas Agendadas
+                    </h4>
+                    <div className="space-y-2">
+                      {studentUpcomingLessons.map((lesson: any) => (
+                        <div key={lesson.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/40">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                              <CalendarDays size={14} className="text-indigo-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-foreground">{lesson.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(lesson.scheduledAt).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })} às {new Date(lesson.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">{lesson.duration}min</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* ─ Tela de Conflitos ─ */}
+            {scheduleStep === "conflicts" && (
+              <motion.div
+                key="conflicts"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+              >
+                <div className="bg-card rounded-[2rem] p-8 shadow-sm border border-amber-500/30 bg-amber-50/30">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                      <AlertTriangle size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-foreground">Conflitos Detectados</h3>
+                      <p className="text-sm text-muted-foreground">Algumas datas têm conflito de horário. Você pode forçar o agendamento para cada uma delas.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mb-6">
+                    {batchItems.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-xl border transition-all",
+                          item.hasConflict
+                            ? "border-amber-400/50 bg-amber-50"
+                            : "border-border/40 bg-muted/30"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          {item.hasConflict ? (
+                            <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+                          ) : (
+                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                          )}
+                          <div>
+                            <p className="text-sm font-bold text-foreground">
+                              {new Date(item.scheduledAt).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+                            </p>
+                            {item.hasConflict && item.conflictingWith && (
+                              <p className="text-xs text-amber-600">Conflito com: {item.conflictingWith}</p>
+                            )}
+                          </div>
+                        </div>
+                        {item.hasConflict && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={item.force}
+                              onChange={e => setBatchItems(prev =>
+                                prev.map((b, i) => i === idx ? { ...b, force: e.target.checked } : b)
+                              )}
+                              className="w-4 h-4 accent-violet-600"
+                            />
+                            <span className="text-xs font-bold text-amber-700">Forçar</span>
+                          </label>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-12 rounded-xl font-bold"
+                      onClick={() => setScheduleStep("form")}
+                    >
+                      Voltar
+                    </Button>
+                    <Button
+                      className="flex-1 h-12 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black"
+                      onClick={handleConfirmBatch}
+                      disabled={createBatchLessonMutation.isPending}
+                    >
+                      {createBatchLessonMutation.isPending
+                        ? <><Loader2 size={16} className="animate-spin mr-2" />Agendando...</>
+                        : <><CheckCircle2 size={16} className="mr-2" />Confirmar Agendamento</>}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </main>
+      )}
         </>
       )}
     </div>
