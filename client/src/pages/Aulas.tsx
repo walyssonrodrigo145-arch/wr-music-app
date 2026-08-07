@@ -93,6 +93,31 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
     const config = statusConfig[lesson.status as keyof typeof statusConfig] || statusConfig.agendada;
     const titleText = isTurma ? (lesson.title || "Turma") : (lesson.studentName || lesson.experimentalName || "Aula");
 
+    const isConcluida = lesson.status === 'concluida';
+    const isFalta = lesson.status === 'falta';
+
+    const cardStyle = isTurma
+      ? isConcluida
+        ? "bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-300/80 dark:border-emerald-800/60 border-l-emerald-600"
+        : isFalta
+        ? "bg-amber-50/90 dark:bg-amber-950/40 border-amber-300/80 dark:border-amber-800/60 border-l-amber-600"
+        : "bg-purple-50/90 dark:bg-purple-950/40 border-purple-300/80 dark:border-purple-800/60 border-l-purple-600"
+      : `${config.cardBg} ${config.border}`;
+
+    const badgeStyle = isTurma
+      ? isConcluida
+        ? "bg-emerald-600 text-white"
+        : isFalta
+        ? "bg-amber-600 text-white"
+        : "bg-purple-600 text-white"
+      : config.badgeBg;
+
+    const turmaTagStyle = isConcluida
+      ? "text-emerald-700 dark:text-emerald-300 bg-emerald-200/60 dark:bg-emerald-900/60"
+      : isFalta
+      ? "text-amber-700 dark:text-amber-300 bg-amber-200/60 dark:bg-amber-900/60"
+      : "text-purple-700 dark:text-purple-300 bg-purple-200/60 dark:bg-purple-900/60";
+
     return (
       <motion.div
         layoutId={`lesson-${lesson.id}`}
@@ -100,18 +125,16 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
         whileHover={{ scale: 1.02 }}
         className={cn(
           "p-2.5 rounded-xl border border-l-4 transition-all cursor-pointer shadow-sm mb-2 hover:shadow-md backdrop-blur-sm select-none",
-          isTurma 
-            ? "bg-purple-50/90 dark:bg-purple-950/40 border-purple-300/80 dark:border-purple-800/60 border-l-purple-600" 
-            : `${config.cardBg} ${config.border}`
+          cardStyle
         )}
       >
         <div className="flex items-center justify-between gap-1 mb-1">
-          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-xs", isTurma ? "bg-purple-600 text-white" : config.badgeBg)}>
+          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-xs", badgeStyle)}>
             {safeFormat(lesson.scheduledAt, "HH:mm")}
           </span>
           {isTurma ? (
-            <span className="text-[9px] font-black uppercase text-purple-700 dark:text-purple-300 bg-purple-200/60 dark:bg-purple-900/60 px-1.5 py-0.5 rounded-full">
-              Turma
+            <span className={cn("text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full flex items-center gap-1", turmaTagStyle)}>
+              {isConcluida ? "✓ TURMA CONCLUÍDA" : isFalta ? "TURMA • FALTA" : "TURMA"}
             </span>
           ) : (
             <span className={cn("text-[9px] font-bold uppercase truncate max-w-[80px]", config.text)}>
@@ -142,9 +165,9 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
            </div>
          )}
         {isTurma && (
-          <div className="mt-1 py-0.5 px-2 bg-purple-600/10 dark:bg-purple-400/10 rounded-full w-fit flex items-center gap-1 border border-purple-500/20">
-            <Users size={10} className="text-purple-700 dark:text-purple-300" />
-            <p className="text-[8px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+          <div className={cn("mt-1 py-0.5 px-2 rounded-full w-fit flex items-center gap-1 border text-[8px] font-black uppercase tracking-wider", isConcluida ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" : isFalta ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" : "bg-purple-600/10 dark:bg-purple-400/10 text-purple-700 dark:text-purple-300 border-purple-500/20")}>
+            <Users size={10} />
+            <p>
               {lesson.studentCount || 1} Alunos
             </p>
           </div>
@@ -1147,8 +1170,23 @@ export default function Aulas() {
                         <div className={cn("w-1.5 h-6 rounded-full", isTurma ? "bg-purple-600" : config.color)} />
                         <span className="text-lg font-black text-foreground tracking-tighter">{safeFormat(lesson.scheduledAt, "HH:mm")}</span>
                       </div>
-                      <span className={cn("px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm", isTurma ? "bg-purple-500/10 text-purple-600 border-purple-500/20" : cn(config.bg, config.text, config.border))}>
-                        {isTurma ? `Turma (${lesson.studentCount || 1} Alunos)` : config.label}
+                      <span className={cn(
+                        "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm flex items-center gap-1",
+                        isTurma
+                          ? lesson.status === 'concluida'
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                            : lesson.status === 'falta'
+                            ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                            : "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                          : cn(config.bg, config.text, config.border)
+                      )}>
+                        {isTurma 
+                          ? lesson.status === 'concluida' 
+                            ? `✓ Turma Concluída (${lesson.studentCount || 1} Alunos)`
+                            : lesson.status === 'falta'
+                            ? `Turma • Falta (${lesson.studentCount || 1} Alunos)`
+                            : `Turma (${lesson.studentCount || 1} Alunos)` 
+                          : config.label}
                       </span>
                     </div>
                     <div className="space-y-1.5">
