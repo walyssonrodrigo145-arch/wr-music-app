@@ -19,7 +19,7 @@ import {
   BarChart2, Map, Cpu, Brain, FileText, Download, Search,
   AlertCircle, CheckCircle, Info, ArrowUp, ArrowDown,
   RefreshCw, Filter, Calendar, Shield, ShieldAlert, Lock,
-  AlertTriangle, ChevronLeft, ChevronRight,
+  AlertTriangle, ChevronLeft, ChevronRight, Loader2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
