@@ -351,9 +351,11 @@ function ObservacaoModal({ open, onClose, payment }: {
   );
 }
 
-function NovaModal({ open, onClose, students }: {
+function NovaModal({ open, onClose, students, dueDays }: {
   open: boolean; onClose: () => void;
   students: any[];
+  /** Dias de vencimento configurados no perfil da escola (ex: [5,10,15,20]). */
+  dueDays?: number[];
 }) {
   const utils = trpc.useUtils();
   const now = new Date();
@@ -361,6 +363,7 @@ function NovaModal({ open, onClose, students }: {
     studentId: "",
     amount: "",
     dueDay: "10",
+    dueDayCustom: "",
     startMonth: String(now.getMonth() + 1),
     startYear: String(now.getFullYear()),
     notes: "",
@@ -374,6 +377,7 @@ function NovaModal({ open, onClose, students }: {
     set("studentId", id);
     if (s?.monthlyFee) set("amount", String(s.monthlyFee));
     if (s?.dueDay) set("dueDay", String(s.dueDay));
+    set("dueDayCustom", "");
     if (s?.startDate) {
       const d = new Date(s.startDate);
       // Ensure we use the date components correctly
@@ -402,14 +406,20 @@ function NovaModal({ open, onClose, students }: {
 
   const handleSubmit = () => {
     if (generationMode === "individual") {
-      if (!form.studentId || !form.amount || !form.dueDay) {
+      const finalDueDay = form.dueDay === "outro" ? form.dueDayCustom : form.dueDay;
+      if (!form.studentId || !form.amount || !finalDueDay) {
         toast.error("Preencha todos os campos obrigatórios");
+        return;
+      }
+      const dayNum = Number(finalDueDay);
+      if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
+        toast.error("Dia de vencimento inválido (1 a 31)");
         return;
       }
       generateMutation.mutate({
         studentId: Number(form.studentId),
         amount: Number(form.amount),
-        dueDay: Number(form.dueDay),
+        dueDay: dayNum,
         startMonth: Number(form.startMonth),
         startYear: Number(form.startYear),
         monthsCount,
@@ -480,10 +490,23 @@ function NovaModal({ open, onClose, students }: {
                  </div>
                  <div className="space-y-2">
                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Dia Vencimento</label>
-                   <select value={form.dueDay} onChange={e => set("dueDay", e.target.value)}
-                     className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-foreground cursor-pointer">
-                     {[5,10,15,20,25].map(d => <option key={d} value={String(d)}>{d}</option>)}
-                   </select>
+                   {form.dueDay === "outro" ? (
+                     <Input
+                       type="number"
+                       min={1}
+                       max={31}
+                       value={form.dueDayCustom}
+                       onChange={e => set("dueDayCustom", e.target.value)}
+                       placeholder="Digite o dia (1-31)"
+                       className="h-12 text-sm font-bold rounded-xl border-border bg-muted/50"
+                     />
+                   ) : (
+                     <select value={form.dueDay} onChange={e => set("dueDay", e.target.value)}
+                       className="w-full h-12 text-sm font-semibold rounded-xl border border-border bg-muted/50 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/10 text-foreground cursor-pointer">
+                       {(dueDays && dueDays.length > 0 ? dueDays : [5,10,15,20,25]).map(d => <option key={d} value={String(d)}>{d}</option>)}
+                       <option value="outro">Outro...</option>
+                     </select>
+                   )}
                  </div>
               </div>
             </>
@@ -543,6 +566,12 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
   const paymentGateway = (settings?.paymentGateway as "asaas" | "mercadopago") || "asaas";
   const isGatewayEnabled = paymentGateway === "mercadopago" ? !!settings?.mpAccessToken : settings?.asaasEnabled === 1;
   const isWhatsAppEnabled = settings?.whatsappBotUrl && settings?.whatsappBotToken;
+
+  // Dias de vencimento configurados no perfil da escola (usados no cadastro de nova mensalidade)
+  const dueDaysFromSettings = useMemo(() => {
+    const raw = (settings?.dueDaysForecast ?? "5,10,15,20") as string;
+    return raw.split(",").map(d => Number(d.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
+  }, [settings?.dueDaysForecast]);
   const utils = trpc.useUtils();
   const now = new Date();
   const [filterStatus, setFilterStatus] = useState<string>("todas");
@@ -1230,7 +1259,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
 
       {/* MODALS */}
       {novaOpen && (
-        <NovaModal open={novaOpen} onClose={() => setNovaOpen(false)} students={students} />
+        <NovaModal open={novaOpen} onClose={() => setNovaOpen(false)} students={students} dueDays={dueDaysFromSettings} />
       )}
       {editPayment && (
         <EditMensalidadeModal open={!!editPayment} onClose={() => setEditPayment(null)} payment={editPayment} />
