@@ -174,8 +174,8 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         collapsed && "justify-center px-2"
       )}>
         {(user as any)?.schoolLogo ? (
-          <div className="relative w-10 h-10 rounded-xl bg-background/40 p-1 shadow-lg shadow-primary/20 border border-white/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
-            <img src={(user as any).schoolLogo} alt="Logo da Escola" className="max-w-full max-h-full object-contain" />
+          <div className="relative w-10 h-10 rounded-xl bg-slate-900/60 shadow-lg shadow-primary/20 border border-white/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
+            <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-cover" />
           </div>
         ) : (
           <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-primary/30 flex-shrink-0 overflow-hidden">

@@ -1371,7 +1371,7 @@ export default function Configuracoes() {
                     <div className="relative w-28 h-28 rounded-full border-2 border-dashed border-indigo-500/30 bg-background/50 flex flex-col items-center justify-center overflow-hidden shadow-inner group shrink-0">
                       {logoUrl ? (
                         <>
-                          <img src={logoUrl} alt="Logo da Escola" className="w-full h-full object-contain p-2" />
+                          <img src={logoUrl} alt="Logo da Escola" className="w-full h-full object-cover" />
                           <button
                             type="button"
                             onClick={handleRemoveLogo}

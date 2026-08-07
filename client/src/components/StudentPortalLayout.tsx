@@ -55,8 +55,8 @@ export function StudentPortalLayout({ children }: StudentPortalLayoutProps) {
             <div className="absolute -inset-4 bg-gradient-to-br from-primary/30 to-violet-500/30 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500" />
             <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[2px] shadow-2xl border border-white/10 overflow-hidden">
               {(user as any)?.schoolLogo ? (
-                <div className="w-full h-full rounded-3xl bg-white flex items-center justify-center overflow-hidden">
-                  <img src={(user as any).schoolLogo} alt="Logo da escola" className="w-full h-full object-contain p-1.5" />
+                <div className="w-full h-full rounded-3xl bg-slate-900/80 flex items-center justify-center overflow-hidden">
+                  <img src={(user as any).schoolLogo} alt="Logo da escola" className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-3xl flex items-center justify-center relative z-10">

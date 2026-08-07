@@ -1,29 +1,20 @@
-# Relatório de Auditoria Pré-Deploy - Dynamic Subdomain Support for Google OAuth
+# AUDITORIA PRÉ-DEPLOY (QA SÊNIOR - WRAUDITOR)
 
-## Causa Raiz Estrutural Identificada (Auditoria WRAUDITOR)
+## Data: 2026-08-07
+## Alteração: Ajuste Fino de Enquadramento e Container da Logo da Escola
 
-1. **Suporte Dinâmico a Subdomínio no Google OAuth (`server/_core/googleAuth.ts`):**
-   - Ao tentar realizar o login com Google acessando o subdomínio `analytics.wrmusicpro.com.br`, o servidor precisa gerar a URL de redirecionamento correspondente ao subdomínio exato (`https://analytics.wrmusicpro.com.br/api/auth/google/callback`).
-   - **Correção:** A função `getRedirectUri(req)` foi aprimorada para extrair o host dinâmico da requisição HTTP (`analytics.wrmusicpro.com.br` ou `wrmusicpro.com.br`), garantindo que tanto o domínio principal quanto o subdomínio façam a autenticação via Google com precisão.
+### 1. Resumo das Alterações
+- `AppSidebar.tsx`: Remoção do fundo cinza `bg-background/40` e do padding `p-1` forçado; atualização para `object-cover w-full h-full` dentro do container `rounded-xl overflow-hidden`.
+- `StudentSidebar.tsx`: Alinhamento do container da logo do aluno ao mesmo padrão de preenchimento `object-cover`.
+- `StudentPortalLayout.tsx`: Ajuste do portal de login do aluno para integrar a logo da escola sem recuo desproporcional.
+- `Configuracoes.tsx`: Ajuste da foto de preview da logo para refletir exatamente o preenchimento sem margens indesejadas (`p-2`).
 
----
+### 2. Validação QA / Checklist
+- [x] Nenhuma rota ou página foi quebrada.
+- [x] Nenhuma propriedade ou parâmetro de API foi alterado.
+- [x] O container visual da logo da escola agora se integra perfeitamente ao design dark premium, preenchendo a borda curva (`rounded-xl`) assim como a logo nativa do MusicPro.
+- [x] Não há erros de tipo ou regressões nos componentes alterados.
 
-## Dados exatos para adicionar no Google Cloud Console
-
-Para o login funcionar tanto no domínio principal quanto no subdomínio do Analytics:
-
-### 1. Origens JavaScript autorizadas:
-- `https://analytics.wrmusicpro.com.br`
-- `https://wrmusicpro.com.br`
-- `http://localhost:3000`
-
-### 2. URIs de redirecionamento autorizados:
-- `https://analytics.wrmusicpro.com.br/api/auth/google/callback`
-- `https://wrmusicpro.com.br/api/auth/google/callback`
-- `http://localhost:3000/api/auth/google/callback`
-
----
-
-## Validação e Deploy
-- **Git Status:** `server/_core/googleAuth.ts` atualizado.
-- **Deploy:** Commit, push e execução do script `upload_and_deploy_fixed.js` via `devopsmaster`.
+### 3. Parecer Final
+- **Status:** APROVADO para Deploy.
+- **Nível de Risco:** Baixo (0 erros críticos ou altos).
