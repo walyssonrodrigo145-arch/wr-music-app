@@ -169,17 +169,40 @@ export function LogoEditorModal({
   // Pré-visualização em tempo real (captura do canvas).
   const [livePreview, setLivePreview] = useState("");
 
+  // Renderiza a logo aplicando as transformações num fundo transparente (sem quadriculado),
+  // exatamente como será exportada. Usada no preview ao vivo e no salvamento.
+  const renderLogoToDataUrl = useCallback(
+    (size: number): string => {
+      const img = imgRef.current;
+      if (!img) return "";
+      const out = document.createElement("canvas");
+      out.width = size;
+      out.height = size;
+      const ctx = out.getContext("2d")!;
+      const drawImg = removeBg ? removeWhiteBackground(img) : img;
+      const s = scale * (size / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.translate(size / 2, size / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.translate(x * size, y * size);
+      ctx.drawImage(drawImg as any, (-img.naturalWidth / 2) * s, (-img.naturalHeight / 2) * s, img.naturalWidth * s, img.naturalHeight * s);
+      ctx.restore();
+      return out.toDataURL("image/png");
+    },
+    [removeBg, rotation, scale, x, y]
+  );
+
   // Atualiza o preview ao vivo a cada redesenho.
   useEffect(() => {
     if (!open) return;
     const t = setTimeout(() => {
-      try {
-        const c = canvasRef.current;
-        if (c) setLivePreview(c.toDataURL("image/png"));
-      } catch { /* ignora */ }
+      setLivePreview(renderLogoToDataUrl(EXPORT_SIZE));
     }, 80);
     return () => clearTimeout(t);
-  }, [open, x, y, scale, rotation, removeBg]);
+  }, [open, x, y, scale, rotation, removeBg, renderLogoToDataUrl]);
 
   // Carrega a imagem e aplica enquadramento inicial inteligente.
   useEffect(() => {
@@ -190,8 +213,8 @@ export function LogoEditorModal({
       if (cancelled || !img) return;
       imgRef.current = img;
 
-      // Enquadramento inicial: cobrir o círculo com uma margem confortável.
-      const base = Math.min(1, (exportSize / 2) / Math.max(img.naturalWidth || 1, img.naturalHeight || 1) * 1.6);
+      // Enquadramento inicial: preencher o círculo com margem confortável.
+      const base = Math.min(1, (exportSize / 2) / Math.max(img.naturalWidth || 1, img.naturalHeight || 1) * 1.8);
       const initialScale = Math.max(base, 0.5);
 
       setX(0);
@@ -222,11 +245,11 @@ export function LogoEditorModal({
     const size = canvas.width;
     ctx.clearRect(0, 0, size, size);
 
-    // Fundo quadriculado (transparência).
+    // Fundo quadriculado (transparência) — sutil para não parecer parte da logo.
     const cell = size / 14;
-    ctx.fillStyle = "#e5e7eb";
+    ctx.fillStyle = "#f3f4f6";
     ctx.fillRect(0, 0, size, size);
-    ctx.fillStyle = "#f9fafb";
+    ctx.fillStyle = "#ffffff";
     for (let i = 0; i < 14; i++) {
       for (let j = 0; j < 14; j++) {
         if ((i + j) % 2 === 0) ctx.fillRect(i * cell, j * cell, cell, cell);
@@ -262,34 +285,17 @@ export function LogoEditorModal({
   const handleSave = useCallback(() => {
     const img = imgRef.current;
     if (!img) return;
-
-    const out = document.createElement("canvas");
-    out.width = exportSize;
-    out.height = exportSize;
-    const ctx = out.getContext("2d")!;
-    const drawImg = removeBg ? removeWhiteBackground(img) : img;
-    const s = scale * (exportSize / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(exportSize / 2, exportSize / 2, exportSize / 2, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.translate(exportSize / 2, exportSize / 2);
-    ctx.rotate((rotation * Math.PI) / 180);
-    ctx.translate(x * exportSize, y * exportSize);
-    ctx.drawImage(drawImg as any, (-img.naturalWidth / 2) * s, (-img.naturalHeight / 2) * s, img.naturalWidth * s, img.naturalHeight * s);
-    ctx.restore();
-
+    const dataUrl = renderLogoToDataUrl(exportSize);
     onSave({
-      dataUrl: out.toDataURL("image/png"),
+      dataUrl,
       x,
       y,
       scale,
       rotation,
-      favicon: resizeDataUrl(out.toDataURL("image/png"), 32),
-      thumbnail: resizeDataUrl(out.toDataURL("image/png"), 96),
+      favicon: resizeDataUrl(dataUrl, 32),
+      thumbnail: resizeDataUrl(dataUrl, 96),
     });
-  }, [removeBg, rotation, scale, x, y, exportSize, onSave]);
+  }, [renderLogoToDataUrl, exportSize, x, y, scale, rotation, onSave]);
 
   // Centraliza a logo.
   const handleCenter = useCallback(() => {
@@ -297,7 +303,7 @@ export function LogoEditorModal({
     setY(0);
     const img = imgRef.current;
     if (!img) return;
-    const base = Math.min(1, (exportSize / 2) / Math.max(img.naturalWidth || 1, img.naturalHeight || 1) * 1.6);
+    const base = Math.min(1, (exportSize / 2) / Math.max(img.naturalWidth || 1, img.naturalHeight || 1) * 1.8);
     setScale(Math.max(base, 0.5));
     pushHistory(0, 0, Math.max(base, 0.5), rotation);
   }, [exportSize, rotation]);
