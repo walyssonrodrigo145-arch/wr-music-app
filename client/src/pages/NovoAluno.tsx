@@ -1490,42 +1490,47 @@ export default function NovoAluno() {
                     </div>
 
                     {/* Múltiplas Aulas por Semana */}
-                    {scheduleForm.weeksCount > 1 && (
-                      <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
-                            <CalendarIcon size={14} /> Aulas na mesma semana
-                          </label>
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4].map(num => (
-                              <button
-                                key={num}
-                                type="button"
-                                onClick={() => {
-                                  const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
-                                  const initialDay = new Date(startY, startM - 1, startD).getDay();
-                                  const newSlots = [];
-                                  for (let i = 0; i < num; i++) {
-                                    newSlots.push({
-                                      dayOfWeek: (initialDay + (i * 2)) % 7,
-                                      time: scheduleForm.time,
-                                      studioRoomId: ""
-                                    });
-                                  }
-                                  setScheduleForm(p => ({ ...p, lessonsPerWeek: num, weeklySlots: newSlots }));
-                                }}
-                                className={cn(
-                                  "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border",
-                                  scheduleForm.lessonsPerWeek === num
-                                    ? "bg-primary text-white border-primary"
-                                    : "bg-card text-muted-foreground border-border hover:bg-muted"
-                                )}
-                              >
-                                {num}x/sem
-                              </button>
-                            ))}
-                          </div>
+                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
+                          <CalendarIcon size={14} /> Aulas na mesma semana
+                        </label>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4].map(num => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => {
+                                const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
+                                const initialDay = new Date(startY, startM - 1, startD).getDay();
+                                const newSlots = [];
+                                for (let i = 0; i < num; i++) {
+                                  newSlots.push({
+                                    dayOfWeek: (initialDay + (i * 2)) % 7,
+                                    time: scheduleForm.time,
+                                    studioRoomId: ""
+                                  });
+                                }
+                                setScheduleForm(p => ({
+                                  ...p,
+                                  lessonsPerWeek: num,
+                                  weeklySlots: newSlots,
+                                  // Se selecionar mais de 1x por semana, ajusta weeksCount padrão para 4 semanas se estava em 1
+                                  weeksCount: p.weeksCount === 1 ? 4 : p.weeksCount
+                                }));
+                              }}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                                scheduleForm.lessonsPerWeek === num
+                                  ? "bg-primary text-white border-primary shadow-sm shadow-primary/20"
+                                  : "bg-card text-muted-foreground border-border hover:bg-muted"
+                              )}
+                            >
+                              {num}x/sem
+                            </button>
+                          ))}
                         </div>
+                      </div>
 
                         {scheduleForm.lessonsPerWeek > 1 && (
                           <div className="space-y-2 pt-2 border-t border-primary/10">
@@ -1569,7 +1574,6 @@ export default function NovoAluno() {
                           </div>
                         )}
                       </div>
-                    )}
 
                     {/* Observações */}
                     <div className="space-y-2">

@@ -815,7 +815,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           </div>
 
           {/* Configuração de Múltiplos Dias por Semana */}
-          {formData.weeksCount > 1 && !editingLesson && (
+          {!editingLesson && (
             <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
@@ -837,12 +837,17 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                             studioRoomId: formData.studioRoomId
                           });
                         }
-                        setFormData({ ...formData, lessonsPerWeek: num, weeklySlots: newSlots });
+                        setFormData({
+                          ...formData,
+                          lessonsPerWeek: num,
+                          weeklySlots: newSlots,
+                          weeksCount: formData.weeksCount === 1 ? 4 : formData.weeksCount
+                        });
                       }}
                       className={cn(
-                        "px-3 py-1 rounded-lg text-xs font-bold transition-all border",
+                        "px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer",
                         formData.lessonsPerWeek === num
-                          ? "bg-primary text-white border-primary"
+                          ? "bg-primary text-white border-primary shadow-sm shadow-primary/20"
                           : "bg-card text-muted-foreground border-border hover:bg-muted"
                       )}
                     >
