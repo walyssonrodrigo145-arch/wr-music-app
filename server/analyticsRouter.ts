@@ -591,8 +591,19 @@ const analyticsQueryRouter = router({
       const dbBaseForecast = studentsTotal;
 
       // 2. Cobranças geradas / faturas pendentes do próximo mês em paymentDues
-      const nextMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
-      const nextMonthEnd = new Date(todayStart.getFullYear(), todayStart.getMonth() + 2, 0, 23, 59, 59);
+      let targetYear = todayStart.getFullYear();
+      let targetMonth = todayStart.getMonth() + 2; // 1-indexed próximo mês
+      if (targetMonth > 12) {
+        targetMonth = 1;
+        targetYear += 1;
+      }
+      const nextMonthStr = String(targetMonth).padStart(2, "0");
+      const startStr = `${targetYear}-${nextMonthStr}-01`;
+      const lastDayNum = new Date(targetYear, targetMonth, 0).getDate();
+      const endStr = `${targetYear}-${nextMonthStr}-${String(lastDayNum).padStart(2, "0")}`;
+
+      const currentMonthStr = String(todayStart.getMonth() + 1).padStart(2, "0");
+      const currentMonthStartStr = `${todayStart.getFullYear()}-${currentMonthStr}-01`;
 
       const paymentDuesNextList = await db.select({
         amount: paymentDues.amount,
@@ -600,8 +611,8 @@ const analyticsQueryRouter = router({
       .from(paymentDues)
       .where(and(
         ne(paymentDues.status, "cancelado"),
-        gte(paymentDues.dueDate, nextMonthStart),
-        lte(paymentDues.dueDate, nextMonthEnd)
+        gte(paymentDues.dueDate, startStr),
+        lte(paymentDues.dueDate, endStr)
       ));
 
       const paymentDuesTotal = paymentDuesNextList.reduce((acc, row) => {
@@ -625,7 +636,10 @@ const analyticsQueryRouter = router({
         amount: paymentDues.amount,
       })
       .from(paymentDues)
-      .where(gte(paymentDues.dueDate, monthStart));
+      .where(and(
+        ne(paymentDues.status, "cancelado"),
+        gte(paymentDues.dueDate, currentMonthStartStr)
+      ));
 
       const currentMonthDues = currentDuesList.reduce((acc, row) => {
         if (!row.amount) return acc;
