@@ -14,29 +14,28 @@ interface MusicLayoutProps {
 
 export function MusicLayout({ children }: MusicLayoutProps) {
   const { user, loading, isAuthenticated } = useAuth();
-  const { isMobile, isTablet, isDesktop, isXL } = useBreakpoint();
+  const { isMobile, isTablet, isDesktop, isXL, isMacBook } = useBreakpoint();
   
   // Sidebar state
-  // On tablet or desktop < 1280px (MacBook Air 13"), start collapsed.
-  // On desktop >= 1280px, start open.
+  // On tablet or MacBook Air/Pro 13/14", start collapsed.
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return window.innerWidth < 1280;
+    return window.innerWidth < 1280 || (typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent) && window.innerWidth <= 1440);
   });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Sync collapsed state with breakpoint
   useEffect(() => {
-    if (isTablet) {
+    if (isTablet || isMacBook) {
       setCollapsed(true);
     } else if (isDesktop && !isXL) {
       // Desktop pequeno (1024-1279px = MacBook Air 13"): colapsa sidebar
       setCollapsed(true);
-    } else if (isXL) {
-      // Desktop grande (≥1280px): expande sidebar
+    } else if (isXL && !isMacBook) {
+      // Desktop grande (≥1280px não-MacBook): expande sidebar
       setCollapsed(false);
     }
-  }, [isTablet, isDesktop, isXL]);
+  }, [isTablet, isDesktop, isXL, isMacBook]);
 
   const [, setLocation] = useLocation();
 

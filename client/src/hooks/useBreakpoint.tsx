@@ -24,6 +24,27 @@ export function useBreakpoint() {
     return window.innerWidth >= 1280;
   });
 
+  const [isMac, setIsMac] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return /Mac|Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent);
+  });
+
+  const [isMacBook, setIsMacBook] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const isMacOs = /Mac|Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent);
+    const width = window.innerWidth;
+    return isMacOs && width >= 1024 && width <= 1536;
+  });
+
+  useEffect(() => {
+    if (typeof document !== "undefined" && isMac) {
+      document.documentElement.classList.add("is-mac");
+      if (isMacBook) {
+        document.documentElement.classList.add("is-macbook");
+      }
+    }
+  }, [isMac, isMacBook]);
+
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
@@ -35,6 +56,10 @@ export function useBreakpoint() {
         setDeviceType("desktop");
       }
       setIsXL(width >= 1280);
+
+      const isMacOs = /Mac|Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent);
+      setIsMac(isMacOs);
+      setIsMacBook(isMacOs && width >= 1024 && width <= 1536);
     };
 
     window.addEventListener("resize", handleResize);
@@ -50,6 +75,8 @@ export function useBreakpoint() {
     isTablet: deviceType === "tablet",
     isDesktop: deviceType === "desktop",
     isXL, // >= 1280px (MacBook Pro 14", 1440p+)
+    isMac,
+    isMacBook,
     isSmallerThanDesktop: deviceType !== "desktop",
   };
 }

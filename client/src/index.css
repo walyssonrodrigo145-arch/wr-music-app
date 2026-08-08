@@ -435,3 +435,24 @@
 .tour-active .backdrop-blur-xl {
   backdrop-filter: none !important;
 }
+
+/* 🍏 REGRAS DE ESTILIZAÇÃO E RENDERING EXCLUSIVAS PARA macOS / MACBOOKS */
+.is-mac {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.is-mac * {
+  /* Previne sobreposição acidental em telas retina com zoom escalonado */
+  box-sizing: border-box;
+}
+
+.is-macbook {
+  /* Suaviza transição de containers no Safari macOS */
+  --mac-safe-padding: 1.25rem;
+}
+
+.is-macbook .mac-compact-grid {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+}
