@@ -37,7 +37,7 @@ import {
 } from "./services/AnalyticsQueue";
 import { getAsaasNextMonthRevenue } from "./utils/asaas";
 import { resolveGeoFromIp } from "./utils/geoIp";
-import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or, isNotNull, ne } from "drizzle-orm";
+import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or, isNotNull, isNull, ne } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
 // ── Middleware Super Admin ────────────────────────────────────────────────────
@@ -564,14 +564,31 @@ const analyticsQueryRouter = router({
         asaasNextMonth += rev;
       }
 
-      // 1. Mensalidades dos alunos ativos cadastrados na escola (students.monthlyFee)
+      // 1. Mensalidades dos alunos cadastrados nas escolas (students.monthlyFee)
       const [studentsFeeRes] = await db.select({
         total: sql<string>`COALESCE(SUM(CAST(${students.monthlyFee} AS NUMERIC)), 0)`
       })
       .from(students)
-      .where(eq(students.status, "ativo"));
+      .where(or(
+        eq(students.status, "ativo"),
+        isNull(students.status),
+        ne(students.status, "inativo")
+      ));
 
       const studentsTotal = parseFloat(studentsFeeRes?.total || "0");
+
+      // 1b. Planos ativos das escolas no SaaS (organizations.monthlyPrice)
+      const [orgsFeeRes] = await db.select({
+        total: sql<string>`COALESCE(SUM(CAST(${organizations.monthlyPrice} AS NUMERIC)), 0)`
+      })
+      .from(organizations)
+      .where(or(
+        eq(organizations.subscriptionStatus, "active"),
+        eq(organizations.subscriptionStatus, "trialing")
+      ));
+
+      const orgsTotal = parseFloat(orgsFeeRes?.total || "0");
+      const dbBaseForecast = (studentsTotal + orgsTotal) > 0 ? (studentsTotal + orgsTotal) : (studentsTotal > 0 ? studentsTotal : orgsTotal);
 
       // 2. Cobranças geradas / faturas pendentes do próximo mês em paymentDues
       const nextMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
@@ -607,11 +624,11 @@ const analyticsQueryRouter = router({
 
       const currentMonthDues = parseFloat(currentMonthDuesRes?.total || "0");
 
-      // Combina as fontes de receita prevista (Prioridade: Asaas API > Alunos Ativos > PaymentDues > Histórico)
+      // Combina as fontes de receita prevista (Prioridade: Asaas API > Alunos+Escolas BD > PaymentDues > Histórico)
       nextMonthForecast = asaasNextMonth > 0
         ? asaasNextMonth
-        : (studentsTotal > 0 
-            ? studentsTotal 
+        : (dbBaseForecast > 0 
+            ? dbBaseForecast 
             : (paymentDuesTotal > 0 
                 ? paymentDuesTotal 
                 : (currentMonthDues > 0 

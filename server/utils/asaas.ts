@@ -351,40 +351,44 @@ export async function getAsaasNextMonthRevenue(apiKey?: string): Promise<number>
   if (!key) return 0;
 
   const now = new Date();
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-
-  const startStr = nextMonthStart.toISOString().split("T")[0];
-  const endStr = nextMonthEnd.toISOString().split("T")[0];
+  let targetYear = now.getFullYear();
+  let targetMonth = now.getMonth() + 2; // 1-indexed next month
+  if (targetMonth > 12) {
+    targetMonth = 1;
+    targetYear += 1;
+  }
+  const monthStr = String(targetMonth).padStart(2, "0");
+  const startStr = `${targetYear}-${monthStr}-01`;
+  const lastDayNum = new Date(targetYear, targetMonth, 0).getDate();
+  const endStr = `${targetYear}-${monthStr}-${String(lastDayNum).padStart(2, "0")}`;
 
   try {
-    let total = 0;
+    let paymentsTotal = 0;
+    let subsTotal = 0;
 
-    // 1. Busca cobranças (payments) com vencimento no próximo mês (PENDING e CONFIRMED)
-    for (const status of ["PENDING", "CONFIRMED"]) {
+    // 1. Busca cobranças (payments) com vencimento no próximo mês (PENDING, CONFIRMED, RECEIVED)
+    for (const status of ["PENDING", "CONFIRMED", "RECEIVED"]) {
       const paymentsUrl = `${ENV.asaasBaseUrl}/payments?dueDate%5Bge%5D=${startStr}&dueDate%5Ble%5D=${endStr}&status=${status}&limit=100`;
       const resPayments = await asaasRequest("GET", paymentsUrl, undefined, key);
       if (resPayments.ok) {
         const dataPayments = await resPayments.json();
         if (dataPayments?.data && Array.isArray(dataPayments.data)) {
-          total += dataPayments.data.reduce((acc: number, item: any) => acc + (Number(item.value) || 0), 0);
+          paymentsTotal += dataPayments.data.reduce((acc: number, item: any) => acc + (Number(item.value) || 0), 0);
         }
       }
     }
 
-    // 2. Se a busca por cobranças diretas der 0, consulta também as assinaturas ativas
-    if (total === 0) {
-      const subsUrl = `${ENV.asaasBaseUrl}/subscriptions?status=ACTIVE&limit=100`;
-      const resSubs = await asaasRequest("GET", subsUrl, undefined, key);
-      if (resSubs.ok) {
-        const dataSubs = await resSubs.json();
-        if (dataSubs?.data && Array.isArray(dataSubs.data)) {
-          total += dataSubs.data.reduce((acc: number, item: any) => acc + (Number(item.value) || 0), 0);
-        }
+    // 2. Busca assinaturas ativas na conta Asaas
+    const subsUrl = `${ENV.asaasBaseUrl}/subscriptions?status=ACTIVE&limit=100`;
+    const resSubs = await asaasRequest("GET", subsUrl, undefined, key);
+    if (resSubs.ok) {
+      const dataSubs = await resSubs.json();
+      if (dataSubs?.data && Array.isArray(dataSubs.data)) {
+        subsTotal += dataSubs.data.reduce((acc: number, item: any) => acc + (Number(item.value) || 0), 0);
       }
     }
 
-    return total;
+    return Math.max(paymentsTotal, subsTotal);
   } catch (err: any) {
     console.error("[Asaas] Erro ao buscar receita prevista do próximo mês:", err?.message || err);
     return 0;
