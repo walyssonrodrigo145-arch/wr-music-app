@@ -456,3 +456,48 @@
 .is-macbook .mac-compact-grid {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
 }
+
+/* 🚀 MUSICPRO FLUID LAYOUT ENGINE (UNIVERSAL RESIZING SYSTEM) */
+.fluid-container {
+  container-type: inline-size;
+  width: 100%;
+}
+
+.fluid-grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(260px, 28cqw, 360px), 1fr));
+  gap: clamp(1rem, 2cqw, 2rem);
+}
+
+.fluid-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(200px, 22cqw, 280px), 1fr));
+  gap: clamp(0.75rem, 1.5cqw, 1.5rem);
+}
+
+.fluid-card-padding {
+  padding: clamp(1rem, 2.5cqw, 2.25rem);
+}
+
+/* Container Queries de Proteção contra Quebra */
+@container (max-width: 680px) {
+  .cq-col-stack {
+    grid-template-columns: 1fr !important;
+  }
+  .cq-flex-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .cq-hide-secondary {
+    display: none !important;
+  }
+}
+
+@container (max-width: 480px) {
+  .cq-compact-padding {
+    padding: 0.75rem !important;
+  }
+  .cq-compact-text {
+    font-size: 0.75rem !important;
+  }
+}
