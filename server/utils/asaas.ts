@@ -360,17 +360,19 @@ export async function getAsaasNextMonthRevenue(apiKey?: string): Promise<number>
   try {
     let total = 0;
 
-    // 1. Busca cobranças (payments) pendentes no próximo mês
-    const paymentsUrl = `${ENV.asaasBaseUrl}/payments?dueDate%5Bge%5D=${startStr}&dueDate%5Ble%5D=${endStr}&status=PENDING&limit=100`;
-    const resPayments = await asaasRequest("GET", paymentsUrl, undefined, key);
-    if (resPayments.ok) {
-      const dataPayments = await resPayments.json();
-      if (dataPayments?.data && Array.isArray(dataPayments.data)) {
-        total += dataPayments.data.reduce((acc: number, item: any) => acc + (Number(item.value) || 0), 0);
+    // 1. Busca cobranças (payments) com vencimento no próximo mês (PENDING e CONFIRMED)
+    for (const status of ["PENDING", "CONFIRMED"]) {
+      const paymentsUrl = `${ENV.asaasBaseUrl}/payments?dueDate%5Bge%5D=${startStr}&dueDate%5Ble%5D=${endStr}&status=${status}&limit=100`;
+      const resPayments = await asaasRequest("GET", paymentsUrl, undefined, key);
+      if (resPayments.ok) {
+        const dataPayments = await resPayments.json();
+        if (dataPayments?.data && Array.isArray(dataPayments.data)) {
+          total += dataPayments.data.reduce((acc: number, item: any) => acc + (Number(item.value) || 0), 0);
+        }
       }
     }
 
-    // 2. Se não houver cobranças diretas, busca o valor total das assinaturas ativas
+    // 2. Se a busca por cobranças diretas der 0, consulta também as assinaturas ativas
     if (total === 0) {
       const subsUrl = `${ENV.asaasBaseUrl}/subscriptions?status=ACTIVE&limit=100`;
       const resSubs = await asaasRequest("GET", subsUrl, undefined, key);

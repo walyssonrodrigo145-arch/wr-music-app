@@ -26,6 +26,8 @@ import {
   paymentDues,
   users,
   organizations,
+  settings,
+  students,
 } from "../drizzle/schema";
 import {
   analyticsQueue,
@@ -35,7 +37,7 @@ import {
 } from "./services/AnalyticsQueue";
 import { getAsaasNextMonthRevenue } from "./utils/asaas";
 import { resolveGeoFromIp } from "./utils/geoIp";
-import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or } from "drizzle-orm";
+import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or, isNotNull, ne } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
 // ── Middleware Super Admin ────────────────────────────────────────────────────
@@ -540,8 +542,27 @@ const analyticsQueryRouter = router({
     // 7. Receita Prevista Próximo Mês (nextMonthForecast)
     let nextMonthForecast = 0;
     try {
-      // 0. Consulta API do Asaas para cobranças/assinaturas do próximo mês
-      const asaasNextMonth = await getAsaasNextMonthRevenue();
+      // 0. Busca todas as chaves de API do Asaas salvas na tabela settings + ENV
+      const activeSettings = await db.select({
+        asaasApiKey: settings.asaasApiKey,
+        asaasEnabled: settings.asaasEnabled,
+      })
+      .from(settings)
+      .where(and(isNotNull(settings.asaasApiKey), ne(settings.asaasApiKey, "")));
+
+      const apiKeys = new Set<string>();
+      if (ENV.asaasApiKey) apiKeys.add(ENV.asaasApiKey.trim());
+      for (const s of activeSettings) {
+        if (s.asaasApiKey && (s.asaasEnabled === 1 || s.asaasEnabled === null || s.asaasEnabled === undefined)) {
+          apiKeys.add(s.asaasApiKey.trim());
+        }
+      }
+
+      let asaasNextMonth = 0;
+      for (const key of apiKeys) {
+        const rev = await getAsaasNextMonthRevenue(key);
+        asaasNextMonth += rev;
+      }
 
       // 1. Mensalidades dos alunos ativos cadastrados na escola (students.monthlyFee)
       const [studentsFeeRes] = await db.select({
