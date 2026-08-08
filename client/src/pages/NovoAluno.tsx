@@ -68,7 +68,9 @@ export default function NovoAluno() {
   const { data: settings } = trpc.settings.get.useQuery(undefined, { staleTime: 60000 });
 
   // ─── Estado das abas ─────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<"dados" | "agendar">("dados");
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const initialTab = searchParams?.get("tab") === "agendar" ? "agendar" : "dados";
+  const [activeTab, setActiveTab] = useState<"dados" | "agendar">(initialTab);
 
   // ─── Estado do formulário de agendamento ──────────────────────────────────────
   const [scheduleForm, setScheduleForm] = useState({
@@ -798,7 +800,7 @@ export default function NovoAluno() {
       </div>
 
       {/* ─── Aba: Dados do Aluno ─── */}
-      {(!isEditMode || activeTab === "dados") && (
+      {activeTab === "dados" && (
       <main className="max-w-7xl mx-auto px-6 py-8">
         <motion.div 
           variants={containerVariants}
@@ -1349,6 +1351,27 @@ export default function NovoAluno() {
       {/* ─── Aba: Agendar Aula ─── */}
       {activeTab === "agendar" && (
         <main className="max-w-3xl mx-auto px-6 py-8">
+          {!isEditMode ? (
+            <div className="bg-card rounded-[2rem] p-8 sm:p-12 shadow-sm border border-border/50 text-center space-y-6">
+              <div className="w-16 h-16 rounded-3xl bg-violet-500/10 text-violet-600 flex items-center justify-center mx-auto">
+                <CalendarDays size={32} />
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="text-xl font-black text-foreground">Salve o cadastro para agendar</h3>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Para agendar a primeira aula deste aluno, conclua e salve as informações cadastrais primeiro.
+                </p>
+              </div>
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold h-11 px-8 shadow-lg shadow-violet-500/20"
+              >
+                {isSaving ? <Loader2 size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
+                Salvar Aluno e Continuar
+              </Button>
+            </div>
+          ) : (
           <AnimatePresence mode="wait">
 
             {/* ─ Formulário de Agendamento ─ */}
@@ -1717,6 +1740,7 @@ export default function NovoAluno() {
             )}
 
           </AnimatePresence>
+          )}
         </main>
       )}
         </>
