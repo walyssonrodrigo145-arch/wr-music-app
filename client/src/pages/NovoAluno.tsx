@@ -765,39 +765,37 @@ export default function NovoAluno() {
         </div>
       </header>
 
-      {/* ─── Tab Navigation (apenas em modo edição) ─── */}
-      {isEditMode && (
-        <div className="bg-card/60 backdrop-blur-md border-b border-border mb-6">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex gap-0">
-              <button
-                onClick={() => setActiveTab("dados")}
-                className={cn(
-                  "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all cursor-pointer",
-                  activeTab === "dados"
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <User size={16} />
-                Dados do Aluno
-              </button>
-              <button
-                onClick={() => setActiveTab("agendar")}
-                className={cn(
-                  "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all cursor-pointer",
-                  activeTab === "agendar"
-                    ? "border-violet-600 text-violet-600"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <CalendarDays size={16} />
-                Agendar Aula
-              </button>
-            </div>
+      {/* ─── Tab Navigation (Navegação Permanente por Abas) ─── */}
+      <div className="bg-card/60 backdrop-blur-md border-b border-border mb-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex gap-1 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setActiveTab("dados")}
+              className={cn(
+                "flex items-center gap-2 px-4 sm:px-6 py-3.5 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap",
+                activeTab === "dados"
+                  ? "border-indigo-600 text-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <User size={16} />
+              Dados do Aluno
+            </button>
+            <button
+              onClick={() => setActiveTab("agendar")}
+              className={cn(
+                "flex items-center gap-2 px-4 sm:px-6 py-3.5 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap",
+                activeTab === "agendar"
+                  ? "border-violet-600 text-violet-600 bg-violet-50/50 dark:bg-violet-950/20"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <CalendarDays size={16} />
+              Agendar Aula
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ─── Aba: Dados do Aluno ─── */}
       {(!isEditMode || activeTab === "dados") && (
@@ -1349,7 +1347,7 @@ export default function NovoAluno() {
       )}
 
       {/* ─── Aba: Agendar Aula ─── */}
-      {isEditMode && activeTab === "agendar" && (
+      {activeTab === "agendar" && (
         <main className="max-w-3xl mx-auto px-6 py-8">
           <AnimatePresence mode="wait">
 
