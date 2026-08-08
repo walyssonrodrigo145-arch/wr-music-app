@@ -1489,11 +1489,11 @@ export default function NovoAluno() {
 
                     {/* Múltiplas Aulas por Semana */}
                     <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                         <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
                           <CalendarIcon size={14} /> Aulas na mesma semana
                         </label>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
                           {[1, 2, 3, 4].map(num => (
                             <button
                               key={num}
@@ -1518,7 +1518,7 @@ export default function NovoAluno() {
                                 }));
                               }}
                               className={cn(
-                                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                                "px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer whitespace-nowrap shrink-0",
                                 scheduleForm.lessonsPerWeek === num
                                   ? "bg-primary text-white border-primary shadow-sm shadow-primary/20"
                                   : "bg-card text-muted-foreground border-border hover:bg-muted"
