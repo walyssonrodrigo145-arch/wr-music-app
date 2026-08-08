@@ -551,22 +551,28 @@ const analyticsQueryRouter = router({
       .where(and(isNotNull(settings.asaasApiKey), ne(settings.asaasApiKey, "")));
 
       const apiKeys = new Set<string>();
-      if (ENV.asaasApiKey) apiKeys.add(ENV.asaasApiKey.trim());
+      if (ENV.asaasApiKey && ENV.asaasApiKey.trim().length > 5) {
+        apiKeys.add(ENV.asaasApiKey.trim());
+      }
       for (const s of activeSettings) {
-        if (s.asaasApiKey && (s.asaasEnabled === 1 || s.asaasEnabled === null || s.asaasEnabled === undefined)) {
+        if (s.asaasApiKey && s.asaasApiKey.trim().length > 5) {
           apiKeys.add(s.asaasApiKey.trim());
         }
       }
 
       let asaasNextMonth = 0;
       for (const key of apiKeys) {
-        const rev = await getAsaasNextMonthRevenue(key);
-        asaasNextMonth += rev;
+        try {
+          const rev = await getAsaasNextMonthRevenue(key);
+          asaasNextMonth += rev;
+        } catch (errKey) {
+          console.error("[analyticsRouter] Erro ao consultar Asaas para chave:", errKey);
+        }
       }
 
       // 1. Mensalidades dos alunos cadastrados nas escolas (students.monthlyFee)
-      const [studentsFeeRes] = await db.select({
-        total: sql<string>`COALESCE(SUM(CAST(${students.monthlyFee} AS NUMERIC)), 0)`
+      const studentsList = await db.select({
+        fee: students.monthlyFee,
       })
       .from(students)
       .where(or(
@@ -575,15 +581,21 @@ const analyticsQueryRouter = router({
         ne(students.status, "inativo")
       ));
 
-      const studentsTotal = parseFloat(studentsFeeRes?.total || "0");
+      const studentsTotal = studentsList.reduce((acc, row) => {
+        if (!row.fee) return acc;
+        const cleaned = String(row.fee).replace(/[^0-9.,]/g, "").replace(",", ".");
+        const val = parseFloat(cleaned);
+        return acc + (isNaN(val) ? 0 : val);
+      }, 0);
+
       const dbBaseForecast = studentsTotal;
 
       // 2. Cobranças geradas / faturas pendentes do próximo mês em paymentDues
       const nextMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
       const nextMonthEnd = new Date(todayStart.getFullYear(), todayStart.getMonth() + 2, 0, 23, 59, 59);
 
-      const [paymentDuesRes] = await db.select({
-        total: sql<string>`COALESCE(SUM(CAST(${paymentDues.amount} AS NUMERIC)), 0)`
+      const paymentDuesNextList = await db.select({
+        amount: paymentDues.amount,
       })
       .from(paymentDues)
       .where(and(
@@ -592,7 +604,12 @@ const analyticsQueryRouter = router({
         lte(paymentDues.dueDate, nextMonthEnd)
       ));
 
-      const paymentDuesTotal = parseFloat(paymentDuesRes?.total || "0");
+      const paymentDuesTotal = paymentDuesNextList.reduce((acc, row) => {
+        if (!row.amount) return acc;
+        const cleaned = String(row.amount).replace(/[^0-9.,]/g, "").replace(",", ".");
+        const val = parseFloat(cleaned);
+        return acc + (isNaN(val) ? 0 : val);
+      }, 0);
 
       // 3. Receita de assinaturas recorrentes na plataforma (analyticsRevenue)
       const [analyticsFeeRes] = await db.select({
@@ -604,15 +621,29 @@ const analyticsQueryRouter = router({
       const analyticsTotal = parseFloat(analyticsFeeRes?.total || "0");
 
       // 4. Receita histórica de mensalidades em paymentDues do mês atual se tudo falhar
-      const [currentMonthDuesRes] = await db.select({
-        total: sql<string>`COALESCE(SUM(CAST(${paymentDues.amount} AS NUMERIC)), 0)`
+      const currentDuesList = await db.select({
+        amount: paymentDues.amount,
       })
       .from(paymentDues)
       .where(gte(paymentDues.dueDate, monthStart));
 
-      const currentMonthDues = parseFloat(currentMonthDuesRes?.total || "0");
+      const currentMonthDues = currentDuesList.reduce((acc, row) => {
+        if (!row.amount) return acc;
+        const cleaned = String(row.amount).replace(/[^0-9.,]/g, "").replace(",", ".");
+        const val = parseFloat(cleaned);
+        return acc + (isNaN(val) ? 0 : val);
+      }, 0);
 
-      // Combina as fontes de receita prevista (Prioridade: Asaas API > Alunos+Escolas BD > PaymentDues > Histórico)
+      console.log("[analyticsRouter] forecast breakdown:", {
+        asaasNextMonth,
+        studentsTotal,
+        paymentDuesTotal,
+        currentMonthDues,
+        analyticsTotal,
+        revMonth
+      });
+
+      // Combina as fontes de receita prevista (Prioridade: Asaas API > Alunos BD > PaymentDues > Histórico)
       nextMonthForecast = asaasNextMonth > 0
         ? asaasNextMonth
         : (dbBaseForecast > 0 
