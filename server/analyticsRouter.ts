@@ -576,19 +576,7 @@ const analyticsQueryRouter = router({
       ));
 
       const studentsTotal = parseFloat(studentsFeeRes?.total || "0");
-
-      // 1b. Planos ativos das escolas no SaaS (organizations.monthlyPrice)
-      const [orgsFeeRes] = await db.select({
-        total: sql<string>`COALESCE(SUM(CAST(${organizations.monthlyPrice} AS NUMERIC)), 0)`
-      })
-      .from(organizations)
-      .where(or(
-        eq(organizations.subscriptionStatus, "active"),
-        eq(organizations.subscriptionStatus, "trialing")
-      ));
-
-      const orgsTotal = parseFloat(orgsFeeRes?.total || "0");
-      const dbBaseForecast = (studentsTotal + orgsTotal) > 0 ? (studentsTotal + orgsTotal) : (studentsTotal > 0 ? studentsTotal : orgsTotal);
+      const dbBaseForecast = studentsTotal;
 
       // 2. Cobranças geradas / faturas pendentes do próximo mês em paymentDues
       const nextMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth() + 1, 1);
