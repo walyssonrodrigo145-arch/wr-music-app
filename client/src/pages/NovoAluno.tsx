@@ -415,21 +415,81 @@ export default function NovoAluno() {
   };
 
   const handleScheduleSubmit = async () => {
+    // Se for novo aluno, precisa ter o nome preenchido
+    if (!isEditMode && !form.name.trim()) {
+      setActiveTab("dados");
+      toast.error("Por favor, preencha o Nome do Aluno na aba de dados antes de agendar.");
+      return;
+    }
+
     const errs: Record<string, string> = {};
-    if (!scheduleForm.title.trim()) errs.title = "Título obrigatório";
     if (!scheduleForm.date) errs.date = "Data obrigatória";
     if (!scheduleForm.time) errs.time = "Horário obrigatório";
     if (Object.keys(errs).length > 0) { setScheduleErrors(errs); return; }
     setScheduleErrors({});
 
+    let targetStudentId = studentId;
+
+    // Se for novo aluno, salvar o aluno primeiro
+    if (!isEditMode) {
+      const cpfErr = validateCPF(form.cpf);
+      if (cpfErr) {
+        setActiveTab("dados");
+        toast.error(cpfErr);
+        return;
+      }
+      try {
+        setIsSaving(true);
+        const newStudent = await createMutation.mutateAsync({
+          name: form.name.trim(),
+          socialName: form.socialName.trim() || undefined,
+          birthDate: form.birthDate || undefined,
+          gender: form.gender || undefined,
+          cpf: form.cpf || undefined,
+          rg: form.rg || undefined,
+          email: form.email.trim() || undefined,
+          phone: form.phone || undefined,
+          address: form.address || undefined,
+          professorId: form.professorId ? Number(form.professorId) : undefined,
+          instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
+          level: form.level as any,
+          startDate: form.startDate,
+          monthlyFee: form.monthlyFee || undefined,
+          billingPeriodicity: form.billingPeriodicity as any,
+          dueDay: form.dueDay ? Number(form.dueDay) : 10,
+          lessonType: form.lessonType as any,
+          onlineMeetingLink: form.onlineMeetingLink || undefined,
+          guardianName: form.guardianName.trim() || undefined,
+          guardianPhone: form.guardianPhone || undefined,
+          guardianEmail: form.guardianEmail.trim() || undefined,
+          notes: form.notes || undefined,
+          avatar: form.avatar || undefined,
+          allowAutoReminders: form.allowAutoReminders,
+        });
+        targetStudentId = newStudent.studentId;
+      } catch (err: any) {
+        setIsSaving(false);
+        toast.error("Erro ao cadastrar aluno: " + err.message);
+        return;
+      } finally {
+        setIsSaving(false);
+      }
+    }
+
+    if (!targetStudentId) {
+      toast.error("Não foi possível identificar o aluno.");
+      return;
+    }
+
     const instrument = instruments.find((i: any) => i.id.toString() === scheduleForm.instrumentId);
-    const submissionTitle = scheduleForm.title || (instrument ? `Aula de ${instrument.name}` : "Aula de Música");
+    const defaultTitleName = form.name || "Aluno";
+    const submissionTitle = scheduleForm.title.trim() || (instrument ? `Aula de ${instrument.name} - ${defaultTitleName}` : `Aula de Música - ${defaultTitleName}`);
     const scheduledDate = buildScheduledAt();
 
     if (scheduleForm.weeksCount <= 1) {
       // Aula avulsa
       createLessonMutation.mutate({
-        studentId: studentId!,
+        studentId: targetStudentId,
         title: submissionTitle,
         scheduledAt: scheduledDate.toISOString(),
         duration: scheduleForm.duration,
@@ -470,11 +530,12 @@ export default function NovoAluno() {
               hasConflict: c.hasConflict,
               conflictingWith: c.conflictingWith,
               force: false,
+              studentId: targetStudentId,
             })));
             setScheduleStep("conflicts");
           } else {
             createBatchLessonMutation.mutate({
-              studentId: studentId!,
+              studentId: targetStudentId,
               title: submissionTitle,
               duration: scheduleForm.duration,
               instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
@@ -490,10 +551,16 @@ export default function NovoAluno() {
   };
 
   const handleConfirmBatch = () => {
+    const targetStudentId = (batchItems[0] as any)?.studentId || studentId;
+    if (!targetStudentId) {
+      toast.error("Erro: Aluno não identificado para o agendamento.");
+      return;
+    }
     const instrument = instruments.find((i: any) => i.id.toString() === scheduleForm.instrumentId);
-    const submissionTitle = scheduleForm.title || (instrument ? `Aula de ${instrument.name}` : "Aula de Música");
+    const defaultTitleName = form.name || "Aluno";
+    const submissionTitle = scheduleForm.title.trim() || (instrument ? `Aula de ${instrument.name} - ${defaultTitleName}` : `Aula de Música - ${defaultTitleName}`);
     createBatchLessonMutation.mutate({
-      studentId: studentId!,
+      studentId: targetStudentId,
       title: submissionTitle,
       duration: scheduleForm.duration,
       instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
@@ -1351,27 +1418,6 @@ export default function NovoAluno() {
       {/* ─── Aba: Agendar Aula ─── */}
       {activeTab === "agendar" && (
         <main className="max-w-3xl mx-auto px-6 py-8">
-          {!isEditMode ? (
-            <div className="bg-card rounded-[2rem] p-8 sm:p-12 shadow-sm border border-border/50 text-center space-y-6">
-              <div className="w-16 h-16 rounded-3xl bg-violet-500/10 text-violet-600 flex items-center justify-center mx-auto">
-                <CalendarDays size={32} />
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="text-xl font-black text-foreground">Salve o cadastro para agendar</h3>
-                <p className="text-sm text-muted-foreground font-medium">
-                  Para agendar a primeira aula deste aluno, conclua e salve as informações cadastrais primeiro.
-                </p>
-              </div>
-              <Button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold h-11 px-8 shadow-lg shadow-violet-500/20"
-              >
-                {isSaving ? <Loader2 size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
-                Salvar Aluno e Continuar
-              </Button>
-            </div>
-          ) : (
           <AnimatePresence mode="wait">
 
             {/* ─ Formulário de Agendamento ─ */}
@@ -1614,8 +1660,14 @@ export default function NovoAluno() {
                       onClick={handleScheduleSubmit}
                       disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching}
                     >
-                      {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching) ? (
-                        <><Loader2 size={18} className="animate-spin" /> Agendando...</>
+                      {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching || isSaving) ? (
+                        <><Loader2 size={18} className="animate-spin" /> {!isEditMode ? "Cadastrando e Agendando..." : "Agendando..."}</>
+                      ) : !isEditMode ? (
+                        scheduleForm.weeksCount > 1 ? (
+                          <><CalendarRange size={18} /> Cadastrar Aluno e Agendar {scheduleForm.weeksCount} Aulas</>
+                        ) : (
+                          <><CheckCircle2 size={18} /> Cadastrar Aluno e Agendar Aula</>
+                        )
                       ) : scheduleForm.weeksCount > 1 ? (
                         <><CalendarRange size={18} /> Validar e Agendar {scheduleForm.weeksCount} Aulas</>
                       ) : (
@@ -1740,7 +1792,6 @@ export default function NovoAluno() {
             )}
 
           </AnimatePresence>
-          )}
         </main>
       )}
         </>
