@@ -1507,10 +1507,10 @@ export default function Configuracoes() {
                 </Field>
 
                 <div className="pt-6 border-t border-border">
-                  <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-4">Horário de Atendimento</h4>
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-2">Horário de Atendimento</h4>
                   <p className="text-xs text-muted-foreground mb-4">Defina a grade de funcionamento. O robô inteligente de reagendamentos usará essa grade como base.</p>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
                     {Object.entries({
                       monday: 'Segunda-feira',
                       tuesday: 'Terça-feira',
@@ -1520,30 +1520,32 @@ export default function Configuracoes() {
                       saturday: 'Sábado',
                       sunday: 'Domingo'
                     }).map(([day, label]) => (
-                      <div key={day} className="flex items-center gap-3 bg-muted p-3 rounded-xl border border-border">
-                        <Switch 
-                          checked={schoolHours[day]?.active} 
-                          onCheckedChange={(c) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], active: c}})}
-                        />
-                        <span className="text-xs font-bold w-24">{label}</span>
+                      <div key={day} className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 bg-muted/60 p-3 rounded-2xl border border-border/80 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Switch 
+                            checked={schoolHours[day]?.active} 
+                            onCheckedChange={(c) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], active: c}})}
+                          />
+                          <span className="text-xs font-bold truncate max-w-[110px]">{label}</span>
+                        </div>
                         {schoolHours[day]?.active ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <DebouncedInput 
                               type="time" 
-                              className="h-8 text-xs px-2"
+                              className="h-8 text-xs px-1.5 py-0.5 rounded-lg border border-border bg-background w-[72px]"
                               value={schoolHours[day]?.start || "08:00"}
                               onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], start: e.target.value}})}
                             />
-                            <span className="text-xs text-muted-foreground">às</span>
+                            <span className="text-[10px] font-medium text-muted-foreground">às</span>
                             <DebouncedInput 
                               type="time" 
-                              className="h-8 text-xs px-2"
+                              className="h-8 text-xs px-1.5 py-0.5 rounded-lg border border-border bg-background w-[72px]"
                               value={schoolHours[day]?.end || "18:00"}
                               onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], end: e.target.value}})}
                             />
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground italic">Fechado</span>
+                          <span className="text-xs text-muted-foreground italic shrink-0">Fechado</span>
                         )}
                       </div>
                     ))}

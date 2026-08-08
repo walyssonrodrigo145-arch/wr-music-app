@@ -625,8 +625,8 @@ export default function Aulas() {
                     transition={{ duration: 0.15 }}
                     className="bg-card rounded-2xl border border-border/60 shadow-xl overflow-hidden"
                   >
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[560px]">
+                    <div className="overflow-x-auto no-scrollbar">
+                      <div className="min-w-[480px] lg:min-w-full">
                         <div className="grid grid-cols-7 border-b border-border/60 bg-muted/30">
                           {DAYS_SHORT.map(day => (
                             <div key={day} className="py-3 text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">
