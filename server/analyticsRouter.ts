@@ -33,6 +33,7 @@ import {
   upsertAnalyticsSession,
   upsertOnlineUser,
 } from "./services/AnalyticsQueue";
+import { getAsaasNextMonthRevenue } from "./utils/asaas";
 import { resolveGeoFromIp } from "./utils/geoIp";
 import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or } from "drizzle-orm";
 import { ENV } from "./_core/env";
@@ -539,6 +540,9 @@ const analyticsQueryRouter = router({
     // 7. Receita Prevista Próximo Mês (nextMonthForecast)
     let nextMonthForecast = 0;
     try {
+      // 0. Consulta API do Asaas para cobranças/assinaturas do próximo mês
+      const asaasNextMonth = await getAsaasNextMonthRevenue();
+
       // 1. Mensalidades dos alunos ativos cadastrados na escola (students.monthlyFee)
       const [studentsFeeRes] = await db.select({
         total: sql<string>`COALESCE(SUM(CAST(${students.monthlyFee} AS NUMERIC)), 0)`
@@ -582,14 +586,16 @@ const analyticsQueryRouter = router({
 
       const currentMonthDues = parseFloat(currentMonthDuesRes?.total || "0");
 
-      // Combina as fontes de receita prevista
-      nextMonthForecast = studentsTotal > 0 
-        ? studentsTotal 
-        : (paymentDuesTotal > 0 
-            ? paymentDuesTotal 
-            : (currentMonthDues > 0 
-                ? currentMonthDues 
-                : (analyticsTotal > 0 ? analyticsTotal : (revMonth > 0 ? revMonth * 1.05 : 0))));
+      // Combina as fontes de receita prevista (Prioridade: Asaas API > Alunos Ativos > PaymentDues > Histórico)
+      nextMonthForecast = asaasNextMonth > 0
+        ? asaasNextMonth
+        : (studentsTotal > 0 
+            ? studentsTotal 
+            : (paymentDuesTotal > 0 
+                ? paymentDuesTotal 
+                : (currentMonthDues > 0 
+                    ? currentMonthDues 
+                    : (analyticsTotal > 0 ? analyticsTotal : (revMonth > 0 ? revMonth * 1.05 : 0)))));
     } catch (e) {
       console.error("[analyticsRouter] Erro ao calcular receita prevista:", e);
       nextMonthForecast = revMonth > 0 ? revMonth : 0;

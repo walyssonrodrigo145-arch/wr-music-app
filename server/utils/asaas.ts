@@ -341,3 +341,51 @@ export async function deleteAsaasSubscription(subscriptionId: string, apiKey?: s
 
   return res.json() as Promise<{ deleted: boolean; id: string }>;
 }
+
+/**
+ * Busca todas as cobranças pendentes e assinaturas ativas previstas para o próximo mês na API do Asaas.
+ * Retorna o valor total somado em Reais.
+ */
+export async function getAsaasNextMonthRevenue(apiKey?: string): Promise<number> {
+  const key = (apiKey || ENV.asaasApiKey || "").trim();
+  if (!key) return 0;
+
+  const now = new Date();
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+
+  const startStr = nextMonthStart.toISOString().split("T")[0];
+  const endStr = nextMonthEnd.toISOString().split("T")[0];
+
+  try {
+    let total = 0;
+
+    // 1. Busca cobranças (payments) pendentes no próximo mês
+    const paymentsUrl = `${ENV.asaasBaseUrl}/payments?dueDate%5Bge%5D=${startStr}&dueDate%5Ble%5D=${endStr}&status=PENDING&limit=100`;
+    const resPayments = await asaasRequest("GET", paymentsUrl, undefined, key);
+    if (resPayments.ok) {
+      const dataPayments = await resPayments.json();
+      if (dataPayments?.data && Array.isArray(dataPayments.data)) {
+        total += dataPayments.data.reduce((acc: number, item: any) => acc + (Number(item.value) || 0), 0);
+      }
+    }
+
+    // 2. Se não houver cobranças diretas, busca o valor total das assinaturas ativas
+    if (total === 0) {
+      const subsUrl = `${ENV.asaasBaseUrl}/subscriptions?status=ACTIVE&limit=100`;
+      const resSubs = await asaasRequest("GET", subsUrl, undefined, key);
+      if (resSubs.ok) {
+        const dataSubs = await resSubs.json();
+        if (dataSubs?.data && Array.isArray(dataSubs.data)) {
+          total += dataSubs.data.reduce((acc: number, item: any) => acc + (Number(item.value) || 0), 0);
+        }
+      }
+    }
+
+    return total;
+  } catch (err: any) {
+    console.error("[Asaas] Erro ao buscar receita prevista do próximo mês:", err?.message || err);
+    return 0;
+  }
+}
+
