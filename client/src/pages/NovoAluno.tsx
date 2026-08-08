@@ -335,10 +335,10 @@ export default function NovoAluno() {
 
   // ─── Agendamento de aulas ─────────────────────────────────────────────────────
 
-  // Query de aulas do aluno (lazy — ativa apenas na aba "agendar")
+  // Query de aulas do aluno (ativa quando em modo edição ou na aba agendar)
   const { data: studentLessons = [], refetch: refetchStudentLessons } = trpc.lessons.list.useQuery(
     undefined,
-    { enabled: false, staleTime: 0 }
+    { enabled: isEditMode, staleTime: 0 }
   );
   const studentUpcomingLessons = isEditMode
     ? studentLessons.filter((l: any) => l.studentId === studentId && l.status === "agendada")
