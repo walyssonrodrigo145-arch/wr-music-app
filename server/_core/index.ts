@@ -301,14 +301,8 @@ async function startServer() {
           .where(and(eq(paymentDues.id, paymentDetails.id), eq(paymentDues.organizationId, paymentDetails.organizationId!)));
         console.log(`[Asaas Webhook] Mensalidade marcada como PAGA (${payment.id}) — org ${paymentDetails.organizationId}`);
 
-        recordAnalyticsRevenue({
-          organizationId: paymentDetails.organizationId,
-          userId: paymentDetails.userId,
-          amount: paymentDetails.amount,
-          planName: "Mensalidade Escolar",
-          country: "Brasil",
-          createdAt: new Date(),
-        }).catch(() => {});
+        // NOTA: NÃO inserir em analyticsRevenue aqui — esta é uma mensalidade escolar (aluno→escola),
+        // não receita SaaS da plataforma MusicPro. analyticsRevenue deve conter apenas cobranças de planos.
 
         const valor = Number(paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         const contentStr = `O aluno ${paymentDetails.studentName || "Aluno"} pagou a mensalidade no valor de ${valor}.`;

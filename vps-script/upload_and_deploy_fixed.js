@@ -229,6 +229,8 @@ conn.on('ready', () => {
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"chatbotEnabled\\" integer NOT NULL DEFAULT 0;"
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE students ADD COLUMN IF NOT EXISTS \\"studioRoomId\\" integer;"
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS \\"studioRoomId\\" integer;"
+                echo "Limpando dados incorretos de mensalidades escolares da tabela analytics_revenue..."
+                docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM analytics_revenue WHERE plan_name = 'Mensalidade Escolar';"
               `;
               conn.exec(rebuildCmd, (err, rebuildStream) => {
                 if (rebuildStream) {

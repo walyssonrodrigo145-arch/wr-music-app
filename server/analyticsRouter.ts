@@ -517,7 +517,7 @@ const analyticsQueryRouter = router({
       }
     } catch (e) {}
 
-    // 6. Receita da Plataforma (analyticsRevenue + fallback paymentDues)
+    // 6. Receita da Plataforma SaaS MusicPro (analyticsRevenue — cobranças dos planos das escolas)
     let revPeriod = 0;
     let revMonth = 0;
     let revTotal = 0;
@@ -537,35 +537,6 @@ const analyticsQueryRouter = router({
       revPeriod = parseFloat(revPeriodRes?.total || "0");
       revMonth = parseFloat(revMonthRes?.total || "0");
       revTotal = parseFloat(revTotalRes?.total || "0");
-
-      // Fallback: se analyticsRevenue não tiver dados, buscar de paymentDues (pagamentos confirmados)
-      if (revPeriod === 0) {
-        const [pdPeriodRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
-          .from(paymentDues)
-          .where(and(
-            eq(paymentDues.status, "pago"),
-            gte(paymentDues.paidAt, start),
-            lte(paymentDues.paidAt, end)
-          ));
-        revPeriod = parseFloat(pdPeriodRes?.total || "0");
-      }
-
-      if (revMonth === 0) {
-        const [pdMonthRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
-          .from(paymentDues)
-          .where(and(
-            eq(paymentDues.status, "pago"),
-            gte(paymentDues.paidAt, monthStart)
-          ));
-        revMonth = parseFloat(pdMonthRes?.total || "0");
-      }
-
-      if (revTotal === 0) {
-        const [pdTotalRes] = await db.select({ total: sql<string>`COALESCE(SUM(amount), '0')` })
-          .from(paymentDues)
-          .where(eq(paymentDues.status, "pago"));
-        revTotal = parseFloat(pdTotalRes?.total || "0");
-      }
     } catch (e) {}
 
     // 7. Receita Prevista Próximo Mês (nextMonthForecast)
@@ -711,32 +682,19 @@ const analyticsQueryRouter = router({
       nextMonthForecast = revMonth > 0 ? revMonth : 0;
     }
 
-    // 8. Conversão (analyticsRevenue + fallback paymentDues)
+    // 8. Conversão (baseada exclusivamente em analyticsRevenue — planos SaaS)
     let conversionRate = 0;
     try {
       const [uInPeriodRes] = await db.select({ count: sql<number>`CAST(COUNT(DISTINCT ${analyticsSessions.visitorId}) AS INT)` })
         .from(analyticsSessions)
         .where(and(gte(analyticsSessions.startedAt, start), lte(analyticsSessions.startedAt, end)));
 
-      let paymentsPeriod = 0;
       const [pInPeriodRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
         .from(analyticsRevenue)
         .where(and(gte(analyticsRevenue.createdAt, start), lte(analyticsRevenue.createdAt, end)));
-      paymentsPeriod = pInPeriodRes?.count || 0;
-
-      // Fallback: buscar pagamentos confirmados em paymentDues
-      if (paymentsPeriod === 0) {
-        const [pdCountRes] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-          .from(paymentDues)
-          .where(and(
-            eq(paymentDues.status, "pago"),
-            gte(paymentDues.paidAt, start),
-            lte(paymentDues.paidAt, end)
-          ));
-        paymentsPeriod = pdCountRes?.count || 0;
-      }
 
       const uniqueVisitorsPeriod = uInPeriodRes?.count || 0;
+      const paymentsPeriod = pInPeriodRes?.count || 0;
 
       conversionRate = uniqueVisitorsPeriod > 0
         ? parseFloat(((paymentsPeriod / uniqueVisitorsPeriod) * 100).toFixed(2))

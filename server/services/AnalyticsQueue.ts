@@ -309,46 +309,10 @@ export async function recordAnalyticsRevenue(data: {
 }
 
 export async function syncHistoricalRevenueToAnalytics() {
-  try {
-    const { getDb } = await import("../db");
-    const { analyticsRevenue, paymentDues } = await import("../../drizzle/schema");
-    const { eq, sql } = await import("drizzle-orm");
-
-    const db = await getDb();
-    if (!db) return;
-
-    const [existingCount] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` }).from(analyticsRevenue);
-    const [paidDuesCount] = await db.select({ count: sql<number>`CAST(COUNT(*) AS INT)` })
-      .from(paymentDues)
-      .where(eq(paymentDues.status, "pago"));
-
-    if (existingCount.count < paidDuesCount.count) {
-      console.log(`[AnalyticsQueue] Sincronizando histórico de receita: ${paidDuesCount.count - existingCount.count} pagamentos pendentes de sync...`);
-      const paidList = await db.select({
-        id: paymentDues.id,
-        organizationId: paymentDues.organizationId,
-        userId: paymentDues.userId,
-        amount: paymentDues.amount,
-        paidAt: paymentDues.paidAt,
-        createdAt: paymentDues.createdAt,
-      })
-      .from(paymentDues)
-      .where(eq(paymentDues.status, "pago"));
-
-      for (const p of paidList) {
-        await db.insert(analyticsRevenue).values({
-          organizationId: p.organizationId || 1,
-          userId: p.userId,
-          amount: String(p.amount),
-          planName: "Mensalidade Escolar",
-          country: "Brasil",
-          createdAt: p.paidAt || p.createdAt || new Date(),
-        }).onConflictDoNothing().catch(() => {});
-      }
-      console.log("[AnalyticsQueue] Sincronização de histórico concluída com sucesso!");
-    }
-  } catch (err) {
-    console.error("[AnalyticsQueue] Erro na sincronização retroativa:", err);
-  }
+  // DESATIVADO: Esta função sincronizava paymentDues (mensalidades de alunos das escolas)
+  // para analyticsRevenue (receita SaaS da plataforma MusicPro), misturando dados incorretos.
+  // A tabela analyticsRevenue deve conter APENAS cobranças de planos das escolas que usam o MusicPro,
+  // não mensalidades internas dos alunos.
+  console.log("[AnalyticsQueue] syncHistoricalRevenueToAnalytics DESATIVADO — dados de paymentDues não pertencem ao analytics SaaS.");
 }
 
