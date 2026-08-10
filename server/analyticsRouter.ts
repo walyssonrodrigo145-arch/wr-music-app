@@ -571,14 +571,16 @@ const analyticsQueryRouter = router({
       }
 
       // 1. Estimar Receita Prevista SaaS consultando os preços reais dos planos na tabela systemPlans
-      // Inclui organizações ativas e em período de teste ('active' e 'trialing')
+      // Seleciona todas as organizações cadastradas que não estejam inativas/canceladas expressamente
       const activeOrgs = await db.select({
         planId: organizations.planId,
+        subscriptionStatus: organizations.subscriptionStatus,
       })
       .from(organizations)
       .where(or(
-        eq(organizations.subscriptionStatus, "active"),
-        eq(organizations.subscriptionStatus, "trialing")
+        isNull(organizations.subscriptionStatus),
+        ne(organizations.subscriptionStatus, "canceled"),
+        ne(organizations.subscriptionStatus, "inactive")
       ));
 
       // Busca a tabela de preços cadastrada no sistema (systemPlans)
@@ -590,9 +592,15 @@ const analyticsQueryRouter = router({
       const planPricesMap = new Map<string, number>();
       for (const p of plansList) {
         const val = parseFloat(String(p.priceMonthly).replace(/[^0-9.,]/g, "").replace(",", "."));
-        if (!isNaN(val)) {
+        if (!isNaN(val) && val > 0) {
           planPricesMap.set(p.id, val);
         }
+      }
+
+      // Descobre o menor preço cadastrado em systemPlans para usar de fallback padrão se planId não bater
+      let minPlanPrice = 49;
+      if (planPricesMap.size > 0) {
+        minPlanPrice = Math.min(...Array.from(planPricesMap.values()));
       }
 
       let saasForecast = 0;
@@ -600,12 +608,12 @@ const analyticsQueryRouter = router({
         if (org.planId && planPricesMap.has(org.planId)) {
           saasForecast += planPricesMap.get(org.planId)!;
         } else {
-          // Se a organização não tiver plano definido no banco, assume o plano base ativo de menor valor ou padrão R$ 49,00
-          saasForecast += 49;
+          // Se o id do plano for padrão/personalizado ou nulo, aplica o preço base mínimo do plano
+          saasForecast += minPlanPrice;
         }
       }
 
-      // Combina fontes SaaS (API Asaas SaaS > Preço dos planos das escolas ativas > Receita do mês)
+      // Combina fontes SaaS (API Asaas SaaS > Preço dos planos das escolas ativas/teste > Receita do mês)
       nextMonthForecast = asaasNextMonth > 0
         ? asaasNextMonth
         : (saasForecast > 0 
