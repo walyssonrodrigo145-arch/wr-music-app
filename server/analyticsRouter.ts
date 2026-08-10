@@ -616,12 +616,11 @@ const analyticsQueryRouter = router({
         }
       }
 
-      // Combina fontes SaaS (API Asaas SaaS > Preço dos planos das escolas ativas/teste > Receita do mês)
-      nextMonthForecast = asaasNextMonth > 0
-        ? asaasNextMonth
-        : (saasForecast > 0 
-            ? saasForecast 
-            : (revMonth > 0 ? revMonth : 0));
+      // Combina fontes SaaS: se a API do Asaas do dono (ENV.asaasApiKey) tiver assinaturas ativas SaaS (ou cobranças SaaS agendadas), usa Asaas. 
+      // Caso contrário, calcula a estimativa real com a soma dos preços dos planos (systemPlans) de todas as escolas cadastradas.
+      nextMonthForecast = saasForecast > 0 
+        ? saasForecast 
+        : (asaasNextMonth > 0 ? asaasNextMonth : (revMonth > 0 ? revMonth : 0));
     } catch (e) {
       console.error("[analyticsRouter] Erro ao calcular receita prevista:", e);
       nextMonthForecast = revMonth > 0 ? revMonth : 0;
