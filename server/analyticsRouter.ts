@@ -38,7 +38,7 @@ import {
 } from "./services/AnalyticsQueue";
 import { getAsaasNextMonthRevenue } from "./utils/asaas";
 import { resolveGeoFromIp } from "./utils/geoIp";
-import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or, isNotNull, isNull, ne } from "drizzle-orm";
+import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or, isNotNull, isNull, ne, notInArray } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
 // ── Middleware Super Admin ────────────────────────────────────────────────────
@@ -572,17 +572,20 @@ const analyticsQueryRouter = router({
       }
 
       // 1. Estimar Receita Prevista SaaS consultando os preços reais dos planos na tabela systemPlans
-      // Seleciona todas as organizações cadastradas que não estejam inativas/canceladas expressamente
+      // Seleciona organizações cadastradas ativas/teste, EXCLUINDO contas internas de donos e demonstração (IDs 1, 19, 21)
       const activeOrgs = await db.select({
         planId: organizations.planId,
         subscriptionStatus: organizations.subscriptionStatus,
       })
       .from(organizations)
-      .where(or(
-        isNull(organizations.subscriptionStatus),
-        and(
-          ne(organizations.subscriptionStatus, "canceled"),
-          ne(organizations.subscriptionStatus, "inactive")
+      .where(and(
+        notInArray(organizations.id, [1, 19, 21]),
+        or(
+          isNull(organizations.subscriptionStatus),
+          and(
+            ne(organizations.subscriptionStatus, "canceled"),
+            ne(organizations.subscriptionStatus, "inactive")
+          )
         )
       ));
 

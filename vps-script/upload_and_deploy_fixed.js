@@ -231,6 +231,14 @@ conn.on('ready', () => {
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS \\"studioRoomId\\" integer;"
                 echo "Limpando dados incorretos de mensalidades escolares da tabela analytics_revenue..."
                 docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM analytics_revenue WHERE plan_name = 'Mensalidade Escolar';"
+                echo "Removendo conscientemente escolas inativas (IDs 18, 20, 11 e 15 - Neemias)..."
+                docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM payment_dues WHERE \\"organizationId\\" IN (18, 20, 11, 15);"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM lessons WHERE \\"organizationId\\" IN (18, 20, 11, 15);"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM students WHERE \\"organizationId\\" IN (18, 20, 11, 15);"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM professores WHERE \\"organizationId\\" IN (18, 20, 11, 15);"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM users WHERE \\"organizationId\\" IN (18, 20, 11, 15);"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM organizations WHERE id IN (18, 20, 11, 15);"
+                echo "Exclusão segura de organizações inativas concluída!"
               `;
               conn.exec(rebuildCmd, (err, rebuildStream) => {
                 if (rebuildStream) {
