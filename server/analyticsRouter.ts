@@ -28,6 +28,7 @@ import {
   organizations,
   settings,
   students,
+  systemPlans,
 } from "../drizzle/schema";
 import {
   analyticsQueue,
@@ -579,8 +580,10 @@ const analyticsQueryRouter = router({
       .from(organizations)
       .where(or(
         isNull(organizations.subscriptionStatus),
-        ne(organizations.subscriptionStatus, "canceled"),
-        ne(organizations.subscriptionStatus, "inactive")
+        and(
+          ne(organizations.subscriptionStatus, "canceled"),
+          ne(organizations.subscriptionStatus, "inactive")
+        )
       ));
 
       // Busca a tabela de preços cadastrada no sistema (systemPlans)
