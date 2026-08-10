@@ -662,7 +662,12 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                                  key={s.id}
                                  type="button"
                                  onClick={() => {
-                                   setFormData(prev => ({ ...prev, studentId: s.id.toString() }));
+                                   setFormData(prev => ({
+                                     ...prev,
+                                     studentId: s.id.toString(),
+                                     instrumentId: prev.instrumentId || (s.instrumentId ? s.instrumentId.toString() : ""),
+                                     studioRoomId: prev.studioRoomId || (s.studioRoomId ? s.studioRoomId.toString() : ""),
+                                   }));
                                    setShowStudentDropdown(false);
                                    setStudentSearch("");
                                  }}

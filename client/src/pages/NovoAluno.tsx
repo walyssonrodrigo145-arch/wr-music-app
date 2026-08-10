@@ -61,6 +61,7 @@ export default function NovoAluno() {
   const utils = trpc.useUtils();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
   const { data: professores = [] } = trpc.professores.list.useQuery();
+  const { data: studioRooms = [] } = trpc.studioRooms.list.useQuery();
   const { data: studentData, isLoading: isLoadingStudent } = trpc.students.getForEdit.useQuery(
     { id: studentId! },
     { enabled: isEditMode, staleTime: 0 }
@@ -103,6 +104,7 @@ export default function NovoAluno() {
     address: "",
     professorId: "",
     instrumentId: "",
+    studioRoomId: "",
     level: "iniciante",
     startDate: new Date().toISOString().split('T')[0],
     monthlyFee: "",
@@ -135,6 +137,7 @@ export default function NovoAluno() {
         address: (studentData as any).address ?? "",
         professorId: studentData.professorId ? String(studentData.professorId) : "",
         instrumentId: studentData.instrumentId ? String(studentData.instrumentId) : "",
+        studioRoomId: (studentData as any).studioRoomId ? String((studentData as any).studioRoomId) : "",
         level: studentData.level ?? "iniciante",
         startDate: studentData.startDate ? String(studentData.startDate).slice(0, 10) : new Date().toISOString().split('T')[0],
         monthlyFee: studentData.monthlyFee ? String(Number(studentData.monthlyFee)) : "",
@@ -452,9 +455,10 @@ export default function NovoAluno() {
           address: form.address || undefined,
           professorId: form.professorId ? Number(form.professorId) : undefined,
           instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
+          studioRoomId: form.studioRoomId ? Number(form.studioRoomId) : undefined,
           level: form.level as any,
           startDate: form.startDate,
-          monthlyFee: form.monthlyFee || undefined,
+          monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
           billingPeriodicity: form.billingPeriodicity as any,
           dueDay: form.dueDay ? Number(form.dueDay) : 10,
           lessonType: form.lessonType as any,
@@ -679,6 +683,7 @@ export default function NovoAluno() {
       guardianPhone: form.guardianPhone.replace(/\D/g, "") || undefined,
       guardianEmail: form.guardianEmail.trim() || undefined,
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
+      studioRoomId: form.studioRoomId ? Number(form.studioRoomId) : undefined,
       professorId: form.professorId ? Number(form.professorId) : undefined,
       level: form.level as "iniciante" | "intermediario" | "avancado",
       monthlyFee: parseFee(form.monthlyFee),
@@ -1145,7 +1150,7 @@ export default function NovoAluno() {
                   </div>
                 </div>
 
-                {/* Linha 2: Professor e Data de Início */}
+                {/* Linha 2: Professor, Sala e Data de Início */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Professor Responsável</label>
@@ -1165,6 +1170,30 @@ export default function NovoAluno() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula (Padrão)</label>
+                    <Select value={form.studioRoomId} onValueChange={(v) => handleInputChange('studioRoomId', v)}>
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                        <SelectValue placeholder="Selecione a Sala" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                        <SelectItem value="none" className="rounded-lg">
+                          <span className="font-medium text-muted-foreground">Nenhuma sala vinculada</span>
+                        </SelectItem>
+                        {studioRooms.map((room: any) => (
+                          <SelectItem key={room.id} value={String(room.id)} className="rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: room.color || '#3b82f6' }} />
+                              <span className="font-medium">{room.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-1 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data de início</label>
                     <div className="relative group/input">
@@ -1570,7 +1599,7 @@ export default function NovoAluno() {
                               onClick={() => {
                                 const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
                                 const initialDay = new Date(startY, startM - 1, startD).getDay();
-                                const newSlots = [];
+                                const newSlots: Array<{ dayOfWeek: number; time: string; studioRoomId: string }> = [];
                                 for (let i = 0; i < num; i++) {
                                   newSlots.push({
                                     dayOfWeek: (initialDay + (i * 2)) % 7,

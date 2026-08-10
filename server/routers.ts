@@ -1989,6 +1989,7 @@ ${jsonSchemaFormat}`;
         startDate: students.startDate,
         professorId: students.professorId,
         allowAutoReminders: students.allowAutoReminders,
+        studioRoomId: students.studioRoomId,
       }).from(students)
         .where(and(
           eq(students.id, input.id), 
@@ -2048,8 +2049,11 @@ ${jsonSchemaFormat}`;
         professorId: students.professorId,
         permissions: students.permissions,
         allowAutoReminders: students.allowAutoReminders,
+        studioRoomId: students.studioRoomId,
+        studioRoomName: studioRooms.name,
       }).from(students)
         .leftJoin(instruments, eq(students.instrumentId, instruments.id))
+        .leftJoin(studioRooms, eq(students.studioRoomId, studioRooms.id))
         .where(and(eq(students.id, input.id), eq(students.organizationId, orgId)))
         .limit(1);
 
@@ -2333,6 +2337,7 @@ ${jsonSchemaFormat}`;
       professorId: z.number().optional(),
       avatar: z.string().optional(),
       allowAutoReminders: z.boolean().default(true),
+      studioRoomId: z.number().optional().nullable(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -2390,6 +2395,7 @@ ${jsonSchemaFormat}`;
             notes: input.notes || undefined,
             status: input.status,
             allowAutoReminders: input.allowAutoReminders,
+            studioRoomId: input.studioRoomId || undefined,
             createdAt: new Date(),
             updatedAt: new Date(),
           }).returning({ id: students.id });
@@ -2516,6 +2522,7 @@ ${jsonSchemaFormat}`;
       professorId: z.number().optional(),
       avatar: z.string().optional(),
       allowAutoReminders: z.boolean().optional(),
+      studioRoomId: z.number().optional().nullable(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();

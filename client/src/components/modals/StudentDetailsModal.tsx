@@ -117,7 +117,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
             {/* Details Content - Scrollable */}
             <div className="overflow-y-auto flex-1 p-8 pt-6 space-y-6">
               
-              {/* Info Grid - Matrícula e Mensalidade */}
+              {/* Info Grid - Matrícula, Mensalidade e Sala */}
               <div className="grid grid-cols-2 gap-4">
                  <div className="bg-muted/30 p-4 rounded-3xl border border-border/30 flex flex-col justify-center relative overflow-hidden group hover:border-primary/20 transition-colors">
                     <div className="flex items-center gap-2 text-muted-foreground/50 mb-2">
@@ -138,6 +138,20 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                        {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
                     </p>
                  </div>
+
+                 {student.studioRoomName && (
+                   <div className="col-span-2 bg-blue-500/5 p-4 rounded-3xl border border-blue-500/20 flex items-center justify-between relative overflow-hidden">
+                      <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold">
+                            🏫
+                         </div>
+                         <div>
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500">Sala de Aula Padrão</span>
+                            <p className="text-sm font-black text-foreground">{student.studioRoomName}</p>
+                         </div>
+                      </div>
+                   </div>
+                 )}
               </div>
 
               {/* Financeiro - Distinct Section */}

@@ -137,6 +137,7 @@ export const students = pgTable("students", {
   methodologyFilename: varchar("methodologyFilename", { length: 255 }),
   methodologyText: text("methodologyText"),
   allowAutoReminders: boolean("allowAutoReminders").default(true).notNull(),
+  studioRoomId: integer("studioRoomId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 }, (table) => [
