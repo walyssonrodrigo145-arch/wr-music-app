@@ -50,6 +50,13 @@ import { Switch } from "@/components/ui/switch";
 
 const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
 
+const parseFee = (val: string) => {
+  // Support both "150,00" (BR) and "150.00" (EN) formats
+  const normalized = val.replace(',', '.');
+  const num = parseFloat(normalized);
+  return isNaN(num) ? 0 : num;
+};
+
 export default function NovoAluno() {
   const [location, setLocation] = useLocation();
 
@@ -119,6 +126,8 @@ export default function NovoAluno() {
     temporaryPassword: "",
     avatar: "",
     allowAutoReminders: true,
+    generateMonthly: false,
+    monthsCount: 3,
   });
 
   // Pre-populate form when editing
@@ -152,6 +161,8 @@ export default function NovoAluno() {
         temporaryPassword: "",
         avatar: (studentData as any).avatar ?? "",
         allowAutoReminders: (studentData as any).allowAutoReminders ?? true,
+        generateMonthly: false,
+        monthsCount: 3,
       });
 
       const bd = (studentData as any).birthDate;
@@ -266,10 +277,33 @@ export default function NovoAluno() {
     }
   };
 
+  const generateMonthlyMutation = trpc.paymentDues.generateMonthly.useMutation({
+    onSuccess: (data) => {
+      utils.paymentDues.list.invalidate();
+      if (data.count > 0) {
+        toast.success(`${data.count} mensalidade${data.count > 1 ? "s" : ""} gerada${data.count > 1 ? "s" : ""} automaticamente!`);
+      }
+    },
+    onError: () => {
+      toast.error("Aluno salvo, mas não foi possível gerar as mensalidades automaticamente.");
+    },
+  });
+
   const createMutation = trpc.students.create.useMutation({
     onSuccess: (data) => {
       toast.success("Aluno cadastrado com sucesso!");
       utils.students.list.invalidate();
+      if (form.generateMonthly && data.studentId) {
+        const now = new Date();
+        generateMonthlyMutation.mutate({
+          studentId: data.studentId,
+          amount: parseFee(form.monthlyFee),
+          dueDay: Number(form.dueDay) || 10,
+          startMonth: now.getMonth() + 1,
+          startYear: now.getFullYear(),
+          monthsCount: form.monthsCount,
+        });
+      }
       setLocation("/alunos");
     },
     onError: (e) => {
@@ -657,12 +691,6 @@ export default function NovoAluno() {
     }
 
     setIsSaving(true);
-    const parseFee = (val: string) => {
-      // Support both "150,00" (BR) and "150.00" (EN) formats
-      const normalized = val.replace(',', '.');
-      const num = parseFloat(normalized);
-      return isNaN(num) ? 0 : num;
-    };
 
     const payload: any = {
       name: form.name.trim(),
@@ -1507,6 +1535,40 @@ export default function NovoAluno() {
                     </div>
                   )}
                 </div>
+
+                {/* Geração automática de mensalidades (somente no cadastro) */}
+                {!isEditMode && (
+                  <div className="mt-6 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/20 space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Gerar mensalidades automaticamente</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Ao salvar, serão criadas as mensalidades deste aluno automaticamente.</p>
+                      </div>
+                      <Switch
+                        checked={form.generateMonthly}
+                        onCheckedChange={(checked) => setForm(prev => ({ ...prev, generateMonthly: checked }))}
+                      />
+                    </div>
+                    {form.generateMonthly && (
+                      <div className="space-y-2 w-full md:max-w-xs">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Quantidade de meses</label>
+                        <Select
+                          value={String(form.monthsCount)}
+                          onValueChange={(v) => setForm(prev => ({ ...prev, monthsCount: Number(v) }))}
+                        >
+                          <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
+                            <SelectValue placeholder="Meses" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-border shadow-2xl p-1">
+                            {[1, 2, 3, 6, 12].map(m => (
+                              <SelectItem key={m} value={String(m)} className="rounded-lg font-medium">{m} {m === 1 ? "mês" : "meses"}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
 
