@@ -38,7 +38,7 @@ import {
 } from "./services/AnalyticsQueue";
 import { getAsaasNextMonthRevenue } from "./utils/asaas";
 import { resolveGeoFromIp } from "./utils/geoIp";
-import { eq, sql, desc, gte, lte, and, count, sum, avg, lt, or, isNotNull, isNull, ne, notInArray } from "drizzle-orm";
+import { eq, sql, desc, asc, gte, lte, and, count, sum, avg, lt, or, isNotNull, isNull, ne, notInArray } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
 // ── Middleware Super Admin ────────────────────────────────────────────────────
@@ -1495,6 +1495,132 @@ const analyticsQueryRouter = router({
         totalPages: Math.ceil(total / input.limit) || 1,
       };
     }),
+
+  // ── Escolas cadastradas (visão completa para o Super Admin) ─────────────
+  getSchoolsOverview: isSuperAdmin.query(async () => {
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // 1. Organizações + nome do plano
+    const orgs = await db.select({
+      id: organizations.id,
+      name: organizations.name,
+      slug: organizations.slug,
+      logo: organizations.logo,
+      planId: organizations.planId,
+      planName: systemPlans.name,
+      subscriptionStatus: organizations.subscriptionStatus,
+      trialEndsAt: organizations.trialEndsAt,
+      createdAt: organizations.createdAt,
+      updatedAt: organizations.updatedAt,
+    })
+      .from(organizations)
+      .leftJoin(systemPlans, eq(systemPlans.id, organizations.planId))
+      .orderBy(desc(organizations.createdAt));
+
+    // 2. Alunos por escola (total e ativos)
+    const studentCounts = await db.select({
+      organizationId: students.organizationId,
+      total: sql<number>`CAST(COUNT(*) AS INT)`,
+      active: sql<number>`CAST(COUNT(*) FILTER (WHERE ${students.status} = 'ativo') AS INT)`,
+    })
+      .from(students)
+      .where(isNotNull(students.organizationId))
+      .groupBy(students.organizationId);
+
+    // 3. Professores por escola (usuários com role='professor')
+    const professorCounts = await db.select({
+      organizationId: users.organizationId,
+      total: sql<number>`CAST(COUNT(*) AS INT)`,
+    })
+      .from(users)
+      .where(and(eq(users.role, "professor"), isNotNull(users.organizationId)))
+      .groupBy(users.organizationId);
+
+    // 4. Último login por escola (users.lastSignedIn)
+    const lastSignedInByOrg = await db.select({
+      organizationId: users.organizationId,
+      lastSeen: sql<Date>`MAX(${users.lastSignedIn})`,
+    })
+      .from(users)
+      .where(isNotNull(users.organizationId))
+      .groupBy(users.organizationId);
+
+    // 5. Heartbeat (analytics_online) por escola — último ping e quantos usuários online agora
+    const pingByOrg = await db.select({
+      organizationId: users.organizationId,
+      lastPing: sql<Date>`MAX(${analyticsOnline.lastPingAt})`,
+      onlineCount: sql<number>`CAST(COUNT(DISTINCT ${analyticsOnline.userId}) FILTER (WHERE ${analyticsOnline.lastPingAt} >= ${fiveMinAgo}) AS INT)`,
+    })
+      .from(analyticsOnline)
+      .innerJoin(users, eq(users.id, analyticsOnline.userId))
+      .where(and(isNotNull(users.organizationId), gte(analyticsOnline.lastPingAt, sevenDaysAgo)))
+      .groupBy(users.organizationId);
+
+    // 6. Donos das escolas (role='admin')
+    const admins = await db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      organizationId: users.organizationId,
+    })
+      .from(users)
+      .where(and(eq(users.role, "admin"), isNotNull(users.organizationId)))
+      .orderBy(asc(users.id));
+
+    const studentMap = new Map(studentCounts.map(r => [r.organizationId, r]));
+    const professorMap = new Map(professorCounts.map(r => [r.organizationId, r.total]));
+    const loginMap = new Map(lastSignedInByOrg.map(r => [r.organizationId, r.lastSeen]));
+    const pingMap = new Map(pingByOrg.map(r => [r.organizationId, r]));
+    const ownerMap = new Map<number | null, (typeof admins)[number]>();
+
+    for (const a of admins) {
+      if (!ownerMap.has(a.organizationId)) ownerMap.set(a.organizationId, a);
+    }
+
+    const schools = orgs.map(org => {
+      const studentData = studentMap.get(org.id) ?? { total: 0, active: 0 };
+      const lastPing = pingMap.get(org.id)?.lastPing ?? null;
+      const lastLogin = loginMap.get(org.id) ?? null;
+
+      let lastSeenAt: Date | null = null;
+      if (lastPing && lastLogin) lastSeenAt = new Date(lastPing) > new Date(lastLogin) ? new Date(lastPing) : new Date(lastLogin);
+      else if (lastPing) lastSeenAt = new Date(lastPing);
+      else if (lastLogin) lastSeenAt = new Date(lastLogin);
+
+      const onlineCount = pingMap.get(org.id)?.onlineCount ?? 0;
+
+      return {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        logo: org.logo,
+        planId: org.planId,
+        planName: org.planName ?? org.planId,
+        subscriptionStatus: org.subscriptionStatus,
+        trialEndsAt: org.trialEndsAt,
+        createdAt: org.createdAt,
+        updatedAt: org.updatedAt,
+        owner: ownerMap.get(org.id) ?? null,
+        activeStudents: studentData.active,
+        totalStudents: studentData.total,
+        activeProfessors: professorMap.get(org.id) ?? 0,
+        online: onlineCount > 0,
+        onlineUsersCount: onlineCount,
+        lastSeenAt,
+      };
+    });
+
+    // Ordena por último acesso (mais recente primeiro)
+    schools.sort((a, b) =>
+      (b.lastSeenAt?.getTime() ?? 0) - (a.lastSeenAt?.getTime() ?? 0)
+    );
+
+    return schools;
+  }),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

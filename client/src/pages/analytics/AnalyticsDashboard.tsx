@@ -20,6 +20,7 @@ import {
   AlertCircle, CheckCircle, Info, ArrowUp, ArrowDown,
   RefreshCw, Filter, Calendar, Shield, ShieldAlert, Lock,
   AlertTriangle, ChevronLeft, ChevronRight, Loader2,
+  Building2, Wifi, WifiOff, GraduationCap, UserCheck, CreditCard, SearchX,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -36,7 +37,7 @@ const GRADIENT_AMBER = "from-amber-500 to-orange-500";
 type TabId =
   | "overview" | "evolution" | "realtime" | "visitors" | "sources" | "pages"
   | "heatmap" | "funnel" | "journey" | "checkout" | "revenue"
-  | "subscriptions" | "campaigns" | "map" | "devices" | "performance" | "ai" | "security";
+  | "subscriptions" | "campaigns" | "map" | "devices" | "performance" | "ai" | "security" | "schools";
 
 type Preset = "today" | "yesterday" | "7d" | "30d" | "90d" | "month" | "year" | "custom";
 
@@ -1456,7 +1457,7 @@ function SecurityTab({ preset }: { preset: Preset }) {
 
 // ── TAB: EVOLUÇÃO DO SISTEMA (CRESCIMENTO DE RECEITA E USUÁRIOS) ──────────────
 function EvolutionTab() {
-  const evolutionQuery = (trpc.analytics as any).getEvolutionStats.useQuery();
+  const evolutionQuery = trpc.analytics.query.getEvolutionStats.useQuery();
   const formatCurrency = (v?: number) => `R$ ${(v || 0).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
   if (evolutionQuery.isLoading) {
@@ -1600,10 +1601,223 @@ function EvolutionTab() {
   );
 }
 
+// ── TAB: ESCOLAS CADASTRADAS (visão completa do Super Admin) ───────────────
+function formatLastSeen(dateStr?: string | Date | null): string {
+  if (!dateStr) return "Nunca acessou";
+  const date = new Date(dateStr);
+  const diffMs = Date.now() - date.getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "agora mesmo";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `há ${d} dia${d > 1 ? "s" : ""}`;
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function SubscriptionBadge({ status, trialEndsAt }: { status?: string | null; trialEndsAt?: string | Date | null }) {
+  const s = status || "trialing";
+  const config: Record<string, { label: string; cls: string }> = {
+    active: { label: "Ativa", cls: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
+    trialing: { label: "Trial", cls: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
+    pending: { label: "Pendente", cls: "bg-violet-500/10 text-violet-500 border-violet-500/20" },
+    past_due: { label: "Atrasada", cls: "bg-rose-500/10 text-rose-500 border-rose-500/20" },
+    canceled: { label: "Cancelada", cls: "bg-red-500/10 text-red-500 border-red-500/20" },
+    inactive: { label: "Inativa", cls: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
+    suspended: { label: "Suspensa", cls: "bg-red-500/10 text-red-500 border-red-500/20" },
+  };
+  const c = config[s] ?? config.trialing;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${c.cls}`}>
+      {c.label}
+      {s === "trialing" && trialEndsAt && (
+        <span className="font-medium normal-case tracking-normal">
+          · até {new Date(trialEndsAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function SchoolsTab() {
+  const { data: schools = [], isLoading, refetch } = trpc.analytics.query.getSchoolsOverview.useQuery(undefined, {
+    refetchInterval: 30_000,
+  });
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"todas" | "online" | "offline">("todas");
+
+  const filtered = schools.filter((s: any) => {
+    const term = search.trim().toLowerCase();
+    const nameMatch = !term || (s.name || "").toLowerCase().includes(term) || (s.slug || "").toLowerCase().includes(term);
+    if (!nameMatch) return false;
+    if (filter === "online") return !!s.online;
+    if (filter === "offline") return !s.online;
+    return true;
+  });
+
+  const totals = schools.reduce(
+    (acc: any, s: any) => ({
+      students: acc.students + (s.activeStudents || 0),
+      professors: acc.professors + (s.activeProfessors || 0),
+      online: acc.online + (s.online ? 1 : 0),
+    }),
+    { students: 0, professors: 0, online: 0 }
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Cards resumo */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Escolas Cadastradas</p>
+          <p className="font-outfit text-3xl font-bold text-foreground mt-1">{schools.length}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+            <Wifi size={12} className="text-emerald-500" /> Online Agora
+          </p>
+          <p className="font-outfit text-3xl font-bold text-emerald-500 mt-1">{totals.online}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+            <GraduationCap size={12} className="text-violet-500" /> Alunos Ativos
+          </p>
+          <p className="font-outfit text-3xl font-bold text-violet-500 mt-1">{totals.students}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+            <UserCheck size={12} className="text-indigo-500" /> Professores Ativos
+          </p>
+          <p className="font-outfit text-3xl font-bold text-indigo-500 mt-1">{totals.professors}</p>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar escola..."
+              className="h-10 pl-9 pr-4 rounded-xl border border-border bg-card text-sm font-medium outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all w-64"
+            />
+          </div>
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
+            {(["todas", "online", "offline"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${
+                  filter === f ? "bg-violet-600 text-white" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {f === "online" ? "● Online" : f === "offline" ? "○ Offline" : "Todas"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground hover:border-violet-400/40 transition-all"
+        >
+          <RefreshCw size={13} /> Atualizar
+        </button>
+      </div>
+
+      {/* Tabela de escolas */}
+      <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 size={32} className="animate-spin text-violet-500" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <SearchX size={32} className="text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground font-medium">Nenhuma escola encontrada.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground font-black uppercase tracking-wider">
+                  <th className="py-3 px-4">Escola</th>
+                  <th className="py-3 px-4">Plano</th>
+                  <th className="py-3 px-4">Assinatura</th>
+                  <th className="py-3 px-4">Status / Último Acesso</th>
+                  <th className="py-3 px-4 text-center">Professores</th>
+                  <th className="py-3 px-4 text-center">Alunos Ativos</th>
+                  <th className="py-3 px-4 text-center">Total Alunos</th>
+                  <th className="py-3 px-4">Cadastrada em</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40 font-medium">
+                {filtered.map((s: any) => (
+                  <tr key={s.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {s.logo ? (
+                            <img src={s.logo} alt={s.name} className="w-full h-full object-contain p-1" />
+                          ) : (
+                            <Building2 size={16} className="text-violet-500" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-foreground truncate">{s.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            @{s.slug} · {s.owner?.email || "sem e-mail"}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 text-[10px] font-black uppercase tracking-wider">
+                        {s.planName || s.planId}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <SubscriptionBadge status={s.subscriptionStatus} trialEndsAt={s.trialEndsAt} />
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                            s.online
+                              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                              : "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                          }`}
+                        >
+                          {s.online ? <Wifi size={11} /> : <WifiOff size={11} />}
+                          {s.online ? `Online${s.onlineUsersCount > 1 ? ` (${s.onlineUsersCount})` : ""}` : "Offline"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">{formatLastSeen(s.lastSeenAt)}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-center font-bold text-indigo-500">{s.activeProfessors}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-violet-500">{s.activeStudents}</td>
+                    <td className="py-3.5 px-4 text-center text-muted-foreground">{s.totalStudents}</td>
+                    <td className="py-3.5 px-4 text-muted-foreground">
+                      {s.createdAt ? new Date(s.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── TABS config ───────────────────────────────────────────────────────────────
 const TABS: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: "overview", label: "Visão Geral", icon: <BarChart2 size={16} /> },
   { id: "evolution", label: "Evolução do Sistema", icon: <TrendingUp size={16} /> },
+  { id: "schools", label: "Escolas", icon: <Building2 size={16} /> },
   { id: "realtime", label: "Tempo Real", icon: <Activity size={16} /> },
   { id: "security", label: "Segurança & Ataques", icon: <Shield size={16} /> },
   { id: "visitors", label: "Visitantes", icon: <Users size={16} /> },
@@ -1632,6 +1846,7 @@ export default function AnalyticsDashboard() {
     switch (activeTab) {
       case "overview": return <OverviewTab preset={preset} />;
       case "evolution": return <EvolutionTab />;
+      case "schools": return <SchoolsTab />;
       case "realtime": return <RealtimeTab />;
       case "security": return <SecurityTab preset={preset} />;
       case "visitors": return <OverviewTab preset={preset} />;  // shares visitor graphs
