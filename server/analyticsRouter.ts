@@ -694,8 +694,8 @@ const analyticsQueryRouter = router({
           .from(paymentDues)
           .where(and(
             or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
-            gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.dueDate})`, m.start),
-            lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.dueDate})`, m.end)
+            gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.dueDate})`, m.start.toISOString()),
+            lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.dueDate})`, m.end.toISOString())
           ));
         revVal = parseFloat(duesRevRes?.total || "0");
       }
@@ -1018,20 +1018,20 @@ const analyticsQueryRouter = router({
     if (mrrVal === 0 && pRevVal === 0) {
       const [duesMrr] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
         .from(paymentDues)
-        .where(and(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`), gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, monthStart)));
+        .where(and(or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`), gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, monthStart.toISOString())));
       const [duesPeriod] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
         .from(paymentDues)
         .where(and(
           or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
-          gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, start),
-          lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, end)
+          gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, start.toISOString()),
+          lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, end.toISOString())
         ));
       const [duesAvg] = await db.select({ avg: sql<string>`COALESCE(AVG(amount), 0)` })
         .from(paymentDues)
         .where(and(
           or(eq(paymentDues.status, "pago"), sql`${paymentDues.paidAt} IS NOT NULL`),
-          gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, start),
-          lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, end)
+          gte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, start.toISOString()),
+          lte(sql`COALESCE(${paymentDues.paidAt}, ${paymentDues.createdAt})`, end.toISOString())
         ));
       mrrVal = parseFloat(duesMrr.total);
       pRevVal = parseFloat(duesPeriod.total);
@@ -1553,7 +1553,7 @@ const analyticsQueryRouter = router({
     const pingByOrg = await db.select({
       organizationId: users.organizationId,
       lastPing: sql<Date>`MAX(${analyticsOnline.lastPingAt})`,
-      onlineCount: sql<number>`CAST(COUNT(DISTINCT ${analyticsOnline.userId}) FILTER (WHERE ${analyticsOnline.lastPingAt} >= ${fiveMinAgo}) AS INT)`,
+      onlineCount: sql<number>`CAST(COUNT(DISTINCT ${analyticsOnline.userId}) FILTER (WHERE ${analyticsOnline.lastPingAt} >= ${fiveMinAgo.toISOString()}) AS INT)`,
     })
       .from(analyticsOnline)
       .innerJoin(users, eq(users.id, analyticsOnline.userId))
