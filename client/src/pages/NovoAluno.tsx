@@ -268,14 +268,9 @@ export default function NovoAluno() {
 
   const createMutation = trpc.students.create.useMutation({
     onSuccess: (data) => {
-      toast.success("Aluno cadastrado! Agora você pode agendar a primeira aula.");
+      toast.success("Aluno cadastrado com sucesso!");
       utils.students.list.invalidate();
-      // Redireciona para edição do aluno recém-criado para que a aba "Agendar Aula" fique disponível
-      if (data?.studentId) {
-        setLocation(`/alunos/${data.studentId}/editar`);
-      } else {
-        setLocation("/alunos");
-      }
+      setLocation("/alunos");
     },
     onError: (e) => {
       let msg = e.message;
