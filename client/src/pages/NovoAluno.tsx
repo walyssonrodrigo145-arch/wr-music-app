@@ -1026,6 +1026,8 @@ export default function NovoAluno() {
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">E-mail</label>
                     <div className="relative group/input">
                       <Input 
+                        name="student_contact_email"
+                        autoComplete="off"
                         placeholder="email@exemplo.com" 
                         value={form.email}
                         type="email"
@@ -1432,9 +1434,17 @@ export default function NovoAluno() {
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Valor / Mensalidade (R$)</label>
                     <div className="relative group/input w-full">
                       <Input 
+                        name="student_monthly_fee"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
                         placeholder="0,00" 
                         value={form.monthlyFee}
-                        onChange={(e) => handleInputChange('monthlyFee', e.target.value)}
+                        onChange={(e) => {
+                          // Impede qualquer inserção de texto/e-mail (permite apenas números, vírgula e ponto)
+                          const cleanValue = e.target.value.replace(/[^0-9.,]/g, '');
+                          handleInputChange('monthlyFee', cleanValue);
+                        }}
                         className="h-12 w-full rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-sm font-semibold pl-11"
                       />
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 font-bold text-sm group-focus-within/input:text-violet-500 transition-colors">R$</span>
