@@ -571,12 +571,15 @@ const analyticsQueryRouter = router({
       }
 
       // 1. Estimar Receita Prevista SaaS consultando os preços reais dos planos na tabela systemPlans
-      // Filtra APENAS assinaturas verdadeiramente ativas (ignora 'trialing' / teste gratuito)
+      // Inclui organizações ativas e em período de teste ('active' e 'trialing')
       const activeOrgs = await db.select({
         planId: organizations.planId,
       })
       .from(organizations)
-      .where(eq(organizations.subscriptionStatus, "active"));
+      .where(or(
+        eq(organizations.subscriptionStatus, "active"),
+        eq(organizations.subscriptionStatus, "trialing")
+      ));
 
       // Busca a tabela de preços cadastrada no sistema (systemPlans)
       const plansList = await db.select({
@@ -597,8 +600,8 @@ const analyticsQueryRouter = router({
         if (org.planId && planPricesMap.has(org.planId)) {
           saasForecast += planPricesMap.get(org.planId)!;
         } else {
-          // Se não houver plano cadastrado especificamente, ignora ou usa 0
-          saasForecast += 0;
+          // Se a organização não tiver plano definido no banco, assume o plano base ativo de menor valor ou padrão R$ 49,00
+          saasForecast += 49;
         }
       }
 
