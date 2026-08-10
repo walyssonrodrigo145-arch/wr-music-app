@@ -108,8 +108,68 @@ export async function syncOrgAsaasSubscription(db: any, orgId: number) {
       });
       console.log(`[AsaasSync] Org #${orgId} atualizada no Asaas. Ativos: ${activeStudentsCount}, Excedentes: ${excessCount}, Novo valor: R$ ${totalValue.toFixed(2)}`);
     }
+
+    // BUG FIX: cobranças já emitidas mantêm o valor antigo no Asaas — cancelar as
+    // divergentes e gerar nova cobrança com o valor atualizado para o período vigente
+    if (org.asaasCustomerId) {
+      await reconcileOrgAsaasCharges(
+        db,
+        orgId,
+        org.asaasSubscriptionId,
+        org.asaasCustomerId,
+        totalValue,
+        description
+      );
+    }
   } catch (err) {
     console.error(`[AsaasSync] Erro ao sincronizar assinatura da Org #${orgId}:`, err);
+  }
+}
+
+// ─── Helper: Cancela cobranças emitidas com valor divergente e gera nova com o valor correto ──────
+// BUG FIX: Ao atualizar o valor de uma assinatura, o Asaas só aplica o novo valor nas cobranças
+// FUTURAS — as cobranças já emitidas (PENDING/OVERDUE) mantêm o valor antigo. Este helper
+// cancela essas cobranças divergentes e cria uma nova no valor correto para o período vigente.
+export async function reconcileOrgAsaasCharges(db: any, orgId: number, subId: string, customerId: string, totalValue: number, description: string) {
+  try {
+    const { getAsaasSubscriptionPayments, deleteAsaasCharge, createAsaasCharge } = await import('./utils/asaas');
+    const payments = await getAsaasSubscriptionPayments(subId).catch(() => []);
+    if (!Array.isArray(payments) || payments.length === 0) return { deleted: 0, created: 0 };
+
+    let deleted = 0;
+    let created = 0;
+    for (const pay of payments) {
+      const status = String(pay.status || "").toUpperCase();
+      if (status !== "PENDING" && status !== "OVERDUE") continue;
+      if (Math.abs(Number(pay.value) - totalValue) <= 0.01) continue;
+
+      try {
+        await deleteAsaasCharge(pay.id);
+        deleted++;
+        console.log(`[AsaasSync] Cobrança ${pay.id} (R$ ${pay.value}) cancelada — novo valor R$ ${totalValue.toFixed(2)} (Org #${orgId})`);
+      } catch (e) {
+        console.error(`[AsaasSync] Falha ao cancelar cobrança ${pay.id} (Org #${orgId}):`, e);
+        continue;
+      }
+
+      try {
+        const charge = await createAsaasCharge({
+          asaasCustomerId: customerId,
+          billingType: pay.billingType || "UNDEFINED",
+          value: totalValue,
+          dueDate: String(pay.dueDate || "").slice(0, 10),
+          description,
+        });
+        created++;
+        console.log(`[AsaasSync] Nova cobrança gerada ${charge.id} — R$ ${totalValue.toFixed(2)} vencimento ${charge.dueDate} (Org #${orgId})`);
+      } catch (e) {
+        console.error(`[AsaasSync] Falha ao gerar nova cobrança no valor correto (Org #${orgId}):`, e);
+      }
+    }
+    return { deleted, created };
+  } catch (err) {
+    console.error(`[AsaasSync] Erro na reconciliação de cobranças da Org #${orgId}:`, err);
+    return { deleted: 0, created: 0 };
   }
 }
 
@@ -9312,8 +9372,28 @@ Texto original para reescrever:
 
       const { getAsaasSubscriptionPayments } = await import('./utils/asaas');
       const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
-      const pendingPayment = payments.find((p: any) => p.status === 'PENDING' || p.status === 'OVERDUE');
-      
+      let pendingPayment = payments.find((p: any) => p.status === 'PENDING' || p.status === 'OVERDUE');
+
+      // BUG FIX: cobrança avulsa gerada pela reconciliação (não pertence à assinatura) —
+      // buscar também cobranças pendentes do cliente para expor a fatura correta na UI
+      if (!pendingPayment && org.asaasCustomerId) {
+        try {
+          const res = await fetch(
+            `${ENV.asaasBaseUrl}/payments?customer=${org.asaasCustomerId}&status=PENDING&limit=5`,
+            { headers: { access_token: ENV.asaasApiKey } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const avulsas = (data?.data || []).filter((p: any) =>
+              p.status === 'PENDING' || p.status === 'OVERDUE'
+            );
+            pendingPayment = avulsas[0];
+          }
+        } catch (e) {
+          console.warn(`[getPendingInvoice] Falha ao buscar cobranças avulsas do cliente:`, e);
+        }
+      }
+
       if (!pendingPayment) return null;
       
       return {
@@ -9418,29 +9498,86 @@ Texto original para reescrever:
         : `Assinatura MusicPro - Plano ${planInfo.name} (${input.planType})`;
 
       if (org.asaasSubscriptionId) {
-        const { updateAsaasSubscription, getAsaasSubscription, deleteAsaasSubscription } = await import('./utils/asaas');
+        const { updateAsaasSubscription, getAsaasSubscription, deleteAsaasSubscription, getAsaasSubscriptionPayments, deleteAsaasCharge, createAsaasSubscription } = await import('./utils/asaas');
         try {
           await updateAsaasSubscription(org.asaasSubscriptionId, {
             value: totalValue,
             description,
             cycle: input.planType
           });
+
+          // BUG FIX: O Asaas só aplica o novo valor nas cobranças FUTURAS da assinatura.
+          // Cancelar cobranças já emitidas (PENDING/OVERDUE) com valor divergente e
+          // gerar uma nova com o valor correto para o período vigente.
+          if (org.asaasCustomerId) {
+            await reconcileOrgAsaasCharges(
+              db,
+              orgId,
+              org.asaasSubscriptionId,
+              org.asaasCustomerId,
+              totalValue,
+              description
+            );
+          }
         } catch (err: any) {
           if (err.message?.includes('invalid_value') || err.message?.includes('faturas pagas')) {
              try {
                const asaasSub = await getAsaasSubscription(org.asaasSubscriptionId);
-               await deleteAsaasSubscription(org.asaasSubscriptionId);
-               
                const nextDueDate = asaasSub.nextDueDate ? new Date(asaasSub.nextDueDate) : new Date();
-               
-               await db.update(organizations).set({ 
+
+               // BUG FIX: cancelar também as cobranças pendentes da assinatura antiga
+               // (deletar a assinatura NÃO deleta as cobranças já emitidas no Asaas)
+               const oldPayments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId).catch(() => []);
+               for (const p of oldPayments) {
+                 const st = String(p.status || "").toUpperCase();
+                 if (st === "PENDING" || st === "OVERDUE") {
+                   await deleteAsaasCharge(p.id).catch(e =>
+                     console.warn(`[ChangePlan] Falha ao cancelar cobrança órfã ${p.id}:`, e)
+                   );
+                 }
+               }
+
+               await deleteAsaasSubscription(org.asaasSubscriptionId);
+
+               // BUG FIX: recriar IMEDIATAMENTE a assinatura com o valor correto,
+               // para não deixar a org sem cobrança nenhuma
+               let customerId = org.asaasCustomerId;
+               if (!customerId) {
+                 const [profData] = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+                 const { createAsaasCustomer } = await import('./utils/asaas');
+                 customerId = await createAsaasCustomer({
+                   name: org.name || "Escola",
+                   email: profData?.email ?? undefined,
+                 });
+                 await db.update(organizations).set({ asaasCustomerId: customerId }).where(eq(organizations.id, orgId));
+               }
+
+               const newSub = await createAsaasSubscription({
+                 customer: customerId,
+                 billingType: 'UNDEFINED',
+                 value: totalValue,
+                 nextDueDate: nextDueDate.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+                 cycle: input.planType,
+                 description,
+                 successUrl: `${ENV.appUrl}/checkout?payment=success`,
+                 maxPayments: input.planType === 'YEARLY' ? 1 : 6,
+               });
+
+               const newPayments = await getAsaasSubscriptionPayments(newSub.id).catch(() => []);
+               const pendingPayment = newPayments.find((p: any) => p.status === 'PENDING' || p.status === 'OVERDUE');
+
+               await db.update(organizations).set({
                  planId: input.planId,
-                 asaasSubscriptionId: null,
-                 subscriptionStatus: "trialing",
-                 trialEndsAt: nextDueDate
+                 asaasSubscriptionId: newSub.id,
+                 subscriptionStatus: "pending",
+                 updatedAt: new Date()
                }).where(eq(organizations.id, orgId));
-               
-               return { success: true, message: "Plano atualizado com sucesso! O novo valor será cobrado no mês que vem." };
+
+               return {
+                 success: true,
+                 paymentLink: pendingPayment?.invoiceUrl,
+                 message: "Plano atualizado! A assinatura foi recriada com o valor correto. Finalize o pagamento para ativar o novo plano."
+               };
              } catch (cancelErr) {
                console.error("Erro ao cancelar e converter subscrição:", cancelErr);
                throw new TRPCError({
