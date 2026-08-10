@@ -1085,6 +1085,113 @@ export default function NovoAluno() {
                 </div>
               </div>
             </motion.div>
+
+            {/* CARD — Agendar Primeira Aula / Aulas Recorrentes (Integrado na Coluna 1) */}
+            <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-violet-500/20 bg-violet-500/5 hover:shadow-xl hover:shadow-violet-500/5 transition-all duration-500 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
+              
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform">
+                    <CalendarDays size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-foreground tracking-tight">Agendar Aula</h3>
+                    <p className="text-[10px] text-violet-600/70 font-bold uppercase tracking-[0.2em]">Opcional na matrícula</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5 relative z-10">
+                {/* Data e Horário */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data da Aula</label>
+                    <div className="relative">
+                      <Input
+                        type="date"
+                        value={scheduleForm.date}
+                        onChange={e => setScheduleForm(p => ({ ...p, date: e.target.value }))}
+                        className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30")}
+                      />
+                      <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Horário</label>
+                    <div className="relative">
+                      <Input
+                        type="time"
+                        value={scheduleForm.time}
+                        onChange={e => setScheduleForm(p => ({ ...p, time: e.target.value }))}
+                        className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30")}
+                      />
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Duração e Recorrência */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Duração</label>
+                    <Select
+                      value={String(scheduleForm.duration)}
+                      onValueChange={v => setScheduleForm(p => ({ ...p, duration: Number(v) }))}
+                    >
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                        <div className="flex items-center gap-2">
+                          <Timer size={14} className="text-muted-foreground" />
+                          <SelectValue />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30">30 minutos</SelectItem>
+                        <SelectItem value="45">45 minutos</SelectItem>
+                        <SelectItem value="60">60 minutos</SelectItem>
+                        <SelectItem value="90">90 minutos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Recorrência Semanal</label>
+                    <Select
+                      value={String(scheduleForm.weeksCount)}
+                      onValueChange={v => setScheduleForm(p => ({ ...p, weeksCount: Number(v) }))}
+                    >
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                        <div className="flex items-center gap-2">
+                          <RefreshCw size={14} className="text-muted-foreground" />
+                          <SelectValue />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 vez (aula avulsa)</SelectItem>
+                        <SelectItem value="4">4 semanas (~1 mês)</SelectItem>
+                        <SelectItem value="8">8 semanas (~2 meses)</SelectItem>
+                        <SelectItem value="12">12 semanas (~3 meses)</SelectItem>
+                        <SelectItem value="26">26 semanas (~6 meses)</SelectItem>
+                        <SelectItem value="52">52 semanas (~1 ano)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Botão Ação de Agendamento Inline */}
+                <Button
+                  type="button"
+                  className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-md shadow-violet-500/20 transition-all flex items-center justify-center gap-2"
+                  onClick={handleScheduleSubmit}
+                  disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching}
+                >
+                  {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching || isSaving) ? (
+                    <><Loader2 size={16} className="animate-spin" /> Agendando Aula...</>
+                  ) : (
+                    <><CalendarDays size={16} /> {!isEditMode ? "Salvar Aluno e Agendar Aula" : "Agendar Aula para este Aluno"}</>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
           </div>
 
           {/* Coluna 2 */}
