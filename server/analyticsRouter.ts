@@ -570,31 +570,44 @@ const analyticsQueryRouter = router({
         }
       }
 
-      // 1. Estimar Receita Prevista SaaS com base nas organizações/escolas ativas na plataforma
+      // 1. Estimar Receita Prevista SaaS consultando os preços reais dos planos na tabela systemPlans
+      // Filtra APENAS assinaturas verdadeiramente ativas (ignora 'trialing' / teste gratuito)
       const activeOrgs = await db.select({
         planId: organizations.planId,
       })
       .from(organizations)
-      .where(or(
-        eq(organizations.subscriptionStatus, "active"),
-        eq(organizations.subscriptionStatus, "trialing")
-      ));
+      .where(eq(organizations.subscriptionStatus, "active"));
 
-      // Mapeamento de preços padrão dos planos SaaS MusicPro (exemplo: starter/premium/pro)
-      // Se não houver plano especificado, assume valor padrão do plano base (R$ 149,00) ou valor acumulado do mês * 1.05
-      let saasForecast = 0;
-      for (const org of activeOrgs) {
-        if (org.planId === "starter") saasForecast += 99;
-        else if (org.planId === "pro") saasForecast += 299;
-        else saasForecast += 149; // padrão "premium"
+      // Busca a tabela de preços cadastrada no sistema (systemPlans)
+      const plansList = await db.select({
+        id: systemPlans.id,
+        priceMonthly: systemPlans.priceMonthly,
+      }).from(systemPlans);
+
+      const planPricesMap = new Map<string, number>();
+      for (const p of plansList) {
+        const val = parseFloat(String(p.priceMonthly).replace(/[^0-9.,]/g, "").replace(",", "."));
+        if (!isNaN(val)) {
+          planPricesMap.set(p.id, val);
+        }
       }
 
-      // Combina fontes SaaS (API Asaas SaaS > Cálculo de escolas ativas > Receita do mês * 1.05)
+      let saasForecast = 0;
+      for (const org of activeOrgs) {
+        if (org.planId && planPricesMap.has(org.planId)) {
+          saasForecast += planPricesMap.get(org.planId)!;
+        } else {
+          // Se não houver plano cadastrado especificamente, ignora ou usa 0
+          saasForecast += 0;
+        }
+      }
+
+      // Combina fontes SaaS (API Asaas SaaS > Preço dos planos das escolas ativas > Receita do mês)
       nextMonthForecast = asaasNextMonth > 0
         ? asaasNextMonth
         : (saasForecast > 0 
             ? saasForecast 
-            : (revMonth > 0 ? revMonth * 1.05 : 0));
+            : (revMonth > 0 ? revMonth : 0));
     } catch (e) {
       console.error("[analyticsRouter] Erro ao calcular receita prevista:", e);
       nextMonthForecast = revMonth > 0 ? revMonth : 0;
