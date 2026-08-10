@@ -1301,15 +1301,9 @@ export default function NovoAluno() {
                   {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching || isSaving) ? (
                     <><Loader2 size={18} className="animate-spin" /> {!isEditMode ? "Cadastrando e Agendando..." : "Agendando..."}</>
                   ) : !isEditMode ? (
-                    scheduleForm.weeksCount > 1 ? (
-                      <><CalendarRange size={18} /> Cadastrar Aluno e Agendar {scheduleForm.weeksCount} Aulas</>
-                    ) : (
-                      <><CheckCircle2 size={18} /> Cadastrar Aluno e Agendar Aula</>
-                    )
-                  ) : scheduleForm.weeksCount > 1 ? (
-                    <><CalendarRange size={18} /> Validar e Agendar {scheduleForm.weeksCount} Aulas</>
+                    <><CalendarDays size={18} /> Cadastrar Aluno e Agendar Aula</>
                   ) : (
-                    <><CheckCircle2 size={18} /> Agendar Aula</>                       
+                    <><CalendarDays size={18} /> Agendar Aula</>                       
                   )}
                 </Button>
               </div>
