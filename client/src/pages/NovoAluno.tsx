@@ -1084,7 +1084,7 @@ export default function NovoAluno() {
                 {/* Data + Horário */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data *</label>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Data Inicial (Início) *</label>
                     <div className="relative">
                       <Input
                         type="date"
@@ -1096,18 +1096,31 @@ export default function NovoAluno() {
                     </div>
                     {scheduleErrors.date && <p className="text-xs text-red-500 ml-1">{scheduleErrors.date}</p>}
                   </div>
+                  
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Horário *</label>
-                    <div className="relative">
-                      <Input
-                        type="time"
-                        value={scheduleForm.time}
-                        onChange={e => setScheduleForm(p => ({ ...p, time: e.target.value }))}
-                        className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
-                      />
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                    </div>
-                    {scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
+                      {scheduleForm.lessonsPerWeek > 1 ? "Horário das Aulas" : "Horário *"}
+                    </label>
+                    {scheduleForm.lessonsPerWeek > 1 ? (
+                      <div className="h-12 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3.5 flex items-center justify-between text-xs font-bold text-violet-700">
+                        <span className="flex items-center gap-2">
+                          <Clock size={14} className="text-violet-600 shrink-0" />
+                          Definido individualmente abaixo
+                        </span>
+                        <span className="text-[10px] bg-violet-600 text-white px-2 py-0.5 rounded-md uppercase font-black">{scheduleForm.lessonsPerWeek}x/sem</span>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <Input
+                          type="time"
+                          value={scheduleForm.time}
+                          onChange={e => setScheduleForm(p => ({ ...p, time: e.target.value }))}
+                          className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
+                        />
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                      </div>
+                    )}
+                    {scheduleForm.lessonsPerWeek === 1 && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
                   </div>
                 </div>
 
