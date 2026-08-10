@@ -9235,13 +9235,14 @@ Texto original para reescrever:
         if (!db) return [];
         const orgId = ctx.user.organizationId!;
 
-        const start = new Date(input.startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(input.endDate);
-        end.setHours(23, 59, 59, 999);
+        // FIX TZ: interpretar as datas no fuso do Brasil (America/Sao_Paulo), senão
+        // check-ins após 21h BRT caem no dia UTC seguinte e somem das "atividades recentes".
+        const start = new Date(`${input.startDate}T00:00:00-03:00`);
+        const end = new Date(`${input.endDate}T23:59:59.999-03:00`);
 
-        const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
-
+        // BUG FIX: O filtro por lessons.userId escondia registros de aulas criadas por
+        // outro usuário da mesma escola (ex.: aula criada pelo admin para um aluno do
+        // professor) — a recepção deve mostrar TODOS os check-ins da organização.
         const logs = await db.select({
           log: attendanceLogs,
           userName: users.name,
@@ -9255,7 +9256,6 @@ Texto original para reescrever:
             eq(attendanceLogs.organizationId, orgId),
             gte(attendanceLogs.scannedAt, start),
             lte(attendanceLogs.scannedAt, end),
-            isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
           ))
           .orderBy(desc(attendanceLogs.scannedAt));
 
