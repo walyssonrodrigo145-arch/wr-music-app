@@ -227,6 +227,8 @@ conn.on('ready', () => {
                 sleep 5
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"dueDaysForecast\\" text DEFAULT '5,10,15,20';"
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"chatbotEnabled\\" integer NOT NULL DEFAULT 0;"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE students ADD COLUMN IF NOT EXISTS \\"studioRoomId\\" integer;"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS \\"studioRoomId\\" integer;"
               `;
               conn.exec(rebuildCmd, (err, rebuildStream) => {
                 if (rebuildStream) {
