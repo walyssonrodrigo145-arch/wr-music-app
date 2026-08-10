@@ -46,9 +46,12 @@ export default function Assinatura() {
 
   const handleChangePlan = async (planId: string) => {
     try {
-      await changePlanMutation.mutateAsync({ planId, planType: selectedPlanType });
-      toast.success("Plano atualizado com sucesso! O novo valor virá na próxima fatura.");
+      const res = await changePlanMutation.mutateAsync({ planId, planType: selectedPlanType });
+      toast.success(res?.message || "Plano atualizado com sucesso!");
       utils.platform.mySubscription.invalidate();
+      if (res?.paymentLink) {
+        window.location.href = res.paymentLink;
+      }
     } catch (error: any) {
       toast.error(error.message || "Erro ao alterar o plano");
     }
