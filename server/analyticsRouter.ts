@@ -570,113 +570,31 @@ const analyticsQueryRouter = router({
         }
       }
 
-      // 1. Mensalidades dos alunos cadastrados nas escolas (students.monthlyFee)
-      const studentsList = await db.select({
-        fee: students.monthlyFee,
+      // 1. Estimar Receita Prevista SaaS com base nas organizações/escolas ativas na plataforma
+      const activeOrgs = await db.select({
+        planId: organizations.planId,
       })
-      .from(students)
+      .from(organizations)
       .where(or(
-        eq(students.status, "ativo"),
-        isNull(students.status),
-        ne(students.status, "inativo")
+        eq(organizations.subscriptionStatus, "active"),
+        eq(organizations.subscriptionStatus, "trialing")
       ));
 
-      const studentsTotal = studentsList.reduce((acc, row) => {
-        if (!row.fee) return acc;
-        const raw = String(row.fee).replace(/[^0-9.,]/g, "");
-        // Corrige parse de moeda brasileira: "1.500,00" -> "1500.00"
-        const cleaned = raw.includes(",")
-          ? raw.replace(/\./g, "").replace(",", ".")
-          : raw;
-        const val = parseFloat(cleaned);
-        return acc + (isNaN(val) ? 0 : val);
-      }, 0);
-
-      const dbBaseForecast = studentsTotal;
-
-      // 2. Cobranças geradas / faturas pendentes do próximo mês em paymentDues
-      let targetYear = todayStart.getFullYear();
-      let targetMonth = todayStart.getMonth() + 2; // 1-indexed próximo mês
-      if (targetMonth > 12) {
-        targetMonth = 1;
-        targetYear += 1;
+      // Mapeamento de preços padrão dos planos SaaS MusicPro (exemplo: starter/premium/pro)
+      // Se não houver plano especificado, assume valor padrão do plano base (R$ 149,00) ou valor acumulado do mês * 1.05
+      let saasForecast = 0;
+      for (const org of activeOrgs) {
+        if (org.planId === "starter") saasForecast += 99;
+        else if (org.planId === "pro") saasForecast += 299;
+        else saasForecast += 149; // padrão "premium"
       }
-      const nextMonthStr = String(targetMonth).padStart(2, "0");
-      const startStr = `${targetYear}-${nextMonthStr}-01`;
-      const lastDayNum = new Date(targetYear, targetMonth, 0).getDate();
-      const endStr = `${targetYear}-${nextMonthStr}-${String(lastDayNum).padStart(2, "0")}`;
 
-      const currentMonthStr = String(todayStart.getMonth() + 1).padStart(2, "0");
-      const currentMonthStartStr = `${todayStart.getFullYear()}-${currentMonthStr}-01`;
-
-      const paymentDuesNextList = await db.select({
-        amount: paymentDues.amount,
-      })
-      .from(paymentDues)
-      .where(and(
-        ne(paymentDues.status, "cancelado"),
-        gte(paymentDues.dueDate, startStr),
-        lte(paymentDues.dueDate, endStr)
-      ));
-
-      const paymentDuesTotal = paymentDuesNextList.reduce((acc, row) => {
-        if (!row.amount) return acc;
-        const raw = String(row.amount).replace(/[^0-9.,]/g, "");
-        const cleaned = raw.includes(",")
-          ? raw.replace(/\./g, "").replace(",", ".")
-          : raw;
-        const val = parseFloat(cleaned);
-        return acc + (isNaN(val) ? 0 : val);
-      }, 0);
-
-      // 3. Receita de assinaturas recorrentes na plataforma (analyticsRevenue)
-      const [analyticsFeeRes] = await db.select({
-        total: sql<string>`COALESCE(SUM(amount), 0)`
-      })
-      .from(analyticsRevenue)
-      .where(gte(analyticsRevenue.createdAt, monthStart));
-
-      const analyticsTotal = parseFloat(analyticsFeeRes?.total || "0");
-
-      // 4. Receita histórica de mensalidades em paymentDues do mês atual se tudo falhar
-      const currentDuesList = await db.select({
-        amount: paymentDues.amount,
-      })
-      .from(paymentDues)
-      .where(and(
-        ne(paymentDues.status, "cancelado"),
-        gte(paymentDues.dueDate, currentMonthStartStr)
-      ));
-
-      const currentMonthDues = currentDuesList.reduce((acc, row) => {
-        if (!row.amount) return acc;
-        const raw = String(row.amount).replace(/[^0-9.,]/g, "");
-        const cleaned = raw.includes(",")
-          ? raw.replace(/\./g, "").replace(",", ".")
-          : raw;
-        const val = parseFloat(cleaned);
-        return acc + (isNaN(val) ? 0 : val);
-      }, 0);
-
-      console.log("[analyticsRouter] forecast breakdown:", {
-        asaasNextMonth,
-        studentsTotal,
-        paymentDuesTotal,
-        currentMonthDues,
-        analyticsTotal,
-        revMonth
-      });
-
-      // Combina as fontes de receita prevista (Prioridade: Asaas API > Alunos BD > PaymentDues > Histórico)
+      // Combina fontes SaaS (API Asaas SaaS > Cálculo de escolas ativas > Receita do mês * 1.05)
       nextMonthForecast = asaasNextMonth > 0
         ? asaasNextMonth
-        : (dbBaseForecast > 0 
-            ? dbBaseForecast 
-            : (paymentDuesTotal > 0 
-                ? paymentDuesTotal 
-                : (currentMonthDues > 0 
-                    ? currentMonthDues 
-                    : (analyticsTotal > 0 ? analyticsTotal : (revMonth > 0 ? revMonth * 1.05 : 0)))));
+        : (saasForecast > 0 
+            ? saasForecast 
+            : (revMonth > 0 ? revMonth * 1.05 : 0));
     } catch (e) {
       console.error("[analyticsRouter] Erro ao calcular receita prevista:", e);
       nextMonthForecast = revMonth > 0 ? revMonth : 0;
