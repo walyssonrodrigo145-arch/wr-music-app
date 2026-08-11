@@ -124,52 +124,59 @@ const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: Reac
         onClick={onClick}
         whileHover={{ scale: 1.02 }}
         className={cn(
-          "p-2.5 rounded-xl border border-l-4 transition-all cursor-pointer shadow-sm mb-2 hover:shadow-md backdrop-blur-sm select-none",
+          "p-2 rounded-xl border border-l-4 transition-all cursor-pointer shadow-sm mb-2 hover:shadow-md backdrop-blur-sm select-none overflow-hidden",
           cardStyle
         )}
       >
-        <div className="flex items-center justify-between gap-1 mb-1">
-          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-xs", badgeStyle)}>
+        {/* Linha 1: Horário + Tag status — empilhados verticalmente para não quebrar */}
+        <div className="flex flex-col gap-0.5 mb-1 min-w-0">
+          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-xs w-fit shrink-0", badgeStyle)}>
             {safeFormat(lesson.scheduledAt, "HH:mm")}
           </span>
           {isTurma ? (
-            <span className={cn("text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full flex items-center gap-1", turmaTagStyle)}>
-              {isConcluida ? "✓ TURMA CONCLUÍDA" : isFalta ? "TURMA • FALTA" : "TURMA"}
+            <span className={cn("text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full flex items-center gap-0.5 w-fit max-w-full truncate", turmaTagStyle)}>
+              {isConcluida ? "✓ CONCLUÍDA" : isFalta ? "FALTA" : "TURMA"}
             </span>
           ) : (
-            <span className={cn("text-[9px] font-bold uppercase truncate max-w-[80px]", config.text)}>
+            <span className={cn("text-[9px] font-bold uppercase truncate", config.text)}>
               {config.label}
             </span>
           )}
         </div>
+
+        {/* Linha 2: Título */}
         <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate leading-snug">
           {titleText}
         </p>
-        <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-black/5 dark:border-white/5 text-[9px]">
-           <div className="flex items-center gap-1 min-w-0 font-bold text-slate-600 dark:text-slate-300">
-             <Music size={10} className="shrink-0 text-blue-600 dark:text-blue-400" />
-             <span className="truncate uppercase">{lesson.instrumentName || "Geral"}</span>
-           </div>
-           {lesson.teacherName && (
-             <div className="flex items-center gap-1 font-bold text-blue-700 dark:text-blue-300 truncate max-w-[90px]">
-               <User size={10} className="shrink-0" />
-               <span className="truncate">{lesson.teacherName.split(' ')[0]}</span>
-             </div>
-           )}
+
+        {/* Linha 3: Instrumento e Professor — em coluna para não quebrar */}
+        <div className="flex flex-col gap-0.5 mt-1 pt-1 border-t border-black/5 dark:border-white/5 text-[9px] min-w-0">
+          <div className="flex items-center gap-1 min-w-0 font-bold text-slate-600 dark:text-slate-300">
+            <Music size={9} className="shrink-0 text-blue-600 dark:text-blue-400" />
+            <span className="truncate uppercase">{lesson.instrumentName || "Geral"}</span>
+          </div>
+          {lesson.teacherName && (
+            <div className="flex items-center gap-1 min-w-0 font-bold text-blue-700 dark:text-blue-300">
+              <User size={9} className="shrink-0" />
+              <span className="truncate">{lesson.teacherName.split(' ')[0]}</span>
+            </div>
+          )}
         </div>
+
+        {/* Sala (opcional) */}
         {lesson.studioRoomName && (
-           <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-black/5 dark:border-white/5 font-black text-indigo-700 dark:text-indigo-300 text-[10px]">
-             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lesson.studioRoomColor || '#6366f1' }} />
-             <LayoutList size={11} className="shrink-0 text-indigo-500" />
-             <span className="truncate uppercase font-extrabold">{lesson.studioRoomName}</span>
-           </div>
-         )}
+          <div className="flex items-center gap-1 mt-1 pt-1 border-t border-black/5 dark:border-white/5 font-black text-indigo-700 dark:text-indigo-300 text-[9px] min-w-0">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lesson.studioRoomColor || '#6366f1' }} />
+            <LayoutList size={9} className="shrink-0 text-indigo-500" />
+            <span className="truncate uppercase font-extrabold">{lesson.studioRoomName}</span>
+          </div>
+        )}
+
+        {/* Badge de alunos (turma) */}
         {isTurma && (
-          <div className={cn("mt-1 py-0.5 px-2 rounded-full w-fit flex items-center gap-1 border text-[8px] font-black uppercase tracking-wider", isConcluida ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" : isFalta ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" : "bg-purple-600/10 dark:bg-purple-400/10 text-purple-700 dark:text-purple-300 border-purple-500/20")}>
-            <Users size={10} />
-            <p>
-              {lesson.studentCount || 1} Alunos
-            </p>
+          <div className={cn("mt-1 py-0.5 px-1.5 rounded-full w-fit flex items-center gap-0.5 border text-[8px] font-black uppercase tracking-wider", isConcluida ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" : isFalta ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" : "bg-purple-600/10 dark:bg-purple-400/10 text-purple-700 dark:text-purple-300 border-purple-500/20")}>
+            <Users size={9} />
+            <span>{lesson.studentCount || 1} Alunos</span>
           </div>
         )}
       </motion.div>
