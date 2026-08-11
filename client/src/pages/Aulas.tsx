@@ -1171,7 +1171,7 @@ export default function Aulas() {
                         <span className="text-lg font-black text-foreground tracking-tighter">{safeFormat(lesson.scheduledAt, "HH:mm")}</span>
                       </div>
                       <span className={cn(
-                        "px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm flex items-center gap-1 whitespace-nowrap max-w-full truncate",
+                        "inline-flex items-center gap-1 min-w-0 max-w-full rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border shadow-sm",
                         isTurma
                           ? lesson.status === 'concluida'
                             ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
@@ -1180,13 +1180,17 @@ export default function Aulas() {
                             : "bg-purple-500/10 text-purple-600 border-purple-500/20"
                           : cn(config.bg, config.text, config.border)
                       )}>
-                        {isTurma 
-                          ? lesson.status === 'concluida' 
-                            ? `✓ Turma Concluída (${lesson.studentCount || 1} Alunos)`
-                            : lesson.status === 'falta'
-                            ? `Turma • Falta (${lesson.studentCount || 1} Alunos)`
-                            : `Turma (${lesson.studentCount || 1} Alunos)` 
-                          : config.label}
+                        {isTurma ? (
+                          <span className="truncate">
+                            {lesson.status === 'concluida'
+                              ? `✓ Turma Concluída`
+                              : lesson.status === 'falta'
+                              ? `Turma • Falta`
+                              : `Turma (${lesson.studentCount || 1} Alunos)`}
+                          </span>
+                        ) : (
+                          config.label
+                        )}
                       </span>
                     </div>
                     <div className="space-y-1.5">
