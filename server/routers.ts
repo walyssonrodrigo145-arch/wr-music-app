@@ -17,7 +17,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -9744,94 +9744,562 @@ Texto original para reescrever:
         }));
       }),
 
+    // ── contracts.create foi migrado para contracts.createAssinafy (Assinafy BYOK) ──
+    // Este endpoint é mantido apenas para compatibilidade com clientes desatualizados.
     create: protectedProcedure
+      .input(z.object({ studentId: z.number() }))
+      .mutation(async () => {
+        throw new TRPCError({
+          code: "METHOD_NOT_SUPPORTED",
+          message: "Este endpoint foi substituído pela integração Assinafy. Use 'Criar contrato' na seção de contratos do aluno.",
+        });
+      }),
+
+    // ─── CONTRATOS DIGITAIS (Assinafy — BYOK) ────────────────────────────────
+
+    details: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return null;
+        const orgId = ctx.user.organizationId!;
+
+        const [contract] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
+          .limit(1);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+
+        const events = await db.select()
+          .from(contractEvents)
+          .where(eq(contractEvents.contractId, contract.id))
+          .orderBy(asc(contractEvents.createdAt));
+
+        return { contract, events };
+      }),
+
+    createAssinafy: protectedProcedure
       .input(z.object({
         studentId: z.number(),
+        templateId: z.number(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        try {
-          const db = await getDb();
-          if (!db) throw new Error("Database not available");
-          const orgId = ctx.user.organizationId!;
-          
-          // Get school settings
-          const [orgSettings] = await db.select()
-            .from(settings)
-            .where(eq(settings.organizationId, orgId))
-            .limit(1);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
 
-          if (!orgSettings?.zapsignApiKey) {
-            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "API Key da ZapSign não configurada. Vá em Configurações > Integrações." });
-          }
+        const [student] = await db.select()
+          .from(students)
+          .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)))
+          .limit(1);
+        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
 
-          // Get student details
-          const [student] = await db.select()
-            .from(students)
-            .where(and(
-              eq(students.id, input.studentId),
-              eq(students.organizationId, orgId)
-            ))
-            .limit(1);
-
-          if (!student) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
-          }
-
-          // Generate HTML/Base64 contract
-          const { generateContractHtml, createZapSignDocument } = await import("./utils/zapsign");
-          const htmlContent = generateContractHtml({
-            schoolName: orgSettings.schoolName || "MusicPro",
-            schoolAddress: orgSettings.schoolAddress || "",
-            schoolPhone: orgSettings.schoolPhone || "",
-            studentName: student.name,
-            studentCpf: student.cpf || "",
-            studentPhone: student.phone || "",
-            monthlyFee: student.monthlyFee || "0.00",
-            dueDay: student.dueDay || 10,
-            lessonType: student.lessonType,
+        const [integration] = await db.select()
+          .from(schoolIntegrations)
+          .where(and(
+            eq(schoolIntegrations.organizationId, orgId),
+            eq(schoolIntegrations.provider, "assinafy"),
+            eq(schoolIntegrations.active, true),
+          ))
+          .limit(1);
+        if (!integration) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Assinatura digital não configurada. Conecte sua conta da Assinafy em Configurações > Integrações.",
           });
+        }
 
-          // Convert HTML to base64 pdf string if needed, or ZapSign accepts PDF URLs.
-          // Since we don't have a PDF generation library, we will pass a generic PDF URL for now.
-          const pdfUrl = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+        const [template] = await db.select()
+          .from(contractTemplates)
+          .where(and(eq(contractTemplates.id, input.templateId), eq(contractTemplates.organizationId, orgId)))
+          .limit(1);
+        if (!template) throw new TRPCError({ code: "NOT_FOUND", message: "Modelo de contrato não encontrado" });
 
-          const zapResponse = await createZapSignDocument(
-            { apiToken: orgSettings.zapsignApiKey },
-            {
-              name: `Contrato - ${student.name}`,
-              urlPdf: pdfUrl,
-              signers: [
-                {
-                  name: student.name,
-                  email: student.email || "aluno@musicpro.com.br", // fallback
-                  auth_mode: "assinaturaTela",
-                }
-              ]
-            }
-          );
+        const [orgSettings] = await db.select()
+          .from(settings)
+          .where(eq(settings.organizationId, orgId))
+          .limit(1);
 
-          // Save to DB
-          const [newContract] = await db.insert(contracts).values({
-            organizationId: orgId,
-            userId: ctx.user.id,
-            studentId: student.id,
-            title: `Contrato - ${student.name}`,
-            status: "enviado",
-            zapsignDocId: zapResponse.token,
-            zapsignSignUrl: zapResponse.signers[0].sign_url,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }).returning();
+        const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+        const [instrument] = student.instrumentId
+          ? await db.select().from(instruments).where(and(eq(instruments.id, student.instrumentId), eq(instruments.organizationId, orgId))).limit(1)
+          : [null];
 
-          return { success: true, contract: newContract };
-        } catch (error: any) {
-          if (error instanceof TRPCError) throw error;
-          if (error.response?.data) {
-            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro na ZapSign: " + JSON.stringify(error.response.data) });
+        const { buildContractVariables, renderContractPdf, addContractEvent, buildDefaultTemplateContent } = await import("./services/contractService");
+        const { providerFromIntegration } = await import("./services/signature");
+        const { encryptSecret } = await import("./utils/integrationCrypto");
+
+        const variables = buildContractVariables({
+          schoolName: orgSettings?.schoolName || org?.name,
+          schoolCnpj: orgSettings?.schoolCnpj,
+          schoolAddress: orgSettings?.schoolAddress,
+          schoolCity: orgSettings?.schoolCity,
+          schoolPhone: orgSettings?.schoolPhone,
+          schoolEmail: (orgSettings as any)?.schoolEmail || null,
+          studentName: student.name,
+          studentCpf: student.cpf,
+          studentEmail: student.email,
+          studentPhone: student.phone,
+          studentAddress: student.address,
+          instrument: instrument?.name,
+          monthlyFee: student.monthlyFee,
+          dueDay: student.dueDay ? String(student.dueDay) : "10",
+          startDate: input.startDate,
+          endDate: input.endDate,
+        });
+
+        const pdfBuffer = await renderContractPdf(template.content || buildDefaultTemplateContent(), variables);
+        const title = `Contrato - ${student.name}`;
+
+        const provider = providerFromIntegration(integration);
+        const result = await provider.createSignProcess({
+          documentName: `${title}.pdf`,
+          pdfBuffer,
+          signer: {
+            fullName: student.name,
+            email: student.email,
+            phone: student.phone || null,
+          },
+          message: `Olá ${student.name}! Sua escola enviou o contrato "${title}" para assinatura digital.`,
+          expiresAt: input.endDate ? new Date(input.endDate) : null,
+        });
+
+        const [newContract] = await db.insert(contracts).values({
+          organizationId: orgId,
+          userId: ctx.user.id,
+          studentId: student.id,
+          templateId: template.id,
+          title,
+          status: "aguardando_assinatura",
+          provider: "assinafy",
+          assinafyDocId: result.providerDocumentId,
+          assinafySignUrl: result.signUrl,
+          sentAt: result.sentAt,
+          expiresAt: input.endDate ? new Date(input.endDate) : null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).returning();
+
+        await addContractEvent(db as any, newContract.id, "contrato_criado", "Contrato criado", null, { template: template.name });
+        await addContractEvent(db as any, newContract.id, "contrato_enviado", "Contrato enviado para assinatura", null, { signUrl: result.signUrl });
+
+        // Configura o webhook da conta (best-effort, sem bloquear o fluxo)
+        try {
+          const origin = (ctx.req?.headers as any)?.origin || ENV.appUrl;
+          if (origin) {
+            await provider.configureWebhook(`${origin.replace(/\/$/, "")}/api/webhooks/assinafy`).catch(() => false);
           }
-          return handleDbError(error, "gerar contrato");
+        } catch {}
+
+        return { success: true, contract: newContract, signUrl: result.signUrl };
+      }),
+
+    refreshStatus: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [contract] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
+          .limit(1);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        if (contract.provider !== "assinafy" || !contract.assinafyDocId) {
+          return { success: false, contract, message: "Contrato sem integração Assinafy" };
+        }
+
+        const [integration] = await db.select()
+          .from(schoolIntegrations)
+          .where(and(eq(schoolIntegrations.organizationId, orgId), eq(schoolIntegrations.provider, "assinafy")))
+          .limit(1);
+        if (!integration) return { success: false, contract, message: "Integração Assinafy não encontrada" };
+
+        const { providerFromIntegration } = await import("./services/signature");
+        const { mapProviderStatus, addContractEvent } = await import("./services/contractService");
+
+        try {
+          const provider = providerFromIntegration(integration);
+          const status = await provider.getDocumentStatus(contract.assinafyDocId);
+          const mapped = mapProviderStatus(status.status);
+
+          const updateData: any = { status: mapped.internalStatus, updatedAt: new Date() };
+          if (mapped.signed) {
+            updateData.signedAt = updateData.signedAt ?? new Date();
+            if (status.signedDocumentUrl) updateData.signedDocumentUrl = status.signedDocumentUrl;
+          }
+          if (status.declined) updateData.cancelledAt = new Date();
+          if (mapped.internalStatus === "expirado") updateData.expiresAt = new Date();
+
+          await db.update(contracts).set(updateData).where(eq(contracts.id, contract.id));
+
+          if (mapped.internalStatus === "assinado" && contract.status !== "assinado") {
+            await addContractEvent(db as any, contract.id, "contrato_assinado", "Contrato assinado", null, { providerStatus: status.status });
+          }
+
+          const [updated] = await db.select().from(contracts).where(eq(contracts.id, contract.id)).limit(1);
+          return { success: true, contract: updated };
+        } catch (err: any) {
+          console.error(`[Contracts] Falha ao sincronizar status do contrato ${contract.id}:`, err?.message);
+          await db.update(schoolIntegrations)
+            .set({ connectionStatus: "error", lastConnectionTest: new Date() })
+            .where(eq(schoolIntegrations.id, integration.id));
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível consultar o status na Assinafy." });
         }
       }),
+
+    cancel: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [contract] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
+          .limit(1);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        if (contract.status === "assinado") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Contratos assinados não podem ser cancelados." });
+        }
+
+        if (contract.provider === "assinafy" && contract.assinafyDocId) {
+          const [integration] = await db.select()
+            .from(schoolIntegrations)
+            .where(and(eq(schoolIntegrations.organizationId, orgId), eq(schoolIntegrations.provider, "assinafy")))
+            .limit(1);
+          if (integration) {
+            try {
+              const { providerFromIntegration } = await import("./services/signature");
+              const provider = providerFromIntegration(integration);
+              await provider.cancel(contract.assinafyDocId);
+            } catch (e) {
+              console.error(`[Contracts] Falha ao cancelar documento na Assinafy (${contract.assinafyDocId}):`, e);
+            }
+          }
+        }
+
+        await db.update(contracts).set({ status: "cancelado", cancelledAt: new Date(), updatedAt: new Date() })
+          .where(eq(contracts.id, contract.id));
+
+        const { addContractEvent } = await import("./services/contractService");
+        await addContractEvent(db as any, contract.id, "contrato_cancelado", "Contrato cancelado");
+
+        return { success: true };
+      }),
+
+    resend: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [contract] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
+          .limit(1);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        if (!contract.assinafyDocId) throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato sem documento na Assinafy" });
+
+        const [integration] = await db.select()
+          .from(schoolIntegrations)
+          .where(and(eq(schoolIntegrations.organizationId, orgId), eq(schoolIntegrations.provider, "assinafy")))
+          .limit(1);
+        if (!integration) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Integração Assinafy não encontrada" });
+
+        const { providerFromIntegration } = await import("./services/signature");
+        const provider = providerFromIntegration(integration);
+        const ok = await provider.resend(contract.assinafyDocId);
+        if (!ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível reenviar o contrato." });
+
+        await db.update(contracts).set({ status: "aguardando_assinatura", sentAt: new Date(), updatedAt: new Date() })
+          .where(eq(contracts.id, contract.id));
+
+        const { addContractEvent } = await import("./services/contractService");
+        await addContractEvent(db as any, contract.id, "contrato_reenviado", "Contrato reenviado para assinatura");
+
+        return { success: true };
+      }),
+
+    downloadSigned: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [contract] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
+          .limit(1);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        if (!contract.assinafyDocId || contract.status !== "assinado") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato ainda não assinado." });
+        }
+
+        const [integration] = await db.select()
+          .from(schoolIntegrations)
+          .where(and(eq(schoolIntegrations.organizationId, orgId), eq(schoolIntegrations.provider, "assinafy")))
+          .limit(1);
+        if (!integration) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Integração Assinafy não encontrada" });
+
+        const { providerFromIntegration } = await import("./services/signature");
+        const provider = providerFromIntegration(integration);
+        const pdf = await provider.downloadSignedDocument(contract.assinafyDocId);
+        if (!pdf) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível baixar o documento assinado." });
+
+        return { base64: pdf.toString("base64"), fileName: `${contract.title}.pdf` };
+      }),
+
+    my: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) return [];
+        if (ctx.user.role !== "aluno" || !ctx.user.studentId) return [];
+
+        const list = await db.select({
+          contract: contracts,
+          studentName: students.name,
+        })
+          .from(contracts)
+          .innerJoin(students, eq(students.id, contracts.studentId))
+          .where(and(
+            eq(contracts.studentId, ctx.user.studentId),
+            eq(contracts.provider, "assinafy"),
+          ))
+          .orderBy(desc(contracts.createdAt));
+
+        return list.map(l => ({
+          ...l.contract,
+          studentName: l.studentName,
+        }));
+      }),
+  }),
+
+  // ─── INTEGRAÇÕES DE ASSINATURA (BYOK) ───────────────────────────────────────
+  signatureIntegrations: router({
+    getStatus: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const orgId = ctx.user.organizationId!;
+
+      const [integration] = await db.select()
+        .from(schoolIntegrations)
+        .where(and(eq(schoolIntegrations.organizationId, orgId), eq(schoolIntegrations.provider, "assinafy")))
+        .limit(1);
+
+      if (!integration) return null;
+
+      const { maskSecret, decryptSecret } = await import("./utils/integrationCrypto");
+      return {
+        provider: integration.provider,
+        environment: integration.environment,
+        active: integration.active,
+        connectionStatus: integration.connectionStatus,
+        lastConnectionTest: integration.lastConnectionTest,
+        apiKeyMasked: maskSecret(decryptSecret(integration.apiKeyEncrypted)),
+      };
+    }),
+
+    connect: protectedProcedure
+      .input(z.object({
+        apiKey: z.string().min(10),
+        environment: z.enum(["sandbox", "production"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const { AssinafyProvider } = await import("./services/signature/AssinafyProvider");
+        const { encryptSecret } = await import("./utils/integrationCrypto");
+
+        const provider = new AssinafyProvider(input.apiKey, input.environment);
+        let accountId: string | null = null;
+        try {
+          const conn = await provider.testConnection();
+          accountId = conn.accountId ?? null;
+        } catch (err: any) {
+          console.error(`[Assinafy] Falha no teste de conexão da org ${orgId}:`, err?.status, err?.message);
+          const isInvalid = err?.status === 401 || err?.status === 403 || err?.status === 400;
+          await db.insert(schoolIntegrations).values({
+            organizationId: orgId,
+            provider: "assinafy",
+            apiKeyEncrypted: encryptSecret(input.apiKey),
+            environment: input.environment,
+            accountId: null,
+            active: true,
+            lastConnectionTest: new Date(),
+            connectionStatus: isInvalid ? "invalid_credentials" : "error",
+          }).onConflictDoUpdate({
+            target: [schoolIntegrations.organizationId, schoolIntegrations.provider],
+            set: {
+              apiKeyEncrypted: encryptSecret(input.apiKey),
+              environment: input.environment,
+              accountId: null,
+              active: true,
+              lastConnectionTest: new Date(),
+              connectionStatus: isInvalid ? "invalid_credentials" : "error",
+              updatedAt: new Date(),
+            },
+          });
+          throw new TRPCError({
+            code: isInvalid ? "UNAUTHORIZED" : "INTERNAL_SERVER_ERROR",
+            message: isInvalid
+              ? "API Key inválida. Verifique sua chave da Assinafy e tente novamente."
+              : "Não foi possível conectar à Assinafy. Verifique sua API Key e tente novamente.",
+          });
+        }
+
+        await db.insert(schoolIntegrations).values({
+          organizationId: orgId,
+          provider: "assinafy",
+          apiKeyEncrypted: encryptSecret(input.apiKey),
+          environment: input.environment,
+          accountId,
+          active: true,
+          lastConnectionTest: new Date(),
+          connectionStatus: "connected",
+        }).onConflictDoUpdate({
+          target: [schoolIntegrations.organizationId, schoolIntegrations.provider],
+          set: {
+            apiKeyEncrypted: encryptSecret(input.apiKey),
+            environment: input.environment,
+            accountId,
+            active: true,
+            lastConnectionTest: new Date(),
+            connectionStatus: "connected",
+            updatedAt: new Date(),
+          },
+        });
+
+        return { success: true, message: "Conexão realizada com sucesso." };
+      }),
+
+    testConnection: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+      const orgId = ctx.user.organizationId!;
+
+      const [integration] = await db.select()
+        .from(schoolIntegrations)
+        .where(and(eq(schoolIntegrations.organizationId, orgId), eq(schoolIntegrations.provider, "assinafy")))
+        .limit(1);
+      if (!integration) throw new TRPCError({ code: "NOT_FOUND", message: "Assinafy não configurada" });
+
+      const { providerFromIntegration } = await import("./services/signature");
+      try {
+        const provider = providerFromIntegration(integration);
+        const conn = await provider.testConnection();
+        await db.update(schoolIntegrations).set({
+          connectionStatus: "connected",
+          lastConnectionTest: new Date(),
+          accountId: conn.accountId ?? integration.accountId,
+          updatedAt: new Date(),
+        }).where(eq(schoolIntegrations.id, integration.id));
+        return { success: true, message: "Conexão realizada com sucesso." };
+      } catch (err: any) {
+        const isInvalid = err?.status === 401 || err?.status === 403;
+        await db.update(schoolIntegrations).set({
+          connectionStatus: isInvalid ? "invalid_credentials" : "error",
+          lastConnectionTest: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(schoolIntegrations.id, integration.id));
+        throw new TRPCError({
+          code: isInvalid ? "UNAUTHORIZED" : "INTERNAL_SERVER_ERROR",
+          message: isInvalid
+            ? "API Key inválida. Verifique sua chave da Assinafy e conecte novamente."
+            : "Não foi possível conectar à Assinafy. Verifique sua API Key e tente novamente.",
+        });
+      }
+    }),
+
+    updateApiKey: protectedProcedure
+      .input(z.object({ apiKey: z.string().min(10) }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [integration] = await db.select()
+          .from(schoolIntegrations)
+          .where(and(eq(schoolIntegrations.organizationId, orgId), eq(schoolIntegrations.provider, "assinafy")))
+          .limit(1);
+        if (!integration) throw new TRPCError({ code: "NOT_FOUND", message: "Assinafy não configurada" });
+
+        const { AssinafyProvider } = await import("./services/signature/AssinafyProvider");
+        const { encryptSecret } = await import("./utils/integrationCrypto");
+
+        const provider = new AssinafyProvider(input.apiKey, integration.environment);
+        try {
+          const conn = await provider.testConnection();
+          await db.update(schoolIntegrations).set({
+            apiKeyEncrypted: encryptSecret(input.apiKey),
+            accountId: conn.accountId ?? integration.accountId,
+            connectionStatus: "connected",
+            lastConnectionTest: new Date(),
+            updatedAt: new Date(),
+          }).where(eq(schoolIntegrations.id, integration.id));
+          return { success: true, message: "API Key atualizada com sucesso." };
+        } catch (err: any) {
+          const isInvalid = err?.status === 401 || err?.status === 403;
+          await db.update(schoolIntegrations).set({
+            connectionStatus: isInvalid ? "invalid_credentials" : "error",
+            lastConnectionTest: new Date(),
+            updatedAt: new Date(),
+          }).where(eq(schoolIntegrations.id, integration.id));
+          throw new TRPCError({
+            code: isInvalid ? "UNAUTHORIZED" : "INTERNAL_SERVER_ERROR",
+            message: isInvalid
+              ? "API Key inválida. Verifique sua chave da Assinafy e conecte novamente."
+              : "Não foi possível validar a nova API Key na Assinafy.",
+          });
+        }
+      }),
+
+    disconnect: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+      const orgId = ctx.user.organizationId!;
+
+      await db.update(schoolIntegrations)
+        .set({ active: false, connectionStatus: "disconnected", updatedAt: new Date() })
+        .where(and(eq(schoolIntegrations.organizationId, orgId), eq(schoolIntegrations.provider, "assinafy")));
+
+      return { success: true, message: "Assinafy desconectada." };
+    }),
+  }),
+
+  contractTemplates: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const orgId = ctx.user.organizationId!;
+
+      let templates = await db.select()
+        .from(contractTemplates)
+        .where(and(eq(contractTemplates.organizationId, orgId), eq(contractTemplates.active, true)))
+        .orderBy(desc(contractTemplates.createdAt));
+
+      if (templates.length === 0) {
+        const { buildDefaultTemplateContent } = await import("./services/contractService");
+        const [created] = await db.insert(contractTemplates).values({
+          organizationId: orgId,
+          name: "Contrato de Prestação de Serviços Educacionais",
+          description: "Modelo padrão com cláusulas de prestação de serviços educacionais.",
+          content: buildDefaultTemplateContent(),
+          active: true,
+        }).returning();
+        templates = [created];
+      }
+
+      return templates;
+    }),
   }),
 
   professores: router({

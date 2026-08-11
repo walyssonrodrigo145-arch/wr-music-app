@@ -478,11 +478,126 @@ async function ensureSchemaConsistency(db: any) {
       )
     `);
 
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolCnpj" varchar(30)`, "settings.schoolCnpj");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "lessonDuration" integer DEFAULT 60 NOT NULL`, "settings lessonDuration");
 
     // M-01 FIX: billingPeriodicity — nova coluna adicionada no schema mas sem migration explícita
     await safeExecute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "billingPeriodicity" varchar(20) DEFAULT 'mensal' NOT NULL`, "students.billingPeriodicity");
     await safeExecute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "billingPeriodicity" varchar(20) DEFAULT 'mensal'`, "payment_dues.billingPeriodicity");
+
+    // ─── MÓDULO DE CONTRATOS + ASSINATURA DIGITAL (Assinafy BYOK) ─────────────
+    // Novos status de contrato (contratos digitais multi-provedor)
+    await safeExecute(sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'aguardando_assinatura' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'contract_status')) THEN
+          ALTER TYPE "contract_status" ADD VALUE 'aguardando_assinatura';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'expirado' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'contract_status')) THEN
+          ALTER TYPE "contract_status" ADD VALUE 'expirado';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'erro' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'contract_status')) THEN
+          ALTER TYPE "contract_status" ADD VALUE 'erro';
+        END IF;
+      END $$;
+    `, "contract_status novos valores");
+
+    // Enums de integrações
+    await safeExecute(sql`
+      DO $$ BEGIN
+        CREATE TYPE integration_provider AS ENUM ('assinafy');
+      EXCEPTION WHEN duplicate_object THEN null; END $$;
+    `, "integration_provider enum");
+    await safeExecute(sql`
+      DO $$ BEGIN
+        CREATE TYPE integration_environment AS ENUM ('sandbox', 'production');
+      EXCEPTION WHEN duplicate_object THEN null; END $$;
+    `, "integration_environment enum");
+    await safeExecute(sql`
+      DO $$ BEGIN
+        CREATE TYPE integration_connection_status AS ENUM ('connected', 'invalid_credentials', 'disconnected', 'error');
+      EXCEPTION WHEN duplicate_object THEN null; END $$;
+    `, "integration_connection_status enum");
+
+    // Tabela contracts: garante existência + colunas do novo módulo
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "contracts" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer,
+        "userId" integer NOT NULL,
+        "studentId" integer NOT NULL,
+        "title" varchar(255) NOT NULL,
+        "status" contract_status DEFAULT 'rascunho' NOT NULL,
+        "zapsignDocId" text,
+        "zapsignSignUrl" text,
+        "signedAt" timestamp,
+        "documentUrl" text,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create contracts table");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "provider" varchar(30) DEFAULT 'zapsign' NOT NULL`, "contracts.provider");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "templateId" integer`, "contracts.templateId");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "assinafyDocId" text`, "contracts.assinafyDocId");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "assinafySignUrl" text`, "contracts.assinafySignUrl");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "signedDocumentUrl" text`, "contracts.signedDocumentUrl");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "sentAt" timestamp`, "contracts.sentAt");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "cancelledAt" timestamp`, "contracts.cancelledAt");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "expiresAt" timestamp`, "contracts.expiresAt");
+
+    // Tabela school_integrations (BYOK — uma integração ativa por escola+provedor)
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "school_integrations" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "provider" integration_provider NOT NULL,
+        "apiKeyEncrypted" text NOT NULL,
+        "environment" integration_environment DEFAULT 'production' NOT NULL,
+        "accountId" varchar(100),
+        "active" boolean DEFAULT true NOT NULL,
+        "lastConnectionTest" timestamp,
+        "connectionStatus" integration_connection_status DEFAULT 'disconnected' NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create school_integrations table");
+    await safeExecute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS "school_integrations_org_provider_idx"
+      ON "school_integrations" ("organizationId", "provider")
+    `, "school_integrations org+provider unique");
+
+    // Tabela contract_templates (modelos por escola)
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "contract_templates" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "name" varchar(255) NOT NULL,
+        "description" text,
+        "content" text NOT NULL,
+        "active" boolean DEFAULT true NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create contract_templates table");
+
+    // Tabela contract_events (histórico + idempotência de webhook)
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "contract_events" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "contractId" integer NOT NULL,
+        "provider" varchar(30) DEFAULT 'assinafy' NOT NULL,
+        "providerEventId" varchar(100),
+        "eventType" varchar(100) NOT NULL,
+        "description" text,
+        "metadata" jsonb,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create contract_events table");
+    await safeExecute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS "contract_events_provider_event_idx"
+      ON "contract_events" ("provider", "providerEventId")
+      WHERE "providerEventId" IS NOT NULL
+    `, "contract_events provider+event unique");
 
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");

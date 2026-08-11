@@ -19,7 +19,8 @@ import {
   User, Building2, Bell, Palette, Shield, Save, Users,
   Sun, Moon, Phone, Mail, Globe, MapPin,
   CheckCircle2, Music, Loader2, AlertTriangle, Download, Smartphone, Wallet, Sparkles, HelpCircle,
-  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, DoorOpen, Upload, Trash2, Image
+  FileSpreadsheet, FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, DoorOpen, Upload, Trash2, Image,
+  FileSignature
 } from "lucide-react";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
@@ -28,6 +29,7 @@ import { downloadBase64File } from "@/utils/downloadReport";
 import { LogoUploadZone } from "@/components/logo/LogoUploadZone";
 import { LogoEditorModal, type LogoEditParams } from "@/components/logo/LogoEditorModal";
 import { DueDaysSelector } from "@/components/financeiro/DueDaysSelector";
+import { AssinafyIntegrationCard } from "@/components/integrations/AssinafyIntegrationCard";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
 type Tab = "perfil" | "escola" | "salas" | "financeiro" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
@@ -2332,6 +2334,18 @@ export default function Configuracoes() {
                 >
                   {updateAsaasMutation.isPending ? "Salvando..." : "Salvar Integração"}
                 </Button>
+
+                {/* ── Assinatura Digital (Assinafy — BYOK) ─────────────────── */}
+                <div className="flex items-center gap-3 pt-4 border-t border-border/50">
+                  <div className="w-10 h-10 rounded-2xl bg-violet-500/10 text-violet-600 flex items-center justify-center">
+                    <FileSignature size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Contratos Digitais</h3>
+                    <p className="text-xs text-muted-foreground font-medium">Assinatura eletrônica de contratos dos alunos.</p>
+                  </div>
+                </div>
+                <AssinafyIntegrationCard />
               </div>
             )}
           {activeTab === "ia" && (

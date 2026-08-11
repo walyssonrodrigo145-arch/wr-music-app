@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { StudentContractsSection } from "./StudentContractsSection";
 
 interface StudentDetailsModalProps {
   open: boolean;
@@ -193,7 +194,10 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                  </div>
               </div>
 
-              {/* Contact Pills */}
+               {/* Contratos Digitais */}
+               <StudentContractsSection studentId={student.id} student={student} />
+
+               {/* Contact Pills */}
               <div className="flex flex-col gap-3">
                  <div className="flex items-center gap-3 bg-muted/20 p-3 rounded-2xl border border-border/10 hover:bg-muted/30 transition-colors group">
                     <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-muted-foreground/60 shadow-sm">

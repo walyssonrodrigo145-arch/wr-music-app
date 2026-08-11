@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { differenceInYears, parseISO, isValid } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
+import { CreateContractModal } from "@/components/modals/StudentContractsSection";
 
 const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
 
@@ -73,8 +74,8 @@ export default function NovoAluno() {
     { id: studentId! },
     { enabled: isEditMode, staleTime: 0 }
   );
-  const { data: stats } = trpc.dashboard.getStats.useQuery();
-  const { data: mySub } = trpc.subscription.get.useQuery();
+  const { data: stats } = trpc.dashboard.stats.useQuery();
+  const { data: mySub } = trpc.platform.mySubscription.useQuery();
   const { data: allPlans = [] } = trpc.platform.getPublicPlans.useQuery();
 
   useEffect(() => {
@@ -97,6 +98,11 @@ export default function NovoAluno() {
       }
     }
   }, [isEditMode, stats, mySub, allPlans]);
+
+  // ─── Estado das abas ─────────────────────────────────────────────────────────
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const initialTab = searchParams?.get("tab") === "agendar" ? "agendar" : "dados";
+  const [activeTab, setActiveTab] = useState<"dados" | "agendar">(initialTab);
 
   // ─── Estado do formulário de agendamento ──────────────────────────────────────
   const [scheduleForm, setScheduleForm] = useState({
@@ -375,15 +381,8 @@ export default function NovoAluno() {
     }
   });
 
-  const generateContractMutation = trpc.contracts.create.useMutation({
-    onSuccess: (data) => {
-      toast.success("Contrato gerado com sucesso!");
-      if (data.contract?.zapsignSignUrl) {
-        window.open(data.contract.zapsignSignUrl, '_blank');
-      }
-    },
-    onError: (e) => toast.error(`Erro ao gerar contrato: ${e.message}`)
-  });
+  // Contrato digital (Assinafy — BYOK): abre o modal de criação de contrato
+  const [contractModalOpen, setContractModalOpen] = useState(false);
 
   // ─── Agendamento de aulas ─────────────────────────────────────────────────────
 
@@ -854,10 +853,9 @@ export default function NovoAluno() {
               <Button 
                 variant="outline" 
                 className="rounded-xl border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 h-11 px-4 md:px-6 flex items-center gap-2 flex-1 md:flex-none"
-                onClick={() => generateContractMutation.mutate({ studentId: studentId! })}
-                disabled={generateContractMutation.isPending}
+                onClick={() => setContractModalOpen(true)}
               >
-                {generateContractMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
+                <FileText size={18} />
                 <span className="whitespace-nowrap">Gerar Contrato</span>
               </Button>
             )}
@@ -1836,6 +1834,24 @@ export default function NovoAluno() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal de criação de contrato (Assinafy) */}
+      {isEditMode && studentId && (
+        <CreateContractModal
+          open={contractModalOpen}
+          onClose={() => setContractModalOpen(false)}
+          student={{
+            id: studentId,
+            name: form.name,
+            instrumentName: instruments.find((i: any) => String(i.id) === form.instrumentId)?.name,
+            monthlyFee: form.monthlyFee,
+            dueDay: form.dueDay ? Number(form.dueDay) : undefined,
+          }}
+          onCreated={() => {
+            // Opcional: invalidar lista de contratos se necessário
+          }}
+        />
+      )}
         </>
       )}
     </div>

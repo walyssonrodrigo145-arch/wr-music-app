@@ -26,7 +26,10 @@ export const timelineCategoryEnum = pgEnum('timeline_category', ["tecnica", "teo
 export const fileCategoryEnum = pgEnum('file_category', ["imagem", "video", "pdf", "audio", "documento"]);
 export const rescheduleStatusEnum = pgEnum('reschedule_status', ["pendente", "aprovada", "recusada"]);
 export const lessonTypeEnum = pgEnum('lesson_type', ["individual", "turma", "online"]);
-export const contractStatusEnum = pgEnum('contract_status', ["rascunho", "enviado", "assinado", "cancelado"]);
+export const contractStatusEnum = pgEnum('contract_status', ["rascunho", "enviado", "assinado", "cancelado", "aguardando_assinatura", "expirado", "erro"]);
+export const integrationProviderEnum = pgEnum('integration_provider', ["assinafy"]);
+export const integrationEnvironmentEnum = pgEnum('integration_environment', ["sandbox", "production"]);
+export const integrationConnectionStatusEnum = pgEnum('integration_connection_status', ["connected", "invalid_credentials", "disconnected", "error"]);
 export const professorPaymentTypeEnum = pgEnum('professor_payment_type', ["fixo", "porcentagem"]);
 export const professorPaymentStatusEnum = pgEnum('professor_payment_status', ["aberto", "aprovado", "pago"]);
 
@@ -195,6 +198,7 @@ export const settings = pgTable("settings", {
   phone: varchar("phone", { length: 30 }),
   bio: text("bio"),
   schoolName: varchar("schoolName", { length: 255 }),
+  schoolCnpj: varchar("schoolCnpj", { length: 30 }),
   schoolAddress: text("schoolAddress"),
   schoolCity: varchar("schoolCity", { length: 100 }),
   schoolPhone: varchar("schoolPhone", { length: 30 }),
@@ -604,7 +608,7 @@ export const fcmTokens = pgTable("fcm_tokens", {
 export type FcmToken = typeof fcmTokens.$inferSelect;
 export type InsertFcmToken = typeof fcmTokens.$inferInsert;
 
-// ─── CONTRACTS (ZapSign Integration) ──────────────────────────
+// ─── CONTRACTS (ZapSign + Assinafy) ──────────────────────────
 export const contracts = pgTable("contracts", {
   id: serial("id").primaryKey(),
   organizationId: integer("organizationId"),
@@ -612,16 +616,76 @@ export const contracts = pgTable("contracts", {
   studentId: integer("studentId").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   status: contractStatusEnum("status").default("rascunho").notNull(),
+  provider: varchar("provider", { length: 30 }).default("zapsign").notNull(),
+  templateId: integer("templateId"),
   zapsignDocId: text("zapsignDocId"),
   zapsignSignUrl: text("zapsignSignUrl"),
+  assinafyDocId: text("assinafyDocId"),
+  assinafySignUrl: text("assinafySignUrl"),
+  signedDocumentUrl: text("signedDocumentUrl"),
   signedAt: timestamp("signedAt"),
   documentUrl: text("documentUrl"),
+  sentAt: timestamp("sentAt"),
+  cancelledAt: timestamp("cancelledAt"),
+  expiresAt: timestamp("expiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
 
 export type Contract = typeof contracts.$inferSelect;
 export type InsertContract = typeof contracts.$inferInsert;
+
+// ─── SCHOOL INTEGRATIONS (BYOK — chave por escola/provedor) ───
+export const schoolIntegrations = pgTable("school_integrations", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  provider: integrationProviderEnum("provider").notNull(),
+  apiKeyEncrypted: text("apiKeyEncrypted").notNull(),
+  environment: integrationEnvironmentEnum("environment").default("production").notNull(),
+  accountId: varchar("accountId", { length: 100 }),
+  active: boolean("active").default(true).notNull(),
+  lastConnectionTest: timestamp("lastConnectionTest"),
+  connectionStatus: integrationConnectionStatusEnum("connectionStatus").default("disconnected").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  uniqueIndex("school_integrations_org_provider_idx").on(table.organizationId, table.provider),
+]);
+
+export type SchoolIntegration = typeof schoolIntegrations.$inferSelect;
+export type InsertSchoolIntegration = typeof schoolIntegrations.$inferInsert;
+
+// ─── CONTRACT TEMPLATES (modelos por escola) ──────────────────
+export const contractTemplates = pgTable("contract_templates", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  content: text("content").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type ContractTemplate = typeof contractTemplates.$inferSelect;
+export type InsertContractTemplate = typeof contractTemplates.$inferInsert;
+
+// ─── CONTRACT EVENTS (histórico + idempotência de webhook) ────
+export const contractEvents = pgTable("contract_events", {
+  id: serial("id").primaryKey(),
+  contractId: integer("contractId").notNull(),
+  provider: varchar("provider", { length: 30 }).default("assinafy").notNull(),
+  providerEventId: varchar("providerEventId", { length: 100 }),
+  eventType: varchar("eventType", { length: 100 }).notNull(),
+  description: text("description"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("contract_events_provider_event_idx").on(table.provider, table.providerEventId),
+]);
+
+export type ContractEvent = typeof contractEvents.$inferSelect;
+export type InsertContractEvent = typeof contractEvents.$inferInsert;
 
 // ─── PROFESSOR PAYMENTS (Monthly Payroll) ─────────────────────
 export const professorPayments = pgTable("professor_payments", {

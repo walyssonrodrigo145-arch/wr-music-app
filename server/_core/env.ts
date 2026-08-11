@@ -92,4 +92,8 @@ export const ENV = {
   // ─── Mercado Pago: secret para validação de assinatura do webhook ─────────
   // Obtenha em: Dashboard MP → Suas integrações → Webhooks → Chave secreta
   mpWebhookSecret: (process.env.MP_WEBHOOK_SECRET || "").trim(),
+
+  // ─── Assinafy: token opcional para validar o webhook de contratos ─────────
+  // As API Keys das escolas ficam no banco (criptografadas) — nunca no .env.
+  assinafyWebhookSecret: (process.env.ASSINAFY_WEBHOOK_SECRET || "").trim(),
 };

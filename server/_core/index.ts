@@ -552,6 +552,153 @@ async function startServer() {
 
   app.use("/api/webhooks/whatsapp", whatsappWebhookRouter);
 
+  // ─── Assinafy Webhook (Contratos Digitais) ─────────────────────────────────
+  // Recebe eventos de documentos assinados/rejeitados do provedor de assinatura.
+  // Multi-tenancy: identifica o contrato pelo provider_document_id (assinafyDocId)
+  // e atualiza SOMENTE o tenant dono do documento.
+  app.post("/api/webhooks/assinafy", async (req, res) => {
+    try {
+      const webhookSecret = (ENV.assinafyWebhookSecret || "").trim();
+      const rawToken = (
+        req.headers["x-assinafy-token"] ||
+        req.headers["authorization"]
+      )?.toString();
+      const requestToken = (rawToken || "").replace(/^Bearer\s+/i, "").trim();
+
+      // A Assinafy não envia assinatura/token nos payloads — a autenticidade é
+      // validada por correlação: provider_document_id (assinafyDocId) + account_id.
+      // Se um secret for configurado (opcional), exigimos o header correspondente.
+      if (webhookSecret && requestToken !== webhookSecret) {
+        console.warn("[Assinafy Webhook] Token inválido — ignorado.");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const body = req.body as {
+        id?: number | string;
+        event?: string;
+        message?: string | null;
+        payload?: Record<string, unknown> | null;
+        subject?: { type?: string } | null;
+        object?: { id?: string; status?: string; artifacts?: Record<string, string> | null } | null;
+        account_id?: string | null;
+      };
+
+      const event = body.event || "";
+      const docId = body.object?.id || (body.payload as any)?.document_id || null;
+      const eventId = body.id !== undefined ? String(body.id) : null;
+
+      console.log(`[Assinafy Webhook] Evento recebido: ${event} (doc: ${docId || "?"})`);
+
+      if (!docId) {
+        return res.status(200).json({ ok: true, ignored: "no document id" });
+      }
+
+      const db = await getDb();
+      if (!db) return res.status(500).json({ error: "DB unavailable" });
+
+      const { contracts, contractEvents, schoolIntegrations } = await import("../../drizzle/schema");
+      const { eq, and } = await import("drizzle-orm");
+
+      const [contract] = await db.select()
+        .from(contracts)
+        .where(eq(contracts.assinafyDocId, docId))
+        .limit(1);
+
+      if (!contract) {
+        console.warn(`[Assinafy Webhook] Documento ${docId} não corresponde a nenhum contrato — ignorado.`);
+        return res.status(200).json({ ok: true, ignored: "contract not found" });
+      }
+
+      // Validação de origem: account_id do payload deve bater com a integração do tenant
+      if (body.account_id) {
+        const [integration] = await db.select()
+          .from(schoolIntegrations)
+          .where(and(
+            eq(schoolIntegrations.organizationId, contract.organizationId!),
+            eq(schoolIntegrations.provider, "assinafy"),
+          ))
+          .limit(1);
+        if (integration?.accountId && integration.accountId !== body.account_id) {
+          console.warn(`[Assinafy Webhook] account_id divergente para doc ${docId} — ignorado.`);
+          return res.status(200).json({ ok: true, ignored: "account mismatch" });
+        }
+      }
+
+      // Idempotência: se o evento já foi processado, ignora
+      if (eventId) {
+        const [existing] = await db.select({ id: contractEvents.id })
+          .from(contractEvents)
+          .where(and(
+            eq(contractEvents.provider, "assinafy"),
+            eq(contractEvents.providerEventId, eventId),
+          ))
+          .limit(1);
+        if (existing) {
+          return res.status(200).json({ ok: true, duplicate: true });
+        }
+      }
+
+      const { mapProviderStatus, addContractEvent } = await import("../services/contractService");
+      const statusDescription = body.message || "";
+
+      // Eventos relevantes
+      if (event === "signer_signed_document" || event === "document_ready") {
+        // Consulta o status autoritativo do documento
+        try {
+          const [integration] = await db.select()
+            .from(schoolIntegrations)
+            .where(and(
+              eq(schoolIntegrations.organizationId, contract.organizationId!),
+              eq(schoolIntegrations.provider, "assinafy"),
+              eq(schoolIntegrations.active, true),
+            ))
+            .limit(1);
+          if (integration) {
+            const { providerFromIntegration } = await import("../services/signature");
+            const provider = providerFromIntegration(integration);
+            const status = await provider.getDocumentStatus(docId);
+            const mapped = mapProviderStatus(status.status);
+
+            const updateData: any = { status: mapped.internalStatus, updatedAt: new Date() };
+            if (mapped.signed) {
+              updateData.signedAt = updateData.signedAt ?? new Date();
+              if (status.signedDocumentUrl) updateData.signedDocumentUrl = status.signedDocumentUrl;
+            }
+            if (status.declined) updateData.cancelledAt = new Date();
+            await db.update(contracts).set(updateData).where(eq(contracts.id, contract.id));
+
+            if (mapped.signed) {
+              await addContractEvent(db as any, contract.id, "contrato_assinado", "Contrato assinado", eventId, { providerEvent: event, providerStatus: status.status });
+            } else {
+              await addContractEvent(db as any, contract.id, "assinatura_iniciada", "Assinatura em andamento", eventId, { providerEvent: event, providerStatus: status.status });
+            }
+          }
+        } catch (e) {
+          console.error(`[Assinafy Webhook] Falha ao sincronizar status do doc ${docId}:`, e);
+        }
+      } else if (event === "signer_rejected_document" || event === "user_rejected_document") {
+        await db.update(contracts).set({ status: "cancelado", cancelledAt: new Date(), updatedAt: new Date() })
+          .where(eq(contracts.id, contract.id));
+        await addContractEvent(db as any, contract.id, "contrato_recusado", statusDescription || "Contrato recusado", eventId, { providerEvent: event });
+      } else if (event === "document_processing_failed") {
+        await db.update(contracts).set({ status: "erro", updatedAt: new Date() })
+          .where(eq(contracts.id, contract.id));
+        await addContractEvent(db as any, contract.id, "contrato_erro", statusDescription || "Falha no processamento do documento", eventId, { providerEvent: event });
+      } else if (event === "signature_requested" || event === "assignment_created") {
+        await db.update(contracts).set({ status: "aguardando_assinatura", sentAt: new Date(), updatedAt: new Date() })
+          .where(eq(contracts.id, contract.id));
+        await addContractEvent(db as any, contract.id, "contrato_enviado", "Contrato enviado para assinatura", eventId, { providerEvent: event });
+      } else {
+        await addContractEvent(db as any, contract.id, event, statusDescription || `Evento ${event}`, eventId, { providerEvent: event });
+      }
+
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error("[Assinafy Webhook] Erro ao processar:", err);
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
   // ─── Bot Status Webhook ───────────────────────────────────────────────────
   // POST /api/webhooks/bot-status  → recebe aviso do bot quando cair
   // GET  /api/webhooks/bot-status/sse → SSE para o frontend escutar

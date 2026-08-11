@@ -18,6 +18,11 @@ const filesToUpload = [
   'server/analyticsRouter.ts',
   'server/utils/geoIp.ts',
   'server/services/AnalyticsQueue.ts',
+  'server/services/contractService.ts',
+  'server/services/signature/SignatureProvider.ts',
+  'server/services/signature/AssinafyProvider.ts',
+  'server/services/signature/index.ts',
+  'server/utils/integrationCrypto.ts',
   'server/marketingRouter.ts',
   'server/crmRouter.ts',
   'server/_core/migrate.ts',
@@ -36,6 +41,10 @@ const filesToUpload = [
   'client/src/pages/marketing/CreateCampaign.tsx',
   'client/src/pages/PublicEnrollment.tsx',
   'server/enrollmentRouter.ts',
+  'client/src/pages/Configuracoes.tsx',
+  'client/src/components/integrations/AssinafyIntegrationCard.tsx',
+  'client/src/components/modals/StudentContractsSection.tsx',
+  'client/src/components/modals/StudentDetailsModal.tsx',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');
@@ -60,7 +69,7 @@ conn.on('ready', () => {
       conn.sftp((err, sftp) => {
         if (err) throw err;
         
-        const mkdirCmd = `mkdir -p ${repoPath}/client/src/pages/analytics ${repoPath}/server/services ${repoPath}/client/src/lib`;
+        const mkdirCmd = `mkdir -p ${repoPath}/client/src/pages/analytics ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals`;
         conn.exec(mkdirCmd, () => {
           let uploads = 0;
           const finalize = () => {
