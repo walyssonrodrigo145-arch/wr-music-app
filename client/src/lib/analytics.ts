@@ -411,13 +411,28 @@ export function initAnalytics() {
     const durationSec = Math.floor((Date.now() - sessionStartTime) / 1000);
     const timeOnPageSec = Math.floor((Date.now() - pageStartTime) / 1000);
 
-    queueEvent({
+    const endEvent = {
       ...buildBaseEvent(),
-      eventName: "session_end",
+      eventName: "session_end" as EventName,
       timeOnPageSec,
       metadata: { durationSec },
-    });
-    flushEventBuffer();
+    };
+
+    // FIX: sendBeacon é a única forma confiável de enviar dados ao fechar a aba
+    // (fetch/XHR são cancelados pelo navegador no beforeunload). Isso garante que
+    // o usuário saia da lista de "online" imediatamente.
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(
+          "/api/trpc/analytics.event.trackBatch",
+          new Blob([JSON.stringify({ json: { events: [endEvent] } })], { type: "application/json" })
+        );
+      }
+    } catch (e) {
+      // fallback: envia pela fila normal
+      queueEvent(endEvent);
+      flushEventBuffer();
+    }
     flushHeatmap();
   });
 

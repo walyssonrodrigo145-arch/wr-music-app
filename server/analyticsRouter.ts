@@ -314,6 +314,24 @@ const analyticsEventRouter = router({
           createdAt: new Date(),
         }))
       );
+
+      // FIX: se a sessão foi encerrada (aba fechada), remover o usuário da lista de online
+      const endedSessions = new Set(
+        input.events.filter((e) => e.eventName === "session_end").map((e) => e.sessionId)
+      );
+      if (endedSessions.size > 0) {
+        try {
+          const db = await getDb();
+          if (db) {
+            endedSessions.forEach(async (sid) => {
+              await db.delete(analyticsOnline).where(eq(analyticsOnline.sessionId, sid));
+            });
+          }
+        } catch (e) {
+          console.error("[Analytics] Falha ao remover sessão encerrada do online:", e);
+        }
+      }
+
       return { ok: true, pushed };
     }),
 
@@ -403,12 +421,13 @@ const analyticsQueryRouter = router({
 
     const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
 
-    // 1. Online Agora (mesma query de getOnlineUsers)
+    // 1. Online Agora (mesma query de getOnlineUsers) — janela de 2 min (o upsert
+    // remove usuários sem ping há 2 min; manter 5 min aqui deixava "online" fantasma)
     let onlineNowCount = 0;
     try {
       const onlineUsersList = await db.select()
         .from(analyticsOnline)
-        .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 300_000)));
+        .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 120_000)));
       onlineNowCount = onlineUsersList.length;
     } catch (e) {}
 
@@ -1336,11 +1355,11 @@ const analyticsQueryRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-    const fiveMinAgo = new Date(Date.now() - 300_000);
+    const twoMinAgo = new Date(Date.now() - 120_000);
 
     return await db.select()
       .from(analyticsOnline)
-      .where(gte(analyticsOnline.lastPingAt, fiveMinAgo))
+      .where(gte(analyticsOnline.lastPingAt, twoMinAgo))
       .orderBy(desc(analyticsOnline.lastPingAt))
       .limit(200);
   }),
@@ -1501,7 +1520,7 @@ const analyticsQueryRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const fiveMinAgo = new Date(Date.now() - 2 * 60 * 1000);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     // 1. Organizações + nome do plano
