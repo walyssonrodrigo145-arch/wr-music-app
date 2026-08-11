@@ -40,6 +40,8 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
   onCreated: () => void;
 }) {
   const { data: templates = [] } = trpc.contractTemplates.list.useQuery(undefined, { enabled: open });
+  const { data: assinafyTemplates = [] } = trpc.contractTemplates.listAssinafyTemplates.useQuery(undefined, { enabled: open });
+
   const createMutation = trpc.contracts.createAssinafy.useMutation({
     onSuccess: (res) => {
       toast.success("Contrato criado!");
@@ -92,16 +94,29 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Modelo</label>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Modelo de Contrato</label>
             <select
               value={templateId ?? ""}
               onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : null)}
               className="h-12 w-full rounded-xl border border-border bg-muted/30 px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all"
             >
-              <option value="">Selecione...</option>
-              {templates.map((t: any) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
+              <option value="">Selecione um modelo...</option>
+              {templates.length > 0 && (
+                <optgroup label="Modelos do Sistema">
+                  {templates.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              {assinafyTemplates.length > 0 && (
+                <optgroup label="Modelos da Conta Assinafy">
+                  {assinafyTemplates.map((at: any, idx: number) => (
+                    <option key={at.id || idx} value={templates[0]?.id || 1}>
+                      {at.name} (Assinafy)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 
