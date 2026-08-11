@@ -1857,50 +1857,52 @@ export default function Configuracoes() {
 
                       <div className="space-y-4">
                         {/* Card 1: Antecipado */}
-                        <div className="p-4 rounded-xl bg-card/60 border border-border space-y-2.5">
-                          <p className="text-[11px] font-bold text-foreground leading-tight">Simular Pagamento Antecipado (R$ 200,00):</p>
-                          <div className="flex items-start justify-between gap-2 text-xs">
-                            <span className="text-muted-foreground shrink-0">Valor Original:</span>
-                            <span className="font-bold text-foreground text-right">R$ 200,00</span>
-                          </div>
-                          <div className="flex items-start justify-between gap-2 text-xs min-w-0">
-                            <span className="text-muted-foreground leading-tight min-w-0">
-                              Desconto ({earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? `${earlyDiscountValue}%` : `R$${earlyDiscountValue}`) : 'Desativ.'}):
+                        <div className="p-3 rounded-xl bg-card/60 border border-border space-y-2.5">
+                          <p className="text-[10px] font-bold text-foreground leading-tight">Pagamento Antecipado (R$ 200,00):</p>
+
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                            <span className="text-[10px] text-muted-foreground self-center">Valor Original:</span>
+                            <span className="text-xs font-bold text-foreground text-right">R$ 200,00</span>
+
+                            <span className="text-[10px] text-muted-foreground self-center leading-tight">
+                              Desconto ({earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? `${earlyDiscountValue}%` : `R$${earlyDiscountValue}`) : 'Off'}):
                             </span>
-                            <span className="font-bold text-emerald-400 shrink-0 text-right">
-                              - R$ {earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? (200 * earlyDiscountValue / 100).toFixed(2) : earlyDiscountValue.toFixed(2)) : '0.00'}
+                            <span className="text-xs font-bold text-emerald-400 text-right">
+                              -{earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? (200 * earlyDiscountValue / 100).toFixed(2) : earlyDiscountValue.toFixed(2)) : '0.00'}
                             </span>
                           </div>
-                          <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-foreground shrink-0">Com Desconto:</span>
-                            <span className="text-base font-black text-emerald-400 text-right">
+
+                          <div className="pt-2 border-t border-border flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-foreground">Com Desconto:</span>
+                            <span className="text-sm font-black text-emerald-400">
                               R$ {(200 - (earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? (200 * earlyDiscountValue / 100) : earlyDiscountValue) : 0)).toFixed(2).replace('.', ',')}
                             </span>
                           </div>
                         </div>
 
                         {/* Card 2: Atraso */}
-                        <div className="p-4 rounded-xl bg-card/60 border border-border space-y-2.5">
-                          <p className="text-[11px] font-bold text-foreground leading-tight">Simular Pagamento em Atraso (5 Dias):</p>
-                          <div className="flex items-start justify-between gap-2 text-xs min-w-0">
-                            <span className="text-muted-foreground leading-tight min-w-0">
-                              Multa ({lateFeeEnabled ? (lateFeeType === 'percentage' ? `${lateFeeValue}%` : `R$${lateFeeValue}`) : 'Desativ.'}):
+                        <div className="p-3 rounded-xl bg-card/60 border border-border space-y-2.5">
+                          <p className="text-[10px] font-bold text-foreground leading-tight">Pagamento em Atraso (5 Dias):</p>
+
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                            <span className="text-[10px] text-muted-foreground self-center leading-tight">
+                              Multa ({lateFeeEnabled ? (lateFeeType === 'percentage' ? `${lateFeeValue}%` : `R$${lateFeeValue}`) : 'Off'}):
                             </span>
-                            <span className="font-bold text-amber-400 shrink-0 text-right">
-                              + R$ {lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100).toFixed(2) : lateFeeValue.toFixed(2)) : '0.00'}
+                            <span className="text-xs font-bold text-amber-400 text-right">
+                              +{lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100).toFixed(2) : lateFeeValue.toFixed(2)) : '0.00'}
+                            </span>
+
+                            <span className="text-[10px] text-muted-foreground self-center leading-tight">
+                              Juros ({interestEnabled ? (interestType === 'daily' ? `${interestRate}%/d` : `${interestRate}%/m`) : 'Off'}):
+                            </span>
+                            <span className="text-xs font-bold text-indigo-400 text-right">
+                              +{interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5).toFixed(2) : (200 * (interestRate / 100) * (5/30)).toFixed(2)) : '0.00'}
                             </span>
                           </div>
-                          <div className="flex items-start justify-between gap-2 text-xs min-w-0">
-                            <span className="text-muted-foreground leading-tight min-w-0">
-                              Juros ({interestEnabled ? (interestType === 'daily' ? `${interestRate}%/dia` : `${interestRate}%/mês`) : 'Desativ.'}):
-                            </span>
-                            <span className="font-bold text-indigo-400 shrink-0 text-right">
-                              + R$ {interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5).toFixed(2) : (200 * (interestRate / 100) * (5/30)).toFixed(2)) : '0.00'}
-                            </span>
-                          </div>
-                          <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-foreground shrink-0">Com Atraso:</span>
-                            <span className="text-base font-black text-rose-400 text-right">
+
+                          <div className="pt-2 border-t border-border flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-foreground">Com Atraso:</span>
+                            <span className="text-sm font-black text-rose-400">
                               R$ {(
                                 200 +
                                 (lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100) : lateFeeValue) : 0) +
