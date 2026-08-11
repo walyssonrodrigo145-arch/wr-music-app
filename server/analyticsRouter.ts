@@ -421,13 +421,13 @@ const analyticsQueryRouter = router({
 
     const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
 
-    // 1. Online Agora (mesma query de getOnlineUsers) — janela de 2 min (o upsert
-    // remove usuários sem ping há 2 min; manter 5 min aqui deixava "online" fantasma)
+    // 1. Online Agora (mesma janela de 5 min da aba de escolas)
     let onlineNowCount = 0;
     try {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
       const onlineUsersList = await db.select()
         .from(analyticsOnline)
-        .where(gte(analyticsOnline.lastPingAt, new Date(Date.now() - 120_000)));
+        .where(gte(analyticsOnline.lastPingAt, fiveMinAgo));
       onlineNowCount = onlineUsersList.length;
     } catch (e) {}
 
