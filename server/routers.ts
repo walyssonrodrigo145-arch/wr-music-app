@@ -78,9 +78,11 @@ export async function syncOrgAsaasSubscription(db: any, orgId: number) {
     const [planInfo] = await db.select().from(systemPlans).where(eq(systemPlans.id, org.planId)).limit(1);
     if (!planInfo) return;
 
-    const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)` })
+    const [{ count: activeCountRaw }] = await db.select({ count: sql<number>`count(*)` })
       .from(students)
       .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
+
+    const activeStudentsCount = Number(activeCountRaw ?? 0);
 
     const maxStudents = planInfo.maxStudents ?? 999999;
     const allowExtra = planInfo.allowExtraStudents ?? true;
@@ -2808,6 +2810,7 @@ ${jsonSchemaFormat}`;
           await db.delete(users).where(and(eq(users.id, student.studentUserId), eq(users.organizationId, orgId)));
         }
         
+        await syncOrgAsaasSubscription(db, orgId).catch(console.error);
         return { success: true };
       } catch (error) {
         return handleDbError(error, "remover o aluno");

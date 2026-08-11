@@ -73,12 +73,30 @@ export default function NovoAluno() {
     { id: studentId! },
     { enabled: isEditMode, staleTime: 0 }
   );
-  const { data: settings } = trpc.settings.get.useQuery(undefined, { staleTime: 60000 });
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const { data: mySub } = trpc.subscription.get.useQuery();
+  const { data: allPlans = [] } = trpc.platform.getPublicPlans.useQuery();
 
-  // ─── Estado das abas ─────────────────────────────────────────────────────────
-  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-  const initialTab = searchParams?.get("tab") === "agendar" ? "agendar" : "dados";
-  const [activeTab, setActiveTab] = useState<"dados" | "agendar">(initialTab);
+  useEffect(() => {
+    if (!isEditMode && stats && mySub && allPlans.length > 0) {
+      const currentPlan = allPlans.find((p: any) => p.id === mySub.planId);
+      if (currentPlan && currentPlan.maxStudents < 999999) {
+        const active = stats.activeStudents ?? 0;
+        const max = currentPlan.maxStudents;
+        if (active >= max) {
+          if (currentPlan.allowExtraStudents) {
+            toast.custom((t) => (
+              <div className="bg-amber-500 text-white p-3 rounded-xl shadow-lg flex items-center gap-2 text-xs font-bold">
+                ⚠️ Seu plano ({currentPlan.name}) atingiu o limite base de {max} alunos. Novos cadastros gerarão alunos excedentes (+R$ {Number(currentPlan.extraStudentPrice ?? 1.49).toFixed(2)}/mês cada).
+              </div>
+            ), { duration: 6000 });
+          } else {
+            toast.error(`Atenção: Você atingiu o limite máximo de ${max} alunos do seu plano (${currentPlan.name}). Faça upgrade para continuar cadastrando.`);
+          }
+        }
+      }
+    }
+  }, [isEditMode, stats, mySub, allPlans]);
 
   // ─── Estado do formulário de agendamento ──────────────────────────────────────
   const [scheduleForm, setScheduleForm] = useState({
