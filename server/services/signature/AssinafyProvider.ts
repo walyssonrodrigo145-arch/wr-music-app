@@ -211,9 +211,25 @@ export class AssinafyProvider implements SignatureProvider {
     const body: Record<string, string> = { full_name: input.fullName };
     if (input.email) body.email = input.email;
     if (input.phone) body.whatsapp_phone_number = input.phone;
-    return withRetry(() =>
-      this.request<AssinafySigner>("POST", `/accounts/${accountId}/signers`, body)
-    );
+    try {
+      return await withRetry(() =>
+        this.request<AssinafySigner>("POST", `/accounts/${accountId}/signers`, body)
+      );
+    } catch (err: any) {
+      // Se o signatário já existir na Assinafy, busca o existente pelo e-mail
+      if (input.email) {
+        try {
+          const list = await withRetry(() =>
+            this.request<AssinafySigner[]>("GET", `/accounts/${accountId}/signers`)
+          );
+          const found = Array.isArray(list)
+            ? list.find((s) => s.email?.toLowerCase() === input.email?.toLowerCase())
+            : null;
+          if (found?.id) return found;
+        } catch {}
+      }
+      throw err;
+    }
   }
 
   // ── Processo de assinatura ────────────────────────────────────────────────
