@@ -164,17 +164,33 @@ export class AssinafyProvider implements SignatureProvider {
         (this as any).accountId = conn.accountId;
       }
       const targetId = accountId || this.accountId;
-      const res = await withRetry(() =>
-        this.request<any[]>("GET", `/accounts/${targetId}/templates`)
-      );
-      const list = Array.isArray(res) ? res : [];
+
+      // 1. Tenta buscar da rota de templates
+      let list: any[] = [];
+      try {
+        const res = await withRetry(() =>
+          this.request<any[]>("GET", `/accounts/${targetId}/templates`)
+        );
+        if (Array.isArray(res)) list = res;
+      } catch {}
+
+      // 2. Se /templates retornar vazio, busca dos /documents da conta (rascunhos/últimos documentos)
+      if (list.length === 0) {
+        try {
+          const docsRes = await withRetry(() =>
+            this.request<any[]>("GET", `/accounts/${targetId}/documents`)
+          );
+          if (Array.isArray(docsRes)) list = docsRes;
+        } catch {}
+      }
+
       return list.map((t: any) => ({
-        id: t.id || t.template_id,
-        name: t.name || t.title || "Modelo Assinafy",
-        description: t.description || undefined,
+        id: t.id || t.template_id || String(t.name),
+        name: t.name || t.title || t.original_name || "Documento Assinafy",
+        description: t.status ? `Status na Assinafy: ${t.status}` : undefined,
       }));
     } catch (e) {
-      console.error("[AssinafyProvider] Erro ao listar templates:", e);
+      console.error("[AssinafyProvider] Erro ao listar templates/documentos:", e);
       return [];
     }
   }
