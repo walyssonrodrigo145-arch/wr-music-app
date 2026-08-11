@@ -1164,7 +1164,7 @@ export default function Aulas() {
                 const titleText = isTurma ? (lesson.title || "Turma") : (lesson.studentName || lesson.experimentalName || "Aula");
 
                 return (
-                  <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-card rounded-[2.5rem] p-6 lg:p-8 border border-border shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[180px]" onClick={() => setDetailLessonId(lesson.id)}>
+                  <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-card rounded-[2.5rem] p-6 lg:p-8 border border-border shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[180px] min-w-0 overflow-hidden" onClick={() => setDetailLessonId(lesson.id)}>
                     <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={cn("w-1.5 h-6 rounded-full", isTurma ? "bg-purple-600" : config.color)} />
