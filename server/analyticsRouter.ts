@@ -1520,7 +1520,7 @@ const analyticsQueryRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-    const fiveMinAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     // 1. Organizações + nome do plano

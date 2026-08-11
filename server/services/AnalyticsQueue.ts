@@ -227,6 +227,8 @@ export async function upsertOnlineUser(data: {
       .onConflictDoUpdate({
         target: analyticsOnline.sessionId,
         set: {
+          userId: data.userId ?? null,
+          userName: data.userName ?? null,
           pageUrl: data.pageUrl,
           pageTitle: data.pageTitle,
           lastPingAt: sql`NOW()`,
