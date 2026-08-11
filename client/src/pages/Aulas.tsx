@@ -1183,7 +1183,7 @@ export default function Aulas() {
                         {isTurma ? (
                           <span className="truncate">
                             {lesson.status === 'concluida'
-                              ? `✓ Turma Concluída`
+                              ? `✓ Concluída`
                               : lesson.status === 'falta'
                               ? `Turma • Falta`
                               : `Turma (${lesson.studentCount || 1} Alunos)`}
