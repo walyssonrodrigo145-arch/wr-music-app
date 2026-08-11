@@ -154,6 +154,31 @@ export class AssinafyProvider implements SignatureProvider {
     return { ok: true, accountId: list[0]?.id ?? null };
   }
 
+  // ── Modelos (Templates Assinafy) ──────────────────────────────────────────
+  async listTemplates(accountId?: string): Promise<Array<{ id: string; name: string; description?: string }>> {
+    try {
+      const accId = accountId || this.accountId;
+      if (!accId) {
+        const conn = await this.testConnection();
+        if (!conn.ok || !conn.accountId) return [];
+        (this as any).accountId = conn.accountId;
+      }
+      const targetId = accountId || this.accountId;
+      const res = await withRetry(() =>
+        this.request<any[]>("GET", `/accounts/${targetId}/templates`)
+      );
+      const list = Array.isArray(res) ? res : [];
+      return list.map((t: any) => ({
+        id: t.id || t.template_id,
+        name: t.name || t.title || "Modelo Assinafy",
+        description: t.description || undefined,
+      }));
+    } catch (e) {
+      console.error("[AssinafyProvider] Erro ao listar templates:", e);
+      return [];
+    }
+  }
+
   // ── Documento ─────────────────────────────────────────────────────────────
   async uploadDocument(accountId: string, pdfBuffer: Buffer, name: string): Promise<AssinafyDocument> {
     const form = new FormData();

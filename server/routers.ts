@@ -10301,6 +10301,34 @@ Texto original para reescrever:
       return templates;
     }),
 
+    listAssinafyTemplates: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const orgId = ctx.user.organizationId!;
+
+      const [integration] = await db.select()
+        .from(schoolIntegrations)
+        .where(and(
+          eq(schoolIntegrations.organizationId, orgId),
+          eq(schoolIntegrations.provider, "assinafy"),
+          eq(schoolIntegrations.active, true)
+        ))
+        .limit(1);
+
+      if (!integration) return [];
+
+      try {
+        const { providerFromIntegration } = await import("./services/signature");
+        const provider = providerFromIntegration(integration) as any;
+        if (typeof provider.listTemplates === "function") {
+          return await provider.listTemplates();
+        }
+      } catch (e) {
+        console.error("[contractTemplates] Erro ao buscar templates da Assinafy:", e);
+      }
+      return [];
+    }),
+
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
