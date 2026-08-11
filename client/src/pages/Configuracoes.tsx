@@ -1520,26 +1520,26 @@ export default function Configuracoes() {
                       saturday: 'Sábado',
                       sunday: 'Domingo'
                     }).map(([day, label]) => (
-                      <div key={day} className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 bg-muted/60 p-3 rounded-2xl border border-border/80 min-w-0">
+                      <div key={day} className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 bg-muted/60 p-3 rounded-2xl border border-border/80 min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <Switch 
                             checked={schoolHours[day]?.active} 
                             onCheckedChange={(c) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], active: c}})}
                           />
-                          <span className="text-xs font-bold truncate max-w-[110px]">{label}</span>
+                          <span className="text-xs font-bold truncate max-w-[120px]">{label}</span>
                         </div>
                         {schoolHours[day]?.active ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                             <DebouncedInput 
                               type="time" 
-                              className="h-8 text-xs px-1.5 py-0.5 rounded-lg border border-border bg-background w-[72px]"
+                              className="h-8 text-xs px-1.5 py-0.5 rounded-lg border border-border bg-background w-[90px] min-w-[90px]"
                               value={schoolHours[day]?.start || "08:00"}
                               onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], start: e.target.value}})}
                             />
                             <span className="text-[10px] font-medium text-muted-foreground">às</span>
                             <DebouncedInput 
                               type="time" 
-                              className="h-8 text-xs px-1.5 py-0.5 rounded-lg border border-border bg-background w-[72px]"
+                              className="h-8 text-xs px-1.5 py-0.5 rounded-lg border border-border bg-background w-[90px] min-w-[90px]"
                               value={schoolHours[day]?.end || "18:00"}
                               onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], end: e.target.value}})}
                             />
@@ -1846,52 +1846,61 @@ export default function Configuracoes() {
 
                   {/* Coluna 3: Live Preview / Simulador */}
                   <div className="space-y-6">
-                    <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-card border border-indigo-500/20 space-y-6 shadow-xl relative overflow-hidden">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-widest text-indigo-400">Simulador ao Vivo</span>
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold uppercase">
+                    <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-card border border-indigo-500/20 space-y-5 shadow-xl relative overflow-hidden">
+                      {/* Header do simulador */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-black uppercase tracking-widest text-indigo-400 shrink-0">Simulador ao Vivo</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold uppercase shrink-0">
                           Tempo Real
                         </span>
                       </div>
 
                       <div className="space-y-4">
-                        <div className="p-4 rounded-xl bg-card/60 border border-border space-y-3">
-                          <p className="text-[11px] font-bold text-foreground">Simular Pagamento Antecipado (R$ 200,00):</p>
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Valor Original:</span>
-                            <span className="font-bold text-foreground">R$ 200,00</span>
+                        {/* Card 1: Antecipado */}
+                        <div className="p-4 rounded-xl bg-card/60 border border-border space-y-2.5">
+                          <p className="text-[11px] font-bold text-foreground leading-tight">Simular Pagamento Antecipado (R$ 200,00):</p>
+                          <div className="flex items-start justify-between gap-2 text-xs">
+                            <span className="text-muted-foreground shrink-0">Valor Original:</span>
+                            <span className="font-bold text-foreground text-right">R$ 200,00</span>
                           </div>
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Desconto ({earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? `${earlyDiscountValue}%` : `R$ ${earlyDiscountValue}`) : 'Desativado'}):</span>
-                            <span className="font-bold text-emerald-400">
+                          <div className="flex items-start justify-between gap-2 text-xs min-w-0">
+                            <span className="text-muted-foreground leading-tight min-w-0">
+                              Desconto ({earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? `${earlyDiscountValue}%` : `R$${earlyDiscountValue}`) : 'Desativ.'}):
+                            </span>
+                            <span className="font-bold text-emerald-400 shrink-0 text-right">
                               - R$ {earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? (200 * earlyDiscountValue / 100).toFixed(2) : earlyDiscountValue.toFixed(2)) : '0.00'}
                             </span>
                           </div>
-                          <div className="pt-2 border-t border-border flex items-center justify-between">
-                            <span className="text-xs font-bold text-foreground">Com Desconto:</span>
-                            <span className="text-base font-black text-emerald-400">
+                          <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-foreground shrink-0">Com Desconto:</span>
+                            <span className="text-base font-black text-emerald-400 text-right">
                               R$ {(200 - (earlyDiscountEnabled ? (earlyDiscountType === 'percentage' ? (200 * earlyDiscountValue / 100) : earlyDiscountValue) : 0)).toFixed(2).replace('.', ',')}
                             </span>
                           </div>
                         </div>
 
-                        <div className="p-4 rounded-xl bg-card/60 border border-border space-y-3">
-                          <p className="text-[11px] font-bold text-foreground">Simular Pagamento em Atraso (5 Dias):</p>
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Multa ({lateFeeEnabled ? (lateFeeType === 'percentage' ? `${lateFeeValue}%` : `R$ ${lateFeeValue}`) : 'Desativada'}):</span>
-                            <span className="font-bold text-amber-400">
+                        {/* Card 2: Atraso */}
+                        <div className="p-4 rounded-xl bg-card/60 border border-border space-y-2.5">
+                          <p className="text-[11px] font-bold text-foreground leading-tight">Simular Pagamento em Atraso (5 Dias):</p>
+                          <div className="flex items-start justify-between gap-2 text-xs min-w-0">
+                            <span className="text-muted-foreground leading-tight min-w-0">
+                              Multa ({lateFeeEnabled ? (lateFeeType === 'percentage' ? `${lateFeeValue}%` : `R$${lateFeeValue}`) : 'Desativ.'}):
+                            </span>
+                            <span className="font-bold text-amber-400 shrink-0 text-right">
                               + R$ {lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100).toFixed(2) : lateFeeValue.toFixed(2)) : '0.00'}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Juros ({interestEnabled ? (interestType === 'daily' ? `${interestRate}% / dia` : `${interestRate}% / mês`) : 'Desativado'}):</span>
-                            <span className="font-bold text-indigo-400">
+                          <div className="flex items-start justify-between gap-2 text-xs min-w-0">
+                            <span className="text-muted-foreground leading-tight min-w-0">
+                              Juros ({interestEnabled ? (interestType === 'daily' ? `${interestRate}%/dia` : `${interestRate}%/mês`) : 'Desativ.'}):
+                            </span>
+                            <span className="font-bold text-indigo-400 shrink-0 text-right">
                               + R$ {interestEnabled ? (interestType === 'daily' ? (200 * (interestRate / 100) * 5).toFixed(2) : (200 * (interestRate / 100) * (5/30)).toFixed(2)) : '0.00'}
                             </span>
                           </div>
-                          <div className="pt-2 border-t border-border flex items-center justify-between">
-                            <span className="text-xs font-bold text-foreground">Com Atraso:</span>
-                            <span className="text-base font-black text-rose-400">
+                          <div className="pt-2 border-t border-border flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-foreground shrink-0">Com Atraso:</span>
+                            <span className="text-base font-black text-rose-400 text-right">
                               R$ {(
                                 200 +
                                 (lateFeeEnabled ? (lateFeeType === 'percentage' ? (200 * lateFeeValue / 100) : lateFeeValue) : 0) +
