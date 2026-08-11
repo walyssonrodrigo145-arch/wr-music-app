@@ -157,7 +157,9 @@ export class AssinafyProvider implements SignatureProvider {
   // ── Documento ─────────────────────────────────────────────────────────────
   async uploadDocument(accountId: string, pdfBuffer: Buffer, name: string): Promise<AssinafyDocument> {
     const form = new FormData();
-    form.append("file", new Blob([pdfBuffer.buffer as ArrayBuffer], { type: "application/pdf" }), name);
+    const uint8Array = new Uint8Array(pdfBuffer.buffer, pdfBuffer.byteOffset, pdfBuffer.byteLength);
+    const blob = new Blob([uint8Array], { type: "application/pdf" });
+    form.append("file", blob, name);
     return withRetry(() =>
       this.request<AssinafyDocument>("POST", `/accounts/${accountId}/documents`, form, true)
     );
