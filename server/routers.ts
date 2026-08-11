@@ -10300,6 +10300,86 @@ Texto original para reescrever:
 
       return templates;
     }),
+
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [tpl] = await db.select()
+          .from(contractTemplates)
+          .where(and(eq(contractTemplates.id, input.id), eq(contractTemplates.organizationId, orgId)))
+          .limit(1);
+
+        if (!tpl) throw new TRPCError({ code: "NOT_FOUND", message: "Modelo não encontrado" });
+        return tpl;
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1, "O nome do modelo é obrigatório"),
+        description: z.string().optional(),
+        content: z.string().min(10, "O conteúdo do modelo deve ser preenchido"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [created] = await db.insert(contractTemplates).values({
+          organizationId: orgId,
+          name: input.name,
+          description: input.description || null,
+          content: input.content,
+          active: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).returning();
+
+        return created;
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1, "O nome do modelo é obrigatório"),
+        description: z.string().optional(),
+        content: z.string().min(10, "O conteúdo do modelo deve ser preenchido"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [updated] = await db.update(contractTemplates)
+          .set({
+            name: input.name,
+            description: input.description || null,
+            content: input.content,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(contractTemplates.id, input.id), eq(contractTemplates.organizationId, orgId)))
+          .returning();
+
+        if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Modelo não encontrado" });
+        return updated;
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        await db.update(contractTemplates)
+          .set({ active: false, updatedAt: new Date() })
+          .where(and(eq(contractTemplates.id, input.id), eq(contractTemplates.organizationId, orgId)));
+
+        return { success: true };
+      }),
   }),
 
   professores: router({

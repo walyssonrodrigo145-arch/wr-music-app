@@ -30,9 +30,10 @@ import { LogoUploadZone } from "@/components/logo/LogoUploadZone";
 import { LogoEditorModal, type LogoEditParams } from "@/components/logo/LogoEditorModal";
 import { DueDaysSelector } from "@/components/financeiro/DueDaysSelector";
 import { AssinafyIntegrationCard } from "@/components/integrations/AssinafyIntegrationCard";
+import { ModelosContratoTab } from "@/components/integrations/ModelosContratoTab";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "salas" | "financeiro" | "professores" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
+type Tab = "perfil" | "escola" | "salas" | "financeiro" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
@@ -40,6 +41,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "salas", label: "Salas de Estúdio", icon: DoorOpen },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
   { id: "professores", label: "Professores", icon: Users },
+  { id: "modelos_contrato", label: "Modelos de Contrato", icon: FileSignature },
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "aparencia", label: "Aparência", icon: Palette },
   { id: "whatsapp", label: "Meu WhatsApp", icon: Smartphone },
@@ -2517,6 +2519,11 @@ export default function Configuracoes() {
             {/* ── ABA: SALAS DE ESTÚDIO ── */}
             {activeTab === "salas" && (
               <SalasEstudioTab />
+            )}
+
+            {/* ── ABA: MODELOS DE CONTRATO ── */}
+            {activeTab === "modelos_contrato" && (
+              <ModelosContratoTab />
             )}
 
             {/* ── ABA: AJUDA ── */}
