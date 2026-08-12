@@ -1289,6 +1289,8 @@ export const crmLeads = pgTable("crm_leads", {
   tags: jsonb("tags").$type<string[]>().default([]),
   lostReason: text("lost_reason"),
   lossNotes: text("loss_notes"),
+  productService: text("product_service"), // Produto / Serviço / Imóvel / Projeto de interesse
+  customFields: jsonb("custom_fields").$type<Record<string, any>>().default({}),
   assignedToUserId: integer("assigned_to_user_id"),
   convertedStudentId: integer("converted_student_id"),
   convertedAt: timestamp("converted_at"),

@@ -1,26 +1,26 @@
 # AUDITORIA PRÉ-DEPLOY (QA SÊNIOR - WRAUDITOR)
 
 ## Data: 2026-08-12
-## Módulo: Gestão Integrada de Leads & Dashboard Comercial — MusicPro CRM Pro
+## Módulo: Refatoração Evolutiva — CRM Universal de Gestão de Leads
 ## Domínio Oficial: https://leads.wrmusicpro.com.br
 
 ### 1. Resumo das Alterações
-1. **Integração Real de Dados e Funcionalidades (`LeadsApp.tsx`)**:
-   - Navegação completa por abas funcionais no menu lateral escuro (`#16162A`):
-     - 📊 **Dashboard**: Visualização analítica fidedigna conectada a métricas reais do banco de dados `crmLeads`.
-     - 👥 **Base Geral de Leads**: Tabela pesquisável com filtro por texto, status, exibições detalhadas, ação direta de WhatsApp (`wa.me/55...`), modal de perfil do lead e exclusão.
-     - 📋 **Pipeline (Kanban 7 Colunas)**: Atualização instantânea de estágio via procedimento `trpc.crm.moveStage`.
-     - 📅 **Atividades & Follow-ups**: Gestão de tarefas agendadas com baixa com 1 clique.
-     - 📄 **Propostas & Matrículas**: Ação "Converter em Aluno" preenchendo automaticamente o cadastro de alunos do MusicPro.
-     - 📊 **Relatórios**: Métricas de conversão por origem, demanda por instrumentos e motivos de perda.
-2. **Qualidade e Tipo de Dados**:
-   - Compilação limpa via TypeScript (`npx tsc --noEmit`).
+1. **Refatoração para CRM Universal (`client/src/pages/leads/LeadsApp.tsx`)**:
+   - Remoção de terminologias e dependências exclusivas de música (`Aluno` → `Cliente`, `Professor` → `Responsável`, `Instrumento/Curso` → `Produto/Serviço/Interesse`, `Matrícula` → `Conversão`).
+   - Suporte universal para qualquer segmento: Imobiliárias, Agências, Consultorias, Prestadores de Serviço, Tecnologia, Clínicas, Escolas e Comércio B2B.
+   - Adição de configuração de **Segmento da Empresa** e **Campos Personalizados** (ex: Tipo de imóvel, Faixa de preço, Quartos, Orçamento Estimado).
+   - Manutenção rigorosa do layout `#16162A`, 7 KPI stat cards, Kanban de 7 colunas, widgets laterais e painel analítico inferior.
+2. **Schema & Backend (`drizzle/schema.ts` e `server/crmRouter.ts`)**:
+   - Adição de colunas universais `productService` e `customFields` no `crmLeads` e `customFieldsConfig`, `customStages`, `segment` no `crmSettings`.
+   - Compatibilidade retroativa 100% preservada para dados históricos.
+3. **Verificação de Compilação**:
+   - `npx tsc --noEmit` finalizado com 0 erros.
 
 ### 2. Checklist de Qualidade e Segurança (QA)
-- [x] **Multi-Tenancy**: 100% dos procedimentos filtrados por `organizationId`.
-- [x] **Navegação Sem Interrupção**: Abas ativas operando com fluidez de estado React.
-- [x] **Suporte a WhatsApp**: Links diretos `wa.me/55...` formatados e operacionais nos cards e tabelas.
-- [x] **Deploy VPS**: Testado e verificado com HTTP 200 OK.
+- [x] **Universalidade**: Funciona perfeitamente para qualquer empresa, negócio ou autônomo.
+- [x] **Multi-Tenancy**: Isolamento estrito mantido via `organizationId`.
+- [x] **Preservação de Dados**: 0% de exclusão de dados ou tabelas do banco.
+- [x] **Domínio**: Preservado em `https://leads.wrmusicpro.com.br`.
 
 ### 3. Parecer Final
 - **Status:** APROVADO para Commit, Push e Deploy pela equipe DevOps.

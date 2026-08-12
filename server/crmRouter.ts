@@ -113,6 +113,7 @@ export const crmRouter = router({
         email: z.string().optional().nullable(),
         birthDate: z.string().optional().nullable(),
         cityState: z.string().optional().nullable(),
+        productService: z.string().optional().nullable(),
         instrument: z.string().optional().nullable(),
         course: z.string().optional().nullable(),
         level: z.string().optional().nullable(),
@@ -127,6 +128,7 @@ export const crmRouter = router({
         expectedEnrollmentDate: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
         tags: z.array(z.string()).default([]),
+        customFields: z.record(z.any()).optional().default({}),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -137,6 +139,7 @@ export const crmRouter = router({
       if (!orgId) throw new TRPCError({ code: "FORBIDDEN", message: "Sem organização vinculada" });
 
       const now = new Date();
+      const itemProd = input.productService || input.instrument || input.course || null;
 
       const [created] = await db
         .insert(crmLeads)
@@ -147,7 +150,8 @@ export const crmRouter = router({
           email: input.email,
           birthDate: input.birthDate,
           cityState: input.cityState,
-          instrument: input.instrument,
+          productService: itemProd,
+          instrument: itemProd,
           course: input.course,
           level: input.level,
           modality: input.modality,
@@ -161,6 +165,7 @@ export const crmRouter = router({
           expectedEnrollmentDate: input.expectedEnrollmentDate ? new Date(input.expectedEnrollmentDate) : null,
           notes: input.notes,
           tags: input.tags,
+          customFields: input.customFields,
           firstContactAt: now,
           lastContactAt: now,
           createdAt: now,
@@ -192,6 +197,7 @@ export const crmRouter = router({
         email: z.string().optional().nullable(),
         birthDate: z.string().optional().nullable(),
         cityState: z.string().optional().nullable(),
+        productService: z.string().optional().nullable(),
         instrument: z.string().optional().nullable(),
         course: z.string().optional().nullable(),
         level: z.string().optional().nullable(),
@@ -205,6 +211,7 @@ export const crmRouter = router({
         expectedEnrollmentDate: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
         tags: z.array(z.string()).optional(),
+        customFields: z.record(z.any()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
