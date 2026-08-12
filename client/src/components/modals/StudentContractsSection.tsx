@@ -112,7 +112,7 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
                 <optgroup label="Modelos da Conta Assinafy">
                   {assinafyTemplates.map((at: any, idx: number) => (
                     <option key={at.id || idx} value={templates[0]?.id || 1}>
-                      {at.name} (Assinafy)
+                      {at.name}
                     </option>
                   ))}
                 </optgroup>

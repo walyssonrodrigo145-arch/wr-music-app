@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  FileSignature, Plus, Pencil, Trash2, Loader2, Sparkles, HelpCircle, FileText, CheckCircle2, Copy
+  FileSignature, Plus, Pencil, Trash2, Loader2, Sparkles, HelpCircle, FileText, CheckCircle2, Copy, Wand2
 } from "lucide-react";
 
 export function ModelosContratoTab() {
@@ -17,6 +17,16 @@ export function ModelosContratoTab() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
+
+  const autoMutation = trpc.contractTemplates.autoInsertVariables.useMutation({
+    onSuccess: (res) => {
+      if (res.content) {
+        setContent(res.content);
+        toast.success("Variáveis identificadas e substituídas automaticamente no texto!");
+      }
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const createMutation = trpc.contractTemplates.create.useMutation({
     onSuccess: () => {
@@ -162,11 +172,29 @@ export function ModelosContratoTab() {
             </div>
           </div>
 
-          {/* Variáveis Dinâmicas */}
-          <div className="space-y-2 bg-muted/40 p-4 rounded-2xl border border-border/50">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-              <Sparkles size={12} className="text-violet-500" /> Variáveis Dinâmicas (Clique para inserir no texto)
-            </span>
+          {/* Variáveis Dinâmicas & Auto-Formatação IA */}
+          <div className="space-y-3 bg-muted/40 p-4 rounded-2xl border border-border/50">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                <Sparkles size={12} className="text-violet-500" /> Variáveis Dinâmicas
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!content.trim() || autoMutation.isPending}
+                onClick={() => {
+                  if (!content.trim()) return toast.error("Cole o texto do contrato primeiro");
+                  autoMutation.mutate({ content });
+                }}
+                className="h-9 rounded-xl border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 text-xs font-bold flex items-center gap-1.5 shadow-xs"
+              >
+                {autoMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
+                Substituir Variáveis Automático (IA)
+              </Button>
+            </div>
+
             <div className="flex flex-wrap gap-1.5 pt-1">
               {availableVariables.map((v) => (
                 <button

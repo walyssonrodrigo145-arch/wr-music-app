@@ -10329,6 +10329,34 @@ Texto original para reescrever:
       return [];
     }),
 
+    autoInsertVariables: protectedProcedure
+      .input(z.object({ content: z.string() }))
+      .mutation(async ({ input }) => {
+        let text = input.content;
+
+        const replacements: [RegExp, string][] = [
+          [/(?:nome do aluno|aluno\(a\)|contratante|aluno):\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]{3,40})/gi, (match) => match.replace(/:.*/, ": {{student_name}}")],
+          [/(?:denominado\(a\)|chamado\(a\))\s+CONTRATANTE,?\s+([A-Za-zÀ-ÖØ-öø-ÿ\s]{3,30})/gi, "denominado(a) CONTRATANTE, {{student_name}}"],
+          [/(?:cpf|inscrito\(a\) no cpf)(?: nº|:)?\s*[\d\.\-\s]{11,14}/gi, "CPF nº {{student_cpf}}"],
+          [/\b\d{3}\.\d{3}\.\d{3}\-\d{2}\b/g, "{{student_cpf}}"],
+          [/(?:residente e domiciliado\(a\) em|endereço:)\s*[^,\n]+/gi, "residente em {{student_address}}"],
+          [/(?:telefone|celular|whatsapp)(?: nº|:)?\s*\+?[\d\s\(\)\-]{8,15}/gi, "Telefone: {{student_phone}}"],
+          [/(?:e-mail|email)(?:|:)?\s*[\w\.\-]+@[\w\.\-]+\.\w+/gi, "E-mail: {{student_email}}"],
+          [/(?:valor de|valor mensal de|mensalidade de)\s*R\$\s*[\d\.\,]+/gi, "valor mensal de R$ {{monthly_fee}}"],
+          [/R\$\s*\d+(?:[\.\,]\d{2})?/gi, "R$ {{monthly_fee}}"],
+          [/(?:aulas de|curso de|serviços de)\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]{3,20})/gi, (match, g1) => match.replace(g1, "{{instrument}}")],
+          [/(?:vencimento todo dia|vencendo no dia|dia)\s*\d{1,2}/gi, "vencimento todo dia {{due_date}}"],
+          [/(?:escola|instituição|contratada):\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]{3,40})/gi, (match) => match.replace(/:.*/, ": {{school_name}}")],
+          [/(?:cnpj)(?: nº|:)?\s*[\d\.\/\-\s]{14,18}/gi, "CNPJ nº {{school_cnpj}}"],
+        ];
+
+        for (const [pattern, replacement] of replacements) {
+          text = text.replace(pattern, replacement as any);
+        }
+
+        return { content: text };
+      }),
+
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
