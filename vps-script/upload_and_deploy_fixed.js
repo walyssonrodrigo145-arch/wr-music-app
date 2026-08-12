@@ -14,6 +14,8 @@ const filesToUpload = [
   'package.json',
   'pnpm-lock.yaml',
   'server/routers.ts',
+  'server/_core/trpc.ts',
+  'client/src/pages/Cadastro.tsx',
   'server/analyticsRouter.ts',
   'server/utils/geoIp.ts',
   'server/services/AnalyticsQueue.ts',
