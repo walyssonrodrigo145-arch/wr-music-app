@@ -63,12 +63,12 @@ export default function CrmKanban() {
     onError: (e) => toast.error("Erro ao criar lead: " + e.message),
   });
 
-  const updateStageMutation = trpc.crm.updateStage.useMutation({
+  const updateStageMutation = trpc.crm.moveStage.useMutation({
     onSuccess: () => {
       toast.success("Estágio atualizado!");
       utils.crm.listLeads.invalidate();
     },
-    onError: (e) => toast.error("Erro: " + e.message),
+    onError: (e: any) => toast.error("Erro: " + e.message),
   });
 
   const deleteLeadMutation = trpc.crm.deleteLead.useMutation({
@@ -76,16 +76,16 @@ export default function CrmKanban() {
       toast.success("Lead removido");
       utils.crm.listLeads.invalidate();
     },
-    onError: (e) => toast.error("Erro: " + e.message),
+    onError: (e: any) => toast.error("Erro: " + e.message),
   });
 
   const convertToStudentMutation = trpc.crm.convertToStudent.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast.success(`🎉 ${data.student.name} matriculado com sucesso! Criado na lista de alunos.`);
       utils.crm.listLeads.invalidate();
       utils.students.list.invalidate();
     },
-    onError: (e) => toast.error("Erro ao matricular: " + e.message),
+    onError: (e: any) => toast.error("Erro ao matricular: " + e.message),
   });
 
   const handleCreateLead = () => {

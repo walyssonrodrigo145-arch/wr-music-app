@@ -1286,7 +1286,7 @@ export const crmLeads = pgTable("crm_leads", {
   value: decimal("value", { precision: 10, scale: 2 }).default("0.00"),
   notes: text("notes"),
   source: text("source").default("WhatsApp"),
-  tags: json("tags").$type<string[]>().default([]),
+  tags: jsonb("tags").$type<string[]>().default([]),
   lostReason: text("lost_reason"),
   lossNotes: text("loss_notes"),
   assignedToUserId: integer("assigned_to_user_id"),
@@ -1352,9 +1352,9 @@ export type InsertCrmFollowUp = typeof crmFollowUps.$inferInsert;
 export const crmSettings = pgTable("crm_settings", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").notNull().unique(),
-  customOrigins: json("custom_origins").$type<string[]>().default([]),
-  customLossReasons: json("custom_loss_reasons").$type<string[]>().default([]),
-  customTags: json("custom_tags").$type<string[]>().default([]),
+  customOrigins: jsonb("custom_origins").$type<string[]>().default([]),
+  customLossReasons: jsonb("custom_loss_reasons").$type<string[]>().default([]),
+  customTags: jsonb("custom_tags").$type<string[]>().default([]),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
