@@ -297,6 +297,105 @@ export const crmRouter = router({
       return updated;
     }),
 
+  moveLeadStage: protectedProcedure
+    .input(
+      z.object({
+        id: z.number().optional(),
+        leadId: z.number().optional(),
+        stage: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const targetId = input.leadId || input.id;
+      if (!targetId) throw new TRPCError({ code: "BAD_REQUEST", message: "ID do lead é obrigatório" });
+
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const [updated] = await db
+        .update(crmLeads)
+        .set({ stage: input.stage, updatedAt: new Date() })
+        .where(and(eq(crmLeads.id, targetId), eq(crmLeads.organizationId, orgId)))
+        .returning();
+
+      return updated;
+    }),
+
+  getGoals: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return null;
+    const orgId = ctx.user.organizationId;
+    if (!orgId) return null;
+
+    const { crmGoals } = await import("../drizzle/schema");
+    const currentMonthYear = new Date().toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" });
+
+    let [goal] = await db.select().from(crmGoals).where(and(eq(crmGoals.organizationId, orgId), eq(crmGoals.monthYear, currentMonthYear))).limit(1);
+
+    if (!goal) {
+      const [created] = await db.insert(crmGoals).values({
+        organizationId: orgId,
+        monthYear: currentMonthYear,
+        targetNewStudents: 10,
+        targetDemos: 25,
+        targetProposals: 20,
+        targetDeals: 10,
+        targetMrr: "2000.00",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+      goal = created;
+    }
+    return goal;
+  }),
+
+  saveGoal: protectedProcedure
+    .input(z.object({
+      targetNewStudents: z.number(),
+      targetDemos: z.number(),
+      targetProposals: z.number(),
+      targetDeals: z.number(),
+      targetMrr: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const { crmGoals } = await import("../drizzle/schema");
+      const currentMonthYear = new Date().toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" });
+
+      const [existing] = await db.select().from(crmGoals).where(and(eq(crmGoals.organizationId, orgId), eq(crmGoals.monthYear, currentMonthYear))).limit(1);
+
+      if (existing) {
+        const [updated] = await db.update(crmGoals).set({ ...input, updatedAt: new Date() }).where(eq(crmGoals.id, existing.id)).returning();
+        return updated;
+      } else {
+        const [created] = await db.insert(crmGoals).values({
+          organizationId: orgId,
+          monthYear: currentMonthYear,
+          ...input,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).returning();
+        return created;
+      }
+    }),
+
+  listActivities: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return [];
+    const orgId = ctx.user.organizationId;
+    if (!orgId) return [];
+
+    const list = await db.select().from(crmActivities).where(eq(crmActivities.organizationId, orgId)).orderBy(desc(crmActivities.createdAt)).limit(10);
+    return list;
+  }),
+
   // ── Marcar Lead como Perdido ─────────────────────────────────────────────
   markLost: protectedProcedure
     .input(
