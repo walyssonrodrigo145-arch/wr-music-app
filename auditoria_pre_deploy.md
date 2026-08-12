@@ -1,26 +1,30 @@
 # AUDITORIA PRÉ-DEPLOY (QA SÊNIOR - WRAUDITOR)
 
 ## Data: 2026-08-12
-## Módulo: Refatoração Evolutiva — CRM Universal de Gestão de Leads
+## Módulo: Implantação do Novo Design System — CRM Universal (Dark Mode SaaS Premium)
 ## Domínio Oficial: https://leads.wrmusicpro.com.br
 
 ### 1. Resumo das Alterações
-1. **Refatoração para CRM Universal (`client/src/pages/leads/LeadsApp.tsx`)**:
-   - Remoção de terminologias e dependências exclusivas de música (`Aluno` → `Cliente`, `Professor` → `Responsável`, `Instrumento/Curso` → `Produto/Serviço/Interesse`, `Matrícula` → `Conversão`).
-   - Suporte universal para qualquer segmento: Imobiliárias, Agências, Consultorias, Prestadores de Serviço, Tecnologia, Clínicas, Escolas e Comércio B2B.
-   - Adição de configuração de **Segmento da Empresa** e **Campos Personalizados** (ex: Tipo de imóvel, Faixa de preço, Quartos, Orçamento Estimado).
-   - Manutenção rigorosa do layout `#16162A`, 7 KPI stat cards, Kanban de 7 colunas, widgets laterais e painel analítico inferior.
-2. **Schema & Backend (`drizzle/schema.ts` e `server/crmRouter.ts`)**:
-   - Adição de colunas universais `productService` e `customFields` no `crmLeads` e `customFieldsConfig`, `customStages`, `segment` no `crmSettings`.
-   - Compatibilidade retroativa 100% preservada para dados históricos.
+1. **Design System SaaS Premium (`client/src/pages/leads/LeadsApp.tsx`)**:
+   - Implantação da nova linguagem visual baseada no tema **Dark Mode SaaS Premium** (`#0B091A` Black Navy background, `#13102B` Sidebar, `#161334` Cards com bordas translúcidas `border-indigo-950/50`).
+   - Reestruturação completa da **Sidebar Vertical Inteligente**, organizada com badges, tooltips e agrupamentos oficiais:
+     - **GESTÃO COMERCIAL**: *Leads & Oportunidades*, *Funil de Vendas (Kanban)*, *Tarefas & Follow-ups*, *Propostas & Fechamento*, *Metas Comerciais*.
+     - **GESTÃO DE CLIENTES**: *Clientes Conquistados*, *Onboarding de Negócios*, *Atendimento & Suporte*.
+     - **RELATÓRIOS ANALÍTICOS**: *Performance de Vendas*, *Origem das Oportunidades*.
+     - **CONFIGURAÇÕES**: *Configurações Gerais*.
+   - **Header Premium**: Seletor de período, Notificações com badge, Perfil do Usuário e botão primário com gradiente `#5B50E6` → Purple 600.
+   - **KPI Cards com Tendência**: Sparklines e variações percentuais em verde `text-emerald-400`.
+   - **Visualização Analítica**: Gráficos de linha de evolução, Donut chart SVG de fontes, resumo de pipeline, tabela de Metas da Equipe com banner motivacional e acompanhamento de onboarding por checklist de etapas.
+2. **Preservação de Regras de Negócio e Dados**:
+   - 100% da lógica backend, tRPC endpoints, esquema Drizzle e multi-tenancy `organizationId` preservados sem qualquer quebra.
 3. **Verificação de Compilação**:
-   - `npx tsc --noEmit` finalizado com 0 erros.
+   - `npx tsc --noEmit` executado com 0 erros.
 
 ### 2. Checklist de Qualidade e Segurança (QA)
-- [x] **Universalidade**: Funciona perfeitamente para qualquer empresa, negócio ou autônomo.
-- [x] **Multi-Tenancy**: Isolamento estrito mantido via `organizationId`.
-- [x] **Preservação de Dados**: 0% de exclusão de dados ou tabelas do banco.
-- [x] **Domínio**: Preservado em `https://leads.wrmusicpro.com.br`.
+- [x] **Design System Premium**: Identidade visual própria, dark mode consistente e elegante.
+- [x] **Responsividade & Componentes**: Cards, botões, tabelas, modais e badges padronizados.
+- [x] **Multi-Tenancy**: 100% preservado.
+- [x] **Domínio Dedicado**: Integrado em `https://leads.wrmusicpro.com.br`.
 
 ### 3. Parecer Final
 - **Status:** APROVADO para Commit, Push e Deploy pela equipe DevOps.
