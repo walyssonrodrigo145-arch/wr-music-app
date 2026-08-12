@@ -521,9 +521,9 @@ export default function LeadsApp() {
                       <tr key={l.id} className="hover:bg-slate-50 transition-colors">
                         <td className="p-3.5">
                           <p onClick={() => { setSelectedLeadId(l.id); setIsProfileModalOpen(true); }} className="font-bold text-slate-900 hover:text-[#5B50E6] cursor-pointer">{l.name}</p>
-                          <p className="text-[11px] text-slate-400">{l.phone || l.email || "Sem contato informado"}</p>
+                          <p className="text-[11px] text-slate-400">{l.phone || (l as any).email || "Sem contato informado"}</p>
                         </td>
-                        <td className="p-3.5 font-medium text-slate-700">{l.planName || l.instrument || l.cityState || "—"}</td>
+                        <td className="p-3.5 font-medium text-slate-700">{(l as any).planName || (l as any).instrument || l.cityState || "—"}</td>
                         <td className="p-3.5">
                           <Badge className="bg-indigo-50 text-indigo-600 border-indigo-200 text-[10px] font-bold capitalize">
                             {DEFAULT_STAGES.find((s) => s.key === l.stage)?.label || l.stage}
