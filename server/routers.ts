@@ -516,7 +516,7 @@ export const appRouter = router({
           createdAt: new Date(),
         }).returning().then(res => res[0]);
 
-        await db.insert(users).values({
+        const [newUser] = await db.insert(users).values({
           openId,
           organizationId: org.id,
           name: input.name,
@@ -525,7 +525,23 @@ export const appRouter = router({
           loginMethod: "local",
           role: "admin",
           isEmailVerified: true,
-        });
+        }).returning();
+
+        // Criar registro inicial em settings com a URL e Token padrão do robô do WhatsApp
+        await db.insert(settings).values({
+          organizationId: org.id,
+          userId: newUser.id,
+          whatsappBotUrl: "http://179.197.76.174:8080",
+          whatsappBotToken: "minha_chave_secreta_123",
+          hiddenTabs: "",
+          notifyLessonReminder: 1,
+          notifyPaymentDue: 1,
+          notifyStudentAbsence: 1,
+          notifyNewStudent: 1,
+          notifyWeeklyReport: 0,
+          automationEnabled: 0,
+          whatsappAutoSend: 0,
+        }).catch(() => {});
 
         return { success: true, message: "Conta criada com sucesso! Você já pode fazer login." };
       }),
@@ -593,6 +609,22 @@ export const appRouter = router({
           role: "admin",
           isEmailVerified: true,
         }).returning();
+
+        // Criar registro inicial em settings com a URL e Token padrão do robô do WhatsApp
+        await db.insert(settings).values({
+          organizationId: org.id,
+          userId: newUser.id,
+          whatsappBotUrl: "http://179.197.76.174:8080",
+          whatsappBotToken: "minha_chave_secreta_123",
+          hiddenTabs: "",
+          notifyLessonReminder: 1,
+          notifyPaymentDue: 1,
+          notifyStudentAbsence: 1,
+          notifyNewStudent: 1,
+          notifyWeeklyReport: 0,
+          automationEnabled: 0,
+          whatsappAutoSend: 0,
+        }).catch(() => {});
 
         // Integração Asaas
         const { createAsaasCustomer, createAsaasSubscription } = await import('./utils/asaas');
@@ -1454,9 +1486,8 @@ ${jsonSchemaFormat}`;
       }
       
       const [userSettings] = await db.select().from(settings).where(eq(settings.userId, ctx.user.id));
-      if (!userSettings || !userSettings.whatsappBotUrl || !userSettings.whatsappBotToken) {
-        throw new Error("O robô do WhatsApp não está configurado. Vá em Configurações > WhatsApp para configurar.");
-      }
+      const botUrl = userSettings?.whatsappBotUrl || process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080";
+      const botToken = userSettings?.whatsappBotToken || process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
 
       // Saudão diferenciada: se for para o responsável, menciona o nome do aluno
       const saudacao = sendingToGuardian
@@ -1493,8 +1524,8 @@ ${jsonSchemaFormat}`;
 
       const { sendWhatsAppMessage } = await import("./utils/whatsapp");
       const result = await sendWhatsAppMessage({
-        url: userSettings.whatsappBotUrl,
-        token: userSettings.whatsappBotToken,
+        url: botUrl,
+        token: botToken,
         phone: targetPhone,
         message: finalMessage,
         sessionId: `prof_${ctx.user.id}`
@@ -4255,9 +4286,11 @@ ${jsonSchemaFormat}`;
       whatsappBotToken: z.string().optional(),
       whatsappAutoSend: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
+      const urlToUse = input.whatsappBotUrl?.trim() || process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080";
+      const tokenToUse = input.whatsappBotToken?.trim() || process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
       await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
-        whatsappBotUrl: input.whatsappBotUrl ?? null,
-        whatsappBotToken: input.whatsappBotToken ?? null,
+        whatsappBotUrl: urlToUse,
+        whatsappBotToken: tokenToUse,
         whatsappAutoSend: input.whatsappAutoSend !== undefined ? (input.whatsappAutoSend ? 1 : 0) : undefined,
       });
       return { success: true };
@@ -4948,7 +4981,8 @@ ${jsonSchemaFormat}`;
         .limit(1);
 
         if (!rem) throw new Error("Lembrete não encontrado.");
-        if (!rem.whatsappBotUrl) throw new Error("URL do robô do WhatsApp não configurada nas Configurações.");
+        const botUrl = rem.whatsappBotUrl || process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080";
+        const botToken = rem.whatsappBotToken || process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
 
         let targetPhone = rem.studentPhone;
         if (rem.birthDate) {
@@ -4967,8 +5001,8 @@ ${jsonSchemaFormat}`;
         if (!targetPhone) throw new Error("Aluno/Responsável sem telefone cadastrado.");
 
         const sendRes = await sendWhatsAppMessage({
-          url: rem.whatsappBotUrl,
-          token: rem.whatsappBotToken,
+          url: botUrl,
+          token: botToken,
           phone: targetPhone,
           message: rem.message,
           sessionId: `prof_${ctx.user.id}`,
@@ -5096,8 +5130,8 @@ ${jsonSchemaFormat}`;
         pairingActiveSessions.set(sessionId, Date.now());
 
         const result = await startWhatsAppSession({
-          url: userSet?.whatsappBotUrl || "",
-          token: userSet?.whatsappBotToken || "",
+          url: userSet?.whatsappBotUrl || undefined,
+          token: userSet?.whatsappBotToken || undefined,
           sessionId,
           phoneNumber: input.phoneNumber || "",
           mode: input.mode,
@@ -5124,8 +5158,8 @@ ${jsonSchemaFormat}`;
         const sessionId = `prof_${ctx.user.id}`;
         try {
           const statusResult = await getWhatsAppSessionStatus({
-            url: userSet?.whatsappBotUrl || "",
-            token: userSet?.whatsappBotToken || "",
+            url: userSet?.whatsappBotUrl || undefined,
+            token: userSet?.whatsappBotToken || undefined,
             sessionId,
           });
 
@@ -5156,8 +5190,8 @@ ${jsonSchemaFormat}`;
         pairingActiveSessions.delete(sessionId);
 
         return await logoutWhatsAppSession({
-          url: userSet?.whatsappBotUrl || "",
-          token: userSet?.whatsappBotToken || "",
+          url: userSet?.whatsappBotUrl || undefined,
+          token: userSet?.whatsappBotToken || undefined,
           sessionId,
         });
       }),
@@ -5173,18 +5207,14 @@ ${jsonSchemaFormat}`;
           whatsappBotToken: settings.whatsappBotToken,
         }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
 
-        if (!userSet?.whatsappBotUrl) {
-          throw new Error("URL do robô do WhatsApp não configurada.");
-        }
-
         if (!userSet?.phone) {
           throw new Error("Você precisa cadastrar o seu número de celular nas configurações do Perfil para realizar o teste.");
         }
 
         const sessionId = `prof_${ctx.user.id}`;
         const sendRes = await sendWhatsAppMessage({
-          url: userSet.whatsappBotUrl,
-          token: userSet.whatsappBotToken,
+          url: userSet?.whatsappBotUrl || undefined,
+          token: userSet?.whatsappBotToken || undefined,
           phone: userSet.phone,
           message: "🤖 Teste de Conexão: O robô de mensagens do seu MusicPro está funcionando perfeitamente!",
           sessionId,

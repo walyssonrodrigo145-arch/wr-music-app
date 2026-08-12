@@ -1114,7 +1114,12 @@ export async function getSettingsByUserId(organizationId: number, userId: number
   const db = await getDb();
   if (!db) return null;
   const result = await db.select().from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);
-  if (result.length > 0) return result[0];
+  if (result.length > 0) {
+    const row = result[0];
+    if (!row.whatsappBotUrl) row.whatsappBotUrl = process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080";
+    if (!row.whatsappBotToken) row.whatsappBotToken = process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
+    return row;
+  }
 
   // Auto-cria um registro padrão se não existir (evita erros de null na UI)
   try {
@@ -1129,12 +1134,20 @@ export async function getSettingsByUserId(organizationId: number, userId: number
       notifyWeeklyReport: 0,
       automationEnabled: 0,
       whatsappAutoSend: 0,
+      whatsappBotUrl: process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080",
+      whatsappBotToken: process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123",
     });
   } catch (_) {
     // Ignora conflito de insert concorrente
   }
   const created = await db.select().from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);
-  return created.length > 0 ? created[0] : null;
+  if (created.length > 0) {
+    const row = created[0];
+    if (!row.whatsappBotUrl) row.whatsappBotUrl = process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080";
+    if (!row.whatsappBotToken) row.whatsappBotToken = process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
+    return row;
+  }
+  return null;
 }
 
 export async function upsertSettings(organizationId: number, userId: number, data: Partial<InsertSettings>) {
@@ -1153,6 +1166,14 @@ export async function upsertSettings(organizationId: number, userId: number, dat
     }
   }
 
+  // Garantir que whatsappBotUrl e whatsappBotToken não sejam gravados como nulos/vazios se não especificados ou se forem falsy
+  if (!sanitized.whatsappBotUrl) {
+    delete sanitized.whatsappBotUrl;
+  }
+  if (!sanitized.whatsappBotToken) {
+    delete sanitized.whatsappBotToken;
+  }
+
   const existing = await getSettingsByUserId(organizationId, userId);
   if (existing) {
     await db.update(settings).set({ ...sanitized, updatedAt: new Date() }).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId)));
@@ -1169,6 +1190,8 @@ export async function upsertSettings(organizationId: number, userId: number, dat
       notifyWeeklyReport: 0,
       automationEnabled: 0,
       whatsappAutoSend: 0,
+      whatsappBotUrl: process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080",
+      whatsappBotToken: process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123",
       ...sanitized,
     });
   }
