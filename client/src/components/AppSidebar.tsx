@@ -43,7 +43,6 @@ interface NavItem {
 // navItems are dynamic (badge count), so we build them inside the component
 const staticNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Comercial CRM", href: "/comercial", icon: TrendingUp },
   { label: "Alunos", href: "/alunos", icon: Users },
   { label: "Aulas", href: "/aulas", icon: Calendar },
   { label: "Instrumentos", href: "/instrumentos", icon: Guitar },

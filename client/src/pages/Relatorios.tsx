@@ -23,7 +23,6 @@ import DashboardComercial from './DashboardComercial';
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const TAB_CONFIG = [
-  { key: 'comercial',    label: 'Comercial CRM & Leads', icon: TrendingUp },
   { key: 'financeiro',   label: 'Financeiro',   icon: DollarSign },
   { key: 'despesas',     label: 'Despesas & Lucro', icon: CreditCard },
   { key: 'projecao',     label: 'Projeção 6M',   icon: TrendingUp },

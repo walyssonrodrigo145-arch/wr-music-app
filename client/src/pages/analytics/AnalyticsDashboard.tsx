@@ -25,6 +25,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import DashboardComercial from "../DashboardComercial";
 
 // ── Paleta de cores ───────────────────────────────────────────────────────────
 const COLORS = ["#8b5cf6", "#6366f1", "#3b82f6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899"];
@@ -35,7 +36,7 @@ const GRADIENT_AMBER = "from-amber-500 to-orange-500";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type TabId =
-  | "overview" | "evolution" | "realtime" | "visitors" | "sources" | "pages"
+  | "overview" | "crm" | "evolution" | "realtime" | "visitors" | "sources" | "pages"
   | "heatmap" | "funnel" | "journey" | "checkout" | "revenue"
   | "subscriptions" | "campaigns" | "map" | "devices" | "performance" | "ai" | "security" | "schools";
 
@@ -1820,6 +1821,7 @@ function SchoolsTab() {
 // ── TABS config ───────────────────────────────────────────────────────────────
 const TABS: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: "overview", label: "Visão Geral", icon: <BarChart2 size={16} /> },
+  { id: "crm", label: "Controle de Leads (CRM)", icon: <TrendingUp size={16} /> },
   { id: "evolution", label: "Evolução do Sistema", icon: <TrendingUp size={16} /> },
   { id: "schools", label: "Escolas", icon: <Building2 size={16} /> },
   { id: "realtime", label: "Tempo Real", icon: <Activity size={16} /> },
@@ -1849,6 +1851,7 @@ export default function AnalyticsDashboard() {
   const renderTab = () => {
     switch (activeTab) {
       case "overview": return <OverviewTab preset={preset} />;
+      case "crm": return <DashboardComercial />;
       case "evolution": return <EvolutionTab />;
       case "schools": return <SchoolsTab />;
       case "realtime": return <RealtimeTab />;
