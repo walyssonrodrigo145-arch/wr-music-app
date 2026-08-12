@@ -783,6 +783,24 @@ export const crmRouter = router({
         return lastContact < staleCutoff;
       }).length;
 
+      const demosCount = filteredLeads.filter((l) => ["demonstracao", "aula_experimental"].includes(l.stage)).length;
+      const proposalsCount = filteredLeads.filter((l) => l.stage === "proposta").length;
+      const negotiationsCount = filteredLeads.filter((l) => l.stage === "negociacao").length;
+      const closedDeals = filteredLeads.filter((l) => ["fechado", "matriculado"].includes(l.stage)).length;
+      const activeLeads = filteredLeads.filter((l) => !["fechado", "matriculado", "perdido"].includes(l.stage)).length;
+      const newMrr = filteredLeads.filter((l) => ["fechado", "matriculado"].includes(l.stage)).reduce((acc, l) => acc + (Number(l.value) || 0), 0);
+
+      const sourcesMap: Record<string, number> = {};
+      filteredLeads.forEach((l) => {
+        const src = l.source || "WhatsApp";
+        sourcesMap[src] = (sourcesMap[src] || 0) + 1;
+      });
+      const sources = Object.entries(sourcesMap).map(([name, count]) => ({
+        name,
+        count,
+        percentage: totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0,
+      }));
+
       return {
         totalLeads,
         newLeads,
@@ -793,6 +811,14 @@ export const crmRouter = router({
         totalPotentialValue,
         pendingFollowUps,
         staleLeadsCount,
+        demosCount,
+        proposalsCount,
+        negotiationsCount,
+        closedDeals,
+        activeLeads,
+        newMrr,
+        sources,
+        funnel: [],
       };
     }),
 

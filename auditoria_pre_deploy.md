@@ -15,8 +15,8 @@
    - **Header Premium**: Seletor de período, Notificações com badge, Perfil do Usuário e botão primário com gradiente `#5B50E6` → Purple 600.
    - **KPI Cards com Tendência**: Sparklines e variações percentuais em verde `text-emerald-400`.
    - **Visualização Analítica**: Gráficos de linha de evolução, Donut chart SVG de fontes, resumo de pipeline, tabela de Metas da Equipe com banner motivacional e acompanhamento de onboarding por checklist de etapas.
-2. **Preservação de Regras de Negócio e Dados**:
-   - 100% da lógica backend, tRPC endpoints, esquema Drizzle e multi-tenancy `organizationId` preservados sem qualquer quebra.
+2. **Backend & Schemas (`server/crmRouter.ts`)**:
+   - Atualizado o procedimento `getDashboardMetrics` com suporte completo a propriedades retrocompatíveis (`demosCount`, `proposalsCount`, `negotiationsCount`, `closedDeals`, `activeLeads`, `newMrr`, `sources`), prevenindo quebras.
 3. **Verificação de Compilação**:
    - `npx tsc --noEmit` executado com 0 erros.
 
