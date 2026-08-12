@@ -18,10 +18,12 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadBase64File } from '../utils/downloadReport';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import DashboardComercial from './DashboardComercial';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const TAB_CONFIG = [
+  { key: 'comercial',    label: 'Comercial CRM & Leads', icon: TrendingUp },
   { key: 'financeiro',   label: 'Financeiro',   icon: DollarSign },
   { key: 'despesas',     label: 'Despesas & Lucro', icon: CreditCard },
   { key: 'projecao',     label: 'Projeção 6M',   icon: TrendingUp },
@@ -1139,6 +1141,7 @@ const Relatorios: React.FC = () => {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.2 }}
           >
+            {activeTab === 'comercial'    && <DashboardComercial />}
             {activeTab === 'financeiro'   && renderFinanceiro()}
             {activeTab === 'despesas'     && renderDespesas()}
             {activeTab === 'projecao'     && renderProjecao()}
