@@ -40,6 +40,7 @@ const QRScanner = lazy(() => import("./pages/QRScanner"));
 const Automacoes = lazy(() => import("./pages/Automacoes"));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 const AnalyticsDashboard = lazy(() => import('./pages/analytics/AnalyticsDashboard'));
+const LeadsApp = lazy(() => import('./pages/leads/LeadsApp'));
 const DashboardComercial = lazy(() => import('./pages/DashboardComercial'));
 const TermosDeUso = lazy(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
@@ -82,6 +83,27 @@ function Router() {
   }
 
   if (loading) return <PageLoader />;
+
+  // Se o acesso for via subdomínio leads.wrmusicpro.com.br ou rota /leads
+  const isLeadsHost =
+    host.startsWith("leads.") ||
+    (typeof window !== "undefined" &&
+      (window.location.search.includes("leads=true") || window.location.pathname === "/leads"));
+
+  if (isLeadsHost) {
+    if (!isAuthenticated) {
+      return (
+        <Suspense fallback={<PageLoader />}>
+          <Login />
+        </Suspense>
+      );
+    }
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <LeadsApp />
+      </Suspense>
+    );
+  }
 
   // Se o acesso for via subdomínio analytics.wrmusicpro.com.br ou rota /analytics
   const isAnalyticsHost =
@@ -204,8 +226,8 @@ function Router() {
           <Route path="/scanner" component={QRScanner} />
           <Route path="/master-panel" component={SuperAdmin} />
           <Route path="/analytics" component={AnalyticsDashboard} />
-          <Route path="/comercial" component={DashboardComercial} />
-          <Route path="/leads" component={DashboardComercial} />
+          <Route path="/comercial" component={LeadsApp} />
+          <Route path="/leads" component={LeadsApp} />
           <Route path="/checkout" component={Checkout} />
           <Route>
             <Redirect to="/dashboard" />

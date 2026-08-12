@@ -1268,16 +1268,30 @@ export const crmLeads = pgTable("crm_leads", {
   cityState: text("city_state"), // ex: 'São Paulo - SP'
   phone: text("phone"),
   email: text("email"),
+  birthDate: varchar("birth_date", { length: 20 }),
   instrument: text("instrument"),
-  planName: text("plan_name").default("Plano Pro"), // 'Plano Essential' | 'Plano Pro' | 'Plano Enterprise'
-  stage: text("stage").notNull().default("novo"), // 'novo' | 'contato' | 'interessado' | 'demonstracao' | 'proposta' | 'negociacao' | 'fechado' | 'perdido'
+  course: text("course"),
+  level: text("level"), // 'Iniciante' | 'Intermediário' | 'Avançado'
+  modality: text("modality"), // 'Presencial' | 'Online' | 'Híbrido'
+  preferredTeacherId: integer("preferred_teacher_id"),
+  planName: text("plan_name").default("Plano Pro"),
+  stage: text("stage").notNull().default("novo"), // 'novo' | 'primeiro_contato' | 'em_conversa' | 'aula_experimental' | 'proposta' | 'aguardando_decisao' | 'matriculado' | 'perdido'
   temperature: text("temperature").default("morno"), // 'quente' | 'morno' | 'frio'
+  priority: text("priority").default("media"), // 'alta' | 'media' | 'baixa'
+  conversionProbability: integer("conversion_probability").default(50),
+  expectedEnrollmentDate: timestamp("expected_enrollment_date"),
+  firstContactAt: timestamp("first_contact_at"),
+  lastContactAt: timestamp("last_contact_at"),
+  nextFollowUpAt: timestamp("next_follow_up_at"),
   value: decimal("value", { precision: 10, scale: 2 }).default("0.00"),
   notes: text("notes"),
-  source: text("source").default("WhatsApp"), // 'Instagram' | 'Indicação' | 'WhatsApp' | 'Google' | 'Prospecção' | 'Outros'
+  source: text("source").default("WhatsApp"),
+  tags: json("tags").$type<string[]>().default([]),
   lostReason: text("lost_reason"),
-  assignedToUserId: integer("assigned_to_user_id"), // Vendedor / Responsável
+  lossNotes: text("loss_notes"),
+  assignedToUserId: integer("assigned_to_user_id"),
   convertedStudentId: integer("converted_student_id"),
+  convertedAt: timestamp("converted_at"),
   dueDateAlert: timestamp("due_date_alert"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1306,15 +1320,45 @@ export const crmActivities = pgTable("crm_activities", {
   organizationId: integer("organization_id").notNull(),
   leadId: integer("lead_id"),
   title: text("title").notNull(),
-  type: text("type").notNull().default("whatsapp"), // 'whatsapp' | 'call' | 'demo' | 'proposal'
+  type: text("type").notNull().default("whatsapp"), // 'criacao' | 'mudanca_etapa' | 'contato' | 'ligacao' | 'whatsapp' | 'email' | 'aula_experimental' | 'proposta' | 'follow_up' | 'conversao' | 'perda' | 'observacao'
   description: text("description"),
-  scheduledTime: text("scheduled_time"), // ex: '09:30'
+  scheduledTime: text("scheduled_time"),
   assignedUserName: text("assigned_user_name"),
   completed: boolean("completed").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export type CrmActivity = typeof crmActivities.$inferSelect;
+
+export const crmFollowUps = pgTable("crm_follow_ups", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  leadId: integer("lead_id").notNull(),
+  title: text("title").notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  dueTime: varchar("due_time", { length: 10 }),
+  assignedToUserId: integer("assigned_to_user_id"),
+  assignedUserName: text("assigned_user_name"),
+  contactType: text("contact_type").default("whatsapp").notNull(), // 'whatsapp' | 'ligacao' | 'reuniao' | 'email' | 'outro'
+  notes: text("notes"),
+  completed: boolean("completed").default(false).notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type CrmFollowUp = typeof crmFollowUps.$inferSelect;
+export type InsertCrmFollowUp = typeof crmFollowUps.$inferInsert;
+
+export const crmSettings = pgTable("crm_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().unique(),
+  customOrigins: json("custom_origins").$type<string[]>().default([]),
+  customLossReasons: json("custom_loss_reasons").$type<string[]>().default([]),
+  customTags: json("custom_tags").$type<string[]>().default([]),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type CrmSettings = typeof crmSettings.$inferSelect;
 
 // ── Salas de Estúdio / Ensaio ───────────────────────────────────────────────
 export const studioRooms = pgTable("studio_rooms", {

@@ -11,6 +11,10 @@ analytics.wrmusicpro.com.br {
     reverse_proxy app:3000
 }
 
+leads.wrmusicpro.com.br {
+    reverse_proxy app:3000
+}
+
 staging.wrmusicpro.com.br {
     reverse_proxy app-staging:3000
 }
