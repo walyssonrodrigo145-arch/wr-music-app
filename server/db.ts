@@ -599,6 +599,67 @@ async function ensureSchemaConsistency(db: any) {
       WHERE "providerEventId" IS NOT NULL
     `, "contract_events provider+event unique");
 
+    // Tabelas do Dashboard Comercial CRM & Funil de Leads
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "crm_leads" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organization_id" integer NOT NULL,
+        "name" text NOT NULL,
+        "company_or_school" text,
+        "city_state" text,
+        "phone" text,
+        "email" text,
+        "instrument" text,
+        "plan_name" text DEFAULT 'Plano Pro',
+        "stage" text DEFAULT 'novo' NOT NULL,
+        "temperature" text DEFAULT 'morno',
+        "value" numeric(10, 2) DEFAULT 0.00,
+        "notes" text,
+        "source" text DEFAULT 'WhatsApp',
+        "lost_reason" text,
+        "assigned_to_user_id" integer,
+        "converted_student_id" integer,
+        "due_date_alert" timestamp,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create crm_leads table");
+
+    await safeExecute(sql`ALTER TABLE "crm_leads" ADD COLUMN IF NOT EXISTS "company_or_school" text`, "crm_leads.company_or_school");
+    await safeExecute(sql`ALTER TABLE "crm_leads" ADD COLUMN IF NOT EXISTS "city_state" text`, "crm_leads.city_state");
+    await safeExecute(sql`ALTER TABLE "crm_leads" ADD COLUMN IF NOT EXISTS "plan_name" text DEFAULT 'Plano Pro'`, "crm_leads.plan_name");
+    await safeExecute(sql`ALTER TABLE "crm_leads" ADD COLUMN IF NOT EXISTS "temperature" text DEFAULT 'morno'`, "crm_leads.temperature");
+
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "crm_goals" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organization_id" integer NOT NULL,
+        "month_year" varchar(20) NOT NULL,
+        "target_new_students" integer DEFAULT 10 NOT NULL,
+        "target_demos" integer DEFAULT 25 NOT NULL,
+        "target_proposals" integer DEFAULT 20 NOT NULL,
+        "target_deals" integer DEFAULT 10 NOT NULL,
+        "target_mrr" numeric(10, 2) DEFAULT 2000.00 NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create crm_goals table");
+
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "crm_activities" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organization_id" integer NOT NULL,
+        "lead_id" integer,
+        "title" text NOT NULL,
+        "type" text DEFAULT 'whatsapp' NOT NULL,
+        "description" text,
+        "scheduled_time" text,
+        "assigned_user_name" text,
+        "completed" boolean DEFAULT false NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create crm_activities table");
+
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
   }

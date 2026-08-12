@@ -1259,24 +1259,62 @@ export type InsertAnalyticsAiInsight = typeof analyticsAiInsights.$inferInsert;
 export type AnalyticsSecurityLog = typeof analyticsSecurityLogs.$inferSelect;
 export type InsertAnalyticsSecurityLog = typeof analyticsSecurityLogs.$inferInsert;
 
-// ── CRM / Funil de Vendas ───────────────────────────────────────────────────
+// ── CRM / Funil de Vendas & Dashboard Comercial ─────────────────────────────
 export const crmLeads = pgTable("crm_leads", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").notNull(),
   name: text("name").notNull(),
+  companyOrSchool: text("company_or_school"),
+  cityState: text("city_state"), // ex: 'São Paulo - SP'
   phone: text("phone"),
   email: text("email"),
   instrument: text("instrument"),
-  stage: text("stage").notNull().default("novo"), // 'novo' | 'contato' | 'aula_agendada' | 'aula_realizada' | 'matriculado' | 'perdido'
+  planName: text("plan_name").default("Plano Pro"), // 'Plano Essential' | 'Plano Pro' | 'Plano Enterprise'
+  stage: text("stage").notNull().default("novo"), // 'novo' | 'contato' | 'interessado' | 'demonstracao' | 'proposta' | 'negociacao' | 'fechado' | 'perdido'
+  temperature: text("temperature").default("morno"), // 'quente' | 'morno' | 'frio'
   value: decimal("value", { precision: 10, scale: 2 }).default("0.00"),
   notes: text("notes"),
-  source: text("source").default("WhatsApp"),
+  source: text("source").default("WhatsApp"), // 'Instagram' | 'Indicação' | 'WhatsApp' | 'Google' | 'Prospecção' | 'Outros'
+  lostReason: text("lost_reason"),
+  assignedToUserId: integer("assigned_to_user_id"), // Vendedor / Responsável
+  convertedStudentId: integer("converted_student_id"),
+  dueDateAlert: timestamp("due_date_alert"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export type CrmLead = typeof crmLeads.$inferSelect;
 export type InsertCrmLead = typeof crmLeads.$inferInsert;
+
+export const crmGoals = pgTable("crm_goals", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  monthYear: varchar("month_year", { length: 20 }).notNull(), // ex: '08/2026'
+  targetNewStudents: integer("target_new_students").default(10).notNull(),
+  targetDemos: integer("target_demos").default(25).notNull(),
+  targetProposals: integer("target_proposals").default(20).notNull(),
+  targetDeals: integer("target_deals").default(10).notNull(),
+  targetMrr: decimal("target_mrr", { precision: 10, scale: 2 }).default("2000.00").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type CrmGoal = typeof crmGoals.$inferSelect;
+
+export const crmActivities = pgTable("crm_activities", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  leadId: integer("lead_id"),
+  title: text("title").notNull(),
+  type: text("type").notNull().default("whatsapp"), // 'whatsapp' | 'call' | 'demo' | 'proposal'
+  description: text("description"),
+  scheduledTime: text("scheduled_time"), // ex: '09:30'
+  assignedUserName: text("assigned_user_name"),
+  completed: boolean("completed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type CrmActivity = typeof crmActivities.$inferSelect;
 
 // ── Salas de Estúdio / Ensaio ───────────────────────────────────────────────
 export const studioRooms = pgTable("studio_rooms", {

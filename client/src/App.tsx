@@ -40,6 +40,7 @@ const QRScanner = lazy(() => import("./pages/QRScanner"));
 const Automacoes = lazy(() => import("./pages/Automacoes"));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 const AnalyticsDashboard = lazy(() => import('./pages/analytics/AnalyticsDashboard'));
+const DashboardComercial = lazy(() => import('./pages/DashboardComercial'));
 const TermosDeUso = lazy(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 
@@ -203,6 +204,8 @@ function Router() {
           <Route path="/scanner" component={QRScanner} />
           <Route path="/master-panel" component={SuperAdmin} />
           <Route path="/analytics" component={AnalyticsDashboard} />
+          <Route path="/comercial" component={DashboardComercial} />
+          <Route path="/leads" component={DashboardComercial} />
           <Route path="/checkout" component={Checkout} />
           <Route>
             <Redirect to="/dashboard" />
