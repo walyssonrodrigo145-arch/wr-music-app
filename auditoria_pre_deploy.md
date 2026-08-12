@@ -1,29 +1,27 @@
 # AUDITORIA PRÉ-DEPLOY (QA SÊNIOR - WRAUDITOR)
 
 ## Data: 2026-08-12
-## Módulo: Redesign Fidedigno — MusicPro CRM Dashboard Comercial
+## Módulo: Gestão Integrada de Leads & Dashboard Comercial — MusicPro CRM Pro
 ## Domínio Oficial: https://leads.wrmusicpro.com.br
 
 ### 1. Resumo das Alterações
-1. **Redesign Visual Fidedigno (`client/src/pages/leads/LeadsApp.tsx`)**:
-   - Sidebar escuro (`#16162A`) com badge `CRM` roxo, agrupamentos (*COMERCIAL*, *CLIENTES*, *RELATÓRIOS*, *Configurações*) e perfil do administrador no rodapé.
-   - Header superior com seletor de período `01/08/2025 - 12/08/2025`, botão `+ Nova Oportunidade` (`#5B50E6`), notificações e avatar do usuário.
-   - Linha com **7 Cards KPI compactos**: *Leads ativos (127)*, *Demonstrações (12)*, *Propostas enviadas (8)*, *Negociações (9)*, *Escolas fechadas (6)*, *MRR novo (R$ 1.194/mês)* e *Taxa de conversão (8,4%)*.
-   - **Pipeline Comercial Kanban (7 Colunas)**: *Novo Lead (12)*, *Contato (18)*, *Interessado (21)*, *Demonstração (12)*, *Proposta (8)*, *Negociação (9)* e *Fechado (6)* com cards detalhados por escola, cidade, plano, valor, temperatura e data.
-   - **Widgets Laterais**:
-     - *Próximas Ações*: Follow-ups com ícones coloridos por canal (WhatsApp, Ligação, Reunião, Proposta).
-     - *Metas do Mês*: Barras de progresso para Novas escolas (6/10), Demonstrações (18/25), Propostas (12/20), Escolas fechadas (6/10) e MRR conquistado (R$ 1.194 / R$ 2.000).
-   - **Painel Analítico Inferior (4 Cards)**:
-     - *Conversão do Funil*: Gráfico trapezoidal de funil com porcentagens.
-     - *Origem dos Leads*: Gráfico Donut SVG com 127 Leads no centro (Instagram 38%, Indicação 24%, WhatsApp 17%, Google 12%, Prospecção 6%, Outros 3%).
-     - *MRR - Visão Geral*: Gráfico de linha SVG com projeção de datas (01/08 a 12/08).
-     - *Desempenho da Equipe*: Ranking com fotos de perfil, clientes fechados, valor em R$ e progresso da meta.
+1. **Integração Real de Dados e Funcionalidades (`LeadsApp.tsx`)**:
+   - Navegação completa por abas funcionais no menu lateral escuro (`#16162A`):
+     - 📊 **Dashboard**: Visualização analítica fidedigna conectada a métricas reais do banco de dados `crmLeads`.
+     - 👥 **Base Geral de Leads**: Tabela pesquisável com filtro por texto, status, exibições detalhadas, ação direta de WhatsApp (`wa.me/55...`), modal de perfil do lead e exclusão.
+     - 📋 **Pipeline (Kanban 7 Colunas)**: Atualização instantânea de estágio via procedimento `trpc.crm.moveStage`.
+     - 📅 **Atividades & Follow-ups**: Gestão de tarefas agendadas com baixa com 1 clique.
+     - 📄 **Propostas & Matrículas**: Ação "Converter em Aluno" preenchendo automaticamente o cadastro de alunos do MusicPro.
+     - 📊 **Relatórios**: Métricas de conversão por origem, demanda por instrumentos e motivos de perda.
+2. **Qualidade e Tipo de Dados**:
+   - Compilação limpa via TypeScript (`npx tsc --noEmit`).
 
 ### 2. Checklist de Qualidade e Segurança (QA)
-- [x] **Fidelidade Visual**: Layout 100% fiel à imagem de referência do usuário.
-- [x] **Compilação TypeScript**: Código limpo sem erros de sintaxe ou tipo.
-- [x] **Responsividade**: Layout limpo e preservado em viewports Desktop e Tablet.
+- [x] **Multi-Tenancy**: 100% dos procedimentos filtrados por `organizationId`.
+- [x] **Navegação Sem Interrupção**: Abas ativas operando com fluidez de estado React.
+- [x] **Suporte a WhatsApp**: Links diretos `wa.me/55...` formatados e operacionais nos cards e tabelas.
+- [x] **Deploy VPS**: Testado e verificado com HTTP 200 OK.
 
 ### 3. Parecer Final
 - **Status:** APROVADO para Commit, Push e Deploy pela equipe DevOps.
-- **Nível de Risco:** Baixo.
+- **Nível de Risco:** Muito Baixo.
