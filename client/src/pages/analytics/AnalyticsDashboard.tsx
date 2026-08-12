@@ -1890,11 +1890,19 @@ export default function AnalyticsDashboard() {
                 Monitoramento completo da plataforma · {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
               </p>
             </div>
-            {showFilter && (
-              <div className="hidden md:block">
-                <MetricFilters value={preset} onChange={setPreset} />
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveTab("crm")}
+                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-violet-500/20 transition-all hover:scale-105"
+              >
+                <TrendingUp size={16} /> Dashboard Comercial (CRM)
+              </button>
+              {showFilter && (
+                <div className="hidden md:block">
+                  <MetricFilters value={preset} onChange={setPreset} />
+                </div>
+              )}
+            </div>
           </div>
           {showFilter && (
             <div className="md:hidden mt-3">
