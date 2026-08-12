@@ -180,7 +180,6 @@ export const appRouter = router({
   reportEngine: reportEngineRouter,
   marketing: marketingRouter,
   analytics: analyticsRouter,
-  crm: crmRouter,
   studioRooms: studioRoomsRouter,
   enrollment: enrollmentRouter,
   publicData: router({
