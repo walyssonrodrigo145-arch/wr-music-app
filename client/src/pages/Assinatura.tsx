@@ -141,7 +141,7 @@ export default function Assinatura() {
                 <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.max(0, Math.min(100, 100 - (Math.max(0, trialEndsAt.getTime() - Date.now()) / (33 * 24 * 60 * 60 * 1000)) * 100))}%` }}
+                    animate={{ width: `${Math.max(0, Math.min(100, 100 - (Math.max(0, trialEndsAt.getTime() - Date.now()) / (7 * 24 * 60 * 60 * 1000)) * 100))}%` }}
                     className="h-full bg-indigo-400 rounded-full" 
                   />
                 </div>
@@ -462,7 +462,7 @@ export default function Assinatura() {
                     <h3>Período de Teste e Prazos</h3>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/10 p-4 rounded-2xl text-sm text-muted-foreground leading-relaxed">
-                    Você tem <strong className="text-foreground">30 dias gratuitos</strong> de teste ao se cadastrar. O Asaas, nossa operadora de pagamentos, exige <strong className="text-foreground">3 dias de antecedência</strong> para processar pagamentos via cartão/boleto. Portanto, o prazo total que aparece no seu sistema pode chegar a 33 dias na primeira assinatura.
+                    Você tem <strong className="text-foreground">7 dias gratuitos</strong> de teste ao se cadastrar. Ao final do 7º dia, a assinatura deve ser efetuada para manter o acesso aos recursos do sistema.
                   </div>
                 </div>
 

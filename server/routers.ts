@@ -502,11 +502,11 @@ export const appRouter = router({
         const passwordHash = `${salt}:${derivedKey}`;
         const openId = crypto.randomUUID();
 
-        // Create default organization for new admin with 33-day trial
+        // Create default organization for new admin with 7-day trial
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+        trialEndsAt.setDate(trialEndsAt.getDate() + 7);
         trialEndsAt.setHours(23, 59, 59, 999);
         const org = await db.insert(organizations).values({
           name: `${input.name}'s School`,
@@ -564,16 +564,15 @@ export const appRouter = router({
           : Number(planInfo.priceMonthly);
         const planName = planInfo.name;
 
-        // Criar organização com status trialing (30 dias grátis)
+        // Criar organização com status trialing (7 dias grátis)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
         
-        // Fatura para daqui a 33 dias (30 dias grátis + 3 dias de prazo para pagamento)
-        // trialEndsAt mostra ao usuário quando o trial termina (30 dias)
-        // nextDueDateStr é quando o Asaas vai gerar a 1ª cobrança (33 dias)
-        const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        // Fatura para daqui a 7 dias (7 dias grátis, sem carência de 3 dias)
+        // trialEndsAt mostra ao usuário quando o trial termina (7 dias)
+        const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         trialEndsAt.setHours(23, 59, 59, 999);
-        const nextDueDateStr = new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const nextDueDateStr = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
         const [org] = await db.insert(organizations).values({
           name: `${input.name}`,

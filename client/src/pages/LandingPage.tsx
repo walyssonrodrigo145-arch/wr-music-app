@@ -35,7 +35,7 @@ import { HeroSlider } from '@/components/HeroSlider';
 import { trpc } from '@/lib/trpc';
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
-export const TRIAL_DAYS = 30;
+export const TRIAL_DAYS = 7;
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 type PlanType = '10alunos' | '20alunos' | '30alunos' | 'basico' | 'profissional' | 'premium';
@@ -378,7 +378,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                     Bem-vindo ao MusicPro! 🎉
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    Sua conta foi criada com sucesso! Você ganhou <strong className="text-blue-600">30 dias grátis</strong> para testar a plataforma.
+                    Sua conta foi criada com sucesso! Você ganhou <strong className="text-blue-600">7 dias grátis</strong> para testar a plataforma.
                   </p>
                 </div>
 
@@ -498,7 +498,7 @@ const LandingPage = () => {
       highlight: isHighlight,
       badge: isHighlight ? 'Mais Escolhido' : null,
       features: parseFeatures(p.features),
-      cta: 'Começar 30 Dias Grátis',
+      cta: 'Começar 7 Dias Grátis',
       ctaStyle: isHighlight ? 'solid' : 'border',
       allowExtraStudents: (p as any).allowExtraStudents ?? true,
       extraStudentPrice: Number((p as any).extraStudentPrice ?? 1.49),
@@ -688,7 +688,7 @@ const LandingPage = () => {
               <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 {[
                   { value: '100% Online', label: 'Acesso em qualquer lugar', color: 'text-primary' },
-                  { value: '30 Dias Grátis', label: 'Sem cartão de crédito', color: 'text-indigo-500' },
+                  { value: '7 Dias Grátis', label: 'Sem cartão de crédito', color: 'text-indigo-500' },
                   { value: 'WhatsApp', label: 'Automação de lembretes', color: 'text-emerald-500' },
                 ].map(stat => (
                   <div key={stat.label} className="text-center p-3 sm:p-4 bg-card/60 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
@@ -1043,7 +1043,7 @@ const LandingPage = () => {
 
                 {/* Trial note */}
                 <div className={`text-center mt-4 space-y-1 ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
-                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">✓ 30 Dias Grátis no 1º mês</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">✓ 7 Dias Grátis</p>
                   <p className="text-[10px] font-medium leading-tight">
                     Sem fidelidade. Cancele ou mude de plano quando quiser.
                   </p>
@@ -1076,8 +1076,8 @@ const LandingPage = () => {
           <div className="space-y-4">
             {[
               {
-                q: "Preciso de cartão de crédito para os 30 dias grátis?",
-                a: "Não! Você pode testar o sistema completo por 30 dias sem informar nenhum dado de pagamento. Só cobramos se você decidir continuar."
+                q: "Preciso de cartão de crédito para os 7 dias grátis?",
+                a: "Não! Você pode testar o sistema completo por 7 dias sem informar nenhum dado de pagamento. Só cobramos se você decidir continuar."
               },
               {
                 q: "Como funciona a emissão de cobranças?",
@@ -1120,7 +1120,7 @@ const LandingPage = () => {
             <div className="relative z-10 text-center max-w-4xl mx-auto">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-blue-200 text-xs font-bold mb-8">
                 <Sparkles size={14} className="text-blue-300" />
-                <span>30 Dias Grátis · Sem Cartão de Crédito</span>
+                <span>7 Dias Grátis · Sem Cartão de Crédito</span>
               </div>
               <h2 className="text-4xl md:text-6xl font-outfit font-black text-white mb-8 leading-tight tracking-tight">
                 Pronto para levar sua escola para o{' '}

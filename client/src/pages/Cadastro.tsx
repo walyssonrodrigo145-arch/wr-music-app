@@ -222,7 +222,7 @@ export default function Cadastro() {
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 <>
-                  Iniciar 30 Dias Grátis
+                  Iniciar 7 Dias Grátis
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}

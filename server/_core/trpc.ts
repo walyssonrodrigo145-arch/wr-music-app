@@ -31,8 +31,7 @@ const requireUser = t.middleware(async opts => {
 
         if (org) {
           const trialEndsAt = org.trialEndsAt ? new Date(org.trialEndsAt) : null;
-          const hardBlockDate = trialEndsAt ? new Date(trialEndsAt.getTime() + 3 * 24 * 60 * 60 * 1000) : null;
-          const isHardBlocked = hardBlockDate ? hardBlockDate < new Date() : false;
+          const isHardBlocked = trialEndsAt ? trialEndsAt < new Date() : false;
           const isSubscriptionActive = org.subscriptionStatus === "active";
           
           const hasAccess = isSubscriptionActive || (trialEndsAt && !isHardBlocked);

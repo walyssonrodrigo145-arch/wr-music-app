@@ -175,13 +175,10 @@ function Router() {
   const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
   const isTrialExpired = trialEndsAt ? trialEndsAt < new Date() : false;
   
-  // 3 dias de tolerância (carência) após o fim do trial
-  const hardBlockDate = trialEndsAt ? new Date(trialEndsAt.getTime() + 3 * 24 * 60 * 60 * 1000) : null;
-  const isHardBlocked = hardBlockDate ? hardBlockDate < new Date() : false;
-
+  const isHardBlocked = isTrialExpired;
   const isSubscriptionActive = user?.subscriptionStatus === "active";
   
-  // Concede acesso se a assinatura estiver ativa OU se ainda não passou a carência de 3 dias do trial
+  // Concede acesso se a assinatura estiver ativa OU se o trial ainda estiver válido
   const hasAccess = isSubscriptionActive || (trialEndsAt && !isHardBlocked);
 
   if (!hasAccess) {
