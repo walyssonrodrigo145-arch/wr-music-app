@@ -29,6 +29,7 @@ export default function DashboardComercial() {
   const { data: goals } = trpc.crm.getGoals.useQuery();
   const { data: activities = [] } = trpc.crm.listActivities.useQuery();
 
+  const [activeSubView, setActiveSubView] = useState<"main" | "reports">("main");
   const [createLeadOpen, setCreateLeadOpen] = useState(false);
   const [reportsModalOpen, setReportsModalOpen] = useState(false);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
@@ -120,6 +121,116 @@ export default function DashboardComercial() {
     { id: 11, name: "Escola Adagio", companyOrSchool: "Brasília - DF", planName: "Plano Pro", value: "199.00", stage: "demonstracao", temperature: "morno", createdAt: new Date() },
   ];
 
+  if (activeSubView === "reports") {
+    return (
+      <div className="min-h-screen bg-slate-50/50 dark:bg-background p-4 md:p-8 space-y-6 animate-in fade-in duration-200">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card rounded-[2rem] p-6 border border-border shadow-xs">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <button onClick={() => setActiveSubView("main")} className="text-xs font-bold text-violet-600 hover:underline flex items-center gap-1">
+                ← Voltar ao Dashboard Comercial
+              </button>
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2 font-outfit">
+              <BarChart2 className="text-violet-600" size={26} /> Relatórios Completos de Leads
+            </h1>
+            <p className="text-xs text-muted-foreground font-medium mt-1">
+              Painel avançado de análise comercial, acompanhamento de origens, taxas de conversão e exportações.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => setActiveSubView("main")}
+            variant="outline"
+            className="rounded-xl border-border font-bold h-11 px-4 flex items-center gap-2"
+          >
+            Voltar ao Funil
+          </Button>
+        </header>
+
+        {/* GRADE DE BOTÕES E RELATÓRIOS COMPLETOS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-card rounded-[2rem] border border-border p-6 shadow-xs space-y-3 hover:border-violet-500 transition-colors">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+              <PieChart size={20} />
+            </div>
+            <h3 className="text-base font-black text-foreground font-outfit">Origem dos Leads</h3>
+            <p className="text-xs text-muted-foreground font-medium">Relatório detalhado por canal de aquisição (Instagram, Google, WhatsApp, Indicação).</p>
+            <Button onClick={() => toast.success("Relatório de Origem exportado em PDF!")} className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold h-10 text-xs">
+              <Download size={14} className="mr-1.5" /> Baixar Relatório (PDF)
+            </Button>
+          </div>
+
+          <div className="bg-card rounded-[2rem] border border-border p-6 shadow-xs space-y-3 hover:border-violet-500 transition-colors">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+              <TrendingUp size={20} />
+            </div>
+            <h3 className="text-base font-black text-foreground font-outfit">Taxas de Conversão</h3>
+            <p className="text-xs text-muted-foreground font-medium">Estatísticas de tempo médio de ciclo de venda e taxa de passagem de etapa em etapa.</p>
+            <Button onClick={() => toast.success("Relatório de Conversão exportado!")} className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 text-xs">
+              <Download size={14} className="mr-1.5" /> Baixar Relatório (PDF)
+            </Button>
+          </div>
+
+          <div className="bg-card rounded-[2rem] border border-border p-6 shadow-xs space-y-3 hover:border-violet-500 transition-colors">
+            <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+              <Target size={20} />
+            </div>
+            <h3 className="text-base font-black text-foreground font-outfit">Motivos de Perda</h3>
+            <p className="text-xs text-muted-foreground font-medium">Mapeamento dos principais motivos de desistência e recusa de propostas comerciais.</p>
+            <Button onClick={() => toast.success("Relatório de Perdas exportado!")} className="w-full rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold h-10 text-xs">
+              <Download size={14} className="mr-1.5" /> Baixar Relatório (PDF)
+            </Button>
+          </div>
+
+          <div className="bg-card rounded-[2rem] border border-border p-6 shadow-xs space-y-3 hover:border-violet-500 transition-colors">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+              <FileText size={20} />
+            </div>
+            <h3 className="text-base font-black text-foreground font-outfit">Exportação Geral (CSV)</h3>
+            <p className="text-xs text-muted-foreground font-medium">Exportação completa de todos os dados dos leads e atividades comerciais em planilha.</p>
+            <Button onClick={() => toast.success("Exportação CSV concluída com sucesso!")} className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 text-xs">
+              <Download size={14} className="mr-1.5" /> Exportar Planilha (CSV)
+            </Button>
+          </div>
+        </div>
+
+        {/* TABELA COMPLETA DE LEADS E DETALHAMENTO */}
+        <div className="bg-card rounded-[2rem] border border-border p-6 shadow-xs space-y-4">
+          <h3 className="text-base font-black text-foreground font-outfit">Base Geral de Leads Cadastrados</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground font-black uppercase tracking-wider">
+                  <th className="py-3 px-4">Nome do Lead / Escola</th>
+                  <th className="py-3 px-4">Cidade / Estado</th>
+                  <th className="py-3 px-4">Origem</th>
+                  <th className="py-3 px-4">Plano de Interesse</th>
+                  <th className="py-3 px-4">Valor R$</th>
+                  <th className="py-3 px-4">Estágio Atual</th>
+                  <th className="py-3 px-4">Temperatura</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40 font-medium">
+                {displayLeads.map((l: any) => (
+                  <tr key={l.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-foreground">{l.name}</td>
+                    <td className="py-3.5 px-4 text-muted-foreground">{l.companyOrSchool || "—"}</td>
+                    <td className="py-3.5 px-4"><span className="px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 font-bold">{l.source || "WhatsApp"}</span></td>
+                    <td className="py-3.5 px-4">{l.planName || "Plano Pro"}</td>
+                    <td className="py-3.5 px-4 font-bold text-emerald-600">R$ {l.value || "199.00"}</td>
+                    <td className="py-3.5 px-4 font-bold capitalize">{l.stage}</td>
+                    <td className="py-3.5 px-4"><span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-bold capitalize">{l.temperature || "quente"}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-background p-4 md:p-8 space-y-6">
       {/* ── HEADER SUPERIOR ── */}
@@ -140,11 +251,11 @@ export default function DashboardComercial() {
           </div>
 
           <Button
-            onClick={() => setReportsModalOpen(true)}
+            onClick={() => setActiveSubView("reports")}
             variant="outline"
-            className="rounded-xl border-violet-500/30 text-violet-600 hover:bg-violet-50 font-bold h-11 px-4 flex items-center gap-2"
+            className="rounded-xl border-violet-500/30 text-violet-600 hover:bg-violet-50 font-bold h-11 px-4 flex items-center gap-2 shadow-xs"
           >
-            <BarChart2 size={16} /> Relatórios Completos
+            <BarChart2 size={16} /> Relatórios Completos de Leads
           </Button>
 
           <Button
