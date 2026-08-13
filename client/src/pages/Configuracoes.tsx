@@ -38,7 +38,6 @@ type Tab = "perfil" | "escola" | "salas" | "financeiro" | "professores" | "model
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
-  { id: "salas", label: "Salas de Estúdio", icon: DoorOpen },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
   { id: "professores", label: "Professores", icon: Users },
   { id: "modelos_contrato", label: "Modelos de Contrato", icon: FileSignature },
