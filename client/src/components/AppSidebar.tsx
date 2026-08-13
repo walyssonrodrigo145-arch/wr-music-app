@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -132,6 +133,24 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     },
   ];
 
+  // Estado local com localStorage para controlar categorias recolhidas
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem("musicpro_sidebar_groups");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const toggleGroup = (groupName: string) => {
+    setCollapsedGroups((prev) => {
+      const updated = { ...prev, [groupName]: !prev[groupName] };
+      localStorage.setItem("musicpro_sidebar_groups", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "WR";
@@ -203,58 +222,77 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         )}
       </div>
 
-      {/* NAVEGAÇÃO CATEGORIZADA (SCROLLABLE AREA) */}
-      <nav className="flex-1 px-3 py-3 space-y-5 overflow-y-auto overflow-x-hidden no-scrollbar">
+      {/* NAVEGAÇÃO CATEGORIZADA COM ACORDEÃO DE ESCONDER/EXIBIR */}
+      <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto overflow-x-hidden no-scrollbar">
         {navGroups.map((group) => {
           // Filtrar itens ocultos
           const visibleItems = group.items.filter((item) => !hiddenTabs.includes(item.href));
           if (visibleItems.length === 0) return null;
+          const isGroupCollapsed = !collapsed && !!collapsedGroups[group.groupName];
 
           return (
-            <div key={group.groupName} className="space-y-1.5">
+            <div key={group.groupName} className="space-y-1">
               {!collapsed && (
-                <div className="flex items-center gap-2 px-3 py-1">
-                  <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", group.dotColor)} />
-                  <span className={cn("text-[10px] font-black uppercase tracking-widest font-outfit", group.textColor)}>
-                    {group.groupName}
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.groupName)}
+                  className="flex items-center justify-between w-full px-3 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group/header select-none text-left"
+                  title={isGroupCollapsed ? "Expandir categoria" : "Recolher categoria"}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", group.dotColor)} />
+                    <span className={cn("text-[10px] font-black uppercase tracking-widest font-outfit", group.textColor)}>
+                      {group.groupName}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={cn(
+                      "text-slate-500 group-hover/header:text-white transition-transform duration-300",
+                      isGroupCollapsed && "-rotate-90 text-slate-600"
+                    )}
+                  />
+                </button>
               )}
 
-              {visibleItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+              {!isGroupCollapsed && (
+                <div className="space-y-1">
+                  {visibleItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
 
-                return (
-                  <Link key={item.href} href={item.href}>
-                    <div
-                      onClick={onNavigate}
-                      className={cn(
-                        "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group relative overflow-hidden",
-                        isActive
-                          ? item.activeStyle || "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/30"
-                          : "text-slate-400 hover:text-white hover:bg-white/5",
-                        collapsed && "justify-center px-0"
-                      )}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      <Icon
-                        size={17}
-                        className={cn(
-                          "shrink-0 transition-transform duration-200",
-                          isActive ? "scale-110 text-white" : "group-hover:scale-110 group-hover:text-indigo-400"
-                        )}
-                      />
-                      {!collapsed && <span className="truncate tracking-tight">{item.label}</span>}
-                      {!collapsed && item.badge && (
-                        <span className="ml-auto bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-md">
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })}
+                    return (
+                      <Link key={item.href} href={item.href}>
+                        <div
+                          onClick={onNavigate}
+                          className={cn(
+                            "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group relative overflow-hidden",
+                            isActive
+                              ? item.activeStyle || "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/30"
+                              : "text-slate-400 hover:text-white hover:bg-white/5",
+                            collapsed && "justify-center px-0"
+                          )}
+                          title={collapsed ? item.label : undefined}
+                        >
+                          <Icon
+                            size={17}
+                            className={cn(
+                              "shrink-0 transition-transform duration-200",
+                              isActive ? "scale-110 text-white" : "group-hover:scale-110 group-hover:text-indigo-400"
+                            )}
+                          />
+                          {!collapsed && <span className="truncate tracking-tight">{item.label}</span>}
+                          {!collapsed && item.badge && (
+                            <span className="ml-auto bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-md">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
