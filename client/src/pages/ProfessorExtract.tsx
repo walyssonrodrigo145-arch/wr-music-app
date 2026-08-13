@@ -420,29 +420,29 @@ export default function ProfessorExtract() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8 font-sans bg-[#f8fafc] text-slate-900 min-h-screen">
-      {/* 1. Header Fiel à Referência */}
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8 font-sans bg-background text-foreground transition-colors duration-200 min-h-screen">
+      {/* 1. Header Adaptativo ao Tema */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#6366f1] text-white flex items-center justify-center shadow-lg shadow-indigo-600/20 shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
             <FileText className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-outfit text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="font-outfit text-3xl font-extrabold text-foreground tracking-tight">
               Folha de Pagamento
             </h1>
-            <p className="text-sm text-slate-500 font-medium mt-0.5">
+            <p className="text-sm text-muted-foreground font-medium mt-0.5">
               Gerencie e acompanhe os pagamentos dos professores
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Seletor de Período Fiel */}
-          <div className="bg-white border border-slate-200/80 shadow-sm rounded-xl px-3.5 py-1.5 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-slate-400" />
+          {/* Seletor de Período Adaptativo */}
+          <div className="bg-card border border-border shadow-sm rounded-xl px-3.5 py-1.5 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
             <Select value={viewMonth.toString()} onValueChange={(v) => setViewMonth(parseInt(v))}>
-              <SelectTrigger className="border-none bg-transparent h-8 text-sm font-semibold text-slate-700 shadow-none focus:ring-0 capitalize">
+              <SelectTrigger className="border-none bg-transparent h-8 text-sm font-semibold text-foreground shadow-none focus:ring-0 capitalize">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -453,9 +453,9 @@ export default function ProfessorExtract() {
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-slate-300 font-medium">de</span>
+            <span className="text-muted-foreground font-medium">de</span>
             <Select value={viewYear.toString()} onValueChange={(v) => setViewYear(parseInt(v))}>
-              <SelectTrigger className="border-none bg-transparent h-8 text-sm font-semibold text-slate-700 shadow-none focus:ring-0 w-[70px]">
+              <SelectTrigger className="border-none bg-transparent h-8 text-sm font-semibold text-foreground shadow-none focus:ring-0 w-[70px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -471,8 +471,8 @@ export default function ProfessorExtract() {
           {/* Botão Exportar */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl h-10 px-4 text-xs font-bold shadow-sm">
-                <Download className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+              <Button variant="outline" className="bg-card border-border text-foreground hover:bg-muted rounded-xl h-10 px-4 text-xs font-bold shadow-sm">
+                <Download className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
                 Exportar
               </Button>
             </DropdownMenuTrigger>
@@ -495,7 +495,7 @@ export default function ProfessorExtract() {
           {/* Botão Novo Pagamento */}
           {isAdmin && (
             <Button 
-              className="bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-xl h-10 px-4 text-xs font-bold shadow-md shadow-indigo-600/20"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 px-4 text-xs font-bold shadow-md shadow-primary/20"
               onClick={() => setIsManualModalOpen(true)}
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
@@ -505,100 +505,100 @@ export default function ProfessorExtract() {
         </div>
       </div>
 
-      {/* 2. Cards Superiores (4 KPIs Féis à Referência) */}
+      {/* 2. Cards Superiores (4 KPIs Adaptativos) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Card 1: Total Bruto */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col justify-between space-y-4">
           <div className="flex items-start justify-between">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-100/70 text-indigo-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
               <DollarSign className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-semibold text-slate-400 block text-right">Total Bruto</span>
-              <h3 className="font-outfit text-2xl font-black text-slate-900 tracking-tight text-right mt-1">
+              <span className="text-xs font-semibold text-muted-foreground block text-right">Total Bruto</span>
+              <h3 className="font-outfit text-2xl font-black text-foreground tracking-tight text-right mt-1">
                 R$ {totalBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-[11px] font-medium text-slate-400">Valor total antes de descontos</p>
+            <p className="text-[11px] font-medium text-muted-foreground">Valor total antes de descontos</p>
             <div className="flex items-center gap-1.5 pt-1">
-              <span className="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-0.5">
+              <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-0.5">
                 <TrendingUp className="w-3 h-3" /> 12%
               </span>
-              <span className="text-[11px] text-slate-400">vs. Julho/2026</span>
+              <span className="text-[11px] text-muted-foreground">vs. Julho/2026</span>
             </div>
           </div>
         </div>
 
         {/* Card 2: Descontos */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col justify-between space-y-4">
           <div className="flex items-start justify-between">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100/70 text-emerald-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-semibold text-slate-400 block text-right">Descontos</span>
-              <h3 className="font-outfit text-2xl font-black text-slate-900 tracking-tight text-right mt-1">
+              <span className="text-xs font-semibold text-muted-foreground block text-right">Descontos</span>
+              <h3 className="font-outfit text-2xl font-black text-foreground tracking-tight text-right mt-1">
                 R$ {totalDescontos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-[11px] font-medium text-slate-400">Impostos e taxas</p>
+            <p className="text-[11px] font-medium text-muted-foreground">Impostos e taxas</p>
             <div className="flex items-center gap-1.5 pt-1">
-              <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-0.5">
+              <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-0.5">
                 <ArrowDownRight className="w-3 h-3" /> 8%
               </span>
-              <span className="text-[11px] text-slate-400">vs. Julho/2026</span>
+              <span className="text-[11px] text-muted-foreground">vs. Julho/2026</span>
             </div>
           </div>
         </div>
 
         {/* Card 3: Líquido a Pagar */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col justify-between space-y-4">
           <div className="flex items-start justify-between">
-            <div className="w-10 h-10 rounded-2xl bg-blue-100/70 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
               <CreditCard className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-semibold text-slate-400 block text-right">Líquido a Pagar</span>
-              <h3 className="font-outfit text-2xl font-black text-slate-900 tracking-tight text-right mt-1">
+              <span className="text-xs font-semibold text-muted-foreground block text-right">Líquido a Pagar</span>
+              <h3 className="font-outfit text-2xl font-black text-foreground tracking-tight text-right mt-1">
                 R$ {totalLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-[11px] font-medium text-slate-400">Valor final aos professores</p>
+            <p className="text-[11px] font-medium text-muted-foreground">Valor final aos professores</p>
             <div className="flex items-center gap-1.5 pt-1">
-              <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-0.5">
+              <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-0.5">
                 <TrendingUp className="w-3 h-3" /> 10%
               </span>
-              <span className="text-[11px] text-slate-400">vs. Julho/2026</span>
+              <span className="text-[11px] text-muted-foreground">vs. Julho/2026</span>
             </div>
           </div>
         </div>
 
         {/* Card 4: Professores Ativos */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col justify-between space-y-4">
           <div className="flex items-start justify-between">
-            <div className="w-10 h-10 rounded-2xl bg-amber-100/70 text-amber-600 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-semibold text-slate-400 block text-right">Professores Ativos</span>
-              <h3 className="font-outfit text-2xl font-black text-slate-900 tracking-tight text-right mt-1">
+              <span className="text-xs font-semibold text-muted-foreground block text-right">Professores Ativos</span>
+              <h3 className="font-outfit text-2xl font-black text-foreground tracking-tight text-right mt-1">
                 {professoresAtivos}
               </h3>
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-[11px] font-medium text-slate-400">Com aulas no período</p>
+            <p className="text-[11px] font-medium text-muted-foreground">Com aulas no período</p>
             <div className="flex items-center gap-1.5 pt-1">
-              <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md">
+              <span className="bg-muted text-muted-foreground text-[10px] font-bold px-2 py-0.5 rounded-md">
                 —
               </span>
-              <span className="text-[11px] text-slate-400">vs. Julho/2026</span>
+              <span className="text-[11px] text-muted-foreground">vs. Julho/2026</span>
             </div>
           </div>
         </div>
@@ -607,23 +607,23 @@ export default function ProfessorExtract() {
       {/* 3 & 4. Área de Gráficos (Evolução + Distribuição) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Gráfico 1: Evolução do Líquido a Pagar */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+        <div className="lg:col-span-2 bg-card p-6 rounded-2xl border border-border shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-outfit text-lg font-bold text-slate-900">
+              <h3 className="font-outfit text-lg font-bold text-foreground">
                 {chartMetric === "liquido" ? "Evolução do Líquido a Pagar" : "Evolução do Total Bruto"}
               </h3>
             </div>
 
             {/* Toggle Bruto | Líquido */}
-            <div className="flex bg-slate-100/70 p-1 rounded-xl text-xs font-bold">
+            <div className="flex bg-muted p-1 rounded-xl text-xs font-bold">
               <button
                 type="button"
                 onClick={() => setChartMetric("bruto")}
                 className={`px-3 py-1 rounded-lg transition-all ${
                   chartMetric === "bruto"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-900"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Bruto
@@ -633,8 +633,8 @@ export default function ProfessorExtract() {
                 onClick={() => setChartMetric("liquido")}
                 className={`px-3 py-1 rounded-lg transition-all ${
                   chartMetric === "liquido"
-                    ? "bg-[#4f46e5] text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-900"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Líquido
@@ -648,47 +648,47 @@ export default function ProfessorExtract() {
                 <AreaChart data={historyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="monthName" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(v) => `R$ ${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
+                  <XAxis dataKey="monthName" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }} tickFormatter={(v) => `R$ ${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '12px' }}
+                    contentStyle={{ backgroundColor: 'var(--popover)', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--popover-foreground)', fontSize: '12px' }}
                     formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, chartMetric === "liquido" ? "Líquido" : "Bruto"]}
                   />
                   <Area
                     type="monotone"
                     dataKey={chartMetric}
-                    stroke="#6366f1"
+                    stroke="var(--primary)"
                     strokeWidth={3}
-                    dot={{ fill: '#6366f1', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ fill: 'var(--primary)', r: 4, strokeWidth: 2, stroke: 'var(--card)' }}
                     fillOpacity={1}
                     fill="url(#colorMetric)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-400 text-sm font-medium">
+              <div className="h-full flex items-center justify-center text-muted-foreground text-sm font-medium">
                 Carregando histórico...
               </div>
             )}
           </div>
         </div>
 
-        {/* Gráfico 2: Distribuição por Professor (Donut Fiel) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+        {/* Gráfico 2: Distribuição por Professor (Donut) */}
+        <div className="bg-card p-6 rounded-2xl border border-border shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-outfit text-lg font-bold text-slate-900">Distribuição por Professor</h3>
+            <h3 className="font-outfit text-lg font-bold text-foreground">Distribuição por Professor</h3>
             <button 
               type="button"
               onClick={() => {
                 const el = document.getElementById("pagamentos-periodo-card");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
-              className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+              className="text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
             >
               Ver detalhes
             </button>
@@ -714,35 +714,35 @@ export default function ProfessorExtract() {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '12px' }}
+                      contentStyle={{ backgroundColor: 'var(--popover)', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--popover-foreground)', fontSize: '12px' }}
                       formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                  <span className="font-outfit text-2xl font-black text-slate-900">{professoresAtivos}</span>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Professores</span>
+                  <span className="font-outfit text-2xl font-black text-foreground">{professoresAtivos}</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Professores</span>
                 </div>
               </div>
 
-              {/* Lista do Donut Fiel à Referência */}
+              {/* Lista do Donut */}
               <div className="w-full space-y-2.5 max-h-48 overflow-y-auto pr-1">
                 {formattedDonutData.map((item, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs font-semibold">
                     <div className="flex items-center gap-2 truncate pr-2">
                       <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[idx % DONUT_COLORS.length] }} />
-                      <span className="truncate text-slate-700">{item.name}</span>
+                      <span className="truncate text-foreground">{item.name}</span>
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
-                      <span className="text-slate-400 font-medium text-right w-8">{item.percentage}%</span>
-                      <span className="font-bold text-slate-900 text-right w-24">R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="text-muted-foreground font-medium text-right w-8">{item.percentage}%</span>
+                      <span className="font-bold text-foreground text-right w-24">R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="h-60 flex flex-col items-center justify-center text-center text-slate-400 text-sm">
+            <div className="h-60 flex flex-col items-center justify-center text-center text-muted-foreground text-sm">
               <AlertCircle className="w-8 h-8 mb-2 opacity-40" />
               Nenhum dado financeiro para exibir a distribuição neste mês.
             </div>
@@ -750,32 +750,32 @@ export default function ProfessorExtract() {
         </div>
       </div>
 
-      {/* 5. Área Principal — Pagamentos do Período (Card Branco Fiel) */}
-      <div id="pagamentos-periodo-card" className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+      {/* 5. Área Principal — Pagamentos do Período */}
+      <div id="pagamentos-periodo-card" className="bg-card p-6 md:p-8 rounded-2xl border border-border shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <h2 className="font-outfit text-xl font-bold text-slate-900 tracking-tight">
+            <h2 className="font-outfit text-xl font-bold text-foreground tracking-tight">
               Pagamentos do Período
             </h2>
-            <span className="bg-slate-100 text-slate-500 rounded-xl px-2.5 py-1 font-bold text-xs">
+            <span className="bg-muted text-muted-foreground rounded-xl px-2.5 py-1 font-bold text-xs">
               {displayPayments.length} registros
             </span>
           </div>
 
           {/* Callout Banner + Botão Calcular Pagamentos */}
-          <div className="bg-indigo-50/70 border border-indigo-100/80 rounded-2xl p-3.5 md:px-5 md:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-1 max-w-2xl">
+          <div className="bg-primary/10 border border-primary/20 rounded-2xl p-3.5 md:px-5 md:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-1 max-w-2xl">
             <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5 text-indigo-600 shrink-0" />
+              <Sparkles className="w-5 h-5 text-primary shrink-0" />
               <div>
-                <span className="font-bold text-xs md:text-sm text-indigo-950">✨ Os valores são calculados automaticamente</span>
-                <p className="text-[11px] text-indigo-700/80 font-medium">Com base nas aulas realizadas, carga horária e regras de cada professor.</p>
+                <span className="font-bold text-xs md:text-sm text-foreground">✨ Os valores são calculados automaticamente</span>
+                <p className="text-[11px] text-muted-foreground font-medium">Com base nas aulas realizadas, carga horária e regras de cada professor.</p>
               </div>
             </div>
 
             {isAdmin && (
               <Button
                 size="sm"
-                className="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-bold rounded-xl h-10 px-5 text-xs shadow-md shadow-indigo-600/20 shrink-0"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl h-10 px-5 text-xs shadow-md shadow-primary/20 shrink-0"
                 onClick={() => calculateMutation.mutate({ month: viewMonth, year: viewYear })}
                 disabled={calculateMutation.isPending}
               >
@@ -795,25 +795,25 @@ export default function ProfessorExtract() {
           </div>
         </div>
 
-        {/* Tabela Fiel à Referência */}
+        {/* Tabela Adaptativa ao Tema */}
         {isLoading ? (
           <div className="h-48 flex items-center justify-center">
-            <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
+            <RefreshCw className="w-8 h-8 text-primary animate-spin" />
           </div>
         ) : displayPayments.length === 0 ? (
-          <div className="bg-slate-50/60 rounded-2xl p-12 text-center border border-dashed border-slate-200">
-            <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h4 className="font-outfit text-lg font-bold text-slate-800 mb-1">Nenhum pagamento registrado neste mês</h4>
-            <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
+          <div className="bg-muted/40 rounded-2xl p-12 text-center border border-dashed border-border">
+            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <h4 className="font-outfit text-lg font-bold text-foreground mb-1">Nenhum pagamento registrado neste mês</h4>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">
               Clique no botão "Calcular Pagamentos" acima para ler as aulas concluídas do mês e gerar a folha.
             </p>
           </div>
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-hidden rounded-xl border border-slate-200/80">
+            <div className="hidden md:block overflow-hidden rounded-xl border border-border">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/70 text-slate-400 uppercase tracking-wider font-bold border-b border-slate-200/80">
+                <thead className="bg-muted/60 text-muted-foreground uppercase tracking-wider font-bold border-b border-border">
                   <tr>
                     <th className="px-5 py-3.5">PROFESSOR</th>
                     <th className="px-5 py-3.5 text-center">AULAS REALIZADAS</th>
@@ -825,20 +825,20 @@ export default function ProfessorExtract() {
                     <th className="px-5 py-3.5 text-right">AÇÕES</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white font-medium">
+                <tbody className="divide-y divide-border bg-card font-medium">
                   {displayPayments.map((payment) => (
-                    <tr key={payment.id} className="hover:bg-slate-50/60 transition-colors">
+                    <tr key={payment.id} className="hover:bg-muted/40 transition-colors">
                       {/* Professor Name & Specialty */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-slate-100 text-indigo-600 font-bold flex items-center justify-center text-sm shrink-0 border border-slate-200/60">
+                          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0 border border-primary/20">
                             {payment.professorName?.charAt(0) || "P"}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 text-sm">
+                            <p className="font-bold text-foreground text-sm">
                               {payment.professorName}
                             </p>
-                            <p className="text-[11px] text-slate-400 font-normal">
+                            <p className="text-[11px] text-muted-foreground font-normal">
                               {payment.specialty || "Música"}
                             </p>
                           </div>
@@ -846,55 +846,55 @@ export default function ProfessorExtract() {
                       </td>
 
                       {/* Aulas */}
-                      <td className="px-5 py-4 text-center text-slate-700 font-semibold">
+                      <td className="px-5 py-4 text-center text-foreground font-semibold">
                         {payment.totalClasses}
                       </td>
 
                       {/* Carga horária */}
-                      <td className="px-5 py-4 text-center text-slate-500 font-semibold">
+                      <td className="px-5 py-4 text-center text-muted-foreground font-semibold">
                         {formatCargaHoraria(payment.totalMinutes)}
                       </td>
 
                       {/* Total Bruto */}
-                      <td className="px-5 py-4 text-right font-bold text-slate-900">
+                      <td className="px-5 py-4 text-right font-bold text-foreground">
                         R$ {Number(payment.totalCredits || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
 
                       {/* Descontos */}
-                      <td className="px-5 py-4 text-right font-medium text-rose-500">
+                      <td className="px-5 py-4 text-right font-medium text-red-500 dark:text-red-400">
                         {Number(payment.totalDebits || 0) > 0 ? `R$ ${Number(payment.totalDebits).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : "R$ 0,00"}
                       </td>
 
                       {/* Líquido */}
-                      <td className="px-5 py-4 text-right font-bold text-slate-900 text-sm">
+                      <td className="px-5 py-4 text-right font-bold text-foreground text-sm">
                         R$ {Number(payment.totalAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
 
-                      {/* Status Badges (Fiel à Referência) */}
+                      {/* Status Badges */}
                       <td className="px-5 py-4 text-center">
                         {payment.status === "pago" && (
-                          <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100/80 text-emerald-700">
+                          <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                             PAGO
                           </span>
                         )}
                         {payment.status === "aprovado" && (
-                          <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-amber-100/80 text-amber-700">
+                          <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                             PENDENTE
                           </span>
                         )}
                         {payment.status === "aberto" && (
-                          <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 text-slate-600">
+                          <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-muted text-muted-foreground border border-border">
                             EM ABERTO
                           </span>
                         )}
                       </td>
 
-                      {/* Ações Féis */}
+                      {/* Ações */}
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            className="w-8 h-8 rounded-lg bg-slate-100/70 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                            className="w-8 h-8 rounded-lg bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
                             onClick={() => setDetailsPaymentId(payment.id)}
                             title="Visualizar"
                           >
@@ -905,7 +905,7 @@ export default function ProfessorExtract() {
                             <DropdownMenuTrigger asChild>
                               <button
                                 type="button"
-                                className="w-8 h-8 rounded-lg bg-slate-100/70 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                                className="w-8 h-8 rounded-lg bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
                                 title="Mais Opções"
                               >
                                 <MoreVertical className="w-4 h-4" />
@@ -963,43 +963,43 @@ export default function ProfessorExtract() {
             {/* Mobile Cards View */}
             <div className="block md:hidden space-y-3">
               {displayPayments.map((payment) => (
-                <div key={payment.id} className="bg-white p-4 rounded-xl border border-slate-200/80 space-y-3 shadow-sm">
+                <div key={payment.id} className="bg-card p-4 rounded-xl border border-border space-y-3 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-slate-100 text-indigo-600 font-bold flex items-center justify-center text-sm border border-slate-200/60">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm border border-primary/20">
                         {payment.professorName?.charAt(0) || "P"}
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-900 text-sm">{payment.professorName}</h4>
-                        <p className="text-[11px] text-slate-400">{payment.specialty || "Música"}</p>
+                        <h4 className="font-bold text-foreground text-sm">{payment.professorName}</h4>
+                        <p className="text-[11px] text-muted-foreground">{payment.specialty || "Música"}</p>
                       </div>
                     </div>
 
-                    {payment.status === "pago" && <span className="bg-emerald-100 text-emerald-700 font-bold text-[10px] px-2 py-0.5 rounded">PAGO</span>}
-                    {payment.status === "aprovado" && <span className="bg-amber-100 text-amber-700 font-bold text-[10px] px-2 py-0.5 rounded">PENDENTE</span>}
-                    {payment.status === "aberto" && <span className="bg-slate-100 text-slate-600 font-bold text-[10px] px-2 py-0.5 rounded">EM ABERTO</span>}
+                    {payment.status === "pago" && <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] px-2 py-0.5 rounded border border-emerald-500/20">PAGO</span>}
+                    {payment.status === "aprovado" && <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[10px] px-2 py-0.5 rounded border border-amber-500/20">PENDENTE</span>}
+                    {payment.status === "aberto" && <span className="bg-muted text-muted-foreground font-bold text-[10px] px-2 py-0.5 rounded border border-border">EM ABERTO</span>}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg">
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-2.5 rounded-lg">
                     <div>
-                      <span className="text-slate-400">Aulas:</span>
-                      <p className="font-bold text-slate-800">{payment.totalClasses} aulas</p>
+                      <span className="text-muted-foreground">Aulas:</span>
+                      <p className="font-bold text-foreground">{payment.totalClasses} aulas</p>
                     </div>
                     <div>
-                      <span className="text-slate-400">Carga Horária:</span>
-                      <p className="font-bold text-slate-800">{formatCargaHoraria(payment.totalMinutes)}</p>
+                      <span className="text-muted-foreground">Carga Horária:</span>
+                      <p className="font-bold text-foreground">{formatCargaHoraria(payment.totalMinutes)}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
                     <div>
-                      <span className="text-[11px] text-slate-400 font-medium">Líquido a Pagar</span>
-                      <p className="font-outfit text-lg font-bold text-slate-900">
+                      <span className="text-[11px] text-muted-foreground font-medium">Líquido a Pagar</span>
+                      <p className="font-outfit text-lg font-bold text-foreground">
                         R$ {Number(payment.totalAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
 
-                    <Button size="sm" className="rounded-xl font-bold bg-[#4f46e5] text-xs h-8" onClick={() => setDetailsPaymentId(payment.id)}>
+                    <Button size="sm" className="rounded-xl font-bold bg-primary text-primary-foreground text-xs h-8" onClick={() => setDetailsPaymentId(payment.id)}>
                       Ver Detalhes
                     </Button>
                   </div>
@@ -1015,7 +1015,7 @@ export default function ProfessorExtract() {
                   const el = document.getElementById("pagamentos-periodo-card");
                   if (el) el.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-primary hover:underline transition-colors inline-flex items-center gap-1 cursor-pointer"
               >
                 Ver todos os pagamentos <ChevronDown className="w-3.5 h-3.5" />
               </button>
@@ -1026,28 +1026,28 @@ export default function ProfessorExtract() {
 
       {/* Modal/Drawer: Detalhamento do Pagamento */}
       <Dialog open={!!detailsPaymentId} onOpenChange={(o) => !o && setDetailsPaymentId(null)}>
-        <DialogContent className="w-[95vw] sm:max-w-4xl rounded-2xl bg-white border-slate-200 p-6 md:p-8 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-4xl rounded-2xl bg-card border-border p-6 md:p-8 max-h-[90vh] overflow-y-auto text-card-foreground">
           <DialogHeader>
-            <DialogTitle className="font-outfit text-2xl font-black text-slate-900">
+            <DialogTitle className="font-outfit text-2xl font-black text-foreground">
               Resumo do Pagamento
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
+            <DialogDescription className="text-xs text-muted-foreground">
               Detalhamento de atividades e cálculo financeiro do professor.
             </DialogDescription>
           </DialogHeader>
 
           {detailsLoading ? (
-            <div className="py-12 flex justify-center"><RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" /></div>
+            <div className="py-12 flex justify-center"><RefreshCw className="w-8 h-8 text-primary animate-spin" /></div>
           ) : (
             <div className="space-y-6 mt-4">
               {displayPayments.find(p => p.id === detailsPaymentId) && (
-                <div className="bg-slate-50 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4 border border-slate-200/80">
+                <div className="bg-muted/40 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4 border border-border">
                   <div>
-                    <h3 className="font-outfit text-lg font-bold text-slate-900">
+                    <h3 className="font-outfit text-lg font-bold text-foreground">
                       {displayPayments.find(p => p.id === detailsPaymentId)?.professorName}
                     </h3>
-                    <p className="text-xs text-slate-500 font-medium">
-                      Período de Referência: <span className="capitalize text-slate-900 font-bold">{months.find(m => m.value === viewMonth)?.label} / {viewYear}</span>
+                    <p className="text-xs text-muted-foreground font-medium">
+                      Período de Referência: <span className="capitalize text-foreground font-bold">{months.find(m => m.value === viewMonth)?.label} / {viewYear}</span>
                     </p>
                   </div>
                   <Badge variant="outline" className="rounded-lg font-bold text-xs">
@@ -1058,24 +1058,24 @@ export default function ProfessorExtract() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Atividades */}
-                <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-3">
-                  <h4 className="font-outfit font-bold text-sm text-slate-900 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-indigo-600" /> Atividades
+                <div className="bg-card p-5 rounded-xl border border-border space-y-3">
+                  <h4 className="font-outfit font-bold text-sm text-foreground flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary" /> Atividades
                   </h4>
                   <div className="space-y-2 text-xs">
-                    <div className="flex justify-between pb-2 border-b border-slate-100">
-                      <span className="text-slate-500">Aulas realizadas:</span>
-                      <span className="font-bold text-slate-900">{detailsData?.lessons?.length || 0} aulas</span>
+                    <div className="flex justify-between pb-2 border-b border-border">
+                      <span className="text-muted-foreground">Aulas realizadas:</span>
+                      <span className="font-bold text-foreground">{detailsData?.lessons?.length || 0} aulas</span>
                     </div>
-                    <div className="flex justify-between pb-2 border-b border-slate-100">
-                      <span className="text-slate-500">Horas trabalhadas:</span>
-                      <span className="font-bold text-slate-900">
+                    <div className="flex justify-between pb-2 border-b border-border">
+                      <span className="text-muted-foreground">Horas trabalhadas:</span>
+                      <span className="font-bold text-foreground">
                         {formatCargaHoraria(detailsData?.lessons?.reduce((acc: number, l: any) => acc + (l.duration || 0), 0) || 0)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Alunos atendidos:</span>
-                      <span className="font-bold text-slate-900">
+                      <span className="text-muted-foreground">Alunos atendidos:</span>
+                      <span className="font-bold text-foreground">
                         {new Set(detailsData?.lessons?.map((l: any) => l.studentId).filter(Boolean)).size} alunos
                       </span>
                     </div>
@@ -1083,27 +1083,27 @@ export default function ProfessorExtract() {
                 </div>
 
                 {/* Cálculo */}
-                <div className="bg-white p-5 rounded-xl border border-slate-200/80 space-y-3">
-                  <h4 className="font-outfit font-bold text-sm text-slate-900 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-indigo-600" /> Cálculo
+                <div className="bg-card p-5 rounded-xl border border-border space-y-3">
+                  <h4 className="font-outfit font-bold text-sm text-foreground flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-primary" /> Cálculo
                   </h4>
                   {displayPayments.find(p => p.id === detailsPaymentId) && (
                     <div className="space-y-2 text-xs">
-                      <div className="flex justify-between pb-2 border-b border-slate-100">
-                        <span className="text-slate-500">Valor das aulas:</span>
-                        <span className="font-bold text-slate-900">
+                      <div className="flex justify-between pb-2 border-b border-border">
+                        <span className="text-muted-foreground">Valor das aulas:</span>
+                        <span className="font-bold text-foreground">
                           R$ {Number(displayPayments.find(p => p.id === detailsPaymentId)?.totalCredits || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
-                      <div className="flex justify-between pb-2 border-b border-slate-100">
-                        <span className="text-slate-500">Descontos:</span>
-                        <span className="font-bold text-rose-500">
+                      <div className="flex justify-between pb-2 border-b border-border">
+                        <span className="text-muted-foreground">Descontos:</span>
+                        <span className="font-bold text-red-500 dark:text-red-400">
                           - R$ {Number(displayPayments.find(p => p.id === detailsPaymentId)?.totalDebits || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                       <div className="flex justify-between pt-1">
-                        <span className="font-bold text-indigo-600">Líquido a receber:</span>
-                        <span className="font-outfit text-lg font-black text-slate-900">
+                        <span className="font-bold text-primary">Líquido a receber:</span>
+                        <span className="font-outfit text-lg font-black text-foreground">
                           R$ {Number(displayPayments.find(p => p.id === detailsPaymentId)?.totalAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
@@ -1114,10 +1114,10 @@ export default function ProfessorExtract() {
 
               {/* Tabela de Aulas Concluídas */}
               <div className="space-y-2">
-                <h4 className="font-outfit font-bold text-sm text-slate-900">Aulas Ministradas no Período</h4>
-                <div className="overflow-hidden rounded-xl border border-slate-200 max-h-52 overflow-y-auto">
+                <h4 className="font-outfit font-bold text-sm text-foreground">Aulas Ministradas no Período</h4>
+                <div className="overflow-hidden rounded-xl border border-border max-h-52 overflow-y-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-400 font-bold uppercase">
+                    <thead className="bg-muted/60 text-muted-foreground font-bold uppercase">
                       <tr>
                         <th className="p-2.5">Data</th>
                         <th className="p-2.5">Aluno</th>
@@ -1125,12 +1125,12 @@ export default function ProfessorExtract() {
                         <th className="p-2.5">Duração</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
+                    <tbody className="divide-y divide-border bg-card font-medium">
                       {detailsData?.lessons?.map((lesson: any) => (
-                        <tr key={lesson.id} className="hover:bg-slate-50">
+                        <tr key={lesson.id} className="hover:bg-muted/40">
                           <td className="p-2.5">{format(new Date(lesson.scheduledAt), "dd/MM/yyyy HH:mm")}</td>
-                          <td className="p-2.5 font-bold text-slate-900">{lesson.studentName || "-"}</td>
-                          <td className="p-2.5 text-slate-500">{lesson.title}</td>
+                          <td className="p-2.5 font-bold text-foreground">{lesson.studentName || "-"}</td>
+                          <td className="p-2.5 text-muted-foreground">{lesson.title}</td>
                           <td className="p-2.5">{lesson.duration}m</td>
                         </tr>
                       ))}
@@ -1140,14 +1140,14 @@ export default function ProfessorExtract() {
               </div>
 
               {/* Botão Recalcular Pagamento */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-                <Button variant="outline" className="rounded-xl text-xs" onClick={() => handlePrint(displayPayments.find(p => p.id === detailsPaymentId))}>
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <Button variant="outline" className="rounded-xl text-xs bg-card border-border hover:bg-muted" onClick={() => handlePrint(displayPayments.find(p => p.id === detailsPaymentId))}>
                   <Printer className="w-3.5 h-3.5 mr-2" /> Gerar Recibo PDF
                 </Button>
 
                 {isAdmin && (
                   <Button
-                    className="rounded-xl bg-[#4f46e5] text-white font-bold text-xs"
+                    className="rounded-xl bg-primary text-primary-foreground font-bold text-xs"
                     onClick={() => {
                       const profId = displayPayments.find(p => p.id === detailsPaymentId)?.professorId;
                       if (profId) {
@@ -1172,21 +1172,21 @@ export default function ProfessorExtract() {
 
       {/* Modal: Novo Pagamento Manual Extraordinário */}
       <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-lg rounded-2xl bg-white border-slate-200 p-6 md:p-8">
+        <DialogContent className="w-[95vw] sm:max-w-lg rounded-2xl bg-card border-border p-6 md:p-8 text-card-foreground">
           <DialogHeader>
-            <DialogTitle className="font-outfit text-xl font-bold text-slate-900">
+            <DialogTitle className="font-outfit text-xl font-bold text-foreground">
               + Novo Pagamento Manual
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
+            <DialogDescription className="text-xs text-muted-foreground">
               Utilize esta opção apenas para lançar pagamentos manuais ou extraordinários fora do fluxo automático.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleManualCreateSubmit} className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-700 uppercase">Professor</Label>
+              <Label className="text-xs font-bold text-foreground uppercase">Professor</Label>
               <Select value={manualProfId} onValueChange={setManualProfId}>
-                <SelectTrigger className="w-full rounded-xl bg-slate-50 border-slate-200 text-xs font-medium">
+                <SelectTrigger className="w-full rounded-xl bg-muted/40 border-border text-xs font-medium">
                   <SelectValue placeholder="Selecione o professor..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -1201,46 +1201,46 @@ export default function ProfessorExtract() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700 uppercase">Valor Bruto (R$)</Label>
+                <Label className="text-xs font-bold text-foreground uppercase">Valor Bruto (R$)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   placeholder="0,00"
                   value={manualCredits}
                   onChange={(e) => setManualCredits(e.target.value)}
-                  className="rounded-xl bg-slate-50 border-slate-200 text-xs font-bold"
+                  className="rounded-xl bg-muted/40 border-border text-xs font-bold"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700 uppercase">Descontos (R$)</Label>
+                <Label className="text-xs font-bold text-foreground uppercase">Descontos (R$)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   placeholder="0,00"
                   value={manualDebits}
                   onChange={(e) => setManualDebits(e.target.value)}
-                  className="rounded-xl bg-slate-50 border-slate-200 text-xs font-bold text-rose-500"
+                  className="rounded-xl bg-muted/40 border-border text-xs font-bold text-red-500 dark:text-red-400"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-700 uppercase">Observações / Descrição</Label>
+              <Label className="text-xs font-bold text-foreground uppercase">Observações / Descrição</Label>
               <Input
                 placeholder="Ex: Bônus de fim de ano, Lançamento extra..."
                 value={manualNotes}
                 onChange={(e) => setManualNotes(e.target.value)}
-                className="rounded-xl bg-slate-50 border-slate-200 text-xs font-medium"
+                className="rounded-xl bg-muted/40 border-border text-xs font-medium"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
               <Button type="button" variant="ghost" className="rounded-xl text-xs" onClick={() => setIsManualModalOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="rounded-xl bg-[#4f46e5] text-white font-bold text-xs" disabled={createManualMutation.isPending}>
+              <Button type="submit" className="rounded-xl bg-primary text-primary-foreground font-bold text-xs" disabled={createManualMutation.isPending}>
                 {createManualMutation.isPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : null}
                 Criar Pagamento
               </Button>
@@ -1251,15 +1251,15 @@ export default function ProfessorExtract() {
 
       {/* Modal: Ajustes Manuais */}
       <Dialog open={!!adjustPayment} onOpenChange={(o) => !o && setAdjustPayment(null)}>
-        <DialogContent className="w-[95vw] sm:max-w-xl rounded-2xl bg-white border-slate-200 p-6">
+        <DialogContent className="w-[95vw] sm:max-w-xl rounded-2xl bg-card border-border p-6 text-card-foreground">
           <DialogHeader>
-            <DialogTitle className="font-outfit text-xl font-bold text-slate-900">Ajustes Manuais</DialogTitle>
+            <DialogTitle className="font-outfit text-xl font-bold text-foreground">Ajustes Manuais</DialogTitle>
           </DialogHeader>
           {adjustPayment && (
             <div className="space-y-5 mt-3">
               <div className="space-y-3">
                 {adjustPayment.adjs.map((adj: any, idx: number) => (
-                  <div key={idx} className="flex gap-2.5 items-center bg-slate-50 p-2 rounded-xl border border-slate-200/80">
+                  <div key={idx} className="flex gap-2.5 items-center bg-muted/40 p-2 rounded-xl border border-border">
                     <Input 
                       placeholder="Descrição (ex: Bônus, Falta)" 
                       value={adj.desc} 
@@ -1268,7 +1268,7 @@ export default function ProfessorExtract() {
                         newAdjs[idx].desc = e.target.value;
                         setAdjustPayment({...adjustPayment, adjs: newAdjs});
                       }}
-                      className="flex-1 rounded-lg bg-white text-xs"
+                      className="flex-1 rounded-lg bg-card text-xs"
                     />
                     <Input 
                       type="number" 
@@ -1279,9 +1279,9 @@ export default function ProfessorExtract() {
                         newAdjs[idx].value = parseFloat(e.target.value) || 0;
                         setAdjustPayment({...adjustPayment, adjs: newAdjs});
                       }}
-                      className="w-28 rounded-lg bg-white font-bold text-xs"
+                      className="w-28 rounded-lg bg-card font-bold text-xs"
                     />
-                    <Button variant="ghost" size="icon" className="hover:bg-rose-50 hover:text-rose-600 rounded-lg h-8 w-8" onClick={() => {
+                    <Button variant="ghost" size="icon" className="hover:bg-red-500/10 hover:text-red-500 rounded-lg h-8 w-8" onClick={() => {
                       const newAdjs = adjustPayment.adjs.filter((_:any, i:number) => i !== idx);
                       setAdjustPayment({...adjustPayment, adjs: newAdjs});
                     }}>
@@ -1290,29 +1290,29 @@ export default function ProfessorExtract() {
                   </div>
                 ))}
                 
-                <Button variant="outline" className="w-full border-dashed border hover:bg-slate-50 py-3 rounded-xl font-bold text-xs text-slate-600" onClick={() => {
+                <Button variant="outline" className="w-full border-dashed border hover:bg-muted py-3 rounded-xl font-bold text-xs text-muted-foreground" onClick={() => {
                   setAdjustPayment({...adjustPayment, adjs: [...adjustPayment.adjs, { desc: "", value: 0 }]});
                 }}>
                   <Plus className="w-3.5 h-3.5 mr-1.5" /> Adicionar Novo Ajuste
                 </Button>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-1.5 text-xs">
-                <div className="flex justify-between items-center text-slate-500">
+              <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-1.5 text-xs">
+                <div className="flex justify-between items-center text-muted-foreground">
                   <span>Créditos Base:</span>
-                  <span className="font-bold text-slate-900">R$ {Number(adjustPayment.totalCredits).toFixed(2)}</span>
+                  <span className="font-bold text-foreground">R$ {Number(adjustPayment.totalCredits).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center text-emerald-600 font-semibold">
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
                   <span>Ajustes (+):</span>
                   <span>+ R$ {adjustPayment.adjs.filter((a:any)=>a.value>0).reduce((sum:number,a:any)=>sum+a.value,0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center text-rose-500 font-semibold">
+                <div className="flex justify-between items-center text-red-500 dark:text-red-400 font-semibold">
                   <span>Ajustes (-):</span>
                   <span>- R$ {Math.abs(adjustPayment.adjs.filter((a:any)=>a.value<0).reduce((sum:number,a:any)=>sum+a.value,0)).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center font-bold border-t border-slate-200 pt-2 mt-1">
-                  <span className="text-slate-900">Total Líquido:</span>
-                  <span className="font-outfit text-base text-slate-900">R$ {(
+                <div className="flex justify-between items-center font-bold border-t border-border pt-2 mt-1">
+                  <span className="text-foreground">Total Líquido:</span>
+                  <span className="font-outfit text-base text-foreground">R$ {(
                     Number(adjustPayment.totalCredits) + 
                     adjustPayment.adjs.reduce((sum:number,a:any)=>sum+a.value,0)
                   ).toFixed(2)}</span>
@@ -1321,7 +1321,7 @@ export default function ProfessorExtract() {
 
               <div className="flex justify-end gap-2 pt-1">
                 <Button variant="ghost" className="rounded-xl text-xs" onClick={() => setAdjustPayment(null)}>Cancelar</Button>
-                <Button className="rounded-xl bg-[#4f46e5] text-white font-bold text-xs" disabled={updateAdjustmentsMutation.isPending} onClick={() => {
+                <Button className="rounded-xl bg-primary text-primary-foreground font-bold text-xs" disabled={updateAdjustmentsMutation.isPending} onClick={() => {
                   const manualCredits = adjustPayment.adjs.filter((a:any)=>a.value>0).reduce((sum:number,a:any)=>sum+a.value,0);
                   const manualDebits = Math.abs(adjustPayment.adjs.filter((a:any)=>a.value<0).reduce((sum:number,a:any)=>sum+a.value,0));
                   
