@@ -24,12 +24,15 @@ import {
   ArrowRight,
   Gem,
   FileText,
-  ChevronDown
+  ChevronDown,
+  Compass,
+  HeartHandshake,
+  Wallet,
+  FolderKanban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { motion } from "framer-motion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,7 +44,7 @@ import {
 
 interface NavGroup {
   groupName: string;
-  dotColor: string;
+  groupIcon: React.ElementType;
   textColor: string;
   items: {
     label: string;
@@ -80,11 +83,11 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     onSuccess: () => { window.location.href = "/"; },
   });
 
-  // Grupos do Menu Categorizado (Fidelidade ao Modelo Enviado)
+  // Grupos do Menu Categorizado (com ícone temático para cada aba)
   const navGroups: NavGroup[] = [
     {
       groupName: "PRINCIPAL",
-      dotColor: "bg-indigo-500",
+      groupIcon: Compass,
       textColor: "text-indigo-400",
       items: [
         { label: "IA Assistente", href: "/ia", icon: Sparkles, activeStyle: "bg-[#1E1B4B] text-white border-l-4 border-[#5B50E6] shadow-lg shadow-indigo-950/50" },
@@ -97,7 +100,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     },
     {
       groupName: "RELACIONAMENTO",
-      dotColor: "bg-blue-500",
+      groupIcon: HeartHandshake,
       textColor: "text-blue-400",
       items: [
         { label: "Comunicados", href: "/comunicados", icon: Megaphone },
@@ -105,7 +108,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     },
     {
       groupName: "FINANCEIRO",
-      dotColor: "bg-emerald-500",
+      groupIcon: Wallet,
       textColor: "text-emerald-400",
       items: [
         { label: "Finanças", href: "/financeiro", icon: DollarSign },
@@ -114,7 +117,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     },
     {
       groupName: "AUTOMAÇÕES",
-      dotColor: "bg-amber-500",
+      groupIcon: Zap,
       textColor: "text-amber-400",
       items: [
         { label: "Automação", href: "/automacoes", icon: Zap },
@@ -123,7 +126,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     },
     {
       groupName: "OUTROS",
-      dotColor: "bg-purple-500",
+      groupIcon: FolderKanban,
       textColor: "text-purple-400",
       items: [
         { label: "Solicitações", href: "/solicitacoes", icon: Inbox, badge: requestCount > 0 ? requestCount : undefined },
@@ -222,13 +225,14 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         )}
       </div>
 
-      {/* NAVEGAÇÃO CATEGORIZADA COM ACORDEÃO DE ESCONDER/EXIBIR */}
+      {/* NAVEGAÇÃO CATEGORIZADA COM ÍCONES E ACORDEÃO */}
       <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto overflow-x-hidden no-scrollbar">
         {navGroups.map((group) => {
           // Filtrar itens ocultos
           const visibleItems = group.items.filter((item) => !hiddenTabs.includes(item.href));
           if (visibleItems.length === 0) return null;
           const isGroupCollapsed = !collapsed && !!collapsedGroups[group.groupName];
+          const GroupIcon = group.groupIcon;
 
           return (
             <div key={group.groupName} className="space-y-1">
@@ -236,11 +240,11 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.groupName)}
-                  className="flex items-center justify-between w-full px-3 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group/header select-none text-left"
+                  className="flex items-center justify-between w-full px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group/header select-none text-left"
                   title={isGroupCollapsed ? "Expandir categoria" : "Recolher categoria"}
                 >
                   <div className="flex items-center gap-2">
-                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", group.dotColor)} />
+                    <GroupIcon className={cn("w-3.5 h-3.5 shrink-0", group.textColor)} />
                     <span className={cn("text-[10px] font-black uppercase tracking-widest font-outfit", group.textColor)}>
                       {group.groupName}
                     </span>
@@ -297,7 +301,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
           );
         })}
 
-        {/* BANNER PROMO: PLANO PREMIUM */}
+        {/* BANNER PROMO: PLANO DA ESCOLA */}
         {!collapsed && (
           <div className="mx-1 mt-4 p-4 rounded-2xl bg-gradient-to-br from-[#120F2E] to-[#18143C] border border-indigo-950/80 shadow-xl relative overflow-hidden group">
             <div className="flex items-start gap-3">
@@ -325,7 +329,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         )}
       </nav>
 
-      {/* FOOTER USER PROFILE (Fidelidade Absoluta ao Modelo) */}
+      {/* FOOTER USER PROFILE */}
       <div className={cn(
         "p-3.5 bg-[#0D0A22] border-t border-indigo-950/50 flex items-center justify-between",
         collapsed && "justify-center p-2"
@@ -343,7 +347,6 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-extrabold text-xs flex items-center justify-center shadow-md">
                   {initials}
                 </div>
-                {/* Status Dot (Verde Online) */}
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-[#070514] absolute bottom-0 right-0 shadow-xs" />
               </div>
               <div className="min-w-0">
