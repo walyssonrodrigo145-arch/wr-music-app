@@ -64,6 +64,14 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   const { data: requestCount = 0 } = trpc.reschedule.pendingCount.useQuery();
   const { data: settings } = trpc.settings.get.useQuery();
   const { data: mySub } = trpc.platform.mySubscription.useQuery();
+  const { data: publicPlans = [] } = trpc.platform.getPublicPlans.useQuery();
+
+  const activePlanObj = publicPlans.find((p) => p.id === mySub?.planId);
+  const activePlanName = activePlanObj?.name || (
+    mySub?.planId
+      ? `Plano ${mySub.planId.charAt(0).toUpperCase() + mySub.planId.slice(1)}`
+      : "Plano Premium"
+  );
 
   const hiddenTabs = settings?.hiddenTabs ? settings.hiddenTabs.split(",") : [];
 
@@ -259,7 +267,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 <Gem size={18} />
               </div>
               <div>
-                <p className="text-xs font-extrabold text-white font-outfit">Plano Premium</p>
+                <p className="text-xs font-extrabold text-white font-outfit">{activePlanName}</p>
                 <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
                   Aproveite todos os recursos exclusivos para sua escola.
                 </p>
