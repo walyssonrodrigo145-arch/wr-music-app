@@ -8592,6 +8592,7 @@ Texto original para reescrever:
         const payments = await db.select({
           payment: professorPayments,
           professorName: users.name,
+          specialty: professores.especialidade,
         })
           .from(professorPayments)
           .innerJoin(professores, eq(professores.id, professorPayments.professorId))
@@ -8606,7 +8607,83 @@ Texto original para reescrever:
         return payments.map(p => ({
           ...p.payment,
           professorName: p.professorName,
+          specialty: p.specialty,
         }));
+      }),
+
+    getHistory: protectedProcedure
+      .input(z.object({
+        year: z.number().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const orgId = ctx.user.organizationId!;
+        const targetYear = input.year || new Date().getFullYear();
+
+        const payments = await db.select()
+          .from(professorPayments)
+          .where(and(
+            eq(professorPayments.organizationId, orgId),
+            eq(professorPayments.year, targetYear),
+          ));
+
+        // Group totals by month (1..12)
+        const monthMap: Record<number, { bruto: number; liquido: number; descontos: number }> = {};
+        for (let m = 1; m <= 12; m++) {
+          monthMap[m] = { bruto: 0, liquido: 0, descontos: 0 };
+        }
+
+        payments.forEach(p => {
+          if (monthMap[p.month]) {
+            monthMap[p.month].bruto += parseFloat(p.totalCredits || "0");
+            monthMap[p.month].descontos += parseFloat(p.totalDebits || "0");
+            monthMap[p.month].liquido += parseFloat(p.totalAmount || "0");
+          }
+        });
+
+        const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        return monthNames.map((name, idx) => ({
+          month: idx + 1,
+          monthName: name,
+          bruto: monthMap[idx + 1].bruto,
+          descontos: monthMap[idx + 1].descontos,
+          liquido: monthMap[idx + 1].liquido,
+        }));
+      }),
+
+    createManual: protectedProcedure
+      .input(z.object({
+        professorId: z.number(),
+        month: z.number().min(1).max(12),
+        year: z.number().min(2020).max(2100),
+        totalCredits: z.number(),
+        totalDebits: z.number().default(0),
+        totalAmount: z.number(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        const [newPayment] = await db.insert(professorPayments).values({
+          organizationId: orgId,
+          professorId: input.professorId,
+          month: input.month,
+          year: input.year,
+          totalClasses: 0,
+          totalMinutes: 0,
+          totalCredits: input.totalCredits.toFixed(2),
+          totalDebits: input.totalDebits.toFixed(2),
+          totalAmount: input.totalAmount.toFixed(2),
+          status: "aberto",
+          notes: input.notes || "Lançamento Manual Extraordinário",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).returning();
+
+        return newPayment;
       }),
 
     calculate: protectedProcedure
