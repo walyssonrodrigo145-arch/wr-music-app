@@ -1368,6 +1368,13 @@ export const studioRooms = pgTable("studio_rooms", {
   organizationId: integer("organizationId").notNull(),
   name: varchar("name", { length: 100 }).notNull(),
   description: text("description"),
+  category: varchar("category", { length: 100 }).default("Estúdio de gravação").notNull(),
+  capacity: integer("capacity").default(8).notNull(),
+  equipments: text("equipments").default("Bateria, Teclado, Ar Condicionado").notNull(),
+  status: varchar("status", { length: 20 }).default("ativa").notNull(), // "ativa" | "manutencao" | "inativa"
+  imageUrl: text("imageUrl"),
+  utilizationRate: integer("utilization_rate").default(75).notNull(),
+  isPrincipal: boolean("is_principal").default(false).notNull(),
   color: varchar("color", { length: 20 }).default("#3b82f6").notNull(),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

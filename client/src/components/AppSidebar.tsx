@@ -28,7 +28,8 @@ import {
   Compass,
   HeartHandshake,
   Wallet,
-  FolderKanban
+  FolderKanban,
+  DoorOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -95,6 +96,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         { label: "Alunos", href: "/alunos", icon: Users },
         { label: "Aulas", href: "/aulas", icon: Calendar },
         { label: "Instrumentos", href: "/instrumentos", icon: Guitar },
+        { label: "Salas de Estúdio", href: "/salas", icon: DoorOpen },
         { label: "Relatórios", href: "/relatorios", icon: BarChart3 },
       ],
     },

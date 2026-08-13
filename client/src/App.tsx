@@ -44,6 +44,7 @@ const LeadsApp = lazy(() => import('./pages/leads/LeadsApp'));
 const DashboardComercial = lazy(() => import('./pages/DashboardComercial'));
 const TermosDeUso = lazy(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
+const SalasEstudio = lazy(() => import("./pages/SalasEstudio"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -227,6 +228,8 @@ function Router() {
           <Route path="/analytics" component={AnalyticsDashboard} />
           <Route path="/comercial" component={LeadsApp} />
           <Route path="/leads" component={LeadsApp} />
+          <Route path="/salas" component={SalasEstudio} />
+          <Route path="/salas-estudio" component={SalasEstudio} />
           <Route path="/checkout" component={Checkout} />
           <Route>
             <Redirect to="/dashboard" />

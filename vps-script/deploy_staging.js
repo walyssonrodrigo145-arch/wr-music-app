@@ -49,6 +49,8 @@ const filesToUpload = [
   'client/src/pages/leads/LeadsApp.tsx',
   'client/src/components/AppSidebar.tsx',
   'client/src/components/AppHeader.tsx',
+  'client/src/pages/SalasEstudio.tsx',
+  'server/studioRoomsRouter.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');
