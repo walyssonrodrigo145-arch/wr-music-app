@@ -2,12 +2,30 @@ import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { studioRooms } from "../drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
+
+let schemaEnsured = false;
+async function ensureStudioRoomsSchema(db: any) {
+  if (schemaEnsured) return;
+  try {
+    await db.execute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "category" varchar(100) DEFAULT 'Estúdio de gravação' NOT NULL`);
+    await db.execute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "capacity" integer DEFAULT 8 NOT NULL`);
+    await db.execute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "equipments" text DEFAULT 'Bateria, Teclado, Ar Condicionado' NOT NULL`);
+    await db.execute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "status" varchar(20) DEFAULT 'ativa' NOT NULL`);
+    await db.execute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "imageUrl" text`);
+    await db.execute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "utilization_rate" integer DEFAULT 75 NOT NULL`);
+    await db.execute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "is_principal" boolean DEFAULT false NOT NULL`);
+    schemaEnsured = true;
+  } catch (e: any) {
+    console.warn("ensureStudioRoomsSchema failed:", e?.message);
+  }
+}
 
 export const studioRoomsRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return [];
+    await ensureStudioRoomsSchema(db);
     const orgId = ctx.user.organizationId!;
     return db.select().from(studioRooms).where(eq(studioRooms.organizationId, orgId));
   }),
@@ -15,6 +33,7 @@ export const studioRoomsRouter = router({
   stats: protectedProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return { total: 0, active: 0, maintenance: 0, avgUtilization: 0, avgRating: 4.8 };
+    await ensureStudioRoomsSchema(db);
     const orgId = ctx.user.organizationId!;
     const rooms = await db.select().from(studioRooms).where(eq(studioRooms.organizationId, orgId));
 
@@ -61,6 +80,7 @@ export const studioRoomsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
+      await ensureStudioRoomsSchema(db);
       const orgId = ctx.user.organizationId!;
 
       const [newRoom] = await db
@@ -68,12 +88,12 @@ export const studioRoomsRouter = router({
         .values({
           organizationId: orgId,
           name: input.name,
-          description: input.description,
+          description: input.description || null,
           category: input.category || "Estúdio de gravação",
           capacity: input.capacity || 8,
           equipments: input.equipments || "Bateria, Teclado, Ar Condicionado",
           status: input.status || "ativa",
-          imageUrl: input.imageUrl,
+          imageUrl: input.imageUrl && input.imageUrl.trim() ? input.imageUrl : null,
           utilizationRate: input.utilizationRate || 75,
           isPrincipal: input.isPrincipal || false,
           color: input.color || "#6366f1",
@@ -104,24 +124,25 @@ export const studioRoomsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
+      await ensureStudioRoomsSchema(db);
       const orgId = ctx.user.organizationId!;
+
+      const updateData: any = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.description !== undefined) updateData.description = input.description;
+      if (input.category !== undefined) updateData.category = input.category;
+      if (input.capacity !== undefined) updateData.capacity = input.capacity;
+      if (input.equipments !== undefined) updateData.equipments = input.equipments;
+      if (input.status !== undefined) updateData.status = input.status;
+      if (input.imageUrl !== undefined) updateData.imageUrl = input.imageUrl && input.imageUrl.trim() ? input.imageUrl : null;
+      if (input.utilizationRate !== undefined) updateData.utilizationRate = input.utilizationRate;
+      if (input.isPrincipal !== undefined) updateData.isPrincipal = input.isPrincipal;
+      if (input.color !== undefined) updateData.color = input.color;
+      if (input.active !== undefined) updateData.active = input.active;
 
       const [updated] = await db
         .update(studioRooms)
-        .set({
-          ...(input.name !== undefined && { name: input.name }),
-          ...(input.description !== undefined && { description: input.description }),
-          ...(input.category !== undefined && { category: input.category }),
-          ...(input.capacity !== undefined && { capacity: input.capacity }),
-          ...(input.equipments !== undefined && { equipments: input.equipments }),
-          ...(input.status !== undefined && { status: input.status }),
-          ...(input.imageUrl !== undefined && { imageUrl: input.imageUrl }),
-          ...(input.utilizationRate !== undefined && { utilizationRate: input.utilizationRate }),
-          ...(input.isPrincipal !== undefined && { isPrincipal: input.isPrincipal }),
-          ...(input.color !== undefined && { color: input.color }),
-          ...(input.active !== undefined && { active: input.active }),
-          updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(and(eq(studioRooms.id, input.id), eq(studioRooms.organizationId, orgId)))
         .returning();
 
@@ -133,23 +154,8 @@ export const studioRoomsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
+      await ensureStudioRoomsSchema(db);
       const orgId = ctx.user.organizationId!;
-
-      const { lessons } = await import("../drizzle/schema");
-      const { count } = await import("drizzle-orm");
-      const [result] = await db
-        .select({ total: count() })
-        .from(lessons)
-        .where(
-          and(
-            eq(lessons.studioRoomId, input.id),
-            eq(lessons.organizationId, orgId)
-          )
-        );
-
-      if (result?.total && result.total > 0) {
-        throw new Error(`Esta sala possui ${result.total} aula(s) associada(s). Remova ou realoque as aulas antes de excluir a sala.`);
-      }
 
       await db
         .delete(studioRooms)
