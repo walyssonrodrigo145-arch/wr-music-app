@@ -14,6 +14,8 @@ const filesToUpload = [
   'package.json',
   'pnpm-lock.yaml',
   'server/routers.ts',
+  'server/advancedAiRouter.ts',
+  'client/src/pages/SalasEstudioTab.tsx',
   'server/_core/trpc.ts',
   'client/src/pages/Cadastro.tsx',
   'server/analyticsRouter.ts',

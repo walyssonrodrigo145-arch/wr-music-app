@@ -129,10 +129,12 @@ function Router() {
 
   // Redirect unauthenticated users to login, except for landing page
   if (!isAuthenticated) {
+    const isNativeApp = typeof window !== "undefined" && (window.location.protocol.includes("capacitor") || window.location.origin.includes("localhost"));
+    
     return (
       <Suspense fallback={<PageLoader />}>
         <Switch>
-          <Route path="/" component={LandingPage} />
+          <Route path="/" component={isNativeApp ? Login : LandingPage} />
           <Route path="/login" component={Login} />
           <Route path="/cadastro" component={Cadastro} />
           <Route path="/termos-de-uso" component={TermosDeUso} />

@@ -36,10 +36,21 @@ queryClient.getMutationCache().subscribe((event: any) => {
   }
 });
 
+const getApiUrl = () => {
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin;
+    const protocol = window.location.protocol;
+    if (origin.includes("localhost") || protocol === "file:" || protocol.includes("capacitor")) {
+      return "https://wrmusicpro.com.br/api/trpc";
+    }
+  }
+  return "/api/trpc";
+};
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: "/api/trpc",
+      url: getApiUrl(),
       transformer: superjson,
       fetch(input: RequestInfo | URL, init?: RequestInit) {
         return globalThis.fetch(input, {

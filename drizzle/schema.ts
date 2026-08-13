@@ -1390,6 +1390,37 @@ export const enrollmentLinks = pgTable("enrollment_links", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-export type EnrollmentLink = typeof enrollmentLinks.$inferSelect;
-export type InsertEnrollmentLink = typeof enrollmentLinks.$inferInsert;
+// ── Memória Pedagógica Contínua da IA (Opção 4) ──────────────────────────────
+export const studentPedagogicalMemory = pgTable("student_pedagogical_memory", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  studentId: integer("studentId").notNull().unique(),
+  strongPoints: text("strongPoints").default("[]"), // JSON string / array
+  weakPoints: text("weakPoints").default("[]"),   // JSON string / array
+  repertoireMastered: text("repertoireMastered").default("[]"), // JSON array
+  repertoireLearning: text("repertoireLearning").default("[]"), // JSON array
+  pedagogicalDirectives: text("pedagogicalDirectives"), // Recomendações consolidadas da IA
+  lastAiAnalysisAt: timestamp("lastAiAnalysisAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type StudentPedagogicalMemory = typeof studentPedagogicalMemory.$inferSelect;
+export type InsertStudentPedagogicalMemory = typeof studentPedagogicalMemory.$inferInsert;
+
+// ── Registro e Cache de Otimizações de Agenda via IA (Opção 6) ───────────────
+export const scheduleOptimizationLogs = pgTable("schedule_optimization_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId").notNull(),
+  inputConstraints: text("inputConstraints").notNull(), // JSON com parâmetros enviados
+  proposedSchedule: text("proposedSchedule").notNull(),  // JSON com a grade ótima sugerida
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // 'pending', 'applied', 'rejected'
+  appliedAt: timestamp("appliedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ScheduleOptimizationLog = typeof scheduleOptimizationLogs.$inferSelect;
+export type InsertScheduleOptimizationLog = typeof scheduleOptimizationLogs.$inferInsert;
+
 

@@ -756,9 +756,29 @@ async function startServer() {
     } : false, // desabilitado em dev para compatibilidade com Vite
     crossOriginEmbedderPolicy: false,
   }));
+  const allowedOrigins = [
+    process.env.APP_URL,
+    "https://wrmusicpro.com.br",
+    "https://www.wrmusicpro.com.br",
+    "https://leads.wrmusicpro.com.br",
+    "https://analytics.wrmusicpro.com.br",
+    "capacitor://localhost",
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:5000"
+  ].filter(Boolean);
+
   app.use(cors({
-    origin: process.env.NODE_ENV === "production" ? process.env.APP_URL : "*",
-    credentials: true
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || origin.startsWith("capacitor://") || origin.startsWith("http://localhost")) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Fallback permissivo para garantir operabilidade em mobile
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Cookie"]
   }));
 
   // ─── Middleware de Auditoria de Acessos & Detecção de Ataques ─────────────

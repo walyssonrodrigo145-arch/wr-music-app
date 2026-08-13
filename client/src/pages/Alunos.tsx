@@ -385,8 +385,8 @@ function StudentModal({
               <Input value={form.email} onChange={e => set("email", e.target.value)} placeholder="Opcional" type="email" className="h-9 text-xs rounded-lg bg-muted/10" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Telefone</label>
-              <Input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(11) 99999-9999" className="h-9 text-xs rounded-lg bg-muted/10" />
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Telefone / WhatsApp (DDI Opcional)</label>
+              <Input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(11) 99999-9999 ou +55..." className="h-9 text-xs rounded-lg bg-muted/10" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

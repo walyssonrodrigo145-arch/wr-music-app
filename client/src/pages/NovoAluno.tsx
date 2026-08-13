@@ -246,6 +246,13 @@ export default function NovoAluno() {
   };
 
   const maskPhone = (value: string) => {
+    if (!value) return "";
+    // Se o usuário digitou um '+' no início ou DDI customizado
+    if (value.startsWith("+")) {
+      const clean = value.replace(/[^\d+]/g, "");
+      return clean;
+    }
+
     let clean = value.replace(/\D/g, "");
     if (!clean) return "";
     
@@ -649,10 +656,10 @@ export default function NovoAluno() {
       newErrors.name = "Nome é obrigatório";
     }
 
-    // Phone validation (optional - only validate format if filled)
+    // Phone validation (optional - allow international numbers with DDI)
     const cleanPhone = form.phone.replace(/\D/g, "");
-    if (form.phone.trim() && (cleanPhone.length < 10 || cleanPhone.length > 11)) {
-      newErrors.phone = "Telefone deve ter 10 ou 11 dígitos";
+    if (form.phone.trim() && (cleanPhone.length < 8 || cleanPhone.length > 15)) {
+      newErrors.phone = "Telefone inválido (deve ter entre 8 e 15 dígitos)";
     } else if (form.phone.trim() && /^0+$/.test(cleanPhone)) {
       newErrors.phone = "Telefone inválido (não pode conter apenas zeros)";
     }
@@ -1054,7 +1061,7 @@ export default function NovoAluno() {
                     </label>
                     <div className="relative group/input">
                       <Input 
-                        placeholder="(00) 00000-0000" 
+                        placeholder="(00) 00000-0000 ou +55 (DDD) 90000-0000" 
                         value={form.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         className={cn(

@@ -82,7 +82,11 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "/api/auth/google";
+    if (typeof window !== "undefined" && (window.location.protocol.includes("capacitor") || window.location.origin.includes("localhost"))) {
+      window.location.href = "https://wrmusicpro.com.br/api/auth/google";
+    } else {
+      window.location.href = "/api/auth/google";
+    }
   };
 
   const isLoading = loginMutation.isPending;

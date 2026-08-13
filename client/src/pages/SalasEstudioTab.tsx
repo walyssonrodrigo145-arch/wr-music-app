@@ -30,6 +30,30 @@ export function SalasEstudioTab() {
   const [editingRoom, setEditingRoom] = useState<{ id: number; name: string; description: string; color: string } | null>(null);
   const [form, setForm] = useState({ name: "", description: "", color: "#6366f1" });
 
+  // Smart Scheduling States & Mutations
+  const [isSmartScheduleModalOpen, setIsSmartScheduleModalOpen] = useState(false);
+  const [targetDate, setTargetDate] = useState(new Date().toISOString().slice(0, 10));
+  const [schedulePreferences, setSchedulePreferences] = useState("");
+  const [optimizationResult, setOptimizationResult] = useState<any>(null);
+
+  const generateScheduleMutation = trpc.advancedAi.generateSmartSchedule.useMutation({
+    onSuccess: (data) => {
+      setOptimizationResult(data);
+      toast.success("Otimização concluída com sucesso!");
+    },
+    onError: (err) => toast.error("Erro ao gerar otimização: " + err.message),
+  });
+
+  const applyScheduleMutation = trpc.advancedAi.applySmartSchedule.useMutation({
+    onSuccess: (res) => {
+      toast.success(`${res.updatedLessons} aulas reorganizadas na grade!`);
+      setIsSmartScheduleModalOpen(false);
+      setOptimizationResult(null);
+      utils.studioRooms.list.invalidate();
+    },
+    onError: (err) => toast.error("Erro ao aplicar grade: " + err.message),
+  });
+
   const createMutation = trpc.studioRooms.create.useMutation({
     onSuccess: () => {
       toast.success("Sala cadastrada com sucesso!");
@@ -135,11 +159,19 @@ export function SalasEstudioTab() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end px-4 py-2 rounded-2xl bg-card/50 border border-white/5 backdrop-blur-md">
               <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total de Salas</span>
               <span className="text-lg font-black text-foreground font-outfit">{rooms.length} ({activeRoomsCount} ativas)</span>
             </div>
+
+            <Button 
+              onClick={() => setIsSmartScheduleModalOpen(true)} 
+              variant="outline"
+              className="h-12 px-5 rounded-2xl font-bold gap-2 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300"
+            >
+              <Sparkles size={18} className="text-indigo-400 animate-pulse" /> Otimizar Grade via IA
+            </Button>
 
             <Button
               onClick={openCreateModal}
@@ -417,6 +449,129 @@ export function SalasEstudioTab() {
                   </Button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Otimizador de Grade via IA (Smart Scheduling) */}
+      <AnimatePresence>
+        {isSmartScheduleModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card border border-border/80 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between border-b border-border/50 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+                    <Sparkles size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground font-outfit">Smart Scheduling Engine (IA)</h2>
+                    <p className="text-xs text-muted-foreground">Otimização automática de horários e salas com zero choque de agenda</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => { setIsSmartScheduleModalOpen(false); setOptimizationResult(null); }}>
+                  <X size={18} />
+                </Button>
+              </div>
+
+              {!optimizationResult ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">Data de Início da Semana</Label>
+                    <Input 
+                      type="date" 
+                      value={targetDate} 
+                      onChange={(e) => setTargetDate(e.target.value)} 
+                      className="rounded-xl h-11 bg-background/50"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-muted-foreground uppercase">Preferências / Restrições (Opcional)</Label>
+                    <Input 
+                      placeholder="Ex: Evitar aulas de bateria após as 18h na Sala 1" 
+                      value={schedulePreferences} 
+                      onChange={(e) => setSchedulePreferences(e.target.value)} 
+                      className="rounded-xl h-11 bg-background/50"
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 text-xs text-indigo-300 space-y-1">
+                    <p className="font-bold flex items-center gap-1.5"><Info size={14} /> Como a IA funciona:</p>
+                    <p className="text-muted-foreground">A IA analisa todas as aulas agendadas para o período, salas disponíveis e restrições para redistribuir os horários perfeitamente sem conflitos de espaço.</p>
+                  </div>
+
+                  <Button 
+                    onClick={() => generateScheduleMutation.mutate({ targetDate, daysCount: 7, preferences: schedulePreferences })}
+                    disabled={generateScheduleMutation.isPending}
+                    className="w-full h-12 rounded-2xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-lg shadow-indigo-600/25"
+                  >
+                    {generateScheduleMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                    {generateScheduleMutation.isPending ? "Analisando Conflitos e Otimizando..." : "Gerar Grade Otimizada"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-muted/30 border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground font-bold uppercase">Aulas Analisadas</p>
+                      <p className="text-2xl font-black text-foreground font-outfit mt-1">{optimizationResult.totalOptimized}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                      <p className="text-xs text-emerald-400 font-bold uppercase">Conflitos Resolvidos</p>
+                      <p className="text-2xl font-black text-emerald-400 font-outfit mt-1">{optimizationResult.conflictsResolved || optimizationResult.optimizedLessons?.length || 0}</p>
+                    </div>
+                  </div>
+
+                  {optimizationResult.recommendations?.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-muted-foreground uppercase">Recomendações do Algoritmo:</p>
+                      <ul className="space-y-1 text-xs text-foreground bg-muted/20 p-3 rounded-2xl border border-border/40">
+                        {optimizationResult.recommendations.map((rec: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-1.5">
+                            <span className="text-indigo-400 font-bold">•</span> {rec}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase">Proposta de Ajuste de Aulas:</p>
+                    {optimizationResult.optimizedLessons?.map((item: any, idx: number) => (
+                      <div key={idx} className="p-3 rounded-xl bg-card border border-border/60 text-xs space-y-1">
+                        <div className="flex justify-between font-bold text-foreground">
+                          <span>{item.studentName || `Aula #${item.lessonId}`}</span>
+                          <span className="text-indigo-400">{item.proposedStudioRoomName}</span>
+                        </div>
+                        <p className="text-muted-foreground">
+                          Novo horário: <strong className="text-foreground">{new Date(item.proposedScheduledAt).toLocaleString("pt-BR")}</strong>
+                        </p>
+                        <p className="text-[11px] text-zinc-400 italic">{item.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button variant="outline" className="flex-1 rounded-2xl font-bold" onClick={() => setOptimizationResult(null)}>
+                      Voltar / Refazer
+                    </Button>
+                    <Button 
+                      onClick={() => applyScheduleMutation.mutate({ logId: optimizationResult.logId })}
+                      disabled={applyScheduleMutation.isPending}
+                      className="flex-1 rounded-2xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-600/20"
+                    >
+                      {applyScheduleMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                      Aprovar & Aplicar Grade
+                    </Button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

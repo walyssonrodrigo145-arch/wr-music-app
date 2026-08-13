@@ -1571,6 +1571,7 @@ export default function Configuracoes() {
                     <SelectContent>
                       <SelectItem value="30">30 Minutos</SelectItem>
                       <SelectItem value="45">45 Minutos</SelectItem>
+                      <SelectItem value="50">50 Minutos</SelectItem>
                       <SelectItem value="60">60 Minutos (1 Hora)</SelectItem>
                       <SelectItem value="90">90 Minutos (1h 30m)</SelectItem>
                       <SelectItem value="120">120 Minutos (2 Horas)</SelectItem>
