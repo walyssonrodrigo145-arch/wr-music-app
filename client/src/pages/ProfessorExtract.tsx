@@ -682,7 +682,14 @@ export default function ProfessorExtract() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-outfit text-lg font-bold text-slate-900">Distribuição por Professor</h3>
-            <button className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-colors">
+            <button 
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("pagamentos-periodo-card");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+            >
               Ver detalhes
             </button>
           </div>
@@ -744,7 +751,7 @@ export default function ProfessorExtract() {
       </div>
 
       {/* 5. Área Principal — Pagamentos do Período (Card Branco Fiel) */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+      <div id="pagamentos-periodo-card" className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <h2 className="font-outfit text-xl font-bold text-slate-900 tracking-tight">
@@ -1002,7 +1009,14 @@ export default function ProfessorExtract() {
 
             {/* Centered Footer Link */}
             <div className="text-center pt-2">
-              <button className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors inline-flex items-center gap-1">
+              <button 
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById("pagamentos-periodo-card");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+              >
                 Ver todos os pagamentos <ChevronDown className="w-3.5 h-3.5" />
               </button>
             </div>
