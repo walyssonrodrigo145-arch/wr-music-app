@@ -42,6 +42,7 @@ const filesToUpload = [
   'client/src/pages/PublicEnrollment.tsx',
   'server/enrollmentRouter.ts',
   'client/src/pages/Configuracoes.tsx',
+  'client/src/pages/ProfessorExtract.tsx',
   'client/src/components/integrations/AssinafyIntegrationCard.tsx',
   'client/src/components/modals/StudentContractsSection.tsx',
   'client/src/components/modals/StudentDetailsModal.tsx',
@@ -78,8 +79,9 @@ conn.on('ready', () => {
               console.log('Uploads completed. Rebuilding STAGING container on port 3001...');
               const rebuildCmd = `
                 cd ${repoPath}
+                git fetch origin main && git reset --hard origin/main || true
                 docker compose -f docker-compose.staging.yml down || true
-                docker compose -f docker-compose.staging.yml build
+                docker compose -f docker-compose.staging.yml build --no-cache
                 docker compose -f docker-compose.staging.yml up -d
                 docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile || docker compose restart caddy
                 echo "STAGING deploy complete! Accessible at https://staging.wrmusicpro.com.br"
