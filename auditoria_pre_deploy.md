@@ -1,31 +1,37 @@
-# AUDITORIA PRÉ-DEPLOY (QA SÊNIOR - WRAUDITOR)
+# Relatório de Auditoria Pré-Deploy - MusicPro WRAUDITOR
 
-## Data: 2026-08-12
-## Módulo: Implantação do Novo Design System — CRM Universal (Dark Mode SaaS Premium)
-## Domínio Oficial: https://leads.wrmusicpro.com.br
+**Data:** 13/08/2026
+**Módulo Auditado:** Gestão Comercial de Leads (`LeadsApp.tsx` & `crmRouter.ts`)
+**Responsável QA / PM:** WRAUDITOR Sênior
 
-### 1. Resumo das Alterações
-1. **Design System SaaS Premium (`client/src/pages/leads/LeadsApp.tsx`)**:
-   - Implantação da nova linguagem visual baseada no tema **Dark Mode SaaS Premium** (`#0B091A` Black Navy background, `#13102B` Sidebar, `#161334` Cards com bordas translúcidas `border-indigo-950/50`).
-   - Reestruturação completa da **Sidebar Vertical Inteligente**, organizada com badges, tooltips e agrupamentos oficiais:
-     - **GESTÃO COMERCIAL**: *Leads & Oportunidades*, *Funil de Vendas (Kanban)*, *Tarefas & Follow-ups*, *Propostas & Fechamento*, *Metas Comerciais*.
-     - **GESTÃO DE CLIENTES**: *Clientes Conquistados*, *Onboarding de Negócios*, *Atendimento & Suporte*.
-     - **RELATÓRIOS ANALÍTICOS**: *Performance de Vendas*, *Origem das Oportunidades*.
-     - **CONFIGURAÇÕES**: *Configurações Gerais*.
-   - **Header Premium**: Seletor de período, Notificações com badge, Perfil do Usuário e botão primário com gradiente `#5B50E6` → Purple 600.
-   - **KPI Cards com Tendência**: Sparklines e variações percentuais em verde `text-emerald-400`.
-   - **Visualização Analítica**: Gráficos de linha de evolução, Donut chart SVG de fontes, resumo de pipeline, tabela de Metas da Equipe com banner motivacional e acompanhamento de onboarding por checklist de etapas.
-2. **Backend & Schemas (`server/crmRouter.ts`)**:
-   - Atualizado o procedimento `getDashboardMetrics` com suporte completo a propriedades retrocompatíveis (`demosCount`, `proposalsCount`, `negotiationsCount`, `closedDeals`, `activeLeads`, `newMrr`, `sources`), prevenindo quebras.
-3. **Verificação de Compilação**:
-   - `npx tsc --noEmit` executado com 0 erros.
+---
 
-### 2. Checklist de Qualidade e Segurança (QA)
-- [x] **Design System Premium**: Identidade visual própria, dark mode consistente e elegante.
-- [x] **Responsividade & Componentes**: Cards, botões, tabelas, modais e badges padronizados.
-- [x] **Multi-Tenancy**: 100% preservado.
-- [x] **Domínio Dedicado**: Integrado em `https://leads.wrmusicpro.com.br`.
+## 🔍 Resumo da Auditoria
 
-### 3. Parecer Final
-- **Status:** APROVADO para Commit, Push e Deploy pela equipe DevOps.
-- **Nível de Risco:** Muito Baixo.
+### 1. Auditoria Visual e Estrutural (Layout & Design System)
+- **Tema & Cores:** Implementação fiel ao Design System Dark Premium (`#0B091A` e `#13102B`), com acentos HSL em roxo/indigo (`#5B50E6`), ciano e esmeralda.
+- **Tipografia:** Uso padronizado da fonte `font-outfit` nos títulos de KPI e cabeçalhos do Kanban, garantindo visualização limpa sem quebra de hierarquia.
+- **Grid & Responsividade:**
+  - KPI Cards: `grid-cols-4` com cartões de respiro adequado (`p-5`).
+  - Lista de Leads Recentes: cards com badges compactos para **Instrumento** e **Modalidade**.
+  - Funil Kanban: `grid-cols-6` com cartões min-w de `210px` e barra de rolagem horizontal fluida.
+
+---
+
+## ⚡ 2. Auditoria de Funcionalidades & Fluxos Comerciais
+
+| Recurso | Status | Observação |
+|---|---|---|
+| **MusicPro AI Copilot** | ✅ Aprovado | Banner dinâmico no topo alertando sobre leads sem contato há +48h com gatilho direto via WhatsApp. |
+| **Ações Rápidas WhatsApp (1-Click)** | ✅ Aprovado | Link `wa.me` gerado com limpeza de caracteres não numéricos e mensagem personalizada com nome do aluno e instrumento. |
+| **Agendamento de Aula Experimental** | ✅ Aprovado | Modal `ScheduleTrialModal` funcional, transicionando o lead automaticamente para a etapa `aula_experimental`. |
+| **Matrícula Instantânea (1-Click)** | ✅ Aprovado | Modal `LeadProfileModal` integrado com mutation `trpc.crm.convertToStudent`, criando o aluno na base `students` e registrando na timeline. |
+| **Cadastro Especializado de Lead** | ✅ Aprovado | Modal `CreateLeadModal` com selects para *Instrumento*, *Modalidade* e *Nível*. |
+
+---
+
+## 🛠️ 3. Aval Final de QA
+
+- **Severidade de Erros Críticos:** 0
+- **Severidade de Erros Altos:** 0
+- **Veredicto:** **APROVADO PARA COMMIT, PUSH E DEPLOY NA VPS** 🚀

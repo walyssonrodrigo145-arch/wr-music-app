@@ -14,18 +14,17 @@ import {
   LayoutDashboard, Briefcase, CalendarCheck, FileSpreadsheet, Building2,
   Rocket, Headphones, RefreshCcw, HeartPulse, DollarSign, Bell, Trash2, Edit3,
   BriefcaseBusiness, FolderKanban, Sliders, Globe, Trophy, Video, BookOpen,
-  MessageCircle, Share2, CheckSquare, XCircle, AlertCircle, Compass, Flame
+  MessageCircle, Share2, CheckSquare, XCircle, AlertCircle, Compass, Flame, Music
 } from "lucide-react";
 
-// Estágios Padrão do Funil Universal Comercial (7 Estágios)
+// Estágios Padrão do Funil de Vendas MusicPro (Foco em Escolas de Música & Estúdios)
 const DEFAULT_STAGES = [
   { key: "novo", label: "Novo Lead", color: "bg-[#5B50E6]", text: "text-indigo-400", bgLight: "bg-indigo-500/10", border: "border-indigo-500/30" },
   { key: "contato", label: "Contato Realizado", color: "bg-purple-500", text: "text-purple-400", bgLight: "bg-purple-500/10", border: "border-purple-500/30" },
-  { key: "qualificacao", label: "Qualificação", color: "bg-cyan-500", text: "text-cyan-400", bgLight: "bg-cyan-500/10", border: "border-cyan-500/30" },
-  { key: "demonstracao", label: "Demonstração", color: "bg-amber-500", text: "text-amber-400", bgLight: "bg-amber-500/10", border: "border-amber-500/30" },
+  { key: "aula_experimental", label: "Aula Experimental", color: "bg-cyan-500", text: "text-cyan-400", bgLight: "bg-cyan-500/10", border: "border-cyan-500/30" },
+  { key: "fez_aula", label: "Fez Aula Experim.", color: "bg-amber-500", text: "text-amber-400", bgLight: "bg-amber-500/10", border: "border-amber-500/30" },
   { key: "proposta", label: "Proposta Enviada", color: "bg-blue-500", text: "text-blue-400", bgLight: "bg-blue-500/10", border: "border-blue-500/30" },
-  { key: "negociacao", label: "Negociação", color: "bg-indigo-500", text: "text-indigo-400", bgLight: "bg-indigo-500/10", border: "border-indigo-500/30" },
-  { key: "fechado", label: "Fechado (Ganho)", color: "bg-emerald-500", text: "text-emerald-400", bgLight: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  { key: "fechado", label: "Matriculado (Ganho)", color: "bg-emerald-500", text: "text-emerald-400", bgLight: "bg-emerald-500/10", border: "border-emerald-500/30" },
 ];
 
 export default function LeadsApp() {
@@ -44,6 +43,8 @@ export default function LeadsApp() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
+  const [trialLead, setTrialLead] = useState<any>(null);
 
   // Consultas tRPC Reais do Banco Postgres
   const { data: metrics } = trpc.crm.getDashboardMetrics.useQuery({ period: "30d" });
@@ -53,49 +54,17 @@ export default function LeadsApp() {
     priority: selectedPriorityFilter,
   });
   const { data: followUps = [] } = trpc.crm.listFollowUps.useQuery({ filter: "todos" });
-  const { data: reportsData } = trpc.crm.getReportsData.useQuery();
-
-  // Mutations
-  const moveStageMutation = trpc.crm.moveStage.useMutation({
-    onSuccess: () => {
-      toast.success("Estágio do lead atualizado!");
-      utils.crm.listLeads.invalidate();
-      utils.crm.getDashboardMetrics.invalidate();
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const completeFollowUpMutation = trpc.crm.completeFollowUp.useMutation({
-    onSuccess: () => {
-      toast.success("Atividade concluída com sucesso!");
-      utils.crm.listFollowUps.invalidate();
-      utils.crm.getDashboardMetrics.invalidate();
-    },
-  });
-
-  const deleteLeadMutation = trpc.crm.deleteLead.useMutation({
-    onSuccess: () => {
-      toast.success("Lead removido!");
-      utils.crm.listLeads.invalidate();
-      utils.crm.getDashboardMetrics.invalidate();
-    },
-  });
 
   // Fallback de dados de exemplo ultra-fidedignos caso a base esteja inicializando
   const mockFallbackItems = [
-    { id: 101, name: "Mariana Silva", companyOrSchool: "Empresa XPTO", cityState: "São Paulo - SP", planName: "Plano Enterprise", value: "8500.00", temperature: "quente", stage: "novo", phone: "(11) 99881-2233", createdAt: new Date() },
-    { id: 102, name: "Carlos Mendes", companyOrSchool: "TechSolutions", cityState: "Curitiba - PR", planName: "SaaS Custom", value: "8500.00", temperature: "morno", stage: "novo", phone: "(41) 99112-4455", createdAt: new Date() },
-    { id: 103, name: "Juliana Costa", companyOrSchool: "Agência Digital", cityState: "Belo Horizonte - MG", planName: "Gestão Tráfego", value: "12000.00", temperature: "quente", stage: "novo", phone: "(31) 98822-3344", createdAt: new Date() },
-    { id: 104, name: "Roberto Alves", companyOrSchool: "Construtora Prime", cityState: "Goiânia - GO", planName: "Projeto Obra", value: "35000.00", temperature: "quente", stage: "contato", phone: "(62) 97654-3210", createdAt: new Date() },
-    { id: 105, name: "Ana Beatriz", companyOrSchool: "Startup Labs", cityState: "Campinas - SP", planName: "Aceleração", value: "18000.00", temperature: "morno", stage: "contato", phone: "(19) 98123-4567", createdAt: new Date() },
-    { id: 106, name: "Lucas Ferreira", companyOrSchool: "Comercial LTDA", cityState: "Porto Alegre - RS", planName: "Consultoria B2B", value: "9500.00", temperature: "morno", stage: "contato", phone: "(51) 99554-1122", createdAt: new Date() },
-    { id: 107, name: "Paulo Henrique", companyOrSchool: "Indústria Alfa", cityState: "Salvador - BA", planName: "Automação", value: "42000.00", temperature: "quente", stage: "proposta", phone: "(71) 99223-8899", createdAt: new Date() },
-    { id: 108, name: "Fernanda Lima", companyOrSchool: "Design Studio", cityState: "Recife - PE", planName: "Branding Pro", value: "23000.00", temperature: "morno", stage: "proposta", phone: "(81) 98765-1122", createdAt: new Date() },
-    { id: 109, name: "Rafael Souza", companyOrSchool: "Consultoria 360", cityState: "Fortaleza - CE", planName: "Mentoria Executive", value: "38000.00", temperature: "morno", stage: "proposta", phone: "(85) 99443-2211", createdAt: new Date() },
-    { id: 110, name: "Bruna Santos", companyOrSchool: "Marketing Pro", cityState: "Rio de Janeiro - RJ", planName: "Inbound Marketing", value: "85000.00", temperature: "quente", stage: "negociacao", phone: "(21) 98877-6655", createdAt: new Date() },
-    { id: 111, name: "Thiago Martins", companyOrSchool: "Sistema Web", cityState: "Brasília - DF", planName: "ERP Cloud", value: "22000.00", temperature: "morno", stage: "negociacao", phone: "(61) 99112-3344", createdAt: new Date() },
-    { id: 112, name: "Daniel Oliveira", companyOrSchool: "Clínica Mais", cityState: "Florianópolis - SC", planName: "Software Médico", value: "45000.00", temperature: "ganho", stage: "fechado", phone: "(48) 99445-6677", createdAt: new Date() },
-    { id: 113, name: "Camila Rodrigues", companyOrSchool: "Imobiliária House", cityState: "Ribeirão Preto - SP", planName: "Gestão Imóveis", value: "32000.00", temperature: "ganho", stage: "fechado", phone: "(16) 98112-4433", createdAt: new Date() },
+    { id: 101, name: "Mariana Silva", instrument: "Guitarra", modality: "Presencial", cityState: "São Paulo - SP", value: "320.00", temperature: "quente", stage: "novo", phone: "(11) 99881-2233", source: "Instagram Ads", createdAt: new Date() },
+    { id: 102, name: "Carlos Mendes", instrument: "Bateria", modality: "Presencial", cityState: "Curitiba - PR", value: "380.00", temperature: "morno", stage: "novo", phone: "(41) 99112-4455", source: "WhatsApp", createdAt: new Date() },
+    { id: 103, name: "Juliana Costa", instrument: "Piano / Teclado", modality: "Online", cityState: "Belo Horizonte - MG", value: "290.00", temperature: "quente", stage: "novo", phone: "(31) 98822-3344", source: "Google Ads", createdAt: new Date() },
+    { id: 104, name: "Roberto Alves", instrument: "Canto / Técnica Vocal", modality: "Presencial", cityState: "Goiânia - GO", value: "350.00", temperature: "quente", stage: "contato", phone: "(62) 97654-3210", source: "Indicação", createdAt: new Date() },
+    { id: 105, name: "Ana Beatriz", instrument: "Violão", modality: "Presencial", cityState: "Campinas - SP", value: "270.00", temperature: "morno", stage: "aula_experimental", phone: "(19) 98123-4567", source: "Instagram", createdAt: new Date() },
+    { id: 106, name: "Lucas Ferreira", instrument: "Saxofone", modality: "Presencial", cityState: "Porto Alegre - RS", value: "420.00", temperature: "morno", stage: "fez_aula", phone: "(51) 99554-1122", source: "Google Search", createdAt: new Date() },
+    { id: 107, name: "Paulo Henrique", instrument: "Baixo", modality: "Online", cityState: "Salvador - BA", value: "280.00", temperature: "quente", stage: "proposta", phone: "(71) 99223-8899", source: "WhatsApp", createdAt: new Date() },
+    { id: 108, name: "Fernanda Lima", instrument: "Ukulele", modality: "Presencial", cityState: "Recife - PE", value: "230.00", temperature: "morno", stage: "fechado", phone: "(81) 98765-1122", source: "Instagram", createdAt: new Date() },
   ];
 
   const leadsDisplayList = dbLeads.length > 0 ? dbLeads : mockFallbackItems;
@@ -103,33 +72,37 @@ export default function LeadsApp() {
   const getPriorityBadge = (temp?: string | null) => {
     switch (temp) {
       case "quente":
-        return <span className="flex items-center gap-1 font-bold text-[10px] text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Alta</span>;
+        return <span className="flex items-center gap-1 font-bold text-[10px] text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Quente</span>;
       case "frio":
-        return <span className="flex items-center gap-1 font-bold text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" /> Baixa</span>;
+        return <span className="flex items-center gap-1 font-bold text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" /> Frio</span>;
       default:
-        return <span className="flex items-center gap-1 font-bold text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Média</span>;
+        return <span className="flex items-center gap-1 font-bold text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Morno</span>;
     }
   };
 
-  const getWhatsAppLink = (phone?: string | null) => {
+  const getWhatsAppLink = (phone?: string | null, name?: string, instrument?: string) => {
     if (!phone) return "#";
     const clean = phone.replace(/\D/g, "");
-    return `https://wa.me/${clean.startsWith("55") ? clean : `55${clean}`}`;
+    const num = clean.startsWith("55") ? clean : `55${clean}`;
+    const text = encodeURIComponent(
+      `Olá ${name || ""}! Tudo bem? Sou da escola de música MusicPro. Vi seu interesse no curso de ${instrument || "música"}! Gostaria de agendar uma Aula Experimental gratuita?`
+    );
+    return `https://wa.me/${num}?text=${text}`;
   };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0B091A] font-sans antialiased text-slate-200 selection:bg-indigo-500/30">
-      {/* ── 1. SIDEBAR COMPACTA PREMIA (ESCURA #13102B) ── */}
+      {/* ── 1. SIDEBAR COMPACTA PREMIUM (ESCURA #13102B) ── */}
       <aside className="w-64 bg-[#13102B] text-slate-400 flex flex-col shrink-0 select-none border-r border-indigo-950/40">
         {/* LOGO PLATAFORMA */}
         <div className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#5B50E6] to-purple-600 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-500/30">
-              W
+              <Music size={22} />
             </div>
             <div className="flex flex-col">
               <span className="font-extrabold text-white text-base tracking-tight font-outfit leading-none">MusicPro</span>
-              <span className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-widest mt-1">CRM Universal</span>
+              <span className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-widest mt-1">CRM Comercial</span>
             </div>
           </div>
         </div>
@@ -198,7 +171,7 @@ export default function LeadsApp() {
 
           {/* GESTÃO DE CLIENTES */}
           <div className="space-y-1">
-            <p className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Gestão de Clientes</p>
+            <p className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Gestão de Alunos</p>
             <button
               onClick={() => setActiveMenu("clientes")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
@@ -207,7 +180,7 @@ export default function LeadsApp() {
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              <Building2 size={16} /> Clientes Conquistados
+              <Building2 size={16} /> Alunos Matriculados
             </button>
 
             <button
@@ -218,7 +191,7 @@ export default function LeadsApp() {
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              <Rocket size={16} /> Onboarding de Negócios
+              <Rocket size={16} /> Onboarding de Alunos
             </button>
 
             <button
@@ -295,14 +268,14 @@ export default function LeadsApp() {
               {activeMenu === "atividades" && "Tarefas & Follow-ups"}
               {activeMenu === "propostas" && "Propostas & Fechamento"}
               {activeMenu === "metas" && "Metas Comerciais"}
-              {activeMenu === "clientes" && "Clientes Conquistados"}
-              {activeMenu === "onboarding" && "Onboarding de Negócios"}
+              {activeMenu === "clientes" && "Alunos Matriculados"}
+              {activeMenu === "onboarding" && "Onboarding de Alunos"}
               {activeMenu === "suporte" && "Atendimento & Suporte"}
               {activeMenu === "performance" && "Performance de Vendas"}
               {activeMenu === "origens" && "Origem das Oportunidades"}
               {activeMenu === "configuracoes" && "Configurações Gerais"}
             </h1>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">Visão geral dos seus leads e oportunidades comerciais.</p>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">Visão geral da gestão comercial de cursos de música e aulas experimentais.</p>
           </div>
 
           <div className="flex items-center gap-4">
@@ -329,18 +302,41 @@ export default function LeadsApp() {
                   3
                 </span>
               </div>
-              <div className="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-black text-xs flex items-center justify-center">
-                M
-              </div>
             </div>
           </div>
         </header>
 
-        {/* MAIN BODY DE ACORDO COM A ABA ATIVA */}
+        {/* CONTAINER DA PÁGINA */}
         <main className="p-8 space-y-6">
           {/* ── 1. LEADS & OPORTUNIDADES VIEW ── */}
           {activeMenu === "leads" && (
             <div className="space-y-6">
+              {/* 🤖 MUSICPRO AI COPILOT BANNER */}
+              <div className="bg-gradient-to-r from-indigo-900/60 via-purple-900/40 to-[#161334]/80 border border-indigo-500/30 rounded-2xl p-4 flex items-center justify-between shadow-xl">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-3 bg-indigo-500/20 text-indigo-300 rounded-xl border border-indigo-500/30">
+                    <Sparkles size={22} className="animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white font-outfit">MusicPro AI Copilot</span>
+                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] font-bold">3 Ações Recomendadas</Badge>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Detectamos <strong>3 leads interessados em Bateria e Guitarra sem contato há +48h</strong>. Dispare o convite para Aula Experimental via WhatsApp!
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    onClick={() => toast.success("📱 Disparo de convites de Aula Experimental ativado via WhatsApp!")}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-lg shadow-emerald-900/20"
+                  >
+                    <MessageCircle size={15} /> Disparar WhatsApp IA
+                  </Button>
+                </div>
+              </div>
+
               {/* TOP 4 KPI CARDS */}
               <div className="grid grid-cols-4 gap-5">
                 <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-3 shadow-xl shadow-indigo-950/10">
@@ -367,12 +363,12 @@ export default function LeadsApp() {
 
                 <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-3 shadow-xl shadow-indigo-950/10">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Em Negociação</span>
-                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20"><Briefcase size={16} /></div>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Aulas Experim.</span>
+                    <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"><Music size={16} /></div>
                   </div>
-                  <p className="text-3xl font-black font-outfit text-white tracking-tight">189</p>
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                    <Clock size={14} /> 12 em fase final
+                  <p className="text-3xl font-black font-outfit text-white tracking-tight">84</p>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-400">
+                    <Clock size={14} /> 18 agendadas esta semana
                   </div>
                 </div>
 
@@ -381,9 +377,9 @@ export default function LeadsApp() {
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Taxa de Conversão</span>
                     <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><TrendingUp size={16} /></div>
                   </div>
-                  <p className="text-3xl font-black font-outfit text-white tracking-tight">24,8%</p>
+                  <p className="text-3xl font-black font-outfit text-white tracking-tight">34,2%</p>
                   <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
-                    <ArrowUpRight size={14} /> 3,1% <span className="text-slate-500 font-normal">vs mês anterior</span>
+                    <ArrowUpRight size={14} /> 5,4% <span className="text-slate-500 font-normal">vs mês anterior</span>
                   </div>
                 </div>
               </div>
@@ -391,11 +387,11 @@ export default function LeadsApp() {
               {/* GRID PRINCIPAL: EVOLUÇÃO + RECENTES + FONTES + PIPELINE */}
               <div className="grid grid-cols-12 gap-6">
                 {/* EVOLUÇÃO DE LEADS (GRÁFICO DE LINHA) */}
-                <div className="col-span-8 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
+                <div className="col-span-7 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
                   <div className="flex items-center justify-between border-b border-indigo-950/50 pb-4">
                     <div>
-                      <h3 className="font-bold text-base font-outfit text-white">Evolução de Leads</h3>
-                      <p className="text-xs text-slate-400">Desempenho de captação e conversão ao longo do tempo.</p>
+                      <h3 className="font-bold text-base font-outfit text-white">Evolução de Leads & Matrículas</h3>
+                      <p className="text-xs text-slate-400">Desempenho de captação e conversão em alunos ativos.</p>
                     </div>
                     <div className="flex items-center gap-2 text-xs bg-[#13102B] px-3 py-1.5 rounded-xl border border-indigo-950/60 text-slate-300 font-bold">
                       <span>30 dias</span><ChevronDown size={14} />
@@ -416,25 +412,56 @@ export default function LeadsApp() {
                   </div>
                 </div>
 
-                {/* LEADS RECENTES */}
-                <div className="col-span-4 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
+                {/* LEADS RECENTES COM AÇÕES RÁPIDAS WHATSAPP & EXPERIMENTAL */}
+                <div className="col-span-5 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
                   <div className="flex items-center justify-between border-b border-indigo-950/50 pb-4">
-                    <h3 className="font-bold text-base font-outfit text-white">Leads Recentes</h3>
-                    <span className="text-xs text-indigo-400 font-bold hover:underline cursor-pointer">Ver todos</span>
+                    <div>
+                      <h3 className="font-bold text-base font-outfit text-white">Leads Recentes</h3>
+                      <p className="text-[11px] text-slate-400">Ações instantâneas de atendimento</p>
+                    </div>
+                    <span onClick={() => setActiveMenu("pipeline")} className="text-xs text-indigo-400 font-bold hover:underline cursor-pointer">Ver Kanban</span>
                   </div>
-                  <div className="space-y-4 text-xs">
+                  <div className="space-y-3 text-xs">
                     {leadsDisplayList.slice(0, 5).map((lead) => (
-                      <div key={lead.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
+                      <div key={lead.id} className="flex items-center justify-between p-3 rounded-xl bg-[#13102B]/60 border border-indigo-950/40 hover:bg-white/5 transition-all">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-md">
                             {lead.name[0]}
                           </div>
                           <div>
-                            <p className="font-bold text-white leading-snug">{lead.name}</p>
-                            <p className="text-[11px] text-slate-400">{lead.companyOrSchool || "Empresa XPTO"}</p>
+                            <p onClick={() => { setSelectedLeadId(lead.id); setIsProfileModalOpen(true); }} className="font-bold text-white leading-snug cursor-pointer hover:text-indigo-300">
+                              {lead.name}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Badge className="bg-indigo-500/10 text-indigo-300 border-indigo-500/20 text-[9px] px-1.5 py-0">
+                                🎸 {lead.instrument || lead.productService || "Música"}
+                              </Badge>
+                              <span className="text-[10px] text-slate-400 font-medium">{lead.modality || "Presencial"}</span>
+                            </div>
                           </div>
                         </div>
-                        <span className="text-[10px] text-slate-500 font-bold">há 15 min</span>
+
+                        {/* BOTÕES DE AÇÃO RÁPIDA */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {lead.phone && (
+                            <a
+                              href={getWhatsAppLink(lead.phone, lead.name, lead.instrument || lead.productService)}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Enviar WhatsApp Instantâneo"
+                              className="p-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition-all"
+                            >
+                              <MessageCircle size={15} />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => { setTrialLead(lead); setIsTrialModalOpen(true); }}
+                            title="Agendar Aula Experimental"
+                            className="p-1.5 rounded-lg bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-600 hover:text-white transition-all"
+                          >
+                            <Calendar size={15} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -442,13 +469,13 @@ export default function LeadsApp() {
 
                 {/* FONTES DE LEADS (DONUT CHART) */}
                 <div className="col-span-6 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Fontes de Leads</h3>
+                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Canais de Captação</h3>
                   <div className="flex items-center gap-6 py-2">
                     <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
                       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                        <path strokeDasharray="35, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#5B50E6" strokeWidth="4" />
-                        <path strokeDasharray="29, 100" strokeDashoffset="-35" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#06B6D4" strokeWidth="4" />
-                        <path strokeDasharray="20, 100" strokeDashoffset="-64" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" strokeWidth="4" />
+                        <path strokeDasharray="40, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#5B50E6" strokeWidth="4" />
+                        <path strokeDasharray="30, 100" strokeDashoffset="-40" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#06B6D4" strokeWidth="4" />
+                        <path strokeDasharray="20, 100" strokeDashoffset="-70" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" strokeWidth="4" />
                       </svg>
                       <div className="absolute flex flex-col items-center text-center">
                         <span className="font-extrabold text-white text-base font-outfit">1.243</span>
@@ -456,9 +483,9 @@ export default function LeadsApp() {
                       </div>
                     </div>
                     <div className="flex-1 space-y-2 text-xs font-bold">
-                      <div className="flex justify-between items-center"><span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#5B50E6]" /> Instagram</span><span className="text-white">35%</span></div>
-                      <div className="flex justify-between items-center"><span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-cyan-500" /> Site / Google Ads</span><span className="text-white">29%</span></div>
-                      <div className="flex justify-between items-center"><span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Indicação</span><span className="text-white">20%</span></div>
+                      <div className="flex justify-between items-center"><span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#5B50E6]" /> Instagram Ads</span><span className="text-white">40%</span></div>
+                      <div className="flex justify-between items-center"><span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-cyan-500" /> WhatsApp Direct</span><span className="text-white">30%</span></div>
+                      <div className="flex justify-between items-center"><span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Indicação de Alunos</span><span className="text-white">20%</span></div>
                     </div>
                   </div>
                 </div>
@@ -466,10 +493,10 @@ export default function LeadsApp() {
                 {/* VALOR DO PIPELINE */}
                 <div className="col-span-6 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Valor do Pipeline</h3>
+                    <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Receita Potencial em Mensalidades</h3>
                     <div className="mt-3">
-                      <p className="text-3xl font-black font-outfit text-white">R$ 1.280.450</p>
-                      <p className="text-xs text-emerald-400 font-bold mt-1 flex items-center gap-1"><ArrowUpRight size={14} /> +14.8% vs mês anterior</p>
+                      <p className="text-3xl font-black font-outfit text-white">R$ 387.450 / mês</p>
+                      <p className="text-xs text-emerald-400 font-bold mt-1 flex items-center gap-1"><ArrowUpRight size={14} /> +18.4% de projeção vs mês anterior</p>
                     </div>
                   </div>
                   <div className="h-20 w-full pt-2">
@@ -489,38 +516,65 @@ export default function LeadsApp() {
               <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-5 shadow-xl">
                 <div className="flex items-center justify-between border-b border-indigo-950/50 pb-4">
                   <div>
-                    <h3 className="font-bold text-lg font-outfit text-white">Funil de Vendas (Kanban)</h3>
-                    <p className="text-xs text-slate-400">Acompanhe o progresso das suas oportunidades comercialmente.</p>
+                    <h3 className="font-bold text-lg font-outfit text-white">Funil Comercial de Aulas & Matrículas (Kanban)</h3>
+                    <p className="text-xs text-slate-400">Gerencie a jornada completa do lead desde o primeiro contato até a matrícula.</p>
                   </div>
                   <Button onClick={() => setIsCreateModalOpen(true)} className="bg-[#5B50E6] text-white font-bold text-xs gap-1.5"><Plus size={15} /> Novo Lead</Button>
                 </div>
 
-                <div className="grid grid-cols-5 gap-4 overflow-x-auto pb-4">
-                  {DEFAULT_STAGES.slice(0, 5).map((stg) => {
+                <div className="grid grid-cols-6 gap-3.5 overflow-x-auto pb-4">
+                  {DEFAULT_STAGES.map((stg) => {
                     const stageLeads = leadsDisplayList.filter((l) => l.stage === stg.key);
                     const totalVal = stageLeads.reduce((acc, curr) => acc + Number(curr.value || 0), 0);
                     return (
-                      <div key={stg.key} className="space-y-3 min-w-[200px] bg-[#13102B] p-3 rounded-2xl border border-indigo-950/40">
+                      <div key={stg.key} className="space-y-3 min-w-[210px] bg-[#13102B] p-3 rounded-2xl border border-indigo-950/40">
                         <div className="space-y-1 px-1">
                           <div className="flex items-center justify-between text-xs font-bold">
-                            <span className="text-white font-outfit">{stg.label}</span>
+                            <span className="text-white font-outfit truncate">{stg.label}</span>
                             <span className="text-indigo-400 font-extrabold">{stageLeads.length}</span>
                           </div>
-                          <p className="text-[11px] font-extrabold text-slate-400">R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                          <p className="text-[11px] font-extrabold text-slate-400">R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/mês</p>
                         </div>
 
                         <div className="space-y-3">
                           {stageLeads.map((item) => (
-                            <div key={item.id} className="bg-[#18153A] border border-indigo-950/80 rounded-xl p-3.5 space-y-2.5 shadow-md hover:border-[#5B50E6]/60 transition-all group">
-                              <div>
-                                <h4 onClick={() => { setSelectedLeadId(item.id); setIsProfileModalOpen(true); }} className="font-bold text-xs text-white group-hover:text-indigo-300 cursor-pointer leading-snug">{item.name}</h4>
-                                <p className="text-[10px] text-slate-400">{item.companyOrSchool || "Empresa XPTO"}</p>
-                              </div>
-                              <p className="font-extrabold text-xs text-white">R$ {Number(item.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-
-                              <div className="flex items-center justify-between pt-2 border-t border-indigo-950/60 text-[10px]">
+                            <div key={item.id} className="bg-[#18153A] border border-indigo-950/80 rounded-xl p-3 space-y-2 shadow-md hover:border-[#5B50E6]/60 transition-all group">
+                              <div className="flex items-start justify-between">
+                                <h4 onClick={() => { setSelectedLeadId(item.id); setIsProfileModalOpen(true); }} className="font-bold text-xs text-white group-hover:text-indigo-300 cursor-pointer leading-snug">
+                                  {item.name}
+                                </h4>
                                 {getPriorityBadge(item.temperature)}
-                                <span className="text-slate-400">Hoje</span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge className="bg-indigo-500/10 text-indigo-300 border-indigo-500/20 text-[9px] px-1.5 py-0">
+                                  🎵 {item.instrument || item.productService || "Música"}
+                                </Badge>
+                                <span className="text-[10px] text-slate-400 font-medium">{item.modality || "Presencial"}</span>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-2 border-t border-indigo-950/60 text-[11px]">
+                                <span className="font-extrabold text-emerald-400">R$ {Number(item.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                                <div className="flex items-center gap-1">
+                                  {item.phone && (
+                                    <a
+                                      href={getWhatsAppLink(item.phone, item.name, item.instrument || item.productService)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      title="WhatsApp"
+                                      className="p-1 rounded bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all"
+                                    >
+                                      <MessageCircle size={13} />
+                                    </a>
+                                  )}
+                                  <button
+                                    onClick={() => { setSelectedLeadId(item.id); setIsProfileModalOpen(true); }}
+                                    className="p-1 rounded bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all"
+                                    title="Detalhes"
+                                  >
+                                    <Eye size={13} />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -534,19 +588,19 @@ export default function LeadsApp() {
                 <div className="grid grid-cols-4 gap-4 pt-2 border-t border-indigo-950/50">
                   <div className="bg-[#13102B] p-3.5 rounded-xl border border-indigo-950/40 flex items-center gap-3">
                     <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg"><Layers size={16} /></div>
-                    <div><p className="text-[10px] text-slate-400 font-bold uppercase">Oportunidades</p><p className="text-base font-black font-outfit text-white">292</p></div>
+                    <div><p className="text-[10px] text-slate-400 font-bold uppercase">Leads Ativos</p><p className="text-base font-black font-outfit text-white">292</p></div>
                   </div>
                   <div className="bg-[#13102B] p-3.5 rounded-xl border border-indigo-950/40 flex items-center gap-3">
                     <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg"><DollarSign size={16} /></div>
-                    <div><p className="text-[10px] text-slate-400 font-bold uppercase">Valor Total</p><p className="text-base font-black font-outfit text-white">R$ 1.280.450</p></div>
+                    <div><p className="text-[10px] text-slate-400 font-bold uppercase">Pipeline Mensal</p><p className="text-base font-black font-outfit text-white">R$ 98.450</p></div>
                   </div>
                   <div className="bg-[#13102B] p-3.5 rounded-xl border border-indigo-950/40 flex items-center gap-3">
-                    <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-lg"><Briefcase size={16} /></div>
-                    <div><p className="text-[10px] text-slate-400 font-bold uppercase">Valor Ponderado</p><p className="text-base font-black font-outfit text-white">R$ 716.800</p></div>
+                    <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-lg"><Music size={16} /></div>
+                    <div><p className="text-[10px] text-slate-400 font-bold uppercase">Aulas Experim.</p><p className="text-base font-black font-outfit text-white">84 agendadas</p></div>
                   </div>
                   <div className="bg-[#13102B] p-3.5 rounded-xl border border-indigo-950/40 flex items-center gap-3">
                     <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg"><TrendingUp size={16} /></div>
-                    <div><p className="text-[10px] text-slate-400 font-bold uppercase">Taxa de Conversão</p><p className="text-base font-black font-outfit text-white">24,8%</p></div>
+                    <div><p className="text-[10px] text-slate-400 font-bold uppercase">Taxa de Conversão</p><p className="text-base font-black font-outfit text-white">34,2%</p></div>
                   </div>
                 </div>
               </div>
@@ -559,30 +613,30 @@ export default function LeadsApp() {
               <div className="grid grid-cols-12 gap-6">
                 {/* COLUNA HOJE */}
                 <div className="col-span-6 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Hoje</h3>
+                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Ações de Hoje</h3>
                   <div className="space-y-3 text-xs">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/50">
                       <div className="flex items-center gap-3">
                         <Phone className="text-indigo-400" size={16} />
-                        <div><p className="font-bold text-white">Ligar para Mariana Silva</p><p className="text-[11px] text-slate-400">Empresa XPTO</p></div>
+                        <div><p className="font-bold text-white">Ligar para Mariana Silva</p><p className="text-[11px] text-slate-400">Interesse em Guitarra Presencial</p></div>
                       </div>
                       <span className="font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">09:00</span>
                     </div>
 
                     <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/50">
                       <div className="flex items-center gap-3">
-                        <FileText className="text-amber-400" size={16} />
-                        <div><p className="font-bold text-white">Enviar proposta para Carlos Mendes</p><p className="text-[11px] text-slate-400">TechSolutions</p></div>
+                        <Music className="text-cyan-400" size={16} />
+                        <div><p className="font-bold text-white">Aula Experimental com Carlos Mendes</p><p className="text-[11px] text-slate-400">Bateria - Prof. Pedro</p></div>
                       </div>
-                      <span className="font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">11:30</span>
+                      <span className="font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">14:30</span>
                     </div>
 
                     <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/50">
                       <div className="flex items-center gap-3">
                         <MessageSquare className="text-emerald-400" size={16} />
-                        <div><p className="font-bold text-white">Follow-up com Juliana Costa</p><p className="text-[11px] text-slate-400">Agência Digital</p></div>
+                        <div><p className="font-bold text-white">Follow-up pós-aula com Juliana Costa</p><p className="text-[11px] text-slate-400">Piano Online</p></div>
                       </div>
-                      <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">14:00</span>
+                      <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">16:00</span>
                     </div>
                   </div>
                 </div>
@@ -594,7 +648,7 @@ export default function LeadsApp() {
                     <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/50">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center">AB</div>
-                        <div><p className="font-bold text-white">Ana Beatriz</p><p className="text-[11px] text-slate-400">Startup Labs</p></div>
+                        <div><p className="font-bold text-white">Ana Beatriz</p><p className="text-[11px] text-slate-400">Violão - Confirmar presença</p></div>
                       </div>
                       <span className="text-slate-400 font-bold">Amanhã, 09:00</span>
                     </div>
@@ -602,30 +656,22 @@ export default function LeadsApp() {
                     <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/50">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-300 font-bold flex items-center justify-center">PH</div>
-                        <div><p className="font-bold text-white">Paulo Henrique</p><p className="text-[11px] text-slate-400">Indústria Alfa</p></div>
+                        <div><p className="font-bold text-white">Paulo Henrique</p><p className="text-[11px] text-slate-400">Baixo - Enviar proposta</p></div>
                       </div>
                       <span className="text-slate-400 font-bold">Amanhã, 11:00</span>
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* RESUMO CARDS INDICADORES */}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="bg-[#161334]/80 p-4 rounded-xl border border-indigo-950/50 flex items-center gap-3"><div className="w-3 h-3 rounded-full bg-indigo-500" /><span className="text-xs font-bold text-slate-300">12 Tarefas para hoje</span></div>
-                <div className="bg-[#161334]/80 p-4 rounded-xl border border-indigo-950/50 flex items-center gap-3"><div className="w-3 h-3 rounded-full bg-rose-500" /><span className="text-xs font-bold text-slate-300">8 Atrasadas</span></div>
-                <div className="bg-[#161334]/80 p-4 rounded-xl border border-indigo-950/50 flex items-center gap-3"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-xs font-bold text-slate-300">23 Próximas</span></div>
-                <div className="bg-[#161334]/80 p-4 rounded-xl border border-indigo-950/50 flex items-center gap-3"><div className="w-3 h-3 rounded-full bg-emerald-500" /><span className="text-xs font-bold text-slate-300">45 Concluídas</span></div>
-              </div>
             </div>
           )}
 
-          {/* ── 4. PROPOSTAS & FECHAMENTO VIEW ── */}
+          {/* ── 4. OUTRAS VIEWS (PROPOSTAS, METAS, CLIENTES, ETC) ── */}
           {activeMenu === "propostas" && (
             <div className="space-y-6">
               <div className="grid grid-cols-4 gap-5">
                 <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-2 shadow-xl">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Propostas Enviadas</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase">Propostas de Matrícula</span>
                   <p className="text-3xl font-black font-outfit text-white">42</p>
                 </div>
                 <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-2 shadow-xl">
@@ -633,143 +679,30 @@ export default function LeadsApp() {
                   <p className="text-3xl font-black font-outfit text-white">18</p>
                 </div>
                 <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-2 shadow-xl">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Propostas Aprovadas</span>
-                  <p className="text-3xl font-black font-outfit text-emerald-400">12</p>
+                  <span className="text-xs font-bold text-slate-400 uppercase">Matrículas Aprovadas</span>
+                  <p className="text-3xl font-black font-outfit text-emerald-400">24</p>
                 </div>
                 <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-2 shadow-xl">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Valor das Propostas</span>
-                  <p className="text-2xl font-black font-outfit text-white">R$ 356.000</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-12 gap-6">
-                <div className="col-span-8 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Propostas Recentes</h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/40">
-                      <div><p className="font-bold text-white">Proposta Comercial - Empresa XPTO</p><p className="text-[11px] text-slate-400">Mariana Silva</p></div>
-                      <span className="font-extrabold text-white">R$ 15.000</span>
-                      <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20">Enviada</Badge>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/40">
-                      <div><p className="font-bold text-white">Proposta de Serviços - Tech Solutions</p><p className="text-[11px] text-slate-400">Carlos Mendes</p></div>
-                      <span className="font-extrabold text-white">R$ 8.500</span>
-                      <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Aguardando</Badge>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="col-span-4 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl flex flex-col items-center justify-center text-center">
-                  <h3 className="font-bold text-base font-outfit text-white">Taxa de Aprovação</h3>
-                  <div className="relative w-36 h-36 flex items-center justify-center my-2">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                      <path strokeDasharray="28, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#5B50E6" strokeWidth="4" />
-                    </svg>
-                    <span className="text-2xl font-black font-outfit text-white">28,6%</span>
-                  </div>
-                  <p className="text-xs text-emerald-400 font-bold">+5,2% vs mês anterior</p>
+                  <span className="text-xs font-bold text-slate-400 uppercase">Valor Mensal Proposto</span>
+                  <p className="text-2xl font-black font-outfit text-white">R$ 14.800</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── 5. METAS COMERCIAIS VIEW ── */}
-          {activeMenu === "metas" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white">Meta de Faturamento</h3>
-                  <div className="space-y-1">
-                    <p className="text-xs text-slate-400">Meta: R$ 250.000</p>
-                    <p className="text-3xl font-black font-outfit text-white">R$ 187.450</p>
-                  </div>
-                  <div className="w-full h-3 bg-[#13102B] rounded-full overflow-hidden border border-indigo-950/50">
-                    <div className="h-full bg-gradient-to-r from-[#5B50E6] to-emerald-500" style={{ width: "74.98%" }} />
-                  </div>
-                  <p className="text-xs font-bold text-right text-emerald-400">74,98% atingido</p>
-                </div>
-
-                <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white">Meta de Negócios</h3>
-                  <div className="space-y-1">
-                    <p className="text-xs text-slate-400">Meta: 50 contratos</p>
-                    <p className="text-3xl font-black font-outfit text-white">37 realizados</p>
-                  </div>
-                  <div className="w-full h-3 bg-[#13102B] rounded-full overflow-hidden border border-indigo-950/50">
-                    <div className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500" style={{ width: "74%" }} />
-                  </div>
-                  <p className="text-xs font-bold text-right text-cyan-400">74% atingido</p>
-                </div>
-              </div>
-
-              {/* TABELA DE EQUIPE + BANNER TROFÉU */}
-              <div className="grid grid-cols-12 gap-6">
-                <div className="col-span-8 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Metas da Equipe</h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/40">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white font-bold flex items-center justify-center">BS</div>
-                        <span className="font-bold text-white">Bruna Santos</span>
-                      </div>
-                      <span className="font-bold text-slate-300">R$ 65.000 / 80.000</span>
-                      <span className="font-bold text-emerald-400">28,4% conversão</span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B] border border-indigo-950/40">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-500 text-white font-bold flex items-center justify-center">TM</div>
-                        <span className="font-bold text-white">Thiago Martins</span>
-                      </div>
-                      <span className="font-bold text-slate-300">R$ 45.300 / 60.000</span>
-                      <span className="font-bold text-cyan-400">26,3% conversão</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="col-span-4 bg-gradient-to-tr from-[#161334] to-[#251F56] border border-indigo-950/50 rounded-2xl p-6 space-y-3 shadow-xl flex flex-col items-center justify-center text-center">
-                  <Trophy size={48} className="text-amber-400 animate-bounce" />
-                  <h4 className="font-extrabold text-white font-outfit text-base">Você está no caminho certo!</h4>
-                  <p className="text-xs text-slate-300">Continue assim para bater suas metas deste mês!</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── 6. CLIENTES CONQUISTADOS VIEW ── */}
           {activeMenu === "clientes" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-4 gap-5">
-                <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-2 shadow-xl">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Clientes Conquistados</span>
-                  <p className="text-3xl font-black font-outfit text-white">17</p>
-                </div>
-                <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-2 shadow-xl">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Faturamento Total</span>
-                  <p className="text-2xl font-black font-outfit text-emerald-400">R$ 192.000</p>
-                </div>
-                <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-2 shadow-xl">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Ticket Médio</span>
-                  <p className="text-2xl font-black font-outfit text-white">R$ 11.294</p>
-                </div>
-                <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-5 space-y-2 shadow-xl">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Taxa de Retenção</span>
-                  <p className="text-3xl font-black font-outfit text-cyan-400">78,6%</p>
-                </div>
-              </div>
-
               <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Tabela de Clientes Conquistados</h3>
+                <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Alunos Matriculados via CRM</h3>
                 <div className="overflow-x-auto text-xs">
                   <table className="w-full text-left">
                     <thead className="bg-[#13102B] text-slate-400 uppercase font-bold text-[10px]">
                       <tr>
-                        <th className="p-3">Cliente</th>
-                        <th className="p-3">Empresa</th>
-                        <th className="p-3">Valor Contrato</th>
-                        <th className="p-3">Data</th>
-                        <th className="p-3">Responsável</th>
+                        <th className="p-3">Aluno</th>
+                        <th className="p-3">Curso / Instrumento</th>
+                        <th className="p-3">Modalidade</th>
+                        <th className="p-3">Mensalidade</th>
+                        <th className="p-3">Origem Lead</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-indigo-950/40">
@@ -779,10 +712,10 @@ export default function LeadsApp() {
                             <div className="w-7 h-7 rounded-full bg-indigo-600/30 text-indigo-300 font-bold flex items-center justify-center text-[10px]">{item.name[0]}</div>
                             {item.name}
                           </td>
-                          <td className="p-3 text-slate-300">{item.companyOrSchool || "Empresa XPTO"}</td>
-                          <td className="p-3 font-extrabold text-emerald-400">R$ {Number(item.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-                          <td className="p-3 text-slate-400">14/08/2025</td>
-                          <td className="p-3 text-slate-300">Walysson Rodrigues</td>
+                          <td className="p-3 text-slate-300">{item.instrument || item.productService || "Música"}</td>
+                          <td className="p-3 text-slate-300">{item.modality || "Presencial"}</td>
+                          <td className="p-3 font-extrabold text-emerald-400">R$ {Number(item.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/mês</td>
+                          <td className="p-3 text-slate-400">{item.source || "WhatsApp"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -791,167 +724,135 @@ export default function LeadsApp() {
               </div>
             </div>
           )}
-
-          {/* ── 7. ONBOARDING DE NEGÓCIOS VIEW ── */}
-          {activeMenu === "onboarding" && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4 text-xs font-bold">
-                <span className="px-4 py-2 rounded-xl bg-[#5B50E6] text-white">Em Andamento (8)</span>
-                <span className="px-4 py-2 rounded-xl bg-[#161334] text-slate-400 border border-indigo-950/50">Concluídos (12)</span>
-                <span className="px-4 py-2 rounded-xl bg-[#161334] text-slate-400 border border-indigo-950/50">Pendentes (5)</span>
-              </div>
-
-              <div className="grid grid-cols-12 gap-6">
-                <div className="col-span-7 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Acompanhamento de Clientes</h3>
-                  <div className="space-y-4 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex justify-between font-bold"><span>Empresa XPTO</span><span className="text-indigo-400">60%</span></div>
-                      <div className="w-full h-2 bg-[#13102B] rounded-full overflow-hidden"><div className="h-full bg-[#5B50E6]" style={{ width: "60%" }} /></div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between font-bold"><span>TechSolutions</span><span className="text-cyan-400">40%</span></div>
-                      <div className="w-full h-2 bg-[#13102B] rounded-full overflow-hidden"><div className="h-full bg-cyan-500" style={{ width: "40%" }} /></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="col-span-5 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Etapas do Onboarding</h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#13102B]"><span className="text-slate-300">Boas-vindas e apresentação</span><CheckCircle2 size={16} className="text-emerald-400" /></div>
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#13102B]"><span className="text-slate-300">Coleta de informações</span><CheckCircle2 size={16} className="text-emerald-400" /></div>
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#13102B]"><span className="text-slate-300">Configuração inicial</span><Clock size={16} className="text-amber-400" /></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── 8. ATENDIMENTO & SUPORTE VIEW ── */}
-          {activeMenu === "suporte" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-12 gap-6">
-                <div className="col-span-4 space-y-4">
-                  <div className="bg-[#161334]/80 p-5 rounded-2xl border border-indigo-950/50 flex items-center justify-between"><span className="text-xs font-bold text-slate-400">Tickets Abertos</span><span className="text-2xl font-black font-outfit text-white">12</span></div>
-                  <div className="bg-[#161334]/80 p-5 rounded-2xl border border-indigo-950/50 flex items-center justify-between"><span className="text-xs font-bold text-slate-400">Em Atendimento</span><span className="text-2xl font-black font-outfit text-indigo-400">8</span></div>
-                  <div className="bg-[#161334]/80 p-5 rounded-2xl border border-indigo-950/50 flex items-center justify-between"><span className="text-xs font-bold text-slate-400">Resolvidos</span><span className="text-2xl font-black font-outfit text-emerald-400">45</span></div>
-                </div>
-
-                <div className="col-span-8 bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                  <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Tickets Recentes</h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#13102B]">
-                      <div><p className="font-bold text-white">Dúvida sobre integração WhatsApp</p><p className="text-[11px] text-slate-400">Mariana Silva - Empresa XPTO</p></div>
-                      <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20">Em Atendimento</Badge>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── 9. PERFORMANCE DE VENDAS VIEW ── */}
-          {activeMenu === "performance" && (
-            <div className="space-y-6">
-              <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Relatório de Performance de Vendas</h3>
-                <p className="text-xs text-slate-400">Desempenho comparativo de conversão por período e responsável.</p>
-              </div>
-            </div>
-          )}
-
-          {/* ── 10. ORIGEM DAS OPORTUNIDADES VIEW ── */}
-          {activeMenu === "origens" && (
-            <div className="space-y-6">
-              <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Detalhamento por Canal de Captação</h3>
-                <div className="grid grid-cols-3 gap-4 text-xs">
-                  <div className="p-4 bg-[#13102B] rounded-xl border border-indigo-950/50"><p className="font-bold text-slate-400">Instagram Ads</p><p className="text-2xl font-black font-outfit text-white">35% das vendas</p></div>
-                  <div className="p-4 bg-[#13102B] rounded-xl border border-indigo-950/50"><p className="font-bold text-slate-400">Google Search</p><p className="text-2xl font-black font-outfit text-cyan-400">29% das vendas</p></div>
-                  <div className="p-4 bg-[#13102B] rounded-xl border border-indigo-950/50"><p className="font-bold text-slate-400">Indicação direta</p><p className="text-2xl font-black font-outfit text-amber-400">20% das vendas</p></div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── 11. CONFIGURAÇÕES VIEW ── */}
-          {activeMenu === "configuracoes" && (
-            <div className="space-y-6 max-w-4xl">
-              <div className="bg-[#161334]/80 border border-indigo-950/50 rounded-2xl p-6 space-y-4 shadow-xl">
-                <h3 className="font-bold text-base font-outfit text-white border-b border-indigo-950/50 pb-4">Configurações do CRM Universal</h3>
-                <p className="text-xs text-slate-400">Gerencie segmento da organização, regras de automação e campos personalizados.</p>
-              </div>
-            </div>
-          )}
         </main>
       </div>
 
-      {/* ── MODAL: CADASTRAR OPORTUNIDADE UNIVERSAL ── */}
+      {/* ── MODAIS ── */}
       <CreateLeadModal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
       {selectedLeadId && (
         <LeadProfileModal leadId={selectedLeadId} open={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+      )}
+      {trialLead && (
+        <ScheduleTrialModal lead={trialLead} open={isTrialModalOpen} onClose={() => { setIsTrialModalOpen(false); setTrialLead(null); }} />
       )}
     </div>
   );
 }
 
-// ── MODAL CADASTRAR OPORTUNIDADE PREMIUN (DARK TONE) ──
+// ── MODAL: CADASTRAR NOVO LEAD (ESPECIALIZADO PARA MÚSICA) ──
 function CreateLeadModal({ open, onClose }: any) {
   const utils = trpc.useUtils();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [productService, setProductService] = useState("");
-  const [value, setValue] = useState("5000");
+  const [instrument, setInstrument] = useState("Guitarra");
+  const [level, setLevel] = useState("Iniciante");
+  const [modality, setModality] = useState("Presencial");
+  const [value, setValue] = useState("320");
+  const [source, setSource] = useState("WhatsApp");
 
   const createMutation = trpc.crm.createLead.useMutation({
     onSuccess: () => {
-      toast.success("Oportunidade cadastrada com sucesso!");
+      toast.success("Lead cadastrado com sucesso!");
       onClose();
       utils.crm.listLeads.invalidate();
       utils.crm.getDashboardMetrics.invalidate();
     },
+    onError: (err) => toast.error(err.message),
   });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[450px] bg-[#13102B] text-slate-200 border border-indigo-950/80 text-xs">
+      <DialogContent className="sm:max-w-[480px] bg-[#13102B] text-slate-200 border border-indigo-950/80 text-xs">
         <DialogHeader>
-          <DialogTitle className="font-outfit font-bold text-base text-white">Cadastrar Nova Oportunidade</DialogTitle>
+          <DialogTitle className="font-outfit font-bold text-base text-white flex items-center gap-2">
+            <Music className="text-indigo-400" size={18} /> Cadastrar Lead para Aula de Música
+          </DialogTitle>
         </DialogHeader>
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (!name) return toast.error("Preencha o nome do lead");
-            createMutation.mutate({ name, phone, email, productService, value: Number(value) });
+            createMutation.mutate({
+              name,
+              phone,
+              email,
+              instrument,
+              productService: instrument,
+              level,
+              modality,
+              value: Number(value),
+              source,
+            });
           }}
-          className="space-y-3 py-2"
+          className="space-y-3.5 py-2"
         >
           <div className="space-y-1">
-            <label className="font-bold text-slate-400">Nome do Lead / Empresa *</label>
-            <Input placeholder="Ex: Mariana Silva ou Empresa XPTO" value={name} onChange={(e) => setName(e.target.value)} required className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
+            <label className="font-bold text-slate-400">Nome do Lead / Futuro Aluno *</label>
+            <Input placeholder="Ex: Mariana Silva" value={name} onChange={(e) => setName(e.target.value)} required className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="font-bold text-slate-400">Telefone / WhatsApp</label>
+              <label className="font-bold text-slate-400">Telefone / WhatsApp *</label>
               <Input placeholder="(11) 99999-9999" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
             </div>
             <div className="space-y-1">
               <label className="font-bold text-slate-400">E-mail</label>
-              <Input placeholder="contato@empresa.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
+              <Input placeholder="aluno@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="font-bold text-slate-400">Produto / Serviço</label>
-              <Input placeholder="Ex: Plano Enterprise" value={productService} onChange={(e) => setProductService(e.target.value)} className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
+              <label className="font-bold text-slate-400">Instrumento de Interesse</label>
+              <select
+                value={instrument}
+                onChange={(e) => setInstrument(e.target.value)}
+                className="w-full h-9 rounded-md bg-[#1A163B] border border-indigo-950 px-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="Guitarra">Guitarra</option>
+                <option value="Bateria">Bateria</option>
+                <option value="Piano / Teclado">Piano / Teclado</option>
+                <option value="Violão">Violão</option>
+                <option value="Canto / Técnica Vocal">Canto / Técnica Vocal</option>
+                <option value="Saxofone">Saxofone</option>
+                <option value="Baixo">Baixo</option>
+                <option value="Ukulele">Ukulele</option>
+              </select>
             </div>
+
             <div className="space-y-1">
-              <label className="font-bold text-slate-400">Valor Estimado (R$)</label>
+              <label className="font-bold text-slate-400">Modalidade</label>
+              <select
+                value={modality}
+                onChange={(e) => setModality(e.target.value)}
+                className="w-full h-9 rounded-md bg-[#1A163B] border border-indigo-950 px-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="Presencial">Presencial</option>
+                <option value="Online">Online</option>
+                <option value="Híbrido">Híbrido</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="font-bold text-slate-400">Nível do Aluno</label>
+              <select
+                value={level}
+                onChange={(e) => setLevel(e.target.value)}
+                className="w-full h-9 rounded-md bg-[#1A163B] border border-indigo-950 px-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="Iniciante">Iniciante (Zero do Zero)</option>
+                <option value="Intermediário">Intermediário</option>
+                <option value="Avançado">Avançado</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-bold text-slate-400">Mensalidade Estimada (R$)</label>
               <Input type="number" value={value} onChange={(e) => setValue(e.target.value)} className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
             </div>
           </div>
@@ -959,7 +860,7 @@ function CreateLeadModal({ open, onClose }: any) {
           <DialogFooter className="pt-3">
             <Button type="button" variant="outline" onClick={onClose} className="h-9 text-xs border-indigo-950 text-slate-300 hover:bg-white/5">Cancelar</Button>
             <Button type="submit" disabled={createMutation.isPending} className="h-9 text-xs bg-[#5B50E6] hover:bg-[#4A40D0] text-white font-bold">
-              {createMutation.isPending && <Loader2 size={14} className="animate-spin mr-1" />} Cadastrar
+              {createMutation.isPending && <Loader2 size={14} className="animate-spin mr-1" />} Cadastrar Lead
             </Button>
           </DialogFooter>
         </form>
@@ -968,17 +869,83 @@ function CreateLeadModal({ open, onClose }: any) {
   );
 }
 
-// ── MODAL PERFIL DO LEAD PREMIUN (DARK TONE) ──
+// ── MODAL: AGENDAR AULA EXPERIMENTAL ──
+function ScheduleTrialModal({ lead, open, onClose }: any) {
+  const utils = trpc.useUtils();
+  const [trialDate, setTrialDate] = useState("");
+  const [trialTime, setTrialTime] = useState("14:00");
+  const [notes, setNotes] = useState("");
+
+  const moveStageMutation = trpc.crm.moveStage.useMutation({
+    onSuccess: () => {
+      toast.success(`🎸 Aula experimental agendada para ${lead.name}!`);
+      utils.crm.listLeads.invalidate();
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[420px] bg-[#13102B] text-slate-200 border border-indigo-950/80 text-xs">
+        <DialogHeader>
+          <DialogTitle className="font-outfit font-bold text-base text-white flex items-center gap-2">
+            <Calendar className="text-cyan-400" size={18} /> Agendar Aula Experimental
+          </DialogTitle>
+        </DialogHeader>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            moveStageMutation.mutate({ leadId: lead.id, newStage: "aula_experimental" });
+          }}
+          className="space-y-3 py-2"
+        >
+          <div className="p-3 bg-[#1A163B] rounded-xl border border-indigo-950/60 space-y-1">
+            <p className="font-bold text-white text-xs">{lead.name}</p>
+            <p className="text-[11px] text-slate-300">Instrumento: <strong>{lead.instrument || lead.productService || "Música"}</strong></p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="font-bold text-slate-400">Data da Aula *</label>
+              <Input type="date" value={trialDate} onChange={(e) => setTrialDate(e.target.value)} required className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
+            </div>
+            <div className="space-y-1">
+              <label className="font-bold text-slate-400">Horário *</label>
+              <Input type="time" value={trialTime} onChange={(e) => setTrialTime(e.target.value)} required className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-bold text-slate-400">Observações / Professor</label>
+            <Input placeholder="Ex: Prof. Pedro - Estúdio 02" value={notes} onChange={(e) => setNotes(e.target.value)} className="h-9 text-xs bg-[#1A163B] border-indigo-950 text-white" />
+          </div>
+
+          <DialogFooter className="pt-3">
+            <Button type="button" variant="outline" onClick={onClose} className="h-9 text-xs border-indigo-950 text-slate-300">Cancelar</Button>
+            <Button type="submit" disabled={moveStageMutation.isPending} className="h-9 text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-bold">
+              {moveStageMutation.isPending && <Loader2 size={14} className="animate-spin mr-1" />} Confirmar Agendamento
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── MODAL: PERFIL DO LEAD & CONVERSÃO 1-CLICK ──
 function LeadProfileModal({ leadId, open, onClose }: any) {
   const utils = trpc.useUtils();
   const { data } = trpc.crm.getLeadDetails.useQuery({ leadId });
 
   const convertMutation = trpc.crm.convertToStudent.useMutation({
     onSuccess: () => {
-      toast.success("🎉 Parabéns! Lead convertido em Cliente Conquistado.");
+      toast.success("🎉 Parabéns! Lead convertido em Aluno Matriculado no MusicPro.");
       onClose();
       utils.crm.listLeads.invalidate();
     },
+    onError: (err) => toast.error(err.message),
   });
 
   if (!data?.lead) return null;
@@ -988,41 +955,47 @@ function LeadProfileModal({ leadId, open, onClose }: any) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] bg-[#13102B] text-slate-200 border border-indigo-950/80 text-xs">
         <DialogHeader>
-          <DialogTitle className="font-outfit font-bold text-base text-white">{lead.name}</DialogTitle>
+          <DialogTitle className="font-outfit font-bold text-base text-white flex items-center justify-between">
+            <span>{lead.name}</span>
+            <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30 text-[10px]">
+              {lead.stage}
+            </Badge>
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
-          <div className="grid grid-cols-2 gap-3 bg-[#1A163B] p-3 rounded-xl border border-indigo-950/60 text-xs">
-            <div><span className="text-[10px] text-slate-400 font-bold uppercase">Produto / Serviço</span><p className="font-bold text-white">{lead.productService || lead.instrument || "Não informado"}</p></div>
-            <div><span className="text-[10px] text-slate-400 font-bold uppercase">Valor da Oportunidade</span><p className="font-bold text-emerald-400">R$ {Number(lead.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p></div>
-            <div><span className="text-[10px] text-slate-400 font-bold uppercase">Telefone</span><p className="font-bold text-white">{lead.phone || "Não informado"}</p></div>
-            <div><span className="text-[10px] text-slate-400 font-bold uppercase">Origem</span><p className="font-bold text-white">{lead.source || "WhatsApp"}</p></div>
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3 bg-[#1A163B] p-3.5 rounded-xl border border-indigo-950/60 text-xs">
+            <div><span className="text-[10px] text-slate-400 font-bold uppercase">Instrumento / Curso</span><p className="font-bold text-white">{lead.instrument || lead.productService || "Música"}</p></div>
+            <div><span className="text-[10px] text-slate-400 font-bold uppercase">Modalidade / Nível</span><p className="font-bold text-white">{lead.modality || "Presencial"} ({lead.level || "Iniciante"})</p></div>
+            <div><span className="text-[10px] text-slate-400 font-bold uppercase">Mensalidade Estimada</span><p className="font-bold text-emerald-400">R$ {Number(lead.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/mês</p></div>
+            <div><span className="text-[10px] text-slate-400 font-bold uppercase">Telefone / WhatsApp</span><p className="font-bold text-white">{lead.phone || "Não informado"}</p></div>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between gap-3 pt-2">
             {lead.phone && (
               <a
                 href={`https://wa.me/55${lead.phone.replace(/\D/g, "")}`}
                 target="_blank"
                 rel="noreferrer"
-                className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs hover:bg-emerald-700 transition-colors"
+                className="flex-1 py-2 bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 text-xs hover:bg-emerald-700 transition-colors shadow-md"
               >
-                <MessageSquare size={14} /> Contato via WhatsApp
+                <MessageSquare size={15} /> WhatsApp Direct
               </a>
             )}
 
             {lead.stage !== "fechado" && (
               <Button
                 onClick={() => convertMutation.mutate({ leadId: lead.id, monthlyFee: Number(lead.value || 0) })}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1"
+                disabled={convertMutation.isPending}
+                className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs gap-1.5 shadow-md"
               >
-                <UserCheck size={14} /> Converter em Cliente
+                {convertMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <UserCheck size={15} />} Matricular Aluno (1-Click)
               </Button>
             )}
           </div>
 
           <DialogFooter className="pt-2">
-            <Button onClick={onClose} className="h-9 text-xs bg-slate-800 text-white font-bold">Fechar</Button>
+            <Button onClick={onClose} className="h-9 text-xs bg-slate-800 text-white font-bold w-full">Fechar</Button>
           </DialogFooter>
         </div>
       </DialogContent>
