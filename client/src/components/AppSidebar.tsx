@@ -142,11 +142,26 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem("musicpro_sidebar_groups");
-      return saved ? JSON.parse(saved) : {};
+      if (saved) return JSON.parse(saved);
     } catch {
-      return {};
+      // Ignore parse errors
     }
+    // Por padrão: Somente o menu PRINCIPAL vem aberto, os outros começam fechados
+    return {
+      "RELACIONAMENTO": true,
+      "FINANCEIRO": true,
+      "AUTOMAÇÕES": true,
+      "OUTROS": true,
+    };
   });
+
+  // Auto-expandir grupo caso a rota atual pertença a ele
+  useEffect(() => {
+    const currentGroup = navGroups.find((g) => g.items.some((item) => item.href === location));
+    if (currentGroup && collapsedGroups[currentGroup.groupName]) {
+      setCollapsedGroups((prev) => ({ ...prev, [currentGroup.groupName]: false }));
+    }
+  }, [location]);
 
   const toggleGroup = (groupName: string) => {
     setCollapsedGroups((prev) => {

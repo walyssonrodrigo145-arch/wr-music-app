@@ -200,6 +200,15 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full scale-0 group-hover:scale-100 transition-transform" />
            </button>
 
+           {/* Botão de Acesso Rápido para Configurações (Mobile & Desktop) */}
+           <button
+             className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group"
+             onClick={() => navigate("/configuracoes")}
+             title="Configurações do Sistema"
+           >
+             <Settings size={20} className="text-indigo-400" />
+           </button>
+
            <DropdownMenu>
              <DropdownMenuTrigger asChild>
                <button 

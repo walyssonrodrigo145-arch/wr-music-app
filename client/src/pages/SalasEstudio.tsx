@@ -227,8 +227,8 @@ export default function SalasEstudio() {
         </div>
       </div>
 
-      {/* ── 5 CARDS DE KPIS / MÉTRICAS ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+      {/* ── 3 CARDS DE KPIS / MÉTRICAS REAIS ────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         {/* Card 1: Total de Salas */}
         <div className="p-5 rounded-2xl bg-card border border-border/60 shadow-sm flex items-center gap-4 relative overflow-hidden group">
@@ -263,35 +263,6 @@ export default function SalasEstudio() {
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Em Manutenção</p>
             <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.maintenance || 0}</p>
             <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">Indisponível temporariamente</p>
-          </div>
-        </div>
-
-        {/* Card 4: Utilização Média */}
-        <div className="p-5 rounded-2xl bg-card border border-border/60 shadow-sm flex items-center gap-4 relative overflow-hidden group">
-          <div className="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
-            <Calendar size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Utilização Média</p>
-            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.avgUtilization || 0}%</p>
-            <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Este mês</p>
-          </div>
-        </div>
-
-        {/* Card 5: Avaliação Média */}
-        <div className="p-5 rounded-2xl bg-card border border-border/60 shadow-sm flex items-center gap-4 relative overflow-hidden group">
-          <div className="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
-            <Star size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Avaliação Média</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <p className="text-2xl font-black font-outfit text-foreground">{stats?.avgRating ? stats.avgRating : "0.0"}</p>
-              <div className="flex text-amber-400 text-xs">
-                ★★★★★
-              </div>
-            </div>
-            <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Das salas</p>
           </div>
         </div>
 
@@ -405,7 +376,6 @@ export default function SalasEstudio() {
                     <th className="py-4 px-6">CAPACIDADE</th>
                     <th className="py-4 px-6">EQUIPAMENTOS PRINCIPAIS</th>
                     <th className="py-4 px-6">SITUAÇÃO</th>
-                    <th className="py-4 px-6">UTILIZAÇÃO</th>
                     <th className="py-4 px-6 text-right">AÇÕES</th>
                   </tr>
                 </thead>
@@ -489,22 +459,6 @@ export default function SalasEstudio() {
                             INATIVA
                           </span>
                         )}
-                      </td>
-
-                      {/* Coluna 5: UTILIZAÇÃO */}
-                      <td className="py-4 px-6 min-w-[140px]">
-                        <div className="space-y-1">
-                          <span className="text-xs font-bold text-foreground font-outfit">{room.utilizationRate}%</span>
-                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className={cn(
-                                "h-full rounded-full transition-all duration-500",
-                                room.status === "manutencao" ? "bg-muted-foreground/30" : "bg-indigo-600 dark:bg-indigo-400"
-                              )}
-                              style={{ width: `${room.utilizationRate}%` }}
-                            />
-                          </div>
-                        </div>
                       </td>
 
                       {/* Coluna 6: AÇÕES */}
