@@ -57,14 +57,14 @@ export default function LeadsApp() {
 
   // Fallback de dados de exemplo ultra-fidedignos caso a base esteja inicializando
   const mockFallbackItems = [
-    { id: 101, name: "Mariana Silva", instrument: "Guitarra", modality: "Presencial", cityState: "São Paulo - SP", value: "320.00", temperature: "quente", stage: "novo", phone: "(11) 99881-2233", source: "Instagram Ads", createdAt: new Date() },
-    { id: 102, name: "Carlos Mendes", instrument: "Bateria", modality: "Presencial", cityState: "Curitiba - PR", value: "380.00", temperature: "morno", stage: "novo", phone: "(41) 99112-4455", source: "WhatsApp", createdAt: new Date() },
-    { id: 103, name: "Juliana Costa", instrument: "Piano / Teclado", modality: "Online", cityState: "Belo Horizonte - MG", value: "290.00", temperature: "quente", stage: "novo", phone: "(31) 98822-3344", source: "Google Ads", createdAt: new Date() },
-    { id: 104, name: "Roberto Alves", instrument: "Canto / Técnica Vocal", modality: "Presencial", cityState: "Goiânia - GO", value: "350.00", temperature: "quente", stage: "contato", phone: "(62) 97654-3210", source: "Indicação", createdAt: new Date() },
-    { id: 105, name: "Ana Beatriz", instrument: "Violão", modality: "Presencial", cityState: "Campinas - SP", value: "270.00", temperature: "morno", stage: "aula_experimental", phone: "(19) 98123-4567", source: "Instagram", createdAt: new Date() },
-    { id: 106, name: "Lucas Ferreira", instrument: "Saxofone", modality: "Presencial", cityState: "Porto Alegre - RS", value: "420.00", temperature: "morno", stage: "fez_aula", phone: "(51) 99554-1122", source: "Google Search", createdAt: new Date() },
-    { id: 107, name: "Paulo Henrique", instrument: "Baixo", modality: "Online", cityState: "Salvador - BA", value: "280.00", temperature: "quente", stage: "proposta", phone: "(71) 99223-8899", source: "WhatsApp", createdAt: new Date() },
-    { id: 108, name: "Fernanda Lima", instrument: "Ukulele", modality: "Presencial", cityState: "Recife - PE", value: "230.00", temperature: "morno", stage: "fechado", phone: "(81) 98765-1122", source: "Instagram", createdAt: new Date() },
+    { id: 101, name: "Mariana Silva", instrument: "Guitarra", productService: "Guitarra", modality: "Presencial", cityState: "São Paulo - SP", value: "320.00", temperature: "quente", stage: "novo", phone: "(11) 99881-2233", source: "Instagram Ads", createdAt: new Date() },
+    { id: 102, name: "Carlos Mendes", instrument: "Bateria", productService: "Bateria", modality: "Presencial", cityState: "Curitiba - PR", value: "380.00", temperature: "morno", stage: "novo", phone: "(41) 99112-4455", source: "WhatsApp", createdAt: new Date() },
+    { id: 103, name: "Juliana Costa", instrument: "Piano / Teclado", productService: "Piano / Teclado", modality: "Online", cityState: "Belo Horizonte - MG", value: "290.00", temperature: "quente", stage: "novo", phone: "(31) 98822-3344", source: "Google Ads", createdAt: new Date() },
+    { id: 104, name: "Roberto Alves", instrument: "Canto / Técnica Vocal", productService: "Canto / Técnica Vocal", modality: "Presencial", cityState: "Goiânia - GO", value: "350.00", temperature: "quente", stage: "contato", phone: "(62) 97654-3210", source: "Indicação", createdAt: new Date() },
+    { id: 105, name: "Ana Beatriz", instrument: "Violão", productService: "Violão", modality: "Presencial", cityState: "Campinas - SP", value: "270.00", temperature: "morno", stage: "aula_experimental", phone: "(19) 98123-4567", source: "Instagram", createdAt: new Date() },
+    { id: 106, name: "Lucas Ferreira", instrument: "Saxofone", productService: "Saxofone", modality: "Presencial", cityState: "Porto Alegre - RS", value: "420.00", temperature: "morno", stage: "fez_aula", phone: "(51) 99554-1122", source: "Google Search", createdAt: new Date() },
+    { id: 107, name: "Paulo Henrique", instrument: "Baixo", productService: "Baixo", modality: "Online", cityState: "Salvador - BA", value: "280.00", temperature: "quente", stage: "proposta", phone: "(71) 99223-8899", source: "WhatsApp", createdAt: new Date() },
+    { id: 108, name: "Fernanda Lima", instrument: "Ukulele", productService: "Ukulele", modality: "Presencial", cityState: "Recife - PE", value: "230.00", temperature: "morno", stage: "fechado", phone: "(81) 98765-1122", source: "Instagram", createdAt: new Date() },
   ];
 
   const leadsDisplayList = dbLeads.length > 0 ? dbLeads : mockFallbackItems;
@@ -897,7 +897,7 @@ function ScheduleTrialModal({ lead, open, onClose }: any) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            moveStageMutation.mutate({ leadId: lead.id, newStage: "aula_experimental" });
+            moveStageMutation.mutate({ leadId: lead.id, stage: "aula_experimental" });
           }}
           className="space-y-3 py-2"
         >
