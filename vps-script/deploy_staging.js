@@ -46,6 +46,9 @@ const filesToUpload = [
   'client/src/components/integrations/AssinafyIntegrationCard.tsx',
   'client/src/components/modals/StudentContractsSection.tsx',
   'client/src/components/modals/StudentDetailsModal.tsx',
+  'client/src/pages/leads/LeadsApp.tsx',
+  'client/src/components/AppSidebar.tsx',
+  'client/src/components/AppHeader.tsx',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');
@@ -70,7 +73,7 @@ conn.on('ready', () => {
       conn.sftp((err, sftp) => {
         if (err) throw err;
         
-        const mkdirCmd = `mkdir -p ${repoPath}/client/src/pages/analytics ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals`;
+        const mkdirCmd = `mkdir -p ${repoPath}/client/src/pages/analytics ${repoPath}/client/src/pages/leads ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals`;
         conn.exec(mkdirCmd, () => {
           let uploads = 0;
           const finalize = () => {
