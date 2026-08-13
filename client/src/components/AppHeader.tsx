@@ -109,10 +109,10 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
         )}
       </div>
 
-      {/* Botão de Atalho Direto: Gestão de Leads */}
+      {/* Botão de Atalho Direto: Gestão de Leads (Abre em nova aba) */}
       {user?.role !== "aluno" && (
         <Button
-          onClick={() => navigate("/leads")}
+          onClick={() => window.open("/leads", "_blank")}
           className="hidden sm:flex items-center gap-2 h-10 lg:h-11 px-3.5 lg:px-4 rounded-2xl bg-gradient-to-r from-[#5B50E6] to-purple-600 hover:from-[#4A40D0] hover:to-purple-700 text-white font-bold text-xs shadow-md hover:shadow-indigo-500/25 transition-all active:scale-95 border border-indigo-400/30 shrink-0"
         >
           <Users size={16} />
