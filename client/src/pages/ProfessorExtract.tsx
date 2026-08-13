@@ -569,27 +569,31 @@ export default function ProfessorExtract() {
         <div className="lg:col-span-2 bg-card/60 backdrop-blur-xl p-6 rounded-3xl border border-border/40 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-outfit text-xl font-bold text-foreground">Evolução do Líquido a Pagar</h3>
+              <h3 className="font-outfit text-xl font-bold text-foreground">
+                {chartMetric === "liquido" ? "Evolução do Líquido a Pagar" : "Evolução do Total Bruto"}
+              </h3>
               <p className="text-xs text-muted-foreground font-medium">Histórico de pagamentos ao longo dos meses ({viewYear})</p>
             </div>
 
             {/* Toggle Bruto | Líquido */}
-            <div className="flex bg-muted/40 p-1 rounded-xl border border-border/40 text-xs font-bold">
+            <div className="flex bg-muted/40 p-1 rounded-2xl border border-border/40 text-xs font-bold">
               <button
+                type="button"
                 onClick={() => setChartMetric("bruto")}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl transition-all ${
                   chartMetric === "bruto"
-                    ? "bg-card text-foreground shadow-sm"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Bruto
               </button>
               <button
+                type="button"
                 onClick={() => setChartMetric("liquido")}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl transition-all ${
                   chartMetric === "liquido"
-                    ? "bg-indigo-600 text-white shadow-sm"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
