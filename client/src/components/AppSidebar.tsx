@@ -155,16 +155,29 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         collapsed && "justify-center px-2"
       )}>
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/30">
-            <Music size={20} className="text-white" />
-          </div>
+          {(user as any)?.schoolLogo ? (
+            <div className="relative w-10 h-10 rounded-xl bg-slate-900/60 shadow-lg shadow-primary/20 border border-white/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
+              <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-blue-500/30 flex-shrink-0 overflow-hidden">
+              <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-xl flex items-center justify-center relative z-10">
+                <div className="flex items-center gap-[3px] h-4">
+                  <div className="w-1 bg-white/90 rounded-full h-2" />
+                  <div className="w-1 bg-white/90 rounded-full h-4" />
+                  <div className="w-1 bg-white rounded-full h-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                  <div className="w-1 bg-white/90 rounded-full h-3" />
+                </div>
+              </div>
+            </div>
+          )}
           {!collapsed && (
             <div className="min-w-0">
               <p className="text-base font-black text-white tracking-tight font-outfit leading-none truncate">
-                {(user as any)?.schoolName || "WR Music"}
+                {(user as any)?.schoolName || "WR"}
               </p>
               <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-1 truncate">
-                GESTÃO MUSICAL
+                {(user as any)?.schoolLogo ? "Escola de Música" : "GESTÃO MUSICAL"}
               </p>
             </div>
           )}
