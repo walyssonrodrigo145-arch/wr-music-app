@@ -134,12 +134,13 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         lastLoadedLessonId.current = currentKey;
       }
     } else if (lastLoadedLessonId.current !== "new") {
+      const defaultDuration = settings?.lessonDuration ? Number(settings.lessonDuration) : 60;
       setFormData({
         studentId: "",
         title: "",
         time: initialDate ? format(initialDate, "HH:mm") : "09:00",
         date: initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-        duration: 60,
+        duration: defaultDuration,
         notes: "",
         instrumentId: "",
         studioRoomId: "",
@@ -155,7 +156,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     }
     setConflictError(null);
     setStep("form");
-  }, [open, initialDate, editingLesson, freshLesson]);
+  }, [open, initialDate, editingLesson, freshLesson, settings]);
 
   const checkConflicts = trpc.lessons.checkConflicts.useQuery({
     firstDate: (() => {

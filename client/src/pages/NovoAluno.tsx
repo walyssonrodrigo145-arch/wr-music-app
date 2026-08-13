@@ -78,6 +78,14 @@ export default function NovoAluno() {
   const { data: mySub } = trpc.platform.mySubscription.useQuery();
   const { data: allPlans = [] } = trpc.platform.getPublicPlans.useQuery();
 
+  const { data: settings } = trpc.settings.get.useQuery();
+
+  useEffect(() => {
+    if (settings?.lessonDuration) {
+      setScheduleForm(p => ({ ...p, duration: Number(settings.lessonDuration) }));
+    }
+  }, [settings?.lessonDuration]);
+
   useEffect(() => {
     if (!isEditMode && stats && mySub && allPlans.length > 0) {
       const currentPlan = allPlans.find((p: any) => p.id === mySub.planId);
@@ -1194,8 +1202,10 @@ export default function NovoAluno() {
                       <SelectContent>
                         <SelectItem value="30">30 minutos</SelectItem>
                         <SelectItem value="45">45 minutos</SelectItem>
+                        <SelectItem value="50">50 minutos</SelectItem>
                         <SelectItem value="60">60 minutos</SelectItem>
                         <SelectItem value="90">90 minutos</SelectItem>
+                        <SelectItem value="120">120 minutos</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
