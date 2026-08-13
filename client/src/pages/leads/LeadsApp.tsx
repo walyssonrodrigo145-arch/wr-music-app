@@ -467,7 +467,7 @@ export default function LeadsApp() {
                           <div className="flex items-center gap-1.5 shrink-0">
                             {lead.phone && (
                               <a
-                                href={getWhatsAppLink(lead.phone, lead.name, lead.instrument || lead.productService)}
+                                href={getWhatsAppLink(lead.phone || undefined, lead.name, lead.instrument || lead.productService || undefined)}
                                 target="_blank"
                                 rel="noreferrer"
                                 title="Enviar WhatsApp Instantâneo"
@@ -567,7 +567,7 @@ export default function LeadsApp() {
                                   <div className="flex items-center gap-1">
                                     {item.phone && (
                                       <a
-                                        href={getWhatsAppLink(item.phone, item.name, item.instrument || item.productService)}
+                                        href={getWhatsAppLink(item.phone || undefined, item.name, item.instrument || item.productService || undefined)}
                                         target="_blank"
                                         rel="noreferrer"
                                         title="WhatsApp"
