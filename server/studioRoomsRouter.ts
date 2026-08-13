@@ -20,11 +20,11 @@ export const studioRoomsRouter = router({
 
     if (rooms.length === 0) {
       return {
-        total: 5,
-        active: 4,
-        maintenance: 1,
-        avgUtilization: 78,
-        avgRating: 4.8
+        total: 0,
+        active: 0,
+        maintenance: 0,
+        avgUtilization: 0,
+        avgRating: 0
       };
     }
 
@@ -32,7 +32,7 @@ export const studioRoomsRouter = router({
     const active = rooms.filter(r => r.status === "ativa" && r.active).length;
     const maintenance = rooms.filter(r => r.status === "manutencao").length;
     const totalUtil = rooms.reduce((acc, r) => acc + (r.utilizationRate || 0), 0);
-    const avgUtilization = total > 0 ? Math.round(totalUtil / total) : 78;
+    const avgUtilization = total > 0 ? Math.round(totalUtil / total) : 0;
 
     return {
       total,

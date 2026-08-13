@@ -13,16 +13,15 @@ import {
   Info,
   ArrowRight,
   Users,
-  Building2,
   Trash2,
   SlidersHorizontal,
-  X
+  Upload,
+  Image as ImageIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -46,70 +45,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
-// Mock Fallback para Fidelidade Total à Imagem Enviada
-const DEFAULT_MOCK_ROOMS = [
-  {
-    id: 1,
-    name: "Sala 1",
-    isPrincipal: true,
-    category: "Estúdio de gravação",
-    capacity: 8,
-    equipments: ["Bateria", "Teclado", "Ar Condicionado"],
-    extraEquipmentsCount: 3,
-    status: "ativa",
-    utilizationRate: 85,
-    imageUrl: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=300&q=80"
-  },
-  {
-    id: 2,
-    name: "Sala 2",
-    isPrincipal: false,
-    category: "Sala acústica",
-    capacity: 6,
-    equipments: ["Violão", "Amplificador", "Ar Condicionado"],
-    extraEquipmentsCount: 2,
-    status: "ativa",
-    utilizationRate: 62,
-    imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80"
-  },
-  {
-    id: 3,
-    name: "Sala 3",
-    isPrincipal: false,
-    category: "Sala para ensaios",
-    capacity: 10,
-    equipments: ["Bateria", "Baixo", "Mesa de Som"],
-    extraEquipmentsCount: 4,
-    status: "ativa",
-    utilizationRate: 78,
-    imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&q=80"
-  },
-  {
-    id: 4,
-    name: "Sala 4",
-    isPrincipal: false,
-    category: "Sala multiuso",
-    capacity: 12,
-    equipments: ["Teclado", "Caixas", "Projetor"],
-    extraEquipmentsCount: 3,
-    status: "ativa",
-    utilizationRate: 90,
-    imageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&q=80"
-  },
-  {
-    id: 5,
-    name: "Sala 5",
-    isPrincipal: false,
-    category: "Sala de percussão",
-    capacity: 6,
-    equipments: ["Percussão", "Caixa Acústica", "Ar Condicionado"],
-    extraEquipmentsCount: 0,
-    status: "manutencao",
-    utilizationRate: 0,
-    imageUrl: "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=300&q=80"
-  }
-];
-
 export default function SalasEstudio() {
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<"todas" | "calendario">("todas");
@@ -132,7 +67,7 @@ export default function SalasEstudio() {
   });
 
   // Data Queries
-  const { data: dbRooms = [] } = trpc.studioRooms.list.useQuery();
+  const { data: dbRooms = [], isLoading } = trpc.studioRooms.list.useQuery();
   const { data: stats } = trpc.studioRooms.stats.useQuery();
 
   const createMutation = trpc.studioRooms.create.useMutation({
@@ -164,19 +99,30 @@ export default function SalasEstudio() {
     onError: (err) => toast.error(err.message || "Erro ao excluir sala")
   });
 
-  // Merge DB rooms with default mock if DB is empty for demonstration
-  const displayRooms = dbRooms.length > 0 ? dbRooms.map((r: any) => ({
-    id: r.id,
-    name: r.name,
-    isPrincipal: r.isPrincipal ?? false,
-    category: r.category || "Estúdio de gravação",
-    capacity: r.capacity || 8,
-    equipments: typeof r.equipments === "string" ? r.equipments.split(",").map(e => e.trim()) : ["Bateria", "Teclado"],
-    extraEquipmentsCount: 2,
-    status: r.status || (r.active ? "ativa" : "inativa"),
-    utilizationRate: r.utilizationRate || 75,
-    imageUrl: r.imageUrl || "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=300&q=80"
-  })) : DEFAULT_MOCK_ROOMS;
+  // Somente dados reais do banco de dados (Sem dados fictícios)
+  const displayRooms = dbRooms.map((r: any) => {
+    let eqList: string[] = [];
+    if (Array.isArray(r.equipments)) {
+      eqList = r.equipments;
+    } else if (typeof r.equipments === "string" && r.equipments.trim()) {
+      eqList = r.equipments.split(",").map((e: string) => e.trim());
+    } else {
+      eqList = [];
+    }
+
+    return {
+      id: r.id,
+      name: r.name,
+      isPrincipal: r.isPrincipal ?? false,
+      category: r.category || "Estúdio de gravação",
+      capacity: r.capacity || 8,
+      equipments: eqList,
+      extraEquipmentsCount: Math.max(0, eqList.length - 3),
+      status: r.status || (r.active ? "ativa" : "inativa"),
+      utilizationRate: r.utilizationRate || 0,
+      imageUrl: r.imageUrl || ""
+    };
+  });
 
   // Filter logic
   const filteredRooms = displayRooms.filter((room) => {
@@ -192,7 +138,7 @@ export default function SalasEstudio() {
       name: "",
       category: "Estúdio de gravação",
       capacity: 8,
-      equipments: "Bateria, Teclado, Ar Condicionado",
+      equipments: "",
       status: "ativa",
       isPrincipal: false,
       imageUrl: ""
@@ -214,6 +160,25 @@ export default function SalasEstudio() {
     setIsModalOpen(true);
   };
 
+  // Upload de Imagem do Gerenciador de Arquivos (Celular / Computador)
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A imagem selecionada deve ter no máximo 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setFormData((prev) => ({ ...prev, imageUrl: base64 }));
+      toast.success("Foto selecionada com sucesso!");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return toast.error("Preencha o nome da sala");
@@ -223,7 +188,7 @@ export default function SalasEstudio() {
         id: editingRoom.id,
         name: formData.name,
         category: formData.category,
-        capacity: formData.capacity,
+        capacity: Number(formData.capacity),
         equipments: formData.equipments,
         status: formData.status,
         isPrincipal: formData.isPrincipal,
@@ -233,7 +198,7 @@ export default function SalasEstudio() {
       createMutation.mutate({
         name: formData.name,
         category: formData.category,
-        capacity: formData.capacity,
+        capacity: Number(formData.capacity),
         equipments: formData.equipments,
         status: formData.status,
         isPrincipal: formData.isPrincipal,
@@ -272,7 +237,7 @@ export default function SalasEstudio() {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total de Salas</p>
-            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.total || 10}</p>
+            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.total || 0}</p>
             <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Salas cadastradas</p>
           </div>
         </div>
@@ -284,7 +249,7 @@ export default function SalasEstudio() {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ativas</p>
-            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.active || 9}</p>
+            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.active || 0}</p>
             <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">Salas disponíveis</p>
           </div>
         </div>
@@ -296,7 +261,7 @@ export default function SalasEstudio() {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Em Manutenção</p>
-            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.maintenance || 1}</p>
+            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.maintenance || 0}</p>
             <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">Indisponível temporariamente</p>
           </div>
         </div>
@@ -308,7 +273,7 @@ export default function SalasEstudio() {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Utilização Média</p>
-            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.avgUtilization || 78}%</p>
+            <p className="text-2xl font-black font-outfit text-foreground mt-0.5">{stats?.avgUtilization || 0}%</p>
             <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Este mês</p>
           </div>
         </div>
@@ -321,7 +286,7 @@ export default function SalasEstudio() {
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Avaliação Média</p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <p className="text-2xl font-black font-outfit text-foreground">4,8</p>
+              <p className="text-2xl font-black font-outfit text-foreground">{stats?.avgRating ? stats.avgRating : "0.0"}</p>
               <div className="flex text-amber-400 text-xs">
                 ★★★★★
               </div>
@@ -408,155 +373,190 @@ export default function SalasEstudio() {
       {/* ── CONTEÚDO DA ABA 1: TODAS AS SALAS ────────────────────────────── */}
       {activeTab === "todas" && (
         <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-border/60 bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  <th className="py-4 px-6">SALA</th>
-                  <th className="py-4 px-6">CAPACIDADE</th>
-                  <th className="py-4 px-6">EQUIPAMENTOS PRINCIPAIS</th>
-                  <th className="py-4 px-6">SITUAÇÃO</th>
-                  <th className="py-4 px-6">UTILIZAÇÃO</th>
-                  <th className="py-4 px-6 text-right">AÇÕES</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60 text-xs">
-                {filteredRooms.map((room) => (
-                  <tr key={room.id} className="hover:bg-muted/20 transition-colors group">
-                    
-                    {/* Coluna 1: SALA (Foto + Nome + Badge Principal + Categoria) */}
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-10 rounded-lg overflow-hidden bg-muted shrink-0 border border-border/60">
-                          <img
-                            src={room.imageUrl}
-                            alt={room.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-foreground font-outfit">{room.name}</span>
-                            {room.isPrincipal && (
-                              <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                                • PRINCIPAL
-                              </span>
+          {filteredRooms.length === 0 ? (
+            <div className="p-12 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mx-auto">
+                <DoorOpen size={32} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold font-outfit text-foreground">Nenhuma sala encontrada</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  {dbRooms.length === 0
+                    ? "Sua escola ainda não possui salas cadastradas. Clique no botão abaixo para adicionar a primeira sala!"
+                    : "Nenhuma sala corresponde aos filtros selecionados."}
+                </p>
+              </div>
+              {dbRooms.length === 0 && (
+                <Button
+                  onClick={handleOpenCreateModal}
+                  className="h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5"
+                >
+                  <Plus size={15} />
+                  <span>Cadastrar Primeira Sala</span>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    <th className="py-4 px-6">SALA</th>
+                    <th className="py-4 px-6">CAPACIDADE</th>
+                    <th className="py-4 px-6">EQUIPAMENTOS PRINCIPAIS</th>
+                    <th className="py-4 px-6">SITUAÇÃO</th>
+                    <th className="py-4 px-6">UTILIZAÇÃO</th>
+                    <th className="py-4 px-6 text-right">AÇÕES</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60 text-xs">
+                  {filteredRooms.map((room) => (
+                    <tr key={room.id} className="hover:bg-muted/20 transition-colors group">
+                      
+                      {/* Coluna 1: SALA (Foto + Nome + Badge Principal + Categoria) */}
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-10 rounded-lg overflow-hidden bg-muted shrink-0 border border-border/60 flex items-center justify-center">
+                            {room.imageUrl ? (
+                              <img
+                                src={room.imageUrl}
+                                alt={room.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <DoorOpen size={20} className="text-muted-foreground/60" />
                             )}
                           </div>
-                          <p className="text-[11px] text-muted-foreground font-medium mt-0.5">{room.category}</p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-foreground font-outfit">{room.name}</span>
+                              {room.isPrincipal && (
+                                <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                                  • PRINCIPAL
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">{room.category}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Coluna 2: CAPACIDADE */}
-                    <td className="py-4 px-6 font-semibold text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <Users size={14} className="text-muted-foreground/70" />
-                        <span>{room.capacity} pessoas</span>
-                      </div>
-                    </td>
+                      {/* Coluna 2: CAPACIDADE */}
+                      <td className="py-4 px-6 font-semibold text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Users size={14} className="text-muted-foreground/70" />
+                          <span>{room.capacity} pessoas</span>
+                        </div>
+                      </td>
 
-                    {/* Coluna 3: EQUIPAMENTOS PRINCIPAIS */}
-                    <td className="py-4 px-6">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {room.equipments.slice(0, 3).map((eq: string, i: number) => (
-                          <Badge key={i} variant="secondary" className="bg-muted text-[10px] font-semibold px-2 py-0.5 rounded-md border border-border/50">
-                            {eq}
-                          </Badge>
-                        ))}
-                        {room.extraEquipmentsCount > 0 && (
-                          <Badge variant="outline" className="text-[10px] font-bold text-indigo-500 border-indigo-500/30 px-1.5 py-0.5">
-                            +{room.extraEquipmentsCount}
-                          </Badge>
+                      {/* Coluna 3: EQUIPAMENTOS PRINCIPAIS */}
+                      <td className="py-4 px-6">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {room.equipments.length > 0 ? (
+                            <>
+                              {room.equipments.slice(0, 3).map((eq: string, i: number) => (
+                                <Badge key={i} variant="secondary" className="bg-muted text-[10px] font-semibold px-2 py-0.5 rounded-md border border-border/50">
+                                  {eq}
+                                </Badge>
+                              ))}
+                              {room.extraEquipmentsCount > 0 && (
+                                <Badge variant="outline" className="text-[10px] font-bold text-indigo-500 border-indigo-500/30 px-1.5 py-0.5">
+                                  +{room.extraEquipmentsCount}
+                                </Badge>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground/60 text-[11px] italic">Sem equipamentos</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Coluna 4: SITUAÇÃO */}
+                      <td className="py-4 px-6">
+                        {room.status === "ativa" ? (
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            ATIVA
+                          </span>
+                        ) : room.status === "manutencao" ? (
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            MANUTENÇÃO
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                            INATIVA
+                          </span>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Coluna 4: SITUAÇÃO */}
-                    <td className="py-4 px-6">
-                      {room.status === "ativa" ? (
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          ATIVA
-                        </span>
-                      ) : room.status === "manutencao" ? (
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          MANUTENÇÃO
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                          INATIVA
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Coluna 5: UTILIZAÇÃO */}
-                    <td className="py-4 px-6 min-w-[140px]">
-                      <div className="space-y-1">
-                        <span className="text-xs font-bold text-foreground font-outfit">{room.utilizationRate}%</span>
-                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className={cn(
-                              "h-full rounded-full transition-all duration-500",
-                              room.status === "manutencao" ? "bg-muted-foreground/30" : "bg-indigo-600 dark:bg-indigo-400"
-                            )}
-                            style={{ width: `${room.utilizationRate}%` }}
-                          />
+                      {/* Coluna 5: UTILIZAÇÃO */}
+                      <td className="py-4 px-6 min-w-[140px]">
+                        <div className="space-y-1">
+                          <span className="text-xs font-bold text-foreground font-outfit">{room.utilizationRate}%</span>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all duration-500",
+                                room.status === "manutencao" ? "bg-muted-foreground/30" : "bg-indigo-600 dark:bg-indigo-400"
+                              )}
+                              style={{ width: `${room.utilizationRate}%` }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Coluna 6: AÇÕES */}
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleOpenEditModal(room)}
-                          className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                          title="Editar Sala"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("calendario")}
-                          className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                          title="Ver Calendário de Horários"
-                        >
-                          <Calendar size={14} />
-                        </button>
+                      {/* Coluna 6: AÇÕES */}
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleOpenEditModal(room)}
+                            className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                            title="Editar Sala"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => setActiveTab("calendario")}
+                            className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                            title="Ver Calendário de Horários"
+                          >
+                            <Calendar size={14} />
+                          </button>
 
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
-                              <MoreVertical size={14} />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="text-xs w-44">
-                            <DropdownMenuItem onClick={() => handleOpenEditModal(room)}>
-                              <Pencil size={14} className="mr-2 text-indigo-500" /> Editar Detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-rose-500 focus:text-rose-500"
-                              onClick={() => {
-                                if (confirm(`Deseja realmente excluir a ${room.name}?`)) {
-                                  deleteMutation.mutate({ id: room.id });
-                                }
-                              }}
-                            >
-                              <Trash2 size={14} className="mr-2" /> Excluir Sala
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
+                                <MoreVertical size={14} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="text-xs w-44">
+                              <DropdownMenuItem onClick={() => handleOpenEditModal(room)}>
+                                <Pencil size={14} className="mr-2 text-indigo-500" /> Editar Detalhes
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-rose-500 focus:text-rose-500"
+                                onClick={() => {
+                                  if (confirm(`Deseja realmente excluir a ${room.name}?`)) {
+                                    deleteMutation.mutate({ id: room.id });
+                                  }
+                                }}
+                              >
+                                <Trash2 size={14} className="mr-2" /> Excluir Sala
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
 
-                      </div>
-                    </td>
+                        </div>
+                      </td>
 
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -573,36 +573,38 @@ export default function SalasEstudio() {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pt-2">
-            {displayRooms.map((room) => (
-              <div key={room.id} className="p-4 rounded-xl bg-muted/20 border border-border/60 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-sm text-foreground font-outfit">{room.name}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500">
-                    {room.capacity} pess.
-                  </span>
+          {displayRooms.length === 0 ? (
+            <div className="p-8 text-center text-xs text-muted-foreground">
+              Nenhuma sala cadastrada para exibição do calendário.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
+              {displayRooms.map((room) => (
+                <div key={room.id} className="p-4 rounded-xl bg-muted/20 border border-border/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-foreground font-outfit">{room.name}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500">
+                      {room.capacity} pess.
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                      <p className="font-bold">09:00 - 10:00</p>
+                      <p className="text-[10px] font-medium text-muted-foreground">Aula Agendada</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-muted border border-border/40 text-muted-foreground text-center py-3">
+                      <p className="text-[11px] font-medium">Horário Livre</p>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400">
-                    <p className="font-bold">09:00 - 10:00</p>
-                    <p className="text-[10px] font-medium text-muted-foreground">Aula de Bateria - Prof. Lucas</p>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                    <p className="font-bold">10:30 - 12:00</p>
-                    <p className="text-[10px] font-medium text-muted-foreground">Ensaio Banda Alunos</p>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-muted border border-border/40 text-muted-foreground text-center py-4">
-                    <p className="text-[11px] font-medium">Horário Livre</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── BANNER DICA NO RODAPÉ (IDÊNTICO À IMAGEM) ────────────────────── */}
+      {/* ── BANNER DICA NO RODAPÉ ──────────────────────────────────────── */}
       <div className="p-4 sm:p-5 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
@@ -624,7 +626,7 @@ export default function SalasEstudio() {
         </button>
       </div>
 
-      {/* ── MODAL DE CRIAR / EDITAR SALA ────────────────────────────────── */}
+      {/* ── MODAL DE CRIAR / EDITAR SALA (SELEÇÃO DE ARQUIVO DO DISPOSITIVO) ── */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[500px] bg-card border-border">
           <DialogHeader>
@@ -684,7 +686,7 @@ export default function SalasEstudio() {
               <Input
                 value={formData.equipments}
                 onChange={(e) => setFormData({ ...formData, equipments: e.target.value })}
-                placeholder="Bateria, Teclado, Ar Condicionado, Mesa de Som"
+                placeholder="Bateria, Teclado, Ar Condicionado"
                 className="h-10 rounded-xl"
               />
             </div>
@@ -707,14 +709,40 @@ export default function SalasEstudio() {
                 </Select>
               </div>
 
+              {/* SELEÇÃO DE FOTO DO GERENCIADOR DE ARQUIVOS DO DISPOSITIVO */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">URL da Foto</label>
-                <Input
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="h-10 rounded-xl"
-                />
+                <label className="text-xs font-bold text-foreground">Foto da Sala</label>
+                <div className="flex items-center gap-2">
+                  {formData.imageUrl ? (
+                    <div className="relative w-12 h-10 rounded-xl overflow-hidden border border-border shrink-0 group">
+                      <img src={formData.imageUrl} alt="Preview da Sala" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, imageUrl: "" }))}
+                        className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] text-white font-bold transition-opacity"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-12 h-10 rounded-xl bg-muted border border-dashed border-border/80 flex items-center justify-center text-muted-foreground shrink-0">
+                      <ImageIcon size={18} />
+                    </div>
+                  )}
+
+                  <label className="flex-1 cursor-pointer">
+                    <div className="h-10 px-3 rounded-xl border border-border/80 bg-card hover:bg-muted/50 flex items-center justify-center gap-1.5 text-xs font-semibold text-foreground transition-colors truncate">
+                      <Upload size={14} className="text-indigo-500 shrink-0" />
+                      <span className="truncate">{formData.imageUrl ? "Alterar foto..." : "Selecionar foto..."}</span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 
