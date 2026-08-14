@@ -228,11 +228,11 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
             </div>
           )}
           {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-base font-black text-white tracking-tight font-outfit leading-none truncate">
+            <div className="min-w-0 flex-1 pr-1" title={(user as any)?.schoolName || "WR Gestão Musical"}>
+              <p className="text-sm font-black text-white tracking-tight font-outfit leading-tight break-words line-clamp-2">
                 {(user as any)?.schoolName || "WR"}
               </p>
-              <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-1 truncate">
+              <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5 truncate">
                 {(user as any)?.schoolLogo ? "Escola de Música" : "GESTÃO MUSICAL"}
               </p>
             </div>

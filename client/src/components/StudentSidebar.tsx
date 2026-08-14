@@ -128,11 +128,11 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
           </div>
         )}
         {!collapsed && (
-          <div className="animate-in fade-in slide-in-from-left-2 duration-300 min-w-0">
-            <p className="text-base font-black text-white tracking-tight leading-none truncate">
+          <div className="animate-in fade-in slide-in-from-left-2 duration-300 min-w-0 flex-1 pr-1" title={(user as any)?.schoolName || "MusicPro"}>
+            <p className="text-sm font-black text-white tracking-tight leading-tight break-words line-clamp-2">
               {(user as any)?.schoolName || "MusicPro"}
             </p>
-            <p className="text-[10px] text-sidebar-foreground/50 font-bold uppercase tracking-widest mt-1 truncate">
+            <p className="text-[10px] text-sidebar-foreground/50 font-bold uppercase tracking-widest mt-0.5 truncate">
               {(user as any)?.schoolLogo ? "Portal do Aluno" : "Premium Portal"}
             </p>
           </div>
