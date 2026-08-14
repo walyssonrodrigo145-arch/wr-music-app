@@ -51,6 +51,7 @@ export default function LessonDetailModal({
 
   const isTurma = lesson?.lessonType === 'turma';
   const utils = trpc.useUtils();
+  const [localStatuses, setLocalStatuses] = useState<Record<number, string>>({});
 
   const { data: turmaDetails = [], isLoading: isLoadingTurma } = trpc.lessons.getTurmaDetails.useQuery({
     groupId: lesson?.recurringGroupId || undefined,
@@ -60,13 +61,26 @@ export default function LessonDetailModal({
     enabled: open && !!lesson && isTurma
   });
 
+  useEffect(() => {
+    if (turmaDetails && turmaDetails.length > 0) {
+      const initial: Record<number, string> = {};
+      turmaDetails.forEach((item: any) => {
+        initial[item.id] = item.status || 'agendada';
+      });
+      setLocalStatuses(initial);
+    }
+  }, [turmaDetails]);
+
   const updateTurmaAttendanceMutation = trpc.lessons.updateTurmaAttendance.useMutation({
     onSuccess: () => {
       toast.success("Frequência da turma atualizada!");
       utils.lessons.list.invalidate();
       utils.lessons.getTurmaDetails.invalidate();
     },
-    onError: (e) => toast.error("Erro ao atualizar chamada: " + e.message)
+    onError: (e) => {
+      toast.error("Erro ao atualizar chamada: " + e.message);
+      utils.lessons.getTurmaDetails.invalidate();
+    }
   });
 
   useEffect(() => {
@@ -94,6 +108,7 @@ export default function LessonDetailModal({
   const StatusIcon = config.icon;
 
   const handleStudentAttendance = (lessonId: number, status: 'concluida' | 'falta' | 'agendada') => {
+    setLocalStatuses(prev => ({ ...prev, [lessonId]: status }));
     updateTurmaAttendanceMutation.mutate({
       attendances: [{ lessonId, status }]
     });
@@ -101,7 +116,12 @@ export default function LessonDetailModal({
 
   const handleAllAttendance = (status: 'concluida' | 'falta') => {
     if (turmaDetails.length === 0) return;
-    const attendances = turmaDetails.map(t => ({ lessonId: t.id, status }));
+    const newStatuses: Record<number, string> = {};
+    const attendances = turmaDetails.map(t => {
+      newStatuses[t.id] = status;
+      return { lessonId: t.id, status };
+    });
+    setLocalStatuses(newStatuses);
     updateTurmaAttendanceMutation.mutate({ attendances });
   };
 
@@ -202,14 +222,14 @@ export default function LessonDetailModal({
                     <button
                       type="button"
                       onClick={() => handleAllAttendance('concluida')}
-                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 text-[9px] font-black uppercase rounded-lg transition-all active:scale-95"
+                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 text-[9px] font-black uppercase rounded-lg transition-all active:scale-95 cursor-pointer"
                     >
                       Todos Vieram
                     </button>
                     <button
                       type="button"
                       onClick={() => handleAllAttendance('falta')}
-                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 text-[9px] font-black uppercase rounded-lg transition-all active:scale-95"
+                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 text-[9px] font-black uppercase rounded-lg transition-all active:scale-95 cursor-pointer"
                     >
                       Todos Faltaram
                     </button>
@@ -225,7 +245,11 @@ export default function LessonDetailModal({
                     <div className="p-4 text-center text-xs text-muted-foreground italic">Nenhum aluno registrado.</div>
                   ) : (
                     turmaDetails.map((item: any) => {
-                      const itemCfg = statusConfig[item.status] || statusConfig.agendada;
+                      const currentStatus = localStatuses[item.id] || item.status || 'agendada';
+                      const itemCfg = statusConfig[currentStatus] || statusConfig.agendada;
+                      const isConcluido = currentStatus === 'concluida';
+                      const isFalta = currentStatus === 'falta';
+
                       return (
                         <div key={item.id} className="p-3 flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors">
                           <div className="flex items-center gap-3 min-w-0">
@@ -246,12 +270,12 @@ export default function LessonDetailModal({
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
-                              onClick={() => handleStudentAttendance(item.id, item.status === 'concluida' ? 'agendada' : 'concluida')}
-                              title={item.status === 'concluida' ? "Clique para desmarcar" : "Marcar como Presente/Veio"}
+                              onClick={() => handleStudentAttendance(item.id, isConcluido ? 'agendada' : 'concluida')}
+                              title={isConcluido ? "Clique para desmarcar (voltar a agendada)" : "Marcar como Presente/Veio"}
                               className={cn(
-                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95",
-                                item.status === 'concluida' 
-                                  ? "bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/30" 
+                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95 cursor-pointer",
+                                isConcluido 
+                                  ? "bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/30 font-extrabold" 
                                   : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
                               )}
                             >
@@ -259,12 +283,12 @@ export default function LessonDetailModal({
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleStudentAttendance(item.id, item.status === 'falta' ? 'agendada' : 'falta')}
-                              title={item.status === 'falta' ? "Clique para desmarcar" : "Marcar como Falta"}
+                              onClick={() => handleStudentAttendance(item.id, isFalta ? 'agendada' : 'falta')}
+                              title={isFalta ? "Clique para desmarcar (voltar a agendada)" : "Marcar como Falta"}
                               className={cn(
-                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95",
-                                item.status === 'falta' 
-                                  ? "bg-rose-500 text-white shadow-sm ring-2 ring-rose-500/30" 
+                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95 cursor-pointer",
+                                isFalta 
+                                  ? "bg-rose-500 text-white shadow-sm ring-2 ring-rose-500/30 font-extrabold" 
                                   : "bg-rose-500/10 text-rose-600 hover:bg-rose-500/20"
                               )}
                             >

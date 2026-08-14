@@ -18,7 +18,7 @@ import {
   getExperimentalStats,
 } from "./db";
 import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities } from "../drizzle/schema";
-import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
 import { TRPCError } from "@trpc/server";
@@ -4128,19 +4128,19 @@ ${jsonSchemaFormat}`;
         }
 
         for (const item of input.attendances) {
+          const whereClause = orgId
+            ? and(eq(lessons.id, item.lessonId), or(eq(lessons.organizationId, orgId), isNull(lessons.organizationId)))
+            : eq(lessons.id, item.lessonId);
+
           await db.update(lessons)
             .set({ status: item.status, updatedAt: new Date() })
-            .where(and(eq(lessons.id, item.lessonId), eq(lessons.organizationId, orgId)));
+            .where(whereClause);
 
           // Cancelar lembretes pendentes associados se a aula mudou para um status não-agendada
           if (item.status === 'cancelada' || item.status === 'concluida' || item.status === 'remarcada' || item.status === 'falta') {
             await db.update(reminders)
               .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
-              .where(and(
-                eq(reminders.lessonId, item.lessonId),
-                eq(reminders.organizationId, orgId),
-                eq(reminders.status, 'pendente')
-              ));
+              .where(eq(reminders.lessonId, item.lessonId));
           }
 
           // Notificação de falta de aluno se habilitado
