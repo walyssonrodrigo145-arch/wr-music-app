@@ -185,6 +185,13 @@ export const appRouter = router({
   enrollment: enrollmentRouter,
   advancedAi: advancedAiRouter,
   publicData: router({
+    getLandingClients: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { landingClients } = await import("../drizzle/schema");
+      const { asc, eq } = await import("drizzle-orm");
+      return await db.select().from(landingClients).where(eq(landingClients.isActive, true)).orderBy(asc(landingClients.order), asc(landingClients.createdAt));
+    }),
     getPlans: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });

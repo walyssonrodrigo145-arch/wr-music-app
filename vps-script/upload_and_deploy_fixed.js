@@ -238,6 +238,17 @@ conn.on('ready', () => {
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE settings ADD COLUMN IF NOT EXISTS \\"chatbotEnabled\\" integer NOT NULL DEFAULT 0;"
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE students ADD COLUMN IF NOT EXISTS \\"studioRoomId\\" integer;"
                 docker compose exec -T db psql -U postgres -d wrmusic -c "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS \\"studioRoomId\\" integer;"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "CREATE TABLE IF NOT EXISTS landing_clients (
+                  id SERIAL PRIMARY KEY,
+                  name VARCHAR(255) NOT NULL,
+                  \\"logoUrl\\" TEXT NOT NULL,
+                  \\"websiteUrl\\" TEXT,
+                  testimonial TEXT,
+                  \\"order\\" INTEGER NOT NULL DEFAULT 0,
+                  \\"isActive\\" BOOLEAN NOT NULL DEFAULT true,
+                  \\"createdAt\\" TIMESTAMP NOT NULL DEFAULT NOW(),
+                  \\"updatedAt\\" TIMESTAMP NOT NULL DEFAULT NOW()
+                );"
                 echo "Limpando dados incorretos de mensalidades escolares da tabela analytics_revenue..."
                 docker compose exec -T db psql -U postgres -d wrmusic -c "DELETE FROM analytics_revenue WHERE plan_name = 'Mensalidade Escolar';"
                 echo "Removendo conscientemente escolas inativas (IDs 18, 20, 11 e 15 - Neemias)..."

@@ -50,7 +50,7 @@ export default function SuperAdmin() {
 // ─── Painel principal (renderizado apenas para o Super Admin autenticado) ─────
 function SuperAdminPanel() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons" | "clientes">("dashboard");
 
   // ── Estado dos modais ──────────────────────────────────────────────────────
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
@@ -224,6 +224,7 @@ function SuperAdminPanel() {
           { id: "escolas", label: "Escolas", icon: <Building size={16} /> },
           { id: "plans", label: "Planos", icon: <Tag size={16} /> },
           { id: "coupons", label: "Cupons", icon: <Tag size={16} /> },
+          { id: "clientes", label: "Clientes (Landing)", icon: <Users size={16} /> },
         ].map(tab => (
           <button
             key={tab.id}
@@ -759,6 +760,269 @@ function SuperAdminPanel() {
           )}
         </div>
       )}
+
+      {/* ── TAB: Clientes da Landing Page ─────────────────────────────────── */}
+      {activeTab === "clientes" && (
+        <LandingClientsManager />
+      )}
     </div>
   );
 }
+
+// ─── Componente de Gestão de Clientes / Logos da Landing Page ────────────────
+function LandingClientsManager() {
+  const utils = trpc.useUtils();
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<any>(null);
+  const [name, setName] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [testimonial, setTestimonial] = useState("");
+  const [order, setOrder] = useState(0);
+  const [isActive, setIsActive] = useState(true);
+
+  const { data: clients, isLoading, isError, refetch } = trpc.superAdmin.listLandingClients.useQuery();
+
+  const createMutation = trpc.superAdmin.createLandingClient.useMutation({
+    onSuccess: () => {
+      toast.success("Cliente adicionado com sucesso!");
+      utils.superAdmin.listLandingClients.invalidate();
+      utils.publicData.getLandingClients.invalidate();
+      setIsClientModalOpen(false);
+      resetForm();
+    },
+    onError: (err) => toast.error(`Erro ao salvar: ${err.message}`),
+  });
+
+  const updateMutation = trpc.superAdmin.updateLandingClient.useMutation({
+    onSuccess: () => {
+      toast.success("Cliente atualizado com sucesso!");
+      utils.superAdmin.listLandingClients.invalidate();
+      utils.publicData.getLandingClients.invalidate();
+      setIsClientModalOpen(false);
+      resetForm();
+    },
+    onError: (err) => toast.error(`Erro ao atualizar: ${err.message}`),
+  });
+
+  const deleteMutation = trpc.superAdmin.deleteLandingClient.useMutation({
+    onSuccess: () => {
+      toast.success("Cliente removido com sucesso!");
+      utils.superAdmin.listLandingClients.invalidate();
+      utils.publicData.getLandingClients.invalidate();
+    },
+    onError: (err) => toast.error(`Erro ao remover: ${err.message}`),
+  });
+
+  const resetForm = () => {
+    setEditingClient(null);
+    setName("");
+    setLogoUrl("");
+    setWebsiteUrl("");
+    setTestimonial("");
+    setOrder(0);
+    setIsActive(true);
+  };
+
+  const handleOpenEdit = (client: any) => {
+    setEditingClient(client);
+    setName(client.name);
+    setLogoUrl(client.logoUrl);
+    setWebsiteUrl(client.websiteUrl || "");
+    setTestimonial(client.testimonial || "");
+    setOrder(client.order || 0);
+    setIsActive(client.isActive);
+    setIsClientModalOpen(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return toast.error("Informe o nome do cliente ou escola");
+    if (!logoUrl.trim()) return toast.error("Informe a URL ou imagem da logo");
+
+    if (editingClient) {
+      updateMutation.mutate({
+        id: editingClient.id,
+        name,
+        logoUrl,
+        websiteUrl: websiteUrl.trim() || null,
+        testimonial: testimonial.trim() || null,
+        order: Number(order),
+        isActive,
+      });
+    } else {
+      createMutation.mutate({
+        name,
+        logoUrl,
+        websiteUrl: websiteUrl.trim() || null,
+        testimonial: testimonial.trim() || null,
+        order: Number(order),
+        isActive,
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold">Clientes & Escolas Parceiras na Landing Page</h2>
+          <p className="text-sm text-muted-foreground">Adicione logos, nomes e depoimentos das escolas em destaque na página inicial.</p>
+        </div>
+        <Dialog open={isClientModalOpen} onOpenChange={(open) => {
+          setIsClientModalOpen(open);
+          if (!open) resetForm();
+        }}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2">
+              <Plus size={16} /> Novo Cliente / Logo
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{editingClient ? "Editar Cliente / Logo" : "Adicionar Cliente na Landing Page"}</DialogTitle>
+              <DialogDescription>Preencha os dados da escola parceira que será exibida na vitrine da Landing Page.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="client-name">Nome da Escola / Cliente *</Label>
+                <Input
+                  id="client-name"
+                  placeholder="Ex: Escola de Música Harmonia"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="client-logo">URL da Logo / Imagem *</Label>
+                <Input
+                  id="client-logo"
+                  placeholder="https://exemplo.com/logo.png ou data:image/..."
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  className="mt-1"
+                />
+                {logoUrl && (
+                  <div className="mt-2 p-3 bg-muted/40 rounded-xl flex items-center gap-3 border border-border/50">
+                    <img src={logoUrl} alt="Preview" className="w-12 h-12 object-contain rounded-lg bg-background border p-1" />
+                    <span className="text-xs text-muted-foreground font-medium truncate">Pré-visualização da logo</span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="client-site">Link do Site / Instagram (Opcional)</Label>
+                <Input
+                  id="client-site"
+                  placeholder="https://instagram.com/escola"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="client-testi">Depoimento Curto (Opcional)</Label>
+                <Input
+                  id="client-testi"
+                  placeholder="Ex: O MusicPro revolucionou nossa gestão escolar!"
+                  value={testimonial}
+                  onChange={(e) => setTestimonial(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="client-order">Ordem de Exibição</Label>
+                  <Input
+                    id="client-order"
+                    type="number"
+                    value={order}
+                    onChange={(e) => setOrder(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex items-center justify-between p-3 bg-muted/40 rounded-xl mt-6">
+                  <Label htmlFor="client-active" className="cursor-pointer">Ativo na Landing</Label>
+                  <Switch id="client-active" checked={isActive} onCheckedChange={setIsActive} />
+                </div>
+              </div>
+
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="w-full">
+                {(createMutation.isPending || updateMutation.isPending) ? <Loader2 className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+                {editingClient ? "Salvar Alterações" : "Adicionar Cliente"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {isLoading && <Loader2 className="animate-spin text-primary mx-auto my-10" />}
+
+      {clients && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {clients.map((c: any) => (
+            <div key={c.id} className="bg-card border border-border rounded-2xl p-5 space-y-4 hover:border-primary/40 transition-all shadow-sm flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="w-16 h-16 rounded-xl bg-muted/50 border border-border/50 flex items-center justify-center p-2 overflow-hidden shrink-0">
+                    <img src={c.logoUrl} alt={c.name} className="w-full h-full object-contain" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${c.isActive ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}`}>
+                      {c.isActive ? 'Ativo' : 'Inativo'}
+                    </span>
+                    <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                      #{c.order}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-base text-foreground truncate">{c.name}</h3>
+                  {c.websiteUrl && (
+                    <a href={c.websiteUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate block mt-0.5">
+                      {c.websiteUrl}
+                    </a>
+                  )}
+                  {c.testimonial && (
+                    <p className="text-xs text-muted-foreground italic mt-2 line-clamp-2 bg-muted/30 p-2 rounded-lg border border-border/30">
+                      "{c.testimonial}"
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
+                <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(c)} className="h-8 px-3 text-xs">
+                  <Edit size={14} className="mr-1.5" /> Editar
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => {
+                  if (confirm(`Remover "${c.name}" da landing page?`)) {
+                    deleteMutation.mutate({ id: c.id });
+                  }
+                }} className="h-8 px-3 text-xs text-destructive hover:bg-destructive/10">
+                  <Trash2 size={14} className="mr-1.5" /> Excluir
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          {clients.length === 0 && (
+            <div className="col-span-full py-16 text-center bg-card border border-border/50 rounded-2xl">
+              <Building size={40} className="mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-base font-bold text-foreground">Nenhum cliente cadastrado ainda</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                Clique no botão acima para adicionar a logo e o nome das escolas parceiras para serem exibidas na Landing Page.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+

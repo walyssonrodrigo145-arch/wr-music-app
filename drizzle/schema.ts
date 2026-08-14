@@ -1430,4 +1430,18 @@ export const scheduleOptimizationLogs = pgTable("schedule_optimization_logs", {
 export type ScheduleOptimizationLog = typeof scheduleOptimizationLogs.$inferSelect;
 export type InsertScheduleOptimizationLog = typeof scheduleOptimizationLogs.$inferInsert;
 
+// ── Clientes / Escolas em Destaque na Landing Page (Super Admin) ────────────
+export const landingClients = pgTable("landing_clients", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  logoUrl: text("logoUrl").notNull(),
+  websiteUrl: text("websiteUrl"),
+  testimonial: text("testimonial"),
+  order: integer("order").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
 
+export type LandingClient = typeof landingClients.$inferSelect;
+export type InsertLandingClient = typeof landingClients.$inferInsert;

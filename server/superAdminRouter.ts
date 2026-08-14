@@ -50,6 +50,7 @@ import {
   crmLeads,
   studioRooms,
   enrollmentLinks,
+  landingClients,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -449,4 +450,72 @@ export const superAdminRouter = router({
       console.log(`[SuperAdmin] Senha do usuário #${input.userId} redefinida pelo Super Admin.`);
       return { success: true };
     }),
+
+  // ─── GESTÃO DE CLIENTES / LOGOS DA LANDING PAGE ─────────────────────────────
+  listLandingClients: isSuperAdmin
+    .query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { asc } = await import("drizzle-orm");
+      return await db.select().from(landingClients).orderBy(asc(landingClients.order), asc(landingClients.createdAt));
+    }),
+
+  createLandingClient: isSuperAdmin
+    .input(z.object({
+      name: z.string().min(1, "Nome da escola ou cliente é obrigatório"),
+      logoUrl: z.string().min(1, "URL ou imagem da logo é obrigatória"),
+      websiteUrl: z.string().optional().nullable(),
+      testimonial: z.string().optional().nullable(),
+      order: z.number().int().default(0),
+      isActive: z.boolean().default(true),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [newClient] = await db.insert(landingClients).values({
+        name: input.name,
+        logoUrl: input.logoUrl,
+        websiteUrl: input.websiteUrl || null,
+        testimonial: input.testimonial || null,
+        order: input.order,
+        isActive: input.isActive,
+      }).returning();
+
+      return newClient;
+    }),
+
+  updateLandingClient: isSuperAdmin
+    .input(z.object({
+      id: z.number().int().positive(),
+      name: z.string().min(1).optional(),
+      logoUrl: z.string().min(1).optional(),
+      websiteUrl: z.string().optional().nullable(),
+      testimonial: z.string().optional().nullable(),
+      order: z.number().int().optional(),
+      isActive: z.boolean().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const { id, ...data } = input;
+      const [updated] = await db.update(landingClients)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(landingClients.id, id))
+        .returning();
+
+      return updated;
+    }),
+
+  deleteLandingClient: isSuperAdmin
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      await db.delete(landingClients).where(eq(landingClients.id, input.id));
+      return { success: true };
+    }),
 });
+

@@ -506,8 +506,11 @@ const LandingPage = () => {
     };
   }) || [];
 
+  const { data: landingClientsData } = trpc.publicData.getLandingClients.useQuery();
+
   const navLinks = [
     { name: 'Recursos', href: '#features' },
+    { name: 'Clientes & Parceiros', href: '#clients' },
     { name: 'Depoimentos', href: '#testimonials' },
     { name: 'Preços', href: '#pricing' },
     { name: 'Contato', href: 'https://wa.me/5533984055949?text=ola%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es%20sobre%20o%20sistema%20musicpro', target: '_blank' },
@@ -777,6 +780,69 @@ const LandingPage = () => {
       </section>
 
       <BenefitsCarousel />
+
+      {/* ── CLIENTES & ESCOLAS PARCEIRAS ─────────────────────────────────── */}
+      <section id="clients" className="relative py-20 bg-background border-b border-border/40 overflow-hidden">
+        <div className="container relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <h2 className="text-primary font-black tracking-widest uppercase text-xs sm:text-sm mb-3">Escolas & Parceiros</h2>
+            <h3 className="text-3xl md:text-4xl font-outfit font-extrabold text-foreground mb-4">
+              Quem confia na MusicPro para transformar sua escola
+            </h3>
+            <p className="text-sm md:text-base text-muted-foreground font-medium">
+              Grandes escolas e estúdios musicais utilizam nosso ecossistema para gerenciar alunos, aulas e finanças com máxima excelência.
+            </p>
+          </div>
+
+          {landingClientsData && landingClientsData.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 items-center justify-center">
+              {landingClientsData.map((client: any, idx: number) => (
+                <motion.div
+                  key={client.id}
+                  {...fadeIn}
+                  transition={{ delay: idx * 0.05 }}
+                  className="group relative p-5 bg-card/60 hover:bg-card border border-border/40 hover:border-primary/30 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1"
+                >
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl flex items-center justify-center p-2 bg-background/50 border border-border/30 group-hover:scale-105 transition-transform overflow-hidden">
+                    <img
+                      src={client.logoUrl}
+                      alt={client.name}
+                      className="max-w-full max-h-full object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300"
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground text-center truncate max-w-[140px]">
+                    {client.name}
+                  </span>
+                  {client.websiteUrl && (
+                    <a
+                      href={client.websiteUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-primary/70 hover:text-primary font-semibold truncate max-w-full"
+                    >
+                      Conhecer ↗
+                    </a>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10">
+              {[
+                { name: "Harmonia Escola de Música", logo: "/img/piano-trans.png" },
+                { name: "Conservatório Tom Maior", logo: "/img/guitar-trans.png" },
+                { name: "Studio Ritmo & Arte", logo: "/img/piano-trans.png" },
+                { name: "Acorde Music School", logo: "/img/guitar-trans.png" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-card/40 border border-border/40 backdrop-blur-sm shadow-sm">
+                  <Building2 size={20} className="text-primary shrink-0" />
+                  <span className="text-sm font-black text-foreground">{item.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* TESTIMONIALS */}
       <section id="testimonials" className="relative py-24 bg-background overflow-hidden">
