@@ -551,6 +551,7 @@ export const appRouter = router({
       .input(z.object({
         name: z.string().min(2),
         email: z.string().email(),
+        phone: z.string().min(10, "Informe um número de WhatsApp válido"),
         password: z.string().min(6),
         planType: z.enum(["MONTHLY", "YEARLY"]),
         planId: z.string(),
@@ -612,10 +613,12 @@ export const appRouter = router({
           isEmailVerified: true,
         }).returning();
 
-        // Criar registro inicial em settings com a URL e Token padrão do robô do WhatsApp
+        // Criar registro inicial em settings com telefone do usuário e configurações do robô WhatsApp
         await db.insert(settings).values({
           organizationId: org.id,
           userId: newUser.id,
+          phone: input.phone,
+          schoolPhone: input.phone,
           whatsappBotUrl: "http://179.197.76.174:8080",
           whatsappBotToken: "minha_chave_secreta_123",
           hiddenTabs: "",
@@ -637,6 +640,7 @@ export const appRouter = router({
           const customerId = await createAsaasCustomer({
             name: org.name || "Escola",
             email: newUser.email ?? undefined,
+            phone: input.phone,
             cpfCnpj: input.cpfCnpj || undefined,
           });
           

@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Music, AlertCircle, ArrowRight, Loader2, Mail, CheckCircle2 } from "lucide-react";
+import { Music, AlertCircle, ArrowRight, Loader2, Mail, CheckCircle2, Phone } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function Cadastro() {
@@ -13,6 +13,7 @@ export default function Cadastro() {
   
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [password, setPassword] = useState("");
   const [planType, setPlanType] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
@@ -36,10 +37,12 @@ export default function Cadastro() {
     setSuccessMsg("");
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const cleanPhone = phone.replace(/\D/g, '');
 
     if (!name.trim()) return setErrorMsg("Por favor, informe seu nome completo.");
     if (!email.trim()) return setErrorMsg("O e-mail é obrigatório.");
     if (!emailRegex.test(email)) return setErrorMsg("Por favor, insira um e-mail válido.");
+    if (!cleanPhone || cleanPhone.length < 10) return setErrorMsg("Por favor, informe seu número de WhatsApp com DDD.");
     if (!cpfCnpj.trim() || cpfCnpj.replace(/\D/g, '').length < 11) return setErrorMsg("Por favor, insira um CPF/CNPJ válido com pelo menos 11 dígitos.");
     if (!password) return setErrorMsg("Crie uma senha.");
     if (password.length < 6) return setErrorMsg("A senha deve ter pelo menos 6 caracteres.");
@@ -47,7 +50,8 @@ export default function Cadastro() {
     
     registerMutation.mutate({ 
       name: name.trim(), 
-      email: email.trim(), 
+      email: email.trim(),
+      phone: cleanPhone,
       cpfCnpj: cpfCnpj.replace(/\D/g, ''),
       password,
       planType,
@@ -135,6 +139,33 @@ export default function Cadastro() {
                     className="h-14 bg-black/40 border-white/10 text-white rounded-2xl pl-12 focus:ring-2 focus:ring-primary/50 transition-all group-hover:border-white/20"
                   />
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-primary transition-colors" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white/70 font-semibold uppercase tracking-wider text-xs ml-1">
+                  WhatsApp com DDD <span className="text-primary font-bold">*</span>
+                </Label>
+                <div className="relative group">
+                  <Input 
+                    type="tel" 
+                    placeholder="(11) 99999-9999"
+                    value={phone}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, '');
+                      if (v.length > 11) v = v.slice(0, 11);
+                      if (v.length > 10) {
+                        v = v.replace(/^(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+                      } else if (v.length > 6) {
+                        v = v.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+                      } else if (v.length > 2) {
+                        v = v.replace(/^(\d{2})(\d{0,5})/, '($1) $2');
+                      }
+                      setPhone(v);
+                    }}
+                    className="h-14 bg-black/40 border-white/10 text-white rounded-2xl pl-12 focus:ring-2 focus:ring-primary/50 transition-all group-hover:border-white/20"
+                  />
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-primary transition-colors" />
                 </div>
               </div>
 
