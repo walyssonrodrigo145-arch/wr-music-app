@@ -66,9 +66,17 @@ export default function SalasEstudio() {
     imageUrl: ""
   });
 
-  // Data Queries
+  // Queries
   const { data: dbRooms = [], isLoading } = trpc.studioRooms.list.useQuery();
   const { data: stats } = trpc.studioRooms.stats.useQuery();
+  const { data: scheduleData = [] } = trpc.studioRooms.schedule.useQuery(undefined, {
+    enabled: activeTab === "calendario" || isReportModalOpen,
+  });
+  const { data: fullReportData, isLoading: isLoadingReport } = trpc.studioRooms.fullReport.useQuery(undefined, {
+    enabled: isReportModalOpen,
+  });
+
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const createMutation = trpc.studioRooms.create.useMutation({
     onSuccess: () => {
@@ -516,40 +524,52 @@ export default function SalasEstudio() {
 
       {/* ── CONTEÚDO DA ABA 2: CALENDÁRIO DE UTILIZAÇÃO ────────────────── */}
       {activeTab === "calendario" && (
-        <div className="bg-card rounded-2xl border border-border/60 p-6 space-y-4">
+        <div className="bg-card rounded-2xl border border-border/60 p-6 space-y-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60">
             <div>
               <h3 className="text-lg font-bold font-outfit text-foreground">Grade Horária de Ocupação dos Estúdios</h3>
               <p className="text-xs text-muted-foreground">Visualização integrada para prevenir choques de horários entre professores e bandas.</p>
             </div>
             <Badge variant="outline" className="w-fit text-xs font-semibold px-3 py-1 bg-indigo-500/10 text-indigo-500 border-indigo-500/30">
-              Sem conflitos detectados hoje
+              {scheduleData.some((r: any) => r.slots?.length > 0)
+                ? `${scheduleData.reduce((acc: number, r: any) => acc + (r.slots?.length || 0), 0)} aula(s) hoje`
+                : "Sem conflitos detectados hoje"}
             </Badge>
           </div>
 
-          {displayRooms.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground">
-              Nenhuma sala cadastrada para exibição do calendário.
+          {scheduleData.length === 0 ? (
+            <div className="p-12 text-center text-xs text-muted-foreground">
+              Nenhuma sala cadastrada para exibição do calendário. Cadastre sua primeira sala na aba "Todas as Salas".
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-              {displayRooms.map((room) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+              {scheduleData.map((room: any) => (
                 <div key={room.id} className="p-4 rounded-xl bg-muted/20 border border-border/60 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-foreground font-outfit">{room.name}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: room.color || "#6366f1" }} />
+                      <span className="font-bold text-sm text-foreground font-outfit truncate">{room.name}</span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 shrink-0">
                       {room.capacity} pess.
                     </span>
                   </div>
                   
                   <div className="space-y-2 text-xs">
-                    <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400">
-                      <p className="font-bold">09:00 - 10:00</p>
-                      <p className="text-[10px] font-medium text-muted-foreground">Aula Agendada</p>
-                    </div>
-                    <div className="p-2.5 rounded-lg bg-muted border border-border/40 text-muted-foreground text-center py-3">
-                      <p className="text-[11px] font-medium">Horário Livre</p>
-                    </div>
+                    {room.slots && room.slots.length > 0 ? (
+                      room.slots.map((slot: any, idx: number) => (
+                        <div key={idx} className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                          <p className="font-bold text-xs">{slot.time}</p>
+                          <p className="text-[11px] font-medium text-foreground truncate">{slot.title}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">Aluno: {slot.studentName}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-2.5 rounded-lg bg-muted/40 border border-border/40 text-muted-foreground text-center py-4">
+                        <p className="text-[11px] font-medium">Nenhuma aula hoje</p>
+                        <p className="text-[10px] text-muted-foreground/70">Horário 100% livre</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -572,13 +592,128 @@ export default function SalasEstudio() {
           </div>
         </div>
         <button
-          onClick={() => toast.info("Relatório gerado e pronto para download")}
+          onClick={() => setIsReportModalOpen(true)}
           className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1.5 shrink-0"
         >
           <span>Ver relatório completo</span>
           <ArrowRight size={14} />
         </button>
       </div>
+
+      {/* ── MODAL RELATÓRIO COMPLETO DE OCUPAÇÃO DOS ESTÚDIOS ──────────── */}
+      <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold font-outfit flex items-center gap-2">
+              <BarChart3 className="text-indigo-500" size={22} />
+              Relatório de Ocupação & Uso dos Estúdios
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Análise completa de capacidade, taxas de uso e aulas ministradas por sala.
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingReport ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
+              <Loader2 className="animate-spin text-indigo-500" size={24} />
+              <span>Gerando relatório consolidado...</span>
+            </div>
+          ) : !fullReportData ? (
+            <div className="py-8 text-center text-xs text-muted-foreground">
+              Não foi possível carregar o relatório no momento.
+            </div>
+          ) : (
+            <div className="space-y-5 py-2">
+              {/* KPIs Rápidos */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Total de Salas</p>
+                  <p className="text-lg font-bold text-foreground mt-0.5">{fullReportData.summary.totalRooms}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Salas Ativas</p>
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{fullReportData.summary.activeRooms}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Aulas Realizadas</p>
+                  <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">{fullReportData.summary.totalLessonsHosted}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Horas Reservadas</p>
+                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">{fullReportData.summary.totalHoursBooked}h</p>
+                </div>
+              </div>
+
+              {/* Tabela de Salas */}
+              <div className="rounded-xl border border-border/60 overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-muted/50 border-b border-border/60 font-semibold text-muted-foreground">
+                    <tr>
+                      <th className="py-2.5 px-3">Sala</th>
+                      <th className="py-2.5 px-3">Capacidade</th>
+                      <th className="py-2.5 px-3">Situação</th>
+                      <th className="py-2.5 px-3 text-center">Aulas</th>
+                      <th className="py-2.5 px-3 text-right">Ocupação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {fullReportData.rooms.map((r: any) => (
+                      <tr key={r.id} className="hover:bg-muted/20">
+                        <td className="py-2.5 px-3 font-semibold text-foreground">{r.name}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{r.capacity} pessoas</td>
+                        <td className="py-2.5 px-3">
+                          <span className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
+                            r.status === "ativa" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                            r.status === "manutencao" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                            "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                          )}>
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-medium">{r.totalLessons}</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-indigo-600 dark:text-indigo-400">
+                          {r.utilizationRate}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsReportModalOpen(false)}
+                  className="h-9 px-4 rounded-xl text-xs"
+                >
+                  Fechar
+                </Button>
+                <Button
+                  onClick={() => {
+                    const csvContent = "data:text/csv;charset=utf-8," + 
+                      ["Sala,Capacidade,Situacao,Aulas,Horas,Ocupacao"]
+                        .concat(fullReportData.rooms.map((r: any) => `"${r.name}","${r.capacity}","${r.status}","${r.totalLessons}","${r.totalHoursUsed}","${r.utilizationRate}%"`))
+                        .join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", `relatorio_estudios_${new Date().toISOString().slice(0,10)}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    toast.success("Relatório baixado em CSV com sucesso!");
+                  }}
+                  className="h-9 px-4 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-1.5"
+                >
+                  <Download size={14} />
+                  Baixar CSV
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── MODAL DE CRIAR / EDITAR SALA (SELEÇÃO DE ARQUIVO DO DISPOSITIVO) ── */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

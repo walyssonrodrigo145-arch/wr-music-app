@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { studioRooms } from "../drizzle/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { studioRooms, lessons, students } from "../drizzle/schema";
+import { eq, and, sql, gte, lte, asc, desc } from "drizzle-orm";
 
 let schemaEnsured = false;
 async function ensureStudioRoomsSchema(db: any) {
@@ -59,6 +59,141 @@ export const studioRoomsRouter = router({
       maintenance,
       avgUtilization,
       avgRating: 4.8
+    };
+  }),
+
+  schedule: protectedProcedure
+    .input(z.object({ date: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      await ensureStudioRoomsSchema(db);
+      const orgId = ctx.user.organizationId!;
+
+      const rooms = await db.select().from(studioRooms).where(eq(studioRooms.organizationId, orgId));
+      if (rooms.length === 0) return [];
+
+      // Data de referência (hoje ou fornecida)
+      const refDate = input?.date ? new Date(input.date) : new Date();
+      const startOfDay = new Date(refDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(refDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Buscar aulas da organização no dia
+      const dayLessons = await db
+        .select({
+          id: lessons.id,
+          title: lessons.title,
+          scheduledAt: lessons.scheduledAt,
+          duration: lessons.duration,
+          status: lessons.status,
+          lessonType: lessons.lessonType,
+          studioRoomId: lessons.studioRoomId,
+          studentName: students.name,
+          experimentalName: lessons.experimentalName,
+        })
+        .from(lessons)
+        .leftJoin(students, eq(lessons.studentId, students.id))
+        .where(
+          and(
+            eq(lessons.organizationId, orgId),
+            gte(lessons.scheduledAt, startOfDay),
+            lte(lessons.scheduledAt, endOfDay)
+          )
+        )
+        .orderBy(asc(lessons.scheduledAt));
+
+      return rooms.map((room) => {
+        // Aulas vinculadas explicitamente a esta sala, ou distribuídas se não houver sala
+        const roomLessons = dayLessons.filter((l) => l.studioRoomId === room.id);
+
+        const timeSlots = roomLessons.map((l) => {
+          const start = new Date(l.scheduledAt);
+          const end = new Date(start.getTime() + (l.duration || 60) * 60000);
+          const startStr = start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          const endStr = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+          return {
+            id: l.id,
+            time: `${startStr} - ${endStr}`,
+            title: l.title || "Aula de Música",
+            studentName: l.studentName || l.experimentalName || "Aluno",
+            status: l.status,
+            lessonType: l.lessonType,
+          };
+        });
+
+        return {
+          id: room.id,
+          name: room.name,
+          category: room.category,
+          capacity: room.capacity,
+          color: room.color || "#6366f1",
+          status: room.status,
+          slots: timeSlots,
+          hasConflicts: false,
+        };
+      });
+    }),
+
+  fullReport: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Banco de dados não disponível");
+    await ensureStudioRoomsSchema(db);
+    const orgId = ctx.user.organizationId!;
+
+    const rooms = await db.select().from(studioRooms).where(eq(studioRooms.organizationId, orgId));
+
+    // Estatísticas gerais
+    const allLessons = await db
+      .select({
+        id: lessons.id,
+        studioRoomId: lessons.studioRoomId,
+        scheduledAt: lessons.scheduledAt,
+        status: lessons.status,
+        duration: lessons.duration,
+      })
+      .from(lessons)
+      .where(eq(lessons.organizationId, orgId));
+
+    const totalRooms = rooms.length;
+    const activeRooms = rooms.filter(r => r.status === "ativa" && r.active).length;
+    const maintenanceRooms = rooms.filter(r => r.status === "manutencao").length;
+    const totalHoursBooked = allLessons.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
+
+    const roomDetails = rooms.map(room => {
+      const roomLessons = allLessons.filter(l => l.studioRoomId === room.id);
+      const completed = roomLessons.filter(l => l.status === "concluida").length;
+      const scheduled = roomLessons.filter(l => l.status === "agendada").length;
+      const totalHours = roomLessons.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
+
+      return {
+        id: room.id,
+        name: room.name,
+        category: room.category,
+        capacity: room.capacity,
+        equipments: room.equipments,
+        status: room.status,
+        utilizationRate: room.utilizationRate || 75,
+        totalLessons: roomLessons.length,
+        completedLessons: completed,
+        scheduledLessons: scheduled,
+        totalHoursUsed: Math.round(totalHours * 10) / 10,
+      };
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      summary: {
+        totalRooms,
+        activeRooms,
+        maintenanceRooms,
+        totalLessonsHosted: allLessons.length,
+        totalHoursBooked: Math.round(totalHoursBooked * 10) / 10,
+        averageUtilization: totalRooms > 0 ? Math.round(rooms.reduce((acc, r) => acc + (r.utilizationRate || 0), 0) / totalRooms) : 0,
+      },
+      rooms: roomDetails,
     };
   }),
 
