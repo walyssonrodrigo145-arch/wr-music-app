@@ -6934,25 +6934,35 @@ ${jsonSchemaFormat}`;
         
         // Upcoming (Schedule)
         permissions.canSeeSchedule 
-          ? db.select({
-              id: lessons.id,
-              title: lessons.title,
-              scheduledAt: lessons.scheduledAt,
-              status: lessons.status,
-              duration: lessons.duration,
-              instrumentId: lessons.instrumentId,
-              studioRoomId: lessons.studioRoomId,
-              studioRoomName: studioRooms.name,
-              studioRoomColor: studioRooms.color,
-              teacherName: users.name,
-              teacherFoto: professores.foto,
-            }).from(lessons)
-              .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
-              .leftJoin(users, eq(lessons.userId, users.id))
-              .leftJoin(professores, eq(professores.userId, users.id))
-              .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
-              .orderBy(asc(lessons.scheduledAt))
-              .limit(5)
+          ? (() => {
+              const profUsers = aliasedTable(users, "dash_prof_users");
+              const creatorUsers = aliasedTable(users, "dash_creator_users");
+              const profData = aliasedTable(professores, "dash_prof_data");
+              const creatorData = aliasedTable(professores, "dash_creator_data");
+
+              return db.select({
+                id: lessons.id,
+                title: lessons.title,
+                scheduledAt: lessons.scheduledAt,
+                status: lessons.status,
+                duration: lessons.duration,
+                instrumentId: lessons.instrumentId,
+                studioRoomId: lessons.studioRoomId,
+                studioRoomName: studioRooms.name,
+                studioRoomColor: studioRooms.color,
+                teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
+                teacherFoto: sql<string | null>`COALESCE(${profData.foto}, ${creatorData.foto})`,
+              }).from(lessons)
+                .leftJoin(students, eq(lessons.studentId, students.id))
+                .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
+                .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+                .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
+                .leftJoin(profData, eq(students.professorId, profData.userId))
+                .leftJoin(creatorData, eq(lessons.userId, creatorData.userId))
+                .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
+                .orderBy(asc(lessons.scheduledAt))
+                .limit(5);
+            })()
           : Promise.resolve([]),
 
         // Timeline (Progress)
@@ -7107,6 +7117,11 @@ ${jsonSchemaFormat}`;
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
+      const profUsers = aliasedTable(users, "less_prof_users");
+      const creatorUsers = aliasedTable(users, "less_creator_users");
+      const profData = aliasedTable(professores, "less_prof_data");
+      const creatorData = aliasedTable(professores, "less_creator_data");
+
       const lessonRows = await db.select({
         id: lessons.id,
         organizationId: lessons.organizationId,
@@ -7127,12 +7142,15 @@ ${jsonSchemaFormat}`;
         studioRoomId: lessons.studioRoomId,
         studioRoomName: studioRooms.name,
         studioRoomColor: studioRooms.color,
-        teacherName: users.name,
-        teacherFoto: professores.foto,
+        teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
+        teacherFoto: sql<string | null>`COALESCE(${profData.foto}, ${creatorData.foto})`,
       }).from(lessons)
+        .leftJoin(students, eq(lessons.studentId, students.id))
         .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
-        .leftJoin(users, eq(lessons.userId, users.id))
-        .leftJoin(professores, eq(professores.userId, users.id))
+        .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+        .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
+        .leftJoin(profData, eq(students.professorId, profData.userId))
+        .leftJoin(creatorData, eq(lessons.userId, creatorData.userId))
         .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
         .orderBy(desc(lessons.scheduledAt))
         .limit(50);
@@ -7506,6 +7524,11 @@ ${jsonSchemaFormat}`;
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
+      const profUsers = aliasedTable(users, "sched_prof_users");
+      const creatorUsers = aliasedTable(users, "sched_creator_users");
+      const profData = aliasedTable(professores, "sched_prof_data");
+      const creatorData = aliasedTable(professores, "sched_creator_data");
+
       return db.select({
         id: lessons.id,
         title: lessons.title,
@@ -7517,12 +7540,15 @@ ${jsonSchemaFormat}`;
         studioRoomId: lessons.studioRoomId,
         studioRoomName: studioRooms.name,
         studioRoomColor: studioRooms.color,
-        teacherName: users.name,
-        teacherFoto: professores.foto,
+        teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
+        teacherFoto: sql<string | null>`COALESCE(${profData.foto}, ${creatorData.foto})`,
       }).from(lessons)
+        .leftJoin(students, eq(lessons.studentId, students.id))
         .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
-        .leftJoin(users, eq(lessons.userId, users.id))
-        .leftJoin(professores, eq(professores.userId, users.id))
+        .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+        .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
+        .leftJoin(profData, eq(students.professorId, profData.userId))
+        .leftJoin(creatorData, eq(lessons.userId, creatorData.userId))
         .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
         .orderBy(asc(lessons.scheduledAt))
         .limit(100);

@@ -322,12 +322,12 @@ export default function StudentDashboard() {
                           <p className="text-lg md:text-xl font-black text-foreground">{format(new Date(dashboard.upcomingLessons[0].scheduledAt), "HH:mm")}h</p>
                        </div>
                        <div className="hidden sm:block w-px h-10 bg-border/50" />
-                       <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Professor</p>
-                          <p className="text-lg md:text-xl font-black text-foreground">
-                            {((dashboard.upcomingLessons[0] as any)?.teacherName || dashboard.teacherName).split(' ')[0]}
-                          </p>
-                       </div>
+                        <div>
+                           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Professor</p>
+                           <p className="text-lg md:text-xl font-black text-foreground">
+                             {(dashboard.upcomingLessons[0] as any)?.teacherName || dashboard.teacherName}
+                           </p>
+                        </div>
                        <div className="hidden sm:block w-px h-10 bg-border/50" />
                        <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Local / Sala</p>

@@ -181,7 +181,7 @@ export default function StudentAgenda() {
                                      </AvatarFallback>
                                    )}
                                  </Avatar>
-                                 <span className="text-[10px] font-semibold text-foreground/80 truncate">Prof. {lesson.teacherName.split(' ')[0]}</span>
+                                 <span className="text-[10px] font-semibold text-foreground/80 truncate">Prof. {lesson.teacherName}</span>
                                </div>
                              )}
                              
