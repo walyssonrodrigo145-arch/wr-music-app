@@ -61,9 +61,9 @@ export default function LeadsApp() {
   const leadsDisplayList = dbLeads;
 
   // Métricas calculadas dinamicamente com base no banco real
-  const totalLeadsCount = metrics?.totalLeads ?? dbLeads.length;
-  const newLeadsCount = metrics?.newLeads ?? dbLeads.filter(l => l.stage === "novo").length;
-  const trialLessonsCount = metrics?.trialLessons ?? dbLeads.filter(l => l.stage === "aula_experimental" || l.stage === "fez_aula").length;
+  const totalLeadsCount = (metrics as any)?.totalLeads ?? dbLeads.length;
+  const newLeadsCount = (metrics as any)?.newLeads ?? dbLeads.filter((l: any) => l.stage === "novo").length;
+  const trialLessonsCount = (metrics as any)?.trialLessons ?? dbLeads.filter((l: any) => l.stage === "aula_experimental" || l.stage === "fez_aula").length;
   const conversionRate = dbLeads.length > 0
     ? ((dbLeads.filter(l => l.stage === "fechado").length / dbLeads.length) * 100).toFixed(1)
     : "0.0";
@@ -910,18 +910,10 @@ function ScheduleTrialModal({ lead, open, onClose }: any) {
   );
 }
 
-// ── MODAL: PERFIL DO LEAD ──
+// ── MODAL: PERFIL DO LEAD (SOMENTE LEITURA) ──
 function LeadProfileModal({ leadId, open, onClose }: { leadId: number; open: boolean; onClose: () => void }) {
-  const utils = trpc.useUtils();
-  const { data: lead } = trpc.crm.getLeadById.useQuery({ id: leadId }, { enabled: !!leadId });
-  const convertMutation = trpc.crm.convertToStudent.useMutation({
-    onSuccess: () => {
-      toast.success("🚀 Lead matriculado com sucesso! Aluno cadastrado no sistema.");
-      utils.crm.listLeads.invalidate();
-      onClose();
-    },
-    onError: (err) => toast.error(err.message),
-  });
+  const { data: dbLeads = [] } = trpc.crm.listLeads.useQuery({});
+  const lead = (dbLeads as any[]).find((l: any) => l.id === leadId);
 
   if (!lead) return null;
 
