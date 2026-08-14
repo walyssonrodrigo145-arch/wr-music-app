@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
   Loader2, Plus, Edit, Check, X, Tag, ListFilter, Users, Building,
-  ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2
+  ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
+  Upload, Image as ImageIcon, Link as LinkIcon
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -896,18 +897,81 @@ function LandingClientsManager() {
               </div>
 
               <div>
-                <Label htmlFor="client-logo">URL da Logo / Imagem *</Label>
-                <Input
-                  id="client-logo"
-                  placeholder="https://exemplo.com/logo.png ou data:image/..."
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  className="mt-1"
-                />
-                {logoUrl && (
-                  <div className="mt-2 p-3 bg-muted/40 rounded-xl flex items-center gap-3 border border-border/50">
-                    <img src={logoUrl} alt="Preview" className="w-12 h-12 object-contain rounded-lg bg-background border p-1" />
-                    <span className="text-xs text-muted-foreground font-medium truncate">Pré-visualização da logo</span>
+                <Label className="block text-sm font-semibold mb-1.5">Logo da Escola / Cliente *</Label>
+                
+                {logoUrl ? (
+                  <div className="p-3 bg-muted/40 rounded-xl border border-border flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-14 h-14 rounded-lg bg-background border p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                        <img src={logoUrl} alt="Preview da Logo" className="max-w-full max-h-full object-contain" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">Imagem selecionada com sucesso</p>
+                        <p className="text-[10px] text-muted-foreground truncate">Pronta para exibição na Landing Page</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLogoUrl("")}
+                      className="text-xs text-destructive hover:bg-destructive/10 h-8 px-2.5 shrink-0"
+                    >
+                      <Trash2 size={14} className="mr-1" /> Trocar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {/* Botão de Upload do Dispositivo (PC / Celular) */}
+                    <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-primary/30 hover:border-primary/60 rounded-xl cursor-pointer bg-primary/5 hover:bg-primary/10 transition-all">
+                      <div className="flex flex-col items-center justify-center pt-2 pb-2">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1.5">
+                          <Upload size={18} />
+                        </div>
+                        <p className="text-xs font-bold text-foreground text-center">
+                          Clique para escolher do PC ou Galeria
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          PNG, JPG, SVG, WebP (até 5MB)
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error("A imagem deve ter no máximo 5MB");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              const result = evt.target?.result as string;
+                              if (result) {
+                                setLogoUrl(result);
+                                toast.success("Logo carregada com sucesso!");
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+
+                    {/* Alternativa: Inserir URL direta */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <div className="relative flex-1">
+                        <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Ou cole a URL da imagem aqui..."
+                          value={logoUrl}
+                          onChange={(e) => setLogoUrl(e.target.value)}
+                          className="pl-8 text-xs h-8"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
