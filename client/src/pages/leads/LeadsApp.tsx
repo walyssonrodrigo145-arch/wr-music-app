@@ -307,6 +307,8 @@ export default function LeadsApp() {
               <Calendar size={14} className="text-indigo-400" />
               <span>{selectedPeriod}</span>
               <ChevronDown size={14} className="text-slate-400 ml-1" />
+            </div>
+
             {/* BADGE DE MODO DE VISUALIZAÇÃO */}
             <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-bold">
               <Eye size={14} />
