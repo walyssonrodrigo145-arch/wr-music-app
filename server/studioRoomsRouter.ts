@@ -169,16 +169,27 @@ export const studioRoomsRouter = router({
     const totalRooms = rooms.length;
     const activeRooms = rooms.filter(r => r.status === "ativa" && r.active).length;
     const maintenanceRooms = rooms.filter(r => r.status === "manutencao").length;
+
+    // Aulas concluídas/realizadas vs futuras agendadas
+    const now = new Date();
+    const completedLessonsList = allRoomLessons.filter(l => l.status === "concluida" || (new Date(l.scheduledAt) < now && l.status !== "cancelada"));
+    const scheduledLessonsList = allRoomLessons.filter(l => l.status === "agendada" && new Date(l.scheduledAt) >= now);
+
+    const totalCompletedHours = completedLessonsList.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
+    const totalScheduledHours = scheduledLessonsList.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
     const totalHoursBooked = allRoomLessons.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
 
     const roomDetails = rooms.map(room => {
       const roomLessons = allRoomLessons.filter(l => l.studioRoomId === room.id);
-      const completed = roomLessons.filter(l => l.status === "concluida").length;
-      const scheduled = roomLessons.filter(l => l.status === "agendada").length;
-      const totalHours = roomLessons.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
+      const completed = roomLessons.filter(l => l.status === "concluida" || (new Date(l.scheduledAt) < now && l.status !== "cancelada")).length;
+      const scheduled = roomLessons.filter(l => l.status === "agendada" && new Date(l.scheduledAt) >= now).length;
+      const roomCompletedHours = roomLessons
+        .filter(l => l.status === "concluida" || (new Date(l.scheduledAt) < now && l.status !== "cancelada"))
+        .reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
+      const roomTotalHours = roomLessons.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
       
       // Taxa real de ocupação baseada em 160h/mês
-      const calculatedRate = Math.min(100, Math.round((totalHours / 160) * 100));
+      const calculatedRate = Math.min(100, Math.round((roomTotalHours / 160) * 100));
 
       return {
         id: room.id,
@@ -191,7 +202,8 @@ export const studioRoomsRouter = router({
         totalLessons: roomLessons.length,
         completedLessons: completed,
         scheduledLessons: scheduled,
-        totalHoursUsed: Math.round(totalHours * 10) / 10,
+        completedHours: Math.round(roomCompletedHours * 10) / 10,
+        totalHoursUsed: Math.round(roomTotalHours * 10) / 10,
       };
     });
 
@@ -205,7 +217,9 @@ export const studioRoomsRouter = router({
         totalRooms,
         activeRooms,
         maintenanceRooms,
-        totalLessonsHosted: allRoomLessons.length,
+        totalLessonsHosted: completedLessonsList.length,
+        totalScheduledLessons: scheduledLessonsList.length,
+        totalHoursRealized: Math.round(totalCompletedHours * 10) / 10,
         totalHoursBooked: Math.round(totalHoursBooked * 10) / 10,
         averageUtilization,
       },

@@ -654,8 +654,8 @@ export default function SalasEstudio() {
                   <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">{fullReportData.summary.totalLessonsHosted}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/50 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Horas Reservadas</p>
-                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">{fullReportData.summary.totalHoursBooked}h</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Aulas Agendadas (Futuras)</p>
+                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">{fullReportData.summary.totalScheduledLessons ?? 0}</p>
                 </div>
               </div>
 
@@ -667,7 +667,8 @@ export default function SalasEstudio() {
                       <th className="py-2.5 px-3">Sala</th>
                       <th className="py-2.5 px-3">Capacidade</th>
                       <th className="py-2.5 px-3">Situação</th>
-                      <th className="py-2.5 px-3 text-center">Aulas</th>
+                      <th className="py-2.5 px-3 text-center">Realizadas</th>
+                      <th className="py-2.5 px-3 text-center">Agendadas</th>
                       <th className="py-2.5 px-3 text-right">Ocupação</th>
                     </tr>
                   </thead>
@@ -686,7 +687,8 @@ export default function SalasEstudio() {
                             {r.status}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-center font-medium">{r.totalLessons}</td>
+                        <td className="py-2.5 px-3 text-center font-medium">{r.completedLessons}</td>
+                        <td className="py-2.5 px-3 text-center font-medium text-amber-600 dark:text-amber-400">{r.scheduledLessons}</td>
                         <td className="py-2.5 px-3 text-right font-bold text-indigo-600 dark:text-indigo-400">
                           {r.utilizationRate}%
                         </td>
@@ -711,14 +713,15 @@ export default function SalasEstudio() {
                     variant="outline"
                     disabled={generateReportMutation.isPending}
                     onClick={() => {
-                      const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Ministradas", "Horas em Uso", "Taxa de Ocupação (%)"];
+                      const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Realizadas", "Aulas Agendadas", "Horas Realizadas", "Taxa de Ocupação (%)"];
                       const rows = fullReportData.rooms.map((r: any) => [
                         r.name,
                         `${r.capacity} pessoas`,
                         r.equipments || "Não especificado",
                         r.status.toUpperCase(),
-                        r.totalLessons,
-                        `${r.totalHoursUsed}h`,
+                        r.completedLessons,
+                        r.scheduledLessons,
+                        `${r.completedHours}h`,
                         r.utilizationRate,
                       ]);
 
@@ -740,14 +743,15 @@ export default function SalasEstudio() {
                   <Button
                     disabled={generateReportMutation.isPending}
                     onClick={() => {
-                      const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Ministradas", "Horas em Uso", "Taxa de Ocupação (%)"];
+                      const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Realizadas", "Aulas Agendadas", "Horas Realizadas", "Taxa de Ocupação (%)"];
                       const rows = fullReportData.rooms.map((r: any) => [
                         r.name,
                         `${r.capacity} pessoas`,
                         r.equipments || "Não especificado",
                         r.status.toUpperCase(),
-                        r.totalLessons,
-                        r.totalHoursUsed,
+                        r.completedLessons,
+                        r.scheduledLessons,
+                        r.completedHours,
                         r.utilizationRate,
                       ]);
 
