@@ -185,10 +185,22 @@ export default function StudentAgenda() {
                                </div>
                              )}
                              
-                             <div className="flex items-center gap-1.5 opacity-60">
-                               <MapPin size={10} />
-                                <span className="truncate max-w-[80%] inline-block">Estúdio A</span>
-                             </div>
+                              <div className="flex items-center gap-1.5 opacity-80 text-[9px]">
+                                <MapPin size={10} className="text-primary shrink-0" />
+                                {lesson.lessonType === 'online' ? (
+                                  <span className="truncate text-indigo-400 font-semibold">Online</span>
+                                ) : (
+                                  <span className="flex items-center gap-1 truncate max-w-[90%] font-medium">
+                                    {(lesson as any).studioRoomColor && (
+                                      <span 
+                                        className="w-1.5 h-1.5 rounded-full inline-block shrink-0" 
+                                        style={{ backgroundColor: (lesson as any).studioRoomColor }}
+                                      />
+                                    )}
+                                    <span className="truncate">{(lesson as any).studioRoomName || "Sala Principal"}</span>
+                                  </span>
+                                )}
+                              </div>
                              
                              <div className="absolute top-1 right-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                 <MoreVertical size={12} className="text-muted-foreground" />

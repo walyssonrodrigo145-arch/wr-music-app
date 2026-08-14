@@ -6935,8 +6935,17 @@ ${jsonSchemaFormat}`;
               title: lessons.title,
               scheduledAt: lessons.scheduledAt,
               status: lessons.status,
+              duration: lessons.duration,
               instrumentId: lessons.instrumentId,
+              studioRoomId: lessons.studioRoomId,
+              studioRoomName: studioRooms.name,
+              studioRoomColor: studioRooms.color,
+              teacherName: users.name,
+              teacherFoto: professores.foto,
             }).from(lessons)
+              .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
+              .leftJoin(users, eq(lessons.userId, users.id))
+              .leftJoin(professores, eq(professores.userId, users.id))
               .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
               .orderBy(asc(lessons.scheduledAt))
               .limit(5)
@@ -7094,10 +7103,48 @@ ${jsonSchemaFormat}`;
       if (!studentId) throw new Error("Acesso não autorizado");
 
       const orgId = ctx.user.organizationId!;
-      const lessonRows = await db.select().from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId))).orderBy(desc(lessons.scheduledAt)).limit(50);
-      // Buscar o link de reunião online do aluno
-      const [studentRow] = await db.select({ onlineMeetingLink: students.onlineMeetingLink, lessonType: students.lessonType }).from(students).where(eq(students.id, studentId)).limit(1);
-      return lessonRows.map(l => ({ ...l, onlineMeetingLink: studentRow?.onlineMeetingLink || null, studentLessonType: studentRow?.lessonType || 'individual' }));
+      const lessonRows = await db.select({
+        id: lessons.id,
+        organizationId: lessons.organizationId,
+        userId: lessons.userId,
+        studentId: lessons.studentId,
+        isExperimental: lessons.isExperimental,
+        experimentalName: lessons.experimentalName,
+        experimentalPhone: lessons.experimentalPhone,
+        title: lessons.title,
+        description: lessons.description,
+        scheduledAt: lessons.scheduledAt,
+        duration: lessons.duration,
+        status: lessons.status,
+        lessonType: lessons.lessonType,
+        notes: lessons.notes,
+        rating: lessons.rating,
+        instrumentId: lessons.instrumentId,
+        studioRoomId: lessons.studioRoomId,
+        studioRoomName: studioRooms.name,
+        studioRoomColor: studioRooms.color,
+        teacherName: users.name,
+        teacherFoto: professores.foto,
+      }).from(lessons)
+        .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
+        .leftJoin(users, eq(lessons.userId, users.id))
+        .leftJoin(professores, eq(professores.userId, users.id))
+        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
+        .orderBy(desc(lessons.scheduledAt))
+        .limit(50);
+
+      // Buscar o link de reunião online do aluno e sala padrão
+      const [studentRow] = await db.select({ 
+        onlineMeetingLink: students.onlineMeetingLink, 
+        lessonType: students.lessonType,
+        studentStudioRoomId: students.studioRoomId
+      }).from(students).where(eq(students.id, studentId)).limit(1);
+
+      return lessonRows.map(l => ({ 
+        ...l, 
+        onlineMeetingLink: studentRow?.onlineMeetingLink || null, 
+        studentLessonType: studentRow?.lessonType || 'individual' 
+      }));
     }),
     getMaterials: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
@@ -7462,9 +7509,14 @@ ${jsonSchemaFormat}`;
         duration: lessons.duration,
         status: lessons.status,
         notes: lessons.notes,
+        lessonType: lessons.lessonType,
+        studioRoomId: lessons.studioRoomId,
+        studioRoomName: studioRooms.name,
+        studioRoomColor: studioRooms.color,
         teacherName: users.name,
         teacherFoto: professores.foto,
       }).from(lessons)
+        .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
         .leftJoin(users, eq(lessons.userId, users.id))
         .leftJoin(professores, eq(professores.userId, users.id))
         .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))

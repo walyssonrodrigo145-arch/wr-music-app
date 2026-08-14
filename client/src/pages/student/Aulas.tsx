@@ -99,15 +99,31 @@ export default function StudentLessons() {
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full border border-border/10 shadow-sm">
                    <MapPin size={12} className="text-primary" />
-                   <span>Sala VIP / Presencial</span>
+                   {lesson.studentLessonType === 'online' ? (
+                     <span className="text-indigo-400">Aula Online</span>
+                   ) : (
+                     <span className="flex items-center gap-1.5">
+                       {(lesson as any).studioRoomColor && (
+                         <span 
+                           className="w-2 h-2 rounded-full inline-block" 
+                           style={{ backgroundColor: (lesson as any).studioRoomColor }}
+                         />
+                       )}
+                       {(lesson as any).studioRoomName || "Sala Principal"}
+                     </span>
+                   )}
                 </div>
               </div>
               <h3 className="text-xl md:text-2xl font-black text-foreground group-hover:text-primary transition-colors tracking-tight">{lesson.title}</h3>
               <div className="flex items-center gap-3 mt-4">
-                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white text-[10px] font-black shadow-sm">
-                   {profile?.teacherName?.slice(0, 2).toUpperCase()}
+                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white text-[10px] font-black shadow-sm overflow-hidden">
+                   {(lesson as any).teacherFoto ? (
+                     <img src={(lesson as any).teacherFoto} alt={(lesson as any).teacherName || profile?.teacherName} className="w-full h-full object-cover" />
+                   ) : (
+                     ((lesson as any).teacherName || profile?.teacherName || "PR").slice(0, 2).toUpperCase()
+                   )}
                  </div>
-                 <p className="text-xs font-bold text-muted-foreground">Prof. <span className="text-foreground">{profile?.teacherName}</span></p>
+                 <p className="text-xs font-bold text-muted-foreground">Prof. <span className="text-foreground">{(lesson as any).teacherName || profile?.teacherName}</span></p>
               </div>
             </div>
 

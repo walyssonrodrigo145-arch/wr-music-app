@@ -316,7 +316,7 @@ export default function StudentDashboard() {
                     <h3 className="text-xl md:text-2xl font-black mt-2 md:mt-3 leading-tight tracking-tight text-foreground">
                        {format(new Date(dashboard.upcomingLessons[0].scheduledAt), "EEEE, dd 'de' MMMM", { locale: ptBR })}
                     </h3>
-                    <div className="mt-6 md:mt-8 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-10">
+                    <div className="mt-6 md:mt-8 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 flex-wrap">
                        <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Horário</p>
                           <p className="text-lg md:text-xl font-black text-foreground">{format(new Date(dashboard.upcomingLessons[0].scheduledAt), "HH:mm")}h</p>
@@ -324,7 +324,22 @@ export default function StudentDashboard() {
                        <div className="hidden sm:block w-px h-10 bg-border/50" />
                        <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Professor</p>
-                          <p className="text-lg md:text-xl font-black text-foreground">{dashboard.teacherName.split(' ')[0]}</p>
+                          <p className="text-lg md:text-xl font-black text-foreground">
+                            {((dashboard.upcomingLessons[0] as any)?.teacherName || dashboard.teacherName).split(' ')[0]}
+                          </p>
+                       </div>
+                       <div className="hidden sm:block w-px h-10 bg-border/50" />
+                       <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Local / Sala</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span 
+                              className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
+                              style={{ backgroundColor: (dashboard.upcomingLessons[0] as any)?.studioRoomColor || '#3B82F6' }}
+                            />
+                            <p className="text-base md:text-lg font-black text-foreground">
+                              {(dashboard.upcomingLessons[0] as any)?.studioRoomName || "Sala Principal"}
+                            </p>
+                          </div>
                        </div>
                     </div>
                     <div className="mt-8 md:mt-10 flex flex-col gap-3">
