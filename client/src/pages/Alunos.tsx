@@ -5,7 +5,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { format, isSameDay, startOfDay } from "date-fns";
 import {
   Users, Search, Plus, Pencil, Trash2,
-  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp, Activity, Eye, Edit, AlertTriangle, Download, Send
+  CheckCircle2, X, Loader2, ChevronDown, Clock, Filter, MoreVertical, Bell, TrendingUp, Activity, Eye, Edit, AlertTriangle, Download, Send,
+  Link as LinkIcon, Share2, Copy, ExternalLink, QrCode, Sparkles
 } from "lucide-react";
 import { exportToCSV } from "@/lib/exportUtils";
 import {
@@ -33,6 +34,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -558,6 +573,22 @@ export default function Alunos() {
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<StudentRow | null>(null);
 
+  // ── Auto-Matrícula Modal State ──────────────────────────────────────────────
+  const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
+  const [enrollmentInstrumentId, setEnrollmentInstrumentId] = useState<string>("all");
+  const [enrollmentFee, setEnrollmentFee] = useState<string>("");
+  const [generatedEnrollmentLink, setGeneratedEnrollmentLink] = useState<{ url: string; fullUrl: string } | null>(null);
+
+  const generateEnrollmentLinkMutation = trpc.enrollment.generateLink.useMutation({
+    onSuccess: (data) => {
+      setGeneratedEnrollmentLink(data);
+      toast.success("Link de matrícula gerado com sucesso!");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Erro ao gerar link de matrícula");
+    }
+  });
+
   const { data: students = [], isLoading } = trpc.students.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
 
@@ -693,6 +724,22 @@ export default function Alunos() {
                <Download size={16} />
                <span className="hidden sm:inline">Exportar CSV</span>
              </Button>
+
+             {/* Botão Gerar Link de Matrícula (Auto-cadastro pelo aluno) */}
+             {canEdit && (
+               <Button
+                 onClick={() => {
+                   setGeneratedEnrollmentLink(null);
+                   setIsEnrollmentModalOpen(true);
+                 }}
+                 variant="outline"
+                 className="h-10 rounded-xl px-3.5 lg:px-4 text-xs font-bold gap-2 border-primary/30 text-primary hover:bg-primary/10 shadow-sm shrink-0"
+                 title="Gerar link de auto-matrícula para enviar ao aluno"
+               >
+                 <LinkIcon size={16} className="text-primary" />
+                 <span>Link de Matrícula</span>
+               </Button>
+             )}
 
              {/* Ocultar botão "Novo aluno" para professores sem permissão de editar */}
              {canEdit && (
@@ -1180,6 +1227,153 @@ export default function Alunos() {
           isPending={deleteMutation.isPending}
         />
       )}
+
+      {/* ── MODAL GERAR LINK DE AUTO-MATRÍCULA ────────────────────────── */}
+      <Dialog open={isEnrollmentModalOpen} onOpenChange={setIsEnrollmentModalOpen}>
+        <DialogContent className="sm:max-w-[480px] bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold font-outfit flex items-center gap-2">
+              <Sparkles className="text-primary" size={20} />
+              Gerar Link de Matrícula
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Envie este link para o futuro aluno preencher seus próprios dados, escolher horários disponíveis e concluir a matrícula.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!generatedEnrollmentLink ? (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Instrumento / Curso (Opcional)</label>
+                <Select
+                  value={enrollmentInstrumentId}
+                  onValueChange={setEnrollmentInstrumentId}
+                >
+                  <SelectTrigger className="h-10 rounded-xl text-xs">
+                    <SelectValue placeholder="Todos os Cursos (Aluno escolhe)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Cursos (Aluno escolhe)</SelectItem>
+                    {instruments.map((inst: any) => (
+                      <SelectItem key={inst.id} value={String(inst.id)}>
+                        {inst.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  Se você não selecionar, o aluno poderá escolher qualquer instrumento ofertado pela escola.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Mensalidade Fixa R$ (Opcional)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ex: 150.00 (Deixe em branco para usar o padrão)"
+                  value={enrollmentFee}
+                  onChange={(e) => setEnrollmentFee(e.target.value)}
+                  className="h-10 rounded-xl text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Deixe vazio para usar a mensalidade padrão cadastrada nas configurações da escola.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEnrollmentModalOpen(false)}
+                  className="h-9 px-4 rounded-xl text-xs"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  disabled={generateEnrollmentLinkMutation.isPending}
+                  onClick={() => {
+                    generateEnrollmentLinkMutation.mutate({
+                      instrumentId: enrollmentInstrumentId !== "all" ? Number(enrollmentInstrumentId) : undefined,
+                      monthlyFee: enrollmentFee ? Number(enrollmentFee) : undefined,
+                    });
+                  }}
+                  className="h-9 px-4 rounded-xl text-xs bg-primary hover:bg-primary/90 text-white font-bold gap-1.5"
+                >
+                  {generateEnrollmentLinkMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <LinkIcon size={14} />}
+                  Criar Link Exclusivo
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 space-y-1">
+                <p className="text-xs font-bold flex items-center gap-1.5">
+                  <CheckCircle2 size={16} />
+                  Link criado com sucesso!
+                </p>
+                <p className="text-[11px] text-emerald-600/90 dark:text-emerald-400/90">
+                  Qualquer pessoa com este link pode acessar o formulário público e realizar o cadastro com segurança.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Link de Acesso:</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={generatedEnrollmentLink.fullUrl}
+                    className="h-10 rounded-xl text-xs bg-muted/40 font-mono"
+                  />
+                  <Button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedEnrollmentLink.fullUrl);
+                      toast.success("Link copiado para a área de transferência!");
+                    }}
+                    className="h-10 px-3.5 rounded-xl shrink-0 gap-1 text-xs"
+                    title="Copiar Link"
+                  >
+                    <Copy size={14} />
+                    <span>Copiar</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    window.open(generatedEnrollmentLink.fullUrl, "_blank");
+                  }}
+                  className="h-9 px-3 rounded-xl text-xs gap-1.5"
+                >
+                  <ExternalLink size={14} />
+                  Abrir Página
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => {
+                      const text = encodeURIComponent(`Olá! 🎵\n\nAqui está o seu link exclusivo para realizar sua matrícula na nossa escola de música:\n\n👉 ${generatedEnrollmentLink.fullUrl}\n\nAcesse o link para preencher seus dados e agendar suas aulas!`);
+                      window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+                    }}
+                    className="h-9 px-3.5 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5"
+                  >
+                    <Send size={14} />
+                    Enviar no WhatsApp
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setIsEnrollmentModalOpen(false)}
+                    className="h-9 px-3 rounded-xl text-xs"
+                  >
+                    Concluir
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
