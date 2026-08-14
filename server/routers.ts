@@ -8294,10 +8294,28 @@ Texto original para reescrever:
               ].filter(Boolean).join("\n");
 
               finalResponseContent = finalResponseContent.replace(blockStr, confirmMsg);
-            } catch (parseErr) {
+            } catch (parseErr: any) {
               console.error("[AI ACTION:CREATE_STUDENT] Erro ao processar:", parseErr);
+              let errorReason = "Ocorreu um erro interno ao tentar cadastrar o aluno.";
+              
+              const errMsg = parseErr?.message || "";
+              const errDetail = parseErr?.detail || "";
+              const errCode = parseErr?.code || "";
+
+              if (errCode === '23505' || errMsg.includes("unique constraint") || errMsg.includes("duplicate key")) {
+                if (errMsg.includes("students_email_org_unique") || errDetail.includes("email")) {
+                  errorReason = "⚠️ Não foi possível cadastrar: este e-mail já está em uso por outro aluno nesta escola. Utilize um e-mail diferente ou cadastre o e-mail no campo do responsável.";
+                } else if (errMsg.includes("cpf")) {
+                  errorReason = "⚠️ Não foi possível cadastrar: já existe um aluno cadastrado com este CPF.";
+                } else {
+                  errorReason = `⚠️ Não foi possível cadastrar: este registro já existe no sistema (${errDetail || "chave duplicada"}).`;
+                }
+              } else if (errMsg) {
+                errorReason = `⚠️ Não foi possível concluir o cadastro: ${errMsg.replace(/^Error:\s*/, "")}`;
+              }
+
               finalResponseContent = finalResponseContent.replace(blockStr,
-                "\n\n⚠️ Ocorreu um erro interno ao tentar cadastrar o aluno."
+                `\n\n${errorReason}`
               );
             }
           }

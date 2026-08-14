@@ -10,6 +10,7 @@ import { SpreadsheetViewer } from "./SpreadsheetViewer";
 export type Message = {
   role: "system" | "user" | "assistant";
   content: string;
+  createdAt?: string | Date;
 };
 
 export type AIChatBoxProps = {
@@ -25,6 +26,13 @@ export type AIChatBoxProps = {
   emptyStateMessage?: string;
   suggestedPrompts?: string[];
 };
+
+function formatMessageTime(dateVal?: string | Date): string {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
 
 function validateMessage(msg: string): string | null {
   const raw = msg.trim();
@@ -198,6 +206,16 @@ export function AIChatBox({
                         </div>
                       ) : (
                         <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                      )}
+
+                      {/* Timestamp da mensagem */}
+                      {message.createdAt && (
+                        <div className={cn(
+                          "text-[9px] font-semibold mt-1.5 flex items-center justify-end select-none",
+                          message.role === "user" ? "text-indigo-200/70" : "text-muted-foreground/60"
+                        )}>
+                          {formatMessageTime(message.createdAt)}
+                        </div>
                       )}
                     </div>
 

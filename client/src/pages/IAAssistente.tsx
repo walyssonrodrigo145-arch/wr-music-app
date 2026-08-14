@@ -67,7 +67,7 @@ export default function IAAssistente() {
 
   const chatMutation = trpc.ai.chat.useMutation({
     onSuccess: (data) => {
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: data.reply, createdAt: new Date() }]);
       utils.ai.listConversations.invalidate();
       refetchUsage();
     },
@@ -89,7 +89,7 @@ export default function IAAssistente() {
 
   useEffect(() => {
     if (dbMessages) {
-      setMessages(dbMessages.map((m: any) => ({ role: m.role, content: m.content })));
+      setMessages(dbMessages.map((m: any) => ({ role: m.role, content: m.content, createdAt: m.createdAt })));
     }
   }, [dbMessages]);
 
@@ -100,7 +100,7 @@ export default function IAAssistente() {
     if (!activeConversationId) return;
     if (isBlocked) { toast.error(`Limite diário atingido. Libera em ${timeLeftStr}.`, { duration: 5000 }); return; }
     if (isInCooldown) { toast.error(`Aguarde ${cooldownSeconds}s antes de enviar outra consulta.`, { duration: 3000 }); return; }
-    setMessages((prev) => [...prev, { role: "user", content }]);
+    setMessages((prev) => [...prev, { role: "user", content, createdAt: new Date() }]);
     chatMutation.mutate({ conversationId: activeConversationId, message: content });
   };
 
@@ -248,9 +248,11 @@ export default function IAAssistente() {
           </Button>
         </div>
 
-        {/* Lista de Conversas */}
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <ScrollArea className="flex-1 px-3 py-3">
+        {/* Lista de Conversas com Scroll Oculto */}
+        <div 
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 no-scrollbar"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
             {/* Mobile: sugestões rápidas */}
             <div className="block md:hidden mb-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">Sugestões</p>
@@ -324,12 +326,11 @@ export default function IAAssistente() {
                 ))}
               </div>
             )}
-          </ScrollArea>
+        </div>
 
-          {/* Usage Badge */}
-          <div className="px-3 pb-4 shrink-0">
-            <UsageBadge />
-          </div>
+        {/* Usage Badge na base */}
+        <div className="px-3 pb-4 shrink-0 border-t border-border/40 pt-3">
+          <UsageBadge />
         </div>
       </div>
 
