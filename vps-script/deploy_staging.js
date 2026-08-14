@@ -7,6 +7,7 @@ const config = {
   port: parseInt(process.env.VPS_PORT || '22', 10),
   username: process.env.VPS_USER || 'root',
   password: process.env.VPS_PASSWORD || 'Walysson2003@',
+  readyTimeout: 60000,
 };
 
 const filesToUpload = [
