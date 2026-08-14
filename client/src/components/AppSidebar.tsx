@@ -29,7 +29,8 @@ import {
   HeartHandshake,
   Wallet,
   FolderKanban,
-  DoorOpen
+  DoorOpen,
+  Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
