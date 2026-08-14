@@ -3190,6 +3190,14 @@ ${jsonSchemaFormat}`;
           createdAt: new Date(),
           updatedAt: new Date(),
         });
+
+        // Sincroniza sala com o cadastro do aluno se informado
+        if (input.studentId && input.studioRoomId) {
+          await db.update(students)
+            .set({ studioRoomId: input.studioRoomId, updatedAt: new Date() })
+            .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+        }
+
         return { success: true };
       } catch (error) {
         return handleDbError(error, "agendar a aula");
@@ -3235,6 +3243,7 @@ ${jsonSchemaFormat}`;
           duration: lessons.duration,
           lessonType: lessons.lessonType,
           userId: lessons.userId,
+          studentId: lessons.studentId,
           recurringGroupId: lessons.recurringGroupId,
           studioRoomId: lessons.studioRoomId,
         }).from(lessons)
@@ -3390,6 +3399,15 @@ ${jsonSchemaFormat}`;
           eq(lessons.id, id), 
           eq(lessons.organizationId, orgId)
         ));
+
+        // Sincroniza a sala com o perfil do aluno vinculado se studioRoomId foi modificado
+        const studentIdToSync = data.studentId !== undefined ? data.studentId : currentLesson.studentId;
+        if (studentIdToSync && data.studioRoomId !== undefined) {
+          await db.update(students)
+            .set({ studioRoomId: data.studioRoomId, updatedAt: new Date() })
+            .where(and(eq(students.id, studentIdToSync), eq(students.organizationId, orgId)));
+        }
+
         return { success: true };
       } catch (error) {
         return handleDbError(error, "atualizar a aula");
@@ -3844,6 +3862,13 @@ ${jsonSchemaFormat}`;
         
         if (rowsToInsert.length > 0) {
           await db.insert(lessons).values(rowsToInsert);
+        }
+
+        // Sincroniza a sala com o aluno se informado
+        if (input.studentId && input.studioRoomId) {
+          await db.update(students)
+            .set({ studioRoomId: input.studioRoomId, updatedAt: new Date() })
+            .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
         }
         
         return { success: true, count: rowsToInsert.length };

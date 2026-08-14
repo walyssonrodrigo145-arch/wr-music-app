@@ -231,6 +231,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
       utils.lessons.getById.invalidate();
+      utils.students.list.invalidate();
+      utils.students.getById.invalidate();
       utils.studioRooms.list.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
@@ -251,6 +253,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
       utils.lessons.getById.invalidate();
+      utils.students.list.invalidate();
+      utils.students.getById.invalidate();
       utils.studioRooms.list.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
@@ -1008,6 +1012,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                    duration: formData.duration,
                    notes: formData.notes,
                    instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+                   studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
                    scheduledAt: (() => {
                      const [y, M, d] = formData.date.split("-").map(Number);
                      const [hours, minutes] = formData.time.split(":").map(Number);
@@ -1034,6 +1039,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                    duration: formData.duration,
                    notes: formData.notes,
                    instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
+                   studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
                    scheduledAt: (() => {
                      const [y, M, d] = formData.date.split("-").map(Number);
                      const [hours, minutes] = formData.time.split(":").map(Number);
