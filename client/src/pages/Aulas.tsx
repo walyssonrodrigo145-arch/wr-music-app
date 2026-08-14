@@ -373,19 +373,41 @@ export default function Aulas() {
           const turmaCopy = { 
             ...lesson, 
             studentCount: 1, 
-            studentsList: [lesson.studentName || "Aluno"] 
+            studentsList: [lesson.studentName || "Aluno"],
+            turmaStatuses: [lesson.status]
           };
           turmaMap.set(key, turmaCopy);
           grouped.push(turmaCopy);
         } else {
           const existing = turmaMap.get(key);
           existing.studentCount += 1;
+          existing.turmaStatuses.push(lesson.status);
           if (lesson.studentName) {
             existing.studentsList.push(lesson.studentName);
           }
         }
       } else {
         grouped.push(lesson);
+      }
+    }
+
+    // Calcular status representativo do grupo de turma
+    for (const item of grouped) {
+      if (item.lessonType === 'turma' && item.turmaStatuses) {
+        const statuses = item.turmaStatuses;
+        const allFalta = statuses.length > 0 && statuses.every((s: string) => s === 'falta');
+        const hasConcluida = statuses.includes('concluida');
+        const allCancelada = statuses.length > 0 && statuses.every((s: string) => s === 'cancelada');
+
+        if (allFalta) {
+          item.status = 'falta';
+        } else if (hasConcluida) {
+          item.status = 'concluida';
+        } else if (allCancelada) {
+          item.status = 'cancelada';
+        } else {
+          item.status = 'agendada';
+        }
       }
     }
 

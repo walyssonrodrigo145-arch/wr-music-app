@@ -217,8 +217,8 @@ export const settings = pgTable("settings", {
   pixKey: text("pixKey"),
   hiddenTabs: text("hiddenTabs").default("").notNull(),
   // WhatsApp Bot integration (Fly.io)
-  whatsappBotUrl: varchar("whatsappBotUrl", { length: 255 }),
-  whatsappBotToken: text("whatsappBotToken"),
+  whatsappBotUrl: varchar("whatsappBotUrl", { length: 255 }).default("http://179.197.76.174:8080"),
+  whatsappBotToken: text("whatsappBotToken").default("minha_chave_secreta_123"),
   whatsappAutoSend: integer("whatsappAutoSend").default(0).notNull(),
   // Chatbot (Robô de Autoatendimento WhatsApp)
   chatbotEnabled: integer("chatbotEnabled").default(0).notNull(),

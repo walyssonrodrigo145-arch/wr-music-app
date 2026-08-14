@@ -198,16 +198,18 @@ export default function LessonDetailModal({
                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                     Chamada / Frequência dos Alunos ({turmaDetails.length})
                   </span>
-                  <div className="flex gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     <button
+                      type="button"
                       onClick={() => handleAllAttendance('concluida')}
-                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 text-[9px] font-black uppercase rounded-lg transition-all"
+                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 text-[9px] font-black uppercase rounded-lg transition-all active:scale-95"
                     >
                       Todos Vieram
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleAllAttendance('falta')}
-                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 text-[9px] font-black uppercase rounded-lg transition-all"
+                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 text-[9px] font-black uppercase rounded-lg transition-all active:scale-95"
                     >
                       Todos Faltaram
                     </button>
@@ -235,33 +237,35 @@ export default function LessonDetailModal({
                             </Avatar>
                             <div className="min-w-0">
                               <p className="text-xs font-bold text-foreground truncate">{item.studentName || "Aluno sem nome"}</p>
-                              <span className={cn("text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block mt-0.5", itemCfg.bg, itemCfg.text, itemCfg.border)}>
+                              <span className={cn("text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block mt-0.5", itemCfg.bg, itemCfg.color, itemCfg.border)}>
                                 {itemCfg.label}
                               </span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button
-                              onClick={() => handleStudentAttendance(item.id, 'concluida')}
-                              title="Marcar como Veio/Concluída"
+                              type="button"
+                              onClick={() => handleStudentAttendance(item.id, item.status === 'concluida' ? 'agendada' : 'concluida')}
+                              title={item.status === 'concluida' ? "Clique para desmarcar" : "Marcar como Presente/Veio"}
                               className={cn(
-                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all",
+                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95",
                                 item.status === 'concluida' 
-                                  ? "bg-emerald-500 text-white shadow-sm" 
+                                  ? "bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/30" 
                                   : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
                               )}
                             >
                               <Check size={12} /> Veio
                             </button>
                             <button
-                              onClick={() => handleStudentAttendance(item.id, 'falta')}
-                              title="Marcar como Falta"
+                              type="button"
+                              onClick={() => handleStudentAttendance(item.id, item.status === 'falta' ? 'agendada' : 'falta')}
+                              title={item.status === 'falta' ? "Clique para desmarcar" : "Marcar como Falta"}
                               className={cn(
-                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all",
+                                "h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95",
                                 item.status === 'falta' 
-                                  ? "bg-amber-500 text-white shadow-sm" 
-                                  : "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+                                  ? "bg-rose-500 text-white shadow-sm ring-2 ring-rose-500/30" 
+                                  : "bg-rose-500/10 text-rose-600 hover:bg-rose-500/20"
                               )}
                             >
                               <X size={12} /> Faltou

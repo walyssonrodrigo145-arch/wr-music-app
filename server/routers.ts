@@ -4073,7 +4073,9 @@ ${jsonSchemaFormat}`;
       const whereClause = input.groupId
         ? and(
             eq(lessons.organizationId, orgId),
-            eq(lessons.recurringGroupId, input.groupId)
+            eq(lessons.recurringGroupId, input.groupId),
+            gte(lessons.scheduledAt, startWindow),
+            lte(lessons.scheduledAt, endWindow)
           )
         : and(
             eq(lessons.organizationId, orgId),
@@ -4115,49 +4117,46 @@ ${jsonSchemaFormat}`;
         if (!db) throw new Error("Banco de dados não disponível");
         const orgId = ctx.user.organizationId!;
 
+        // Correção preventiva para o enum no PostgreSQL
+        try {
+          await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'concluida'`);
+          await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'cancelada'`);
+          await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'remarcada'`);
+          await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'falta'`);
+        } catch (e) {
+          // Ignorar se já existe
+        }
+
         for (const item of input.attendances) {
           await db.update(lessons)
             .set({ status: item.status, updatedAt: new Date() })
             .where(and(eq(lessons.id, item.lessonId), eq(lessons.organizationId, orgId)));
-        }
 
-        // Sincronizar status geral da turma no calendário
-        const sample = input.attendances[0];
-        if (sample) {
-          const [target] = await db.select({
-            title: lessons.title,
-            scheduledAt: lessons.scheduledAt,
-            lessonType: lessons.lessonType,
-          }).from(lessons).where(and(eq(lessons.id, sample.lessonId), eq(lessons.organizationId, orgId))).limit(1);
-
-          if (target && target.lessonType === 'turma') {
-            const allTurma = await db.select({ status: lessons.status })
-              .from(lessons)
+          // Cancelar lembretes pendentes associados se a aula mudou para um status não-agendada
+          if (item.status === 'cancelada' || item.status === 'concluida' || item.status === 'remarcada' || item.status === 'falta') {
+            await db.update(reminders)
+              .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
               .where(and(
-                eq(lessons.organizationId, orgId),
-                eq(lessons.title, target.title),
-                eq(lessons.scheduledAt, target.scheduledAt)
+                eq(reminders.lessonId, item.lessonId),
+                eq(reminders.organizationId, orgId),
+                eq(reminders.status, 'pendente')
               ));
+          }
 
-            const statuses = allTurma.map(t => t.status);
-            const hasConcluida = statuses.includes('concluida');
-            const allFalta = statuses.length > 0 && statuses.every(s => s === 'falta');
-
-            let overallStatus: 'concluida' | 'falta' | 'agendada' = 'agendada';
-            if (hasConcluida) {
-              overallStatus = 'concluida';
-            } else if (allFalta) {
-              overallStatus = 'falta';
-            }
-
-            if (overallStatus !== 'agendada') {
-              await db.update(lessons)
-                .set({ status: overallStatus, updatedAt: new Date() })
-                .where(and(
-                  eq(lessons.organizationId, orgId),
-                  eq(lessons.title, target.title),
-                  eq(lessons.scheduledAt, target.scheduledAt)
-                ));
+          // Notificação de falta de aluno se habilitado
+          if (item.status === 'falta') {
+            try {
+              const [userSettings] = await db.select({ notifyStudentAbsence: settings.notifyStudentAbsence }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
+              if (userSettings && userSettings.notifyStudentAbsence === 1) {
+                 const [student] = await db.select({ name: students.name, title: lessons.title }).from(lessons).innerJoin(students, eq(students.id, lessons.studentId)).where(eq(lessons.id, item.lessonId)).limit(1);
+                 const { notifyUser } = await import("./_core/notification");
+                 await notifyUser(ctx.user.id, {
+                   title: "📉 Falta Registrada",
+                   content: `O aluno ${student?.name || 'Desconhecido'} faltou à aula de turma ${student?.title || ''}.`
+                 });
+              }
+            } catch (e) {
+              console.error("Erro ao notificar falta de aluno na turma:", e);
             }
           }
         }
