@@ -319,6 +319,22 @@ export default function LeadsApp() {
           </div>
         </header>
 
+        {/* BANNER OFICIAL: MÓDULO EM DESENVOLVIMENTO */}
+        <div className="mx-8 mt-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-4 text-amber-200 text-xs font-semibold shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+              <Sparkles size={16} />
+            </div>
+            <div>
+              <p className="font-bold text-amber-300">🚧 Módulo em Desenvolvimento / Prévia</p>
+              <p className="text-[11px] text-amber-200/70">O sistema integrado de Gestão de Leads e CRM está sendo finalizado para lançamento oficial em breve.</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300 text-[10px] font-black uppercase px-2.5 py-1">
+            Em Breve
+          </Badge>
+        </div>
+
         {/* ÁREA DE CONTEÚDO */}
         <main className="p-8 space-y-6">
           

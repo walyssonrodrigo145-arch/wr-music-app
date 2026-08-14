@@ -109,7 +109,7 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
         )}
       </div>
 
-      {/* Botão de Atalho Direto: Gestão de Leads (Abre em nova aba) */}
+      {/* Botão de Atalho Direto: Gestão de Leads (Abre em nova aba com aviso de Em Desenvolvimento) */}
       {user?.role !== "aluno" && (
         <Button
           onClick={() => window.open("/leads", "_blank")}
@@ -117,6 +117,9 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
         >
           <Users size={16} />
           <span className="hidden md:inline font-outfit">Gestão de Leads</span>
+          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-md">
+            Em Breve
+          </span>
         </Button>
       )}
 
