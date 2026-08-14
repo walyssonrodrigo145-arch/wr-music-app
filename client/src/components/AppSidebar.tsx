@@ -198,10 +198,18 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
 
       {/* HEADER TOP DA SIDEBAR (LOGO + NOME + TOGGLE COLLAPSE) */}
       <div className={cn(
-        "flex items-center justify-between px-5 py-6 border-b border-indigo-950/30",
-        collapsed && "justify-center px-2"
+        "flex items-center justify-between px-5 py-5 border-b border-indigo-950/30",
+        collapsed && "flex-col gap-2.5 justify-center items-center px-1 py-4"
       )}>
-        <div className="flex items-center gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={collapsed ? onToggle : undefined}
+          className={cn(
+            "flex items-center gap-3 min-w-0 text-left cursor-pointer group bg-transparent border-0 p-0",
+            collapsed && "hover:scale-105 transition-transform"
+          )}
+          title={collapsed ? "Clique para expandir o menu" : undefined}
+        >
           {(user as any)?.schoolLogo ? (
             <div className="relative w-10 h-10 rounded-xl bg-slate-900/60 shadow-lg shadow-primary/20 border border-white/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
               <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-cover" />
@@ -228,18 +236,21 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               </p>
             </div>
           )}
-        </div>
+        </button>
 
-        {/* Botão Collapse (Seta para a esquerda) */}
-        {!collapsed && (
-          <button
-            onClick={onToggle}
-            className="w-8 h-8 rounded-full bg-slate-900/80 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 flex items-center justify-center transition-all shrink-0"
-            title="Recolher menu"
-          >
-            <ChevronLeft size={16} />
-          </button>
-        )}
+        {/* Botão Collapse / Expand Sempre Acessível */}
+        <button
+          type="button"
+          onClick={onToggle}
+          className={cn(
+            "rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md",
+            collapsed ? "w-7 h-7 text-indigo-400 hover:text-white hover:bg-indigo-600" : "w-8 h-8"
+          )}
+          title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+        >
+          {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={16} />}
+        </button>
       </div>
 
       {/* NAVEGAÇÃO CATEGORIZADA COM ÍCONES E ACORDEÃO */}
