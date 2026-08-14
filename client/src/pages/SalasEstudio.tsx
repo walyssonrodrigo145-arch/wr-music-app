@@ -16,7 +16,10 @@ import {
   Trash2,
   SlidersHorizontal,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  BarChart3,
+  Download,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,6 +56,7 @@ export default function SalasEstudio() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<any>(null);
 
   // Form State
@@ -75,8 +79,6 @@ export default function SalasEstudio() {
   const { data: fullReportData, isLoading: isLoadingReport } = trpc.studioRooms.fullReport.useQuery(undefined, {
     enabled: isReportModalOpen,
   });
-
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const createMutation = trpc.studioRooms.create.useMutation({
     onSuccess: () => {
