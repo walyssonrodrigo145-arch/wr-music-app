@@ -307,31 +307,27 @@ export default function LeadsApp() {
               <Calendar size={14} className="text-indigo-400" />
               <span>{selectedPeriod}</span>
               <ChevronDown size={14} className="text-slate-400 ml-1" />
+            {/* BADGE DE MODO DE VISUALIZAÇÃO */}
+            <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-bold">
+              <Eye size={14} />
+              <span>Modo Somente Leitura</span>
             </div>
-
-            {/* BOTÃO PRIMÁRIO + NOVO LEAD */}
-            <Button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 gap-2 transition-all"
-            >
-              <Plus size={16} /> Novo Lead
-            </Button>
           </div>
         </header>
 
-        {/* BANNER OFICIAL: MÓDULO EM DESENVOLVIMENTO */}
+        {/* BANNER OFICIAL: MÓDULO EM DESENVOLVIMENTO (SOMENTE LEITURA) */}
         <div className="mx-8 mt-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-4 text-amber-200 text-xs font-semibold shadow-lg backdrop-blur-md">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-              <Sparkles size={16} />
+              <ShieldCheck size={18} />
             </div>
             <div>
-              <p className="font-bold text-amber-300">🚧 Módulo em Desenvolvimento / Prévia</p>
-              <p className="text-[11px] text-amber-200/70">O sistema integrado de Gestão de Leads e CRM está sendo finalizado para lançamento oficial em breve.</p>
+              <p className="font-bold text-amber-300">👁️ Modo de Visualização (Somente Consulta)</p>
+              <p className="text-[11px] text-amber-200/70">Esta tela está disponível apenas para visualização e consulta de métricas e leads. Cadastros, edições e alterações estão desativados nesta prévia.</p>
             </div>
           </div>
-          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300 text-[10px] font-black uppercase px-2.5 py-1">
-            Em Breve
+          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300 text-[10px] font-black uppercase px-2.5 py-1 shrink-0">
+            Somente Leitura
           </Badge>
         </div>
 
@@ -493,11 +489,11 @@ export default function LeadsApp() {
                               </a>
                             )}
                             <button
-                              onClick={() => { setTrialLead(lead); setIsTrialModalOpen(true); }}
-                              title="Agendar Aula Experimental"
-                              className="p-1.5 rounded-lg bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-600 hover:text-white transition-all"
+                              onClick={() => { setSelectedLeadId(lead.id); setIsProfileModalOpen(true); }}
+                              title="Visualizar Detalhes"
+                              className="p-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600 hover:text-white transition-all"
                             >
-                              <Calendar size={15} />
+                              <Eye size={15} />
                             </button>
                           </div>
                         </div>
@@ -537,9 +533,11 @@ export default function LeadsApp() {
                 <div className="flex items-center justify-between border-b border-indigo-950/50 pb-4">
                   <div>
                     <h3 className="font-bold text-lg font-outfit text-white">Funil Comercial de Aulas & Matrículas (Kanban)</h3>
-                    <p className="text-xs text-slate-400">Gerencie a jornada completa do lead desde o primeiro contato até a matrícula.</p>
+                    <p className="text-xs text-slate-400">Visualização da jornada completa do lead desde o primeiro contato até a matrícula.</p>
                   </div>
-                  <Button onClick={() => setIsCreateModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5"><Plus size={15} /> Novo Lead</Button>
+                  <Badge variant="outline" className="border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-[10px] font-bold uppercase px-3 py-1">
+                    Visualização
+                  </Badge>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3.5 overflow-x-auto pb-4">
@@ -946,15 +944,8 @@ function LeadProfileModal({ leadId, open, onClose }: { leadId: number; open: boo
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-indigo-950/60">
+            <span className="text-[11px] text-slate-500 italic">Visualização de perfil em modo somente leitura</span>
             <Button variant="outline" onClick={onClose} className="h-9 text-xs border-indigo-950 text-slate-300 hover:bg-white/5">Fechar</Button>
-            <Button
-              onClick={() => convertMutation.mutate({ leadId: lead.id })}
-              disabled={convertMutation.isPending}
-              className="h-9 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 shadow-lg shadow-emerald-900/20"
-            >
-              {convertMutation.isPending && <Loader2 size={14} className="animate-spin" />}
-              <UserCheck size={15} /> Matricular Aluno (1-Click)
-            </Button>
           </div>
         </div>
       </DialogContent>
