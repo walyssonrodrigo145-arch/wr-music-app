@@ -77,25 +77,64 @@ export default function Comunicados() {
     }
   });
 
+  const [recipientMode, setRecipientMode] = useState<"all" | "single" | "multiple">("all");
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [studentSearch, setStudentSearch] = useState("");
+
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     important: false,
     sendViaWhatsApp: false,
-    targetStudentId: "all" as string | number,
+    targetStudentId: "" as string | number,
   });
+
+  const handleToggleSelectStudent = (id: number) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllFilteredStudents = () => {
+    const activeStudentIds = filteredStudentsList.map((s: any) => s.id);
+    const allSelected = activeStudentIds.every(id => selectedStudentIds.includes(id));
+    if (allSelected) {
+      setSelectedStudentIds(prev => prev.filter(id => !activeStudentIds.includes(id)));
+    } else {
+      setSelectedStudentIds(prev => Array.from(new Set([...prev, ...activeStudentIds])));
+    }
+  };
 
   const handleCreate = () => {
     if (!formData.title || !formData.content) {
       toast.error("Preencha o título e o conteúdo.");
       return;
     }
+
+    let targetStudentId: number | null = null;
+    let targetStudentIds: number[] | undefined = undefined;
+
+    if (recipientMode === "single") {
+      if (!formData.targetStudentId || formData.targetStudentId === "all") {
+        toast.error("Selecione o aluno destinatário.");
+        return;
+      }
+      targetStudentId = Number(formData.targetStudentId);
+    } else if (recipientMode === "multiple") {
+      if (selectedStudentIds.length === 0) {
+        toast.error("Selecione pelo menos um aluno para enviar o comunicado.");
+        return;
+      }
+      targetStudentIds = selectedStudentIds;
+    }
+
     createMutation.mutate({
       title: formData.title,
       content: formData.content,
       important: formData.important,
       sendViaWhatsApp: formData.sendViaWhatsApp,
-      targetStudentId: formData.targetStudentId === "all" ? null : Number(formData.targetStudentId),
+      targetStudentId,
+      targetStudentIds,
     });
   };
 
@@ -103,6 +142,12 @@ export default function Comunicados() {
     a.title.toLowerCase().includes(search.toLowerCase()) || 
     a.content.toLowerCase().includes(search.toLowerCase())
   ) || [];
+
+  const filteredStudentsList = (students || []).filter((s: any) => 
+    s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    (s.email && s.email.toLowerCase().includes(studentSearch.toLowerCase())) ||
+    (s.phone && s.phone.includes(studentSearch))
+  );
 
   return (
     <div className="space-y-8 pb-10">
@@ -115,10 +160,21 @@ export default function Comunicados() {
             </div>
             Comunicados
           </h1>
-          <p className="text-muted-foreground font-medium mt-1">Gerencie os avisos enviados para seus alunos no portal.</p>
+          <p className="text-muted-foreground font-medium mt-1">Gerencie os avisos enviados para seus alunos no portal e WhatsApp.</p>
         </div>
         <Button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setFormData({
+              title: "",
+              content: "",
+              important: false,
+              sendViaWhatsApp: false,
+              targetStudentId: "",
+            });
+            setSelectedStudentIds([]);
+            setRecipientMode("all");
+            setIsModalOpen(true);
+          }}
           className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest shadow-xl shadow-primary/20 transition-all hover:scale-105 active:scale-95 group"
         >
           <Plus size={20} className="mr-2 group-hover:rotate-90 transition-transform" />
@@ -192,7 +248,7 @@ export default function Comunicados() {
                               </div>
                               <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
                                 <span className="flex items-center gap-1.5"><Calendar size={12} className="text-primary/40" /> {format(new Date(ann.createdAt), "dd 'de' MMM, yyyy", { locale: ptBR })}</span>
-                                <span className="flex items-center gap-1.5"><User size={12} className="text-primary/40" /> {ann.targetStudentId ? `Enviado para ${students?.find((s: any) => s.id === ann.targetStudentId)?.name}` : "Todos os alunos"}</span>
+                                <span className="flex items-center gap-1.5"><User size={12} className="text-primary/40" /> {ann.targetStudentId ? `Enviado para ${students?.find((s: any) => s.id === ann.targetStudentId)?.name || 'Aluno específico'}` : "Todos os alunos"}</span>
                               </div>
                             </div>
                             
@@ -221,7 +277,7 @@ export default function Comunicados() {
 
       {/* Create Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] rounded-[2.5rem] p-0 overflow-hidden bg-card border-border/40 shadow-2xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-[560px] w-[95vw] rounded-[2.5rem] p-0 overflow-hidden bg-card border-border/40 shadow-2xl max-h-[90vh] flex flex-col">
           <DialogHeader className="p-8 pb-0 shrink-0">
             <DialogTitle className="text-3xl font-black tracking-tight text-foreground flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -230,11 +286,12 @@ export default function Comunicados() {
               Novo Comunicado
             </DialogTitle>
             <DialogDescription className="font-medium text-muted-foreground mt-2">
-              Envie um aviso importante que será exibido no portal do aluno.
+              Envie um aviso importante exibido no portal e diretamente no WhatsApp do aluno.
             </DialogDescription>
           </DialogHeader>
 
           <div className="p-8 space-y-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+            {/* Título */}
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Título do Aviso</Label>
               <Input 
@@ -245,24 +302,163 @@ export default function Comunicados() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Destinatário</Label>
-              <Select 
-                value={formData.targetStudentId.toString()} 
-                onValueChange={(val) => setFormData(prev => ({ ...prev, targetStudentId: val }))}
-              >
-                <SelectTrigger className="h-14 rounded-2xl bg-muted/30 border-border/40 font-bold">
-                  <SelectValue placeholder="Selecione o destinatário" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl border-border/40 shadow-xl">
-                  <SelectItem value="all" className="font-bold py-3">Todos os meus alunos</SelectItem>
-                  {students?.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id.toString()} className="font-bold py-3">{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Seleção de Destinatário */}
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Destinatários</Label>
+              
+              {/* Opções de Modo de Destinatário */}
+              <div className="grid grid-cols-3 gap-2 bg-muted/30 p-1.5 rounded-2xl border border-border/40">
+                <button
+                  type="button"
+                  onClick={() => setRecipientMode("all")}
+                  className={cn(
+                    "py-2.5 px-3 rounded-xl text-xs font-black transition-all",
+                    recipientMode === "all" 
+                      ? "bg-primary text-white shadow-md shadow-primary/20" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  Todos os Alunos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientMode("multiple")}
+                  className={cn(
+                    "py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5",
+                    recipientMode === "multiple" 
+                      ? "bg-primary text-white shadow-md shadow-primary/20" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  Vários Alunos
+                  {selectedStudentIds.length > 0 && (
+                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                      {selectedStudentIds.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientMode("single")}
+                  className={cn(
+                    "py-2.5 px-3 rounded-xl text-xs font-black transition-all",
+                    recipientMode === "single" 
+                      ? "bg-primary text-white shadow-md shadow-primary/20" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  1 Aluno Único
+                </button>
+              </div>
+
+              {/* Modo: 1 Aluno Único */}
+              {recipientMode === "single" && (
+                <div className="animate-in fade-in-50 duration-200">
+                  <Select 
+                    value={formData.targetStudentId.toString()} 
+                    onValueChange={(val) => setFormData(prev => ({ ...prev, targetStudentId: val }))}
+                  >
+                    <SelectTrigger className="h-14 rounded-2xl bg-muted/30 border-border/40 font-bold">
+                      <SelectValue placeholder="Selecione o aluno específico" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border-border/40 shadow-xl max-h-60">
+                      {students?.map((s: any) => (
+                        <SelectItem key={s.id} value={s.id.toString()} className="font-bold py-3">
+                          {s.name} {s.phone ? `(${s.phone})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Modo: Vários Alunos Específicos */}
+              {recipientMode === "multiple" && (
+                <div className="space-y-3 bg-muted/20 p-4 rounded-2xl border border-border/40 animate-in fade-in-50 duration-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                      <Input
+                        placeholder="Buscar aluno por nome ou telefone..."
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        className="h-10 pl-9 rounded-xl bg-card border-border/40 text-xs font-medium"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAllFilteredStudents}
+                      className="h-10 text-xs font-bold rounded-xl shrink-0"
+                    >
+                      {filteredStudentsList.every((s: any) => selectedStudentIds.includes(s.id)) ? "Desmarcar Todos" : "Marcar Todos"}
+                    </Button>
+                  </div>
+
+                  {/* Contador e Badges de Alunos Selecionados */}
+                  {selectedStudentIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-card/60 rounded-xl border border-border/30">
+                      {selectedStudentIds.map(id => {
+                        const studentObj = students?.find((s: any) => s.id === id);
+                        if (!studentObj) return null;
+                        return (
+                          <span 
+                            key={id} 
+                            className="inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 text-xs font-bold py-1 px-2.5 rounded-lg"
+                          >
+                            {studentObj.name}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleSelectStudent(id)}
+                              className="hover:bg-primary/20 rounded p-0.5"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Lista com Checkboxes */}
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                    {filteredStudentsList.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">Nenhum aluno encontrado com este nome.</p>
+                    ) : (
+                      filteredStudentsList.map((s: any) => {
+                        const isSelected = selectedStudentIds.includes(s.id);
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => handleToggleSelectStudent(s.id)}
+                            className={cn(
+                              "flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border text-xs",
+                              isSelected 
+                                ? "bg-primary/10 border-primary/40 text-foreground font-bold shadow-sm" 
+                                : "bg-card/40 border-border/30 text-muted-foreground hover:bg-muted/40"
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className={cn(
+                                "w-5 h-5 rounded-md flex items-center justify-center border transition-all",
+                                isSelected ? "bg-primary border-primary text-white" : "border-border bg-card"
+                              )}>
+                                {isSelected && <CheckCircle2 size={14} />}
+                              </div>
+                              <span className={cn(isSelected && "text-primary font-black")}>{s.name}</span>
+                            </div>
+                            {s.phone && <span className="text-[10px] text-muted-foreground">{s.phone}</span>}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* Conteúdo */}
             <div className="space-y-2 relative">
               <div className="flex items-center justify-between">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Conteúdo da Mensagem</Label>
@@ -285,6 +481,7 @@ export default function Comunicados() {
               />
             </div>
 
+            {/* Switch Importante */}
             <div className="flex items-center justify-between bg-muted/20 p-4 rounded-2xl border border-border/40">
               <div className="space-y-0.5">
                 <Label className="text-sm font-black text-foreground">Marcar como Importante</Label>
@@ -296,10 +493,13 @@ export default function Comunicados() {
               />
             </div>
 
+            {/* Switch WhatsApp */}
             <div className="flex items-center justify-between bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20">
               <div className="space-y-0.5">
                 <Label className="text-sm font-black text-emerald-700 dark:text-emerald-400">Enviar também no WhatsApp</Label>
-                <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-medium uppercase tracking-widest">Dispara a mensagem via Evolution API</p>
+                <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-medium uppercase tracking-widest">
+                  Dispara a mensagem individualizada para cada aluno selecionado via WhatsApp
+                </p>
               </div>
               <Switch 
                 checked={formData.sendViaWhatsApp}

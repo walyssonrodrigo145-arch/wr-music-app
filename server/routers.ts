@@ -6664,20 +6664,44 @@ ${jsonSchemaFormat}`;
       content: z.string(),
       important: z.boolean().default(false),
       targetStudentId: z.number().nullable().optional(),
+      targetStudentIds: z.array(z.number()).optional(),
       sendViaWhatsApp: z.boolean().default(false).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
-      
-      await db.insert(announcements).values({
-        organizationId: orgId,
-        userId: ctx.user.id,
-        title: input.title,
-        content: input.content,
-        important: input.important,
-        targetStudentId: input.targetStudentId ?? null,
-      });
+
+      // Normalizar lista de alunos alvo
+      let targetIds: number[] = [];
+      if (input.targetStudentIds && input.targetStudentIds.length > 0) {
+        targetIds = Array.from(new Set(input.targetStudentIds));
+      } else if (input.targetStudentId) {
+        targetIds = [input.targetStudentId];
+      }
+
+      if (targetIds.length > 0) {
+        // Criar um registro de comunicado para cada aluno selecionado
+        for (const studentId of targetIds) {
+          await db.insert(announcements).values({
+            organizationId: orgId,
+            userId: ctx.user.id,
+            title: input.title,
+            content: input.content,
+            important: input.important,
+            targetStudentId: studentId,
+          });
+        }
+      } else {
+        // Para todos os alunos
+        await db.insert(announcements).values({
+          organizationId: orgId,
+          userId: ctx.user.id,
+          title: input.title,
+          content: input.content,
+          important: input.important,
+          targetStudentId: null,
+        });
+      }
 
       if (input.sendViaWhatsApp) {
         // Formatar mensagem
@@ -6687,17 +6711,22 @@ ${jsonSchemaFormat}`;
         // Disparar assincronamente (background) para não travar o frontend
         (async () => {
           try {
-            if (input.targetStudentId) {
-              const [student] = await db.select()
-                .from(students)
-                .where(eq(students.id, input.targetStudentId))
-                .limit(1);
-              if (student && student.phone) {
-                await sendWhatsAppMessage({
-                  phone: student.phone,
-                  message: messageText,
-                  sessionId
-                });
+            if (targetIds.length > 0) {
+              for (const sId of targetIds) {
+                const [student] = await db.select()
+                  .from(students)
+                  .where(eq(students.id, sId))
+                  .limit(1);
+                if (student && student.phone) {
+                  await sendWhatsAppMessage({
+                    phone: student.phone,
+                    message: messageText,
+                    sessionId
+                  });
+                  if (targetIds.length > 1) {
+                    await new Promise(r => setTimeout(r, 800));
+                  }
+                }
               }
             } else {
               const allStudents = await db.select()

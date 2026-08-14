@@ -47,6 +47,7 @@ const filesToUpload = [
   'client/src/components/modals/StudentContractsSection.tsx',
   'client/src/components/modals/StudentDetailsModal.tsx',
   'client/src/pages/leads/LeadsApp.tsx',
+  'client/src/pages/Comunicados.tsx',
   'client/src/components/AppSidebar.tsx',
   'client/src/components/AppHeader.tsx',
   'client/src/pages/SalasEstudio.tsx',
