@@ -106,7 +106,6 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       groupIcon: HeartHandshake,
       textColor: "text-blue-400",
       items: [
-        { label: "Gestão de Leads", href: "/leads", icon: Target },
         { label: "Comunicados", href: "/comunicados", icon: Megaphone },
       ],
     },
