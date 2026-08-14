@@ -50,8 +50,17 @@ export const studioRoomsRouter = router({
     const total = rooms.length;
     const active = rooms.filter(r => r.status === "ativa" && r.active).length;
     const maintenance = rooms.filter(r => r.status === "manutencao").length;
-    const totalUtil = rooms.reduce((acc, r) => acc + (r.utilizationRate || 0), 0);
-    const avgUtilization = total > 0 ? Math.round(totalUtil / total) : 0;
+
+    // Aulas associadas às salas
+    const allLessons = await db
+      .select({ studioRoomId: lessons.studioRoomId, duration: lessons.duration })
+      .from(lessons)
+      .where(eq(lessons.organizationId, orgId));
+
+    // Base mensal estimada de 160h úteis por sala para taxa real
+    const totalHours = allLessons.filter(l => l.studioRoomId !== null).reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
+    const totalCapacityHours = Math.max(1, active * 160);
+    const avgUtilization = active > 0 ? Math.min(100, Math.round((totalHours / totalCapacityHours) * 100)) : 0;
 
     return {
       total,
@@ -145,8 +154,8 @@ export const studioRoomsRouter = router({
 
     const rooms = await db.select().from(studioRooms).where(eq(studioRooms.organizationId, orgId));
 
-    // Estatísticas gerais
-    const allLessons = await db
+    // Estatísticas gerais das salas
+    const allRoomLessons = await db
       .select({
         id: lessons.id,
         studioRoomId: lessons.studioRoomId,
@@ -155,18 +164,21 @@ export const studioRoomsRouter = router({
         duration: lessons.duration,
       })
       .from(lessons)
-      .where(eq(lessons.organizationId, orgId));
+      .where(and(eq(lessons.organizationId, orgId), sql`${lessons.studioRoomId} IS NOT NULL`));
 
     const totalRooms = rooms.length;
     const activeRooms = rooms.filter(r => r.status === "ativa" && r.active).length;
     const maintenanceRooms = rooms.filter(r => r.status === "manutencao").length;
-    const totalHoursBooked = allLessons.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
+    const totalHoursBooked = allRoomLessons.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
 
     const roomDetails = rooms.map(room => {
-      const roomLessons = allLessons.filter(l => l.studioRoomId === room.id);
+      const roomLessons = allRoomLessons.filter(l => l.studioRoomId === room.id);
       const completed = roomLessons.filter(l => l.status === "concluida").length;
       const scheduled = roomLessons.filter(l => l.status === "agendada").length;
       const totalHours = roomLessons.reduce((acc, l) => acc + ((l.duration || 60) / 60), 0);
+      
+      // Taxa real de ocupação baseada em 160h/mês
+      const calculatedRate = Math.min(100, Math.round((totalHours / 160) * 100));
 
       return {
         id: room.id,
@@ -175,7 +187,7 @@ export const studioRoomsRouter = router({
         capacity: room.capacity,
         equipments: room.equipments,
         status: room.status,
-        utilizationRate: room.utilizationRate || 75,
+        utilizationRate: calculatedRate,
         totalLessons: roomLessons.length,
         completedLessons: completed,
         scheduledLessons: scheduled,
@@ -183,15 +195,19 @@ export const studioRoomsRouter = router({
       };
     });
 
+    const averageUtilization = totalRooms > 0 
+      ? Math.round(roomDetails.reduce((acc, r) => acc + r.utilizationRate, 0) / totalRooms) 
+      : 0;
+
     return {
       generatedAt: new Date().toISOString(),
       summary: {
         totalRooms,
         activeRooms,
         maintenanceRooms,
-        totalLessonsHosted: allLessons.length,
+        totalLessonsHosted: allRoomLessons.length,
         totalHoursBooked: Math.round(totalHoursBooked * 10) / 10,
-        averageUtilization: totalRooms > 0 ? Math.round(rooms.reduce((acc, r) => acc + (r.utilizationRate || 0), 0) / totalRooms) : 0,
+        averageUtilization,
       },
       rooms: roomDetails,
     };

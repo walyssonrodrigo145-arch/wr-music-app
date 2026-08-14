@@ -47,6 +47,8 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { downloadBase64File } from "@/utils/downloadReport";
+import { FileSpreadsheet } from "lucide-react";
 
 export default function SalasEstudio() {
   const utils = trpc.useUtils();
@@ -78,6 +80,17 @@ export default function SalasEstudio() {
   });
   const { data: fullReportData, isLoading: isLoadingReport } = trpc.studioRooms.fullReport.useQuery(undefined, {
     enabled: isReportModalOpen,
+  });
+
+  // Report Engine Export Mutation
+  const generateReportMutation = trpc.reportEngine.generate.useMutation({
+    onSuccess: (res, vars) => {
+      downloadBase64File(res.data, vars.format, `relatorio_estudios_${new Date().toISOString().slice(0, 10)}`);
+      toast.success(vars.format === 'excel' ? "Planilha Excel gerada com sucesso!" : "Relatório CSV exportado com sucesso!");
+    },
+    onError: (err) => {
+      toast.error(`Erro ao gerar relatório: ${err.message}`);
+    }
   });
 
   const createMutation = trpc.studioRooms.create.useMutation({
@@ -683,7 +696,7 @@ export default function SalasEstudio() {
                 </table>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border/60">
                 <Button
                   variant="outline"
                   onClick={() => setIsReportModalOpen(false)}
@@ -691,26 +704,68 @@ export default function SalasEstudio() {
                 >
                   Fechar
                 </Button>
-                <Button
-                  onClick={() => {
-                    const csvContent = "data:text/csv;charset=utf-8," + 
-                      ["Sala,Capacidade,Situacao,Aulas,Horas,Ocupacao"]
-                        .concat(fullReportData.rooms.map((r: any) => `"${r.name}","${r.capacity}","${r.status}","${r.totalLessons}","${r.totalHoursUsed}","${r.utilizationRate}%"`))
-                        .join("\n");
-                    const encodedUri = encodeURI(csvContent);
-                    const link = document.createElement("a");
-                    link.setAttribute("href", encodedUri);
-                    link.setAttribute("download", `relatorio_estudios_${new Date().toISOString().slice(0,10)}.csv`);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    toast.success("Relatório baixado em CSV com sucesso!");
-                  }}
-                  className="h-9 px-4 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-1.5"
-                >
-                  <Download size={14} />
-                  Baixar CSV
-                </Button>
+
+                <div className="flex items-center gap-2">
+                  {/* Exportar CSV formatado pelo Motor */}
+                  <Button
+                    variant="outline"
+                    disabled={generateReportMutation.isPending}
+                    onClick={() => {
+                      const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Ministradas", "Horas em Uso", "Taxa de Ocupação (%)"];
+                      const rows = fullReportData.rooms.map((r: any) => [
+                        r.name,
+                        `${r.capacity} pessoas`,
+                        r.equipments || "Não especificado",
+                        r.status.toUpperCase(),
+                        r.totalLessons,
+                        `${r.totalHoursUsed}h`,
+                        r.utilizationRate,
+                      ]);
+
+                      generateReportMutation.mutate({
+                        format: "csv",
+                        title: "Relatório de Ocupação dos Estúdios",
+                        period: "Histórico Consolidado",
+                        columns,
+                        rows,
+                      });
+                    }}
+                    className="h-9 px-3.5 rounded-xl text-xs border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 font-bold gap-1.5"
+                  >
+                    {generateReportMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    Exportar CSV
+                  </Button>
+
+                  {/* Exportar Excel Profissional com Estilos & KPIs */}
+                  <Button
+                    disabled={generateReportMutation.isPending}
+                    onClick={() => {
+                      const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Ministradas", "Horas em Uso", "Taxa de Ocupação (%)"];
+                      const rows = fullReportData.rooms.map((r: any) => [
+                        r.name,
+                        `${r.capacity} pessoas`,
+                        r.equipments || "Não especificado",
+                        r.status.toUpperCase(),
+                        r.totalLessons,
+                        r.totalHoursUsed,
+                        r.utilizationRate,
+                      ]);
+
+                      generateReportMutation.mutate({
+                        format: "excel",
+                        title: "Relatório de Ocupação e Utilização dos Estúdios",
+                        period: "Histórico Consolidado",
+                        columns,
+                        rows,
+                        includeAiInsights: true,
+                      });
+                    }}
+                    className="h-9 px-4 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-1.5 shadow-sm"
+                  >
+                    {generateReportMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+                    Exportar Excel (.xlsx)
+                  </Button>
+                </div>
               </div>
             </div>
           )}
