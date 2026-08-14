@@ -94,6 +94,14 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
     }
   };
 
+  const formatPhone = (v: string) => {
+    const digits = v.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  };
+
   const lookupCep = async (cep: string) => {
     const clean = cep.replace(/\D/g, '');
     if (clean.length !== 8) return;
@@ -131,6 +139,7 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
           name: form.nome,
           email: form.email,
           password: form.senha,
+          phone: form.telefone,
           planType: "MONTHLY",
           planId: plan,
           cpfCnpj: form.cpfCnpj.replace(/\D/g, ''),
@@ -278,13 +287,13 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Telefone / WhatsApp</label>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Telefone / WhatsApp *</label>
                   <div className="relative">
                     <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
-                      type="tel" placeholder="(00) 00000-0000"
-                      value={form.telefone} onChange={e => set('telefone', e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
+                      type="tel" placeholder="(00) 00000-0000" maxLength={15}
+                      value={form.telefone} onChange={e => set('telefone', formatPhone(e.target.value))}
+                      className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white font-mono"
                     />
                   </div>
                 </div>
