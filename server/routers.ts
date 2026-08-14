@@ -3584,29 +3584,96 @@ ${jsonSchemaFormat}`;
         const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const deleteSeries = input.deleteSeries === true;
 
+        // Buscar aula atual garantindo permissão (seja criador da aula, admin da escola ou professor do aluno)
+        const [currentLesson] = await db.select({
+          id: lessons.id,
+          recurringGroupId: lessons.recurringGroupId,
+          scheduledAt: lessons.scheduledAt,
+          studentId: lessons.studentId,
+          lessonType: lessons.lessonType,
+          title: lessons.title,
+          userId: lessons.userId,
+        })
+          .from(lessons)
+          .leftJoin(students, eq(lessons.studentId, students.id))
+          .where(and(
+            eq(lessons.id, input.id),
+            eq(lessons.organizationId, orgId),
+            isAdmin ? undefined : or(
+              eq(lessons.userId, ctx.user.id),
+              eq(students.professorId, ctx.user.id)
+            )
+          ))
+          .limit(1);
+
+        if (!currentLesson) {
+          throw new Error("Aula não encontrada ou você não tem permissão para excluí-la.");
+        }
+
         if (deleteSeries) {
-          // Admin can delete series from any professor; others only their own
-          const seriesWhere = isAdmin
-            ? and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))
-            : and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id));
+          // Identificar todas as aulas a serem excluídas da série
+          let targetLessons: Array<{ id: number }> = [];
 
-          const [currentLesson] = await db.select({ recurringGroupId: lessons.recurringGroupId, scheduledAt: lessons.scheduledAt })
-            .from(lessons).where(seriesWhere).limit(1);
+          if (currentLesson.recurringGroupId) {
+            // Caso 1: Pertence a um grupo recorrente
+            targetLessons = await db.select({ id: lessons.id })
+              .from(lessons)
+              .leftJoin(students, eq(lessons.studentId, students.id))
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
+                gte(lessons.scheduledAt, currentLesson.scheduledAt),
+                isAdmin ? undefined : or(
+                  eq(lessons.userId, ctx.user.id),
+                  eq(students.professorId, ctx.user.id)
+                )
+              ));
+          } else if (currentLesson.studentId) {
+            // Caso 2: Sem recurringGroupId explícito mas é aula de aluno - excluir todas as aulas futuras agendadas do mesmo aluno
+            targetLessons = await db.select({ id: lessons.id })
+              .from(lessons)
+              .leftJoin(students, eq(lessons.studentId, students.id))
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.studentId, currentLesson.studentId),
+                eq(lessons.status, 'agendada'),
+                gte(lessons.scheduledAt, currentLesson.scheduledAt),
+                isAdmin ? undefined : or(
+                  eq(lessons.userId, ctx.user.id),
+                  eq(students.professorId, ctx.user.id)
+                )
+              ));
+          } else if (currentLesson.lessonType === 'turma') {
+            // Caso 3: Turma sem recurringGroupId - excluir todas as turmas futuras com o mesmo título
+            targetLessons = await db.select({ id: lessons.id })
+              .from(lessons)
+              .where(and(
+                eq(lessons.organizationId, orgId),
+                eq(lessons.title, currentLesson.title),
+                eq(lessons.lessonType, 'turma'),
+                eq(lessons.status, 'agendada'),
+                gte(lessons.scheduledAt, currentLesson.scheduledAt),
+                isAdmin ? undefined : eq(lessons.userId, ctx.user.id)
+              ));
+          } else {
+            // Caso 4: Aula avulsa avulsa
+            targetLessons = [{ id: currentLesson.id }];
+          }
 
-          if (currentLesson && currentLesson.recurringGroupId) {
-            const deleteSeriesWhere = isAdmin
-              ? and(eq(lessons.organizationId, orgId), eq(lessons.recurringGroupId, currentLesson.recurringGroupId), gte(lessons.scheduledAt, currentLesson.scheduledAt))
-              : and(eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id), eq(lessons.recurringGroupId, currentLesson.recurringGroupId), gte(lessons.scheduledAt, currentLesson.scheduledAt));
-            await db.delete(lessons).where(deleteSeriesWhere);
-            return { success: true };
+          const targetIds = targetLessons.map(t => t.id);
+          if (targetIds.length > 0) {
+            // Limpar lembretes vinculados
+            await db.delete(reminders).where(inArray(reminders.lessonId, targetIds));
+            // Excluir as aulas
+            await db.delete(lessons).where(inArray(lessons.id, targetIds));
+            return { success: true, count: targetIds.length };
           }
         }
 
-        const deleteWhere = isAdmin
-          ? and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))
-          : and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId), eq(lessons.userId, ctx.user.id));
-        await db.delete(lessons).where(deleteWhere);
-        return { success: true };
+        // Excluir apenas a aula individual
+        await db.delete(reminders).where(eq(reminders.lessonId, currentLesson.id));
+        await db.delete(lessons).where(eq(lessons.id, currentLesson.id));
+        return { success: true, count: 1 };
       } catch (error) {
         return handleDbError(error, "remover a aula");
       }
@@ -3621,21 +3688,22 @@ ${jsonSchemaFormat}`;
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
 
         if (input.type === 'student') {
           if (!input.studentId) throw new Error("ID do aluno não fornecido");
           await db.delete(lessons).where(and(
              eq(lessons.organizationId, orgId),
-             eq(lessons.userId, ctx.user.id),
+             isAdmin ? undefined : eq(lessons.userId, ctx.user.id),
              eq(lessons.studentId, input.studentId as number),
              eq(lessons.status, 'agendada')
           ));
         } else {
-          // Apagar todas as aulas não concluídas do usuário
+          // Apagar todas as aulas agendadas (não concluídas)
           await db.delete(lessons).where(and(
              eq(lessons.organizationId, orgId),
-             eq(lessons.userId, ctx.user.id),
-             eq(lessons.status, 'agendada') // Somente as q ainda vão acontecer (agendada)
+             isAdmin ? undefined : eq(lessons.userId, ctx.user.id),
+             eq(lessons.status, 'agendada')
           ));
         }
         return { success: true };

@@ -293,7 +293,28 @@ export default function Aulas() {
     return lessons.find(l => l.id === recurringAction.id);
   }, [recurringAction, lessons]);
 
-  const hasRecurrence = !!targetLessonForAction?.recurringGroupId;
+  const hasRecurrence = useMemo(() => {
+    if (!targetLessonForAction) return false;
+    if (targetLessonForAction.recurringGroupId) return true;
+    if (targetLessonForAction.studentId) {
+      return lessons.some(l => 
+        l.id !== targetLessonForAction.id && 
+        l.studentId === targetLessonForAction.studentId && 
+        l.status === 'agendada' && 
+        new Date(l.scheduledAt) >= new Date(targetLessonForAction.scheduledAt)
+      );
+    }
+    if (targetLessonForAction.lessonType === 'turma') {
+      return lessons.some(l => 
+        l.id !== targetLessonForAction.id && 
+        l.title === targetLessonForAction.title && 
+        l.lessonType === 'turma' && 
+        l.status === 'agendada' && 
+        new Date(l.scheduledAt) >= new Date(targetLessonForAction.scheduledAt)
+      );
+    }
+    return false;
+  }, [targetLessonForAction, lessons]);
 
   const updateStatusMutation = trpc.lessons.updateStatus.useMutation({
     onSuccess: (_, vars) => {
@@ -387,7 +408,14 @@ export default function Aulas() {
 
   const handleDeleteRequest = (id: number) => {
     const target = lessons.find(l => l.id === id);
-    if (target?.recurringGroupId) {
+    if (!target) return;
+    const hasMultiple = !!target.recurringGroupId || (
+      target.studentId ? lessons.some(l => l.id !== id && l.studentId === target.studentId && l.status === 'agendada' && new Date(l.scheduledAt) >= new Date(target.scheduledAt)) : false
+    ) || (
+      target.lessonType === 'turma' ? lessons.some(l => l.id !== id && l.title === target.title && l.lessonType === 'turma' && l.status === 'agendada' && new Date(l.scheduledAt) >= new Date(target.scheduledAt)) : false
+    );
+
+    if (hasMultiple) {
       setRecurringAction({ type: 'delete', id });
     } else {
       deleteMutation.mutate({ id, deleteSeries: false });
@@ -1072,7 +1100,10 @@ export default function Aulas() {
                     } catch (err) {}
                     setRecurringAction(null);
                   }}
-                  className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
+                  className={cn(
+                    "w-full h-12 rounded-xl text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg cursor-pointer",
+                    recurringAction?.type === 'delete' ? "bg-rose-600 hover:bg-rose-700 shadow-rose-500/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+                  )}
                 >
                   {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
                 </button>
@@ -1295,7 +1326,10 @@ export default function Aulas() {
                   } catch (err) {}
                   setRecurringAction(null);
                 }}
-                className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
+                className={cn(
+                  "w-full h-12 rounded-xl text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg cursor-pointer",
+                  recurringAction?.type === 'delete' ? "bg-rose-600 hover:bg-rose-700 shadow-rose-500/20" : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+                )}
               >
                 {recurringAction?.type === 'delete' ? 'Excluir toda a série (futuras)' : 'Remarcar toda a série (futuras)'}
               </button>
