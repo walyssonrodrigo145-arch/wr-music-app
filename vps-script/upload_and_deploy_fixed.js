@@ -195,6 +195,7 @@ const filesToUpload = [
   'server/studioRoomsRouter.ts',
   'client/src/pages/SalasEstudioTab.tsx',
   'client/src/pages/Configuracoes.tsx',
+  'client/src/components/AIChatBox.tsx',
 ];
 
 const conn = new Client();
