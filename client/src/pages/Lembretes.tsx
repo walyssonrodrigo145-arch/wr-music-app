@@ -2,11 +2,12 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Plus, Loader2,
-  BookOpen, CreditCard, AlertTriangle, ListTodo, FileText, Bell, RefreshCw,
+  BookOpen, CreditCard, AlertTriangle, ListTodo, FileText, Bell, RefreshCw, CheckCheck, Sparkles, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 
 import { Reminder, ReminderType, ReminderStatus, Template, openWhatsApp } from "../components/lembretes/types";
 import { ReminderCard } from "../components/lembretes/ReminderCard";
@@ -163,6 +164,17 @@ export default function Lembretes() {
 
 
 
+  const [completeAllModalOpen, setCompleteAllModalOpen] = useState(false);
+
+  const completeAllMut = trpc.reminders.completeAllPending.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setCompleteAllModalOpen(false);
+      invalidate();
+    },
+    onError: (e) => toast.error("Erro ao concluir lembretes: " + e.message),
+  });
+
   const handleGenerateAll = async () => {
     try {
       await generateLessons.mutateAsync();
@@ -244,6 +256,16 @@ export default function Lembretes() {
             </div>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 sm:pb-0">
+            {rawPendingCount > 0 && (
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shrink-0 shadow-xs cursor-pointer"
+                onClick={() => setCompleteAllModalOpen(true)}
+              >
+                <CheckCheck size={16} />
+                <span>Concluir Pendentes ({rawPendingCount})</span>
+              </Button>
+            )}
             <Button variant="outline" className="h-11 rounded-xl px-4 text-[10px] font-black uppercase tracking-widest gap-2 bg-card border-border shrink-0" onClick={() => setTemplatesOpen(true)}>
               <FileText size={16} /> <span className="hidden xs:inline">Modelos</span>
             </Button>
@@ -260,8 +282,6 @@ export default function Lembretes() {
         <div className="shrink-0">
           <RemindersSummary total={allReminders.length} pending={rawPendingCount} delayed={rawDelayedCount} />
         </div>
-
-
 
         <div className="shrink-0">
           <RemindersFilter {...{filterStudent, setFilterStudent, filterType, setFilterType, filterStatus, setFilterStatus}} />
@@ -302,6 +322,58 @@ export default function Lembretes() {
           onCancel={() => setDeleteId(null)}
           isPending={deleteMut.isPending}
         />
+      )}
+
+      {/* ── MODAL: CONCLUIR TODOS OS PENDENTES EM MASSA ── */}
+      {completeAllModalOpen && (
+        <ResponsiveDialog
+          open={completeAllModalOpen}
+          onOpenChange={(open) => !completeAllMut.isPending && setCompleteAllModalOpen(open)}
+          title="Concluir Lembretes Pendentes"
+          description="Evite o envio em massa de lembretes antigos acumulados"
+        >
+          <div className="p-6 space-y-6">
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-3">
+              <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400 font-black text-sm">
+                <AlertTriangle size={20} className="shrink-0" />
+                <span>Você possui {rawPendingCount} lembrete(s) pendente(s)</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Ao marcar como <strong>Concluídos</strong>, esses lembretes serão marcados como já finalizados no sistema e <strong>não serão disparados pelo WhatsApp</strong> quando o robô for ativado.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-12 text-xs font-bold"
+                onClick={() => setCompleteAllModalOpen(false)}
+                disabled={completeAllMut.isPending}
+              >
+                Voltar
+              </Button>
+
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-12 text-xs font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 border-rose-500/30 cursor-pointer"
+                onClick={() => completeAllMut.mutate({ targetStatus: "cancelado" })}
+                disabled={completeAllMut.isPending}
+              >
+                {completeAllMut.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+                Cancelar Todos
+              </Button>
+
+              <Button
+                className="flex-1 rounded-xl h-12 text-xs font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 cursor-pointer"
+                onClick={() => completeAllMut.mutate({ targetStatus: "enviado" })}
+                disabled={completeAllMut.isPending}
+              >
+                {completeAllMut.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCheck size={16} className="mr-2" />}
+                Concluir Todos ({rawPendingCount})
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
       )}
     </div>
   );

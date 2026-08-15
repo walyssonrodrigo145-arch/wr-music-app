@@ -5187,6 +5187,40 @@ ${jsonSchemaFormat}`;
         return { success: true };
       }),
 
+    // ─ Concluir todos os lembretes pendentes acumulados (evita disparo em massa) ──
+    completeAllPending: protectedProcedure
+      .input(z.object({
+        targetStatus: z.enum(["enviado", "cancelado"]).default("enviado"),
+      }).optional())
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+        const target = input?.targetStatus || "enviado";
+
+        const whereCondition = isAdmin
+          ? and(eq(reminders.organizationId, orgId), eq(reminders.status, "pendente"))
+          : and(eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id), eq(reminders.status, "pendente"));
+
+        const updated = await db
+          .update(reminders)
+          .set({
+            status: target,
+            sentAt: target === "enviado" ? new Date() : null,
+            cancelledAt: target === "cancelado" ? new Date() : null,
+            updatedAt: new Date(),
+          })
+          .where(whereCondition)
+          .returning({ id: reminders.id });
+
+        return {
+          success: true,
+          count: updated.length,
+          message: `${updated.length} lembrete(s) pendente(s) marcado(s) como ${target === "enviado" ? "concluído(s)" : "cancelado(s)"} com sucesso!`,
+        };
+      }),
+
     // ─ Cancelar lembrete quando aula é cancelada ────────────────────────────────
     syncLessonCancelled: protectedProcedure
       .input(z.object({ lessonId: z.number() }))

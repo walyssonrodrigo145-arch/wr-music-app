@@ -8,7 +8,7 @@ import {
   MessageSquare, Bell, Star, TrendingUp, Users,
   Edit3, X, Search,
   Calendar, DollarSign, Gift, UserX, Loader2, Sparkles,
-  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing, BookOpen, BarChart2
+  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing, BookOpen, BarChart2, CheckCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -782,6 +782,19 @@ export default function Automacoes() {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
+  const { data: pendingCount = 0 } = trpc.reminders.pendingCount.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
+
+  const completeAllPendingMut = trpc.reminders.completeAllPending.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      utils.reminders.pendingCount.invalidate();
+      utils.reminders.list.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao concluir lembretes: " + e.message),
+  });
+
   const cleanPush = trpc.fcm.cleanAndRegisterToken.useMutation();
 
   const testPush = trpc.fcm.testNotification.useMutation({
@@ -960,6 +973,34 @@ export default function Automacoes() {
           </button>
         </div>
       </div>
+
+      {/* ── CARD: LIMPEZA DE LEMBRETES ACUMULADOS ── */}
+      {pendingCount > 0 && (
+        <div className="relative overflow-hidden p-6 rounded-[2rem] border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-background to-emerald-500/10 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <CheckCheck size={24} />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-foreground uppercase tracking-wider flex items-center gap-2">
+                <span>{pendingCount} Lembretes Acumulados na Fila</span>
+                <span className="text-[10px] bg-amber-500 text-white font-black px-2 py-0.5 rounded-full">Atenção</span>
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Para evitar disparos em massa antigos ao ligar o robô no WhatsApp, você pode marcar todos os lembretes pendentes como já concluídos.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => completeAllPendingMut.mutate({ targetStatus: "enviado" })}
+            disabled={completeAllPendingMut.isPending}
+            className="h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider gap-2 shadow-md shadow-emerald-500/20 shrink-0 cursor-pointer"
+          >
+            {completeAllPendingMut.isPending ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16} />}
+            Concluir Todos Pendentes ({pendingCount})
+          </Button>
+        </div>
+      )}
 
       {isSupported && permission === "default" && (
         <div className="flex flex-col sm:flex-row items-center gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-sm shrink-0">
