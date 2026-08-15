@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, studentProcedure, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
 import { slotOffers, lessons, students, users, settings, instruments } from "../drizzle/schema";
-import { eq, and, gt, gte, lte, or, sql, isNull } from "drizzle-orm";
+import { eq, and, gt, gte, lte, lt, or, sql, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { notifyUser } from "./_core/notification";
 import { format } from "date-fns";
