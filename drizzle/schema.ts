@@ -254,6 +254,9 @@ export const settings = pgTable("settings", {
   earlyDiscountType: varchar("earlyDiscountType", { length: 20 }).default("percentage").notNull(),
   earlyDiscountValue: decimal("earlyDiscountValue", { precision: 10, scale: 2 }).default("5.00").notNull(),
   earlyDiscountDays: integer("earlyDiscountDays").default(0).notNull(),
+  // Antecipação Inteligente de Vagas por Falta
+  autoAdvanceSlotsEnabled: integer("autoAdvanceSlotsEnabled").default(1).notNull(),
+  autoAdvanceWhatsAppTemplate: text("autoAdvanceWhatsAppTemplate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -1445,3 +1448,28 @@ export const landingClients = pgTable("landing_clients", {
 
 export type LandingClient = typeof landingClients.$inferSelect;
 export type InsertLandingClient = typeof landingClients.$inferInsert;
+
+// ── Ofertas de Antecipação de Horários por Falta ───────────────────────────
+export const slotOffers = pgTable("slot_offers", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  originalLessonId: integer("originalLessonId").notNull(),
+  teacherId: integer("teacherId").notNull(),
+  slotDate: timestamp("slotDate").notNull(),
+  duration: integer("duration").default(60).notNull(),
+  instrumentId: integer("instrumentId"),
+  title: varchar("title", { length: 255 }),
+  status: varchar("status", { length: 20 }).default("aberta").notNull(), // 'aberta', 'aceita', 'expirada', 'cancelada'
+  acceptedByStudentId: integer("acceptedByStudentId"),
+  acceptedLessonId: integer("acceptedLessonId"),
+  acceptedAt: timestamp("acceptedAt"),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("slot_offers_org_status_idx").on(table.organizationId, table.status),
+  index("slot_offers_slot_date_idx").on(table.slotDate),
+]);
+
+export type SlotOffer = typeof slotOffers.$inferSelect;
+export type InsertSlotOffer = typeof slotOffers.$inferInsert;

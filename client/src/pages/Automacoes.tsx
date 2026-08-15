@@ -51,6 +51,7 @@ const TRIGGERS: { value: string; label: string; icon: React.ElementType; color: 
   { value: "student_inactive",  label: "Aluno inativo (sem aulas)",        icon: UserX,        color: "text-violet-500",  unit: "days"  },
   { value: "daily_study",       label: "Lembrete de estudo diário",        icon: BookOpen,     color: "text-green-500",   unit: "time"  },
   { value: "daily_report",      label: "Relatório diário de treinos",      icon: BarChart2,    color: "text-blue-500",    unit: "time"  },
+  { value: "slot_advance",      label: "Antecipação inteligente de horário por falta", icon: Zap, color: "text-amber-500", unit: "hours" },
 ];
 
 const DAYS_OF_WEEK = [
@@ -71,6 +72,9 @@ const VARIABLES = [
   { label: "{instrumento}",       desc: "Nome do instrumento"     },
   { label: "{data_aula}",         desc: "Data da aula"            },
   { label: "{hora_aula}",         desc: "Horário da aula"         },
+  { label: "{horario_vago}",      desc: "Horário vago liberado"   },
+  { label: "{horario_atual}",     desc: "Horário atual do aluno"  },
+  { label: "{link_portal}",       desc: "Link do portal do aluno" },
   { label: "{valor_mensalidade}", desc: "Valor da mensalidade"    },
   { label: "{data_vencimento}",   desc: "Data de vencimento"      },
   { label: "{link_pagamento}",    desc: "Link de pagamento automático" },

@@ -4,6 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { fcmRouter } from "./fcmRouter";
 import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, router } from "./_core/trpc";
+import { slotAdvanceRouter } from "./slotAdvanceRouter";
 import {
   getDashboardStats,
   getMonthlyStats,
@@ -184,6 +185,7 @@ export const appRouter = router({
   studioRooms: studioRoomsRouter,
   enrollment: enrollmentRouter,
   advancedAi: advancedAiRouter,
+  slotAdvance: slotAdvanceRouter,
   publicData: router({
     getLandingClients: publicProcedure.query(async () => {
       const db = await getDb();
@@ -3577,6 +3579,18 @@ ${jsonSchemaFormat}`;
           } catch (e) {
             console.error("Erro ao notificar falta de aluno:", e);
           }
+
+          // --- AUTOMAÇÃO INTELIGENTE DE ANTECIPAÇÃO DE HORÁRIOS ---
+          try {
+            const { triggerSlotAdvanceOnAbsence } = await import("./services/slotAdvanceEngine");
+            await triggerSlotAdvanceOnAbsence({
+              lessonId: input.id,
+              organizationId: orgId,
+              userId: ctx.user.id,
+            });
+          } catch (e) {
+            console.error("[SlotAdvance] Erro ao disparar antecipação de horários:", e);
+          }
         }
         
         return { success: true };
@@ -4157,6 +4171,18 @@ ${jsonSchemaFormat}`;
               }
             } catch (e) {
               console.error("Erro ao notificar falta de aluno na turma:", e);
+            }
+
+            // --- AUTOMAÇÃO INTELIGENTE DE ANTECIPAÇÃO DE HORÁRIOS ---
+            try {
+              const { triggerSlotAdvanceOnAbsence } = await import("./services/slotAdvanceEngine");
+              await triggerSlotAdvanceOnAbsence({
+                lessonId: item.lessonId,
+                organizationId: orgId,
+                userId: ctx.user.id,
+              });
+            } catch (e) {
+              console.error("[SlotAdvance] Erro ao disparar antecipação de horários na turma:", e);
             }
           }
         }

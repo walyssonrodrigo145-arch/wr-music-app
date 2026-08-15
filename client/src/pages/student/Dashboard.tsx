@@ -36,6 +36,7 @@ import { ptBR } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { RescheduleModal } from "@/components/RescheduleModal";
+import { EarlySlotBanner } from "@/components/student/EarlySlotBanner";
 
 const container = {
   hidden: { opacity: 0 },
@@ -78,6 +79,9 @@ export default function StudentDashboard() {
       animate="show"
       className="space-y-10 pb-10 max-w-[1600px] mx-auto"
     >
+      {/* Banner de Antecipação Inteligente de Horário por Falta */}
+      <EarlySlotBanner />
+
       {/* Welcome Section - Hero Banner */}
       <motion.div variants={item} className="relative overflow-hidden rounded-[2.5rem] md:rounded-[3rem] bg-card text-card-foreground border border-border shadow-sm p-8 md:p-12 mb-4">
         {/* Abstract Glow Effects */}
