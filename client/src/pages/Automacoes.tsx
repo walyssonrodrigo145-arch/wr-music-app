@@ -764,6 +764,24 @@ export default function Automacoes() {
     onError: (e) => toast.error("Erro: " + e.message),
   });
 
+  const { data: userSettings } = trpc.settings.get.useQuery();
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(true);
+
+  useEffect(() => {
+    if (userSettings) {
+      setAutoAdvanceEnabled((userSettings as any).autoAdvanceSlotsEnabled !== 0);
+    }
+  }, [userSettings]);
+
+  const toggleAutoAdvanceMutation = trpc.settings.toggleAutoAdvanceSlots.useMutation({
+    onSuccess: (r) => {
+      setAutoAdvanceEnabled(r.enabled);
+      utils.settings.get.invalidate();
+      toast.success(r.enabled ? "⚡ Robô de Antecipação Inteligente ATIVADO!" : "Robô de Antecipação desativado.");
+    },
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+
   const cleanPush = trpc.fcm.cleanAndRegisterToken.useMutation();
 
   const testPush = trpc.fcm.testNotification.useMutation({
@@ -891,6 +909,54 @@ export default function Automacoes() {
                 ? <ToggleRight size={64} className="text-white drop-shadow-lg" />
                 : <ToggleLeft size={64} className="text-muted-foreground/30" />
             }
+          </button>
+        </div>
+      </div>
+
+      {/* ── CARD: ROBÔ DE ANTECIPAÇÃO INTELIGENTE POR FALTA ── */}
+      <div className={cn(
+        "relative overflow-hidden p-6 rounded-[2rem] border transition-all duration-300",
+        autoAdvanceEnabled
+          ? "bg-gradient-to-br from-amber-500/15 via-primary/10 to-amber-600/10 border-amber-500/30 shadow-lg shadow-amber-500/5"
+          : "bg-card border-border shadow-sm text-muted-foreground"
+      )}>
+        <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
+          <div className={cn(
+            "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all",
+            autoAdvanceEnabled ? "bg-amber-500 text-white shadow-amber-500/30" : "bg-muted text-muted-foreground"
+          )}>
+            <Zap size={28} className={autoAdvanceEnabled ? "fill-white animate-pulse" : ""} />
+          </div>
+          <div className="flex-1 text-center sm:text-left min-w-0">
+            <div className="flex items-center justify-center sm:justify-start gap-3 mb-1.5">
+              <h3 className="text-base font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                <span>Robô de Antecipação por Falta</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full">Smart Slot</span>
+              </h3>
+              <span className={cn(
+                "text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
+                autoAdvanceEnabled ? "bg-amber-500 text-white shadow-xs" : "bg-muted text-muted-foreground"
+              )}>
+                {autoAdvanceEnabled ? "Ativo" : "Inativo"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+              Ao registrar falta em uma aula (ex: 19h), envia WhatsApp automático para alunos com aula mais tarde (ex: 20h/21h) oferecendo o adiantamento de horário via Portal do Aluno com confirmação em tempo real.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => toggleAutoAdvanceMutation.mutate({ enabled: !autoAdvanceEnabled })}
+            disabled={toggleAutoAdvanceMutation.isPending}
+            className="transition-transform hover:scale-110 active:scale-90 disabled:opacity-50 cursor-pointer"
+          >
+            {toggleAutoAdvanceMutation.isPending ? (
+              <Loader2 size={48} className="animate-spin opacity-50 text-amber-500" />
+            ) : autoAdvanceEnabled ? (
+              <ToggleRight size={64} className="text-amber-500 drop-shadow-md" />
+            ) : (
+              <ToggleLeft size={64} className="text-muted-foreground/30" />
+            )}
           </button>
         </div>
       </div>

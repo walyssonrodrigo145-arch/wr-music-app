@@ -912,6 +912,7 @@ export default function Configuracoes() {
   const [whatsappBotToken, setWhatsappBotToken] = useState("");
   const [whatsappAutoSend, setWhatsappAutoSend] = useState(false);
   const [chatbotEnabled, setChatbotEnabled] = useState(false);
+  const [autoAdvanceSlotsEnabled, setAutoAdvanceSlotsEnabled] = useState(true);
 
   // 💱 Pagamentos state 💱
   const [asaasApiKey, setAsaasApiKey] = useState("");
@@ -996,6 +997,7 @@ export default function Configuracoes() {
       setWhatsappBotToken(settings.whatsappBotToken ?? "");
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
       setChatbotEnabled((settings as any).chatbotEnabled === 1);
+      setAutoAdvanceSlotsEnabled((settings as any).autoAdvanceSlotsEnabled !== 0);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
       setPaymentGateway((settings.paymentGateway as "asaas" | "mercadopago") || "asaas");
@@ -1085,6 +1087,19 @@ export default function Configuracoes() {
   const handleToggleChatbot = (val: boolean) => {
     setChatbotEnabled(val);
     toggleChatbotMutation.mutate({ enabled: val });
+  };
+
+  const toggleAutoAdvanceMutation = trpc.settings.toggleAutoAdvanceSlots.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.enabled ? "⚡ Robô de Antecipação por Falta ATIVADO!" : "Robô de Antecipação por Falta desativado.");
+      utils.settings.get.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao alterar o robô: " + e.message),
+  });
+
+  const handleToggleAutoAdvance = (val: boolean) => {
+    setAutoAdvanceSlotsEnabled(val);
+    toggleAutoAdvanceMutation.mutate({ enabled: val });
   };
 
   const updateAsaasMutation = trpc.settings.updateAsaasIntegration.useMutation({
@@ -2236,6 +2251,43 @@ export default function Configuracoes() {
                     <Toggle
                       checked={chatbotEnabled}
                       onChange={handleToggleChatbot}
+                    />
+                  </div>
+
+                  {/* ── Toggle: Robô de Antecipação Inteligente por Falta ── */}
+                  <div className={cn(
+                    "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300",
+                    autoAdvanceSlotsEnabled
+                      ? "bg-amber-500/10 border-amber-500/30"
+                      : "bg-muted border-border"
+                  )}>
+                    <div className="flex items-center gap-4 pr-4">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 text-lg",
+                        autoAdvanceSlotsEnabled
+                          ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30 font-black"
+                          : "bg-muted-foreground/20 text-muted-foreground"
+                      )}>
+                        ⚡
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-black text-foreground uppercase tracking-widest">Robô de Antecipação por Falta</p>
+                          {autoAdvanceSlotsEnabled && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[9px] font-black uppercase tracking-wider">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                              ATIVO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
+                          Ao marcar falta em uma aula (ex: 19h), envia WhatsApp automático para alunos com aula mais tarde (20h/21h) oferecendo o adiantamento de horário via Portal do Aluno.
+                        </p>
+                      </div>
+                    </div>
+                    <Toggle
+                      checked={autoAdvanceSlotsEnabled}
+                      onChange={handleToggleAutoAdvance}
                     />
                   </div>
 

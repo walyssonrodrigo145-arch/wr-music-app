@@ -4343,6 +4343,7 @@ ${jsonSchemaFormat}`;
       notifyStudentAbsence: z.boolean().optional(),
       notifyNewStudent: z.boolean().optional(),
       notifyWeeklyReport: z.boolean().optional(),
+      autoAdvanceSlotsEnabled: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
       await upsertSettings(orgId, ctx.user.id, {
@@ -4351,6 +4352,25 @@ ${jsonSchemaFormat}`;
         notifyStudentAbsence: input.notifyStudentAbsence !== undefined ? (input.notifyStudentAbsence ? 1 : 0) : undefined,
         notifyNewStudent: input.notifyNewStudent !== undefined ? (input.notifyNewStudent ? 1 : 0) : undefined,
         notifyWeeklyReport: input.notifyWeeklyReport !== undefined ? (input.notifyWeeklyReport ? 1 : 0) : undefined,
+        autoAdvanceSlotsEnabled: input.autoAdvanceSlotsEnabled !== undefined ? (input.autoAdvanceSlotsEnabled ? 1 : 0) : undefined,
+      });
+      return { success: true };
+    }),
+
+    toggleAutoAdvanceSlots: protectedProcedure.input(z.object({
+      enabled: z.boolean(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
+        autoAdvanceSlotsEnabled: input.enabled ? 1 : 0,
+      });
+      return { success: true, enabled: input.enabled };
+    }),
+
+    updateAutoAdvanceTemplate: protectedProcedure.input(z.object({
+      template: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
+        autoAdvanceWhatsAppTemplate: input.template,
       });
       return { success: true };
     }),
