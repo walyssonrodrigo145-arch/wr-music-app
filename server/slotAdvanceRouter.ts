@@ -64,7 +64,7 @@ export const slotAdvanceRouter = router({
     if (!todayLesson) return [];
 
     // 3. Buscar ofertas de vagas abertas com o mesmo professor e ANTES da aula atual
-    const tolerance = new Date(now.getTime() - 60 * 60000); // Até 60 min de tolerância após início do horário
+    const tolerance = new Date(now.getTime() - 4 * 3600 * 1000); // Janela flexível de vagas abertas
 
     const offers = await db
       .select({
@@ -85,7 +85,7 @@ export const slotAdvanceRouter = router({
         eq(slotOffers.teacherId, todayLesson.teacherId), // Mesmo professor
         eq(slotOffers.status, "aberta"),
         gt(slotOffers.slotDate, tolerance), // Horário da vaga ainda válido
-        sql`${slotOffers.slotDate} < ${todayLesson.scheduledAt}` // Vaga é mais cedo que o horário do aluno
+        lt(slotOffers.slotDate, todayLesson.scheduledAt) // Vaga é mais cedo que o horário do aluno
       ));
 
     return offers.map(offer => ({

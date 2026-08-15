@@ -22,6 +22,7 @@ import { useState } from "react";
 import { RescheduleModal } from "@/components/RescheduleModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import { EarlySlotBanner } from "@/components/student/EarlySlotBanner";
 
 const container = {
   hidden: { opacity: 0 },
@@ -158,6 +159,9 @@ export default function StudentLessons() {
 
   return (
     <div className="space-y-10 pb-10 max-w-[1200px] mx-auto">
+      {/* Banner de Antecipação Inteligente de Horário por Falta */}
+      <EarlySlotBanner />
+
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-8 md:p-10 rounded-[2.5rem] bg-card text-card-foreground shadow-sm border border-border relative overflow-hidden">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
         <div className="relative z-10">
