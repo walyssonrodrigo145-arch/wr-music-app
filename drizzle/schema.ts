@@ -254,8 +254,8 @@ export const settings = pgTable("settings", {
   earlyDiscountType: varchar("earlyDiscountType", { length: 20 }).default("percentage").notNull(),
   earlyDiscountValue: decimal("earlyDiscountValue", { precision: 10, scale: 2 }).default("5.00").notNull(),
   earlyDiscountDays: integer("earlyDiscountDays").default(0).notNull(),
-  // Antecipação Inteligente de Vagas por Falta
-  autoAdvanceSlotsEnabled: integer("autoAdvanceSlotsEnabled").default(1).notNull(),
+  // Antecipação Inteligente de Vagas por Falta (Desativado por padrão)
+  autoAdvanceSlotsEnabled: integer("autoAdvanceSlotsEnabled").default(0).notNull(),
   autoAdvanceWhatsAppTemplate: text("autoAdvanceWhatsAppTemplate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),

@@ -765,11 +765,11 @@ export default function Automacoes() {
   });
 
   const { data: userSettings } = trpc.settings.get.useQuery();
-  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(true);
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
 
   useEffect(() => {
     if (userSettings) {
-      setAutoAdvanceEnabled((userSettings as any).autoAdvanceSlotsEnabled !== 0);
+      setAutoAdvanceEnabled((userSettings as any).autoAdvanceSlotsEnabled === 1);
     }
   }, [userSettings]);
 

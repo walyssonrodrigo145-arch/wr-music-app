@@ -912,7 +912,7 @@ export default function Configuracoes() {
   const [whatsappBotToken, setWhatsappBotToken] = useState("");
   const [whatsappAutoSend, setWhatsappAutoSend] = useState(false);
   const [chatbotEnabled, setChatbotEnabled] = useState(false);
-  const [autoAdvanceSlotsEnabled, setAutoAdvanceSlotsEnabled] = useState(true);
+  const [autoAdvanceSlotsEnabled, setAutoAdvanceSlotsEnabled] = useState(false);
 
   // 💱 Pagamentos state 💱
   const [asaasApiKey, setAsaasApiKey] = useState("");
@@ -997,7 +997,7 @@ export default function Configuracoes() {
       setWhatsappBotToken(settings.whatsappBotToken ?? "");
       setWhatsappAutoSend(settings.whatsappAutoSend === 1);
       setChatbotEnabled((settings as any).chatbotEnabled === 1);
-      setAutoAdvanceSlotsEnabled((settings as any).autoAdvanceSlotsEnabled !== 0);
+      setAutoAdvanceSlotsEnabled((settings as any).autoAdvanceSlotsEnabled === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
       setPaymentGateway((settings.paymentGateway as "asaas" | "mercadopago") || "asaas");

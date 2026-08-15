@@ -34,7 +34,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
       .where(eq(settings.organizationId, organizationId))
       .limit(1);
 
-    if (userSettings && userSettings.autoAdvanceSlotsEnabled === 0) {
+    if (!userSettings || userSettings.autoAdvanceSlotsEnabled !== 1) {
       console.log("[SlotAdvance] Automação desativada nas configurações da organização", organizationId);
       return;
     }
