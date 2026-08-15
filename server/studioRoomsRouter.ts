@@ -120,8 +120,8 @@ export const studioRoomsRouter = router({
         const timeSlots = roomLessons.map((l) => {
           const start = new Date(l.scheduledAt);
           const end = new Date(start.getTime() + (l.duration || 60) * 60000);
-          const startStr = start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-          const endStr = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          const startStr = start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+          const endStr = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
           return {
             id: l.id,
