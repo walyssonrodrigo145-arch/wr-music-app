@@ -81,6 +81,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
       .limit(1);
 
     let offerId = existingOffer?.id;
+    const isNewOffer = !offerId;
 
     if (!offerId) {
       const [newOffer] = await db
@@ -101,6 +102,11 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
         .returning({ id: slotOffers.id });
 
       offerId = newOffer.id;
+    } else {
+      // Oferta já existia — atualizar updatedAt para marcar que voltou a ser disparada
+      await db.update(slotOffers)
+        .set({ updatedAt: new Date() })
+        .where(eq(slotOffers.id, offerId));
     }
 
     // 4. Buscar alunos com aula no mesmo dia após o horário vago (janela de até 14 horas à frente)

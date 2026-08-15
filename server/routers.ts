@@ -3535,17 +3535,7 @@ ${jsonSchemaFormat}`;
           }
         }
 
-        // Correção preventiva para o enum no PostgreSQL
-        if (input.status) {
-          try {
-            await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'concluida'`);
-            await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'cancelada'`);
-            await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'remarcada'`);
-            await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'falta'`);
-          } catch (e) {
-            console.warn("Aviso ao tentar atualizar enum:", e);
-          }
-        }
+        // Enum já foi corrigido definitivamente nas migrações — ALTER TYPE removido para evitar table-lock
 
         // Cancelar lembretes pendentes associados se a aula mudou para um status não-agendada
         if (input.status === 'cancelada' || input.status === 'concluida' || input.status === 'remarcada' || input.status === 'falta') {
@@ -4131,15 +4121,7 @@ ${jsonSchemaFormat}`;
         if (!db) throw new Error("Banco de dados não disponível");
         const orgId = ctx.user.organizationId!;
 
-        // Correção preventiva para o enum no PostgreSQL
-        try {
-          await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'concluida'`);
-          await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'cancelada'`);
-          await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'remarcada'`);
-          await db.execute(sql`ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'falta'`);
-        } catch (e) {
-          // Ignorar se já existe
-        }
+        // Enum já foi corrigido definitivamente nas migrações — ALTER TYPE removido para evitar table-lock
 
         for (const item of input.attendances) {
           const whereClause = orgId
