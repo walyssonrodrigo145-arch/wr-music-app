@@ -148,7 +148,9 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
 
     console.log(`[SlotAdvance] Ofertando vaga das ${formattedVaga} para ${candidateLessons.length} alunos elegíveis.`);
 
-    const appUrl = process.env.APP_URL || "https://app.wrmusic.com.br";
+    const appUrl = (process.env.APP_URL && !process.env.APP_URL.includes("localhost"))
+      ? process.env.APP_URL
+      : "https://app.wrmusic.com.br";
     const teacherSession = `prof_${absentLesson.userId || userId}`;
 
     // 5. Notificar cada aluno elegível via WhatsApp e In-App
