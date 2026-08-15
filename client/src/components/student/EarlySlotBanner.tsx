@@ -12,19 +12,23 @@ export function EarlySlotBanner() {
   const [confirmingOffer, setConfirmingOffer] = useState<any>(null);
 
   const { data: offers = [], isLoading } = trpc.slotAdvance.getAvailableEarlySlots.useQuery(undefined, {
-    refetchInterval: 15000, // Atualiza a cada 15s para detectar novas vagas em tempo real
+    refetchInterval: 8000, // Atualiza a cada 8s para sincronizar vagas concorrentes
   });
 
   const acceptMutation = trpc.slotAdvance.acceptEarlySlot.useMutation({
     onSuccess: (data) => {
       toast.success(data.message, {
-        description: "Seu professor já foi notificado da alteração do horário.",
+        description: "Seu professor já foi notificado e você recebeu a confirmação no WhatsApp.",
         duration: 6000,
       });
+      if (confirmingOffer) {
+        setDismissedOfferIds(prev => [...prev, confirmingOffer.id]);
+      }
       setConfirmingOffer(null);
       utils.slotAdvance.getAvailableEarlySlots.invalidate();
       utils.lessons.list.invalidate();
-      utils.student.getProfile.invalidate();
+      utils.studentPortal.getLessons.invalidate();
+      utils.studentPortal.getDashboard.invalidate();
     },
     onError: (error) => {
       toast.error("Não foi possível antecipar", {

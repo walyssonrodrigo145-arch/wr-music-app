@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { router, studentProcedure, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
-import { slotOffers, lessons, students, users, settings, instruments } from "../drizzle/schema";
+import { slotOffers, lessons, students, users, settings, instruments, reminders } from "../drizzle/schema";
 import { eq, and, gt, gte, lte, lt, or, sql, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { notifyUser } from "./_core/notification";
+import { sendSmartWhatsAppNotification } from "./utils/whatsappRouting";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -114,7 +115,17 @@ export const slotAdvanceRouter = router({
       let sId = (ctx.user as any).studentId;
 
       if (sId) {
-        const [found] = await db.select({ id: students.id, name: students.name }).from(students).where(eq(students.id, sId)).limit(1);
+        const [found] = await db
+          .select({
+            id: students.id,
+            name: students.name,
+            phone: students.phone,
+            guardianPhone: students.guardianPhone,
+            birthDate: students.birthDate,
+          })
+          .from(students)
+          .where(eq(students.id, sId))
+          .limit(1);
         studentRecord = found;
       } else {
         const [found] = await db
@@ -123,6 +134,7 @@ export const slotAdvanceRouter = router({
             name: students.name,
             phone: students.phone,
             guardianPhone: students.guardianPhone,
+            birthDate: students.birthDate,
           })
           .from(students)
           .where(and(
@@ -190,7 +202,7 @@ export const slotAdvanceRouter = router({
       if (!acceptedOffer) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "Esta vaga acabou de ser preenchida por outro aluno ou não está mais disponível."
+          message: "Esta vaga já foi preenchida por outro aluno ou não está mais disponível."
         });
       }
 
@@ -209,7 +221,70 @@ export const slotAdvanceRouter = router({
           eq(lessons.organizationId, orgId)
         ));
 
-      // 5. Notificar o Professor e a Escola
+      // 4.1 Cancelar lembretes pendentes da aula antiga para não disparar lembrete duplicado desnecessário
+      try {
+        await db
+          .update(reminders)
+          .set({
+            status: "cancelado",
+            cancelledAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(reminders.lessonId, todayLesson.id),
+            eq(reminders.organizationId, orgId),
+            eq(reminders.status, "pendente")
+          ));
+      } catch (e) {
+        console.warn("[SlotAdvance] Erro ao cancelar lembretes pendentes:", e);
+      }
+
+      // 5. Buscar dados do professor e configurações da escola
+      const [teacher] = await db
+        .select({ name: users.name, phone: users.phone })
+        .from(users)
+        .where(eq(users.id, acceptedOffer.teacherId))
+        .limit(1);
+
+      const [userSettings] = await db
+        .select({
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+        })
+        .from(settings)
+        .where(eq(settings.organizationId, orgId))
+        .limit(1);
+
+      const teacherName = teacher?.name || "Seu Professor";
+
+      // 6. Enviar mensagem de confirmação imediata via WhatsApp para o Aluno
+      if (userSettings?.whatsappBotUrl && userSettings?.whatsappBotToken) {
+        try {
+          const confirmMsg = `✅ *AULA ANTECIPADA COM SUCESSO!* ✅\n\nOlá, *${studentRecord.name}*! Sua aula de hoje foi antecipada com sucesso das *${previousTime}* para às *${newTime}* com o(a) Prof. *${teacherName}*.\n\nTe esperamos no novo horário! 🎵`;
+          const teacherSession = `prof_${acceptedOffer.teacherId}`;
+
+          await sendSmartWhatsAppNotification({
+            sendToStudent: true,
+            sendToGuardian: true,
+            student: {
+              phone: studentRecord.phone,
+              guardianPhone: studentRecord.guardianPhone,
+              birthDate: studentRecord.birthDate,
+            },
+            message: confirmMsg,
+            sessionId: teacherSession,
+            whatsappConfig: {
+              url: userSettings.whatsappBotUrl,
+              token: userSettings.whatsappBotToken,
+            },
+          });
+          console.log(`[SlotAdvance] Mensagem de confirmação enviada para ${studentRecord.name} (${studentRecord.phone})`);
+        } catch (e) {
+          console.error("[SlotAdvance] Erro ao enviar mensagem de confirmação para o aluno:", e);
+        }
+      }
+
+      // 7. Notificar o Professor e a Escola
       try {
         await notifyUser(acceptedOffer.teacherId, {
           title: "⚡ Horário de Aula Antecipado!",
