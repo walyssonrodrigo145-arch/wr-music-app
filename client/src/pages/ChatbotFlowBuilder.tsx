@@ -360,6 +360,14 @@ export default function ChatbotFlowBuilder() {
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
+            onClick={() => window.location.href = "/base-conhecimento-ia"}
+            className="rounded-2xl h-11 px-4 gap-2 text-xs font-bold border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/5 hover:bg-purple-500/10"
+          >
+            <Brain size={16} /> Cérebro da IA (FAQ)
+          </Button>
+
+          <Button
+            variant="outline"
             onClick={() => setResetModalOpen(true)}
             className="rounded-2xl h-11 px-4 gap-2 text-xs font-bold border-border hover:bg-muted"
           >

@@ -1,0 +1,278 @@
+import { z } from "zod";
+import { router, protectedProcedure } from "./_core/trpc";
+import { getDb } from "./db";
+import { schoolKnowledgeBase, settings } from "../drizzle/schema";
+import { and, eq } from "drizzle-orm";
+import { callGemini } from "./utils/gemini";
+
+// ─── Tópicos Padrão Sugeridos para Escolas de Música ──────────────────────────
+export const DEFAULT_SUGGESTED_TOPICS = [
+  {
+    title: "📍 Onde estamos & Localização",
+    category: "localizacao",
+    content:
+      "Nossa escola fica localizada em fácil acesso no centro da cidade. Contamos com salas climatizadas, isolamento acústico e estacionamento/parada rápida para embarque e desembarque de alunos.",
+  },
+  {
+    title: "👶 Idade Mínima & Musicalização Infantil",
+    category: "faq_geral",
+    content:
+      "Atendemos crianças a partir de 3 a 4 anos com Musicalização Infantil (desenvolvimento rítmico, auditivo e motor de forma lúdica). Para instrumentos como violão, teclado, bateria e canto, a idade recomendada inicial é a partir de 6 a 7 anos, além de turmas completas para jovens e adultos de qualquer idade.",
+  },
+  {
+    title: "🎸 Cursos Oferecidos & Metodologia",
+    category: "cursos_precos",
+    content:
+      "Oferecemos aulas de Violão, Guitarra, Teclado/Piano, Bateria, Baixo, Canto/Técnica Vocal, Ukulele e Musicalização Infantil. Nossas aulas são 100% práticas desde o primeiro dia, unindo teoria musical aplicada ao repertório que o aluno mais gosta de ouvir e tocar.",
+  },
+  {
+    title: "💰 Valores, Planos & Formas de Pagamento",
+    category: "cursos_precos",
+    content:
+      "Temos planos mensais e recorrentes com valores acessíveis e materiais didáticos inclusos. Aceitamos PIX, Cartão de Crédito e Boleto Bancário. Para conferir a tabela completa de valores e garantir sua vaga com desconto promocional, acesse nossa página de matrícula online.",
+  },
+  {
+    title: "⏰ Horários de Funcionamento & Sábados",
+    category: "faq_geral",
+    content:
+      "Funcionamos de Segunda a Sexta das 08h às 21h e aos Sábados das 08h às 14h. As aulas são agendadas com horários fixos semanais de 50 a 60 minutos.",
+  },
+  {
+    title: "🔄 Política de Faltas & Aulas de Reposição",
+    category: "politicas",
+    content:
+      "Em caso de imprevisto, o aluno pode avisar com antecedência de no mínimo 2 a 4 horas pelo WhatsApp ou pelo Portal do Aluno para ter direito ao reagendamento da aula dentro do mês vigente.",
+  },
+];
+
+export const schoolAiRouter = router({
+  // 1. Listar tópicos da base de conhecimento da escola
+  getKnowledgeBase: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Banco de dados indisponível");
+    const orgId = ctx.user.organizationId!;
+
+    let topics = await db
+      .select()
+      .from(schoolKnowledgeBase)
+      .where(eq(schoolKnowledgeBase.organizationId, orgId))
+      .orderBy(schoolKnowledgeBase.id);
+
+    // Se a escola ainda não tiver tópicos, cria os padrões sugeridos automaticamente
+    if (topics.length === 0) {
+      for (const t of DEFAULT_SUGGESTED_TOPICS) {
+        await db.insert(schoolKnowledgeBase).values({
+          organizationId: orgId,
+          userId: ctx.user.id,
+          title: t.title,
+          category: t.category,
+          content: t.content,
+          isActive: 1,
+        });
+      }
+
+      topics = await db
+        .select()
+        .from(schoolKnowledgeBase)
+        .where(eq(schoolKnowledgeBase.organizationId, orgId))
+        .orderBy(schoolKnowledgeBase.id);
+    }
+
+    const [userSettings] = await db
+      .select({
+        schoolName: settings.schoolName,
+        aiProvider: settings.aiProvider,
+        pixKey: settings.pixKey,
+      })
+      .from(settings)
+      .where(eq(settings.userId, ctx.user.id))
+      .limit(1);
+
+    return {
+      topics,
+      schoolName: userSettings?.schoolName || "Escola de Música",
+    };
+  }),
+
+  // 2. Criar ou Atualizar tópico
+  upsertTopic: protectedProcedure
+    .input(
+      z.object({
+        id: z.number().optional(),
+        title: z.string().min(2, "Título obrigatório"),
+        category: z.string().default("faq_geral"),
+        content: z.string().min(5, "Conteúdo obrigatório"),
+        isActive: z.number().default(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Banco de dados indisponível");
+      const orgId = ctx.user.organizationId!;
+
+      if (input.id) {
+        await db
+          .update(schoolKnowledgeBase)
+          .set({
+            title: input.title,
+            category: input.category,
+            content: input.content,
+            isActive: input.isActive,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(schoolKnowledgeBase.id, input.id),
+              eq(schoolKnowledgeBase.organizationId, orgId)
+            )
+          );
+
+        return { success: true, message: "Tópico de conhecimento atualizado! ✅" };
+      } else {
+        const [created] = await db
+          .insert(schoolKnowledgeBase)
+          .values({
+            organizationId: orgId,
+            userId: ctx.user.id,
+            title: input.title,
+            category: input.category,
+            content: input.content,
+            isActive: input.isActive,
+          })
+          .returning();
+
+        return { success: true, message: "Novo tópico adicionado à IA! ✅", id: created.id };
+      }
+    }),
+
+  // 3. Excluir tópico
+  deleteTopic: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Banco de dados indisponível");
+      const orgId = ctx.user.organizationId!;
+
+      await db
+        .delete(schoolKnowledgeBase)
+        .where(
+          and(
+            eq(schoolKnowledgeBase.id, input.id),
+            eq(schoolKnowledgeBase.organizationId, orgId)
+          )
+        );
+
+      return { success: true, message: "Tópico removido." };
+    }),
+
+  // 4. Ativar / Desativar tópico
+  toggleTopic: protectedProcedure
+    .input(z.object({ id: z.number(), isActive: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Banco de dados indisponível");
+      const orgId = ctx.user.organizationId!;
+
+      await db
+        .update(schoolKnowledgeBase)
+        .set({ isActive: input.isActive, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schoolKnowledgeBase.id, input.id),
+            eq(schoolKnowledgeBase.organizationId, orgId)
+          )
+        );
+
+      return { success: true };
+    }),
+
+  // 5. Testador / Simulador em tempo real da IA com a Base de Conhecimento (RAG)
+  testAiResponse: protectedProcedure
+    .input(
+      z.object({
+        question: z.string(),
+        flowType: z.enum(["aluno", "lead"]).default("lead"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Banco de dados indisponível");
+      const orgId = ctx.user.organizationId!;
+
+      // 1. Carrega configurações da escola
+      const [userSettings] = await db
+        .select({
+          schoolName: settings.schoolName,
+          aiProvider: settings.aiProvider,
+          geminiApiKey: settings.geminiApiKey,
+          geminiModel: settings.geminiModel,
+          groqApiKey: settings.groqApiKey,
+          groqModel: settings.groqModel,
+          pixKey: settings.pixKey,
+        })
+        .from(settings)
+        .where(eq(settings.userId, ctx.user.id))
+        .limit(1);
+
+      const schoolName = userSettings?.schoolName || "Nossa Escola de Música";
+
+      // 2. Carrega tópicos ativos da Base de Conhecimento
+      const activeTopics = await db
+        .select()
+        .from(schoolKnowledgeBase)
+        .where(
+          and(
+            eq(schoolKnowledgeBase.organizationId, orgId),
+            eq(schoolKnowledgeBase.isActive, 1)
+          )
+        );
+
+      let knowledgeContext = "";
+      for (const t of activeTopics) {
+        knowledgeContext += `\n--- [TÓPICO: ${t.title}] ---\n${t.content}\n`;
+      }
+
+      const enrollmentLink = `https://wrmusicpro.com.br/matricula/${schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+
+      const systemPrompt = `Você é a atendente virtual inteligente, carinhosa, acolhedora e altamente profissional da escola de música "${schoolName}" no WhatsApp.
+
+SUA MISSÃO:
+Responder à dúvida do cliente de forma clara, simpática e natural em português do Brasil, utilizando EXCLUSIVAMENTE a Base de Conhecimento oficial da escola.
+
+BASE DE CONHECIMENTO OFICIAL DA ESCOLA:
+${knowledgeContext || "Nenhuma informação extra cadastrada. Responda cordialmente com base em boas práticas de escolas de música."}
+
+DIRETRIZES DE RESPOSTA NO WHATSAPP:
+1. Responda em formato de mensagem de WhatsApp (use emojis musicais 🎵🎸🎹, quebras de linha e negrito quando apropriado).
+2. Seja concisa, calorosa e objetiva (1 a 3 parágrafos curtos).
+3. NUNCA invente valores, regras ou horários que não estejam na base de conhecimento. Se não souber algo confidencial, convide educadamente para falar com a secretaria/professor.
+4. CALL TO ACTION (Fechamento): Ao final da resposta, convide sempre o lead/aluno para o próximo passo. Por exemplo:
+   - "Gostaria de agendar uma aula experimental para conhecer nosso espaço? É só me avisar por aqui ou acessar nosso link: ${enrollmentLink}"
+   - "Ou se preferir ver todos os detalhes e fazer sua matrícula online: 👉 ${enrollmentLink}"
+   - "Digite *MENU* a qualquer momento para ver as opções rápidas."`;
+
+      const apiKey = userSettings?.aiProvider === "groq" ? userSettings.groqApiKey : userSettings?.geminiApiKey;
+      const model = userSettings?.aiProvider === "groq" ? userSettings.groqModel : userSettings?.geminiModel;
+
+      try {
+        const response = await callGemini(
+          [{ role: "user", content: input.question }],
+          systemPrompt,
+          false,
+          apiKey,
+          model
+        );
+
+        return {
+          reply: response,
+          usedTopicsCount: activeTopics.length,
+        };
+      } catch (err: any) {
+        return {
+          reply: `Olá! Muito obrigado pelo contato com a *${schoolName}*! 🎶\n\nIdentifiquei sua dúvida: "${input.question}".\n\nNossa equipe pedagógica terá prazer em te ajudar! Acesse nosso link de matrícula ou digite *MENU* para falar com o professor:\n👉 ${enrollmentLink}`,
+          usedTopicsCount: activeTopics.length,
+          error: err.message,
+        };
+      }
+    }),
+});

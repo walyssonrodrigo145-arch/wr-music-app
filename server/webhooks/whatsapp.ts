@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getDb } from "../db";
-import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows } from "../../drizzle/schema";
+import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows, schoolKnowledgeBase } from "../../drizzle/schema";
 import { eq, and, gte, ilike } from "drizzle-orm";
 import { sendWhatsAppMessage } from "../utils/whatsapp";
 import { buildUserContext } from "../utils/aiContext";
@@ -173,6 +173,51 @@ function interpolateText(text: string, schoolName: string, studentName?: string,
     }
   }
   return res;
+}
+
+async function answerWithSchoolKnowledge(
+  db: any,
+  orgId: number,
+  schoolName: string,
+  userQuestion: string,
+  profSettings: any,
+  studentName?: string
+): Promise<string | null> {
+  try {
+    const activeTopics = await db
+      .select()
+      .from(schoolKnowledgeBase)
+      .where(and(eq(schoolKnowledgeBase.organizationId, orgId), eq(schoolKnowledgeBase.isActive, 1)));
+
+    if (activeTopics.length === 0) return null;
+
+    let knowledgeContext = "";
+    for (const t of activeTopics) {
+      knowledgeContext += `\n--- [TÓPICO: ${t.title}] ---\n${t.content}\n`;
+    }
+
+    const enrollmentLink = `https://wrmusicpro.com.br/matricula/${schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+    const primeiroNome = studentName ? studentName.split(" ")[0] : "amigo(a)";
+
+    const systemPrompt = `Você é a atendente virtual inteligente, simpática e acolhedora da escola de música "${schoolName}" no WhatsApp.
+
+BASE DE CONHECIMENTO OFICIAL DA ESCOLA:
+${knowledgeContext}
+
+DIRETRIZES DE ATENDIMENTO:
+1. Responda à dúvida do cliente (${primeiroNome}) com empatia, naturalidade, emojis musicais adequados (🎵🎸🎹) e texto conciso (1 a 3 parágrafos).
+2. NUNCA invente valores, regras ou dados que não estejam na base de conhecimento.
+3. Finalize sempre com um convite educado para ação (ex: agendar uma aula experimental, fazer a matrícula online pelo link ${enrollmentLink} ou digitar *MENU* para ver as opções numéricas).`;
+
+    const apiKey = profSettings?.aiProvider === "groq" ? profSettings.groqApiKey : profSettings?.geminiApiKey;
+    const model = profSettings?.aiProvider === "groq" ? profSettings.groqModel : profSettings?.geminiModel;
+
+    const reply = await callGemini([{ role: "user", content: userQuestion }], systemPrompt, false, apiKey, model);
+    return reply && reply.trim() ? reply.trim() : null;
+  } catch (err) {
+    console.error("[Chatbot AI RAG] Erro ao consultar IA da escola:", err);
+    return null;
+  }
 }
 
 // ─── Webhook ─────────────────────────────────────────────────────────────────
@@ -882,6 +927,23 @@ router.post("/", async (req, res) => {
         }
       }
 
+      // Se não correspondeu a uma opção numérica e o texto for uma dúvida/pergunta -> Responde com a IA da Escola (RAG)
+      if (input.trim().length >= 3) {
+        const aiReply = await answerWithSchoolKnowledge(
+          db,
+          profSettings.organizationId || 1,
+          schoolName,
+          input,
+          profSettings,
+          student?.name
+        );
+        if (aiReply) {
+          await sendReply(aiReply);
+          await updateState("AGUARDANDO_MENU");
+          return res.status(200).json({ ok: true });
+        }
+      }
+
       // Opção inválida
       await sendReply(interpolateText(flow.fallbackMessage, schoolName, student.name));
       return res.status(200).json({ ok: true });
@@ -929,6 +991,22 @@ router.post("/", async (req, res) => {
             await sendReply("Que notícia incrível! Fico feliz que você quer aprender música com a gente! 🎉🎵\n\nPra começar, me conta: qual é o seu *nome completo*?");
             return res.status(200).json({ ok: true });
           }
+        }
+      }
+
+      // Se for novo contato e mandar uma pergunta aberta -> Responde com a IA da Escola (RAG)
+      if (input.trim().length >= 3) {
+        const aiReply = await answerWithSchoolKnowledge(
+          db,
+          profSettings.organizationId || 1,
+          schoolName,
+          input,
+          profSettings
+        );
+        if (aiReply) {
+          await sendReply(aiReply);
+          await updateState("AGUARDANDO_MENU");
+          return res.status(200).json({ ok: true });
         }
       }
 

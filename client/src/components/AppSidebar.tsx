@@ -24,6 +24,7 @@ import {
   ArrowRight,
   Gem,
   Bot,
+  Brain,
   FileText,
   ChevronDown,
   Compass,
@@ -126,6 +127,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       items: [
         { label: "Automação", href: "/automacoes", icon: Zap },
         { label: "Robô WhatsApp", href: "/chatbot-fluxo", icon: Bot },
+        { label: "Cérebro da IA", href: "/base-conhecimento-ia", icon: Brain },
         { label: "Lembretes", href: "/lembretes", icon: Bell, badge: reminderCount > 0 ? reminderCount : undefined },
       ],
     },

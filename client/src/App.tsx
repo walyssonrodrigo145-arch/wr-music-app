@@ -46,6 +46,7 @@ const TermosDeUso = lazy(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 const SalasEstudio = lazy(() => import("./pages/SalasEstudio"));
 const ChatbotFlowBuilder = lazy(() => import("./pages/ChatbotFlowBuilder"));
+const BaseConhecimentoIA = lazy(() => import("./pages/BaseConhecimentoIA"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -222,6 +223,8 @@ function Router() {
           <Route path="/automacoes" component={Automacoes} />
           <Route path="/chatbot-fluxo" component={ChatbotFlowBuilder} />
           <Route path="/fluxo-chatbot" component={ChatbotFlowBuilder} />
+          <Route path="/base-conhecimento-ia" component={BaseConhecimentoIA} />
+          <Route path="/ia-conhecimento" component={BaseConhecimentoIA} />
           <Route path="/solicitacoes" component={Solicitacoes} />
           <Route path="/ia" component={IAAssistente} />
           <Route path="/folha" component={ProfessorExtract} />

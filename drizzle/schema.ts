@@ -605,6 +605,18 @@ export const chatbotFlows = pgTable("chatbot_flows", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const schoolKnowledgeBase = pgTable("school_knowledge_base", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId"),
+  title: varchar("title", { length: 150 }).notNull(),
+  category: varchar("category", { length: 50 }).default("faq_geral").notNull(), // 'cursos_precos', 'politicas', 'localizacao', 'faq_geral', 'diferenciais'
+  content: text("content").notNull(),
+  isActive: integer("isActive").default(1).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type AiConversation = typeof aiConversations.$inferSelect;
 export type InsertAiConversation = typeof aiConversations.$inferInsert;
 export type AiDocument = typeof aiDocuments.$inferSelect;
@@ -615,6 +627,8 @@ export type ChatbotSession = typeof chatbotSessions.$inferSelect;
 export type InsertChatbotSession = typeof chatbotSessions.$inferInsert;
 export type ChatbotFlow = typeof chatbotFlows.$inferSelect;
 export type InsertChatbotFlow = typeof chatbotFlows.$inferInsert;
+export type SchoolKnowledgeBase = typeof schoolKnowledgeBase.$inferSelect;
+export type InsertSchoolKnowledgeBase = typeof schoolKnowledgeBase.$inferInsert;
 
 export const fcmTokens = pgTable("fcm_tokens", {
   id: serial("id").primaryKey(),

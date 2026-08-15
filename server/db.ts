@@ -688,6 +688,21 @@ async function ensureSchemaConsistency(db: any) {
       )
     `, "create chatbot_flows table");
 
+    // Tabela school_knowledge_base: base de conhecimento RAG e FAQs da escola para atendimento inteligente
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "school_knowledge_base" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "userId" integer,
+        "title" varchar(150) NOT NULL,
+        "category" varchar(50) DEFAULT 'faq_geral' NOT NULL,
+        "content" text NOT NULL,
+        "isActive" integer DEFAULT 1 NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create school_knowledge_base table");
+
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
   }
