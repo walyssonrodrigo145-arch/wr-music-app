@@ -109,8 +109,10 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
         .where(eq(slotOffers.id, offerId));
     }
 
-    // 4. Buscar alunos com aula no mesmo dia após o horário vago (janela de até 14 horas à frente)
-    const windowEnd = new Date(lessonDate.getTime() + 14 * 3600 * 1000);
+    // 4. Buscar alunos com aula no MESMO DIA CALENDÁRIO após o horário vago
+    // Janela: do horário da falta até 23:59:59 do mesmo dia (sem cruzar a meia-noite)
+    const windowEnd = new Date(lessonDate);
+    windowEnd.setHours(23, 59, 59, 999);
 
     const candidateLessons = await db
       .select({
