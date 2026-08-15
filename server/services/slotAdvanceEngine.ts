@@ -55,18 +55,21 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
       .where(and(eq(lessons.id, lessonId), eq(lessons.organizationId, organizationId)))
       .limit(1);
 
-    if (!absentLesson) return;
+    if (!absentLesson) {
+      console.warn("[SlotAdvance] Aula não encontrada:", lessonId);
+      return;
+    }
 
     const lessonDate = new Date(absentLesson.scheduledAt);
     const now = new Date();
 
-    // Só oferece antecipação se o horário vago ainda não tiver passado (com tolerância de 10 min)
-    if (lessonDate.getTime() + 10 * 60000 < now.getTime()) {
-      console.log("[SlotAdvance] Aula com falta já ocorreu no passado:", lessonDate);
+    // Tolerância de 60 min caso a falta seja marcada logo após o início do horário
+    if (lessonDate.getTime() + 60 * 60000 < now.getTime()) {
+      console.log("[SlotAdvance] Horário da falta já passou há mais de 1h:", lessonDate);
       return;
     }
 
-    // 3. Verificar se já existe uma oferta aberta para esta mesma aula
+    // 3. Criar ou reutilizar oferta aberta para esta mesma aula
     const [existingOffer] = await db
       .select({ id: slotOffers.id })
       .from(slotOffers)
@@ -91,7 +94,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
           instrumentId: absentLesson.instrumentId,
           title: absentLesson.title,
           status: "aberta",
-          expiresAt: lessonDate,
+          expiresAt: new Date(lessonDate.getTime() + (absentLesson.duration || 60) * 60000),
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -100,14 +103,9 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
       offerId = newOffer.id;
     }
 
-    // 4. Buscar alunos do mesmo dia com horário POSTERIOR ao horário vago
-    const startOfDay = new Date(lessonDate);
-    startOfDay.setHours(0, 0, 0, 0);
+    // 4. Buscar alunos com aula no mesmo dia após o horário vago (janela de até 14 horas à frente)
+    const windowEnd = new Date(lessonDate.getTime() + 14 * 3600 * 1000);
 
-    const endOfDay = new Date(lessonDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    // Alunos com aula agendada após o horário vago hoje
     const candidateLessons = await db
       .select({
         id: lessons.id,
@@ -128,7 +126,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
         eq(lessons.userId, absentLesson.userId), // Mesmo professor
         eq(lessons.status, "agendada"),
         gt(lessons.scheduledAt, lessonDate), // Horário posterior
-        lte(lessons.scheduledAt, endOfDay)
+        lte(lessons.scheduledAt, windowEnd)
       ));
 
     if (candidateLessons.length === 0) {
@@ -143,6 +141,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
     console.log(`[SlotAdvance] Ofertando vaga das ${formattedVaga} para ${candidateLessons.length} alunos elegíveis.`);
 
     const appUrl = process.env.APP_URL || "https://app.wrmusic.com.br";
+    const teacherSession = `prof_${absentLesson.userId || userId}`;
 
     // 5. Notificar cada aluno elegível via WhatsApp e In-App
     for (const cand of candidateLessons) {
@@ -159,10 +158,10 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
             .replace(/{link_portal}/g, `${appUrl}/aluno`)
         : defaultMsg;
 
-      // Enviar WhatsApp se configurado
+      // Enviar WhatsApp usando a sessão ativa do professor (ex: prof_163)
       if (userSettings?.whatsappBotUrl && userSettings?.whatsappBotToken) {
         try {
-          await sendSmartWhatsAppNotification({
+          const res = await sendSmartWhatsAppNotification({
             sendToStudent: true,
             sendToGuardian: true,
             student: {
@@ -171,12 +170,13 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
               birthDate: cand.birthDate,
             },
             message: finalMessage,
-            sessionId: `org_${organizationId}_admin`,
+            sessionId: teacherSession,
             whatsappConfig: {
               url: userSettings.whatsappBotUrl,
               token: userSettings.whatsappBotToken,
             }
           });
+          console.log(`[SlotAdvance] Envio WhatsApp para ${cand.studentName} (${cand.studentPhone}) via ${teacherSession}:`, res);
         } catch (e) {
           console.error(`[SlotAdvance] Erro ao enviar WhatsApp para ${cand.studentName}:`, e);
         }

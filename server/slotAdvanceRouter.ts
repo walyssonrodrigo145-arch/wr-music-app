@@ -17,31 +17,29 @@ export const slotAdvanceRouter = router({
     const orgId = ctx.user.organizationId!;
 
     // 1. Identificar o cadastro do aluno correspondente a esta conta
-    const [studentRecord] = await db
-      .select({
-        id: students.id,
-        name: students.name,
-        professorId: students.professorId,
-        instrumentId: students.instrumentId,
-      })
-      .from(students)
-      .where(and(
-        eq(students.organizationId, orgId),
-        or(
-          eq(students.studentUserId, ctx.user.id),
-          eq(students.email, ctx.user.email || "")
-        )
-      ))
-      .limit(1);
+    let studentId = (ctx.user as any).studentId;
 
-    if (!studentRecord) return [];
+    if (!studentId) {
+      const [found] = await db
+        .select({ id: students.id })
+        .from(students)
+        .where(and(
+          eq(students.organizationId, orgId),
+          or(
+            eq(students.studentUserId, ctx.user.id),
+            eq(students.email, ctx.user.email || "")
+          )
+        ))
+        .limit(1);
+      if (found) studentId = found.id;
+    }
 
-    // 2. Buscar a aula agendada do aluno para hoje
+    if (!studentId) return [];
+
+    // 2. Buscar a próxima aula agendada do aluno (últimas 2 horas até próximas 18 horas)
     const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
+    const windowStart = new Date(now.getTime() - 2 * 3600 * 1000);
+    const windowEnd = new Date(now.getTime() + 18 * 3600 * 1000);
 
     const [todayLesson] = await db
       .select({
@@ -55,17 +53,18 @@ export const slotAdvanceRouter = router({
       .from(lessons)
       .where(and(
         eq(lessons.organizationId, orgId),
-        eq(lessons.studentId, studentRecord.id),
+        eq(lessons.studentId, studentId),
         eq(lessons.status, "agendada"),
-        gte(lessons.scheduledAt, now), // Aula ainda não começou
-        lte(lessons.scheduledAt, endOfDay)
+        gte(lessons.scheduledAt, windowStart),
+        lte(lessons.scheduledAt, windowEnd)
       ))
+      .orderBy(lessons.scheduledAt)
       .limit(1);
 
     if (!todayLesson) return [];
 
     // 3. Buscar ofertas de vagas abertas com o mesmo professor e ANTES da aula atual
-    const tolerance = new Date(now.getTime() - 10 * 60000); // Até 10 min de tolerância
+    const tolerance = new Date(now.getTime() - 60 * 60000); // Até 60 min de tolerância após início do horário
 
     const offers = await db
       .select({
@@ -111,22 +110,31 @@ export const slotAdvanceRouter = router({
       const orgId = ctx.user.organizationId!;
 
       // 1. Identificar o aluno
-      const [studentRecord] = await db
-        .select({
-          id: students.id,
-          name: students.name,
-          phone: students.phone,
-          guardianPhone: students.guardianPhone,
-        })
-        .from(students)
-        .where(and(
-          eq(students.organizationId, orgId),
-          or(
-            eq(students.studentUserId, ctx.user.id),
-            eq(students.email, ctx.user.email || "")
-          )
-        ))
-        .limit(1);
+      let studentRecord: any = null;
+      let sId = (ctx.user as any).studentId;
+
+      if (sId) {
+        const [found] = await db.select({ id: students.id, name: students.name }).from(students).where(eq(students.id, sId)).limit(1);
+        studentRecord = found;
+      } else {
+        const [found] = await db
+          .select({
+            id: students.id,
+            name: students.name,
+            phone: students.phone,
+            guardianPhone: students.guardianPhone,
+          })
+          .from(students)
+          .where(and(
+            eq(students.organizationId, orgId),
+            or(
+              eq(students.studentUserId, ctx.user.id),
+              eq(students.email, ctx.user.email || "")
+            )
+          ))
+          .limit(1);
+        studentRecord = found;
+      }
 
       if (!studentRecord) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Perfil de aluno não encontrado." });
@@ -134,10 +142,8 @@ export const slotAdvanceRouter = router({
 
       // 2. Buscar a aula do aluno para hoje
       const now = new Date();
-      const startOfDay = new Date(now);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(now);
-      endOfDay.setHours(23, 59, 59, 999);
+      const windowStart = new Date(now.getTime() - 2 * 3600 * 1000);
+      const windowEnd = new Date(now.getTime() + 18 * 3600 * 1000);
 
       const [todayLesson] = await db
         .select({
@@ -150,9 +156,10 @@ export const slotAdvanceRouter = router({
           eq(lessons.organizationId, orgId),
           eq(lessons.studentId, studentRecord.id),
           eq(lessons.status, "agendada"),
-          gte(lessons.scheduledAt, now),
-          lte(lessons.scheduledAt, endOfDay)
+          gte(lessons.scheduledAt, windowStart),
+          lte(lessons.scheduledAt, windowEnd)
         ))
+        .orderBy(lessons.scheduledAt)
         .limit(1);
 
       if (!todayLesson) {
