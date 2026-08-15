@@ -8,8 +8,9 @@ import {
   MessageSquare, Bell, Star, TrendingUp, Users,
   Edit3, X, Search,
   Calendar, DollarSign, Gift, UserX, Loader2, Sparkles,
-  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing, BookOpen, BarChart2, CheckCheck
+  Info, Save, Trash2, ToggleLeft, ToggleRight, BellRing, BookOpen, BarChart2, CheckCheck, Bot
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
@@ -680,6 +681,7 @@ function HistoryModal({ rule, onClose }: { rule: AutomationRule; onClose: () => 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Automacoes() {
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
   const [editorRule, setEditorRule] = useState<Partial<AutomationRule> | null>(null);
   const [historyRule, setHistoryRule] = useState<AutomationRule | null>(null);
   const [ruleToDelete, setRuleToDelete] = useState<number | null>(null);
@@ -880,12 +882,20 @@ export default function Automacoes() {
             <p className="text-xs text-muted-foreground font-medium mt-0.5">Configure quando e como seus alunos recebem mensagens automáticas</p>
           </div>
         </div>
-        <Button
-          onClick={() => setEditorRule({ trigger: "payment_due", offsetDays: -3, isActive: 1 })}
-          className="h-11 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-lg shadow-indigo-500/20 gap-2"
-        >
-          <Plus size={16} /> Criar Nova Regra
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            onClick={() => setLocation("/chatbot-fluxo")}
+            className="h-11 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg shadow-emerald-500/20 gap-2 text-xs"
+          >
+            <Bot size={16} /> Fluxo do Robô WhatsApp
+          </Button>
+          <Button
+            onClick={() => setEditorRule({ trigger: "payment_due", offsetDays: -3, isActive: 1 })}
+            className="h-11 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-lg shadow-indigo-500/20 gap-2 text-xs"
+          >
+            <Plus size={16} /> Criar Nova Regra
+          </Button>
+        </div>
       </div>
 
       <div id="tour-auto-toggle" className={cn(

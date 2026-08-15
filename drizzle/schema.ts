@@ -589,6 +589,22 @@ export const chatbotSessions = pgTable("chatbot_sessions", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const chatbotFlows = pgTable("chatbot_flows", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId"),
+  flowType: varchar("flowType", { length: 30 }).default("aluno").notNull(), // 'aluno' ou 'lead'
+  name: varchar("name", { length: 100 }),
+  welcomeMessage: text("welcomeMessage"),
+  fallbackMessage: text("fallbackMessage"),
+  humanMessage: text("humanMessage"),
+  exitMessage: text("exitMessage"),
+  options: text("options"), // JSON string array of options: [{ id, order, digit, title, icon, actionType, systemAction, customReply, isActive }]
+  isActive: integer("isActive").default(1).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type AiConversation = typeof aiConversations.$inferSelect;
 export type InsertAiConversation = typeof aiConversations.$inferInsert;
 export type AiDocument = typeof aiDocuments.$inferSelect;
@@ -597,6 +613,8 @@ export type AiMessage = typeof aiMessages.$inferSelect;
 export type InsertAiMessage = typeof aiMessages.$inferInsert;
 export type ChatbotSession = typeof chatbotSessions.$inferSelect;
 export type InsertChatbotSession = typeof chatbotSessions.$inferInsert;
+export type ChatbotFlow = typeof chatbotFlows.$inferSelect;
+export type InsertChatbotFlow = typeof chatbotFlows.$inferInsert;
 
 export const fcmTokens = pgTable("fcm_tokens", {
   id: serial("id").primaryKey(),

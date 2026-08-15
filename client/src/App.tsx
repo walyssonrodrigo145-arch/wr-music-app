@@ -45,6 +45,7 @@ const DashboardComercial = lazy(() => import('./pages/DashboardComercial'));
 const TermosDeUso = lazy(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 const SalasEstudio = lazy(() => import("./pages/SalasEstudio"));
+const ChatbotFlowBuilder = lazy(() => import("./pages/ChatbotFlowBuilder"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -219,6 +220,8 @@ function Router() {
           <Route path="/marketing/nova" component={CreateCampaign} />
           <Route path="/marketing/:id" component={CampaignDetails} />
           <Route path="/automacoes" component={Automacoes} />
+          <Route path="/chatbot-fluxo" component={ChatbotFlowBuilder} />
+          <Route path="/fluxo-chatbot" component={ChatbotFlowBuilder} />
           <Route path="/solicitacoes" component={Solicitacoes} />
           <Route path="/ia" component={IAAssistente} />
           <Route path="/folha" component={ProfessorExtract} />

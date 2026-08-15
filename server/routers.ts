@@ -46,6 +46,7 @@ import { crmRouter } from "./crmRouter";
 import { studioRoomsRouter } from "./studioRoomsRouter";
 import { enrollmentRouter } from "./enrollmentRouter";
 import { advancedAiRouter } from "./advancedAiRouter";
+import { chatbotFlowRouter } from "./chatbotFlowRouter";
 
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
@@ -11437,6 +11438,7 @@ Texto original para reescrever:
   }),
 
   crm: crmRouter,
+  chatbotFlow: chatbotFlowRouter,
 });
 
 export type AppRouter = typeof appRouter;

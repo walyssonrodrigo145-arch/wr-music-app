@@ -669,6 +669,25 @@ async function ensureSchemaConsistency(db: any) {
       )
     `, "create crm_activities table");
 
+    // Tabela chatbot_flows: fluxo configurável e dinâmico de autoatendimento WhatsApp
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "chatbot_flows" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "userId" integer,
+        "flowType" varchar(30) DEFAULT 'aluno' NOT NULL,
+        "name" varchar(100),
+        "welcomeMessage" text,
+        "fallbackMessage" text,
+        "humanMessage" text,
+        "exitMessage" text,
+        "options" text,
+        "isActive" integer DEFAULT 1 NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create chatbot_flows table");
+
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
   }

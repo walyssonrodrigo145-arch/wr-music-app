@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { getDb } from "../db";
-import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens } from "../../drizzle/schema";
+import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows } from "../../drizzle/schema";
 import { eq, and, gte, ilike } from "drizzle-orm";
 import { sendWhatsAppMessage } from "../utils/whatsapp";
 import { buildUserContext } from "../utils/aiContext";
 import { getSystemPrompt } from "../utils/aiPrompts";
 import { callGemini } from "../utils/gemini";
 import { sendPushNotification } from "../firebaseAdmin";
+import { getDefaultFlow, ChatbotFlowData } from "../chatbotFlowRouter";
 
 const router = Router();
 
@@ -96,14 +97,82 @@ function isSlotFree(slotDate: Date, ocupadas: any[]) {
   });
 }
 
-// ─── Menu Principal ───────────────────────────────────────────────────────────
+// ─── Menu Principal Dinâmico & Configurável ──────────────────────────────────
 
-function menuPrincipalMsg(schoolName: string, studentName: string): string {
-  return `Oi, *${studentName}*! Que alegria te ver por aqui! 🎵😊\n\nComo posso te ajudar hoje na *${schoolName}*?\n\n1️⃣  📅  Minhas Aulas\n2️⃣  💰  Financeiro\n3️⃣  📆  Agendar uma Aula\n4️⃣  🔄  Reagendar Aula\n5️⃣  ⭐  Indicar um amigo\n0️⃣  🎸  Falar com o Professor\n9️⃣9️⃣ ❌  Encerrar Atendimento\n\n_Digite o número da opção desejada_ 👇`;
+async function getDynamicFlow(db: any, orgId: number, flowType: "aluno" | "lead"): Promise<ChatbotFlowData> {
+  try {
+    const [flow] = await db
+      .select()
+      .from(chatbotFlows)
+      .where(
+        and(
+          eq(chatbotFlows.organizationId, orgId),
+          eq(chatbotFlows.flowType, flowType),
+          eq(chatbotFlows.isActive, 1)
+        )
+      )
+      .limit(1);
+
+    if (flow && flow.options) {
+      try {
+        const parsedOptions = JSON.parse(flow.options);
+        return {
+          id: flow.id,
+          flowType: flow.flowType as any,
+          name: flow.name || undefined,
+          welcomeMessage: flow.welcomeMessage || getDefaultFlow(flowType).welcomeMessage,
+          fallbackMessage: flow.fallbackMessage || getDefaultFlow(flowType).fallbackMessage,
+          humanMessage: flow.humanMessage || getDefaultFlow(flowType).humanMessage,
+          exitMessage: flow.exitMessage || getDefaultFlow(flowType).exitMessage,
+          options: parsedOptions,
+          isActive: flow.isActive,
+        };
+      } catch {
+        /* fallback */
+      }
+    }
+  } catch (err) {
+    console.error("[Chatbot] Erro ao buscar fluxo dinâmico:", err);
+  }
+  return getDefaultFlow(flowType);
 }
 
-function menuPrincipalNovoMsg(schoolName: string): string {
-  return `Olá! Seja muito bem-vindo(a) à *${schoolName}*! 🎶\n\nFicamos felizes com seu contato! Aqui você encontra as melhores aulas de música. 😊\n\nComo posso te ajudar?\n\n1️⃣  🎵  Quero me matricular\n2️⃣  💬  Falar com nossa equipe / Professor\n9️⃣9️⃣ ❌  Encerrar Atendimento\n\n_Só me diga o número e eu te ajudo! 👇_`;
+function renderDynamicMenu(flow: ChatbotFlowData, schoolName: string, studentName?: string): string {
+  const primeiroNome = studentName ? studentName.split(" ")[0] : "Aluno";
+  let msg = (flow.welcomeMessage || "")
+    .replace(/\{nome_aluno\}/g, studentName || "Aluno")
+    .replace(/\{primeiro_nome\}/g, primeiroNome)
+    .replace(/\{nome_escola\}/g, schoolName)
+    .replace(/\{link_matricula\}/g, `https://wrmusicpro.com.br/matricula/${schoolName.toLowerCase().replace(/\s+/g, '-')}`)
+    .replace(/\{link_portal\}/g, "https://wrmusicpro.com.br/aluno");
+
+  msg += "\n\n";
+  const activeOpts = (flow.options || []).filter((o) => o.isActive);
+  activeOpts.sort((a, b) => a.order - b.order);
+
+  for (const opt of activeOpts) {
+    const digitEmoji = opt.digit === "0" ? "0️⃣" : opt.digit === "99" ? "9️⃣9️⃣" : `${opt.digit}️⃣`;
+    msg += `${digitEmoji}  ${opt.title}\n`;
+  }
+  msg += "\n_Digite o número da opção desejada_ 👇";
+  return msg;
+}
+
+function interpolateText(text: string, schoolName: string, studentName?: string, extra?: Record<string, string>): string {
+  const primeiroNome = studentName ? studentName.split(" ")[0] : "Aluno";
+  let res = (text || "")
+    .replace(/\{nome_aluno\}/g, studentName || "Aluno")
+    .replace(/\{primeiro_nome\}/g, primeiroNome)
+    .replace(/\{nome_escola\}/g, schoolName)
+    .replace(/\{link_matricula\}/g, `https://wrmusicpro.com.br/matricula/${schoolName.toLowerCase().replace(/\s+/g, '-')}`)
+    .replace(/\{link_portal\}/g, "https://wrmusicpro.com.br/aluno");
+
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      res = res.replace(new RegExp(`\\{${k}\\}`, "g"), v);
+    }
+  }
+  return res;
 }
 
 // ─── Webhook ─────────────────────────────────────────────────────────────────
@@ -364,11 +433,12 @@ router.post("/", async (req, res) => {
     if (session.state === "START" || inputUpper === "MENU") {
       if (student) {
         await updateState("MENU_ALUNO");
-        const primeiroNome = student.name.split(" ")[0];
-        await sendReply(menuPrincipalMsg(schoolName, primeiroNome));
+        const flow = await getDynamicFlow(db, profSettings.organizationId || 1, "aluno");
+        await sendReply(renderDynamicMenu(flow, schoolName, student.name));
       } else {
         await updateState("MENU_NOVO");
-        await sendReply(menuPrincipalNovoMsg(schoolName));
+        const flow = await getDynamicFlow(db, profSettings.organizationId || 1, "lead");
+        await sendReply(renderDynamicMenu(flow, schoolName));
       }
       return res.status(200).json({ ok: true });
     }
@@ -635,7 +705,7 @@ router.post("/", async (req, res) => {
     }
 
     // ─────────────────────────────────────────────────────
-    // MENU: ALUNO CADASTRADO
+    // MENU: ALUNO CADASTRADO (DINÂMICO)
     // ─────────────────────────────────────────────────────
     if (session.state === "MENU_ALUNO") {
       if (!student) {
@@ -643,176 +713,226 @@ router.post("/", async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
-      if (isOption(input, "1")) {
-        // Ver próximas aulas
-        const nextLessons = await db
-          .select()
-          .from(lessons)
-          .where(
-            and(
-              eq(lessons.studentId, student.id),
-              gte(lessons.scheduledAt, new Date()),
-              eq(lessons.status, "agendada")
-            )
-          );
+      const flow = await getDynamicFlow(db, profSettings.organizationId || 1, "aluno");
+      const matchedOpt = flow.options.find(
+        (o) => o.isActive && (isOption(input, o.digit) || o.title.toLowerCase() === input.toLowerCase())
+      );
 
-        if (nextLessons.length === 0) {
-          await sendReply("Hmm, parece que você não tem nenhuma aula agendada por enquanto. 📅\n\nSe quiser marcar uma, é só digitar *MENU* e escolher a opção 3! 😊");
-        } else {
-          let msg = `📅 *Suas próximas aulas:*\n━━━━━━━━━━━━━━━━━━\n`;
-          nextLessons.slice(0, 5).forEach((l) => {
-            const data = l.scheduledAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-            const hora = l.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-            msg += `🎵 *${data}* às *${hora}* — ${l.duration} min\n`;
-          });
-          msg += `━━━━━━━━━━━━━━━━━━\n\nTe esperamos! 😊 Digite *MENU* para voltar.`;
-          await sendReply(msg);
-        }
-        await updateState("AGUARDANDO_MENU");
-        return res.status(200).json({ ok: true });
-      }
-
-      if (isOption(input, "2")) {
-        // Financeiro
-        const pendingDues = await db
-          .select()
-          .from(paymentDues)
-          .where(
-            and(
-              eq(paymentDues.studentId, student.id),
-              eq(paymentDues.status, "pendente")
-            )
-          );
-
-        if (pendingDues.length === 0) {
-          await sendReply("✅ *Que ótima notícia!*\nVocê está em dia com seus pagamentos. Continue assim! 🌟\n\nDigite *MENU* para voltar.");
-        } else {
-          let msg = `💰 *Mensalidades em aberto:*\n━━━━━━━━━━━━━━━━━━\n`;
-          pendingDues.slice(0, 5).forEach((p) => {
-            const valor = parseFloat(String(p.amount)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-            const venc = new Date(p.dueDate + "T12:00:00").toLocaleDateString("pt-BR");
-            msg += `🔸 *${valor}* — vence em ${venc}\n`;
-            if (p.asaasPaymentLink) {
-              msg += `   💳 Pague aqui: ${p.asaasPaymentLink}\n`;
-            } else if (p.mpPaymentLink) {
-              msg += `   💳 Pague aqui: ${p.mpPaymentLink}\n`;
-            }
-          });
-          if (profSettings.pixKey) {
-            msg += `\n🔑 *Chave PIX para pagamento:* ${profSettings.pixKey}\n`;
-          }
-          msg += `━━━━━━━━━━━━━━━━━━\n\nQualquer dúvida, é só falar! Digite *MENU* para voltar ou *5* para falar com o professor.`;
-          await sendReply(msg);
-        }
-        await updateState("AGUARDANDO_MENU");
-        return res.status(200).json({ ok: true });
-      }
-
-      if (isOption(input, "3")) {
-        // Agendar Aula
-        const slots = generateAvailableSlots(profSettings.schoolHours || "");
-        const ocupadas = await db
-          .select()
-          .from(lessons)
-          .where(
-            and(
-              eq(lessons.userId, professorUserId),
-              gte(lessons.scheduledAt, new Date()),
-              eq(lessons.status, "agendada")
-            )
-          );
-
-        const freeSlots = slots
-          .filter((s) => isSlotFree(s.date, ocupadas))
-          .slice(0, 5);
-
-        await updateState("AGENDAR_AULA_SLOT", { freeSlots });
-
-        if (freeSlots.length === 0) {
-          await sendReply("Hmm, parece que não temos horários disponíveis nos próximos dias. 😕\n\nEntre em contato com o professor para verificar uma data! Digite *MENU* para voltar.");
+      if (matchedOpt) {
+        if (matchedOpt.actionType === "text_reply") {
+          const reply = interpolateText(matchedOpt.customReply || "Opção selecionada! Digite *MENU* para voltar.", schoolName, student.name);
+          await sendReply(reply);
+          await updateState("AGUARDANDO_MENU");
           return res.status(200).json({ ok: true });
         }
 
-        let msg = `📆 *Horários disponíveis:*\n━━━━━━━━━━━━━━━━━━\n`;
-        freeSlots.forEach((s, i) => {
-          msg += `${i + 1}️⃣  ${s.label}\n`;
-        });
-        msg += `━━━━━━━━━━━━━━━━━━\n\nDigite o *número* do horário que preferir, ou *MENU* para voltar. 😊`;
-        await sendReply(msg);
-        return res.status(200).json({ ok: true });
-      }
-
-      if (isOption(input, "4")) {
-        // Reagendar Aula (lista próximas aulas)
-        const nextLessons = await db
-          .select()
-          .from(lessons)
-          .where(
-            and(
-              eq(lessons.studentId, student.id),
-              gte(lessons.scheduledAt, new Date()),
-              eq(lessons.status, "agendada")
-            )
-          )
-          .limit(3);
-
-        if (nextLessons.length === 0) {
-          await sendReply("Você não tem nenhuma aula agendada para reagendar no momento. 📅\n\nQuer marcar uma nova? É só digitar *MENU* e escolher a opção 3! 😊");
-          await updateState("AGUARDANDO_MENU");
-        } else {
-          let msg = `🔄 *Qual aula você quer reagendar?*\n━━━━━━━━━━━━━━━━━━\n`;
-          nextLessons.forEach((l, i) => {
-            const data = l.scheduledAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-            const hora = l.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-            msg += `${i + 1}️⃣  ${data} às ${hora}\n`;
-          });
-          msg += `━━━━━━━━━━━━━━━━━━\n\nDigite o *número* da aula ou *MENU* para voltar.`;
-          await updateState("REAGENDAR_SELECIONAR_AULA", { nextLessons });
-          await sendReply(msg);
+        if (matchedOpt.actionType === "human_transfer") {
+          await updateState("PAUSED_HUMAN");
+          await notifyProfessor(`👤 *Solicitação de Atendimento Humano!*\n\nO aluno *${student?.name || pushName}* (${phone}) solicitou falar com você no WhatsApp.`);
+          await sendReply(interpolateText(flow.humanMessage, schoolName, student.name));
+          return res.status(200).json({ ok: true });
         }
-        return res.status(200).json({ ok: true });
-      }
 
-      if (isOption(input, "5")) {
-        // Falar com professor
-        await updateState("PAUSED_HUMAN");
-        await notifyProfessor(`👤 *Solicitação de Atendimento Humano!*\n\nO aluno *${student?.name || pushName}* (${phone}) solicitou falar com você no WhatsApp.`);
-        await sendReply("Claro! Vou chamar o professor pra você agora. Aguarda um instante! 🎸👤\n\n_Quando quiser voltar ao menu automático, é só digitar *MENU*._");
-        return res.status(200).json({ ok: true });
-      }
+        if (matchedOpt.actionType === "close_chat") {
+          await updateState("AGUARDANDO_MENU");
+          await sendReply(interpolateText(flow.exitMessage, schoolName, student.name));
+          return res.status(200).json({ ok: true });
+        }
 
-      if (isOption(input, "6")) {
-        // Indicar amigo
-        await updateState("INDICAR_NOME");
-        await sendReply("Que demais! Sua indicação é muito especial pra gente! 🌟🎶\n\nMe diz o *nome completo* do seu amigo que quer indicar:");
-        return res.status(200).json({ ok: true });
+        if (matchedOpt.actionType === "system_action") {
+          const act = matchedOpt.systemAction;
+
+          if (act === "minhas_aulas") {
+            const nextLessons = await db
+              .select()
+              .from(lessons)
+              .where(
+                and(
+                  eq(lessons.studentId, student.id),
+                  gte(lessons.scheduledAt, new Date()),
+                  eq(lessons.status, "agendada")
+                )
+              );
+
+            if (nextLessons.length === 0) {
+              await sendReply("Hmm, parece que você não tem nenhuma aula agendada por enquanto. 📅\n\nSe quiser marcar uma, é só digitar *MENU* e escolher a opção de agendamento! 😊");
+            } else {
+              let msg = `📅 *Suas próximas aulas:*\n━━━━━━━━━━━━━━━━━━\n`;
+              nextLessons.slice(0, 5).forEach((l) => {
+                const data = l.scheduledAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+                const hora = l.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+                msg += `🎵 *${data}* às *${hora}* — ${l.duration} min\n`;
+              });
+              msg += `━━━━━━━━━━━━━━━━━━\n\nTe esperamos! 😊 Digite *MENU* para voltar.`;
+              await sendReply(msg);
+            }
+            await updateState("AGUARDANDO_MENU");
+            return res.status(200).json({ ok: true });
+          }
+
+          if (act === "financeiro") {
+            const pendingDues = await db
+              .select()
+              .from(paymentDues)
+              .where(
+                and(
+                  eq(paymentDues.studentId, student.id),
+                  eq(paymentDues.status, "pendente")
+                )
+              );
+
+            if (pendingDues.length === 0) {
+              await sendReply("✅ *Que ótima notícia!*\nVocê está em dia com seus pagamentos. Continue assim! 🌟\n\nDigite *MENU* para voltar.");
+            } else {
+              let msg = `💰 *Mensalidades em aberto:*\n━━━━━━━━━━━━━━━━━━\n`;
+              pendingDues.slice(0, 5).forEach((p) => {
+                const valor = parseFloat(String(p.amount)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const venc = new Date(p.dueDate + "T12:00:00").toLocaleDateString("pt-BR");
+                msg += `🔸 *${valor}* — vence em ${venc}\n`;
+                if (p.asaasPaymentLink) {
+                  msg += `   💳 Pague aqui: ${p.asaasPaymentLink}\n`;
+                } else if (p.mpPaymentLink) {
+                  msg += `   💳 Pague aqui: ${p.mpPaymentLink}\n`;
+                }
+              });
+              if (profSettings.pixKey) {
+                msg += `\n🔑 *Chave PIX:* ${profSettings.pixKey}\n`;
+              }
+              msg += `━━━━━━━━━━━━━━━━━━\n\nApós realizar o pagamento, você pode enviar o *comprovante aqui mesmo* que damos baixa automática! 📸✨\n\nDigite *MENU* para voltar.`;
+              await sendReply(msg);
+            }
+            await updateState("AGUARDANDO_MENU");
+            return res.status(200).json({ ok: true });
+          }
+
+          if (act === "agendar_aula") {
+            const slots = generateAvailableSlots(profSettings.schoolHours || "");
+            const ocupadas = await db
+              .select()
+              .from(lessons)
+              .where(
+                and(
+                  eq(lessons.userId, professorUserId),
+                  gte(lessons.scheduledAt, new Date()),
+                  eq(lessons.status, "agendada")
+                )
+              );
+
+            const freeSlots = slots
+              .filter((s) => isSlotFree(s.date, ocupadas))
+              .slice(0, 5);
+
+            if (freeSlots.length === 0) {
+              await sendReply("Poxa, não encontrei horários livres para os próximos dias na agenda. 😕\n\nVou avisar o professor para ele verificar um horário especial para você! Digite *0* se quiser falar agora.");
+              await updateState("AGUARDANDO_MENU");
+              return res.status(200).json({ ok: true });
+            }
+
+            await updateState("AGENDAR_AULA_SLOT", { freeSlots });
+            let msg = `📅 *Escolha o melhor dia e horário:*\n━━━━━━━━━━━━━━━━━━\n`;
+            freeSlots.forEach((s, i) => {
+              msg += `${i + 1}️⃣  ${s.label}\n`;
+            });
+            msg += `━━━━━━━━━━━━━━━━━━\n\nDigita o *número* da opção desejada ou *MENU* para cancelar.`;
+            await sendReply(msg);
+            return res.status(200).json({ ok: true });
+          }
+
+          if (act === "reagendar_aula") {
+            const nextLessons = await db
+              .select()
+              .from(lessons)
+              .where(
+                and(
+                  eq(lessons.studentId, student.id),
+                  gte(lessons.scheduledAt, new Date()),
+                  eq(lessons.status, "agendada")
+                )
+              );
+
+            if (nextLessons.length === 0) {
+              await sendReply("Você não tem nenhuma aula futura agendada para reagendar. 📅 Digite *MENU* para marcar uma aula nova!");
+              await updateState("AGUARDANDO_MENU");
+            } else {
+              let msg = `🔄 *Qual aula você deseja remarcar?*\n━━━━━━━━━━━━━━━━━━\n`;
+              nextLessons.slice(0, 5).forEach((l, i) => {
+                const data = l.scheduledAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+                const hora = l.scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+                msg += `${i + 1}️⃣  *${data}* às *${hora}*\n`;
+              });
+              msg += `━━━━━━━━━━━━━━━━━━\n\nDigita o *número* da aula ou *MENU* para voltar.`;
+              await updateState("REAGENDAR_SELECIONAR_AULA", { nextLessons });
+              await sendReply(msg);
+            }
+            return res.status(200).json({ ok: true });
+          }
+
+          if (act === "indicar_amigo") {
+            await updateState("INDICAR_NOME");
+            await sendReply("Que demais! Sua indicação é muito especial pra gente! 🌟🎶\n\nMe diz o *nome completo* do seu amigo que quer indicar:");
+            return res.status(200).json({ ok: true });
+          }
+
+          if (act === "matricula_link") {
+            const reply = interpolateText(matchedOpt.customReply || "Acesse nosso link oficial de matrículas:\n👉 {link_matricula}", schoolName, student.name);
+            await sendReply(reply);
+            await updateState("AGUARDANDO_MENU");
+            return res.status(200).json({ ok: true });
+          }
+        }
       }
 
       // Opção inválida
-      await sendReply("Não entendi essa opção, desculpa! 😅\n\nDigita só o *número* da opção que você quer:\n\n1️⃣  📅  Minhas Aulas\n2️⃣  💰  Financeiro\n3️⃣  📆  Agendar uma Aula\n4️⃣  🔄  Reagendar Aula\n5️⃣  🎸  Falar com o Professor\n6️⃣  ⭐  Indicar um amigo");
+      await sendReply(interpolateText(flow.fallbackMessage, schoolName, student.name));
       return res.status(200).json({ ok: true });
     }
 
     // ─────────────────────────────────────────────────────
-    // MENU: NOVO USUÁRIO (NÃO CADASTRADO)
+    // MENU: NOVO USUÁRIO / LEAD (DINÂMICO)
     // ─────────────────────────────────────────────────────
     if (session.state === "MENU_NOVO") {
-      if (isOption(input, "1")) {
-        // Quero me matricular
-        await updateState("MATRICULA_NOME");
-        await sendReply("Que notícia incrível! Fico feliz que você quer aprender música com a gente! 🎉🎵\n\nPra começar, me conta: qual é o seu *nome completo*?");
-        return res.status(200).json({ ok: true });
+      const flow = await getDynamicFlow(db, profSettings.organizationId || 1, "lead");
+      const matchedOpt = flow.options.find(
+        (o) => o.isActive && (isOption(input, o.digit) || o.title.toLowerCase() === input.toLowerCase())
+      );
+
+      if (matchedOpt) {
+        if (matchedOpt.actionType === "text_reply") {
+          const reply = interpolateText(matchedOpt.customReply || "Obrigado pelo contato! Digite *MENU* para voltar.", schoolName);
+          await sendReply(reply);
+          await updateState("AGUARDANDO_MENU");
+          return res.status(200).json({ ok: true });
+        }
+
+        if (matchedOpt.actionType === "human_transfer") {
+          await updateState("PAUSED_HUMAN");
+          await notifyProfessor(`👤 *Novo Contato Aguardando Atendimento!*\n\nContato (${phone}) solicitou falar com a equipe no WhatsApp.`);
+          await sendReply(interpolateText(flow.humanMessage, schoolName));
+          return res.status(200).json({ ok: true });
+        }
+
+        if (matchedOpt.actionType === "close_chat") {
+          await updateState("AGUARDANDO_MENU");
+          await sendReply(interpolateText(flow.exitMessage, schoolName));
+          return res.status(200).json({ ok: true });
+        }
+
+        if (matchedOpt.actionType === "system_action") {
+          if (matchedOpt.systemAction === "matricula_link") {
+            if (matchedOpt.customReply && matchedOpt.customReply.trim()) {
+              await sendReply(interpolateText(matchedOpt.customReply, schoolName));
+              await updateState("AGUARDANDO_MENU");
+              return res.status(200).json({ ok: true });
+            }
+            // Inicia fluxo de coleta de dados para matrícula
+            await updateState("MATRICULA_NOME");
+            await sendReply("Que notícia incrível! Fico feliz que você quer aprender música com a gente! 🎉🎵\n\nPra começar, me conta: qual é o seu *nome completo*?");
+            return res.status(200).json({ ok: true });
+          }
+        }
       }
 
-      if (isOption(input, "2")) {
-        // Falar com equipe
-        await updateState("PAUSED_HUMAN");
-        await notifyProfessor(`👤 *Novo Cliente Aguardando Atendimento!*\n\nContato (${phone}) solicitou falar com a equipe no WhatsApp.`);
-        await sendReply("Perfeito! Já estou chamando nossa equipe pra te atender. Aguarda um pouquinho! 👤😊\n\n_Se quiser voltar ao menu automático depois, é só digitar *MENU*._");
-        return res.status(200).json({ ok: true });
-      }
-
-      await sendReply(`Hmm, não entendi! 😅 Digita só o número da opção:\n\n1️⃣  🎵  Quero me matricular\n2️⃣  💬  Falar com nossa equipe`);
+      await sendReply(interpolateText(flow.fallbackMessage, schoolName));
       return res.status(200).json({ ok: true });
     }
 

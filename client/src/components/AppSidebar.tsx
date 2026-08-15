@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   ArrowRight,
   Gem,
+  Bot,
   FileText,
   ChevronDown,
   Compass,
@@ -124,6 +125,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       textColor: "text-amber-400",
       items: [
         { label: "Automação", href: "/automacoes", icon: Zap },
+        { label: "Robô WhatsApp", href: "/chatbot-fluxo", icon: Bot },
         { label: "Lembretes", href: "/lembretes", icon: Bell, badge: reminderCount > 0 ? reminderCount : undefined },
       ],
     },
