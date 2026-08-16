@@ -200,7 +200,7 @@ export const schoolAiRouter = router({
       const orgId = ctx.user.organizationId!;
 
       // 1. Carrega configurações da escola
-      const [userSettings] = await db
+      let [userSettings] = await db
         .select({
           schoolName: settings.schoolName,
           aiProvider: settings.aiProvider,
@@ -213,6 +213,25 @@ export const schoolAiRouter = router({
         .from(settings)
         .where(eq(settings.userId, ctx.user.id))
         .limit(1);
+
+      if (!userSettings?.groqApiKey && !userSettings?.geminiApiKey) {
+        const [orgSettings] = await db
+          .select({
+            schoolName: settings.schoolName,
+            aiProvider: settings.aiProvider,
+            geminiApiKey: settings.geminiApiKey,
+            geminiModel: settings.geminiModel,
+            groqApiKey: settings.groqApiKey,
+            groqModel: settings.groqModel,
+            pixKey: settings.pixKey,
+          })
+          .from(settings)
+          .where(eq(settings.organizationId, orgId))
+          .limit(1);
+        if (orgSettings) {
+          userSettings = orgSettings;
+        }
+      }
 
       const schoolName = userSettings?.schoolName || "Nossa Escola de Música";
 
