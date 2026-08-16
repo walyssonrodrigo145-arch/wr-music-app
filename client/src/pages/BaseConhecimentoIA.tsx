@@ -108,6 +108,7 @@ export default function BaseConhecimentoIA() {
           question: testQuestion,
           answer: res.reply,
           topicsCount: res.usedTopicsCount,
+          isError: (res as any).isError,
           time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -375,10 +376,24 @@ export default function BaseConhecimentoIA() {
 
                     {/* Resposta da IA com base RAG */}
                     <div className="flex justify-start">
-                      <div className="bg-card text-foreground p-3 rounded-2xl rounded-tl-none max-w-[90%] border border-border shadow-sm space-y-1.5">
-                        <div className="flex items-center gap-1.5 text-[10px] font-black text-purple-600 dark:text-purple-400">
-                          <Bot size={12} />
-                          <span>IA WR MusicPro ({item.topicsCount || 0} tópicos consultados)</span>
+                      <div className={cn(
+                        "p-3 rounded-2xl rounded-tl-none max-w-[90%] border shadow-sm space-y-1.5",
+                        (item as any).isError
+                          ? "bg-amber-500/10 border-amber-500/30 text-foreground"
+                          : "bg-card text-foreground border-border"
+                      )}>
+                        <div className="flex items-center gap-1.5 text-[10px] font-black">
+                          {(item as any).isError ? (
+                            <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                              <Bot size={12} />
+                              Aviso de Contingência / Erro de IA
+                            </span>
+                          ) : (
+                            <span className="text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                              <Bot size={12} />
+                              IA WR MusicPro ({item.topicsCount || 0} tópicos consultados)
+                            </span>
+                          )}
                         </div>
                         <p className="whitespace-pre-wrap leading-relaxed">{item.answer}</p>
                       </div>

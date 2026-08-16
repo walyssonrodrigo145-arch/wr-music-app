@@ -938,7 +938,7 @@ export default function Configuracoes() {
   // ── IA state ──
   const [aiProvider, setAiProvider] = useState("gemini");
   const [geminiApiKey, setGeminiApiKey] = useState("");
-  const [geminiModel, setGeminiModel] = useState("gemini-3.1-pro-preview");
+  const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash");
   const [groqApiKey, setGroqApiKey] = useState("");
   const [groqModel, setGroqModel] = useState("llama-3.3-70b-versatile");
 
@@ -1004,7 +1004,7 @@ export default function Configuracoes() {
       setMpAccessToken(settings.mpAccessToken ?? "");
       setAiProvider(settings.aiProvider ?? "gemini");
       setGeminiApiKey(settings.geminiApiKey ?? "");
-      setGeminiModel(settings.geminiModel ?? "gemini-3.1-pro-preview");
+      setGeminiModel(settings.geminiModel ?? "gemini-2.0-flash");
       setGroqApiKey(settings.groqApiKey ?? "");
       setGroqModel(settings.groqModel ?? "llama-3.3-70b-versatile");
     }
@@ -2457,9 +2457,9 @@ export default function Configuracoes() {
                         onChange={(e) => setGeminiModel(e.target.value)}
                         className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
-                        <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Sua Escolha)</option>
-                        <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado - Mais rápido e inteligente)</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Padrão rápido)</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Avançado)</option>
                       </select>
                     </Field>
                   </div>

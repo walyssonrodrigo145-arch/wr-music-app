@@ -78,10 +78,26 @@ export async function callGemini(
       parts: [{ text: msg.content }],
     }));
 
+    // Sanitizar e mapear modelos válidos para a API do Google Generative AI
+    let safeModel = customModel?.trim() || "gemini-1.5-flash";
+    if (
+      safeModel === "gemini-3.1-pro-preview" ||
+      safeModel === "gemini-3.5-flash" ||
+      safeModel.includes("3.1") ||
+      safeModel.includes("3.5") ||
+      safeModel === "gemini-2.0-flash"
+    ) {
+      safeModel = "gemini-2.0-flash";
+    } else if (safeModel === "gemini-2.5-pro" || safeModel === "gemini-1.5-pro") {
+      safeModel = "gemini-1.5-pro";
+    } else if (safeModel.includes("flash")) {
+      safeModel = "gemini-1.5-flash";
+    }
+
     // Gemini Handler
     const localGenAI = new GoogleGenerativeAI(apiKeyToUse.trim());
     const model = localGenAI.getGenerativeModel({
-      model: customModel || "gemini-3.1-pro-preview",
+      model: safeModel,
       systemInstruction: systemPrompt,
       generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
     });
@@ -92,8 +108,7 @@ export async function callGemini(
     
     const lastMessage = formattedMessages[formattedMessages.length - 1];
     
-    // MÉDIO-15 FIX: Timeout explícito de 30 segundos para chamadas à API do Gemini.
-    // Impede que uma API lenta/travada segure conexões indefinidamente e trave o servidor.
+    // Timeout explícito de 30 segundos para chamadas à API do Gemini
     const GEMINI_TIMEOUT_MS = 30_000;
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("[Gemini] Timeout: A API não respondeu em 30 segundos.")), GEMINI_TIMEOUT_MS)
@@ -115,18 +130,18 @@ export async function callGemini(
     ) {
       throw new Error(
         "A chave da API do Gemini excedeu o limite de uso (Quota Exceeded / Limite Excedido). " +
-        "Verifique se você atingiu o limite de uso gratuito ou se precisa vincular uma conta de faturamento (billing) ao seu projeto no Google AI Studio."
+        "Verifique sua conta no Google AI Studio."
       );
     }
     
-    if (error.status === 403 || error.status === 400 || error.message?.includes("API key")) {
+    if (error.status === 403 || error.status === 400 || error.message?.includes("API key") || error.message?.toLowerCase().includes("api_key_invalid")) {
       throw new Error(
         "A chave da API do Gemini está incorreta ou é inválida. " +
-        "Verifique a chave informada nas Configurações."
+        "Verifique a chave informada nas Configurações > Inteligência Artificial."
       );
     }
 
-    throw new Error("Falha ao comunicar com a inteligência artificial. Tente novamente em instantes.");
+    throw new Error(`Erro no Gemini (${error.status || "Falha"}): ${error.message || "Falha ao comunicar com a inteligência artificial."}`);
   }
 }
 

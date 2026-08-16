@@ -266,11 +266,15 @@ DIRETRIZES DE RESPOSTA NO WHATSAPP:
         return {
           reply: response,
           usedTopicsCount: activeTopics.length,
+          isError: false,
+          error: null,
         };
       } catch (err: any) {
+        console.error("[Test AI Error]:", err);
         return {
-          reply: `Olá! Muito obrigado pelo contato com a *${schoolName}*! 🎶\n\nIdentifiquei sua dúvida: "${input.question}".\n\nNossa equipe pedagógica terá prazer em te ajudar! Acesse nosso link de matrícula ou digite *MENU* para falar com o professor:\n👉 ${enrollmentLink}`,
+          reply: `⚠️ *Não foi possível consultar a IA no momento.* (${err.message})\n\n💡 *Dica:* Verifique se a sua chave de API e o modelo estão corretos na aba *Configurações > Inteligência Artificial*.\n\n--- Mensagem de Contingência Enviada ao Cliente ---\nOlá! Muito obrigado pelo interesse na *${schoolName}*! 🎵✨\n\nNossa equipe pedagógica terá enorme prazer em tirar todas as suas dúvidas sobre aulas, valores e horários disponíveis!\n\nVocê também pode conhecer nossos cursos e realizar sua matrícula online aqui: 👉 ${enrollmentLink}`,
           usedTopicsCount: activeTopics.length,
+          isError: true,
           error: err.message,
         };
       }
