@@ -5,70 +5,11 @@ import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
 
-// Dados padrão caso o banco ainda tenha poucos itens cadastrados
-const DEFAULT_PARTNERS = [
-  {
-    id: 'def-1',
-    name: 'Espaço Musical Edu Oliveira',
-    logoUrl: '/img/piano-trans.png',
-    websiteUrl: 'https://instagram.com',
-    category: 'Escola & Estúdio',
-    location: 'São Paulo - SP',
-    testimonial: 'A MusicPro revolucionou a gestão dos nossos 180 alunos e reduziu a inadimplência a quase zero.',
-  },
-  {
-    id: 'def-2',
-    name: 'Harmonia Escola de Música',
-    logoUrl: '/img/guitar-trans.png',
-    websiteUrl: 'https://instagram.com',
-    category: 'Conservatório',
-    location: 'Belo Horizonte - MG',
-    testimonial: 'O agendamento de turmas e o controle de presença automática poupam mais de 10 horas semanais da nossa equipe.',
-  },
-  {
-    id: 'def-3',
-    name: 'Conservatório Tom Maior',
-    logoUrl: '/img/piano-trans.png',
-    websiteUrl: 'https://instagram.com',
-    category: 'Centro Musical',
-    location: 'Rio de Janeiro - RJ',
-    testimonial: 'Interface moderna e portal do aluno impecável. Nossos alunos e pais adoram acompanhar o progresso.',
-  },
-  {
-    id: 'def-4',
-    name: 'Studio Ritmo & Arte',
-    logoUrl: '/img/guitar-trans.png',
-    websiteUrl: 'https://instagram.com',
-    category: 'Estúdio de Bateria & Percussão',
-    location: 'Curitiba - PR',
-    testimonial: 'Os lembretes via WhatsApp reduziram as faltas em mais de 75%. Simplesmente indispensável!',
-  },
-  {
-    id: 'def-5',
-    name: 'Acorde Music School',
-    logoUrl: '/img/piano-trans.png',
-    websiteUrl: 'https://instagram.com',
-    category: 'Escola de Música',
-    location: 'Campinas - SP',
-    testimonial: 'Excelente suporte e recursos que realmente entendem a dinâmica de uma escola de música.',
-  },
-  {
-    id: 'def-6',
-    name: 'Camerata Som & Vida',
-    logoUrl: '/img/guitar-trans.png',
-    websiteUrl: 'https://instagram.com',
-    category: 'Instituto Musical',
-    location: 'Porto Alegre - RS',
-    testimonial: 'O controle financeiro por PIX e boletos integrados facilitou 100% o nosso fluxo de caixa.',
-  },
-];
-
 export default function ClientsMarquee() {
   const { data: dbClients = [] } = trpc.publicData.getLandingClients.useQuery();
   const [selectedPartner, setSelectedPartner] = useState<any>(null);
 
-  // Mesclar dados do banco com defaults se necessário para manter o marquee fluido
-  const formattedDbClients = dbClients.map((c: any) => ({
+  const formattedDbClients = (dbClients || []).map((c: any) => ({
     id: `db-${c.id}`,
     name: c.name,
     logoUrl: c.logoUrl,
@@ -78,12 +19,13 @@ export default function ClientsMarquee() {
     testimonial: c.testimonial || null,
   }));
 
-  const allPartners = formattedDbClients.length >= 4 
-    ? formattedDbClients 
-    : [...formattedDbClients, ...DEFAULT_PARTNERS.slice(0, 6 - formattedDbClients.length)];
+  if (formattedDbClients.length === 0) {
+    return null;
+  }
 
   // Duplicar array para rotação contínua perfeita no CSS/Framer
-  const marqueeItems = [...allPartners, ...allPartners, ...allPartners];
+  const repeatMultiplier = Math.max(3, Math.ceil(12 / formattedDbClients.length));
+  const marqueeItems = Array(repeatMultiplier).fill(formattedDbClients).flat();
 
   return (
     <section id="clients" className="relative py-24 bg-background border-b border-border/40 overflow-hidden select-none">
