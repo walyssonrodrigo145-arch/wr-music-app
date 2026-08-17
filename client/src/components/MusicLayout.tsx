@@ -95,7 +95,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       {/* Sidebar - Desktop & Tablet */}
       <div
         className="hidden md:flex flex-shrink-0 transition-all duration-300"
-        style={{ width: collapsed ? '80px' : '325px', minWidth: collapsed ? '80px' : '325px' }}
+        style={{ width: collapsed ? '80px' : '270px', minWidth: collapsed ? '80px' : '270px' }}
       >
         <AppSidebar 
           collapsed={collapsed} 
@@ -118,7 +118,11 @@ export function MusicLayout({ children }: MusicLayoutProps) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative" style={{ minWidth: 0 }}>
-        <AppHeader onMobileMenuOpen={() => setMobileOpen(true)} />
+        <AppHeader 
+          onMobileMenuOpen={() => setMobileOpen(true)}
+          onToggleSidebar={() => setCollapsed(!collapsed)}
+          sidebarCollapsed={collapsed}
+        />
         
         {isGracePeriod && (
           <div className="bg-destructive/10 border-b border-destructive/20 p-3 sm:p-4 shrink-0 flex items-start gap-3 justify-center text-center sm:text-left z-30">

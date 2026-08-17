@@ -33,9 +33,11 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
 
 interface AppHeaderProps {
   onMobileMenuOpen?: () => void;
+  onToggleSidebar?: () => void;
+  sidebarCollapsed?: boolean;
 }
 
-export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
+export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed }: AppHeaderProps) {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [location, navigate] = useLocation();
@@ -83,18 +85,29 @@ export function AppHeader({ onMobileMenuOpen }: AppHeaderProps) {
 
   return (
     <header className="h-14 md:h-16 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-3 sm:px-5 lg:px-6 gap-3 sm:gap-5 lg:gap-6 flex-shrink-0 z-40 sticky top-0 transition-all duration-500 overflow-hidden">
-      {/* Mobile menu button - Refined */}
+      {/* Botão de abrir menu Mobile */}
       <button
         id="tour-mobile-menu"
-        className={cn(
-          "w-12 h-12 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40",
-          user?.role === "aluno" ? "md:hidden" : "hidden"
-        )}
+        className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40 md:hidden"
         onClick={onMobileMenuOpen}
         aria-label="Abrir menu"
+        title="Abrir menu"
       >
-        <Menu size={24} />
+        <Menu size={22} />
       </button>
+
+      {/* Botão de expandir menu lateral no Desktop (quando recolhido) */}
+      {sidebarCollapsed && onToggleSidebar && (
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          className="hidden md:flex w-9 h-9 rounded-xl bg-muted/50 text-muted-foreground items-center justify-center hover:bg-primary/10 hover:text-primary flex-shrink-0 transition-all shadow-sm active:scale-90 border border-border/40"
+          aria-label="Expandir menu lateral"
+          title="Expandir menu lateral"
+        >
+          <Menu size={18} />
+        </button>
+      )}
 
       {/* Page title - Premium Typography */}
       <div className="flex-1 min-w-0 text-left overflow-hidden">

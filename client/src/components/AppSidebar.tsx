@@ -34,7 +34,8 @@ import {
   DoorOpen,
   Target,
   FileSignature,
-  Receipt
+  Receipt,
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -212,19 +213,30 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       )}>
         {(user as any)?.schoolLogo ? (
           collapsed ? (
-            /* Collapsed: logo compacta em proporção */
-            <button
-              type="button"
-              onClick={onToggle}
-              className="w-11 h-11 flex items-center justify-center overflow-hidden hover:scale-105 transition-transform cursor-pointer"
-              title="Clique para expandir o menu"
-            >
-              <img
-                src={(user as any).schoolLogo}
-                alt="Logo da Escola"
-                className="w-full h-full object-contain object-center"
-              />
-            </button>
+            /* Collapsed: logo compacta + botão explícito de expandir */
+            <div className="flex flex-col items-center gap-2 py-1">
+              <button
+                type="button"
+                onClick={onToggle}
+                className="w-11 h-11 flex items-center justify-center overflow-hidden hover:scale-105 transition-transform cursor-pointer"
+                title="Clique para expandir o menu"
+              >
+                <img
+                  src={(user as any).schoolLogo}
+                  alt="Logo da Escola"
+                  className="w-full h-full object-contain object-center"
+                />
+              </button>
+              <button
+                type="button"
+                onClick={onToggle}
+                className="w-7 h-7 rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 flex items-center justify-center transition-all shadow-md cursor-pointer"
+                title="Expandir menu lateral"
+                aria-label="Expandir menu"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           ) : (
             /* Expanded: Logo ajustada sem excesso de fundo roxo */
             <div className="w-full relative flex items-center justify-between gap-1">
@@ -249,21 +261,15 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
             </div>
           )
         ) : (
-          /* Sem logo: ícone musical padrão + nome */
-          <div className={cn(
-            "flex items-center w-full",
-            collapsed ? "justify-center" : "justify-between"
-          )}>
-            <button
-              type="button"
-              onClick={collapsed ? onToggle : undefined}
-              className={cn(
-                "flex items-center gap-3 min-w-0 text-left cursor-pointer group bg-transparent border-0 p-0",
-                collapsed && "hover:scale-105 transition-transform"
-              )}
-              title={collapsed ? "Clique para expandir o menu" : undefined}
-            >
-              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-blue-500/30 flex-shrink-0 overflow-hidden">
+          /* Sem logo */
+          collapsed ? (
+            <div className="flex flex-col items-center gap-2 py-1">
+              <button
+                type="button"
+                onClick={onToggle}
+                className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-blue-500/30 flex-shrink-0 overflow-hidden hover:scale-105 transition-transform cursor-pointer"
+                title="Clique para expandir o menu"
+              >
                 <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-xl flex items-center justify-center relative z-10">
                   <div className="flex items-center gap-[3px] h-4">
                     <div className="w-1 bg-white/90 rounded-full h-2" />
@@ -272,20 +278,42 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                     <div className="w-1 bg-white/90 rounded-full h-3" />
                   </div>
                 </div>
-              </div>
-              {!collapsed && (user as any)?.showSchoolName !== 0 && (
-                <div className="min-w-0 flex-1 pr-1" title={(user as any)?.schoolName || "WR Gestão Musical"}>
-                  <p className="text-sm font-black text-white tracking-tight font-outfit leading-tight break-words line-clamp-2">
-                    {(user as any)?.schoolName || "WR"}
-                  </p>
-                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5 truncate">
-                    GESTÃO MUSICAL
-                  </p>
+              </button>
+              <button
+                type="button"
+                onClick={onToggle}
+                className="w-7 h-7 rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 flex items-center justify-center transition-all shadow-md cursor-pointer"
+                title="Expandir menu lateral"
+                aria-label="Expandir menu"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-3 min-w-0 text-left">
+                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-blue-500/30 flex-shrink-0 overflow-hidden">
+                  <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-xl flex items-center justify-center relative z-10">
+                    <div className="flex items-center gap-[3px] h-4">
+                      <div className="w-1 bg-white/90 rounded-full h-2" />
+                      <div className="w-1 bg-white/90 rounded-full h-4" />
+                      <div className="w-1 bg-white rounded-full h-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                      <div className="w-1 bg-white/90 rounded-full h-3" />
+                    </div>
+                  </div>
                 </div>
-              )}
-            </button>
+                {(user as any)?.showSchoolName !== 0 && (
+                  <div className="min-w-0 flex-1 pr-1" title={(user as any)?.schoolName || "WR Gestão Musical"}>
+                    <p className="text-sm font-black text-white tracking-tight font-outfit leading-tight break-words line-clamp-2">
+                      {(user as any)?.schoolName || "WR"}
+                    </p>
+                    <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5 truncate">
+                      GESTÃO MUSICAL
+                    </p>
+                  </div>
+                )}
+              </div>
 
-            {!collapsed && (
               <button
                 type="button"
                 onClick={onToggle}
@@ -295,8 +323,8 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               >
                 <ChevronLeft size={16} />
               </button>
-            )}
-          </div>
+            </div>
+          )
         )}
       </div>
 
