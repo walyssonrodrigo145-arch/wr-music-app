@@ -299,8 +299,14 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const { systemPlans } = await import("../drizzle/schema");
-      const { asc, eq } = await import("drizzle-orm");
-      return await db.select().from(systemPlans).where(eq(systemPlans.isActive, true)).orderBy(asc(systemPlans.priceMonthly));
+      const { asc, eq, and, sql } = await import("drizzle-orm");
+      return await db.select().from(systemPlans)
+        .where(and(
+          eq(systemPlans.isActive, true),
+          eq(systemPlans.showOnLanding, true),
+          sql`CAST(${systemPlans.priceMonthly} AS numeric) > 0`
+        ))
+        .orderBy(asc(systemPlans.order), asc(systemPlans.priceMonthly));
     }),
     validateCoupon: publicProcedure
       .input(z.object({ code: z.string() }))
@@ -9813,7 +9819,7 @@ Texto original para reescrever:
   }),
 
   platform: router({
-    // ─── Planos públicos: busca planos ativos do banco para exibição dinâmica ──
+    // ─── Planos públicos: busca planos ativos comerciais (> 0) para exibição dinâmica ──
     getPublicPlans: protectedProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -9821,8 +9827,12 @@ Texto original para reescrever:
       const plans = await db
         .select()
         .from(systemPlans)
-        .where(eq(systemPlans.isActive, true))
-        .orderBy(systemPlans.order ?? systemPlans.priceMonthly);
+        .where(and(
+          eq(systemPlans.isActive, true),
+          eq(systemPlans.showOnLanding, true),
+          sql`CAST(${systemPlans.priceMonthly} AS numeric) > 0`
+        ))
+        .orderBy(asc(systemPlans.order), asc(systemPlans.priceMonthly));
       return plans.map(p => ({
         id: p.id,
         name: p.name,
@@ -9993,8 +10003,19 @@ Texto original para reescrever:
       const orgId = ctx.user.organizationId!;
       const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
       if (!org) return null;
+
+      const { systemPlans } = await import("../drizzle/schema");
+      const [plan] = await db.select().from(systemPlans).where(eq(systemPlans.id, org.planId)).limit(1);
+
       return {
         planId: org.planId,
+        planName: plan?.name || (org.planId === "parceiro" ? "Parceiro MusicPro (Ilimitado)" : org.planId),
+        planPriceMonthly: Number(plan?.priceMonthly || 0),
+        planPriceYearly: Number(plan?.priceYearly || 0),
+        planMaxStudents: plan?.maxStudents ?? 999999,
+        allowExtraStudents: plan?.allowExtraStudents ?? true,
+        extraStudentPrice: Number(plan?.extraStudentPrice ?? 1.49),
+        features: (() => { try { return JSON.parse(plan?.features as string); } catch { return []; } })(),
         subscriptionStatus: org.subscriptionStatus,
         trialEndsAt: org.trialEndsAt,
       };

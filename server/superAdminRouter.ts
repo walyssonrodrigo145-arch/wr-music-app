@@ -302,7 +302,7 @@ export const superAdminRouter = router({
       name: z.string().min(1),
       priceMonthly: z.number().min(0, "Preço não pode ser negativo"),
       priceYearly: z.number().min(0, "Preço não pode ser negativo"),
-      maxStudents: z.number().int().min(1, "Limite mínimo é 1 aluno").max(99999),
+      maxStudents: z.number().int().min(1, "Limite mínimo é 1 aluno").max(999999999, "Limite máximo é 999.999.999 alunos"),
       features: z.array(z.string()),
       isActive: z.boolean(),
       showOnLanding: z.boolean(),

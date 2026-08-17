@@ -77,7 +77,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   const { data: publicPlans = [] } = trpc.platform.getPublicPlans.useQuery();
 
   const activePlanObj = publicPlans.find((p) => p.id === mySub?.planId);
-  const activePlanName = activePlanObj?.name || (
+  const activePlanName = (mySub as any)?.planName || activePlanObj?.name || (
     mySub?.planId
       ? `Plano ${mySub.planId.charAt(0).toUpperCase() + mySub.planId.slice(1)}`
       : "Plano Premium"

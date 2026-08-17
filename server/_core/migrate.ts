@@ -301,6 +301,9 @@ export async function runAutoMigrations() {
         "userName" varchar(255),
         "createdAt" timestamp DEFAULT now() NOT NULL
       );` },
+      { table: 'system_plans', sql: `
+        UPDATE "system_plans" SET "show_on_landing" = false WHERE CAST("price_monthly" AS numeric) <= 0 OR "id" LIKE '%parceiro%';
+      ` },
     ];
 
     for (const m of migrations) {

@@ -78,7 +78,16 @@ export default function Assinatura() {
     );
   }
 
-  const currentPlan = PLANOS.find(p => p.id === mySub?.planId) || PLANOS[0];
+  const currentPlan = PLANOS.find(p => p.id === mySub?.planId) || {
+    id: mySub?.planId || "personalizado",
+    name: (mySub as any)?.planName || (mySub?.planId ? `Plano ${mySub.planId}` : "Plano Ativo"),
+    priceMonthly: (mySub as any)?.planPriceMonthly || 0,
+    priceYearly: (mySub as any)?.planPriceYearly || 0,
+    maxStudents: (mySub as any)?.planMaxStudents ?? 999999,
+    features: (mySub as any)?.features || [],
+    allowExtraStudents: (mySub as any)?.allowExtraStudents ?? true,
+    extraStudentPrice: (mySub as any)?.extraStudentPrice ?? 1.49,
+  };
   const activeStudentsCount = stats?.activeStudents ?? 0;
   const maxStudentsLimit = currentPlan ? (currentPlan.maxStudents ?? 999999) : 999999;
   const allowExtra = currentPlan ? ((currentPlan as any).allowExtraStudents ?? true) : true;
