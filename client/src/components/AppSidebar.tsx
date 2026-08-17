@@ -233,7 +233,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               </div>
             </div>
           )}
-          {!collapsed && (
+          {!collapsed && (user as any)?.showSchoolName !== 0 && (
             <div className="min-w-0 flex-1 pr-1" title={(user as any)?.schoolName || "WR Gestão Musical"}>
               <p className="text-sm font-black text-white tracking-tight font-outfit leading-tight break-words line-clamp-2">
                 {(user as any)?.schoolName || "WR"}

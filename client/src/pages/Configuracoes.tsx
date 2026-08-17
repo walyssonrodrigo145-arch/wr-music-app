@@ -862,6 +862,7 @@ export default function Configuracoes() {
   const [schoolWebsite, setSchoolWebsite] = useState("");
   const [schoolDescription, setSchoolDescription] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [showSchoolName, setShowSchoolName] = useState(true);
   const [logoEditorOpen, setLogoEditorOpen] = useState(false);
   const [logoDraftSrc, setLogoDraftSrc] = useState("");
   const [logoOriginalName, setLogoOriginalName] = useState("");
@@ -966,6 +967,7 @@ export default function Configuracoes() {
       setSchoolWebsite(settings.schoolWebsite ?? "");
       setSchoolDescription(settings.schoolDescription ?? "");
       setLogoUrl((settings as any).logoUrl ?? (user as any)?.schoolLogo ?? "");
+      setShowSchoolName((settings as any).showSchoolName !== 0);
       setDueDaysForecast(settings.dueDaysForecast ?? "5,10,15,20");
 
       setLateFeeEnabled(Number((settings as any).lateFeeEnabled ?? 1) === 1);
@@ -1370,7 +1372,7 @@ export default function Configuracoes() {
                             return;
                          }
                       }
-                      updateSchool.mutate({ schoolName, schoolCnpj, schoolAddress, schoolCity, schoolPhone, schoolEmail, schoolWebsite, schoolDescription, logoUrl, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
+                      updateSchool.mutate({ schoolName, schoolCnpj, schoolAddress, schoolCity, schoolPhone, schoolEmail, schoolWebsite, schoolDescription, showSchoolName, logoUrl, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
                     }}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -1455,6 +1457,40 @@ export default function Configuracoes() {
                           placeholder="https://suaescola.com.br/logo.png"
                           className="h-10 text-xs font-bold rounded-xl border-border bg-background focus:bg-card transition-all shadow-sm"
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Exibição da logo: somente logo ou logo + nome */}
+                  <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-foreground">Exibição da logo no menu</p>
+                        <p className="text-xs text-muted-foreground font-medium mt-0.5">
+                          Escolha se o menu do sistema e o portal do aluno mostram <b>somente a logo</b> ou a <b>logo com o nome da escola</b>.
+                        </p>
+                      </div>
+                      <div className="flex rounded-xl border border-border overflow-hidden bg-background shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowSchoolName(false)}
+                          className={cn(
+                            "px-4 h-10 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer",
+                            !showSchoolName ? "bg-violet-600 text-white" : "text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          Somente logo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowSchoolName(true)}
+                          className={cn(
+                            "px-4 h-10 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer",
+                            showSchoolName ? "bg-violet-600 text-white" : "text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          Logo + nome
+                        </button>
                       </div>
                     </div>
                   </div>

@@ -205,6 +205,7 @@ export const settings = pgTable("settings", {
   schoolEmail: varchar("schoolEmail", { length: 255 }),
   schoolWebsite: varchar("schoolWebsite", { length: 255 }),
   schoolDescription: text("schoolDescription"),
+  showSchoolName: integer("showSchoolName").default(1).notNull(), // 1 = logo + nome | 0 = somente logo
   logoUrl: text("logoUrl"),
   dueDaysForecast: text("dueDaysForecast").default("5,10,15,20"),
   notifyLessonReminder: integer("notifyLessonReminder").default(1).notNull(),

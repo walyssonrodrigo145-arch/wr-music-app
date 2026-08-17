@@ -129,7 +129,7 @@ export function StudentSidebar({ collapsed, onToggle, onNavigate }: StudentSideb
             </div>
           </div>
         )}
-        {!collapsed && (
+        {!collapsed && (user as any)?.showSchoolName !== 0 && (
           <div className="animate-in fade-in slide-in-from-left-2 duration-300 min-w-0 flex-1 pr-1" title={(user as any)?.schoolName || "MusicPro"}>
             <p className="text-sm font-black text-white tracking-tight leading-tight break-words line-clamp-2">
               {(user as any)?.schoolName || "MusicPro"}

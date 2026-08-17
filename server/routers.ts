@@ -428,6 +428,7 @@ export const appRouter = router({
           logoUrl: settings.logoUrl,
           schoolName: settings.schoolName,
           schoolEmail: settings.schoolEmail,
+          showSchoolName: settings.showSchoolName,
         }).from(settings).where(eq(settings.organizationId, ctx.user.organizationId));
 
         const userSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '') || allSettings.find(s => s.logoUrl) || allSettings[0];
@@ -435,6 +436,7 @@ export const appRouter = router({
         const schoolLogo = userSet?.logoUrl || org?.logo || null;
         const schoolName = (userSet?.schoolName && userSet.schoolName.trim() !== '') ? userSet.schoolName : (org?.name || null);
         const schoolEmail = userSet?.schoolEmail || null;
+        const showSchoolName = userSet?.showSchoolName ?? 1;
         
         let permissions: string[] = [];
         if (ctx.user.role === 'professor') {
@@ -458,6 +460,7 @@ export const appRouter = router({
           schoolLogo,
           schoolName,
           schoolEmail,
+          showSchoolName,
         };
       }
       
@@ -467,6 +470,7 @@ export const appRouter = router({
         trialEndsAt: null,
         permissions: [],
         schoolEmail: null,
+        showSchoolName: 1,
       };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -4418,13 +4422,17 @@ ${jsonSchemaFormat}`;
       schoolEmail: z.string().email("E-mail inválido").optional().or(z.literal("")).transform(v => v === "" ? undefined : v),
       schoolWebsite: z.string().optional(),
       schoolDescription: z.string().optional(),
+      showSchoolName: z.boolean().optional(),
       logoUrl: z.string().optional().nullable(),
       schoolHours: z.string().optional(),
       lessonDuration: z.number().optional(),
       dueDaysForecast: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
-      await upsertSettings(orgId, ctx.user.id, input);
+      await upsertSettings(orgId, ctx.user.id, {
+        ...input,
+        showSchoolName: input.showSchoolName !== undefined ? (input.showSchoolName ? 1 : 0) : undefined,
+      });
       const db = await getDb();
       if (db && orgId) {
         const updateOrgObj: Record<string, any> = { updatedAt: new Date() };
