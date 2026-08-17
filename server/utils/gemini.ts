@@ -39,9 +39,9 @@ export async function callGemini(
           content: systemPrompt,
         });
       }
-      let safeModel = customModel || "llama-3.3-70b-versatile";
-      if (safeModel.includes("8192") || safeModel === "llama3-70b-8192" || safeModel === "llama3-8b-8192") {
-        safeModel = safeModel.includes("70b") ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
+      let safeModel = customModel || "llama-3.3-70b-specdec";
+      if (safeModel.includes("8192") || safeModel === "llama3-70b-8192" || safeModel === "llama3-8b-8192" || safeModel === "llama-3.3-70b-versatile") {
+        safeModel = safeModel.includes("70b") ? "llama-3.3-70b-specdec" : "llama-3.1-8b-instant";
       }
 
       const GROQ_TIMEOUT_MS = 30_000;

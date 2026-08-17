@@ -943,7 +943,7 @@ export default function Configuracoes() {
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash");
   const [groqApiKey, setGroqApiKey] = useState("");
-  const [groqModel, setGroqModel] = useState("llama-3.3-70b-versatile");
+  const [groqModel, setGroqModel] = useState("llama-3.3-70b-specdec");
 
   // Populate from DB
   useEffect(() => {
@@ -1012,7 +1012,7 @@ export default function Configuracoes() {
       setGeminiApiKey(settings.geminiApiKey ?? "");
       setGeminiModel(settings.geminiModel ?? "gemini-2.0-flash");
       setGroqApiKey(settings.groqApiKey ?? "");
-      setGroqModel(settings.groqModel ?? "llama-3.3-70b-versatile");
+      setGroqModel(settings.groqModel === "llama-3.3-70b-versatile" ? "llama-3.3-70b-specdec" : (settings.groqModel ?? "llama-3.3-70b-specdec"));
     }
   }, [settings]);
 
@@ -2556,9 +2556,9 @@ export default function Configuracoes() {
                         onChange={(e) => setGroqModel(e.target.value)}
                         className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
-                        <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Recomendado)</option>
+                        <option value="llama-3.3-70b-specdec">Llama 3.3 70B SpeedDec (Recomendado)</option>
+                        <option value="moonshotai/kimi-k2-instruct">Kimi K2 (Premium)</option>
                         <option value="llama-3.1-8b-instant">Llama 3.1 8B (Mais rápido)</option>
-                        <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
                       </select>
                     </Field>
                   </div>
