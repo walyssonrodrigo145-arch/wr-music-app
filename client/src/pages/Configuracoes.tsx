@@ -943,7 +943,7 @@ export default function Configuracoes() {
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash");
   const [groqApiKey, setGroqApiKey] = useState("");
-  const [groqModel, setGroqModel] = useState("llama-3.3-70b-specdec");
+  const [groqModel, setGroqModel] = useState("openai/gpt-oss-120b");
 
   // Populate from DB
   useEffect(() => {
@@ -1012,7 +1012,9 @@ export default function Configuracoes() {
       setGeminiApiKey(settings.geminiApiKey ?? "");
       setGeminiModel(settings.geminiModel ?? "gemini-2.0-flash");
       setGroqApiKey(settings.groqApiKey ?? "");
-      setGroqModel(settings.groqModel === "llama-3.3-70b-versatile" ? "llama-3.3-70b-specdec" : (settings.groqModel ?? "llama-3.3-70b-specdec"));
+      const LEGACY_GROQ = ["llama-3.3-70b-versatile", "llama-3.3-70b-specdec", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
+      const savedModel = settings.groqModel ?? "openai/gpt-oss-120b";
+      setGroqModel(LEGACY_GROQ.includes(savedModel) ? "openai/gpt-oss-120b" : savedModel);
     }
   }, [settings]);
 
@@ -2556,9 +2558,9 @@ export default function Configuracoes() {
                         onChange={(e) => setGroqModel(e.target.value)}
                         className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
-                        <option value="llama-3.3-70b-specdec">Llama 3.3 70B SpeedDec (Recomendado)</option>
-                        <option value="moonshotai/kimi-k2-instruct">Kimi K2 (Premium)</option>
-                        <option value="llama-3.1-8b-instant">Llama 3.1 8B (Mais rápido)</option>
+                        <option value="openai/gpt-oss-120b">GPT-OSS 120B (Recomendado)</option>
+                        <option value="openai/gpt-oss-20b">GPT-OSS 20B (Mais rápido)</option>
+                        <option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option>
                       </select>
                     </Field>
                   </div>

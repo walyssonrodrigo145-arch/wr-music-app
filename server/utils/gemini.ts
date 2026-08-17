@@ -39,9 +39,11 @@ export async function callGemini(
           content: systemPrompt,
         });
       }
-      let safeModel = customModel || "llama-3.3-70b-specdec";
-      if (safeModel.includes("8192") || safeModel === "llama3-70b-8192" || safeModel === "llama3-8b-8192" || safeModel === "llama-3.3-70b-versatile") {
-        safeModel = safeModel.includes("70b") ? "llama-3.3-70b-specdec" : "llama-3.1-8b-instant";
+      // Modelos ativamente disponíveis na conta Groq (verificado via API em 2026-08)
+      const LEGACY_MODELS = ["llama-3.3-70b-versatile", "llama-3.3-70b-specdec", "llama-3.1-8b-instant", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"];
+      let safeModel = customModel || "openai/gpt-oss-120b";
+      if (!safeModel || LEGACY_MODELS.includes(safeModel) || safeModel.includes("8192")) {
+        safeModel = safeModel.includes("8b") ? "openai/gpt-oss-20b" : "openai/gpt-oss-120b";
       }
 
       const GROQ_TIMEOUT_MS = 30_000;
