@@ -33,7 +33,9 @@ import {
   FolderKanban,
   DoorOpen,
   Target,
-  FileSignature
+  FileSignature,
+  Plus,
+  Minus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -162,6 +164,26 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     };
   });
 
+  // Altura da logo ajustável pelo usuário (persiste no localStorage)
+  const LOGO_MIN = 80;
+  const LOGO_MAX = 240;
+  const LOGO_STEP = 10;
+  const [logoHeight, setLogoHeight] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("musicpro_logo_height");
+      if (saved) return Math.min(LOGO_MAX, Math.max(LOGO_MIN, parseInt(saved, 10)));
+    } catch { /* ignore */ }
+    return 160;
+  });
+
+  const adjustLogoHeight = (delta: number) => {
+    setLogoHeight((prev) => {
+      const next = Math.min(LOGO_MAX, Math.max(LOGO_MIN, prev + delta));
+      localStorage.setItem("musicpro_logo_height", String(next));
+      return next;
+    });
+  };
+
   // Auto-expandir grupo caso a rota atual pertença a ele
   useEffect(() => {
     const currentGroup = navGroups.find((g) => g.items.some((item) => item.href === location));
@@ -233,14 +255,42 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-contain" />
               </button>
             ) : (
-              /* Expanded: logo preenchendo todo o header */
-              <div className="w-full bg-[#0A0820] border-b border-indigo-950/30 overflow-hidden" style={{ height: '130px' }}>
+              /* Expanded: logo com altura ajustável + botões +/- no hover */
+              <div
+                className="w-full bg-[#0A0820] border-b border-indigo-950/30 overflow-hidden relative group/logo"
+                style={{ height: `${logoHeight}px`, transition: 'height 0.2s ease' }}
+              >
                 <img
                   src={(user as any).schoolLogo}
                   alt="Logo da Escola"
                   className="w-full h-full object-contain"
                   style={{ imageRendering: 'auto' }}
                 />
+                {/* Botões + e - aparecem no hover */}
+                <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover/logo:opacity-100 transition-opacity duration-200 z-10">
+                  <button
+                    type="button"
+                    onClick={() => adjustLogoHeight(-LOGO_STEP)}
+                    disabled={logoHeight <= LOGO_MIN}
+                    className="w-6 h-6 rounded-md bg-black/70 border border-white/20 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Diminuir logo"
+                  >
+                    <Minus size={11} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => adjustLogoHeight(LOGO_STEP)}
+                    disabled={logoHeight >= LOGO_MAX}
+                    className="w-6 h-6 rounded-md bg-black/70 border border-white/20 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Aumentar logo"
+                  >
+                    <Plus size={11} />
+                  </button>
+                </div>
+                {/* Indicador de tamanho */}
+                <div className="absolute bottom-2 left-2 opacity-0 group-hover/logo:opacity-100 transition-opacity duration-200">
+                  <span className="text-[9px] text-white/40 font-mono">{logoHeight}px</span>
+                </div>
               </div>
             )
           ) : (
