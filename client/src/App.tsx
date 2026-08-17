@@ -48,6 +48,7 @@ const SalasEstudio = lazy(() => import("./pages/SalasEstudio"));
 const ChatbotFlowBuilder = lazy(() => import("./pages/ChatbotFlowBuilder"));
 const BaseConhecimentoIA = lazy(() => import("./pages/BaseConhecimentoIA"));
 const Contratos = lazy(() => import("./pages/Contratos"));
+const NotasFiscais = lazy(() => import("./pages/NotasFiscais"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -238,6 +239,7 @@ function Router() {
           <Route path="/comercial" component={LeadsApp} />
           <Route path="/leads" component={LeadsApp} />
           <Route path="/contratos" component={Contratos} />
+          <Route path="/notas-fiscais" component={NotasFiscais} />
           <Route path="/salas" component={SalasEstudio} />
           <Route path="/salas-estudio" component={SalasEstudio} />
           <Route path="/checkout" component={Checkout} />

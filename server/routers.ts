@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "./db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities } from "../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { handleDbError } from "./utils/error_handler";
@@ -48,6 +48,8 @@ import { enrollmentRouter } from "./enrollmentRouter";
 import { advancedAiRouter } from "./advancedAiRouter";
 import { chatbotFlowRouter } from "./chatbotFlowRouter";
 import { schoolAiRouter } from "./schoolAiRouter";
+import { fiscalRouter } from "./fiscalRouter";
+import { FiscalService } from "./services/fiscal/FiscalService";
 
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
@@ -277,6 +279,7 @@ export const appRouter = router({
   enrollment: enrollmentRouter,
   advancedAi: advancedAiRouter,
   slotAdvance: slotAdvanceRouter,
+  fiscal: fiscalRouter,
   publicData: router({
     getHeroSlides: publicProcedure.query(async () => {
       const db = await getDb();
@@ -5860,6 +5863,23 @@ ${jsonSchemaFormat}`;
               content: `O aluno ${paymentDetails.studentName || "Aluno"} teve o pagamento confirmado no valor de ${valor}.`,
             });
           }
+
+          // ── Disparo assíncrono de NFS-e automática se ativado na escola ──
+          (async () => {
+            try {
+              const [fComp] = await db.select({ autoEmit: fiscalCompanies.autoEmitOnPayment })
+                .from(fiscalCompanies).where(eq(fiscalCompanies.organizationId, orgId)).limit(1);
+              if (fComp && fComp.autoEmit) {
+                await FiscalService.createInvoiceForPayment(orgId, input.id, {
+                  userId: ctx.user.id,
+                  userName: ctx.user.name || "Sistema",
+                  autoQueue: true,
+                });
+              }
+            } catch (fErr: any) {
+              console.warn(`[AutoNFS-e] Não foi possível enfileirar NFS-e para pagamento #${input.id}:`, fErr.message);
+            }
+          })().catch(() => {});
 
           return { success: true };
         } catch (error) {

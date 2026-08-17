@@ -33,7 +33,8 @@ import {
   FolderKanban,
   DoorOpen,
   Target,
-  FileSignature
+  FileSignature,
+  Receipt
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -118,6 +119,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       textColor: "text-emerald-400",
       items: [
         { label: "Finanças", href: "/financeiro", icon: DollarSign },
+        { label: "Notas Fiscais", href: "/notas-fiscais", icon: Receipt, activeStyle: "bg-[#062E1E] text-white border-l-4 border-emerald-500 shadow-lg shadow-emerald-950/50" },
         { label: "Folha de Pagamento", href: "/folha", icon: FileText, activeStyle: "bg-[#062E1E] text-white border-l-4 border-emerald-500 shadow-lg shadow-emerald-950/50" },
         { label: "Contratos", href: "/contratos", icon: FileSignature },
       ],

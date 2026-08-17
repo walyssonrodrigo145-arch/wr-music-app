@@ -11,8 +11,10 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import whatsappWebhookRouter from "../webhooks/whatsapp";
 import botStatusWebhookRouter from "../webhooks/botStatus";
+import focusNfeWebhookRouter from "../webhooks/focusnfe";
 import { serveStatic, setupVite } from "./vite";
 import { startAutomationJob } from "../automationJob";
+import { FiscalQueueWorker } from "../services/fiscal/FiscalQueueWorker";
 import { marketingWorker } from "../services/MarketingQueueWorker";
 import { analyticsQueue, recordAnalyticsRevenue, syncHistoricalRevenueToAnalytics } from "../services/AnalyticsQueue";
 import { generateAnalyticsInsights } from "../services/AnalyticsAIService";
@@ -603,9 +605,8 @@ async function startServer() {
     }
   });
 
-  // ─────────────────────────────────────────────────────────────────────────
-
   app.use("/api/webhooks/whatsapp", whatsappWebhookRouter);
+  app.use("/api/webhooks/focusnfe", focusNfeWebhookRouter);
 
   // ─── Assinafy Webhook (Contratos Digitais) ─────────────────────────────────
   // Recebe eventos de documentos assinados/rejeitados do provedor de assinatura.
@@ -941,6 +942,8 @@ async function startServer() {
     startAutomationJob();
     // Iniciar job de automação de marketing
     marketingWorker.start();
+    // Iniciar worker de processamento fiscal NFS-e
+    FiscalQueueWorker.start();
     // Configura o webhook do WhatsApp para todas as instâncias existentes
     // Aguarda 5s para garantir que a Evolution API esteja pronta antes de registrar
     setTimeout(() => setupAllEvolutionWebhooks(), 5000);

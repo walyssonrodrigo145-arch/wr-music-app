@@ -31,13 +31,15 @@ import { LogoEditorModal, type LogoEditParams } from "@/components/logo/LogoEdit
 import { DueDaysSelector } from "@/components/financeiro/DueDaysSelector";
 import { AssinafyIntegrationCard } from "@/components/integrations/AssinafyIntegrationCard";
 import { ModelosContratoTab } from "@/components/integrations/ModelosContratoTab";
+import { ConfigFiscalTab } from "@/components/fiscal/ConfigFiscalTab";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "salas" | "financeiro" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
+type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
+  { id: "fiscal", label: "Fiscal (NFS-e)", icon: Receipt },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
   { id: "professores", label: "Professores", icon: Users },
   { id: "modelos_contrato", label: "Modelos de Contrato", icon: FileSignature },
@@ -1566,7 +1568,7 @@ export default function Configuracoes() {
                 <Field label="Site ou Instagram">
                   <DebouncedInput
                     value={schoolWebsite}
-                    onChange={e => setSchoolWebsite(e.target.value)}
+                    onChange={(e: any) => setSchoolWebsite(e.target.value)}
                     placeholder="https://suaescola.com.br"
                     className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                   />
@@ -1575,7 +1577,7 @@ export default function Configuracoes() {
                 <Field label="Sobre a escola">
                   <DebouncedTextarea
                     value={schoolDescription}
-                    onChange={e => setSchoolDescription(e.target.value)}
+                    onChange={(e: any) => setSchoolDescription(e.target.value)}
                     placeholder="Breve descrição da metodologia..."
                     rows={4}
                     className="w-full px-4 py-4 text-sm font-bold rounded-xl border border-border bg-muted focus:bg-card transition-all shadow-sm resize-none text-foreground outline-none"
@@ -1617,14 +1619,14 @@ export default function Configuracoes() {
                               type="time" 
                               className="h-8 text-xs px-1.5 py-0.5 rounded-lg border border-border bg-background w-[90px] min-w-[90px]"
                               value={schoolHours[day]?.start || "08:00"}
-                              onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], start: e.target.value}})}
+                              onChange={(e: any) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], start: e.target.value}})}
                             />
                             <span className="text-[10px] font-medium text-muted-foreground">às</span>
                             <DebouncedInput 
                               type="time" 
                               className="h-8 text-xs px-1.5 py-0.5 rounded-lg border border-border bg-background w-[90px] min-w-[90px]"
                               value={schoolHours[day]?.end || "18:00"}
-                              onChange={(e) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], end: e.target.value}})}
+                              onChange={(e: any) => setSchoolHours({...schoolHours, [day]: {...schoolHours[day], end: e.target.value}})}
                             />
                           </div>
                         ) : (
@@ -1658,6 +1660,11 @@ export default function Configuracoes() {
                   </Select>
                 </div>
               </div>
+            )}
+
+            {/* ── ABA: FISCAL (NFS-e FOCUS) ── */}
+            {activeTab === "fiscal" && (
+              <ConfigFiscalTab />
             )}
 
             {/* ── ABA: FINANCEIRO (JUROS E MULTAS) ── */}
@@ -2413,7 +2420,7 @@ export default function Configuracoes() {
                         <DebouncedInput
                           type="password"
                           value={asaasApiKey}
-                          onChange={(e) => setAsaasApiKey(e.target.value)}
+                          onChange={(e: any) => setAsaasApiKey(e.target.value)}
                           placeholder="$aact_..."
                           className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
                         />
@@ -2437,7 +2444,7 @@ export default function Configuracoes() {
                         <DebouncedInput
                           type="password"
                           value={mpAccessToken}
-                          onChange={(e) => setMpAccessToken(e.target.value)}
+                          onChange={(e: any) => setMpAccessToken(e.target.value)}
                           placeholder="APP_USR-..."
                           className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
                         />
@@ -2486,7 +2493,7 @@ export default function Configuracoes() {
                 >
                   <select
                     value={aiProvider}
-                    onChange={(e) => setAiProvider(e.target.value)}
+                    onChange={(e: any) => setAiProvider(e.target.value)}
                     className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     <option value="gemini">Google Gemini</option>
@@ -2505,7 +2512,7 @@ export default function Configuracoes() {
                       <DebouncedInput
                         type="password"
                         value={geminiApiKey}
-                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                        onChange={(e: any) => setGeminiApiKey(e.target.value)}
                         placeholder="AIzaSy..."
                         className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
                       />
@@ -2519,7 +2526,7 @@ export default function Configuracoes() {
                     >
                       <select
                         value={geminiModel}
-                        onChange={(e) => setGeminiModel(e.target.value)}
+                        onChange={(e: any) => setGeminiModel(e.target.value)}
                         className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
                         <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado - Mais rápido e inteligente)</option>
@@ -2541,7 +2548,7 @@ export default function Configuracoes() {
                       <DebouncedInput
                         type="password"
                         value={groqApiKey}
-                        onChange={(e) => setGroqApiKey(e.target.value)}
+                        onChange={(e: any) => setGroqApiKey(e.target.value)}
                         placeholder="gsk_..."
                         className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
                       />
@@ -2555,7 +2562,7 @@ export default function Configuracoes() {
                     >
                       <select
                         value={groqModel}
-                        onChange={(e) => setGroqModel(e.target.value)}
+                        onChange={(e: any) => setGroqModel(e.target.value)}
                         className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
                         <option value="openai/gpt-oss-120b">GPT-OSS 120B (Recomendado)</option>

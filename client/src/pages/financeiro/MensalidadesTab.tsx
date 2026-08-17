@@ -5,7 +5,7 @@ import {
   Loader2, Trash2, ChevronLeft, ChevronRight, Pencil,
   Search, MoreVertical, CreditCard,
   ChevronDown, TrendingUp, Zap, Link2, Copy, QrCode, Ban,
-  FileUp, FileCheck, FileText, Info, Wallet, Download, Send
+  FileUp, FileCheck, FileText, Info, Wallet, Download, Send, Receipt
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { exportToCSV } from "@/lib/exportUtils";
@@ -640,12 +640,24 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
     onError: (e: any) => toast.error("Erro ao excluir: " + e.message),
   });
 
-  const cancelAsaasMutation = trpc.reports.cancelAsaasCharge.useMutation({
+  const cancelAsaasMutation = trpc.paymentDues.cancelAsaasCharge.useMutation({
     onSuccess: () => {
       toast.success("Cobrança Asaas cancelada!");
       utils.paymentDues.invalidate();
     },
     onError: (e: any) => toast.error("Erro: " + e.message),
+  });
+
+  const emitNfseMutation = trpc.fiscal.invoices.emitForPayment.useMutation({
+    onSuccess: (data) => {
+      if (data.alreadyExists) {
+        toast.info("Esta mensalidade já possui uma NFS-e gerada.");
+      } else {
+        toast.success("NFS-e enviada para processamento com sucesso!");
+      }
+      utils.fiscal.invoices.invalidate();
+    },
+    onError: (e: any) => toast.error("Erro ao emitir NFS-e: " + e.message),
   });
 
   const uploadReceiptMutation = trpc.paymentDues.uploadReceipt.useMutation({
@@ -1020,6 +1032,10 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setEditPayment(payment)}>
                                     <Pencil className="w-4 h-4 text-blue-500" />
                                     <span className="text-xs font-bold text-muted-foreground">Editar Registro</span>
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => emitNfseMutation.mutate({ paymentId: payment.id })}>
+                                    <Receipt className="w-4 h-4 text-emerald-500" />
+                                    <span className="text-xs font-bold text-muted-foreground">Emitir NFS-e</span>
                                  </DropdownMenuItem>
                                  <DropdownMenuSeparator className="bg-muted" />
                                   {!payment.asaasId && !payment.mpPaymentId ? (

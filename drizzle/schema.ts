@@ -38,6 +38,12 @@ export const campaignStatusEnum = pgEnum('campaign_status', ["draft", "running",
 export const campaignContactStatusEnum = pgEnum('campaign_contact_status', ["pending", "processing", "sent", "failed"]);
 export const jobStatusEnum = pgEnum('job_status', ["pending", "running", "completed", "failed"]);
 
+// Fiscal Enums
+export const fiscalInvoiceStatusEnum = pgEnum('fiscal_invoice_status', ["draft", "pending", "processing", "authorized", "rejected", "cancel_requested", "cancelled", "error"]);
+export const fiscalJobStatusEnum = pgEnum('fiscal_job_status', ["pending", "processing", "completed", "failed", "retry"]);
+export const regimeTributarioEnum = pgEnum('regime_tributario', ["simples_nacional", "lucro_presumido", "lucro_real", "mei"]);
+export const tipoEmissaoNfseEnum = pgEnum('tipo_emissao_nfse', ["municipal", "nacional", "automatico"]);
+
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -141,6 +147,17 @@ export const students = pgTable("students", {
   methodologyText: text("methodologyText"),
   allowAutoReminders: boolean("allowAutoReminders").default(true).notNull(),
   studioRoomId: integer("studioRoomId"),
+  // Fiscal Data
+  personType: varchar("personType", { length: 10 }).default("PF"), // PF ou PJ
+  fiscalCpfCnpj: varchar("fiscalCpfCnpj", { length: 30 }),
+  fiscalLegalName: varchar("fiscalLegalName", { length: 255 }),
+  fiscalCep: varchar("fiscalCep", { length: 20 }),
+  fiscalStreet: varchar("fiscalStreet", { length: 255 }),
+  fiscalNumber: varchar("fiscalNumber", { length: 50 }),
+  fiscalComplement: varchar("fiscalComplement", { length: 100 }),
+  fiscalNeighborhood: varchar("fiscalNeighborhood", { length: 100 }),
+  fiscalCity: varchar("fiscalCity", { length: 100 }),
+  fiscalState: varchar("fiscalState", { length: 10 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 }, (table) => [
@@ -1528,3 +1545,163 @@ export const landingHeroSlides = pgTable("landing_hero_slides", {
 
 export type LandingHeroSlide = typeof landingHeroSlides.$inferSelect;
 export type InsertLandingHeroSlide = typeof landingHeroSlides.$inferInsert;
+
+// ─── MÓDULO FISCAL (FOCUS NFE MULTI-TENANT) ──────────────────────────────────
+
+export const fiscalCompanies = pgTable("fiscal_companies", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull().unique(),
+  cnpj: varchar("cnpj", { length: 25 }).notNull(),
+  razaoSocial: varchar("razaoSocial", { length: 255 }).notNull(),
+  nomeFantasia: varchar("nomeFantasia", { length: 255 }),
+  inscricaoMunicipal: varchar("inscricaoMunicipal", { length: 50 }),
+  inscricaoEstadual: varchar("inscricaoEstadual", { length: 50 }),
+  regimeTributario: regimeTributarioEnum("regimeTributario").default("simples_nacional").notNull(),
+  optanteSimplesNacional: boolean("optanteSimplesNacional").default(true).notNull(),
+  tipoEmissaoNfse: tipoEmissaoNfseEnum("tipoEmissaoNfse").default("automatico").notNull(),
+  
+  // Endereço fiscal
+  cep: varchar("cep", { length: 20 }),
+  logradouro: varchar("logradouro", { length: 255 }),
+  numero: varchar("numero", { length: 50 }),
+  complemento: varchar("complemento", { length: 100 }),
+  bairro: varchar("bairro", { length: 100 }),
+  cidade: varchar("cidade", { length: 100 }),
+  uf: varchar("uf", { length: 10 }),
+  codigoMunicipio: varchar("codigoMunicipio", { length: 20 }), // Código IBGE do município
+  telefone: varchar("telefone", { length: 30 }),
+  email: varchar("email", { length: 255 }),
+  
+  // Focus NFe & Certificado A1
+  focusCompanyId: varchar("focusCompanyId", { length: 100 }),
+  focusApiKey: text("focusApiKey"), // Opcional se usar API Key própria por escola
+  certificateA1Status: varchar("certificateA1Status", { length: 30 }).default("nao_configurado"), // configurado, vencido, pendente, nao_configurado
+  certificateExpiresAt: timestamp("certificateExpiresAt"),
+  
+  // Automações fiscais
+  autoEmitOnPayment: boolean("autoEmitOnPayment").default(false).notNull(),
+  emitTiming: varchar("emitTiming", { length: 20 }).default("imediato").notNull(), // imediato, manual
+  autoEmailInvoice: boolean("autoEmailInvoice").default(true).notNull(),
+  autoRetryErrors: boolean("autoRetryErrors").default(true).notNull(),
+  
+  status: varchar("status", { length: 30 }).default("ativo").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("fiscal_companies_org_idx").on(table.organizationId),
+  index("fiscal_companies_cnpj_idx").on(table.cnpj),
+]);
+
+export type FiscalCompany = typeof fiscalCompanies.$inferSelect;
+export type InsertFiscalCompany = typeof fiscalCompanies.$inferInsert;
+
+export const fiscalServices = pgTable("fiscal_services", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  nome: varchar("nome", { length: 255 }).notNull(), // Ex: Mensalidade de Aulas de Música
+  codigoServico: varchar("codigoServico", { length: 50 }).notNull(), // Código municipal/nacional
+  codigoTributacaoMunicipio: varchar("codigoTributacaoMunicipio", { length: 50 }),
+  aliquotaIss: decimal("aliquotaIss", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  naturezaOperacao: varchar("naturezaOperacao", { length: 100 }).default("1").notNull(), // 1: Tributação no município, etc.
+  descricaoPadrao: text("descricaoPadrao").default("Mensalidade referente a aulas de musica - Competencia {competencia}").notNull(),
+  itemListaServico: varchar("itemListaServico", { length: 20 }).default("08.01"), // Item LC 116 (ex: 08.01 Ensino/Instrução)
+  issRetido: boolean("issRetido").default(false).notNull(),
+  ativo: boolean("ativo").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("fiscal_services_org_idx").on(table.organizationId),
+]);
+
+export type FiscalServiceRecord = typeof fiscalServices.$inferSelect;
+export type InsertFiscalServiceRecord = typeof fiscalServices.$inferInsert;
+
+export const fiscalInvoices = pgTable("fiscal_invoices", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  studentId: integer("studentId"),
+  paymentId: integer("paymentId"),
+  serviceId: integer("serviceId"),
+  
+  reference: varchar("reference", { length: 100 }).notNull().unique(), // WRMUSIC-{orgId}-PAY-{paymentId} ou WRMUSIC-{orgId}-MAN-{nanoid}
+  provider: varchar("provider", { length: 50 }).default("focusnfe").notNull(),
+  providerId: varchar("providerId", { length: 100 }), // ID ou chave na Focus
+  
+  numero: varchar("numero", { length: 50 }),
+  serie: varchar("serie", { length: 20 }),
+  codigoVerificacao: varchar("codigoVerificacao", { length: 100 }),
+  
+  status: fiscalInvoiceStatusEnum("status").default("draft").notNull(),
+  valor: decimal("valor", { precision: 10, scale: 2 }).notNull(),
+  competencia: varchar("competencia", { length: 30 }), // Ex: "08/2026"
+  dataEmissao: timestamp("dataEmissao"),
+  
+  // Tomador
+  customerName: varchar("customerName", { length: 255 }).notNull(),
+  customerTaxId: varchar("customerTaxId", { length: 30 }).notNull(),
+  customerEmail: varchar("customerEmail", { length: 255 }),
+  customerPhone: varchar("customerPhone", { length: 30 }),
+  serviceDescription: text("serviceDescription").notNull(),
+  
+  // Documentos
+  pdfUrl: text("pdfUrl"),
+  xmlUrl: text("xmlUrl"),
+  
+  // Tratamento de erros & cancelamento
+  errorCode: varchar("errorCode", { length: 100 }),
+  errorMessage: text("errorMessage"),
+  cancelReason: text("cancelReason"),
+  cancelledAt: timestamp("cancelledAt"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("fiscal_invoices_org_idx").on(table.organizationId),
+  index("fiscal_invoices_student_idx").on(table.studentId),
+  index("fiscal_invoices_payment_idx").on(table.paymentId),
+  index("fiscal_invoices_status_idx").on(table.status),
+  index("fiscal_invoices_reference_idx").on(table.reference),
+]);
+
+export type FiscalInvoice = typeof fiscalInvoices.$inferSelect;
+export type InsertFiscalInvoice = typeof fiscalInvoices.$inferInsert;
+
+export const fiscalJobs = pgTable("fiscal_jobs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  invoiceId: integer("invoiceId").notNull(),
+  type: varchar("type", { length: 50 }).default("emit").notNull(), // emit, cancel, query_status
+  status: fiscalJobStatusEnum("status").default("pending").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  maxAttempts: integer("maxAttempts").default(5).notNull(),
+  lastError: text("lastError"),
+  nextAttemptAt: timestamp("nextAttemptAt").defaultNow().notNull(),
+  processedAt: timestamp("processedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("fiscal_jobs_org_status_idx").on(table.organizationId, table.status),
+  index("fiscal_jobs_invoice_idx").on(table.invoiceId),
+  index("fiscal_jobs_next_attempt_idx").on(table.nextAttemptAt),
+]);
+
+export type FiscalJob = typeof fiscalJobs.$inferSelect;
+export type InsertFiscalJob = typeof fiscalJobs.$inferInsert;
+
+export const fiscalLogs = pgTable("fiscal_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  invoiceId: integer("invoiceId"),
+  event: varchar("event", { length: 100 }).notNull(), // NFS-E_CREATED, NFS-E_SENT, NFS-E_AUTHORIZED, etc.
+  payload: jsonb("payload").default({}),
+  userId: integer("userId"),
+  userName: varchar("userName", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("fiscal_logs_org_idx").on(table.organizationId),
+  index("fiscal_logs_invoice_idx").on(table.invoiceId),
+  index("fiscal_logs_created_at_idx").on(table.createdAt),
+]);
+
+export type FiscalLog = typeof fiscalLogs.$inferSelect;
+export type InsertFiscalLog = typeof fiscalLogs.$inferInsert;
