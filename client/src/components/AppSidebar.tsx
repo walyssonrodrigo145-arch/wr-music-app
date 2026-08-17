@@ -205,59 +205,116 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
 
       {/* HEADER TOP DA SIDEBAR (LOGO + NOME + TOGGLE COLLAPSE) */}
       <div className={cn(
-        "flex items-center justify-between px-5 py-5 border-b border-indigo-950/30",
-        collapsed && "flex-col gap-2.5 justify-center items-center px-1 py-4"
+        "flex flex-col border-b border-indigo-950/30",
+        collapsed
+          ? "items-center gap-2.5 justify-center px-1 py-4"
+          : (user as any)?.schoolLogo
+            ? "px-0 pt-0 pb-3"
+            : "px-5 py-4"
       )}>
-        <button
-          type="button"
-          onClick={collapsed ? onToggle : undefined}
-          className={cn(
-            "flex items-center gap-3 min-w-0 text-left cursor-pointer group bg-transparent border-0 p-0",
-            collapsed && "hover:scale-105 transition-transform"
-          )}
-          title={collapsed ? "Clique para expandir o menu" : undefined}
-        >
+
+        {/* Linha superior: logo pequena (collapsed) ou logo grande (expanded) + botão toggle */}
+        <div className={cn(
+          "flex items-center w-full",
+          collapsed ? "flex-col gap-2.5 justify-center" : "justify-between",
+          !collapsed && !(user as any)?.schoolLogo && "gap-3"
+        )}>
+
+          {/* ---- LOGO AREA ---- */}
           {(user as any)?.schoolLogo ? (
-            <div className="relative w-10 h-10 rounded-xl bg-slate-900/60 shadow-lg shadow-primary/20 border border-white/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
-              <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-cover" />
-            </div>
+            collapsed ? (
+              /* Collapsed: ícone quadrado compacto */
+              <button
+                type="button"
+                onClick={onToggle}
+                className="w-10 h-10 rounded-xl bg-slate-900/60 shadow-lg shadow-primary/20 border border-white/10 flex-shrink-0 overflow-hidden flex items-center justify-center hover:scale-105 transition-transform"
+                title="Clique para expandir o menu"
+              >
+                <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-contain" />
+              </button>
+            ) : (
+              /* Expanded: logo grande em banner no topo */
+              <div className="w-full bg-[#0A0820] border-b border-indigo-950/30 flex items-center justify-center px-4 pt-4 pb-3">
+                <img
+                  src={(user as any).schoolLogo}
+                  alt="Logo da Escola"
+                  className="max-h-14 w-auto max-w-[180px] object-contain drop-shadow-md"
+                  style={{ imageRendering: 'auto' }}
+                />
+              </div>
+            )
           ) : (
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-blue-500/30 flex-shrink-0 overflow-hidden">
-              <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-xl flex items-center justify-center relative z-10">
-                <div className="flex items-center gap-[3px] h-4">
-                  <div className="w-1 bg-white/90 rounded-full h-2" />
-                  <div className="w-1 bg-white/90 rounded-full h-4" />
-                  <div className="w-1 bg-white rounded-full h-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-                  <div className="w-1 bg-white/90 rounded-full h-3" />
+            /* Sem logo: ícone musical padrão */
+            <button
+              type="button"
+              onClick={collapsed ? onToggle : undefined}
+              className={cn(
+                "flex items-center gap-3 min-w-0 text-left cursor-pointer group bg-transparent border-0 p-0",
+                collapsed && "hover:scale-105 transition-transform"
+              )}
+              title={collapsed ? "Clique para expandir o menu" : undefined}
+            >
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-[1px] shadow-lg shadow-blue-500/30 flex-shrink-0 overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-b from-blue-500 to-indigo-700 rounded-xl flex items-center justify-center relative z-10">
+                  <div className="flex items-center gap-[3px] h-4">
+                    <div className="w-1 bg-white/90 rounded-full h-2" />
+                    <div className="w-1 bg-white/90 rounded-full h-4" />
+                    <div className="w-1 bg-white rounded-full h-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                    <div className="w-1 bg-white/90 rounded-full h-3" />
+                  </div>
                 </div>
               </div>
-            </div>
+              {!collapsed && (user as any)?.showSchoolName !== 0 && (
+                <div className="min-w-0 flex-1 pr-1" title={(user as any)?.schoolName || "WR Gestão Musical"}>
+                  <p className="text-sm font-black text-white tracking-tight font-outfit leading-tight break-words line-clamp-2">
+                    {(user as any)?.schoolName || "WR"}
+                  </p>
+                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5 truncate">
+                    GESTÃO MUSICAL
+                  </p>
+                </div>
+              )}
+            </button>
           )}
-          {!collapsed && (user as any)?.showSchoolName !== 0 && (
-            <div className="min-w-0 flex-1 pr-1" title={(user as any)?.schoolName || "WR Gestão Musical"}>
-              <p className="text-sm font-black text-white tracking-tight font-outfit leading-tight break-words line-clamp-2">
-                {(user as any)?.schoolName || "WR"}
-              </p>
-              <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5 truncate">
-                {(user as any)?.schoolLogo ? "Escola de Música" : "GESTÃO MUSICAL"}
-              </p>
-            </div>
-          )}
-        </button>
 
-        {/* Botão Collapse / Expand Sempre Acessível */}
-        <button
-          type="button"
-          onClick={onToggle}
-          className={cn(
-            "rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md",
-            collapsed ? "w-7 h-7 text-indigo-400 hover:text-white hover:bg-indigo-600" : "w-8 h-8"
+          {/* Botão Collapse / Expand — posicionado à direita quando não-collapsed e sem logo-banner */}
+          {(!collapsed || collapsed) && !((user as any)?.schoolLogo && !collapsed) && (
+            <button
+              type="button"
+              onClick={onToggle}
+              className={cn(
+                "rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md",
+                collapsed ? "w-7 h-7 text-indigo-400 hover:text-white hover:bg-indigo-600" : "w-8 h-8 mr-4"
+              )}
+              title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            >
+              {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={16} />}
+            </button>
           )}
-          title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
-          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-        >
-          {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={16} />}
-        </button>
+        </div>
+
+        {/* Linha inferior quando logo-banner: nome da escola + botão toggle */}
+        {!collapsed && (user as any)?.schoolLogo && (
+          <div className="flex items-center justify-between px-4 pt-2">
+            {(user as any)?.showSchoolName !== 0 && (
+              <div className="min-w-0 flex-1" title={(user as any)?.schoolName || "WR Gestão Musical"}>
+                <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest truncate">
+                  {(user as any)?.schoolName || "Escola de Música"}
+                </p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onToggle}
+              className="rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-8 h-8 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md ml-2"
+              title="Recolher menu lateral"
+              aria-label="Recolher menu"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* NAVEGAÇÃO CATEGORIZADA COM ÍCONES E ACORDEÃO */}
