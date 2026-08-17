@@ -854,6 +854,7 @@ export default function Configuracoes() {
 
   // ── Escola state ──
   const [schoolName, setSchoolName] = useState("");
+  const [schoolCnpj, setSchoolCnpj] = useState("");
   const [schoolAddress, setSchoolAddress] = useState("");
   const [schoolCity, setSchoolCity] = useState("");
   const [schoolPhone, setSchoolPhone] = useState("");
@@ -957,6 +958,7 @@ export default function Configuracoes() {
       setProfileBio(settings.bio ?? "");
       setProfilePixKey(settings.pixKey ?? "");
       setSchoolName(settings.schoolName ?? "");
+      setSchoolCnpj(settings.schoolCnpj ?? "");
       setSchoolAddress(settings.schoolAddress ?? "");
       setSchoolCity(settings.schoolCity ?? "");
       setSchoolPhone(settings.schoolPhone ?? "");
@@ -1352,6 +1354,10 @@ export default function Configuracoes() {
                   <div>
                     <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Dados da Escola</h3>
                     <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Identidade da sua escola</p>
+                    <p className="text-[11px] text-muted-foreground font-medium mt-1.5 flex items-start gap-1.5">
+                      <FileSignature size={13} className="text-violet-500 shrink-0 mt-0.5" />
+                      <span>Nome, CNPJ, endereço, telefone e e-mail são usados automaticamente no rodapé e nas cláusulas dos <b>contratos digitais</b>.</span>
+                    </p>
                   </div>
                   <Button
                     className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
@@ -1364,7 +1370,7 @@ export default function Configuracoes() {
                             return;
                          }
                       }
-                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolEmail, schoolWebsite, schoolDescription, logoUrl, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
+                      updateSchool.mutate({ schoolName, schoolCnpj, schoolAddress, schoolCity, schoolPhone, schoolEmail, schoolWebsite, schoolDescription, logoUrl, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
                     }}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -1468,6 +1474,15 @@ export default function Configuracoes() {
                       value={schoolName}
                       onChange={e => setSchoolName(e.target.value)}
                       placeholder="Ex: Escola Harmonia"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                    />
+                  </Field>
+
+                  <Field label="CNPJ da escola" hint="Usado nos contratos digitais">
+                    <DebouncedInput
+                      value={schoolCnpj}
+                      onChange={(e: any) => setSchoolCnpj(e.target.value)}
+                      placeholder="00.000.000/0000-00"
                       className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                     />
                   </Field>

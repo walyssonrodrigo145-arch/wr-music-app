@@ -4411,6 +4411,7 @@ ${jsonSchemaFormat}`;
 
     updateSchool: protectedProcedure.input(z.object({
       schoolName: z.string().optional(),
+      schoolCnpj: z.string().optional(),
       schoolAddress: z.string().optional(),
       schoolCity: z.string().optional(),
       schoolPhone: z.string().optional(),
