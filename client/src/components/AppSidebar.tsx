@@ -233,13 +233,13 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-contain" />
               </button>
             ) : (
-              /* Expanded: logo grande em banner no topo */
-              <div className="w-full bg-[#0A0820] border-b border-indigo-950/30 flex items-center justify-center px-3 py-4" style={{ minHeight: '96px' }}>
+              /* Expanded: logo preenchendo todo o header */
+              <div className="w-full bg-[#0A0820] border-b border-indigo-950/30 overflow-hidden" style={{ height: '130px' }}>
                 <img
                   src={(user as any).schoolLogo}
                   alt="Logo da Escola"
-                  className="w-full h-auto object-contain drop-shadow-md"
-                  style={{ maxHeight: '88px', imageRendering: 'auto' }}
+                  className="w-full h-full object-contain"
+                  style={{ imageRendering: 'auto' }}
                 />
               </div>
             )
