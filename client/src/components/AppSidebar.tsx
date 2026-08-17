@@ -224,13 +224,13 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               />
             </button>
           ) : (
-            /* Expanded: Logo grande preenchendo 85% a 92% da largura (280-295px) em altura 110-140px */
+            /* Expanded: Logo grande preenchendo a área visual do topo */
             <div className="w-full relative">
               {/* Botão recolher no canto superior direito discreto */}
               <button
                 type="button"
                 onClick={onToggle}
-                className="absolute top-0 right-0 z-20 rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-7 h-7 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md"
+                className="absolute top-1 right-1 z-20 rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-7 h-7 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md"
                 title="Recolher menu lateral"
                 aria-label="Recolher menu"
               >
@@ -238,22 +238,20 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               </button>
 
               <div
-                className="w-full flex items-center justify-center"
+                className="w-full flex items-center justify-center px-1 py-2"
                 style={{
-                  minHeight: '110px',
-                  maxHeight: '140px',
-                  padding: '8px 4px'
+                  minHeight: '120px'
                 }}
               >
                 <img
                   src={(user as any).schoolLogo}
                   alt="Logo da Escola"
-                  className="block object-contain object-center"
+                  className="block object-contain object-center transition-all"
                   style={{
-                    width: 'min(92%, 295px)',
-                    maxWidth: '295px',
+                    width: '100%',
+                    maxWidth: '305px',
                     height: 'auto',
-                    maxHeight: '124px'
+                    maxHeight: '180px'
                   }}
                 />
               </div>
