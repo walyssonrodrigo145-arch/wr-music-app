@@ -251,7 +251,22 @@ export async function prepareContractRender(
     throw new TRPCError({ code: "NOT_FOUND", message: "Modelo de contrato não encontrado" });
   }
 
-  const [orgSettings] = await db.select().from(settingsT).where(eq(settingsT.organizationId, orgId)).limit(1);
+  // ─── FIX: busca TODOS os registros de settings desta org e prioriza o que
+  // tem schoolName preenchido (o admin que configurou a escola).
+  // O bug anterior era que .limit(1) podia retornar o registro de um professor
+  // sem dados da escola, deixando todas as variáveis do contrato como "__________".
+  const allOrgSettings = await db
+    .select()
+    .from(settingsT)
+    .where(eq(settingsT.organizationId, orgId))
+    .orderBy(settingsT.id); // mais antigo primeiro = geralmente o admin/dono
+
+  // Prioridade: (1) settings com schoolName preenchido, (2) settings mais antigo (admin), (3) null
+  const orgSettings =
+    allOrgSettings.find((s: any) => s.schoolName && String(s.schoolName).trim() !== "") ??
+    allOrgSettings[0] ??
+    null;
+
   const [org] = await db.select().from(orgs).where(eq(orgs.id, orgId)).limit(1);
   const [instrument] = student.instrumentId
     ? await db.select().from(instruments).where(and(eq(instruments.id, student.instrumentId), eq(instruments.organizationId, orgId))).limit(1)
@@ -259,23 +274,34 @@ export async function prepareContractRender(
 
   const monthlyFee = opts.monthlyFeeOverride ?? (student.monthlyFee as string | null) ?? null;
 
+  // ─── Constrói endereço completo do aluno a partir de múltiplos campos ──────
+  const studentAddressParts = [
+    student.address,
+    student.city,
+    student.state,
+  ].filter(Boolean);
+  const studentAddressFull = studentAddressParts.length > 0
+    ? studentAddressParts.join(", ")
+    : null;
+
+  // ─── Fallback triplo: orgSettings (admin settings) → org (espelho) → placeholder
   const variables = buildContractVariables({
-    schoolName: orgSettings?.schoolName || org?.name,
-    schoolCnpj: orgSettings?.schoolCnpj,
-    schoolAddress: orgSettings?.schoolAddress,
-    schoolCity: orgSettings?.schoolCity,
-    schoolPhone: orgSettings?.schoolPhone,
-    schoolEmail: orgSettings?.schoolEmail || null,
-    studentName: student.name,
-    studentCpf: student.cpf,
+    schoolName:    orgSettings?.schoolName    || (org as any)?.name     || null,
+    schoolCnpj:   orgSettings?.schoolCnpj    || (org as any)?.cnpj     || null,
+    schoolAddress: orgSettings?.schoolAddress || (org as any)?.address  || null,
+    schoolCity:   orgSettings?.schoolCity    || (org as any)?.city     || null,
+    schoolPhone:  orgSettings?.schoolPhone   || (org as any)?.phone    || null,
+    schoolEmail:  orgSettings?.schoolEmail   || (org as any)?.email    || null,
+    studentName:  student.name,
+    studentCpf:   student.cpf,
     studentEmail: student.email,
     studentPhone: student.phone,
-    studentAddress: student.address,
-    instrument: instrument?.name,
+    studentAddress: studentAddressFull,
+    instrument:   instrument?.name,
     monthlyFee,
-    dueDay: student.dueDay ? String(student.dueDay) : "10",
-    startDate: opts.startDate,
-    endDate: opts.endDate,
+    dueDay:       student.dueDay ? String(student.dueDay) : "10",
+    startDate:    opts.startDate,
+    endDate:      opts.endDate,
   });
 
   const pdfBuffer = await renderContractPdf(template.content || buildDefaultTemplateContent(), variables);

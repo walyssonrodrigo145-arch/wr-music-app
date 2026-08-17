@@ -4444,9 +4444,17 @@ ${jsonSchemaFormat}`;
       });
       const db = await getDb();
       if (db && orgId) {
+        // ─── FIX: espelha TODOS os dados relevantes da escola na tabela organizations
+        // para que qualquer admin que gere contratos encontre os dados mesmo
+        // que o settings lookup retorne um registro diferente.
         const updateOrgObj: Record<string, any> = { updatedAt: new Date() };
         if (input.logoUrl !== undefined) updateOrgObj.logo = input.logoUrl;
-        if (input.schoolName !== undefined && input.schoolName.trim() !== '') updateOrgObj.name = input.schoolName;
+        if (input.schoolName  !== undefined && input.schoolName.trim()  !== "") updateOrgObj.name        = input.schoolName;
+        if (input.schoolPhone !== undefined && input.schoolPhone.trim() !== "") updateOrgObj.phone       = input.schoolPhone;
+        if (input.schoolEmail !== undefined && input.schoolEmail.trim() !== "") updateOrgObj.email       = input.schoolEmail;
+        if (input.schoolCnpj  !== undefined && input.schoolCnpj.trim()  !== "") updateOrgObj.cnpj       = input.schoolCnpj;
+        if (input.schoolAddress !== undefined && input.schoolAddress.trim() !== "") updateOrgObj.address = input.schoolAddress;
+        if (input.schoolCity  !== undefined && input.schoolCity.trim()  !== "") updateOrgObj.city       = input.schoolCity;
         await db.update(organizations).set(updateOrgObj).where(eq(organizations.id, orgId));
       }
       return { success: true };
