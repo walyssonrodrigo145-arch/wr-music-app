@@ -189,7 +189,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       id="tour-sidebar"
       className={cn(
         "flex flex-col bg-[#070514] text-slate-300 transition-all duration-300 ease-in-out relative border-r border-indigo-950/40 shadow-2xl z-30 select-none overflow-hidden",
-        collapsed ? "w-[80px]" : "w-[260px]",
+        collapsed ? "w-[80px]" : "w-[325px]",
         "lg:translate-x-0"
       )}
       style={{ height: '100dvh', maxHeight: '100dvh', overflowX: 'hidden', flexShrink: 0 }}
@@ -197,64 +197,74 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       {/* Botão de Fechar Mobile */}
       <button
         onClick={onToggle}
-        className="lg:hidden absolute top-5 right-4 w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors z-50"
+        className="lg:hidden absolute top-4 right-4 w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors z-50"
         aria-label="Fechar menu"
       >
         <X size={18} />
       </button>
 
-      {/* HEADER TOP DA SIDEBAR (LOGO + NOME + TOGGLE COLLAPSE) */}
+      {/* HEADER TOP DA SIDEBAR (LOGO + TOGGLE COLLAPSE) */}
       <div className={cn(
-        "flex flex-col border-b border-indigo-950/30",
-        collapsed
-          ? "items-center justify-center gap-1 px-1 py-4"
-          : "px-3 pt-3 pb-3"
+        "flex flex-col border-b border-indigo-950/30 relative",
+        collapsed ? "items-center justify-center px-1 py-4" : "px-3 py-3"
       )}>
-
-        {/* Linha superior: logo compacta (collapsed) ou logo grande (expanded) */}
-        <div className={cn(
-          "flex items-center w-full",
-          collapsed ? "flex-col gap-1 justify-center" : "justify-between",
-          !collapsed && !(user as any)?.schoolLogo && "gap-3"
-        )}>
-
-          {/* ---- LOGO AREA ---- */}
-          {(user as any)?.schoolLogo ? (
-            collapsed ? (
-              /* Collapsed: logo compacta em proporção, sem caixa */
+        {(user as any)?.schoolLogo ? (
+          collapsed ? (
+            /* Collapsed: logo compacta em proporção */
+            <button
+              type="button"
+              onClick={onToggle}
+              className="w-11 h-11 flex items-center justify-center overflow-hidden hover:scale-105 transition-transform cursor-pointer"
+              title="Clique para expandir o menu"
+            >
+              <img
+                src={(user as any).schoolLogo}
+                alt="Logo da Escola"
+                className="w-full h-full object-contain object-center"
+              />
+            </button>
+          ) : (
+            /* Expanded: Logo grande preenchendo 85% a 92% da largura (280-295px) em altura 110-140px */
+            <div className="w-full relative">
+              {/* Botão recolher no canto superior direito discreto */}
               <button
                 type="button"
                 onClick={onToggle}
-                className="w-10 h-10 flex items-center justify-center overflow-hidden hover:scale-105 transition-transform cursor-pointer"
-                title="Clique para expandir o menu"
+                className="absolute top-0 right-0 z-20 rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-7 h-7 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md"
+                title="Recolher menu lateral"
+                aria-label="Recolher menu"
               >
-                <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-contain object-center" />
+                <ChevronLeft size={14} />
               </button>
-            ) : (
-              /* Expanded: container de logo — logo grande integrada ao fundo do sidebar */
-              <div className="w-full">
-                <div className="w-full flex items-center justify-center" style={{ height: 110 }}>
-                  <img
-                    src={(user as any).schoolLogo}
-                    alt="Logo da Escola"
-                    className="w-full h-full object-contain object-center"
-                    style={{ imageRendering: 'auto' }}
-                  />
-                </div>
-                {(user as any)?.showSchoolName !== 0 && (
-                  <div className="w-full text-center px-2 mt-1.5">
-                    <p className="text-sm font-black text-white tracking-tight font-outfit leading-tight break-words line-clamp-2">
-                      {(user as any)?.schoolName || "WR"}
-                    </p>
-                    <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5 truncate">
-                      Escola de Música
-                    </p>
-                  </div>
-                )}
+
+              <div
+                className="w-full flex items-center justify-center"
+                style={{
+                  minHeight: '110px',
+                  maxHeight: '140px',
+                  padding: '8px 4px'
+                }}
+              >
+                <img
+                  src={(user as any).schoolLogo}
+                  alt="Logo da Escola"
+                  className="block object-contain object-center"
+                  style={{
+                    width: 'min(92%, 295px)',
+                    maxWidth: '295px',
+                    height: 'auto',
+                    maxHeight: '124px'
+                  }}
+                />
               </div>
-            )
-          ) : (
-            /* Sem logo: ícone musical padrão */
+            </div>
+          )
+        ) : (
+          /* Sem logo: ícone musical padrão + nome */
+          <div className={cn(
+            "flex items-center w-full",
+            collapsed ? "justify-center" : "justify-between"
+          )}>
             <button
               type="button"
               onClick={collapsed ? onToggle : undefined}
@@ -285,37 +295,18 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 </div>
               )}
             </button>
-          )}
 
-          {/* Botão Collapse / Expand — posicionado à direita quando não-collapsed e sem logo-banner */}
-          {(!collapsed || collapsed) && !((user as any)?.schoolLogo && !collapsed) && (
-            <button
-              type="button"
-              onClick={onToggle}
-              className={cn(
-                "rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md",
-                collapsed ? "w-7 h-7 text-indigo-400 hover:text-white hover:bg-indigo-600" : "w-8 h-8 mr-4"
-              )}
-              title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
-              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-            >
-              {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={16} />}
-            </button>
-          )}
-        </div>
-
-        {/* Linha inferior quando logo: botão de recolher */}
-        {!collapsed && (user as any)?.schoolLogo && (
-          <div className="flex items-center justify-end px-1 pt-2">
-            <button
-              type="button"
-              onClick={onToggle}
-              className="rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-8 h-8 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md"
-              title="Recolher menu lateral"
-              aria-label="Recolher menu"
-            >
-              <ChevronLeft size={16} />
-            </button>
+            {!collapsed && (
+              <button
+                type="button"
+                onClick={onToggle}
+                className="rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-8 h-8 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md"
+                title="Recolher menu lateral"
+                aria-label="Recolher menu"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            )}
           </div>
         )}
       </div>

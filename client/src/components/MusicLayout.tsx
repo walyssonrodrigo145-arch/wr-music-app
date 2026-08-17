@@ -95,7 +95,7 @@ export function MusicLayout({ children }: MusicLayoutProps) {
       {/* Sidebar - Desktop & Tablet */}
       <div
         className="hidden md:flex flex-shrink-0 transition-all duration-300"
-        style={{ width: collapsed ? '80px' : '260px', minWidth: collapsed ? '80px' : '260px' }}
+        style={{ width: collapsed ? '80px' : '325px', minWidth: collapsed ? '80px' : '325px' }}
       >
         <AppSidebar 
           collapsed={collapsed} 
