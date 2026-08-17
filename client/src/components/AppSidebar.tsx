@@ -33,9 +33,7 @@ import {
   FolderKanban,
   DoorOpen,
   Target,
-  FileSignature,
-  Plus,
-  Minus
+  FileSignature
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -164,26 +162,6 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
     };
   });
 
-  // Altura da logo ajustável pelo usuário (persiste no localStorage)
-  const LOGO_MIN = 80;
-  const LOGO_MAX = 240;
-  const LOGO_STEP = 10;
-  const [logoHeight, setLogoHeight] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem("musicpro_logo_height");
-      if (saved) return Math.min(LOGO_MAX, Math.max(LOGO_MIN, parseInt(saved, 10)));
-    } catch { /* ignore */ }
-    return 160;
-  });
-
-  const adjustLogoHeight = (delta: number) => {
-    setLogoHeight((prev) => {
-      const next = Math.min(LOGO_MAX, Math.max(LOGO_MIN, prev + delta));
-      localStorage.setItem("musicpro_logo_height", String(next));
-      return next;
-    });
-  };
-
   // Auto-expandir grupo caso a rota atual pertença a ele
   useEffect(() => {
     const currentGroup = navGroups.find((g) => g.items.some((item) => item.href === location));
@@ -229,68 +207,50 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       <div className={cn(
         "flex flex-col border-b border-indigo-950/30",
         collapsed
-          ? "items-center gap-2.5 justify-center px-1 py-4"
-          : (user as any)?.schoolLogo
-            ? "px-0 pt-0 pb-3"
-            : "px-5 py-4"
+          ? "items-center justify-center gap-1 px-1 py-4"
+          : "px-3 pt-3 pb-3"
       )}>
 
-        {/* Linha superior: logo pequena (collapsed) ou logo grande (expanded) + botão toggle */}
+        {/* Linha superior: logo compacta (collapsed) ou logo grande (expanded) */}
         <div className={cn(
           "flex items-center w-full",
-          collapsed ? "flex-col gap-2.5 justify-center" : "justify-between",
+          collapsed ? "flex-col gap-1 justify-center" : "justify-between",
           !collapsed && !(user as any)?.schoolLogo && "gap-3"
         )}>
 
           {/* ---- LOGO AREA ---- */}
           {(user as any)?.schoolLogo ? (
             collapsed ? (
-              /* Collapsed: ícone quadrado compacto */
+              /* Collapsed: logo compacta em proporção, sem caixa */
               <button
                 type="button"
                 onClick={onToggle}
-                className="w-10 h-10 rounded-xl bg-slate-900/60 shadow-lg shadow-primary/20 border border-white/10 flex-shrink-0 overflow-hidden flex items-center justify-center hover:scale-105 transition-transform"
+                className="w-10 h-10 flex items-center justify-center overflow-hidden hover:scale-105 transition-transform cursor-pointer"
                 title="Clique para expandir o menu"
               >
-                <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-contain" />
+                <img src={(user as any).schoolLogo} alt="Logo da Escola" className="w-full h-full object-contain object-center" />
               </button>
             ) : (
-              /* Expanded: logo com altura ajustável + botões +/- no hover */
-              <div
-                className="w-full bg-[#0A0820] border-b border-indigo-950/30 overflow-hidden relative group/logo"
-                style={{ height: `${logoHeight}px`, transition: 'height 0.2s ease' }}
-              >
-                <img
-                  src={(user as any).schoolLogo}
-                  alt="Logo da Escola"
-                  className="w-full h-full object-contain"
-                  style={{ imageRendering: 'auto' }}
-                />
-                {/* Botões + e - aparecem no hover */}
-                <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover/logo:opacity-100 transition-opacity duration-200 z-10">
-                  <button
-                    type="button"
-                    onClick={() => adjustLogoHeight(-LOGO_STEP)}
-                    disabled={logoHeight <= LOGO_MIN}
-                    className="w-6 h-6 rounded-md bg-black/70 border border-white/20 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="Diminuir logo"
-                  >
-                    <Minus size={11} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => adjustLogoHeight(LOGO_STEP)}
-                    disabled={logoHeight >= LOGO_MAX}
-                    className="w-6 h-6 rounded-md bg-black/70 border border-white/20 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="Aumentar logo"
-                  >
-                    <Plus size={11} />
-                  </button>
+              /* Expanded: container de logo — logo grande integrada ao fundo do sidebar */
+              <div className="w-full">
+                <div className="w-full flex items-center justify-center" style={{ height: 110 }}>
+                  <img
+                    src={(user as any).schoolLogo}
+                    alt="Logo da Escola"
+                    className="w-full h-full object-contain object-center"
+                    style={{ imageRendering: 'auto' }}
+                  />
                 </div>
-                {/* Indicador de tamanho */}
-                <div className="absolute bottom-2 left-2 opacity-0 group-hover/logo:opacity-100 transition-opacity duration-200">
-                  <span className="text-[9px] text-white/40 font-mono">{logoHeight}px</span>
-                </div>
+                {(user as any)?.showSchoolName !== 0 && (
+                  <div className="w-full text-center px-2 mt-1.5">
+                    <p className="text-sm font-black text-white tracking-tight font-outfit leading-tight break-words line-clamp-2">
+                      {(user as any)?.schoolName || "WR"}
+                    </p>
+                    <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5 truncate">
+                      Escola de Música
+                    </p>
+                  </div>
+                )}
               </div>
             )
           ) : (
@@ -344,20 +304,13 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
           )}
         </div>
 
-        {/* Linha inferior quando logo-banner: nome da escola + botão toggle */}
+        {/* Linha inferior quando logo: botão de recolher */}
         {!collapsed && (user as any)?.schoolLogo && (
-          <div className="flex items-center justify-between px-4 pt-2">
-            {(user as any)?.showSchoolName !== 0 && (
-              <div className="min-w-0 flex-1" title={(user as any)?.schoolName || "WR Gestão Musical"}>
-                <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest truncate">
-                  {(user as any)?.schoolName || "Escola de Música"}
-                </p>
-              </div>
-            )}
+          <div className="flex items-center justify-end px-1 pt-2">
             <button
               type="button"
               onClick={onToggle}
-              className="rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-8 h-8 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md ml-2"
+              className="rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-8 h-8 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md"
               title="Recolher menu lateral"
               aria-label="Recolher menu"
             >
