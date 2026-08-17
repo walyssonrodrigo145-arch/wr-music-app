@@ -234,12 +234,12 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               </button>
             ) : (
               /* Expanded: logo grande em banner no topo */
-              <div className="w-full bg-[#0A0820] border-b border-indigo-950/30 flex items-center justify-center px-4 pt-4 pb-3">
+              <div className="w-full bg-[#0A0820] border-b border-indigo-950/30 flex items-center justify-center px-3 py-4" style={{ minHeight: '96px' }}>
                 <img
                   src={(user as any).schoolLogo}
                   alt="Logo da Escola"
-                  className="max-h-14 w-auto max-w-[180px] object-contain drop-shadow-md"
-                  style={{ imageRendering: 'auto' }}
+                  className="w-full h-auto object-contain drop-shadow-md"
+                  style={{ maxHeight: '88px', imageRendering: 'auto' }}
                 />
               </div>
             )
