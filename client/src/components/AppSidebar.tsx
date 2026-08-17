@@ -191,7 +191,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       id="tour-sidebar"
       className={cn(
         "flex flex-col bg-[#070514] text-slate-300 transition-all duration-300 ease-in-out relative border-r border-indigo-950/40 shadow-2xl z-30 select-none overflow-hidden",
-        collapsed ? "w-[80px]" : "w-[325px]",
+        collapsed ? "w-[80px]" : "w-[270px]",
         "lg:translate-x-0"
       )}
       style={{ height: '100dvh', maxHeight: '100dvh', overflowX: 'hidden', flexShrink: 0 }}
@@ -208,7 +208,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       {/* HEADER TOP DA SIDEBAR (LOGO + TOGGLE COLLAPSE) */}
       <div className={cn(
         "flex flex-col border-b border-indigo-950/30 relative",
-        collapsed ? "items-center justify-center px-1 py-4" : "px-3 py-3"
+        collapsed ? "items-center justify-center px-1 py-3" : "px-3 py-2"
       )}>
         {(user as any)?.schoolLogo ? (
           collapsed ? (
@@ -226,37 +226,26 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
               />
             </button>
           ) : (
-            /* Expanded: Logo grande preenchendo a área visual do topo */
-            <div className="w-full relative">
-              {/* Botão recolher no canto superior direito discreto */}
+            /* Expanded: Logo ajustada sem excesso de fundo roxo */
+            <div className="w-full relative flex items-center justify-between gap-1">
+              <div className="flex-1 flex items-center justify-center py-1 overflow-hidden">
+                <img
+                  src={(user as any).schoolLogo}
+                  alt="Logo da Escola"
+                  className="block object-contain object-center max-h-[64px] max-w-[210px] w-auto h-auto transition-all"
+                />
+              </div>
+
+              {/* Botão recolher no canto direito */}
               <button
                 type="button"
                 onClick={onToggle}
-                className="absolute top-1 right-1 z-20 rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-7 h-7 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md"
+                className="rounded-full bg-slate-900/90 border border-indigo-950/80 text-slate-400 hover:text-white hover:bg-indigo-600 w-7 h-7 flex items-center justify-center transition-all shrink-0 cursor-pointer shadow-md"
                 title="Recolher menu lateral"
                 aria-label="Recolher menu"
               >
                 <ChevronLeft size={14} />
               </button>
-
-              <div
-                className="w-full flex items-center justify-center px-1 py-2"
-                style={{
-                  minHeight: '120px'
-                }}
-              >
-                <img
-                  src={(user as any).schoolLogo}
-                  alt="Logo da Escola"
-                  className="block object-contain object-center transition-all"
-                  style={{
-                    width: '100%',
-                    maxWidth: '305px',
-                    height: 'auto',
-                    maxHeight: '180px'
-                  }}
-                />
-              </div>
             </div>
           )
         ) : (
