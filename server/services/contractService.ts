@@ -211,3 +211,89 @@ export function mapProviderStatus(status: string): {
       return { internalStatus: "aguardando_assinatura" };
   }
 }
+
+// ─── Contexto de renderização (compartilhado entre criar, prévia e renovar) ──
+// Busca tudo que o PDF precisa (aluno, modelo, dados da escola) e já renderiza.
+export interface PreparedContract {
+  student: any;
+  template: any;
+  variables: Record<string, string>;
+  pdfBuffer: Buffer;
+  title: string;
+}
+
+export async function prepareContractRender(
+  db: any,
+  orgId: number,
+  studentId: number,
+  templateId: number,
+  opts: { startDate?: string | null; endDate?: string | null; monthlyFeeOverride?: string | null }
+): Promise<PreparedContract> {
+  const { students, instruments, settings: settingsT, organizations: orgs, contractTemplates: templates } =
+    await import("../../drizzle/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  const [student] = await db.select()
+    .from(students)
+    .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+    .limit(1);
+  if (!student) {
+    const { TRPCError } = await import("@trpc/server");
+    throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+  }
+
+  const [template] = await db.select()
+    .from(templates)
+    .where(and(eq(templates.id, templateId), eq(templates.organizationId, orgId)))
+    .limit(1);
+  if (!template) {
+    const { TRPCError } = await import("@trpc/server");
+    throw new TRPCError({ code: "NOT_FOUND", message: "Modelo de contrato não encontrado" });
+  }
+
+  const [orgSettings] = await db.select().from(settingsT).where(eq(settingsT.organizationId, orgId)).limit(1);
+  const [org] = await db.select().from(orgs).where(eq(orgs.id, orgId)).limit(1);
+  const [instrument] = student.instrumentId
+    ? await db.select().from(instruments).where(and(eq(instruments.id, student.instrumentId), eq(instruments.organizationId, orgId))).limit(1)
+    : [null];
+
+  const monthlyFee = opts.monthlyFeeOverride ?? (student.monthlyFee as string | null) ?? null;
+
+  const variables = buildContractVariables({
+    schoolName: orgSettings?.schoolName || org?.name,
+    schoolCnpj: orgSettings?.schoolCnpj,
+    schoolAddress: orgSettings?.schoolAddress,
+    schoolCity: orgSettings?.schoolCity,
+    schoolPhone: orgSettings?.schoolPhone,
+    schoolEmail: orgSettings?.schoolEmail || null,
+    studentName: student.name,
+    studentCpf: student.cpf,
+    studentEmail: student.email,
+    studentPhone: student.phone,
+    studentAddress: student.address,
+    instrument: instrument?.name,
+    monthlyFee,
+    dueDay: student.dueDay ? String(student.dueDay) : "10",
+    startDate: opts.startDate,
+    endDate: opts.endDate,
+  });
+
+  const pdfBuffer = await renderContractPdf(template.content || buildDefaultTemplateContent(), variables);
+  return {
+    student,
+    template,
+    variables,
+    pdfBuffer,
+    title: `Contrato - ${student.name}`,
+  };
+}
+
+// ─── Numeração sequencial por escola (ex: CT-2026-0003) ───────────────────────
+export async function getNextContractNumber(db: any, orgId: number): Promise<string> {
+  const { sql } = await import("drizzle-orm");
+  const { contracts } = await import("../../drizzle/schema");
+  const [row] = await db.select({ n: sql<number>`COUNT(*)` }).from(contracts).where(sql`"organizationId" = ${orgId}`);
+  const seq = Number(row?.n || 0) + 1;
+  const year = new Date().getFullYear();
+  return `CT-${year}-${String(seq).padStart(4, "0")}`;
+}

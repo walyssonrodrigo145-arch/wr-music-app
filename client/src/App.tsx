@@ -47,6 +47,7 @@ const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 const SalasEstudio = lazy(() => import("./pages/SalasEstudio"));
 const ChatbotFlowBuilder = lazy(() => import("./pages/ChatbotFlowBuilder"));
 const BaseConhecimentoIA = lazy(() => import("./pages/BaseConhecimentoIA"));
+const Contratos = lazy(() => import("./pages/Contratos"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -59,6 +60,7 @@ const StudentProfile = lazy(() => import("./pages/student/Perfil"));
 const StudentAgenda = lazy(() => import("./pages/student/Agenda"));
 
 const StudentAnnouncements = lazy(() => import("./pages/student/Avisos"));
+const StudentContracts = lazy(() => import("./pages/student/Contratos"));
 
 const PageLoader = () => (
   <div className="flex-1 h-full min-h-[50vh] flex flex-col items-center justify-center text-muted-foreground gap-4">
@@ -166,6 +168,7 @@ function Router() {
             <Route path="/aluno/pagamentos" component={StudentPayments} />
             <Route path="/aluno/perfil" component={StudentProfile} />
             <Route path="/aluno/avisos" component={StudentAnnouncements} />
+            <Route path="/aluno/contratos" component={StudentContracts} />
             <Route path="/aluno/scanner" component={QRScanner} />
             <Route>
               <Redirect to="/aluno" />
@@ -234,6 +237,7 @@ function Router() {
           <Route path="/analytics" component={AnalyticsDashboard} />
           <Route path="/comercial" component={LeadsApp} />
           <Route path="/leads" component={LeadsApp} />
+          <Route path="/contratos" component={Contratos} />
           <Route path="/salas" component={SalasEstudio} />
           <Route path="/salas-estudio" component={SalasEstudio} />
           <Route path="/checkout" component={Checkout} />

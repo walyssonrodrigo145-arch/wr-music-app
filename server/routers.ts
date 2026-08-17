@@ -179,6 +179,95 @@ export async function reconcileOrgAsaasCharges(db: any, orgId: number, subId: st
   }
 }
 
+// ─── Contratos Assinafy: fluxo compartilhado (criar / renovar) ─────────────
+export async function runCreateAssinafyContract(
+  db: any,
+  user: { id: number },
+  orgId: number,
+  input: { studentId: number; templateId: number; startDate?: string; endDate?: string; monthlyFeeOverride?: string }
+) {
+  const [integration] = await db.select()
+    .from(schoolIntegrations)
+    .where(and(
+      eq(schoolIntegrations.organizationId, orgId),
+      eq(schoolIntegrations.provider, "assinafy"),
+      eq(schoolIntegrations.active, true),
+    ))
+    .limit(1);
+  if (!integration) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Assinatura digital não configurada. Conecte sua conta da Assinafy em Configurações > Integrações.",
+    });
+  }
+
+  const { prepareContractRender, getNextContractNumber, addContractEvent, buildDefaultTemplateContent } = await import("./services/contractService");
+  const { providerFromIntegration } = await import("./services/signature");
+
+  const prepared = await prepareContractRender(db, orgId, input.studentId, input.templateId, {
+    startDate: input.startDate ?? null,
+    endDate: input.endDate ?? null,
+    monthlyFeeOverride: input.monthlyFeeOverride ?? null,
+  });
+
+  const student = prepared.student;
+  const template = prepared.template;
+  const contractNumber = await getNextContractNumber(db, orgId);
+  const title = prepared.title;
+
+  const provider = providerFromIntegration(integration);
+  const result = await provider.createSignProcess({
+    documentName: `${title}.pdf`,
+    pdfBuffer: prepared.pdfBuffer,
+    signer: {
+      fullName: student.name,
+      email: student.email,
+      phone: student.phone || null,
+    },
+    message: `Olá ${student.name}! Sua escola enviou o contrato "${title}" (#${contractNumber}) para assinatura digital.`,
+    expiresAt: input.endDate ? new Date(input.endDate) : null,
+  });
+
+  const monthlyFeeRaw = prepared.variables.monthly_fee;
+  const storedFee = monthlyFeeRaw && monthlyFeeRaw !== "__________" ? monthlyFeeRaw : null;
+
+  const [newContract] = await db.insert(contracts).values({
+    organizationId: orgId,
+    userId: user.id,
+    studentId: student.id,
+    contractNumber,
+    templateId: template.id,
+    templateContentSnapshot: template.content || buildDefaultTemplateContent(),
+    monthlyFee: storedFee,
+    dueDay: student.dueDay ?? null,
+    startDate: input.startDate ? new Date(input.startDate) : null,
+    endDate: input.endDate ? new Date(input.endDate) : null,
+    title,
+    status: "aguardando_assinatura",
+    provider: "assinafy",
+    assinafyDocId: result.providerDocumentId,
+    assinafySignUrl: result.signUrl,
+    sentAt: result.sentAt,
+    expiresAt: input.endDate ? new Date(input.endDate) : null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }).returning();
+
+  await addContractEvent(db as any, newContract.id, "contrato_criado", `Contrato ${contractNumber} criado`, null, { template: template.name });
+  await addContractEvent(db as any, newContract.id, "contrato_enviado", "Contrato enviado para assinatura", null, { signUrl: result.signUrl });
+
+  try {
+    const origin = ENV.appUrl;
+    if (origin) {
+      await provider.configureWebhook(`${origin.replace(/\/$/, "")}/api/webhooks/assinafy`);
+    }
+  } catch (e: any) {
+    console.warn(`[Contracts] Falha ao configurar webhook da conta Assinafy (org ${orgId}):`, e?.message || e);
+  }
+
+  return { contract: newContract, signUrl: result.signUrl };
+}
+
 export const appRouter = router({
   superAdmin: superAdminRouter,
   reportEngine: reportEngineRouter,
@@ -338,12 +427,14 @@ export const appRouter = router({
         const allSettings = await db.select({
           logoUrl: settings.logoUrl,
           schoolName: settings.schoolName,
+          schoolEmail: settings.schoolEmail,
         }).from(settings).where(eq(settings.organizationId, ctx.user.organizationId));
 
         const userSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '') || allSettings.find(s => s.logoUrl) || allSettings[0];
 
         const schoolLogo = userSet?.logoUrl || org?.logo || null;
         const schoolName = (userSet?.schoolName && userSet.schoolName.trim() !== '') ? userSet.schoolName : (org?.name || null);
+        const schoolEmail = userSet?.schoolEmail || null;
         
         let permissions: string[] = [];
         if (ctx.user.role === 'professor') {
@@ -366,6 +457,7 @@ export const appRouter = router({
           permissions,
           schoolLogo,
           schoolName,
+          schoolEmail,
         };
       }
       
@@ -374,6 +466,7 @@ export const appRouter = router({
         subscriptionStatus: null,
         trialEndsAt: null,
         permissions: [],
+        schoolEmail: null,
       };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -4321,6 +4414,7 @@ ${jsonSchemaFormat}`;
       schoolAddress: z.string().optional(),
       schoolCity: z.string().optional(),
       schoolPhone: z.string().optional(),
+      schoolEmail: z.string().email("E-mail inválido").optional().or(z.literal("")).transform(v => v === "" ? undefined : v),
       schoolWebsite: z.string().optional(),
       schoolDescription: z.string().optional(),
       logoUrl: z.string().optional().nullable(),
@@ -10202,116 +10296,86 @@ Texto original para reescrever:
         templateId: z.number(),
         startDate: z.string().optional(),
         endDate: z.string().optional(),
+        monthlyFeeOverride: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
         const orgId = ctx.user.organizationId!;
 
-        const [student] = await db.select()
-          .from(students)
-          .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)))
-          .limit(1);
-        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+        const result = await runCreateAssinafyContract(db, ctx.user, orgId, input);
 
-        const [integration] = await db.select()
-          .from(schoolIntegrations)
-          .where(and(
-            eq(schoolIntegrations.organizationId, orgId),
-            eq(schoolIntegrations.provider, "assinafy"),
-            eq(schoolIntegrations.active, true),
-          ))
-          .limit(1);
-        if (!integration) {
-          throw new TRPCError({
-            code: "PRECONDITION_FAILED",
-            message: "Assinatura digital não configurada. Conecte sua conta da Assinafy em Configurações > Integrações.",
-          });
-        }
+        return { success: true, contract: result.contract, signUrl: result.signUrl };
+      }),
 
-        const [template] = await db.select()
-          .from(contractTemplates)
-          .where(and(eq(contractTemplates.id, input.templateId), eq(contractTemplates.organizationId, orgId)))
-          .limit(1);
-        if (!template) throw new TRPCError({ code: "NOT_FOUND", message: "Modelo de contrato não encontrado" });
+    // 🔍 Gera o PDF do contrato SEM enviar para assinatura (pré-visualização)
+    previewPdf: protectedProcedure
+      .input(z.object({
+        studentId: z.number(),
+        templateId: z.number(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        monthlyFeeOverride: z.string().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
 
-        const [orgSettings] = await db.select()
-          .from(settings)
-          .where(eq(settings.organizationId, orgId))
-          .limit(1);
-
-        const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
-        const [instrument] = student.instrumentId
-          ? await db.select().from(instruments).where(and(eq(instruments.id, student.instrumentId), eq(instruments.organizationId, orgId))).limit(1)
-          : [null];
-
-        const { buildContractVariables, renderContractPdf, addContractEvent, buildDefaultTemplateContent } = await import("./services/contractService");
-        const { providerFromIntegration } = await import("./services/signature");
-        const { encryptSecret } = await import("./utils/integrationCrypto");
-
-        const variables = buildContractVariables({
-          schoolName: orgSettings?.schoolName || org?.name,
-          schoolCnpj: orgSettings?.schoolCnpj,
-          schoolAddress: orgSettings?.schoolAddress,
-          schoolCity: orgSettings?.schoolCity,
-          schoolPhone: orgSettings?.schoolPhone,
-          schoolEmail: (orgSettings as any)?.schoolEmail || null,
-          studentName: student.name,
-          studentCpf: student.cpf,
-          studentEmail: student.email,
-          studentPhone: student.phone,
-          studentAddress: student.address,
-          instrument: instrument?.name,
-          monthlyFee: student.monthlyFee,
-          dueDay: student.dueDay ? String(student.dueDay) : "10",
-          startDate: input.startDate,
-          endDate: input.endDate,
+        const { prepareContractRender } = await import("./services/contractService");
+        const prepared = await prepareContractRender(db, orgId, input.studentId, input.templateId, {
+          startDate: input.startDate ?? null,
+          endDate: input.endDate ?? null,
+          monthlyFeeOverride: input.monthlyFeeOverride ?? null,
         });
 
-        const pdfBuffer = await renderContractPdf(template.content || buildDefaultTemplateContent(), variables);
-        const title = `Contrato - ${student.name}`;
+        return {
+          base64: prepared.pdfBuffer.toString("base64"),
+          fileName: `preview-${prepared.title}.pdf`,
+        };
+      }),
 
-        const provider = providerFromIntegration(integration);
-        const result = await provider.createSignProcess({
-          documentName: `${title}.pdf`,
-          pdfBuffer,
-          signer: {
-            fullName: student.name,
-            email: student.email,
-            phone: student.phone || null,
-          },
-          message: `Olá ${student.name}! Sua escola enviou o contrato "${title}" para assinatura digital.`,
-          expiresAt: input.endDate ? new Date(input.endDate) : null,
+    // 🔄 Renovação/reemissão: novo contrato a partir de um existente (mesmo aluno/modelo/valores)
+    renew: protectedProcedure
+      .input(z.object({
+        contractId: z.number(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [original] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.contractId), eq(contracts.organizationId, orgId)))
+          .limit(1);
+        if (!original) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        if (!original.templateId) throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato sem modelo associado para renovação." });
+
+        const { addContractEvent } = await import("./services/contractService");
+
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const oneYear = new Date(now);
+        oneYear.setFullYear(now.getFullYear() + 1);
+        const defaultStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const defaultEnd = `${oneYear.getFullYear()}-${pad(oneYear.getMonth() + 1)}-${pad(oneYear.getDate())}`;
+
+        const result = await runCreateAssinafyContract(db, ctx.user, orgId, {
+          studentId: original.studentId,
+          templateId: original.templateId,
+          startDate: input.startDate || defaultStart,
+          endDate: input.endDate || defaultEnd,
+          monthlyFeeOverride: original.monthlyFee ?? undefined,
         });
 
-        const [newContract] = await db.insert(contracts).values({
-          organizationId: orgId,
-          userId: ctx.user.id,
-          studentId: student.id,
-          templateId: template.id,
-          title,
-          status: "aguardando_assinatura",
-          provider: "assinafy",
-          assinafyDocId: result.providerDocumentId,
-          assinafySignUrl: result.signUrl,
-          sentAt: result.sentAt,
-          expiresAt: input.endDate ? new Date(input.endDate) : null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }).returning();
+        await addContractEvent(db as any, result.contract.id, "contrato_renovado",
+          `Contrato renovado a partir do contrato #${original.contractNumber || original.id}`, null,
+          { originalContractId: original.id });
 
-        await addContractEvent(db as any, newContract.id, "contrato_criado", "Contrato criado", null, { template: template.name });
-        await addContractEvent(db as any, newContract.id, "contrato_enviado", "Contrato enviado para assinatura", null, { signUrl: result.signUrl });
-
-        // Configura o webhook da conta (best-effort, sem bloquear o fluxo)
-        try {
-          const origin = (ctx.req?.headers as any)?.origin || ENV.appUrl;
-          if (origin) {
-            await provider.configureWebhook(`${origin.replace(/\/$/, "")}/api/webhooks/assinafy`).catch(() => false);
-          }
-        } catch {}
-
-        return { success: true, contract: newContract, signUrl: result.signUrl };
+        return { success: true, contract: result.contract, signUrl: result.signUrl };
       }),
 
     refreshStatus: protectedProcedure
@@ -10346,7 +10410,7 @@ Texto original para reescrever:
 
           const updateData: any = { status: mapped.internalStatus, updatedAt: new Date() };
           if (mapped.signed) {
-            updateData.signedAt = updateData.signedAt ?? new Date();
+            updateData.signedAt = contract.signedAt ?? new Date();
             if (status.signedDocumentUrl) updateData.signedDocumentUrl = status.signedDocumentUrl;
           }
           if (status.declined) updateData.cancelledAt = new Date();
@@ -10456,6 +10520,9 @@ Texto original para reescrever:
           .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
           .limit(1);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        if (ctx.user.role === "aluno" && ctx.user.studentId && contract.studentId !== ctx.user.studentId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para acessar este contrato." });
+        }
         if (!contract.assinafyDocId || contract.status !== "assinado") {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato ainda não assinado." });
         }

@@ -857,6 +857,7 @@ export default function Configuracoes() {
   const [schoolAddress, setSchoolAddress] = useState("");
   const [schoolCity, setSchoolCity] = useState("");
   const [schoolPhone, setSchoolPhone] = useState("");
+  const [schoolEmail, setSchoolEmail] = useState("");
   const [schoolWebsite, setSchoolWebsite] = useState("");
   const [schoolDescription, setSchoolDescription] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -959,6 +960,7 @@ export default function Configuracoes() {
       setSchoolAddress(settings.schoolAddress ?? "");
       setSchoolCity(settings.schoolCity ?? "");
       setSchoolPhone(settings.schoolPhone ?? "");
+      setSchoolEmail(settings.schoolEmail ?? "");
       setSchoolWebsite(settings.schoolWebsite ?? "");
       setSchoolDescription(settings.schoolDescription ?? "");
       setLogoUrl((settings as any).logoUrl ?? (user as any)?.schoolLogo ?? "");
@@ -1362,7 +1364,7 @@ export default function Configuracoes() {
                             return;
                          }
                       }
-                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolWebsite, schoolDescription, logoUrl, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
+                      updateSchool.mutate({ schoolName, schoolAddress, schoolCity, schoolPhone, schoolEmail, schoolWebsite, schoolDescription, logoUrl, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
                     }}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -1475,6 +1477,16 @@ export default function Configuracoes() {
                       value={schoolPhone}
                       onChange={e => setSchoolPhone(e.target.value)}
                       placeholder="(11) 3333-4444"
+                      className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
+                    />
+                  </Field>
+
+                  <Field label="E-mail da escola" hint="Aparece no rodapé dos contratos e na própria escola">
+                    <DebouncedInput
+                      value={schoolEmail}
+                      onChange={(e: any) => setSchoolEmail(e.target.value)}
+                      placeholder="contato@suaescola.com.br"
+                      type="email"
                       className="h-12 text-sm font-bold rounded-xl border-border bg-muted focus:bg-card transition-all shadow-sm"
                     />
                   </Field>

@@ -198,6 +198,7 @@ async function ensureSchemaConsistency(db: any) {
     // student_files folder and viewedAt
     await safeExecute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "folder" text`, "student_files.folder");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "logoUrl" text`, "settings.logoUrl");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "schoolEmail" varchar(255)`, "settings.schoolEmail");
     await safeExecute(sql`ALTER TABLE "student_files" ADD COLUMN IF NOT EXISTS "viewedAt" timestamp`, "student_files.viewedAt");
     await safeExecute(sql`ALTER TABLE "analytics_visitors" ADD COLUMN IF NOT EXISTS "total_events" integer DEFAULT 0 NOT NULL`, "analytics_visitors.total_events");
     await safeExecute(sql`ALTER TABLE "analytics_sessions" ADD COLUMN IF NOT EXISTS "organization_id" integer`, "analytics_sessions.organization_id");
@@ -545,8 +546,14 @@ async function ensureSchemaConsistency(db: any) {
         "updatedAt" timestamp DEFAULT now() NOT NULL
       )
     `, "create contracts table");
-    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "provider" varchar(30) DEFAULT 'zapsign' NOT NULL`, "contracts.provider");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "provider" varchar(30) DEFAULT 'assinafy' NOT NULL`, "contracts.provider");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "contractNumber" varchar(40)`, "contracts.contractNumber");
     await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "templateId" integer`, "contracts.templateId");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "templateContentSnapshot" text`, "contracts.templateContentSnapshot");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "monthlyFee" numeric(10,2)`, "contracts.monthlyFee");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "dueDay" integer`, "contracts.dueDay");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "startDate" date`, "contracts.startDate");
+    await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "endDate" date`, "contracts.endDate");
     await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "assinafyDocId" text`, "contracts.assinafyDocId");
     await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "assinafySignUrl" text`, "contracts.assinafySignUrl");
     await safeExecute(sql`ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "signedDocumentUrl" text`, "contracts.signedDocumentUrl");

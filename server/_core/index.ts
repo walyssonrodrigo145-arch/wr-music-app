@@ -27,6 +27,61 @@ import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whats
 import { notifyUser } from "./notification";
 import { COOKIE_NAME } from "../../shared/const";
 
+// ─── Notificação de eventos de contrato (assinado / recusado) ──────────────
+// Notifica os administradores da escola (push + notificação in-app) e o
+// WhatsApp da escola quando um contrato muda de status via webhook.
+export async function notifyContractActivity(
+  contract: any,
+  kind: "assinado" | "recusado",
+  baseMessage: string
+) {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    const orgId = contract.organizationId!;
+    const { users, notifications, students } = await import("../../drizzle/schema");
+
+    const [st] = await db.select({ name: students.name })
+      .from(students)
+      .where(eq(students.id, contract.studentId))
+      .limit(1);
+    const studentName = st?.name || "Aluno";
+
+    const title = kind === "assinado" ? "📄 Contrato assinado" : "⚠️ Contrato recusado";
+    const message = `${baseMessage} — Aluno: *${studentName}*. Contrato: ${contract.contractNumber || contract.title}.`;
+
+    const admins = await db.select().from(users)
+      .where(and(eq(users.organizationId, orgId), eq(users.role, "admin")));
+
+    for (const u of admins) {
+      await db.insert(notifications).values({
+        organizationId: orgId,
+        userId: u.id,
+        title,
+        message,
+        type: kind === "assinado" ? "success" : "warning",
+        actionUrl: "/contratos",
+        createdAt: new Date(),
+      }).onConflictDoNothing().catch(() => {});
+      await notifyUser(u.id, { title, content: message, url: "/contratos" }).catch(() => {});
+    }
+
+    const [s] = await db.select().from(settings).where(eq(settings.organizationId, orgId)).limit(1);
+    if (s?.whatsappBotUrl && s?.schoolPhone) {
+      const { sendWhatsAppMessage } = await import("../utils/whatsapp");
+      await sendWhatsAppMessage({
+        url: s.whatsappBotUrl,
+        token: s.whatsappBotToken,
+        phone: s.schoolPhone,
+        sessionId: `org_${orgId}`,
+        message: `🤖 *MusicPro — Contratos*\n\n${title.replace(/[📄⚠️]/g, "").trim()}\nAluno: ${studentName}\nContrato: ${contract.contractNumber || contract.title}.`,
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.error(`[Assinafy Webhook] Falha ao notificar ${kind} do contrato ${contract.id}:`, (e as Error)?.message || e);
+  }
+}
+
 
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -661,7 +716,7 @@ async function startServer() {
 
             const updateData: any = { status: mapped.internalStatus, updatedAt: new Date() };
             if (mapped.signed) {
-              updateData.signedAt = updateData.signedAt ?? new Date();
+              updateData.signedAt = contract.signedAt ?? new Date();
               if (status.signedDocumentUrl) updateData.signedDocumentUrl = status.signedDocumentUrl;
             }
             if (status.declined) updateData.cancelledAt = new Date();
@@ -669,6 +724,9 @@ async function startServer() {
 
             if (mapped.signed) {
               await addContractEvent(db as any, contract.id, "contrato_assinado", "Contrato assinado", eventId, { providerEvent: event, providerStatus: status.status });
+              if (contract.status !== "assinado") {
+                await notifyContractActivity(contract, "assinado", "Um contrato foi assinado!");
+              }
             } else {
               await addContractEvent(db as any, contract.id, "assinatura_iniciada", "Assinatura em andamento", eventId, { providerEvent: event, providerStatus: status.status });
             }
@@ -680,6 +738,9 @@ async function startServer() {
         await db.update(contracts).set({ status: "cancelado", cancelledAt: new Date(), updatedAt: new Date() })
           .where(eq(contracts.id, contract.id));
         await addContractEvent(db as any, contract.id, "contrato_recusado", statusDescription || "Contrato recusado", eventId, { providerEvent: event });
+        if (contract.status !== "cancelado") {
+          await notifyContractActivity(contract, "recusado", `Contrato recusado${statusDescription ? `: ${statusDescription}` : " pela parte contrária"}`);
+        }
       } else if (event === "document_processing_failed") {
         await db.update(contracts).set({ status: "erro", updatedAt: new Date() })
           .where(eq(contracts.id, contract.id));

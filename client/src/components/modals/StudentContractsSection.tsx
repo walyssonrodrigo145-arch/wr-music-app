@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   FileSignature, Plus, Copy, Eye, RefreshCw, Ban, Download, Loader2,
-  Clock, CheckCircle2, XCircle, AlertTriangle, History, Link2, FileText,
+  Clock, CheckCircle2, XCircle, AlertTriangle, History, Link2, FileText, RotateCcw,
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> = {
@@ -40,11 +40,11 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
   onCreated: () => void;
 }) {
   const { data: templates = [] } = trpc.contractTemplates.list.useQuery(undefined, { enabled: open });
-  const { data: assinafyTemplates = [] } = trpc.contractTemplates.listAssinafyTemplates.useQuery(undefined, { enabled: open });
+  const utils = trpc.useUtils();
 
   const createMutation = trpc.contracts.createAssinafy.useMutation({
     onSuccess: (res) => {
-      toast.success("Contrato criado!");
+      toast.success(`Contrato criado! Nº ${res.contract?.contractNumber || ""}`);
       if (res.signUrl) {
         navigator.clipboard.writeText(res.signUrl).catch(() => {});
       }
@@ -57,6 +57,33 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [monthlyFeeOverride, setMonthlyFeeOverride] = useState("");
+  const [previewing, setPreviewing] = useState(false);
+
+  const handlePreview = async () => {
+    if (!templateId) return;
+    setPreviewing(true);
+    try {
+      const data = await utils.contracts.previewPdf.fetch({
+        studentId: student.id,
+        templateId,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        monthlyFeeOverride: monthlyFeeOverride || undefined,
+      });
+      if (!data?.base64) return toast.error("Não foi possível gerar a pré-visualização.");
+      const bytes = atob(data.base64);
+      const arr = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+      const blob = new Blob([arr], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao gerar pré-visualização");
+    } finally {
+      setPreviewing(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -101,23 +128,24 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
               className="h-12 w-full rounded-xl border border-border bg-muted/30 px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all"
             >
               <option value="">Selecione um modelo...</option>
-              {templates.length > 0 && (
-                <optgroup label="Modelos do Sistema">
-                  {templates.map((t: any) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </optgroup>
-              )}
-              {assinafyTemplates.length > 0 && (
-                <optgroup label="Modelos da Conta Assinafy">
-                  {assinafyTemplates.map((at: any, idx: number) => (
-                    <option key={at.id || idx} value={templates[0]?.id || 1}>
-                      {at.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
+              {templates.map((t: any) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
             </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
+              Valor do contrato <span className="normal-case opacity-60">(opcional — se diferente da mensalidade)</span>
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder={student?.monthlyFee ? `R$ ${student.monthlyFee}` : "R$ 0,00"}
+              value={monthlyFeeOverride}
+              onChange={(e) => setMonthlyFeeOverride(e.target.value)}
+              className="h-12 w-full rounded-xl border border-border bg-muted/30 px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -141,11 +169,26 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={onClose}>Cancelar</Button>
             <Button
+              variant="outline"
+              disabled={!templateId || previewing}
+              onClick={handlePreview}
+              className="flex-1 h-11 rounded-xl font-bold"
+            >
+              {previewing ? <Loader2 size={16} className="animate-spin mr-2" /> : <Eye size={16} className="mr-2" />}
+              Pré-visualizar
+            </Button>
+            <Button
               disabled={!templateId || createMutation.isPending}
-              onClick={() => createMutation.mutate({ studentId: student.id, templateId: templateId!, startDate: startDate || undefined, endDate: endDate || undefined })}
+              onClick={() => createMutation.mutate({
+                studentId: student.id,
+                templateId: templateId!,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                monthlyFeeOverride: monthlyFeeOverride || undefined,
+              })}
               className="flex-1 h-11 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold"
             >
               {createMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <FileSignature size={16} className="mr-2" />}
@@ -166,6 +209,8 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
   const [detailsId, setDetailsId] = useState<number | null>(null);
   const [downloading, setDownloading] = useState<number | null>(null);
   const [resending, setResending] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState<number | null>(null);
+  const [renewing, setRenewing] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState<number | null>(null);
 
   const invalidate = () => {
@@ -187,6 +232,25 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
     onSuccess: () => { toast.success("Contrato reenviado!"); invalidate(); },
     onError: (e) => toast.error(e.message),
   });
+
+  const renewMutation = trpc.contracts.renew.useMutation({
+    onSuccess: (res) => {
+      toast.success(`Contrato renovado! Nº ${res.contract?.contractNumber || ""}`);
+      invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleRefresh = (contract: any) => {
+    setRefreshing(contract.id);
+    refreshMutation.mutate({ id: contract.id }, { onSettled: () => setRefreshing(null) });
+  };
+
+  const handleRenew = (contract: any) => {
+    if (!window.confirm("Gerar um novo contrato de renovação para este aluno (mesmo modelo e valores)?")) return;
+    setRenewing(contract.id);
+    renewMutation.mutate({ contractId: contract.id }, { onSettled: () => setRenewing(null) });
+  };
 
   const handleDownload = async (contract: any) => {
     setDownloading(contract.id);
@@ -254,12 +318,24 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
               <div key={contract.id} className="bg-card rounded-2xl border border-border/60 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <div className="min-w-0">
-                    <p className="text-xs font-black text-foreground truncate">{contract.title}</p>
+                    <p className="text-xs font-black text-foreground truncate">
+                      {contract.contractNumber ? contract.contractNumber : contract.title}
+                    </p>
+                    {contract.contractNumber && <p className="text-[10px] text-muted-foreground font-medium truncate">{contract.title}</p>}
                     <ContractStatusBadge status={contract.status} />
                   </div>
                   <span className="text-[10px] text-muted-foreground font-bold whitespace-nowrap">
                     {fmtDate(contract.createdAt)}
                   </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-muted-foreground font-medium">
+                  {contract.monthlyFee != null && (
+                    <p>Valor: <b className="text-foreground">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(contract.monthlyFee))}</b></p>
+                  )}
+                  {contract.dueDay != null && <p>Vencimento: <b className="text-foreground">Dia {contract.dueDay}</b></p>}
+                  {contract.startDate && <p>Início: <b className="text-foreground">{fmtDate(contract.startDate)}</b></p>}
+                  {contract.endDate && <p>Término: <b className="text-foreground">{fmtDate(contract.endDate)}</b></p>}
                 </div>
 
                 {(contract.sentAt || contract.signedAt) && (
@@ -272,6 +348,10 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
                 )}
 
                 <div className="flex flex-wrap gap-1.5">
+                  <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" disabled={refreshing === contract.id} onClick={() => handleRefresh(contract)}>
+                    {refreshing === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <RefreshCw size={12} className="mr-1" />}
+                    Atualizar status
+                  </Button>
                   {contract.assinafySignUrl && (
                     <>
                       <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => window.open(contract.assinafySignUrl, "_blank")}>
@@ -305,10 +385,16 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
                     </>
                   )}
                   {isSigned && (
-                    <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10" disabled={downloading === contract.id} onClick={() => handleDownload(contract)}>
-                      {downloading === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Download size={12} className="mr-1" />}
-                      Baixar contrato
-                    </Button>
+                    <>
+                      <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold text-violet-600 border-violet-500/20 hover:bg-violet-500/10" disabled={renewing === contract.id} onClick={() => handleRenew(contract)}>
+                        {renewing === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <RotateCcw size={12} className="mr-1" />}
+                        Renovar
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10" disabled={downloading === contract.id} onClick={() => handleDownload(contract)}>
+                        {downloading === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Download size={12} className="mr-1" />}
+                        Baixar contrato
+                      </Button>
+                    </>
                   )}
                   <Button size="sm" variant="ghost" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => setDetailsId(detailsId === contract.id ? null : contract.id)}>
                     <History size={12} className="mr-1" /> Histórico
