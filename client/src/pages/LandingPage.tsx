@@ -24,7 +24,6 @@ import {
   ChevronRight,
   MessageCircle,
   Sparkles,
-  Building2,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -516,7 +515,7 @@ const LandingPage = () => {
     };
   }) || [];
 
-  const { data: landingClientsData } = trpc.publicData.getLandingClients.useQuery();
+  
 
   const navLinks = [
     { name: 'Recursos', href: '#features' },
@@ -748,7 +747,7 @@ const LandingPage = () => {
       </section>
 
       {/* FEATURES */}
-      <section id="features" className="relative py-24 bg-muted/30 border-y border-border/50 overflow-hidden">
+      <section id="features" className="relative py-24 bg-muted/30 border-b border-border/50 overflow-hidden">
         {/* Instrument Decorations */}
         <div className="hidden xl:block absolute top-[20px] right-[-200px] transform rotate-[20deg] z-0 pointer-events-none">
           <img src="/img/guitar-trans.png" loading="lazy" alt="Imagem de guitarra" className="w-[500px] object-contain select-none opacity-90 drop-shadow-2xl" draggable={false} />

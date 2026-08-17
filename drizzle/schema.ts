@@ -1505,3 +1505,21 @@ export const slotOffers = pgTable("slot_offers", {
 
 export type SlotOffer = typeof slotOffers.$inferSelect;
 export type InsertSlotOffer = typeof slotOffers.$inferInsert;
+
+// ── Slides de Funcionalidades do Hero na Landing Page (Super Admin) ─────────
+export const landingHeroSlides = pgTable("landing_hero_slides", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  highlight: varchar("highlight", { length: 255 }).notNull(),
+  subtitle: text("subtitle").notNull(),
+  points: text("points").default("[]").notNull(), // JSON array de strings
+  imageUrl: text("imageUrl").notNull(),
+  bgTheme: varchar("bgTheme", { length: 50 }).default("slate-900").notNull(), // 'slate-50' | 'blue-600' | 'slate-900' | 'indigo-50'
+  order: integer("order").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export type LandingHeroSlide = typeof landingHeroSlides.$inferSelect;
+export type InsertLandingHeroSlide = typeof landingHeroSlides.$inferInsert;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { trpc } from '@/lib/trpc';
 
-const slides = [
+const DEFAULT_SLIDES = [
   {
     id: 1,
     title: 'Gestão de Alunos',
@@ -65,24 +66,66 @@ const slides = [
   }
 ];
 
+const THEMES_CONFIG: Record<string, { bg: string; textColor: string; highlightColor: string }> = {
+  'slate-50': { bg: 'bg-slate-50', textColor: 'text-slate-900', highlightColor: 'text-blue-600' },
+  'blue-600': { bg: 'bg-blue-600', textColor: 'text-white', highlightColor: 'text-blue-200' },
+  'slate-900': { bg: 'bg-slate-900', textColor: 'text-white', highlightColor: 'text-indigo-400' },
+  'indigo-50': { bg: 'bg-indigo-50', textColor: 'text-indigo-950', highlightColor: 'text-indigo-600' },
+  'emerald-950': { bg: 'bg-emerald-950', textColor: 'text-white', highlightColor: 'text-emerald-300' },
+  'violet-950': { bg: 'bg-violet-950', textColor: 'text-white', highlightColor: 'text-violet-300' },
+};
+
 const AUTOPLAY_INTERVAL = 6000;
 
 export function HeroSlider() {
+  const { data: dbSlides } = trpc.publicData.getHeroSlides.useQuery();
+
+  const slides = React.useMemo(() => {
+    if (dbSlides && dbSlides.length > 0) {
+      return dbSlides.map((s: any) => {
+        let pts: string[] = [];
+        try {
+          pts = typeof s.points === 'string' ? JSON.parse(s.points) : s.points || [];
+        } catch {
+          pts = [];
+        }
+        const theme = THEMES_CONFIG[s.bgTheme] || THEMES_CONFIG['slate-900'];
+        return {
+          id: s.id,
+          title: s.title,
+          highlight: s.highlight,
+          subtitle: s.subtitle,
+          points: pts,
+          img: s.imageUrl,
+          ...theme,
+        };
+      });
+    }
+    return DEFAULT_SLIDES;
+  }, [dbSlides]);
+
   const [current, setCurrent] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
+  // Garantir índice válido se a lista mudar
   useEffect(() => {
-    if (isHovered) return;
+    if (current >= slides.length) {
+      setCurrent(0);
+    }
+  }, [slides.length, current]);
+
+  useEffect(() => {
+    if (isHovered || slides.length <= 1) return;
     const interval = setInterval(() => {
       setCurrent((c) => (c === slides.length - 1 ? 0 : c + 1));
     }, AUTOPLAY_INTERVAL);
     return () => clearInterval(interval);
-  }, [isHovered]);
+  }, [isHovered, slides.length]);
 
   const nextSlide = () => setCurrent(current === slides.length - 1 ? 0 : current + 1);
   const prevSlide = () => setCurrent(current === 0 ? slides.length - 1 : current - 1);
 
-  const slide = slides[current];
+  const slide = slides[current] || slides[0] || DEFAULT_SLIDES[0];
 
   return (
     <div 

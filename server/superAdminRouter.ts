@@ -51,6 +51,7 @@ import {
   studioRooms,
   enrollmentLinks,
   landingClients,
+  landingHeroSlides,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -517,5 +518,84 @@ export const superAdminRouter = router({
       await db.delete(landingClients).where(eq(landingClients.id, input.id));
       return { success: true };
     }),
+
+  // ─── GESTÃO DE SLIDES DE FUNCIONALIDADES (HERO SLIDER) ──────────────────────
+  listHeroSlides: isSuperAdmin
+    .query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { asc } = await import("drizzle-orm");
+      return await db.select().from(landingHeroSlides).orderBy(asc(landingHeroSlides.order), asc(landingHeroSlides.id));
+    }),
+
+  createHeroSlide: isSuperAdmin
+    .input(z.object({
+      title: z.string().min(1, "Título é obrigatório"),
+      highlight: z.string().min(1, "Texto destacado é obrigatório"),
+      subtitle: z.string().min(1, "Subtítulo é obrigatório"),
+      points: z.array(z.string()).default([]),
+      imageUrl: z.string().min(1, "Imagem do slide é obrigatória"),
+      bgTheme: z.string().default("slate-900"),
+      order: z.number().int().default(0),
+      isActive: z.boolean().default(true),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [newSlide] = await db.insert(landingHeroSlides).values({
+        title: input.title,
+        highlight: input.highlight,
+        subtitle: input.subtitle,
+        points: JSON.stringify(input.points),
+        imageUrl: input.imageUrl,
+        bgTheme: input.bgTheme,
+        order: input.order,
+        isActive: input.isActive,
+      }).returning();
+
+      return newSlide;
+    }),
+
+  updateHeroSlide: isSuperAdmin
+    .input(z.object({
+      id: z.number().int().positive(),
+      title: z.string().min(1).optional(),
+      highlight: z.string().min(1).optional(),
+      subtitle: z.string().min(1).optional(),
+      points: z.array(z.string()).optional(),
+      imageUrl: z.string().min(1).optional(),
+      bgTheme: z.string().optional(),
+      order: z.number().int().optional(),
+      isActive: z.boolean().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const { id, points, ...rest } = input;
+      const updateData: any = { ...rest, updatedAt: new Date() };
+      if (points !== undefined) {
+        updateData.points = JSON.stringify(points);
+      }
+
+      const [updated] = await db.update(landingHeroSlides)
+        .set(updateData)
+        .where(eq(landingHeroSlides.id, id))
+        .returning();
+
+      return updated;
+    }),
+
+  deleteHeroSlide: isSuperAdmin
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      await db.delete(landingHeroSlides).where(eq(landingHeroSlides.id, input.id));
+      return { success: true };
+    }),
 });
+
 

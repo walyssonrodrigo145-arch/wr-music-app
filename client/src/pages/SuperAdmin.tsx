@@ -51,7 +51,7 @@ export default function SuperAdmin() {
 // ─── Painel principal (renderizado apenas para o Super Admin autenticado) ─────
 function SuperAdminPanel() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons" | "clientes">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons" | "clientes" | "slides">("dashboard");
 
   // ── Estado dos modais ──────────────────────────────────────────────────────
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
@@ -226,6 +226,7 @@ function SuperAdminPanel() {
           { id: "plans", label: "Planos", icon: <Tag size={16} /> },
           { id: "coupons", label: "Cupons", icon: <Tag size={16} /> },
           { id: "clientes", label: "Clientes (Landing)", icon: <Users size={16} /> },
+          { id: "slides", label: "Slides do Sistema", icon: <ImageIcon size={16} /> },
         ].map(tab => (
           <button
             key={tab.id}
@@ -766,9 +767,436 @@ function SuperAdminPanel() {
       {activeTab === "clientes" && (
         <LandingClientsManager />
       )}
+
+      {/* ── TAB: Slides de Funcionalidades (Hero Slider) ───────────────────── */}
+      {activeTab === "slides" && (
+        <HeroSlidesManager />
+      )}
     </div>
   );
 }
+
+// ─── Componente de Gestão de Slides do Hero (Funcionalidades) ───────────────
+function HeroSlidesManager() {
+  const utils = trpc.useUtils();
+  const [isSlideModalOpen, setIsSlideModalOpen] = useState(false);
+  const [editingSlide, setEditingSlide] = useState<any>(null);
+  const [title, setTitle] = useState("");
+  const [highlight, setHighlight] = useState("");
+  const [subtitle, setSubtitle] = useState("");
+  const [pointsText, setPointsText] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [bgTheme, setBgTheme] = useState("slate-900");
+  const [order, setOrder] = useState(0);
+  const [isActive, setIsActive] = useState(true);
+
+  const { data: slides, isLoading } = trpc.superAdmin.listHeroSlides.useQuery();
+
+  const createMutation = trpc.superAdmin.createHeroSlide.useMutation({
+    onSuccess: () => {
+      toast.success("Slide criado com sucesso!");
+      utils.superAdmin.listHeroSlides.invalidate();
+      utils.publicData.getHeroSlides.invalidate();
+      setIsSlideModalOpen(false);
+      resetForm();
+    },
+    onError: (err) => toast.error(`Erro ao criar slide: ${err.message}`),
+  });
+
+  const updateMutation = trpc.superAdmin.updateHeroSlide.useMutation({
+    onSuccess: () => {
+      toast.success("Slide atualizado com sucesso!");
+      utils.superAdmin.listHeroSlides.invalidate();
+      utils.publicData.getHeroSlides.invalidate();
+      setIsSlideModalOpen(false);
+      resetForm();
+    },
+    onError: (err) => toast.error(`Erro ao atualizar slide: ${err.message}`),
+  });
+
+  const deleteMutation = trpc.superAdmin.deleteHeroSlide.useMutation({
+    onSuccess: () => {
+      toast.success("Slide removido com sucesso!");
+      utils.superAdmin.listHeroSlides.invalidate();
+      utils.publicData.getHeroSlides.invalidate();
+    },
+    onError: (err) => toast.error(`Erro ao remover: ${err.message}`),
+  });
+
+  const resetForm = () => {
+    setEditingSlide(null);
+    setTitle("");
+    setHighlight("");
+    setSubtitle("");
+    setPointsText("");
+    setImageUrl("");
+    setBgTheme("slate-900");
+    setOrder(0);
+    setIsActive(true);
+  };
+
+  const handleOpenEdit = (slide: any) => {
+    setEditingSlide(slide);
+    setTitle(slide.title);
+    setHighlight(slide.highlight);
+    setSubtitle(slide.subtitle);
+    let pts: string[] = [];
+    try {
+      pts = typeof slide.points === "string" ? JSON.parse(slide.points) : slide.points || [];
+    } catch {
+      pts = [];
+    }
+    setPointsText(pts.join("\n"));
+    setImageUrl(slide.imageUrl);
+    setBgTheme(slide.bgTheme || "slate-900");
+    setOrder(slide.order || 0);
+    setIsActive(slide.isActive);
+    setIsSlideModalOpen(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return toast.error("Informe o título do slide");
+    if (!highlight.trim()) return toast.error("Informe o texto destacado");
+    if (!subtitle.trim()) return toast.error("Informe o subtítulo");
+    if (!imageUrl.trim()) return toast.error("Selecione ou informe a imagem do slide");
+
+    const pointsArray = pointsText
+      .split("\n")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (editingSlide) {
+      updateMutation.mutate({
+        id: editingSlide.id,
+        title,
+        highlight,
+        subtitle,
+        points: pointsArray,
+        imageUrl,
+        bgTheme,
+        order: Number(order),
+        isActive,
+      });
+    } else {
+      createMutation.mutate({
+        title,
+        highlight,
+        subtitle,
+        points: pointsArray,
+        imageUrl,
+        bgTheme,
+        order: Number(order),
+        isActive,
+      });
+    }
+  };
+
+  const THEMES_OPTIONS = [
+    { id: "slate-900", label: "Dark Escuro (slate-900)", color: "bg-slate-900 text-white" },
+    { id: "blue-600", label: "Azul Vibrante (blue-600)", color: "bg-blue-600 text-white" },
+    { id: "slate-50", label: "Claro Minimalista (slate-50)", color: "bg-slate-100 text-slate-900 border" },
+    { id: "indigo-50", label: "Índigo Suave (indigo-50)", color: "bg-indigo-100 text-indigo-950 border" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold">Slides de Funcionalidades (Hero da Landing Page)</h2>
+          <p className="text-sm text-muted-foreground">
+            Adicione novas telas, atualize prints do sistema e personalize os textos exibidos no carrossel principal.
+          </p>
+        </div>
+        <Dialog
+          open={isSlideModalOpen}
+          onOpenChange={(open) => {
+            setIsSlideModalOpen(open);
+            if (!open) resetForm();
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2">
+              <Plus size={16} /> Novo Slide de Funcionalidade
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingSlide ? "Editar Slide" : "Novo Slide de Funcionalidade"}</DialogTitle>
+              <DialogDescription>
+                Configure a imagem e as informações que aparecerão no carrossel de recursos na página inicial.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="slide-title">Título Principal *</Label>
+                  <Input
+                    id="slide-title"
+                    placeholder="Ex: Agenda de Aulas"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="slide-highlight">Texto em Destaque *</Label>
+                  <Input
+                    id="slide-highlight"
+                    placeholder="Ex: 100% Organizada"
+                    value={highlight}
+                    onChange={(e) => setHighlight(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="slide-sub">Subtítulo / Descrição *</Label>
+                <Input
+                  id="slide-sub"
+                  placeholder="Ex: Evite conflitos de horário e mantenha a rotina da escola fluindo..."
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="slide-points">Tópicos / Benefícios (1 por linha)</Label>
+                <textarea
+                  id="slide-points"
+                  rows={3}
+                  placeholder="Calendário interativo para professores&#10;Notificações de cancelamento e reposição&#10;Visão diária, semanal ou mensal"
+                  value={pointsText}
+                  onChange={(e) => setPointsText(e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                />
+              </div>
+
+              {/* Upload de Imagem do Slide */}
+              <div>
+                <Label className="block text-sm font-semibold mb-1.5">Print / Imagem do Sistema *</Label>
+
+                {imageUrl ? (
+                  <div className="p-3 bg-muted/40 rounded-xl border border-border flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-24 h-16 rounded-lg bg-background border p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                        <img src={imageUrl} alt="Preview do Slide" className="max-w-full max-h-full object-contain" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">Imagem do slide carregada</p>
+                        <p className="text-[10px] text-muted-foreground truncate">Pronta para o carrossel do Hero</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setImageUrl("")}
+                      className="text-xs text-destructive hover:bg-destructive/10 h-8 px-2.5 shrink-0"
+                    >
+                      <Trash2 size={14} className="mr-1" /> Trocar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-primary/30 hover:border-primary/60 rounded-xl cursor-pointer bg-primary/5 hover:bg-primary/10 transition-all">
+                      <div className="flex flex-col items-center justify-center pt-2 pb-2">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1.5">
+                          <Upload size={20} />
+                        </div>
+                        <p className="text-xs font-bold text-foreground text-center">
+                          Clique para escolher o print do PC ou Galeria
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">PNG, JPG, WebP (até 5MB)</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error("A imagem deve ter no máximo 5MB");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              const result = evt.target?.result as string;
+                              if (result) {
+                                setImageUrl(result);
+                                toast.success("Imagem carregada com sucesso!");
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <div className="relative flex-1">
+                        <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Ou cole a URL da imagem aqui (ex: /images/agenda.png)..."
+                          value={imageUrl}
+                          onChange={(e) => setImageUrl(e.target.value)}
+                          className="pl-8 text-xs h-8"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Tema de Fundo & Ordem */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <Label htmlFor="slide-theme">Tema Visual / Cor de Fundo</Label>
+                  <select
+                    id="slide-theme"
+                    value={bgTheme}
+                    onChange={(e) => setBgTheme(e.target.value)}
+                    className="w-full mt-1 p-2.5 rounded-xl border border-input bg-background text-sm"
+                  >
+                    {THEMES_OPTIONS.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="slide-order">Ordem</Label>
+                  <Input
+                    id="slide-order"
+                    type="number"
+                    value={order}
+                    onChange={(e) => setOrder(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-muted/40 rounded-xl">
+                <Label htmlFor="slide-active" className="cursor-pointer">
+                  Slide Ativo na Landing Page
+                </Label>
+                <Switch id="slide-active" checked={isActive} onCheckedChange={setIsActive} />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="w-full py-3"
+              >
+                {createMutation.isPending || updateMutation.isPending ? (
+                  <Loader2 className="animate-spin mr-2" />
+                ) : (
+                  <Save size={16} className="mr-2" />
+                )}
+                {editingSlide ? "Salvar Alterações" : "Criar Slide"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {isLoading && <Loader2 className="animate-spin text-primary mx-auto my-10" />}
+
+      {slides && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {slides.map((s: any) => {
+            let pts: string[] = [];
+            try {
+              pts = typeof s.points === "string" ? JSON.parse(s.points) : s.points || [];
+            } catch {
+              pts = [];
+            }
+            return (
+              <div
+                key={s.id}
+                className="bg-card border border-border rounded-2xl p-5 space-y-4 hover:border-primary/40 transition-all shadow-sm flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="w-32 h-20 rounded-xl bg-muted/50 border border-border/50 flex items-center justify-center p-1 overflow-hidden shrink-0">
+                      <img src={s.imageUrl} alt={s.title} className="w-full h-full object-cover rounded-lg" />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                          s.isActive
+                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                            : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                        }`}
+                      >
+                        {s.isActive ? "Ativo" : "Inativo"}
+                      </span>
+                      <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                        #{s.order}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-lg text-foreground">
+                      {s.title} <span className="text-primary">{s.highlight}</span>
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{s.subtitle}</p>
+
+                    {pts.length > 0 && (
+                      <ul className="mt-3 space-y-1">
+                        {pts.map((pt, i) => (
+                          <li key={i} className="text-xs text-muted-foreground flex items-center gap-2 truncate">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                            {pt}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
+                  <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(s)} className="h-8 px-3 text-xs">
+                    <Edit size={14} className="mr-1.5" /> Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Remover o slide "${s.title}"?`)) {
+                        deleteMutation.mutate({ id: s.id });
+                      }
+                    }}
+                    className="h-8 px-3 text-xs text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 size={14} className="mr-1.5" /> Excluir
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+
+          {slides.length === 0 && (
+            <div className="col-span-full py-16 text-center bg-card border border-border/50 rounded-2xl">
+              <ImageIcon size={40} className="mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-base font-bold text-foreground">Nenhum slide cadastrado ainda</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                O sistema está exibindo os slides padrão da Landing Page. Clique no botão acima para adicionar seus próprios prints e customizações.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 // ─── Componente de Gestão de Clientes / Logos da Landing Page ────────────────
 function LandingClientsManager() {

@@ -37,6 +37,7 @@ const filesToUpload = [
   'client/public/firebase-messaging-sw.js',
   'client/index.html',
   'client/src/components/AppSidebar.tsx',
+  'client/src/components/HeroSlider.tsx',
   'client/src/pages/LandingPage.tsx',
   'client/src/pages/SuperAdmin.tsx',
   'client/src/pages/ProfessorExtract.tsx',
@@ -244,6 +245,19 @@ conn.on('ready', () => {
                   \\"logoUrl\\" TEXT NOT NULL,
                   \\"websiteUrl\\" TEXT,
                   testimonial TEXT,
+                  \\"order\\" INTEGER NOT NULL DEFAULT 0,
+                  \\"isActive\\" BOOLEAN NOT NULL DEFAULT true,
+                  \\"createdAt\\" TIMESTAMP NOT NULL DEFAULT NOW(),
+                  \\"updatedAt\\" TIMESTAMP NOT NULL DEFAULT NOW()
+                );"
+                docker compose exec -T db psql -U postgres -d wrmusic -c "CREATE TABLE IF NOT EXISTS landing_hero_slides (
+                  id SERIAL PRIMARY KEY,
+                  title VARCHAR(255) NOT NULL,
+                  highlight VARCHAR(255) NOT NULL,
+                  subtitle TEXT NOT NULL,
+                  points TEXT NOT NULL DEFAULT '[]',
+                  \\"imageUrl\\" TEXT NOT NULL,
+                  \\"bgTheme\\" VARCHAR(50) NOT NULL DEFAULT 'slate-900',
                   \\"order\\" INTEGER NOT NULL DEFAULT 0,
                   \\"isActive\\" BOOLEAN NOT NULL DEFAULT true,
                   \\"createdAt\\" TIMESTAMP NOT NULL DEFAULT NOW(),
