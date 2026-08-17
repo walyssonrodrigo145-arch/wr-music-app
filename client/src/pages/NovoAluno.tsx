@@ -113,17 +113,25 @@ export default function NovoAluno() {
   const [activeTab, setActiveTab] = useState<"dados" | "agendar">(initialTab);
 
   // ─── Estado do formulário de agendamento ──────────────────────────────────────
+  const getSmartNovoAlunoTime = () => {
+    const currentHour = new Date().getHours();
+    if (currentHour >= 8 && currentHour <= 20) {
+      return `${String(currentHour + 1).padStart(2, '0')}:00`;
+    }
+    return "14:00";
+  };
+
   const [scheduleForm, setScheduleForm] = useState({
     title: "",
     date: new Date().toISOString().split("T")[0],
-    time: "09:00",
+    time: getSmartNovoAlunoTime(),
     duration: 60,
     instrumentId: "",
     notes: "",
     weeksCount: 1,
     lessonsPerWeek: 1,
     weeklySlots: [
-      { dayOfWeek: 1, time: "09:00", studioRoomId: "" }
+      { dayOfWeek: 1, time: getSmartNovoAlunoTime(), studioRoomId: "" }
     ] as Array<{ dayOfWeek: number; time: string; studioRoomId: string }>,
   });
   const [scheduleStep, setScheduleStep] = useState<"form" | "conflicts">("form");
@@ -1171,14 +1179,34 @@ export default function NovoAluno() {
                         <span className="text-[10px] bg-violet-600 text-white px-2 py-0.5 rounded-md uppercase font-black">{scheduleForm.lessonsPerWeek}x/sem</span>
                       </div>
                     ) : (
-                      <div className="relative">
-                        <Input
-                          type="time"
-                          value={scheduleForm.time}
-                          onChange={e => setScheduleForm(p => ({ ...p, time: e.target.value }))}
-                          className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
-                        />
-                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                      <div className="space-y-1.5">
+                        <div className="relative">
+                          <Input
+                            type="time"
+                            value={scheduleForm.time}
+                            onChange={e => setScheduleForm(p => ({ ...p, time: e.target.value }))}
+                            className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
+                          />
+                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                        </div>
+                        {/* Chips rápidos de horários */}
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"].map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setScheduleForm(p => ({ ...p, time: t }))}
+                              className={cn(
+                                "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer",
+                                scheduleForm.time === t
+                                  ? "bg-primary text-white border-primary shadow-sm"
+                                  : "bg-muted/20 text-muted-foreground hover:bg-muted/40 border-border/40"
+                              )}
+                            >
+                              {t}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                     {scheduleForm.lessonsPerWeek === 1 && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}

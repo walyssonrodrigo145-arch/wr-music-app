@@ -304,25 +304,39 @@ export default function LessonDetailModal({
             )}
 
             {/* Time & Duration */}
+            {/* Time & Duration */}
             {!isRescheduling ? (
               <div className="grid grid-cols-2 gap-4">
-                 <div className="flex items-center gap-3 px-4 py-3 bg-muted/10 rounded-2xl border border-border/20">
-                    <Calendar size={16} className="text-primary/40" />
-                    <span className="text-xs font-bold text-foreground/70">{format(date, "dd/MM/yyyy")}</span>
-                 </div>
-                 <div className="flex items-center gap-3 px-4 py-3 bg-muted/10 rounded-2xl border border-border/20">
-                    <Clock size={16} className="text-primary/40" />
-                    <span className="text-xs font-bold text-foreground/70">{format(date, "HH:mm")}</span>
-                 </div>
+                 <button 
+                   type="button"
+                   onClick={() => setIsRescheduling(true)}
+                   className="flex items-center gap-3 px-4 py-3 bg-muted/10 hover:bg-primary/5 hover:border-primary/30 rounded-2xl border border-border/20 transition-all text-left cursor-pointer group"
+                   title="Clique para alterar a data ou horário"
+                 >
+                    <Calendar size={16} className="text-primary/40 group-hover:text-primary transition-colors" />
+                    <span className="text-xs font-bold text-foreground/70 group-hover:text-foreground">{format(date, "dd/MM/yyyy")}</span>
+                 </button>
+                 <button 
+                   type="button"
+                   onClick={() => setIsRescheduling(true)}
+                   className="flex items-center gap-3 px-4 py-3 bg-muted/10 hover:bg-primary/5 hover:border-primary/30 rounded-2xl border border-border/20 transition-all text-left cursor-pointer group"
+                   title="Clique para alterar a data ou horário"
+                 >
+                    <Clock size={16} className="text-primary/40 group-hover:text-primary transition-colors" />
+                    <span className="text-xs font-bold text-foreground/70 group-hover:text-foreground">{format(date, "HH:mm")}</span>
+                 </button>
                  <div className="flex items-center gap-3 px-4 py-3 bg-muted/10 rounded-2xl border border-border/20 col-span-2">
                     <Timer size={16} className="text-primary/40" />
                     <span className="text-xs font-bold text-foreground/70">{lesson.duration} minutos de duração</span>
                  </div>
               </div>
             ) : (
-              <div className="space-y-4 p-6 bg-primary/5 rounded-[2rem] border-2 border-primary/20 animate-in zoom-in-95 duration-200">
-                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-1 mb-2">Novo Horário</h4>
-                 <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4 p-5 bg-primary/5 rounded-[2rem] border-2 border-primary/20 animate-in zoom-in-95 duration-200">
+                 <div className="flex items-center justify-between px-1">
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Alterar Data / Horário</h4>
+                   <span className="text-[9px] font-bold text-muted-foreground">{newTime || "00:00"}</span>
+                 </div>
+                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                        <label className="text-[9px] font-black uppercase text-muted-foreground/50 px-1">Data</label>
                        <input 
@@ -341,6 +355,27 @@ export default function LessonDetailModal({
                          className="w-full h-12 bg-background border border-border/20 rounded-xl px-3 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                        />
                     </div>
+                 </div>
+                 {/* Chips rápidos de horários */}
+                 <div className="space-y-1 pt-1">
+                   <p className="text-[9px] font-bold text-muted-foreground/70 px-1">Horários rápidos:</p>
+                   <div className="flex flex-wrap gap-1">
+                     {["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"].map((t) => (
+                       <button
+                         key={t}
+                         type="button"
+                         onClick={() => setNewTime(t)}
+                         className={cn(
+                           "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer",
+                           newTime === t
+                             ? "bg-primary text-white border-primary shadow-sm"
+                             : "bg-background text-muted-foreground hover:bg-muted/60 border-border/40"
+                         )}
+                       >
+                         {t}
+                       </button>
+                     ))}
+                   </div>
                  </div>
               </div>
             )}

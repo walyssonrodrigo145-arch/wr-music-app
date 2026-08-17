@@ -35,12 +35,25 @@ interface AgendarModalProps {
   editingLesson?: any;
 }
 
+const getSmartInitialTime = (d?: Date | null) => {
+  if (d && (d.getHours() !== 0 || d.getMinutes() !== 0)) {
+    return format(d, "HH:mm");
+  }
+  const now = new Date();
+  const currentHour = now.getHours();
+  if (currentHour >= 8 && currentHour <= 20) {
+    const nextHour = String(currentHour + 1).padStart(2, '0');
+    return `${nextHour}:00`;
+  }
+  return "14:00";
+};
+
 export default function AgendarModal({ open, onOpenChange, initialDate, editingLesson }: AgendarModalProps) {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const { data: students } = trpc.students.list.useQuery(undefined, { enabled: open });
-  const { data: instruments } = trpc.instruments.list.useQuery(undefined, { enabled: open });
-  const { data: studioRooms } = trpc.studioRooms.list.useQuery(undefined, { enabled: open });
+  const { data: students = [] } = trpc.students.list.useQuery(undefined, { enabled: open });
+  const { data: instruments = [] } = trpc.instruments.list.useQuery(undefined, { enabled: open });
+  const { data: studioRooms = [] } = trpc.studioRooms.list.useQuery(undefined, { enabled: open });
   // Busca os dados completos da aula diretamente do banco ao editar (garante studioRoomId atualizado)
   const { data: freshLesson } = trpc.lessons.getById.useQuery(
     { id: editingLesson?.id ?? 0 },
@@ -52,7 +65,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const [formData, setFormData] = useState({
     studentId: "",
     title: "",
-    time: "09:00",
+    time: getSmartInitialTime(initialDate),
     duration: settings?.lessonDuration ?? 60,
     notes: "",
     instrumentId: "",
@@ -67,7 +80,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     turmaStudentIds: [] as number[],
     lessonsPerWeek: 1,
     weeklySlots: [
-      { dayOfWeek: 1, time: "09:00", studioRoomId: "" }
+      { dayOfWeek: 1, time: getSmartInitialTime(initialDate), studioRoomId: "" }
     ] as Array<{ dayOfWeek: number; time: string; studioRoomId: string }>,
   });
 
@@ -129,16 +142,21 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           experimentalName: source.experimentalName || "",
           experimentalPhone: (source as any).experimentalPhone || "",
           lessonType: source.lessonType || "individual",
-          turmaStudentIds: []
+          turmaStudentIds: [],
+          lessonsPerWeek: 1,
+          weeklySlots: [
+            { dayOfWeek: new Date(source.scheduledAt).getDay(), time: format(new Date(source.scheduledAt), "HH:mm"), studioRoomId: source.studioRoomId != null ? source.studioRoomId.toString() : "" }
+          ]
         });
         lastLoadedLessonId.current = currentKey;
       }
     } else if (lastLoadedLessonId.current !== "new") {
       const defaultDuration = settings?.lessonDuration ? Number(settings.lessonDuration) : 60;
+      const smartTime = getSmartInitialTime(initialDate);
       setFormData({
         studentId: "",
         title: "",
-        time: initialDate ? format(initialDate, "HH:mm") : "09:00",
+        time: smartTime,
         date: initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
         duration: defaultDuration,
         notes: "",
@@ -150,7 +168,11 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         experimentalName: "",
         experimentalPhone: "",
         lessonType: "individual",
-        turmaStudentIds: []
+        turmaStudentIds: [],
+        lessonsPerWeek: 1,
+        weeklySlots: [
+          { dayOfWeek: initialDate ? new Date(initialDate).getDay() : 1, time: smartTime, studioRoomId: "" }
+        ]
       });
       lastLoadedLessonId.current = "new";
     }
@@ -763,15 +785,35 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
 
             {/* Horário */}
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
-                <Clock size={12} className="text-primary/40" /> Horário
-              </label>
+              <div className="flex items-center justify-between px-2">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">
+                  <Clock size={12} className="text-primary/40" /> Horário
+                </label>
+                <span className="text-[10px] font-bold text-primary">{formData.time}</span>
+              </div>
               <input
                 type="time"
                 value={formData.time}
                 onChange={(e) => setFormData({...formData, time: e.target.value})}
-                className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all"
+                className="w-full h-12 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all"
               />
+              <div className="flex flex-wrap gap-1 pt-1">
+                {["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, time: t })}
+                    className={cn(
+                      "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer",
+                      formData.time === t
+                        ? "bg-primary text-white border-primary shadow-sm"
+                        : "bg-muted/20 text-muted-foreground hover:bg-muted/40 border-border/40"
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
