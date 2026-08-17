@@ -63,6 +63,7 @@ const filesToUpload = [
   'client/src/lib/firebaseConfig.ts',
   'client/src/hooks/usePushNotifications.ts',
   'client/src/pages/Configuracoes.tsx',
+  'client/src/pages/ChatbotFlowBuilder.tsx',
   'client/src/components/modals/AgendarModal.tsx',
   'client/src/components/modals/StudentDetailsModal.tsx',
   'drizzle/schema.ts',
