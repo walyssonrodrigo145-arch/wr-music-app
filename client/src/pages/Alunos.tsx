@@ -454,9 +454,22 @@ function StudentModal({
                 onChange={e => set("dueDay", e.target.value)}
                 className="w-full h-9 text-xs rounded-lg border border-border/40 bg-muted/10 px-3 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground"
               >
-                {Array.from(new Set([...dueDaysOptions, ...(form.dueDay ? [Number(form.dueDay)] : [])].filter(Boolean)))
-                  .sort((a, b) => a - b)
-                  .map(d => <option key={d} value={String(d)}>Dia {d}</option>)}
+                <optgroup label="Padrão da Escola">
+                  {dueDaysOptions.map(d => (
+                    <option key={`school-${d}`} value={String(d)}>
+                      Dia {d} (Padrão)
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Outros Dias">
+                  {Array.from({ length: 31 }, (_, i) => i + 1)
+                    .filter(d => !dueDaysOptions.includes(d))
+                    .map(d => (
+                      <option key={`other-${d}`} value={String(d)}>
+                        Dia {d}
+                      </option>
+                    ))}
+                </optgroup>
               </select>
             </div>
           </div>

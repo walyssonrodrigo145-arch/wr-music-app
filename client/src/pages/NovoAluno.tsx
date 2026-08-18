@@ -1623,11 +1623,20 @@ export default function NovoAluno() {
                       <SelectTrigger className="h-12 w-full rounded-xl border-border bg-muted/30 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm font-semibold px-4">
                         <SelectValue placeholder="Dia" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        {Array.from(new Set([...dueDaysOptions, ...(form.dueDay ? [Number(form.dueDay)] : [])].filter(Boolean)))
-                          .sort((a, b) => a - b)
+                      <SelectContent className="rounded-xl border-border shadow-2xl p-1 max-h-64">
+                        {/* Dias padrão configurados na Escola */}
+                        {dueDaysOptions.map(d => (
+                          <SelectItem key={`school-${d}`} value={String(d)} className="rounded-lg font-bold text-violet-600 dark:text-violet-400">
+                            Dia {d} <span className="text-[10px] font-normal text-muted-foreground ml-1.5">(Padrão da Escola)</span>
+                          </SelectItem>
+                        ))}
+                        {/* Outros dias do mês (1 a 31) que não são padrão */}
+                        {Array.from({ length: 31 }, (_, i) => i + 1)
+                          .filter(d => !dueDaysOptions.includes(d))
                           .map(d => (
-                            <SelectItem key={d} value={String(d)} className="rounded-lg font-medium">Dia {d}</SelectItem>
+                            <SelectItem key={`other-${d}`} value={String(d)} className="rounded-lg font-medium">
+                              Dia {d}
+                            </SelectItem>
                           ))}
                       </SelectContent>
                     </Select>
