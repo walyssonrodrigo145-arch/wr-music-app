@@ -109,6 +109,26 @@ export async function sendWhatsAppMessage({ url, token, phone, message, mediaUrl
       if (!res.ok) {
         let errorMsg = responseData?.response?.message || responseData?.message || responseData?.error || `HTTP Error ${res.status}`;
         
+        // Se falhou o envio com mídia/logo (ex: imagem inacessível), tenta enviar como texto simples para garantir a entrega
+        if (isMedia) {
+          try {
+            console.warn(`[WhatsApp] Envio com imagem/logo falhou (${res.status}). Tentando entrega alternativa como texto...`);
+            const fallbackRes = await fetch(`${baseUrl}/message/sendText/${instanceName}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "apikey": activeToken },
+              body: JSON.stringify({
+                number: phoneToTry,
+                options: { delay: typingDelay, presence: "composing" },
+                text: message,
+              }),
+            });
+            if (fallbackRes.ok) {
+              const fallbackData = await fallbackRes.json().catch(() => ({}));
+              return { success: true, messageId: fallbackData?.key?.id || `msg-${Date.now()}` };
+            }
+          } catch (_) {}
+        }
+
         // Retorna um objeto com erro padronizado para tratamento
         if (Array.isArray(errorMsg) && errorMsg.length > 0 && errorMsg[0].exists === false) {
           return { success: false, notFound: true, error: `O número informado não está registrado no WhatsApp.` };

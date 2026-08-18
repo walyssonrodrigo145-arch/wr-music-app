@@ -5279,6 +5279,7 @@ ${jsonSchemaFormat}`;
           birthDate: students.birthDate,
           whatsappBotUrl: settings.whatsappBotUrl,
           whatsappBotToken: settings.whatsappBotToken,
+          logoUrl: settings.logoUrl,
         })
         .from(reminders)
         .leftJoin(students, and(eq(reminders.studentId, students.id), eq(students.organizationId, orgId)))
@@ -5306,11 +5307,16 @@ ${jsonSchemaFormat}`;
 
         if (!targetPhone) throw new Error("Aluno/Responsável sem telefone cadastrado.");
 
+        const schoolLogo = (rem.logoUrl && String(rem.logoUrl).trim().startsWith("http"))
+          ? String(rem.logoUrl).trim()
+          : null;
+
         const sendRes = await sendWhatsAppMessage({
           url: botUrl,
           token: botToken,
           phone: targetPhone,
           message: rem.message,
+          mediaUrl: schoolLogo,
           sessionId: `prof_${ctx.user.id}`,
         });
 

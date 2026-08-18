@@ -87,6 +87,7 @@ async function runAutomation() {
       pixKey: settings.pixKey,
       notifyLessonReminder: settings.notifyLessonReminder,
       notifyPaymentDue: settings.notifyPaymentDue,
+      logoUrl: settings.logoUrl,
     })
     .from(settings)
     .where(eq(settings.automationEnabled, 1));
@@ -559,11 +560,17 @@ async function runAutomation() {
             continue;
           }
 
-          console.log('[Trace] Calling sendWhatsAppMessage for ', targetPhone); const sendRes = await sendWhatsAppMessage({
+          const schoolLogo = (userSettings.logoUrl && String(userSettings.logoUrl).trim().startsWith("http"))
+            ? String(userSettings.logoUrl).trim()
+            : null;
+
+          console.log('[Trace] Calling sendWhatsAppMessage for ', targetPhone);
+          const sendRes = await sendWhatsAppMessage({
             url: userSettings.whatsappBotUrl,
             token: userSettings.whatsappBotToken,
             phone: targetPhone,
             message: rem.message,
+            mediaUrl: schoolLogo,
             sessionId: `prof_${userId}`,
           });
 
