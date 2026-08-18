@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -59,6 +59,24 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
   const [endDate, setEndDate] = useState("");
   const [monthlyFeeOverride, setMonthlyFeeOverride] = useState("");
   const [previewing, setPreviewing] = useState(false);
+
+  const isMinorStudent = Boolean(student?.guardianName?.trim() || student?.guardianEmail?.trim());
+
+  // ─── Auto-seleciona o modelo adequado (Menor de Idade vs Padrão) ao abrir o modal
+  useEffect(() => {
+    if (open && templates.length > 0) {
+      if (isMinorStudent) {
+        const minorTpl = templates.find((t: any) => t.name.toLowerCase().includes("menor"));
+        if (minorTpl) {
+          setTemplateId(minorTpl.id);
+          return;
+        }
+      }
+      setTemplateId(templates[0]?.id ?? null);
+    }
+  }, [open, templates, isMinorStudent]);
+
+  const selectedTemplate = templates.find((t: any) => t.id === templateId);
 
   const handlePreview = async () => {
     if (!templateId) return;
@@ -134,17 +152,45 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Modelo de Contrato</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Modelo de Contrato</label>
+              {selectedTemplate && (
+                <span className={cn(
+                  "text-[9px] font-black uppercase px-2 py-0.5 rounded-full border",
+                  selectedTemplate.name.toLowerCase().includes("menor")
+                    ? "bg-violet-500/10 text-violet-600 border-violet-500/20"
+                    : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                )}>
+                  {selectedTemplate.name.toLowerCase().includes("menor") ? "👶 Aluno Menor de Idade" : "🎓 Aluno Maior de Idade"}
+                </span>
+              )}
+            </div>
             <select
               value={templateId ?? ""}
               onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : null)}
               className="h-12 w-full rounded-xl border border-border bg-muted/30 px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all"
             >
               <option value="">Selecione um modelo...</option>
-              {templates.map((t: any) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
+              {templates.map((t: any) => {
+                const isMinor = t.name.toLowerCase().includes("menor");
+                return (
+                  <option key={t.id} value={t.id}>
+                    {isMinor ? "👶 " : "🎓 "}
+                    {t.name}
+                  </option>
+                );
+              })}
             </select>
+            {isMinorStudent && selectedTemplate && !selectedTemplate.name.toLowerCase().includes("menor") && (
+              <p className="text-[10px] text-amber-500 font-bold mt-1 ml-1">
+                ⚠️ Este aluno possui responsável legal cadastrado. Recomendamos selecionar o modelo "Aluno Menor de Idade".
+              </p>
+            )}
+            {isMinorStudent && selectedTemplate && selectedTemplate.name.toLowerCase().includes("menor") && (
+              <p className="text-[10px] text-emerald-600 font-bold mt-1 ml-1">
+                ✓ Cláusulas do Responsável Legal (Contratante) e Aluno Beneficiário ativas.
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
