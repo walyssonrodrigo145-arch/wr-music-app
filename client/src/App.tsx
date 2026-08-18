@@ -239,7 +239,6 @@ function Router() {
           <Route path="/comercial" component={LeadsApp} />
           <Route path="/leads" component={LeadsApp} />
           <Route path="/contratos" component={Contratos} />
-          <Route path="/notas-fiscais" component={NotasFiscais} />
           <Route path="/salas" component={SalasEstudio} />
           <Route path="/salas-estudio" component={SalasEstudio} />
           <Route path="/checkout" component={Checkout} />
