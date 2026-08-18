@@ -598,7 +598,7 @@ export default function NovoAluno() {
         // Antes: checkConflicts.refetch() usava input estático inválido → slots nunca verificados
         // Agora: passamos os slots calculados diretamente via mutateAsync
         const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
-        const slotsToUse = (scheduleForm.weeklySlots && scheduleForm.weeklySlots.length > 0)
+        const slotsToUse = (scheduleForm.lessonsPerWeek > 1 && scheduleForm.weeklySlots && scheduleForm.weeklySlots.length > 0)
           ? scheduleForm.weeklySlots
           : [{ dayOfWeek: new Date(startY, startM - 1, startD).getDay(), time: scheduleForm.time, studioRoomId: "" }];
 
