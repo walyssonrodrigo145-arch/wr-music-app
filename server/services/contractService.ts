@@ -115,53 +115,69 @@ export async function renderContractPdf(
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4
-  const margin = 56;
-  const maxWidth = page.getWidth() - margin * 2;
+  const PAGE_WIDTH = 595.28; // A4
+  const PAGE_HEIGHT = 841.89; // A4
+  const margin = 50;
+  const maxWidth = PAGE_WIDTH - margin * 2;
   const lineHeight = 15;
 
-  let y = page.getHeight() - margin;
+  let currentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  let y = PAGE_HEIGHT - margin;
 
-  const drawLineOn = (p: any, l: string, f: any, s: number) => {
-    p.drawText(l, { x: margin, y, size: s, font: f, color: rgb(0.1, 0.1, 0.1), lineHeight });
+  const pushLine = (lineText: string, font: any, size: number) => {
+    // Se não couber mais nesta página, cria a próxima página e reseta o cursor Y
+    if (y < margin + lineHeight) {
+      currentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      y = PAGE_HEIGHT - margin;
+    }
+    currentPage.drawText(lineText, {
+      x: margin,
+      y,
+      size,
+      font,
+      color: rgb(0.12, 0.12, 0.12),
+      lineHeight,
+    });
+    y -= lineHeight;
   };
 
   const drawParagraph = (paragraph: string, opts: { bold?: boolean; size?: number; gapAfter?: number } = {}) => {
-    const size = opts.size ?? 11;
+    const size = opts.size ?? 10.5;
     const font = opts.bold ? helveticaBold : helvetica;
     const words = paragraph.split(/\s+/);
-    let line = "";
-    const pushLine = (l: string) => {
-      if (y < margin) {
-        const newPage = pdfDoc.addPage([595.28, 841.89]);
-        y = newPage.getHeight() - margin;
-        drawLineOn(newPage, l, font, size);
-      } else {
-        drawLineOn(page, l, font, size);
-      }
-      y -= lineHeight;
-    };
+    let currentLine = "";
+
     for (const word of words) {
-      const test = line ? `${line} ${word}` : word;
-      if (font.widthOfTextAtSize(test, size) > maxWidth && line) {
-        pushLine(line);
-        line = word;
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (font.widthOfTextAtSize(testLine, size) > maxWidth && currentLine) {
+        pushLine(currentLine, font, size);
+        currentLine = word;
       } else {
-        line = test;
+        currentLine = testLine;
       }
     }
-    if (line) pushLine(line);
-    y -= (opts.gapAfter ?? 8);
+    if (currentLine) {
+      pushLine(currentLine, font, size);
+    }
+    y -= (opts.gapAfter ?? 6);
   };
 
   const lines = text.split(/\n+/).filter((l) => l.trim().length > 0);
   for (const line of lines) {
-    const isTitle = line === line.toUpperCase() && line.length < 80;
-    drawParagraph(line.trim(), {
-      bold: isTitle,
-      size: isTitle ? 13 : 11,
-      gapAfter: isTitle ? 12 : 8,
-    });
+    const trimmed = line.trim();
+    const isMainTitle = trimmed === "CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS";
+    const isClause = trimmed.startsWith("CLÁUSULA ") || trimmed.startsWith("CONTRATANTE") || trimmed.startsWith("CONTRATADA") || trimmed.startsWith("ALUNO(A)") || trimmed.startsWith("REPRESENTANDO");
+    const isSubTitle = trimmed.startsWith("(") && trimmed.endsWith(")");
+
+    if (isMainTitle) {
+      drawParagraph(trimmed, { bold: true, size: 13, gapAfter: 4 });
+    } else if (isSubTitle) {
+      drawParagraph(trimmed, { bold: true, size: 10, gapAfter: 12 });
+    } else if (isClause) {
+      drawParagraph(trimmed, { bold: true, size: 11, gapAfter: 6 });
+    } else {
+      drawParagraph(trimmed, { bold: false, size: 10.5, gapAfter: 6 });
+    }
   }
 
   const pdfBytes = await pdfDoc.save();
