@@ -9,6 +9,7 @@ import {
   Link as LinkIcon, Share2, Copy, ExternalLink, QrCode, Sparkles
 } from "lucide-react";
 import { exportToCSV } from "@/lib/exportUtils";
+import { parseBRL } from "@/lib/money";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -320,18 +321,15 @@ function StudentModal({
       toast.error("Nome e telefone são obrigatórios");
       return;
     }
-    const parseFee = (val: string) => {
-      const normalized = String(val).replace(',', '.');
-      const num = parseFloat(normalized);
-      return isNaN(num) ? 0 : num;
-    };
+    // AUDIT FIX: usar parseBRL compartilhado — o parser antigo (replace(',','.'))
+    // convertia "1.234,56" em 1.234 (perda de 3 ordens de magnitude)
     const payload = {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
       phone: form.phone.trim(),
       instrumentId: form.instrumentId ? Number(form.instrumentId) : undefined,
       level: form.level,
-      monthlyFee: parseFee(form.monthlyFee),
+      monthlyFee: parseBRL(form.monthlyFee),
       billingPeriodicity: form.billingPeriodicity,
       dueDay: Number(form.dueDay) || 10,
       notes: form.notes.trim() || undefined,

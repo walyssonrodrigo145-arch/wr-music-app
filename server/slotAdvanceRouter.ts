@@ -124,7 +124,9 @@ export const slotAdvanceRouter = router({
             birthDate: students.birthDate,
           })
           .from(students)
-          .where(eq(students.id, sId))
+          .where(orgId
+            ? and(eq(students.id, sId), eq(students.organizationId, orgId))
+            : eq(students.id, sId))
           .limit(1);
         studentRecord = found;
       } else {
@@ -179,6 +181,23 @@ export const slotAdvanceRouter = router({
       }
 
       // 3. Atualização Atômica com trava de concorrência na oferta
+      // AUDIT-P2 FIX: validar ANTES que a oferta é do professor da aula de hoje —
+      // impede antecipar aula para o horário vago de outro professor da escola
+      const [offerPreview] = await db
+        .select({ id: slotOffers.id, teacherId: slotOffers.teacherId })
+        .from(slotOffers)
+        .where(and(
+          eq(slotOffers.id, input.slotOfferId),
+          eq(slotOffers.organizationId, orgId),
+        ))
+        .limit(1);
+      if (offerPreview && offerPreview.teacherId !== todayLesson.userId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Esta vaga pertence a outro professor. Aguarde uma vaga do seu professor.",
+        });
+      }
+
       const [acceptedOffer] = await db
         .update(slotOffers)
         .set({

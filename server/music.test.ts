@@ -1,6 +1,46 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+// AUDIT FIX: mock de banco totalmente encadeável COM fila de resultados —
+// cada `await db.select()...` consome o próximo resultado enfileirado
+// (via `enqueueSelectResult`). Se a fila estiver vazia, resolve [].
+const selectQueue: any[][] = [];
+function enqueueSelectResult(rows: any[]) {
+  selectQueue.push(rows);
+}
+
+function makeChainable(defaultResult: any = [], useSelectQueue = false) {
+  const chain: any = {};
+  const selfReturning = [
+    "where", "orderBy", "limit", "offset", "groupBy", "having",
+    "leftJoin", "innerJoin", "rightJoin", "fullJoin", "crossJoin",
+    "returning", "onConflict", "onConflictDoUpdate", "onConflictDoNothing",
+    "from", "not", "and", "or",
+  ];
+  for (const m of selfReturning) {
+    chain[m] = vi.fn().mockReturnValue(chain);
+  }
+  chain.values = vi.fn().mockReturnValue(chain);
+  chain.set = vi.fn().mockReturnValue(chain);
+  chain.then = (onFulfilled: any, onRejected: any) => {
+    const result = useSelectQueue && selectQueue.length > 0 ? selectQueue.shift()! : defaultResult;
+    return Promise.resolve(result).then(onFulfilled, onRejected);
+  };
+  chain.catch = (onRejected: any) => Promise.resolve(defaultResult).catch(onRejected);
+  chain.finally = (cb: any) => Promise.resolve(defaultResult).finally(cb);
+  return chain;
+}
+
+function makeFakeDb() {
+  return {
+    insert: vi.fn().mockReturnValue(makeChainable([{ id: 1 }])),
+    update: vi.fn().mockReturnValue(makeChainable([])),
+    delete: vi.fn().mockReturnValue(makeChainable([])),
+    select: vi.fn().mockReturnValue(makeChainable([], true)),
+    execute: vi.fn().mockResolvedValue({ rows: [] }),
+    transaction: vi.fn().mockImplementation(async (fn: any) => fn(makeFakeDb())),
+  };
+}
 
 // Mock the database helpers
 vi.mock("./db", () => ({
@@ -51,18 +91,7 @@ vi.mock("./db", () => ({
     { dayOfWeek: 4, count: 5 },
     { dayOfWeek: 6, count: 4 },
   ]),
-  getDb: vi.fn().mockResolvedValue({
-    insert: vi.fn().mockReturnValue({ values: vi.fn().mockResolvedValue([{ insertId: 1 }]) }),
-    update: vi.fn().mockReturnValue({ set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }) }),
-    delete: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }),
-    select: vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }),
-        orderBy: vi.fn().mockResolvedValue([]),
-        leftJoin: vi.fn().mockReturnValue({ orderBy: vi.fn().mockResolvedValue([]) }),
-      }),
-    }),
-  }),
+  getDb: vi.fn().mockImplementation(async () => makeFakeDb()),
   upsertUser: vi.fn(),
   getUserByOpenId: vi.fn(),
   getSettingsByUserId: vi.fn().mockResolvedValue(null),
@@ -99,16 +128,16 @@ describe("dashboard router", () => {
     expect(stats?.monthlyRevenue).toBe(2340);
   });
 
-  it("returns monthly stats formatted", async () => {
+  it("returns monthly stats (contrato atual do helper)", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
     const data = await caller.dashboard.monthlyStats();
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBeGreaterThan(0);
     expect(data[0]).toHaveProperty("month");
-    expect(data[0]).toHaveProperty("alunos");
-    expect(data[0]).toHaveProperty("aulas");
-    expect(data[0]).toHaveProperty("receita");
+    expect(data[0]).toHaveProperty("activeStudents");
+    expect(data[0]).toHaveProperty("lessonsGiven");
+    expect(data[0]).toHaveProperty("revenue");
   });
 
   it("returns lessons by day of week with 7 days", async () => {
@@ -124,6 +153,19 @@ describe("dashboard router", () => {
   it("returns recent lessons", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([
+      {
+        id: 1,
+        title: "Acordes básicos",
+        scheduledAt: new Date(),
+        duration: 60,
+        status: "agendada",
+        isExperimental: false,
+        experimentalName: null,
+        studentName: "Lucas Ferreira",
+        studentId: 1,
+      },
+    ]);
     const lessons = await caller.dashboard.recentLessons();
     expect(Array.isArray(lessons)).toBe(true);
     expect(lessons[0]).toHaveProperty("title");
@@ -164,6 +206,10 @@ describe("instruments router", () => {
 });
 
 describe("students CRUD", () => {
+  beforeEach(() => {
+    selectQueue.length = 0;
+  });
+
   it("searches students by query", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
@@ -174,6 +220,10 @@ describe("students CRUD", () => {
   it("creates a new student", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
+    // Fila: [org], [plano], [count de alunos ativos]
+    enqueueSelectResult([{ planId: "premium" }]);
+    enqueueSelectResult([{ maxStudents: 999999, allowExtraStudents: true, extraStudentPrice: "1.49", name: "Premium", priceMonthly: "99", priceYearly: "999" }]);
+    enqueueSelectResult([{ count: 0 }]);
     const result = await caller.students.create({
       name: "Maria Silva",
       email: "maria@test.com",
@@ -181,13 +231,15 @@ describe("students CRUD", () => {
       level: "iniciante",
       monthlyFee: 200,
       status: "ativo",
-    });
+    } as any);
     expect(result).toHaveProperty("success", true);
   });
 
   it("updates a student status", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
+    // Fila: [aluno existente para o check de posse]
+    enqueueSelectResult([{ id: 1, status: "ativo", email: null, professorId: 1, organizationId: 1, studentUserId: null, monthlyFee: "0" }]);
     const result = await caller.students.update({ id: 1, status: "pausado" });
     expect(result).toHaveProperty("success", true);
   });
@@ -195,15 +247,25 @@ describe("students CRUD", () => {
   it("deletes a student", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
+    // Fila: [aluno a excluir] — demais selects (paymentIds/lessonIds/...) resolvem []
+    enqueueSelectResult([{ id: 99, professorId: 1, studentUserId: null, organizationId: 1, name: "Delete Me" }]);
     const result = await caller.students.delete({ id: 99 });
     expect(result).toHaveProperty("success", true);
   });
 });
 
 describe("lessons CRUD", () => {
+  beforeEach(() => {
+    selectQueue.length = 0;
+  });
+
   it("creates a new lesson", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
+    // Fila: [aluno dono], [professorId do aluno], [aulas existentes no dia]
+    enqueueSelectResult([{ id: 1 }]);
+    enqueueSelectResult([{ professorId: 1 }]);
+    enqueueSelectResult([]);
     const result = await caller.lessons.create({
       title: "Escala pentatônica",
       studentId: 1,
@@ -216,9 +278,6 @@ describe("lessons CRUD", () => {
   it("updates lesson status to concluida", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
-    await caller.lessons.create({
-      studentId: 1, title: 'Guitar Lesson', scheduledAt: new Date(Date.now() + 86400000).toISOString(), duration: 60, instrumentId: null 
-    });
     const result = await caller.lessons.updateStatus({ id: 1, status: "concluida", rating: 5 });
     expect(result).toHaveProperty("success", true);
   });
@@ -226,12 +285,18 @@ describe("lessons CRUD", () => {
   it("deletes a lesson", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
+    // Fila: [aula a excluir]
+    enqueueSelectResult([{ id: 99, recurringGroupId: null, scheduledAt: new Date(), studentId: 1, lessonType: "individual", title: "Aula", userId: 1 }]);
     const result = await caller.lessons.delete({ id: 99 });
     expect(result).toHaveProperty("success", true);
   });
 });
 
 describe("instruments CRUD", () => {
+  beforeEach(() => {
+    selectQueue.length = 0;
+  });
+
   it("creates a new instrument", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
@@ -253,12 +318,18 @@ describe("instruments CRUD", () => {
   it("deletes an instrument", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
+    // Fila: [instrumento da org]
+    enqueueSelectResult([{ id: 99, userId: 1 }]);
     const result = await caller.instruments.delete({ id: 99 });
     expect(result).toHaveProperty("success", true);
   });
 });
 
 describe("settings exportData", () => {
+  beforeEach(() => {
+    selectQueue.length = 0;
+  });
+
   it("returns CSV strings for students and lessons", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);

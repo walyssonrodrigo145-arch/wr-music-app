@@ -29,6 +29,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { formatBRL } from "@/lib/money";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -179,7 +180,7 @@ export default function StudentPayments() {
                       </div>
 
                       <div className="flex flex-col items-center sm:items-end gap-2">
-                        <p className="text-xl font-black text-foreground">R$ {Number(payment.amount).toFixed(2)}</p>
+                        <p className="text-xl font-black text-foreground">{formatBRL(payment.amount)}</p>
                         <StatusBadge status={payment.status} />
                       </div>
 
@@ -214,7 +215,8 @@ export default function StudentPayments() {
                             <Download size={20} />
                           </button>
                         ) : (
-                          <button 
+                          <button
+                            disabled={generateMPMutation.isPending && generateMPMutation.variables?.paymentDueId === payment.id}
                             onClick={() => {
                               const gateway = profile?.paymentGateway || "asaas";
                               
@@ -260,9 +262,9 @@ export default function StudentPayments() {
                                 toast.info("Aguardando configuração de pagamento da escola.");
                               }
                             }}
-                            className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                            className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-60 disabled:hover:scale-100 disabled:cursor-not-allowed"
                           >
-                             Pagar
+                             {(generateMPMutation.isPending && generateMPMutation.variables?.paymentDueId === payment.id) ? "Gerando..." : "Pagar"}
                              <ChevronRight size={14} />
                           </button>
                         )}
@@ -403,7 +405,7 @@ export default function StudentPayments() {
                       <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">
                         {format(parseISO(selectedPayment.dueDate as string), "MMMM yyyy", { locale: ptBR })}
                       </p>
-                      <p className="text-xl font-black">R$ {Number(selectedPayment.amount).toFixed(2)}</p>
+                       <p className="text-xl font-black">{formatBRL(selectedPayment.amount)}</p>
                     </div>
                   )}
                 </div>

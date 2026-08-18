@@ -6,7 +6,8 @@ const config = {
   host: process.env.VPS_HOST || '179.197.76.174',
   port: parseInt(process.env.VPS_PORT || '22', 10),
   username: process.env.VPS_USER || 'root',
-  password: process.env.VPS_PASSWORD || 'Walysson2003@',
+  // AUDIT-P0 FIX: senha hardcoded removida — defina VPS_PASSWORD no ambiente do deploy.
+  password: process.env.VPS_PASSWORD,
   readyTimeout: 60000,
 };
 

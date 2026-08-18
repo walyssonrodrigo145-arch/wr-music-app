@@ -51,10 +51,11 @@ describe("auth.logout", () => {
     expect(result).toEqual({ success: true });
     expect(clearedCookies).toHaveLength(1);
     expect(clearedCookies[0]?.name).toBe(COOKIE_NAME);
+    // Contrato atual de segurança (cookies.ts): sameSite=lax (proteção CSRF),
+    // httpOnly, path=/ e secure apenas em produção. AUDIT: teste alinhado ao código.
     expect(clearedCookies[0]?.options).toMatchObject({
       maxAge: -1,
-      secure: true,
-      sameSite: "none",
+      sameSite: "lax",
       httpOnly: true,
       path: "/",
     });

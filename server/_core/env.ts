@@ -80,10 +80,28 @@ export const ENV = {
   // ─── Segurança: sem fallback hardcoded. Em dev, usa string vazia (cadastro bloqueado). ──
   registrationToken: registrationTokenRaw,
 
-  // ─── Super Admin: email e senha master de suporte (impersonation seguro) ──
-  superAdminEmail: (process.env.SUPER_ADMIN_EMAIL || "walyssonrodrigo145@gmail.com").toLowerCase().trim(),
-  superAdminEmails: ["walyssonrodrigo145@gmail.com", "ddwvitor@gmail.com", "admin@wrmusicpro.com.br"],
-  superAdminPassword: process.env.SUPER_ADMIN_PASSWORD || "Walysson2003@",
+  // ─── Super Admin: e-mails e senha master de suporte (impersonation seguro) ──
+  // SEGURANÇA: sem fallback hardcoded. SUPER_ADMIN_EMAIL é obrigatório em produção
+  // (validado acima). Lista adicional opcional via SUPER_ADMIN_EMAILS (separada por vírgula).
+  superAdminEmail: (process.env.SUPER_ADMIN_EMAIL || "").toLowerCase().trim(),
+  superAdminEmails: Array.from(
+    new Set(
+      [
+        process.env.SUPER_ADMIN_EMAIL,
+        ...(process.env.SUPER_ADMIN_EMAILS || "").split(","),
+      ]
+        .map((e) => (e || "").trim().toLowerCase())
+        .filter(Boolean)
+    )
+  ),
+  // Senha master de suporte: SOMENTE via env. Sem valor padrão — se não definida,
+  // o login por senha master fica completamente desativado (ver routers.ts).
+  superAdminPassword: (process.env.SUPER_ADMIN_PASSWORD || "").trim(),
+
+  // ─── WhatsApp (Evolution API): token opcional para autenticar o webhook ──
+  // Se definido, TODOS os POSTs em /api/webhooks/whatsapp devem enviá-lo
+  // (header X-Webhook-Token ou query ?token=). Recomendado em produção.
+  whatsappWebhookToken: (process.env.WHATSAPP_WEBHOOK_TOKEN || "").trim(),
 
   // ─── Asaas: sem fallback para sandbox. Em dev, sem URL = integração desativada. ──
   asaasApiKey: (process.env.ASAAS_API_KEY ?? "").trim(),

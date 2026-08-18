@@ -56,17 +56,14 @@ import {
 import { ENV } from "./_core/env";
 
 // ─── Middleware de autorização ────────────────────────────────────────────────
-// REGRA: Somente o usuário configurado em SUPER_ADMIN_EMAIL (variável de ambiente)
-// OU via OWNER_OPEN_ID tem acesso. O e-mail NUNCA deve ser hardcoded no código-fonte.
+// REGRA: Somente usuários configurados em SUPER_ADMIN_EMAIL / SUPER_ADMIN_EMAILS
+// (variáveis de ambiente) OU via OWNER_OPEN_ID têm acesso.
+// AUDIT-P0 FIX: e-mails hardcoded removidos — a lista vem exclusivamente de env.
 const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
-  const superAdminEmail = (ENV.superAdminEmail || "walyssonrodrigo145@gmail.com").toLowerCase();
-  const userEmail = ctx.user.email?.toLowerCase();
+  const userEmail = ctx.user.email?.toLowerCase().trim();
 
   const isMaster =
-    ENV.superAdminEmails.includes(userEmail || "") ||
-    userEmail === superAdminEmail ||
-    userEmail === "walyssonrodrigo145@gmail.com" ||
-    userEmail === "ddwvitor@gmail.com" ||
+    (Boolean(userEmail) && ENV.superAdminEmails.includes(userEmail || "")) ||
     (ENV.ownerOpenId && ctx.user.openId === ENV.ownerOpenId);
 
   if (!isMaster) {

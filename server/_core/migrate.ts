@@ -309,6 +309,15 @@ export async function runAutoMigrations() {
       { table: 'reminder_templates', sql: 'ALTER TABLE "reminder_templates" ADD COLUMN IF NOT EXISTS "organizationId" integer' },
       { table: 'enum', sql: "ALTER TYPE reminder_type ADD VALUE IF NOT EXISTS 'inadimplencia'" },
       { table: 'enum', sql: "ALTER TYPE reminder_type ADD VALUE IF NOT EXISTS 'estudo'" },
+      // AUDIT-P1 FIX (duplicidade financeira): impede no BANCO duas mensalidades
+      // para o mesmo aluno no mesmo mês/ano na mesma escola (além do check na API).
+      // Se houver duplicatas legadas, a criação falha e o erro é logado (boot segue).
+      { table: 'payment_dues', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "uniq_payment_dues_org_student_month"
+        ON "payment_dues" ("organizationId", "studentId", "month", "year")` },
+      // AUDIT-P2 FIX: dados de tenant mais consultados sem índice
+      { table: 'students', sql: `CREATE INDEX IF NOT EXISTS "idx_students_org_professor" ON "students" ("organizationId", "professorId")` },
+      { table: 'chat_messages', sql: `CREATE INDEX IF NOT EXISTS "idx_chat_messages_pair" ON "chat_messages" ("senderId", "receiverId", "createdAt")` },
+      { table: 'notifications', sql: `CREATE INDEX IF NOT EXISTS "idx_notifications_user" ON "notifications" ("userId", "createdAt")` },
     ];
 
     for (const m of migrations) {

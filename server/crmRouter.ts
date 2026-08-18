@@ -601,6 +601,16 @@ export const crmRouter = router({
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new TRPCError({ code: "FORBIDDEN" });
 
+      // AUDIT-P1 FIX (IDOR): validar que o lead pertence à organização antes de
+      // escrever follow-up/atividade e atualizar o lead
+      const [ownedLead] = await db.select({ id: crmLeads.id })
+        .from(crmLeads)
+        .where(and(eq(crmLeads.id, input.leadId), eq(crmLeads.organizationId, orgId)))
+        .limit(1);
+      if (!ownedLead) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Lead não encontrado nesta escola." });
+      }
+
       const dueDateObj = new Date(input.dueDate);
 
       const [created] = await db
@@ -624,7 +634,7 @@ export const crmRouter = router({
       await db
         .update(crmLeads)
         .set({ nextFollowUpAt: dueDateObj, updatedAt: new Date() })
-        .where(eq(crmLeads.id, input.leadId));
+        .where(and(eq(crmLeads.id, input.leadId), eq(crmLeads.organizationId, orgId)));
 
       // Registrar atividade na Timeline
       await db.insert(crmActivities).values({
@@ -693,6 +703,15 @@ export const crmRouter = router({
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new TRPCError({ code: "FORBIDDEN" });
 
+      // AUDIT-P1 FIX (IDOR): validar que o lead pertence à organização
+      const [ownedLead] = await db.select({ id: crmLeads.id })
+        .from(crmLeads)
+        .where(and(eq(crmLeads.id, input.leadId), eq(crmLeads.organizationId, orgId)))
+        .limit(1);
+      if (!ownedLead) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Lead não encontrado nesta escola." });
+      }
+
       const now = new Date();
 
       const [activity] = await db
@@ -712,7 +731,7 @@ export const crmRouter = router({
       await db
         .update(crmLeads)
         .set({ lastContactAt: now, updatedAt: now })
-        .where(eq(crmLeads.id, input.leadId));
+        .where(and(eq(crmLeads.id, input.leadId), eq(crmLeads.organizationId, orgId)));
 
       return activity;
     }),

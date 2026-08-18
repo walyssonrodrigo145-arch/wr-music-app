@@ -24,10 +24,10 @@ import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
 import { settings, paymentDues, organizations, students } from "../../drizzle/schema";
 import { ENV } from './env';
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whatsapp";
 import { notifyUser } from "./notification";
-import { COOKIE_NAME } from "../../shared/const";
+import { sdk } from "./sdk";
 
 // ─── Notificação de eventos de contrato (assinado / recusado) ──────────────
 // Notifica os administradores da escola (push + notificação in-app) e o
@@ -109,6 +109,18 @@ async function startServer() {
   // Sincroniza o banco de dados e aplica o isolamento de tenants
   await runAutoMigrations();
   await runTenantMigrations();
+
+  // AUDIT: alerta de segurança — webhook do WhatsApp sem token em produção
+  if (ENV.isProduction && !ENV.whatsappWebhookToken) {
+    console.warn(
+      "[SEGURANÇA] WHATSAPP_WEBHOOK_TOKEN não definido — o webhook /api/webhooks/whatsapp " +
+      "está aceitando requisições sem autenticação. Configure o token no ambiente e no " +
+      "Evolution API (header X-Webhook-Token) para fechar este endpoint."
+    );
+  }
+  if (ENV.isProduction && !ENV.superAdminPassword) {
+    console.log("[SEGURANÇA] SUPER_ADMIN_PASSWORD não definido — login por senha master desativado.");
+  }
 
   // Inicia a fila de eventos de Analytics (assíncrona, sem bloquear)
   analyticsQueue.start();
@@ -767,11 +779,16 @@ async function startServer() {
   app.use("/api/webhooks/bot-status", botStatusWebhookRouter);
   // ─────────────────────────────────────────────────────────────────────────
 
-  // [MÉDIO-06 FIX] Protege /uploads com autenticação — apenas usuários autenticados
-  // podem acessar arquivos (contratos, fotos, materiais didáticos, comprovantes).
-  app.use("/uploads", (req, res, next) => {
-    const sessionCookie = req.cookies?.[COOKIE_NAME];
-    if (!sessionCookie) {
+  // [MÉDIO-06 FIX + AUDIT-P1 FIX] Protege /uploads com autenticação REAL.
+  // O middleware anterior usava req.cookies sem cookie-parser (sempre undefined
+  // → feature morta). Agora valida o token de sessão de fato via sdk.
+  app.use("/uploads", async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    } catch {
       return res.status(401).json({ error: "Unauthorized" });
     }
     next();
@@ -826,16 +843,27 @@ async function startServer() {
     "https://analytics.wrmusicpro.com.br",
     "capacitor://localhost",
     "http://localhost",
+    "https://localhost",
     "http://localhost:3000",
     "http://localhost:5000"
   ].filter(Boolean);
 
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || origin.startsWith("capacitor://") || origin.startsWith("http://localhost")) {
+      // AUDIT-P1 FIX: fallback permissivo removido — origens não autorizadas não
+      // recebem headers CORS (bloqueia leitura autenticada cross-site/CSRF).
+      // Requisições sem Origin (mobile nativo, Evolution API, health checks) seguem permitidas.
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.startsWith("capacitor://") ||
+        origin.startsWith("http://localhost") ||
+        origin.startsWith("https://localhost")
+      ) {
         callback(null, true);
       } else {
-        callback(null, true); // Fallback permissivo para garantir operabilidade em mobile
+        console.warn(`[CORS] Origem rejeitada: ${origin}`);
+        callback(null, false);
       }
     },
     credentials: true,
@@ -921,6 +949,21 @@ async function startServer() {
       }
     })
   );
+
+  // AUDIT: Health check HTTP dedicado — verifica app + banco, sem expor detalhes
+  // sensíveis. Deve ficar ANTES do SPA fallback (que responde 200 para qualquer path).
+  app.get("/api/health", async (_req, res) => {
+    try {
+      const db = await getDb();
+      if (!db) {
+        return res.status(503).json({ status: "unhealthy", database: "down" });
+      }
+      await db.execute(sql`SELECT 1`);
+      return res.status(200).json({ status: "healthy", database: "up" });
+    } catch {
+      return res.status(503).json({ status: "unhealthy", database: "down" });
+    }
+  });
 
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {

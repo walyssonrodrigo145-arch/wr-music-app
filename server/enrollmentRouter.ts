@@ -4,7 +4,7 @@ import { getDb } from "./db";
 import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms, organizations } from "../drizzle/schema";
 import { eq, and, gte, lte, desc, isNotNull, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
-import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode } from "./utils/asaas";
+import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasChargeStatus } from "./utils/asaas";
 import { createMPPreference, verifyMPPayment } from "./utils/mercadopago";
 import { ENV } from "./_core/env";
 
@@ -491,13 +491,84 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
+
+      // AUDIT-P0 FIX (IDOR + fraude): validar professor e instrumento contra a
+      // organização do link — antes, IDs de OUTRAS escolas eram aceitos
+      const [validTeacher] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(
+          eq(users.id, input.teacherUserId),
+          eq(users.organizationId, orgId),
+        ))
+        .limit(1);
+      if (!validTeacher) {
+        throw new Error("Professor inválido para esta escola.");
+      }
+
+      const [validInstrument] = await db
+        .select({ id: instruments.id })
+        .from(instruments)
+        .where(and(
+          eq(instruments.id, input.instrumentId),
+          eq(instruments.organizationId, orgId),
+        ))
+        .limit(1);
+      if (!validInstrument) {
+        throw new Error("Instrumento inválido para esta escola.");
+      }
+
       // Busca o settings mais completo para pegar lessonDuration correto
-      const allSettings3 = await db.select({ lessonDuration: settings.lessonDuration, schoolName: settings.schoolName, asaasApiKey: settings.asaasApiKey, mpAccessToken: settings.mpAccessToken }).from(settings).where(eq(settings.organizationId, orgId));
+      const allSettings3 = await db.select({ lessonDuration: settings.lessonDuration, schoolName: settings.schoolName, asaasApiKey: settings.asaasApiKey, asaasEnabled: settings.asaasEnabled, mpAccessToken: settings.mpAccessToken, paymentGateway: settings.paymentGateway }).from(settings).where(eq(settings.organizationId, orgId));
       const bestSettings3 = allSettings3.find(s => s.schoolName && s.schoolName.trim() !== '')
         || allSettings3.find(s => s.asaasApiKey || s.mpAccessToken)
         || allSettings3[0];
       const schoolSet = bestSettings3;
       const lessonDuration = schoolSet?.lessonDuration ?? 60;
+
+      // AUDIT-P0 FIX (fraude): se a escola COBRA matrícula (gateway configurado),
+      // verificar o pagamento SERVER-SIDE antes de criar aluno/aula. Antes, um POST
+      // direto matriculava sem pagar — o asaasChargeId do input era ignorado.
+      const gateway = (schoolSet as any)?.paymentGateway || "asaas";
+      const hasAsaas = !!(schoolSet?.asaasApiKey && (schoolSet?.asaasEnabled === 1 || (schoolSet?.asaasEnabled as any) === true));
+      const hasMercadoPago = !!schoolSet?.mpAccessToken;
+      const requiresPayment = hasAsaas || ((gateway === "mercadopago") && hasMercadoPago);
+
+      if (requiresPayment) {
+        let paymentVerified = false;
+
+        if (hasAsaas) {
+          if (!input.asaasChargeId) {
+            throw new Error("Pagamento da matrícula é obrigatório. Gere a cobrança e conclua o pagamento antes de confirmar.");
+          }
+          try {
+            const chargeStatus = await getAsaasChargeStatus(input.asaasChargeId, schoolSet!.asaasApiKey!);
+            paymentVerified = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH", "DETERMINED"].includes(String(chargeStatus).toUpperCase());
+          } catch (e) {
+            console.error("[Enrollment] Falha ao verificar cobrança Asaas:", e);
+            paymentVerified = false;
+          }
+        } else {
+          // Mercado Pago: busca pagamento aprovado pela referência externa do link
+          try {
+            const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=enrollment_${link.code}&sort=date_created&criteria=desc`;
+            const mpResp = await fetch(searchUrl, {
+              headers: { Authorization: `Bearer ${schoolSet!.mpAccessToken!}` },
+            });
+            if (mpResp.ok) {
+              const mpData: any = await mpResp.json();
+              paymentVerified = mpData.results?.some((p: any) => p.status === "approved");
+            }
+          } catch (e) {
+            console.error("[Enrollment] Falha ao verificar pagamento MP:", e);
+            paymentVerified = false;
+          }
+        }
+
+        if (!paymentVerified) {
+          throw new Error("Pagamento não confirmado. Conclua o pagamento da matrícula e tente novamente.");
+        }
+      }
 
       const scheduledAt = new Date(`${input.dateStr}T${input.timeStr}:00.000-03:00`);
 

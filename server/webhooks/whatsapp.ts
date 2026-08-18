@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "crypto";
 import { getDb } from "../db";
 import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows, schoolKnowledgeBase } from "../../drizzle/schema";
 import { eq, and, gte, ilike } from "drizzle-orm";
@@ -8,8 +9,20 @@ import { getSystemPrompt } from "../utils/aiPrompts";
 import { callGemini } from "../utils/gemini";
 import { sendPushNotification } from "../firebaseAdmin";
 import { getDefaultFlow, ChatbotFlowData } from "../chatbotFlowRouter";
+import { ENV } from "../_core/env";
 
 const router = Router();
+
+// SEGURANÇA: comparação de strings em tempo constante
+function safeEqualStr(a: string, b: string): boolean {
+  const ba = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ba.length !== bb.length) {
+    crypto.timingSafeEqual(ba, ba);
+    return false;
+  }
+  return crypto.timingSafeEqual(ba, bb);
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -224,6 +237,20 @@ DIRETRIZES DE ATENDIMENTO:
 
 router.post("/", async (req, res) => {
   try {
+    // AUDIT-P0 FIX: autenticação do webhook.
+    // Se WHATSAPP_WEBHOOK_TOKEN estiver definido no ambiente, TODA requisição deve
+    // apresentá-lo (header X-Webhook-Token ou query ?token=). Sem o env configurado
+    // o endpoint continua aberto (compatibilidade) — um alerta é logado no boot.
+    if (ENV.whatsappWebhookToken) {
+      const provided =
+        (req.headers["x-webhook-token"] as string) ||
+        ((req.query as any)?.token as string) ||
+        "";
+      if (!provided || !safeEqualStr(provided, ENV.whatsappWebhookToken)) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    }
+
     const payload = req.body;
     console.log("[Webhook Debug] Payload recebido:", JSON.stringify(payload).substring(0, 300));
 
@@ -543,26 +570,20 @@ router.post("/", async (req, res) => {
             if (matched) targetDue = matched;
           }
 
-          await db.update(paymentDues)
-            .set({
-              status: "pago",
-              paidAt: new Date(),
-              asaasBillingType: "PIX",
-              updatedAt: new Date(),
-            })
-            .where(eq(paymentDues.id, targetDue.id));
-
+          // AUDIT-P0 FIX: NUNCA marcar mensalidade como paga com base em mensagem
+          // não autenticada (um POST forjado com "paguei" dava baixa financeira).
+          // Fluxo correto: avisar a escola para CONFIRMAR manualmente no Financeiro.
           const formattedValue = parseFloat(String(targetDue.amount)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
           const formattedDueDate = new Date(targetDue.dueDate + "T12:00:00").toLocaleDateString("pt-BR");
 
           await notifyProfessor(
-            `✅ *Baixa Automática de Mensalidade!*\n\n👤 *Aluno:* ${student.name}\n💰 *Valor:* ${formattedValue}\n📅 *Vencimento:* ${formattedDueDate}\n📱 *Comprovante recebido via WhatsApp*`,
-            "💳 Comprovante Recebido e Baixado"
+            `🧾 *Comprovante recebido — confirmação necessária!*\n\n👤 *Aluno:* ${student.name}\n💰 *Valor declarado:* ${formattedValue}\n📅 *Vencimento:* ${formattedDueDate}\n\nO aluno enviou um comprovante via WhatsApp. *Nada foi baixado automaticamente* — revise e confirme em Financeiro › Mensalidades.`,
+            "🧾 Comprovante recebido — confirme no Financeiro"
           );
 
           await updateState("AGUARDANDO_MENU");
           await sendReply(
-            `✅ *Comprovante recebido com sucesso!*\n\nConfirmamos a baixa da sua mensalidade no valor de *${formattedValue}* (vencimento: ${formattedDueDate}) no nosso sistema! 🎵🌟\n\nMuito obrigado pelo pagamento! Digite *MENU* se precisar de mais alguma coisa. 😊`
+            `📋 *Comprovante recebido com sucesso!*\n\nNossa equipe vai *confirmar o pagamento* e sua mensalidade ficará regularizada em instantes. Se houver qualquer problema, entraremos em contato por aqui. 🎵\n\nDigite *MENU* se precisar de mais alguma coisa. 😊`
           );
           return res.status(200).json({ ok: true });
         }

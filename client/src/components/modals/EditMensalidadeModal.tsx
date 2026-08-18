@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { parseBRL } from "@/lib/money";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -83,9 +84,16 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
       return;
     }
 
+    // AUDIT FIX: parseBRL evita NaN quando o campo vem com vírgula decimal
+    const amountVal = parseBRL(form.amount);
+    if (!amountVal || amountVal <= 0) {
+      toast.error("Informe um valor válido");
+      return;
+    }
+
     const paymentPayload = {
       id: payment.id,
-      amount: Number(form.amount),
+      amount: amountVal,
       dueDate: form.dueDate,
       status: form.status,
       paidAt: form.status === "pago" ? (form.paidAt || format(new Date(), "yyyy-MM-dd")) : null,
@@ -96,10 +104,10 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
     updatePaymentMutation.mutate(paymentPayload);
 
     // Se o valor base foi alterado, atualizar o aluno
-    if (student && Number(form.baseFee) !== Number(student.monthlyFee)) {
+    if (student && parseBRL(form.baseFee) !== parseBRL(student.monthlyFee)) {
       updateStudentMutation.mutate({
         id: student.id,
-        monthlyFee: Number(form.baseFee),
+        monthlyFee: parseBRL(form.baseFee),
       });
     }
   };

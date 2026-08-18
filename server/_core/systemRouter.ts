@@ -4,6 +4,8 @@ import { adminProcedure, publicProcedure, protectedProcedure, router } from "./t
 import { getDb } from "../db";
 import { users, students, lessons, reminders, paymentDues, instruments, notifications } from "../../drizzle/schema";
 import { or, ilike, inArray, and, sql, eq, desc } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { ENV } from "./env";
 
 export const systemRouter = router({
   getNotifications: protectedProcedure.query(async ({ ctx }) => {
@@ -128,8 +130,20 @@ export const systemRouter = router({
       return results;
     }),
 
-  forceMigrations: publicProcedure
-    .mutation(async () => {
+  // AUDIT-P0 FIX: migrações de banco não podem ser disparadas sem autenticação.
+  // Restrito a super admin (env SUPER_ADMIN_EMAIL/SUPER_ADMIN_EMAILS ou OWNER_OPEN_ID).
+  forceMigrations: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      const userEmail = ctx.user.email?.toLowerCase().trim();
+      const isMaster =
+        (Boolean(userEmail) && ENV.superAdminEmails.includes(userEmail || "")) ||
+        (Boolean(ENV.ownerOpenId) && ctx.user.openId === ENV.ownerOpenId);
+      if (!isMaster) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Acesso restrito exclusivamente ao Super Admin.",
+        });
+      }
       const { runAutoMigrations } = await import("./migrate");
       return await runAutoMigrations();
     }),

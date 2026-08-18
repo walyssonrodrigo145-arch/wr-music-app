@@ -6,7 +6,9 @@ const config = {
   host: process.env.VPS_HOST || '179.197.76.174',
   port: parseInt(process.env.VPS_PORT || '22', 10),
   username: process.env.VPS_USER || 'root',
-  password: process.env.VPS_PASSWORD || 'Walysson2003@',
+  // AUDIT-P0 FIX: senha hardcoded removida — defina VPS_PASSWORD no ambiente do deploy.
+  // (A senha 'Walysson2003@' estava no código-fonte = acesso root na VPS para quem lê o repo)
+  password: process.env.VPS_PASSWORD,
 };
 
 const filesToUpload = [
@@ -202,6 +204,13 @@ const filesToUpload = [
   'client/src/pages/SalasEstudioTab.tsx',
   'client/src/pages/Configuracoes.tsx',
   'client/src/components/AIChatBox.tsx',
+  // ── AUDIT 18/08/2026: arquivos das correções (não estavam na lista) ──────
+  'server/_core/systemRouter.ts',
+  'server/slotAdvanceRouter.ts',
+  'server/webhooks/botStatus.ts',
+  'client/src/lib/money.ts',
+  'client/src/components/modals/EditMensalidadeModal.tsx',
+  'client/src/pages/Solicitacoes.tsx',
 ];
 
 const conn = new Client();

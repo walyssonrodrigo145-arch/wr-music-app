@@ -69,9 +69,11 @@ router.post("/", async (req, res) => {
     };
 
     // Valida o segredo compartilhado entre o bot e o site
-    const expectedSecret = process.env.BOT_WEBHOOK_SECRET || "bot_webhook_secret_wr_music";
-    if (secret !== expectedSecret) {
-      console.warn("[BotWebhook] Requisição recusada: secret inválido.");
+    // AUDIT-P1 FIX: default hardcoded removido. Sem BOT_WEBHOOK_SECRET no ambiente,
+    // o endpoint é rejeitado (em vez de aceitar um segredo público do código-fonte).
+    const expectedSecret = (process.env.BOT_WEBHOOK_SECRET || "").trim();
+    if (!expectedSecret || !secret || secret !== expectedSecret) {
+      console.warn("[BotWebhook] Requisição recusada: secret inválido ou não configurado (defina BOT_WEBHOOK_SECRET).");
       return res.status(401).json({ error: "Unauthorized" });
     }
 

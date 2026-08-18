@@ -13,6 +13,7 @@ import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { parseBRL } from "@/lib/money";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "recharts";
@@ -65,12 +66,18 @@ function NovaDespesaModal({ open, onClose }: { open: boolean; onClose: () => voi
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+    // AUDIT FIX: parseBRL evita NaN quando o campo vem com vírgula decimal
+    const amountVal = parseBRL(form.amount);
+    if (!amountVal || amountVal <= 0) {
+      toast.error("Informe um valor válido para a despesa");
+      return;
+    }
     createMutation.mutate({
       description: form.description,
       supplier: form.supplier.trim() || undefined,
       account: form.account.trim() || undefined,
       recurrence: form.recurrence,
-      amount: Number(form.amount),
+      amount: amountVal,
       date: form.date,
       category: form.category,
       status: form.status,

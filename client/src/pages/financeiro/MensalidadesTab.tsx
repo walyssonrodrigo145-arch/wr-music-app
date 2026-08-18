@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { exportToCSV } from "@/lib/exportUtils";
+import { parseBRL, formatBRL } from "@/lib/money";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -416,9 +417,15 @@ function NovaModal({ open, onClose, students, dueDays }: {
         toast.error("Dia de vencimento inválido (1 a 31)");
         return;
       }
+      // AUDIT FIX: parseBRL evita NaN quando o campo vem com vírgula decimal
+      const amountVal = parseBRL(form.amount);
+      if (!amountVal || amountVal <= 0) {
+        toast.error("Informe um valor de mensalidade válido");
+        return;
+      }
       generateMutation.mutate({
         studentId: Number(form.studentId),
-        amount: Number(form.amount),
+        amount: amountVal,
         dueDay: dayNum,
         startMonth: Number(form.startMonth),
         startYear: Number(form.startYear),
@@ -963,17 +970,17 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                 </span>
                                 {(payment as any).calculation.lateFeeAmount > 0 && (
                                   <span className="text-emerald-500 font-bold">
-                                    +Multa: R$ {(payment as any).calculation.lateFeeAmount.toFixed(2)}
+                                    +Multa: {formatBRL((payment as any).calculation.lateFeeAmount)}
                                   </span>
                                 )}
                                 {(payment as any).calculation.interestAmount > 0 && (
                                   <span className="text-indigo-500 font-bold">
-                                    +Juros: R$ {(payment as any).calculation.interestAmount.toFixed(2)}
+                                    +Juros: {formatBRL((payment as any).calculation.interestAmount)}
                                   </span>
                                 )}
                                 {(payment as any).calculation.earlyDiscountAmount > 0 && (
                                   <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                    -Desconto: R$ {(payment as any).calculation.earlyDiscountAmount.toFixed(2)}
+                                    -Desconto: {formatBRL((payment as any).calculation.earlyDiscountAmount)}
                                   </span>
                                 )}
                               </div>
@@ -1019,12 +1026,16 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                    </DropdownMenuItem>
                                  )}
                                  <DropdownMenuSeparator className="bg-muted" />
-                                 {payment.status !== "pago" && (
-                                   <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}>
-                                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                      <span className="text-xs font-bold text-muted-foreground">Marcar como Pago</span>
-                                   </DropdownMenuItem>
-                                 )}
+                                  {payment.status !== "pago" && (
+                                    <DropdownMenuItem
+                                      className="gap-2 rounded-lg"
+                                      disabled={updateMutation.isPending || updateMutation.variables?.id === payment.id}
+                                      onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}
+                                    >
+                                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                       <span className="text-xs font-bold text-muted-foreground">Marcar como Pago</span>
+                                    </DropdownMenuItem>
+                                  )}
                                  <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setNotesPayment(payment)}>
                                     <FileText className="w-4 h-4 text-amber-500" />
                                     <span className="text-xs font-bold text-muted-foreground">Observação / Justificativa</span>
@@ -1194,12 +1205,16 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                            <Copy size={12} /> Copiar Link
                          </Button>
                        )}
-                       {payment.status !== "pago" && (
-                         <Button variant="ghost" size="sm" className="h-8 px-3 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
-                           onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}>
-                           <CheckCircle2 size={12} className="mr-1" /> Pago
-                         </Button>
-                       )}
+                        {payment.status !== "pago" && (
+                          <Button
+                            variant="ghost" size="sm"
+                            className="h-8 px-3 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
+                            disabled={updateMutation.isPending || updateMutation.variables?.id === payment.id}
+                            onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}
+                          >
+                            <CheckCircle2 size={12} className="mr-1" /> Pago
+                          </Button>
+                        )}
                     </div>
                   </div>
                 ))

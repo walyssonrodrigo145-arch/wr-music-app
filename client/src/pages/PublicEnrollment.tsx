@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { formatBRL } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -259,7 +260,7 @@ export default function PublicEnrollment() {
             </p>
             {mpPaymentValue > 0 && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black">
-                Valor: R$ {mpPaymentValue.toFixed(2)}
+                Valor: {formatBRL(mpPaymentValue)}
               </div>
             )}
           </div>
@@ -451,7 +452,7 @@ export default function PublicEnrollment() {
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] text-muted-foreground font-semibold uppercase">Mensalidade</p>
-                      <p className="text-lg font-black text-emerald-400">R$ {Number(details.monthlyFee).toFixed(2)}</p>
+                      <p className="text-lg font-black text-emerald-400">{formatBRL(details.monthlyFee)}</p>
                     </div>
                   </div>
 
@@ -541,7 +542,7 @@ export default function PublicEnrollment() {
                   <div className="p-5 rounded-2xl bg-card border border-border/50 space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-muted-foreground">Valor da mensalidade</span>
-                      <span className="text-xl font-black text-emerald-400">R$ {paymentData.value.toFixed(2)}</span>
+                      <span className="text-xl font-black text-emerald-400">{formatBRL(paymentData.value)}</span>
                     </div>
 
                     {paymentData.pixQrCode && (

@@ -243,7 +243,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                 <img
                   src={(user as any).schoolLogo}
                   alt="Logo da Escola"
-                  className="block object-contain object-center max-h-[64px] max-w-[210px] w-auto h-auto transition-all"
+                  className="block w-full max-w-full h-auto object-contain object-center"
                 />
               </div>
 

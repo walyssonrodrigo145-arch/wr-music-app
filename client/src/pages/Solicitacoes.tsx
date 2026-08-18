@@ -153,14 +153,16 @@ export default function Solicitacoes() {
                               <div className="flex items-center gap-3">
                                 {req.status === 'pendente' ? (
                                   <>
-                                    <Button 
-                                      variant="outline" 
+                                    <Button
+                                      variant="outline"
+                                      disabled={respondMutation.isPending || respondMutation.variables?.id === req.id}
                                       onClick={() => respondMutation.mutate({ id: req.id, status: 'recusada' })}
                                       className="h-12 px-6 rounded-xl border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white font-black uppercase tracking-widest text-[10px]"
                                     >
                                       <X size={16} className="mr-2" /> Recusar
                                     </Button>
-                                    <Button 
+                                    <Button
+                                      disabled={respondMutation.isPending || respondMutation.variables?.id === req.id}
                                       onClick={() => respondMutation.mutate({ id: req.id, status: 'aprovada' })}
                                       className="h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-[10px]"
                                     >

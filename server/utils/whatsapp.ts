@@ -441,7 +441,12 @@ export async function setupEvolutionWebhook(instanceName: string = DEFAULT_INSTA
       return;
     }
 
-    const webhookUrl = `${publicUrl.replace(/\/+$/, "")}/api/webhooks/whatsapp`;
+    // AUDIT FIX: incluir o WHATSAPP_WEBHOOK_TOKEN na URL — sem ele, o servidor
+    // rejeita as chamadas do webhook (401) após o fechamento de segurança.
+    const webhookToken = (process.env.WHATSAPP_WEBHOOK_TOKEN || "").trim();
+    const webhookUrl = `${publicUrl.replace(/\/+$/, "")}/api/webhooks/whatsapp${
+      webhookToken ? `?token=${encodeURIComponent(webhookToken)}` : ""
+    }`;
 
     const payload = {
       webhook: {

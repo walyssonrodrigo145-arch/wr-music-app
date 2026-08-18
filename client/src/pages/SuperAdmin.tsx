@@ -19,15 +19,16 @@ import { Button } from "@/components/ui/button";
 
 // ─── REGRA DE ACESSO ──────────────────────────────────────────────────────────
 // SOMENTE Super Admins autorizados podem acessar este painel.
-const SUPER_ADMIN_EMAILS = ['walyssonrodrigo145@gmail.com', 'ddwvitor@gmail.com'];
+// AUDIT FIX: remover e-mails hardcoded — a autorização vem do backend
+// (auth.me.isSuperAdmin, baseado em SUPER_ADMIN_EMAIL(S) do ambiente).
 
 export default function SuperAdmin() {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
 
-  // ─── Proteção de rota: apenas os emails de Super Admin ─────────────────────────
-  if (!loading && (!user || !user.email || !SUPER_ADMIN_EMAILS.includes(user.email.toLowerCase()))) {
-    if (!loading && !user) { setLocation('/login'); return null; }
+  // ─── Proteção de rota: apenas Super Admins (flag vinda do backend) ─────────
+  if (!loading && !user) { setLocation('/login'); return null; }
+  if (!loading && !user?.isSuperAdmin) {
     return (
       <div className="flex flex-col items-center justify-center h-full pt-20 gap-4">
         <ShieldAlert size={48} className="text-destructive" />

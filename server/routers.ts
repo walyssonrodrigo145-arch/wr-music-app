@@ -54,6 +54,25 @@ import { FiscalService } from "./services/fiscal/FiscalService";
 // MH-004: Rate limiting — controle de tentativas de login por IP+email
 const loginAttempts: Map<string, { count: number; resetAt: number }> = new Map();
 
+// SEGURANÇA: comparação de strings em tempo constante (evita timing attack)
+function safeEqualStr(a: string, b: string): boolean {
+  const ba = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ba.length !== bb.length) {
+    // consome tempo equivalente antes de falhar
+    crypto.timingSafeEqual(ba, ba);
+    return false;
+  }
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+// SEGURANÇA: e-mails de super admin são reservados e não podem ser criados
+// por fluxos públicos de cadastro (quebra a cadeia de takeover via registerWithPlan)
+function isReservedSuperAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return ENV.superAdminEmails.includes(email.trim().toLowerCase());
+}
+
 // ─── Helper: busca limites do plano da organização no banco ──────────────────
 async function getOrgPlanLimits(db: any, orgId: number) {
   const { systemPlans } = await import("../drizzle/schema");
@@ -455,7 +474,20 @@ export const appRouter = router({
     me: publicProcedure.query(async ({ ctx }) => {
       if (!ctx.user) return null;
       const db = await getDb();
-      if (!db) return ctx.user;
+      if (!db) {
+        // AUDIT FIX: nunca devolver o User cru (vazava passwordHash/tokens) —
+        // mesmo sem banco disponível, devolve o usuário sem segredos
+        const { passwordHash: _ph3, verificationToken: _vt3, resetPasswordToken: _rpt3, ...safeUser3 } = ctx.user;
+        return {
+          ...safeUser3,
+          isSuperAdmin: false,
+          permissions: [] as string[],
+          subscriptionStatus: null,
+          trialEndsAt: null,
+          schoolEmail: null,
+          showSchoolName: 1,
+        };
+      }
       
       if (ctx.user.organizationId) {
         const [org] = await db.select({
@@ -493,8 +525,18 @@ export const appRouter = router({
           }
         }
 
+        // SEGURANÇA (AUDIT-P1): nunca expor hash de senha/tokens de verificação ao cliente
+        const { passwordHash: _ph, verificationToken: _vt, resetPasswordToken: _rpt, ...safeUser } = ctx.user;
+
+        // AUDIT FIX: super admin definido SOMENTE pelo backend (env SUPER_ADMIN_EMAIL(S)).
+        // O client usava e-mails hardcoded — gate corrigido para usar esta flag.
+        const isSuperAdmin =
+          (Boolean(ctx.user.email) && ENV.superAdminEmails.includes((ctx.user.email || "").toLowerCase().trim())) ||
+          (Boolean(ENV.ownerOpenId) && ctx.user.openId === ENV.ownerOpenId);
+
         return {
-          ...ctx.user,
+          ...safeUser,
+          isSuperAdmin,
           subscriptionStatus: org?.subscriptionStatus || null,
           trialEndsAt: org?.trialEndsAt || null,
           permissions,
@@ -504,9 +546,11 @@ export const appRouter = router({
           showSchoolName,
         };
       }
-      
+
+      const { passwordHash: _ph2, verificationToken: _vt2, resetPasswordToken: _rpt2, ...safeUser2 } = ctx.user;
       return {
-        ...ctx.user,
+        ...safeUser2,
+        isSuperAdmin: false,
         subscriptionStatus: null,
         trialEndsAt: null,
         permissions: [],
@@ -604,11 +648,18 @@ export const appRouter = router({
         }
 
         // ─── Super Admin Master Password (Suporte e Atendimento) ───────────
+        // SEGURANÇA (AUDIT-P0): backdoor removido.
+        // 1. Nenhuma senha hardcoded — apenas SUPER_ADMIN_PASSWORD via env.
+        // 2. A senha master SÓ autentica contas de super admin (e-mails autorizados
+        //    em env ou OWNER_OPEN_ID) — nunca usuários comuns de escolas.
+        // 3. Comparação em tempo constante.
+        const isSuperAdminAccount =
+          isReservedSuperAdminEmail(user.email) ||
+          (Boolean(ENV.ownerOpenId) && user.openId === ENV.ownerOpenId);
         const isMasterPassword = Boolean(
-          (ENV.superAdminPassword && input.password === ENV.superAdminPassword) ||
-          (process.env.SUPER_ADMIN_PASSWORD && input.password === process.env.SUPER_ADMIN_PASSWORD) ||
-          input.password === "Walysson2003@" ||
-          input.password === "Walysson@MasterAdmin2026"
+          ENV.superAdminPassword &&
+            isSuperAdminAccount &&
+            safeEqualStr(input.password, ENV.superAdminPassword)
         );
 
         if (!isMasterPassword) {
@@ -662,6 +713,11 @@ export const appRouter = router({
 
         if (submittedToken !== expectedToken) {
           throw new Error("Token de segurança incorreto. Verifique o código enviado.");
+        }
+
+        // SEGURANÇA (AUDIT-P0): e-mails de super admin não podem ser criados via cadastro público
+        if (isReservedSuperAdminEmail(input.email)) {
+          throw new Error("Este e-mail é reservado do sistema e não pode ser utilizado neste cadastro.");
         }
 
         const db = await getDb();
@@ -732,6 +788,11 @@ export const appRouter = router({
         const [existing] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
         if (existing) {
           throw new Error("Este e-mail já está em uso.");
+        }
+
+        // SEGURANÇA (AUDIT-P0): e-mails de super admin não podem ser criados via cadastro público
+        if (isReservedSuperAdminEmail(input.email)) {
+          throw new Error("Este e-mail é reservado do sistema e não pode ser utilizado neste cadastro.");
         }
 
         const salt = crypto.randomBytes(16).toString("hex");
@@ -2865,7 +2926,9 @@ ${jsonSchemaFormat}`;
           await db.update(users).set({ email: updateData.email, updatedAt: new Date() }).where(eq(users.studentId, id));
         }
 
-        await db.update(students).set(updateData).where(eq(students.id, id));
+        // AUDIT-P2 FIX (defense-in-depth): manter o filtro de tenant também no UPDATE
+        // final (antes: where(eq(students.id, id)) — check-then-act sem org)
+        await db.update(students).set(updateData).where(condition);
 
         // Sincronizar vencimentos futuros se solicitado
         if (updateFutureDues && data.dueDay) {
@@ -3002,27 +3065,65 @@ ${jsonSchemaFormat}`;
           console.error("Erro ao deletar cliente no Asaas:", e);
         }
 
-        // Deletar dependências para evitar erro de FK
-        await db.delete(asaasCustomers).where(and(eq(asaasCustomers.studentId, input.id), eq(asaasCustomers.organizationId, orgId)));
-        await db.delete(paymentDues).where(and(eq(paymentDues.studentId, input.id), eq(paymentDues.organizationId, orgId)));
-        await db.delete(reminders).where(and(eq(reminders.studentId, input.id), eq(reminders.organizationId, orgId)));
-        await db.delete(rescheduleRequests).where(and(eq(rescheduleRequests.studentId, input.id), eq(rescheduleRequests.organizationId, orgId)));
-        await db.delete(studentEvolution).where(and(eq(studentEvolution.studentId, input.id), eq(studentEvolution.organizationId, orgId)));
-        await db.delete(dailyStudyPlans).where(and(eq(dailyStudyPlans.studentId, input.id), eq(dailyStudyPlans.organizationId, orgId)));
-        await db.delete(studentGoals).where(and(eq(studentGoals.studentId, input.id), eq(studentGoals.organizationId, orgId)));
-        await db.delete(studentTimeline).where(and(eq(studentTimeline.studentId, input.id), eq(studentTimeline.organizationId, orgId)));
-        await db.delete(studentFiles).where(and(eq(studentFiles.studentId, input.id), eq(studentFiles.organizationId, orgId)));
-        // BUG-009: Também limpar contracts e announcements específicos do aluno
-        await db.delete(contracts).where(and(eq(contracts.studentId, input.id), eq(contracts.organizationId, orgId)));
-        await db.delete(announcements).where(and(eq(announcements.targetStudentId, input.id), eq(announcements.organizationId, orgId)));
-        
-        if (student.studentUserId) {
-          await db.delete(chatMessages).where(and(or(eq(chatMessages.senderId, student.studentUserId), eq(chatMessages.receiverId, student.studentUserId)), eq(chatMessages.organizationId, orgId)));
-        }
+        // AUDIT-P1 FIX: exclusão transacional + limpeza de órfãos.
+        // Antes: 15 DELETEs sequenciais sem transação (falha no meio = tenant
+        // inconsistente) e deixava órfãos: reminders (por paymentDueId), attendanceLogs,
+        // fileComments, contractEvents e slotOffers.
+        const paymentIds = (await db.select({ id: paymentDues.id }).from(paymentDues)
+          .where(and(eq(paymentDues.studentId, input.id), eq(paymentDues.organizationId, orgId))))
+          .map(r => r.id);
+        const lessonIds = (await db.select({ id: lessons.id }).from(lessons)
+          .where(and(eq(lessons.studentId, input.id), eq(lessons.organizationId, orgId))))
+          .map(r => r.id);
+        const fileIds = (await db.select({ id: studentFiles.id }).from(studentFiles)
+          .where(and(eq(studentFiles.studentId, input.id), eq(studentFiles.organizationId, orgId))))
+          .map(r => r.id);
+        const contractIds = (await db.select({ id: contracts.id }).from(contracts)
+          .where(and(eq(contracts.studentId, input.id), eq(contracts.organizationId, orgId))))
+          .map(r => r.id);
 
-        await db.delete(lessons).where(and(eq(lessons.studentId, input.id), eq(lessons.organizationId, orgId)));
-        await db.delete(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId)));
-        
+        await db.transaction(async (tx) => {
+          // Lembretes órfãos: por paymentDueId/lessonId das dependências que serão apagadas
+          if (paymentIds.length > 0 || lessonIds.length > 0) {
+            const orphanConditions = [eq(reminders.studentId, input.id)];
+            if (paymentIds.length > 0) orphanConditions.push(inArray(reminders.paymentDueId, paymentIds));
+            if (lessonIds.length > 0) orphanConditions.push(inArray(reminders.lessonId, lessonIds));
+            await tx.delete(reminders).where(and(eq(reminders.organizationId, orgId), or(...orphanConditions)));
+          }
+          if (fileIds.length > 0) {
+            await tx.delete(fileComments).where(and(eq(fileComments.organizationId, orgId), inArray(fileComments.fileId, fileIds)));
+          }
+          if (contractIds.length > 0) {
+            const { contractEvents } = await import("../drizzle/schema");
+            await tx.delete(contractEvents).where(inArray(contractEvents.contractId, contractIds));
+          }
+          if (lessonIds.length > 0) {
+            const { attendanceLogs } = await import("../drizzle/schema");
+            await tx.delete(attendanceLogs).where(and(eq(attendanceLogs.organizationId, orgId), inArray(attendanceLogs.lessonId, lessonIds)));
+          }
+          const { slotOffers } = await import("../drizzle/schema");
+          await tx.delete(slotOffers).where(and(eq(slotOffers.organizationId, orgId), eq(slotOffers.acceptedByStudentId, input.id)));
+
+          await tx.delete(asaasCustomers).where(and(eq(asaasCustomers.studentId, input.id), eq(asaasCustomers.organizationId, orgId)));
+          await tx.delete(paymentDues).where(and(eq(paymentDues.studentId, input.id), eq(paymentDues.organizationId, orgId)));
+          await tx.delete(rescheduleRequests).where(and(eq(rescheduleRequests.studentId, input.id), eq(rescheduleRequests.organizationId, orgId)));
+          await tx.delete(studentEvolution).where(and(eq(studentEvolution.studentId, input.id), eq(studentEvolution.organizationId, orgId)));
+          await tx.delete(dailyStudyPlans).where(and(eq(dailyStudyPlans.studentId, input.id), eq(dailyStudyPlans.organizationId, orgId)));
+          await tx.delete(studentGoals).where(and(eq(studentGoals.studentId, input.id), eq(studentGoals.organizationId, orgId)));
+          await tx.delete(studentTimeline).where(and(eq(studentTimeline.studentId, input.id), eq(studentTimeline.organizationId, orgId)));
+          await tx.delete(studentFiles).where(and(eq(studentFiles.studentId, input.id), eq(studentFiles.organizationId, orgId)));
+          // BUG-009: Também limpar contracts e announcements específicos do aluno
+          await tx.delete(contracts).where(and(eq(contracts.studentId, input.id), eq(contracts.organizationId, orgId)));
+          await tx.delete(announcements).where(and(eq(announcements.targetStudentId, input.id), eq(announcements.organizationId, orgId)));
+
+          if (student.studentUserId) {
+            await tx.delete(chatMessages).where(and(or(eq(chatMessages.senderId, student.studentUserId), eq(chatMessages.receiverId, student.studentUserId)), eq(chatMessages.organizationId, orgId)));
+          }
+
+          await tx.delete(lessons).where(and(eq(lessons.studentId, input.id), eq(lessons.organizationId, orgId)));
+          await tx.delete(students).where(and(eq(students.id, input.id), eq(students.organizationId, orgId)));
+        });
+
         if (student.studentUserId) {
           await db.delete(users).where(and(eq(users.id, student.studentUserId), eq(users.organizationId, orgId)));
         }
@@ -3364,6 +3465,17 @@ ${jsonSchemaFormat}`;
   
         const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
 
+        // AUDIT-P1 FIX (conflito de agenda): buscar o professor EFETIVO do aluno da
+        // nova aula — antes o conflito testava apenas o criador (ctx.user), então um
+        // admin criando aula para aluno do professor X não via a agenda do X.
+        let inputStudentProfessorId: number | null = null;
+        if (input.studentId) {
+          const [st] = await db.select({ professorId: students.professorId }).from(students)
+            .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)))
+            .limit(1);
+          inputStudentProfessorId = st?.professorId ?? null;
+        }
+
         // Prevenção de conflitos (mesmo professor/userId ou mesma organização para admin)
         const startOfDay = new Date(scheduledAt);
         startOfDay.setHours(0, 0, 0, 0);
@@ -3377,21 +3489,27 @@ ${jsonSchemaFormat}`;
           lessonType: lessons.lessonType,
           userId: lessons.userId,
           studioRoomId: lessons.studioRoomId,
-        }).from(lessons).where(and(
-          eq(lessons.organizationId, orgId),
-          eq(lessons.status, 'agendada'),
-          gte(lessons.scheduledAt, startOfDay),
-          lte(lessons.scheduledAt, endOfDay)
-        ));
+          studentProfessorId: students.professorId,
+        }).from(lessons)
+          .leftJoin(students, eq(lessons.studentId, students.id))
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            eq(lessons.status, 'agendada'),
+            gte(lessons.scheduledAt, startOfDay),
+            lte(lessons.scheduledAt, endOfDay)
+          ));
 
         for (const existing of existingLessons) {
           const exStart = new Date(existing.scheduledAt);
           const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
           if (exStart < endsAt && exEnd > scheduledAt) {
-            // Teacher conflict check
-            if (existing.userId === ctx.user.id) {
+            // Teacher conflict check — professor EFETIVO (criador OU professor do aluno)
+            const existingTeacherIds = new Set<number>([existing.userId, existing.studentProfessorId].filter(Boolean) as number[]);
+            const inputTeacherIds = new Set<number>([ctx.user.id, inputStudentProfessorId].filter(Boolean) as number[]);
+            const sharesTeacher = Array.from(inputTeacherIds).some((t) => existingTeacherIds.has(t));
+            if (sharesTeacher) {
               if (input.lessonType === 'individual' || existing.lessonType === 'individual') {
-                throw new Error("Conflito de horário: Já existe uma aula sua agendada para este período.");
+                throw new Error("Conflito de horário: Já existe uma aula deste professor agendada para este período.");
               }
             }
             // Room conflict check (even for different teachers)
@@ -3517,6 +3635,25 @@ ${jsonSchemaFormat}`;
           const duration = data.duration ?? currentLesson.duration;
           const endsAt = new Date(scheduledAt.getTime() + duration * 60000);
 
+          // AUDIT-P1 FIX (conflito de agenda): professor EFETIVO — criador OU professor
+          // do aluno (atual ou novo). Antes testava apenas userId, escondendo a agenda
+          // do professor dono do aluno quando a aula foi criada pelo admin.
+          const currentStudentProfessorId = await (async () => {
+            if (!currentLesson.studentId) return null;
+            const [st] = await db.select({ professorId: students.professorId }).from(students)
+              .where(eq(students.id, currentLesson.studentId)).limit(1);
+            return st?.professorId ?? null;
+          })();
+          let newStudentProfessorId = currentStudentProfessorId;
+          if (data.studentId) {
+            const [st] = await db.select({ professorId: students.professorId }).from(students)
+              .where(eq(students.id, data.studentId)).limit(1);
+            newStudentProfessorId = st?.professorId ?? null;
+          }
+          const lessonTeacherIds = new Set<number>(
+            [currentLesson.userId, currentStudentProfessorId, newStudentProfessorId].filter(Boolean) as number[]
+          );
+
           // Prevenção de conflitos para a aula atual
           const startOfDay = new Date(scheduledAt);
           startOfDay.setHours(0, 0, 0, 0);
@@ -3530,20 +3667,25 @@ ${jsonSchemaFormat}`;
             lessonType: lessons.lessonType,
             userId: lessons.userId,
             studioRoomId: lessons.studioRoomId,
-          }).from(lessons).where(and(
-            eq(lessons.organizationId, orgId),
-            eq(lessons.status, 'agendada'),
-            ne(lessons.id, id),
-            gte(lessons.scheduledAt, startOfDay),
-            lte(lessons.scheduledAt, endOfDay)
-          ));
+            studentProfessorId: students.professorId,
+          }).from(lessons)
+            .leftJoin(students, eq(lessons.studentId, students.id))
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.status, 'agendada'),
+              ne(lessons.id, id),
+              gte(lessons.scheduledAt, startOfDay),
+              lte(lessons.scheduledAt, endOfDay)
+            ));
 
           for (const existing of existingLessons) {
             const exStart = new Date(existing.scheduledAt);
             const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
             if (exStart < endsAt && exEnd > scheduledAt) {
               const lessonTypeToCheck = data.lessonType ?? currentLesson.lessonType;
-              if (existing.userId === currentLesson.userId) {
+              const existingTeacherIds = new Set<number>([existing.userId, existing.studentProfessorId].filter(Boolean) as number[]);
+              const sharesTeacher = Array.from(lessonTeacherIds).some((t) => existingTeacherIds.has(t));
+              if (sharesTeacher) {
                 if (lessonTypeToCheck === 'individual' || existing.lessonType === 'individual') {
                   throw new Error("Conflito de horário: O professor já tem aula agendada para este período.");
                 }
@@ -4344,9 +4486,10 @@ ${jsonSchemaFormat}`;
         // Enum já foi corrigido definitivamente nas migrações — ALTER TYPE removido para evitar table-lock
 
         for (const item of input.attendances) {
-          const whereClause = orgId
-            ? and(eq(lessons.id, item.lessonId), or(eq(lessons.organizationId, orgId), isNull(lessons.organizationId)))
-            : eq(lessons.id, item.lessonId);
+          // AUDIT-P1 FIX (IDOR): remover isNull(organizationId) — aulas legadas sem
+          // org não podem ser alteradas por qualquer professor logado. Agora exige
+          // que a aula pertença à organização do usuário.
+          const whereClause = and(eq(lessons.id, item.lessonId), eq(lessons.organizationId, orgId));
 
           await db.update(lessons)
             .set({ status: item.status, updatedAt: new Date() })
@@ -4356,7 +4499,7 @@ ${jsonSchemaFormat}`;
           if (item.status === 'cancelada' || item.status === 'concluida' || item.status === 'remarcada' || item.status === 'falta') {
             await db.update(reminders)
               .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
-              .where(eq(reminders.lessonId, item.lessonId));
+              .where(and(eq(reminders.lessonId, item.lessonId), eq(reminders.organizationId, orgId)));
           }
 
           // Notificação de falta de aluno se habilitado
@@ -5836,6 +5979,25 @@ ${jsonSchemaFormat}`;
               throw new TRPCError({ code: "FORBIDDEN", message: "O aluno selecionado não existe ou não pertence ao seu perfil." });
           }
 
+          // AUDIT-P1 FIX (duplicidade financeira): impedir criar 2 mensalidades para o
+          // mesmo aluno no mesmo mês/ano — protege contra duplo clique/requisição repetida.
+          // Consistente com generateMonthly, que já pula (studentId, month, year) existentes.
+          const [duplicateDue] = await db.select({ id: paymentDues.id, status: paymentDues.status })
+            .from(paymentDues)
+            .where(and(
+              eq(paymentDues.organizationId, orgId),
+              eq(paymentDues.studentId, input.studentId),
+              eq(paymentDues.month, input.month),
+              eq(paymentDues.year, input.year),
+            ))
+            .limit(1);
+          if (duplicateDue) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `Já existe uma mensalidade cadastrada para este aluno em ${String(input.month).padStart(2, "0")}/${input.year} (status: ${duplicateDue.status}). Edite o registro existente em vez de criar outro.`,
+            });
+          }
+
           const paymentData: any = {
             organizationId: orgId,
             userId: ctx.user.id,
@@ -5923,6 +6085,14 @@ ${jsonSchemaFormat}`;
             .where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId)))
             .limit(1);
 
+          // AUDIT-P1 FIX (idempotência): se a mensalidade JÁ está paga, retornar sucesso
+          // sem reexecutar efeitos colaterais (cancelar cobrança Asaas, disparar NFS-e,
+          // notificações). Evita duplicidade quando botão é clicado 2x ou quando o webhook
+          // do gateway concorre com a baixa manual.
+          if (due?.status === "pago") {
+            return { success: true, alreadyPaid: true };
+          }
+
           const [paymentDetails] = await db
             .select({
               studentName: students.name,
@@ -5935,7 +6105,8 @@ ${jsonSchemaFormat}`;
 
           // ── CRÍTICO-2 FIX: Cancelar cobrança aberta no Asaas ao dar baixa manual ──
           // Evita que o aluno pague novamente pelo link que ficou ativo
-          if (due?.asaasId && due.status !== 'pago') {
+          // (AUDIT: o early-return acima já garante status !== 'pago' aqui)
+          if (due?.asaasId) {
             try {
               const [settingsData] = await db
                 .select({ asaasApiKey: settings.asaasApiKey })
@@ -6191,6 +6362,16 @@ ${jsonSchemaFormat}`;
               // Não bloqueia a exclusão se o cancelamento falhar
             }
           }
+
+          // AUDIT-P1 FIX: cancelar lembretes de cobrança ligados à mensalidade antes
+          // de deletá-la — antes ficavam órfãos e o automationJob continuava disparando
+          await db.update(reminders)
+            .set({ status: "cancelado", cancelledAt: new Date(), updatedAt: new Date() })
+            .where(and(
+              eq(reminders.paymentDueId, input.id),
+              eq(reminders.organizationId, orgId),
+              eq(reminders.status, "pendente")
+            ));
 
           await db.delete(paymentDues).where(whereClause);
           return { success: true };
@@ -7042,9 +7223,11 @@ ${jsonSchemaFormat}`;
           try {
             if (targetIds.length > 0) {
               for (const sId of targetIds) {
+                // AUDIT-P1 FIX (IDOR): filtrar por organização — sem isso, um usuário
+                // podia enviar WhatsApp para alunos de OUTRA escola informando IDs arbitrários
                 const [student] = await db.select()
                   .from(students)
-                  .where(eq(students.id, sId))
+                  .where(and(eq(students.id, sId), eq(students.organizationId, orgId)))
                   .limit(1);
                 if (student && student.phone) {
                   await sendWhatsAppMessage({
@@ -9214,6 +9397,18 @@ Texto original para reescrever:
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
 
+        // AUDIT-P1 FIX (IDOR): validar que o professor pertence à organização do usuário
+        const [ownedProfessor] = await db.select({ id: professores.id })
+          .from(professores)
+          .where(and(
+            eq(professores.id, input.professorId),
+            eq(professores.organizationId, orgId),
+          ))
+          .limit(1);
+        if (!ownedProfessor) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Professor não encontrado nesta escola." });
+        }
+
         const [newPayment] = await db.insert(professorPayments).values({
           organizationId: orgId,
           professorId: input.professorId,
@@ -9721,7 +9916,16 @@ Texto original para reescrever:
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
-      
+
+      // AUDIT-P1 FIX (IDOR): validar que o arquivo comentado pertence à organização
+      const [ownedFile] = await db.select({ id: studentFiles.id })
+        .from(studentFiles)
+        .where(and(eq(studentFiles.id, input.fileId), eq(studentFiles.organizationId, orgId)))
+        .limit(1);
+      if (!ownedFile) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Arquivo não encontrado nesta escola." });
+      }
+
       const [newComment] = await db.insert(fileComments).values({
         organizationId: orgId,
         fileId: input.fileId,
@@ -11271,8 +11475,31 @@ Texto original para reescrever:
         const [prof] = await db.select().from(professores).where(and(eq(professores.id, input.id), eq(professores.organizationId, orgId))).limit(1);
         if (!prof) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
 
-        await db.delete(professores).where(eq(professores.id, input.id));
-        await db.delete(users).where(eq(users.id, prof.userId));
+        // AUDIT-P1 FIX: bloquear exclusão de professor com alunos ativos ou folha
+        // pendente — antes o delete deixava students.professorId (NOT NULL), lessons,
+        // professorPayments e settings apontando para IDs inexistentes.
+        const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`count(*)` })
+          .from(students)
+          .where(and(eq(students.organizationId, orgId), eq(students.professorId, prof.userId), eq(students.status, "ativo")));
+        if (Number(activeStudentsCount) > 0) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Este professor possui ${activeStudentsCount} aluno(s) ativo(s). Transfira ou inative os alunos antes de excluir o professor.`,
+          });
+        }
+
+        // Alunos inativos restantes são reatribuídos ao admin que executa a exclusão
+        const orgOwnerSubstitute = ctx.user.id;
+
+        await db.transaction(async (tx) => {
+          // Reatribui dados órfãos antes de apagar o usuário
+          await tx.update(students).set({ professorId: orgOwnerSubstitute })
+            .where(and(eq(students.organizationId, orgId), eq(students.professorId, prof.userId)));
+          await tx.delete(reminders).where(and(eq(reminders.organizationId, orgId), eq(reminders.userId, prof.userId)));
+          await tx.delete(settings).where(eq(settings.userId, prof.userId));
+          await tx.delete(professores).where(eq(professores.id, input.id));
+          await tx.delete(users).where(eq(users.id, prof.userId));
+        });
 
         return { success: true };
       }),
