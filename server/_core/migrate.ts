@@ -304,6 +304,11 @@ export async function runAutoMigrations() {
       { table: 'system_plans', sql: `
         UPDATE "system_plans" SET "show_on_landing" = false WHERE CAST("price_monthly" AS numeric) <= 0 OR "id" LIKE '%parceiro%';
       ` },
+      { table: 'reminder_templates', sql: 'ALTER TABLE "reminder_templates" ADD COLUMN IF NOT EXISTS "sendToStudent" boolean DEFAULT true NOT NULL' },
+      { table: 'reminder_templates', sql: 'ALTER TABLE "reminder_templates" ADD COLUMN IF NOT EXISTS "sendToGuardian" boolean DEFAULT false NOT NULL' },
+      { table: 'reminder_templates', sql: 'ALTER TABLE "reminder_templates" ADD COLUMN IF NOT EXISTS "organizationId" integer' },
+      { table: 'enum', sql: "ALTER TYPE reminder_type ADD VALUE IF NOT EXISTS 'inadimplencia'" },
+      { table: 'enum', sql: "ALTER TYPE reminder_type ADD VALUE IF NOT EXISTS 'estudo'" },
     ];
 
     for (const m of migrations) {
