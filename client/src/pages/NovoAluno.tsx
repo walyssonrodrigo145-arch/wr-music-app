@@ -1279,14 +1279,14 @@ export default function NovoAluno() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula (opcional)</label>
                     <Select
-                      value={scheduleForm.studioRoomId}
-                      onValueChange={v => setScheduleForm(p => ({ ...p, studioRoomId: v }))}
+                      value={scheduleForm.studioRoomId || "none"}
+                      onValueChange={v => setScheduleForm(p => ({ ...p, studioRoomId: v === "none" ? "" : v }))}
                     >
                       <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
                         <SelectValue placeholder="Nenhuma sala" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nenhuma sala</SelectItem>
+                        <SelectItem value="none">Nenhuma sala</SelectItem>
                         {studioRooms.map((room: any) => (
                           <SelectItem key={room.id} value={String(room.id)}>{room.name}</SelectItem>
                         ))}
