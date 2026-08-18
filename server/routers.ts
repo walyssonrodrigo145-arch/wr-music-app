@@ -218,15 +218,26 @@ export async function runCreateAssinafyContract(
   const title = prepared.title;
 
   const provider = providerFromIntegration(integration);
+  
+  // ─── Se o aluno for menor ou tiver responsável cadastrado, o signatário legal é o responsável
+  const hasGuardian = Boolean(student.guardianName?.trim() || student.guardianEmail?.trim());
+  const signerFullName = hasGuardian && student.guardianName?.trim() ? student.guardianName.trim() : student.name;
+  const signerEmail = hasGuardian && student.guardianEmail?.trim() ? student.guardianEmail.trim() : student.email;
+  const signerPhone = hasGuardian && student.guardianPhone?.trim() ? student.guardianPhone.trim() : (student.phone || null);
+
+  const signMessage = hasGuardian
+    ? `Olá ${signerFullName}! Sua escola enviou o contrato "${title}" (#${contractNumber}) referente ao(à) aluno(a) ${student.name} para assinatura digital.`
+    : `Olá ${student.name}! Sua escola enviou o contrato "${title}" (#${contractNumber}) para assinatura digital.`;
+
   const result = await provider.createSignProcess({
     documentName: `${title}.pdf`,
     pdfBuffer: prepared.pdfBuffer,
     signer: {
-      fullName: student.name,
-      email: student.email,
-      phone: student.phone || null,
+      fullName: signerFullName,
+      email: signerEmail,
+      phone: signerPhone,
     },
-    message: `Olá ${student.name}! Sua escola enviou o contrato "${title}" (#${contractNumber}) para assinatura digital.`,
+    message: signMessage,
     expiresAt: input.endDate ? new Date(input.endDate) : null,
   });
 
@@ -10830,15 +10841,38 @@ Texto original para reescrever:
         .orderBy(desc(contractTemplates.createdAt));
 
       if (templates.length === 0) {
-        const { buildDefaultTemplateContent } = await import("./services/contractService");
-        const [created] = await db.insert(contractTemplates).values({
+        const { buildDefaultTemplateContent, buildMinorTemplateContent } = await import("./services/contractService");
+        const [standardCreated] = await db.insert(contractTemplates).values({
           organizationId: orgId,
-          name: "Contrato de Prestação de Serviços Educacionais",
-          description: "Modelo padrão com cláusulas de prestação de serviços educacionais.",
+          name: "Contrato de Prestação de Serviços Educacionais (Padrão)",
+          description: "Modelo padrão para alunos maiores de idade.",
           content: buildDefaultTemplateContent(),
           active: true,
         }).returning();
-        templates = [created];
+
+        const [minorCreated] = await db.insert(contractTemplates).values({
+          organizationId: orgId,
+          name: "Contrato de Prestação de Serviços (Aluno Menor de Idade)",
+          description: "Modelo para alunos menores de idade representados por responsável legal.",
+          content: buildMinorTemplateContent(),
+          active: true,
+        }).returning();
+
+        templates = [standardCreated, minorCreated];
+      } else {
+        // Se a escola já tiver templates mas ainda não tiver o de menor de idade, auto-cria
+        const hasMinor = templates.some(t => t.name.toLowerCase().includes("menor"));
+        if (!hasMinor) {
+          const { buildMinorTemplateContent } = await import("./services/contractService");
+          const [minorCreated] = await db.insert(contractTemplates).values({
+            organizationId: orgId,
+            name: "Contrato de Prestação de Serviços (Aluno Menor de Idade)",
+            description: "Modelo para alunos menores de idade representados por responsável legal.",
+            content: buildMinorTemplateContent(),
+            active: true,
+          }).returning();
+          templates = [...templates, minorCreated];
+        }
       }
 
       return templates;

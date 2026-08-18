@@ -41,8 +41,62 @@ E-mail: {{school_email}} • Telefone: {{school_phone}}
 CPF: {{student_cpf}}
 E-mail: {{student_email}} • Telefone: {{student_phone}}`;
 
+const DEFAULT_MINOR_TEMPLATE_CONTENT = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS
+(ALUNO MENOR DE IDADE — REPRESENTADO POR RESPONSÁVEL LEGAL)
+
+Pelo presente instrumento particular, de um lado {{school_name}}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº {{school_cnpj}}, com sede em {{school_address}}, doravante denominada CONTRATADA, e de outro lado:
+
+CONTRATANTE / RESPONSÁVEL LEGAL:
+Nome: {{guardian_name}}
+CPF: {{guardian_cpf}}
+Telefone: {{guardian_phone}} • E-mail: {{guardian_email}}
+Endereço: {{guardian_address}}
+
+REPRESENTANDO O(A) ALUNO(A) BENEFICIÁRIO(A):
+Nome do(a) Aluno(a): {{student_name}}
+Data de Nascimento: {{student_birth_date}} • CPF: {{student_cpf}}
+
+Têm entre si justo e acertado o presente Contrato de Prestação de Serviços Educacionais, que se regerá pelas seguintes cláusulas:
+
+CLÁUSULA 1ª — DO OBJETO
+O presente contrato tem como objeto a prestação de serviços educacionais de aulas de {{instrument}}, ministradas pela CONTRATADA ao(à) ALUNO(A) beneficiário(a), devidamente representado(a) pelo(a) CONTRATANTE, conforme grade pedagógica e horários estabelecidos pela instituição.
+
+CLÁUSULA 2ª — DAS OBRIGAÇÕES DO RESPONSÁVEL LEGAL (CONTRATANTE)
+O(A) CONTRATANTE, na qualidade de responsável legal pelo(a) menor de idade, assume integral responsabilidade civil e financeira por todas as obrigações decorrentes deste instrumento, comprometendo-se a honrar a pontualidade nos pagamentos, acompanhar a assiduidade escolar e zelar pelo cumprimento das normas da instituição.
+
+CLÁUSULA 3ª — DA MENSALIDADE E FORMA DE PAGAMENTO
+Pela prestação dos serviços educacionais, o(a) CONTRATANTE pagará à CONTRATADA o valor mensal de R$ {{monthly_fee}}, com vencimento todo dia {{due_date}} de cada mês.
+Parágrafo Único: O pagamento poderá ser realizado por meio de boleto bancário, PIX ou cartão de crédito. O atraso sujeitará o(a) CONTRATANTE aos encargos de mora e multa previstos na política da CONTRATADA.
+
+CLÁUSULA 4ª — DA VIGÊNCIA
+O presente contrato terá vigência de {{contract_start_date}} a {{contract_end_date}}.
+
+CLÁUSULA 5ª — DA RESCISÃO
+O(A) CONTRATANTE poderá solicitar a rescisão deste contrato mediante comunicação prévia por escrito com antecedência mínima de 30 (trinta) dias, quitando eventuais débitos pendentes até a data do encerramento.
+
+CLÁUSULA 6ª — DO FORO
+Fica eleito o foro da comarca da CONTRATADA para dirimir quaisquer dúvidas oriundas do presente contrato.
+
+E, por estarem assim justos e contratados, firmam o presente instrumento em via digital, para que produza seus jurídicos e legais efeitos.
+
+{{school_name}}
+CNPJ: {{school_cnpj}}
+E-mail: {{school_email}} • Telefone: {{school_phone}}
+
+CONTRATANTE / RESPONSÁVEL LEGAL:
+Nome: {{guardian_name}}
+CPF: {{guardian_cpf}}
+E-mail: {{guardian_email}} • Telefone: {{guardian_phone}}
+
+ALUNO(A) BENEFICIÁRIO(A):
+Nome: {{student_name}}`;
+
 export function buildDefaultTemplateContent(): string {
   return DEFAULT_TEMPLATE_CONTENT;
+}
+
+export function buildMinorTemplateContent(): string {
+  return DEFAULT_MINOR_TEMPLATE_CONTENT;
 }
 
 // ─── Renderização do PDF ──────────────────────────────────────────────────────
@@ -124,9 +178,17 @@ export interface ContractVariablesInput {
   schoolEmail?: string | null;
   studentName: string;
   studentCpf?: string | null;
+  studentRg?: string | null;
+  studentBirthDate?: string | null;
   studentEmail?: string | null;
   studentPhone?: string | null;
   studentAddress?: string | null;
+  guardianName?: string | null;
+  guardianCpf?: string | null;
+  guardianRg?: string | null;
+  guardianPhone?: string | null;
+  guardianEmail?: string | null;
+  guardianAddress?: string | null;
   instrument?: string | null;
   monthlyFee?: string | null;
   dueDay?: string | null;
@@ -149,9 +211,17 @@ export function buildContractVariables(input: ContractVariablesInput): Record<st
     school_email: input.schoolEmail || "__________",
     student_name: input.studentName,
     student_cpf: input.studentCpf || "__________",
+    student_rg: input.studentRg || "__________",
+    student_birth_date: fmtDate(input.studentBirthDate),
     student_email: input.studentEmail || "__________",
     student_phone: input.studentPhone || "__________",
     student_address: input.studentAddress || "__________",
+    guardian_name: input.guardianName || input.studentName || "__________",
+    guardian_cpf: input.guardianCpf || "__________",
+    guardian_rg: input.guardianRg || "__________",
+    guardian_phone: input.guardianPhone || input.studentPhone || "__________",
+    guardian_email: input.guardianEmail || input.studentEmail || "__________",
+    guardian_address: input.guardianAddress || input.studentAddress || "__________",
     instrument: input.instrument || "música",
     monthly_fee: input.monthlyFee || "__________",
     due_date: input.dueDay || "10",
@@ -286,22 +356,30 @@ export async function prepareContractRender(
 
   // ─── Fallback triplo: orgSettings (admin settings) → org (espelho) → placeholder
   const variables = buildContractVariables({
-    schoolName:    orgSettings?.schoolName    || (org as any)?.name     || null,
-    schoolCnpj:   orgSettings?.schoolCnpj    || (org as any)?.cnpj     || null,
-    schoolAddress: orgSettings?.schoolAddress || (org as any)?.address  || null,
-    schoolCity:   orgSettings?.schoolCity    || (org as any)?.city     || null,
-    schoolPhone:  orgSettings?.schoolPhone   || (org as any)?.phone    || null,
-    schoolEmail:  orgSettings?.schoolEmail   || (org as any)?.email    || null,
-    studentName:  student.name,
-    studentCpf:   student.cpf,
-    studentEmail: student.email,
-    studentPhone: student.phone,
-    studentAddress: studentAddressFull,
-    instrument:   instrument?.name,
+    schoolName:       orgSettings?.schoolName    || (org as any)?.name     || null,
+    schoolCnpj:      orgSettings?.schoolCnpj    || (org as any)?.cnpj     || null,
+    schoolAddress:    orgSettings?.schoolAddress || (org as any)?.address  || null,
+    schoolCity:      orgSettings?.schoolCity    || (org as any)?.city     || null,
+    schoolPhone:     orgSettings?.schoolPhone   || (org as any)?.phone    || null,
+    schoolEmail:     orgSettings?.schoolEmail   || (org as any)?.email    || null,
+    studentName:     student.name,
+    studentCpf:      student.cpf,
+    studentRg:       student.rg,
+    studentBirthDate: student.birthDate ? String(student.birthDate) : null,
+    studentEmail:    student.email,
+    studentPhone:    student.phone,
+    studentAddress:  studentAddressFull,
+    guardianName:    student.guardianName || null,
+    guardianCpf:     (student as any).guardianCpf || null,
+    guardianRg:      (student as any).guardianRg || null,
+    guardianPhone:   student.guardianPhone || null,
+    guardianEmail:   student.guardianEmail || null,
+    guardianAddress: (student as any).guardianAddress || studentAddressFull,
+    instrument:      instrument?.name,
     monthlyFee,
-    dueDay:       student.dueDay ? String(student.dueDay) : "10",
-    startDate:    opts.startDate,
-    endDate:      opts.endDate,
+    dueDay:          student.dueDay ? String(student.dueDay) : "10",
+    startDate:       opts.startDate,
+    endDate:         opts.endDate,
   });
 
   const pdfBuffer = await renderContractPdf(template.content || buildDefaultTemplateContent(), variables);

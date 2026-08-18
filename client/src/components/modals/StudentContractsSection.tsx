@@ -99,6 +99,19 @@ export function CreateContractModal({ open, onClose, student, onCreated }: {
         </div>
 
         <div className="p-6 space-y-4">
+          {student?.guardianName && (
+            <div className="p-3 rounded-2xl bg-violet-500/10 border border-violet-500/20 text-xs flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-violet-500 block">Responsável Legal (Signatário)</span>
+                <span className="font-black text-foreground">{student.guardianName}</span>
+                {student.guardianEmail && <span className="text-[10px] text-muted-foreground block">{student.guardianEmail}</span>}
+              </div>
+              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-600">
+                Menor de Idade
+              </span>
+            </div>
+          )}
+
           {student?.instrumentName && (
             <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-border/50 text-xs">
               <span className="text-muted-foreground font-bold uppercase tracking-wider text-[10px]">Instrumento</span>
