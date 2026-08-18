@@ -260,7 +260,7 @@ export default function NotasFiscais() {
       {/* Header com Título e Ação */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl lg:text-3xl font-black text-foreground tracking-tight flex items-center gap-2">
               <Receipt className="text-emerald-500" size={28} />
               Notas Fiscais (NFS-e)
@@ -268,9 +268,12 @@ export default function NotasFiscais() {
             <Badge variant="outline" className="text-[10px] font-bold border-emerald-500/30 text-emerald-500 bg-emerald-500/5 uppercase tracking-wider">
               Focus NFe
             </Badge>
+            <Badge className="text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30 uppercase tracking-wider">
+              🧪 Ambiente de Homologação / Testes
+            </Badge>
           </div>
           <p className="text-sm font-medium text-muted-foreground mt-1">
-            Gestão fiscal e emissão automática de notas fiscais de serviço para mensalidades e cursos.
+            Gestão fiscal e simulação de emissão de NFS-e em ambiente de testes da Focus NFe.
           </p>
         </div>
 

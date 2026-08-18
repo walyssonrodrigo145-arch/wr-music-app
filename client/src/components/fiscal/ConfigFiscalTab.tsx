@@ -454,24 +454,29 @@ export function ConfigFiscalTab() {
           <div className="p-2 rounded-2xl bg-rose-500/10 text-rose-500">
             <Key size={20} />
           </div>
-          <div>
-            <h3 className="text-base font-black text-foreground">Credenciais Focus NFe</h3>
-            <p className="text-xs text-muted-foreground">
-              Chave de API necessária para emissão de notas fiscais via Focus NFe.{" "}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base font-black text-foreground">Credenciais Focus NFe</h3>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                🧪 Ambiente de Homologação / Testes
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Chave de API do ambiente de testes para simular emissão de notas fiscais via Focus NFe.{" "}
               <a
                 href="https://focusnfe.com.br"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-emerald-500 underline-offset-2 hover:underline"
               >
-                Criar conta →
+                Painel Focus NFe →
               </a>
             </p>
           </div>
         </div>
 
         <div className="relative">
-          <Label className="text-xs font-bold">API Token / Secret Key *</Label>
+          <Label className="text-xs font-bold">API Token / Secret Key (Homologação) *</Label>
           <div className="relative mt-1.5">
             <Input
               value={form.focusApiKey}
@@ -489,7 +494,7 @@ export function ConfigFiscalTab() {
             </button>
           </div>
           <span className="text-[10px] text-muted-foreground mt-1 block">
-            Obtenha a chave em Painel Focus NFe → Configurações → API Tokens. Use o token do ambiente de produção para emitir notas reais.
+            Obtenha a chave em <b>Painel Focus NFe → Configurações → API Tokens</b>. Use o token de <b>Homologação</b> para emitir notas de teste sem gerar cobrança de impostos reais.
           </span>
         </div>
       </div>
