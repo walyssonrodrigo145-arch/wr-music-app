@@ -2590,7 +2590,14 @@ ${jsonSchemaFormat}`;
       guardianEmail: z.string().email("E-mail do responsável inválido").or(z.literal("")).optional().nullable(),
       instrumentId: z.number().optional(),
       level: z.enum(['iniciante','intermediario','avancado']).default('iniciante'),
-      monthlyFee: z.number().default(0),
+      monthlyFee: z.union([z.number(), z.string()]).transform((val) => {
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (!val || typeof val !== 'string') return 0;
+        const clean = val.replace(/R\$\s*/g, '').replace(/\s/g, '');
+        const normalized = clean.includes(',') ? clean.replace(/\./g, '').replace(',', '.') : clean;
+        const n = parseFloat(normalized);
+        return isNaN(n) ? 0 : n;
+      }).default(0),
       billingPeriodicity: z.enum(['mensal','bimestral','trimestral','semestral','anual']).default('mensal'),
       dueDay: z.number().default(15),
       lessonType: z.enum(['individual','turma','online']).default('individual'),
@@ -2775,7 +2782,14 @@ ${jsonSchemaFormat}`;
       phone: z.string().optional().nullable(),
       instrumentId: z.number().optional().nullable(),
       level: z.enum(['iniciante', 'intermediario', 'avancado']).optional(),
-      monthlyFee: z.number().optional(),
+      monthlyFee: z.union([z.number(), z.string()]).transform((val) => {
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (!val || typeof val !== 'string') return 0;
+        const clean = val.replace(/R\$\s*/g, '').replace(/\s/g, '');
+        const normalized = clean.includes(',') ? clean.replace(/\./g, '').replace(',', '.') : clean;
+        const n = parseFloat(normalized);
+        return isNaN(n) ? 0 : n;
+      }).optional(),
       billingPeriodicity: z.enum(['mensal', 'bimestral', 'trimestral', 'semestral', 'anual']).optional(),
       dueDay: z.number().optional(),
       status: z.enum(['ativo', 'inativo', 'pausado']).optional(),

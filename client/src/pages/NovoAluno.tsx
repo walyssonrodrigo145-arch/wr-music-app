@@ -51,9 +51,13 @@ import { CreateContractModal } from "@/components/modals/StudentContractsSection
 
 const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
 
-const parseFee = (val: string) => {
-  // Support both "150,00" (BR) and "150.00" (EN) formats
-  const normalized = val.replace(',', '.');
+const parseFee = (val: any) => {
+  if (val === undefined || val === null || val === "") return 0;
+  if (typeof val === "number") return isNaN(val) ? 0 : val;
+  const clean = String(val).replace(/R\$\s*/g, "").replace(/\s/g, "");
+  const normalized = clean.includes(",")
+    ? clean.replace(/\./g, "").replace(",", ".")
+    : clean;
   const num = parseFloat(normalized);
   return isNaN(num) ? 0 : num;
 };
@@ -527,7 +531,7 @@ export default function NovoAluno() {
           studioRoomId: form.studioRoomId ? Number(form.studioRoomId) : undefined,
           level: form.level as any,
           startDate: form.startDate,
-          monthlyFee: form.monthlyFee ? Number(form.monthlyFee) : 0,
+          monthlyFee: parseFee(form.monthlyFee),
           billingPeriodicity: form.billingPeriodicity as any,
           dueDay: form.dueDay ? Number(form.dueDay) : 10,
           lessonType: form.lessonType as any,
