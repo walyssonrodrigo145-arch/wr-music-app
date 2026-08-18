@@ -229,6 +229,27 @@ export async function runCreateAssinafyContract(
     ? `Olá ${signerFullName}! Sua escola enviou o contrato "${title}" (#${contractNumber}) referente ao(à) aluno(a) ${student.name} para assinatura digital.`
     : `Olá ${student.name}! Sua escola enviou o contrato "${title}" (#${contractNumber}) para assinatura digital.`;
 
+  // ─── Sanitização segura de datas para colunas DATE e TIMESTAMP do Postgres
+  const parseSafeDate = (val?: string | null): string | null => {
+    if (!val || typeof val !== "string" || !val.trim()) return null;
+    const match = val.trim().match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) return match[0];
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+  };
+
+  const parseSafeTimestamp = (val?: string | null): Date | null => {
+    if (!val || typeof val !== "string" || !val.trim()) return null;
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return null;
+    return d;
+  };
+
+  const safeStartDate = parseSafeDate(input.startDate);
+  const safeEndDate = parseSafeDate(input.endDate);
+  const safeExpiresAt = parseSafeTimestamp(input.endDate);
+
   const result = await provider.createSignProcess({
     documentName: `${title}.pdf`,
     pdfBuffer: prepared.pdfBuffer,
@@ -238,7 +259,7 @@ export async function runCreateAssinafyContract(
       phone: signerPhone,
     },
     message: signMessage,
-    expiresAt: input.endDate ? new Date(input.endDate) : null,
+    expiresAt: safeExpiresAt,
   });
 
   const monthlyFeeRaw = prepared.variables.monthly_fee;
@@ -252,16 +273,16 @@ export async function runCreateAssinafyContract(
     templateId: template.id,
     templateContentSnapshot: template.content || buildDefaultTemplateContent(),
     monthlyFee: storedFee,
-    dueDay: student.dueDay ?? null,
-    startDate: input.startDate ? new Date(input.startDate) : null,
-    endDate: input.endDate ? new Date(input.endDate) : null,
+    dueDay: student.dueDay ? Number(student.dueDay) : null,
+    startDate: safeStartDate,
+    endDate: safeEndDate,
     title,
     status: "aguardando_assinatura",
     provider: "assinafy",
     assinafyDocId: result.providerDocumentId,
     assinafySignUrl: result.signUrl,
-    sentAt: result.sentAt,
-    expiresAt: input.endDate ? new Date(input.endDate) : null,
+    sentAt: result.sentAt ? new Date(result.sentAt) : new Date(),
+    expiresAt: safeExpiresAt,
     createdAt: new Date(),
     updatedAt: new Date(),
   }).returning();
