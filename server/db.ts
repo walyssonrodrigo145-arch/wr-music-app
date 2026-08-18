@@ -1141,7 +1141,7 @@ export async function getRecentLessons(
 }
 
 // Instruments with student count
-export async function getInstrumentsWithCount(organizationId: number, userId?: number) {
+export async function getInstrumentsWithCount(organizationId: number, professorId?: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select({
@@ -1150,14 +1150,16 @@ export async function getInstrumentsWithCount(organizationId: number, userId?: n
     category: instruments.category,
     icon: instruments.icon,
     color: instruments.color,
-    studentCount: sql<number>`count(${students.id})`,
+    // Conta alunos ativos vinculados ao instrumento (e ao professor, se especificado)
+    studentCount: sql<number>`count(CASE WHEN ${students.status} = 'ativo' ${professorId ? sql`AND ${students.professorId} = ${professorId}` : sql``} THEN ${students.id} ELSE NULL END)`,
+    totalStudentCount: sql<number>`count(CASE WHEN 1=1 ${professorId ? sql`AND ${students.professorId} = ${professorId}` : sql``} THEN ${students.id} ELSE NULL END)`,
   }).from(instruments).leftJoin(students, and(eq(instruments.id, students.instrumentId), eq(students.organizationId, organizationId)))
     .where(and(
         isNotNull(instruments.organizationId),
-        eq(instruments.organizationId, organizationId),
-        userId ? eq(instruments.userId, userId) : undefined
+        eq(instruments.organizationId, organizationId)
+        // Nota: instrumentos pertencem à organização. Se for professor, filtramos os alunos dele no count acima.
     ))
-    .groupBy(instruments.id).orderBy(desc(sql`count(${students.id})`));
+    .groupBy(instruments.id).orderBy(desc(sql`count(CASE WHEN ${students.status} = 'ativo' THEN ${students.id} ELSE NULL END)`));
 }
 
 // Settings helpers

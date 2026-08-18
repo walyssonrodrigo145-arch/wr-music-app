@@ -251,6 +251,11 @@ const Relatorios: React.FC = () => {
         overduePaymentsQuery.data?.forEach(p => {
           rows.push([p.studentName, format(new Date(p.dueDate), 'dd/MM/yyyy'), Number(p.amount), p.status]);
         });
+      } else if (activeTab === 'instrumentos') {
+        columns = ["Instrumento", "Categoria", "Alunos Ativos"];
+        instrumentStatsQuery.data?.forEach(instr => {
+          rows.push([instr.name, instr.category || 'Geral', Number(instr.studentCount || 0)]);
+        });
       } else {
         columns = ["Indicador", "Valor"];
         rows.push(["Total de alunos", statsQuery.data?.totalStudents || 0]);
