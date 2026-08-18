@@ -84,11 +84,29 @@ export default function NovoAluno() {
 
   const { data: settings } = trpc.settings.get.useQuery();
 
+  const dueDaysOptions = (() => {
+    const raw = (settings?.dueDaysForecast ?? "5,10,15,20") as string;
+    const parsed = raw.split(",").map(d => Number(d.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
+    return parsed.length > 0 ? Array.from(new Set(parsed)).sort((a, b) => a - b) : [5, 10, 15, 20];
+  })();
+
   useEffect(() => {
     if (settings?.lessonDuration) {
       setScheduleForm(p => ({ ...p, duration: Number(settings.lessonDuration) }));
     }
   }, [settings?.lessonDuration]);
+
+  // Se for novo aluno, inicializa o dia de vencimento com o primeiro dia configurado na escola
+  useEffect(() => {
+    if (!isEditMode && dueDaysOptions.length > 0) {
+      setForm(prev => {
+        if (!prev.dueDay || prev.dueDay === "10") {
+          return { ...prev, dueDay: String(dueDaysOptions[0]) };
+        }
+        return prev;
+      });
+    }
+  }, [isEditMode, settings?.dueDaysForecast]);
 
   useEffect(() => {
     if (!isEditMode && stats && mySub && allPlans.length > 0) {
@@ -1606,9 +1624,11 @@ export default function NovoAluno() {
                         <SelectValue placeholder="Dia" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border shadow-2xl p-1">
-                        {[5, 10, 15, 20].map(d => (
-                          <SelectItem key={d} value={String(d)} className="rounded-lg font-medium">Dia {d}</SelectItem>
-                        ))}
+                        {Array.from(new Set([...dueDaysOptions, ...(form.dueDay ? [Number(form.dueDay)] : [])].filter(Boolean)))
+                          .sort((a, b) => a - b)
+                          .map(d => (
+                            <SelectItem key={d} value={String(d)} className="rounded-lg font-medium">Dia {d}</SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>

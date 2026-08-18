@@ -203,6 +203,14 @@ function StudentModal({
   instruments: { id: number; name: string; color?: string | null }[];
 }) {
   const utils = trpc.useUtils();
+  const { data: settings } = trpc.settings.get.useQuery();
+
+  const dueDaysOptions = (() => {
+    const raw = (settings?.dueDaysForecast ?? "5,10,15,20") as string;
+    const parsed = raw.split(",").map(d => Number(d.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
+    return parsed.length > 0 ? Array.from(new Set(parsed)).sort((a, b) => a - b) : [5, 10, 15, 20];
+  })();
+
   const [form, setForm] = useState<FormData>(() =>
     editData
       ? {
@@ -446,7 +454,9 @@ function StudentModal({
                 onChange={e => set("dueDay", e.target.value)}
                 className="w-full h-9 text-xs rounded-lg border border-border/40 bg-muted/10 px-3 focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground"
               >
-                {[5, 10, 15, 20].map(d => <option key={d} value={d}>Dia {d}</option>)}
+                {Array.from(new Set([...dueDaysOptions, ...(form.dueDay ? [Number(form.dueDay)] : [])].filter(Boolean)))
+                  .sort((a, b) => a - b)
+                  .map(d => <option key={d} value={String(d)}>Dia {d}</option>)}
               </select>
             </div>
           </div>
