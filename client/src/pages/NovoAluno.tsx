@@ -131,6 +131,8 @@ export default function NovoAluno() {
     time: getSmartNovoAlunoTime(),
     duration: 60,
     instrumentId: "",
+    // BUG #7 FIX: studioRoomId adicionado ao estado do formulário de agendamento
+    studioRoomId: "",
     notes: "",
     weeksCount: 1,
     lessonsPerWeek: 1,
@@ -413,36 +415,22 @@ export default function NovoAluno() {
 
   // ─── Agendamento de aulas ─────────────────────────────────────────────────────
 
-  // Query de aulas do aluno (ativa quando em modo edição ou na aba agendar)
+  // BUG #4 FIX: query filtrada por studentId para não retornar todas as aulas da organização
   const { data: studentLessons = [], refetch: refetchStudentLessons } = trpc.lessons.list.useQuery(
-    undefined,
-    { enabled: isEditMode, staleTime: 0 }
+    { studentId: studentId! },
+    { enabled: isEditMode && !!studentId, staleTime: 0 }
   );
   const studentUpcomingLessons = isEditMode
-    ? studentLessons.filter((l: any) => l.studentId === studentId && l.status === "agendada")
+    ? studentLessons.filter((l: any) => l.status === "agendada")
         .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
         .slice(0, 5)
     : [];
 
-  // Query lazy de verificação de conflitos (recorrência)
-  const checkConflicts = trpc.lessons.checkConflicts.useQuery(
-    (() => {
-      try {
-        const [y, M, d] = scheduleForm.date.split("-").map(Number);
-        const [h, m] = scheduleForm.time.split(":").map(Number);
-        const date = new Date(y, M - 1, d, h, m, 0, 0);
-        return {
-          scheduledAt: date.toISOString(),
-          duration: scheduleForm.duration,
-          weeksCount: scheduleForm.weeksCount,
-          studioRoomId: undefined as any,
-        };
-      } catch {
-        return { scheduledAt: new Date().toISOString(), duration: 60, weeksCount: 1, studioRoomId: undefined as any };
-      }
-    })(),
-    { enabled: false }
-  );
+  // BUG #1/#2/#8 FIX: checkConflicts agora é useMutation para poder receber slots dinâmicos
+  // Antes: useQuery com IIFE estático enviava campo "scheduledAt" inexistente no schema,
+  //        servidor recebia firstDate=undefined e slots=undefined → retornava [] sem verificar nada.
+  // Agora: useMutation recebe os slots exatos calculados em handleScheduleSubmit.
+  const checkConflictsMutation = trpc.lessons.checkConflicts.useMutation();
 
   // Mutation: agendar 1 aula avulsa
   const createLessonMutation = trpc.lessons.create.useMutation({
@@ -499,7 +487,17 @@ export default function NovoAluno() {
     }
 
     const errs: Record<string, string> = {};
-    if (!scheduleForm.date) errs.date = "Data obrigatória";
+    if (!scheduleForm.date) {
+      errs.date = "Data obrigatória";
+    } else {
+      // BUG #9 FIX: validação de data no passado
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const chosenDate = new Date(scheduleForm.date + "T00:00:00");
+      if (chosenDate < today) {
+        errs.date = "A data de início não pode ser no passado";
+      }
+    }
     if (!scheduleForm.time) errs.time = "Horário obrigatório";
     if (Object.keys(errs).length > 0) { setScheduleErrors(errs); return; }
     setScheduleErrors({});
@@ -571,17 +569,22 @@ export default function NovoAluno() {
         scheduledAt: scheduledDate.toISOString(),
         duration: scheduleForm.duration,
         instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
+        // BUG #7 FIX: studioRoomId agora é passado na aula avulsa também
+        studioRoomId: scheduleForm.studioRoomId ? Number(scheduleForm.studioRoomId) : null,
         notes: scheduleForm.notes,
       });
     } else {
-      // Aula recorrente: verificar conflitos primeiro
+      // Aula recorrente: calcular todos os slots e verificar conflitos
       try {
-        const allItems: Array<{ scheduledAt: string }> = [];
+        // BUG #1/#2/#8 FIX: calcular allItems e passar para checkConflictsMutation (agora mutation)
+        // Antes: checkConflicts.refetch() usava input estático inválido → slots nunca verificados
+        // Agora: passamos os slots calculados diretamente via mutateAsync
         const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
         const slotsToUse = (scheduleForm.weeklySlots && scheduleForm.weeklySlots.length > 0)
           ? scheduleForm.weeklySlots
           : [{ dayOfWeek: new Date(startY, startM - 1, startD).getDay(), time: scheduleForm.time, studioRoomId: "" }];
 
+        const allItems: Array<{ scheduledAt: string }> = [];
         for (let w = 0; w < scheduleForm.weeksCount; w++) {
           for (const slot of slotsToUse) {
             const baseDate = new Date(startY, startM - 1, startD);
@@ -598,34 +601,43 @@ export default function NovoAluno() {
           }
         }
 
-        const conflicts = await checkConflicts.refetch();
-        if (conflicts.data) {
-          const hasAny = conflicts.data.some((c: any) => c.hasConflict);
-          if (hasAny) {
-            setBatchItems(conflicts.data.map((c: any) => ({
-              scheduledAt: c.date,
-              hasConflict: c.hasConflict,
-              conflictingWith: c.conflictingWith,
-              force: false,
-              studentId: targetStudentId,
-            })));
-            setScheduleStep("conflicts");
-          } else {
-            createBatchLessonMutation.mutate({
-              studentId: targetStudentId,
-              title: submissionTitle,
-              duration: scheduleForm.duration,
-              instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
-              notes: scheduleForm.notes,
-              items: allItems.map(item => ({ scheduledAt: item.scheduledAt, force: false })),
-            });
-          }
+        // Verificar conflitos passando os slots calculados dinamicamente
+        const conflictsData = await checkConflictsMutation.mutateAsync({
+          duration: scheduleForm.duration,
+          weeksCount: scheduleForm.weeksCount,
+          studioRoomId: scheduleForm.studioRoomId ? Number(scheduleForm.studioRoomId) : undefined,
+          slots: allItems.map(item => ({ scheduledAt: item.scheduledAt })),
+        });
+
+        const hasAny = conflictsData.some((c: any) => c.hasConflict);
+        if (hasAny) {
+          setBatchItems(conflictsData.map((c: any) => ({
+            scheduledAt: c.date,
+            hasConflict: c.hasConflict,
+            conflictingWith: c.conflictingWith,
+            force: false,
+            studentId: targetStudentId,
+          })));
+          setScheduleStep("conflicts");
+        } else {
+          createBatchLessonMutation.mutate({
+            studentId: targetStudentId,
+            title: submissionTitle,
+            duration: scheduleForm.duration,
+            instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
+            // BUG #7 FIX: studioRoomId no batch sem conflitos
+            studioRoomId: scheduleForm.studioRoomId ? Number(scheduleForm.studioRoomId) : null,
+            notes: scheduleForm.notes,
+            items: allItems.map(item => ({ scheduledAt: item.scheduledAt, force: false })),
+          });
         }
+
       } catch {
         toast.error("Erro ao verificar conflitos de horário.");
       }
     }
   };
+
 
   const handleConfirmBatch = () => {
     const targetStudentId = (batchItems[0] as any)?.studentId || studentId;
@@ -641,10 +653,13 @@ export default function NovoAluno() {
       title: submissionTitle,
       duration: scheduleForm.duration,
       instrumentId: scheduleForm.instrumentId ? Number(scheduleForm.instrumentId) : null,
+      // BUG #7 FIX: studioRoomId passado também ao confirmar lote de aulas recorrentes
+      studioRoomId: scheduleForm.studioRoomId ? Number(scheduleForm.studioRoomId) : null,
       notes: scheduleForm.notes,
       items: batchItems.map(item => ({ scheduledAt: item.scheduledAt, force: item.force })),
     });
   };
+
 
   // Auto-preencher título quando instrumento ou nome do aluno mudar
   useEffect(() => {
@@ -1259,6 +1274,27 @@ export default function NovoAluno() {
                   </div>
                 </div>
 
+                {/* BUG #7 FIX: Sala de Aula adicionada ao formulário de agendamento */}
+                {studioRooms.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula (opcional)</label>
+                    <Select
+                      value={scheduleForm.studioRoomId}
+                      onValueChange={v => setScheduleForm(p => ({ ...p, studioRoomId: v }))}
+                    >
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                        <SelectValue placeholder="Nenhuma sala" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Nenhuma sala</SelectItem>
+                        {studioRooms.map((room: any) => (
+                          <SelectItem key={room.id} value={String(room.id)}>{room.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {/* Recorrência Semanal */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Recorrência Semanal</label>
@@ -1387,13 +1423,14 @@ export default function NovoAluno() {
                 </div>
 
                 {/* Botão Ação de Agendamento Inline */}
+                {/* BUG #6 FIX: checkConflicts.isFetching substituído por checkConflictsMutation.isPending */}
                 <Button
                   type="button"
                   className="w-full h-13 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-violet-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                   onClick={handleScheduleSubmit}
-                  disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching}
+                  disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving}
                 >
-                  {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflicts.isFetching || isSaving) ? (
+                  {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving) ? (
                     <><Loader2 size={18} className="animate-spin" /> {!isEditMode ? "Cadastrando e Agendando..." : "Agendando..."}</>
                   ) : !isEditMode ? (
                     <><CalendarDays size={18} /> Cadastrar Aluno e Agendar Aula</>

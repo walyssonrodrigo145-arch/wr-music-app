@@ -3105,11 +3105,53 @@ ${jsonSchemaFormat}`;
         // BUG#5 FIX: filtro opcional de data para reduzir payload
         // Usado pelo Dashboard para buscar apenas aulas de hoje em vez de todo o histórico
         date: z.string().optional(), // formato YYYY-MM-DD
+        // BUG #4 FIX: filtro por aluno específico para evitar retornar todas as aulas da org
+        studentId: z.number().optional(),
       }).optional())
       .query(async ({ ctx, input }) => {
         const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
         const isProfessor = ctx.user.role === 'professor';
         const orgId = ctx.user.organizationId!;
+
+        // BUG #4 FIX: filtro por studentId específico — retorna só aulas do aluno solicitado
+        // Antes: retornava todas as aulas da org e filtrava no cliente (ineficiente + incompleto com paginação)
+        if (input?.studentId) {
+          const db = await getDb();
+          if (!db) return [];
+          const profUsers = aliasedTable(users, "prof_users");
+          const creatorUsers = aliasedTable(users, "creator_users");
+          return db.select({
+            id: lessons.id,
+            title: lessons.title,
+            scheduledAt: lessons.scheduledAt,
+            duration: lessons.duration,
+            status: lessons.status,
+            rating: lessons.rating,
+            isExperimental: lessons.isExperimental,
+            experimentalName: lessons.experimentalName,
+            instrumentId: lessons.instrumentId,
+            instrumentName: instruments.name,
+            studentName: students.name,
+            studentId: students.id,
+            lessonType: lessons.lessonType,
+            recurringGroupId: lessons.recurringGroupId,
+            studioRoomId: lessons.studioRoomId,
+            studioRoomName: studioRooms.name,
+            studioRoomColor: studioRooms.color,
+            teacherId: sql<number>`COALESCE(${students.professorId}, ${lessons.userId})`,
+            teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
+          }).from(lessons)
+            .leftJoin(students, eq(lessons.studentId, students.id))
+            .leftJoin(instruments, eq(lessons.instrumentId, instruments.id))
+            .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
+            .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+            .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.studentId, input.studentId),
+            ))
+            .orderBy(asc(lessons.scheduledAt));
+        }
 
         // Se date informada, busca apenas aulas daquele dia no banco
         if (input?.date) {
@@ -3209,6 +3251,7 @@ ${jsonSchemaFormat}`;
         }
         return getRecentLessons(orgId, isUserAdmin ? undefined : ctx.user.id, 500);
       }),
+
     upcoming: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return [];
@@ -3303,18 +3346,19 @@ ${jsonSchemaFormat}`;
           if (!input.experimentalName) throw new Error("O nome do aluno é obrigatório para aulas experimentais.");
         }
 
-        // Segurança: Verificar se o instrumento pertence ao usuário logado
+        // BUG #5 FIX: Instrumentos são recursos da organização, não do professor.
+        // Antes: verificava instruments.userId === ctx.user.id → professores bloqueados se instrumento foi criado pelo admin.
+        // Agora: verifica apenas organizationId → qualquer membro da organização pode usar qualquer instrumento.
         if (input.instrumentId) {
-          const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const [ownedInstrument] = await db.select({ id: instruments.id }).from(instruments)
             .where(and(
               eq(instruments.id, input.instrumentId), 
-              eq(instruments.organizationId, orgId), 
-              isUserAdmin ? undefined : eq(instruments.userId, ctx.user.id)
+              eq(instruments.organizationId, orgId)
+              // userId removido: instrumento é recurso da organização
             ))
             .limit(1);
           if (!ownedInstrument) {
-            throw new Error("O instrumento selecionado não pertence ao seu perfil.");
+            throw new Error("O instrumento selecionado não existe nesta escola.");
           }
         }
   
@@ -3981,6 +4025,9 @@ ${jsonSchemaFormat}`;
     }),
 
     // ─ Verificar conflitos para agendamentos recorrentes (suporta múltiplos dias/semana) ────
+    // BUG #1/#8 FIX: convertido de query → mutation para aceitar slots dinâmicos no payload
+    // Antes: cliente enviava "scheduledAt" (campo inexistente no schema), recebia [] vazio
+    // Agora: cliente envia slots calculados dinamicamente e conflitos são verificados de verdade
     checkConflicts: protectedProcedure.input(z.object({
       firstDate: z.string().optional(),
       duration: z.number(),
@@ -3990,7 +4037,7 @@ ${jsonSchemaFormat}`;
         scheduledAt: z.string(),
         studioRoomId: z.number().optional().nullable(),
       })).optional(),
-    })).query(async ({ ctx, input }) => {
+    })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) return [];
       
