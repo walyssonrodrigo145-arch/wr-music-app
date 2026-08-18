@@ -1055,6 +1055,29 @@ export default function Aulas() {
           )}
         </div>
 
+        <AgendarModal
+          open={agendarOpen}
+          onOpenChange={(open) => { setAgendarOpen(open); if (!open) setEditingLesson(null); }}
+          editingLesson={editingLesson}
+          initialDate={selectedDate || currentDate}
+        />
+
+        <LessonDetailModal 
+          open={!!detailLessonId} 
+          lesson={lessons.find(l => l.id === detailLessonId)} 
+          onOpenChange={(open) => !open && setDetailLessonId(null)} 
+          onStatusChange={handleStatusChange} 
+          onDelete={(id) => {
+            setDetailLessonId(null);
+            setTimeout(() => handleDeleteRequest(id), 150);
+          }} 
+          onEdit={() => { 
+            setEditingLesson(lessons.find(l => l.id === detailLessonId)); 
+            setAgendarOpen(true); 
+            setDetailLessonId(null); 
+          }} 
+        />
+
         <DayLessonsModal
           day={dayLessonsModalDate || new Date()}
           lessons={dayLessonsModalDate ? filteredLessons.filter(l => isSameDay(new Date(l.scheduledAt), dayLessonsModalDate)) : []}
