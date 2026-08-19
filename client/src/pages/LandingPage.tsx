@@ -28,7 +28,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
-import { useAuth } from '@/_core/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { BenefitsCarousel } from '@/components/BenefitsCarousel';
 import { HeroSlider } from '@/components/HeroSlider';
 import ClientsMarquee from '@/components/ClientsMarquee';

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { CreditCard, LogOut, CheckCircle2, ArrowRight, Sparkles, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";

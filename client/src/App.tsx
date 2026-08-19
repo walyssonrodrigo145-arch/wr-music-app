@@ -7,7 +7,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { MusicLayout } from "./components/MusicLayout";
 import { StudentPortalLayout } from "./components/StudentPortalLayout";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { useBotStatusSSE } from "@/hooks/useBotStatusSSE";
 
 // Lazy loading the pages
@@ -41,7 +41,6 @@ const Automacoes = lazy(() => import("./pages/Automacoes"));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 const AnalyticsDashboard = lazy(() => import('./pages/analytics/AnalyticsDashboard'));
 const LeadsApp = lazy(() => import('./pages/leads/LeadsApp'));
-const DashboardComercial = lazy(() => import('./pages/DashboardComercial'));
 const TermosDeUso = lazy(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 const SalasEstudio = lazy(() => import("./pages/SalasEstudio"));

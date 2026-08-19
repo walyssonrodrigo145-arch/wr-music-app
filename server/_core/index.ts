@@ -1,3 +1,4 @@
+import { debugLog } from "./logger";
 import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
@@ -119,12 +120,12 @@ async function startServer() {
     );
   }
   if (ENV.isProduction && !ENV.superAdminPassword) {
-    console.log("[SEGURANÇA] SUPER_ADMIN_PASSWORD não definido — login por senha master desativado.");
+    debugLog("[SEGURANÇA] SUPER_ADMIN_PASSWORD não definido — login por senha master desativado.");
   }
 
   // Inicia a fila de eventos de Analytics (assíncrona, sem bloquear)
   analyticsQueue.start();
-  console.log("[Analytics] Fila de eventos iniciada.");
+  debugLog("[Analytics] Fila de eventos iniciada.");
   syncHistoricalRevenueToAnalytics().catch((err) => console.error("[Analytics] Erro sync histórico:", err));
 
   // Gerar insights de IA diariamente (a cada 24h)
@@ -249,7 +250,7 @@ async function startServer() {
         await db.update(paymentDues)
           .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
           .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
-        console.log(`[Mercado Pago Webhook] Mensalidade marcada como paga. org=${due.organizationId}`);
+        debugLog(`[Mercado Pago Webhook] Mensalidade marcada como paga. org=${due.organizationId}`);
 
         const { sendWhatsAppMessage } = await import("../utils/whatsapp");
         const valorStr = Number(due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -315,7 +316,7 @@ async function startServer() {
         payment?: { id: string; status: string; value: number };
       };
 
-      console.log(`[Asaas Webhook] Evento recebido: ${event}`, payment?.id);
+      debugLog(`[Asaas Webhook] Evento recebido: ${event}`, payment?.id);
 
       if (!payment?.id) {
         return res.status(200).json({ ok: true });
@@ -334,7 +335,7 @@ async function startServer() {
           .where(and(eq(paymentDues.asaasId, payment.id), eq(paymentDues.status, "pago")))
           .limit(1);
         if (alreadyPaid) {
-          console.log(`[Asaas Webhook] Evento duplicado ignorado (já pago): ${event} ${payment.id}`);
+          debugLog(`[Asaas Webhook] Evento duplicado ignorado (já pago): ${event} ${payment.id}`);
           return res.status(200).json({ ok: true });
         }
       }
@@ -368,7 +369,7 @@ async function startServer() {
           .update(paymentDues)
           .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
           .where(and(eq(paymentDues.id, paymentDetails.id), eq(paymentDues.organizationId, paymentDetails.organizationId!)));
-        console.log(`[Asaas Webhook] Mensalidade marcada como PAGA (${payment.id}) — org ${paymentDetails.organizationId}`);
+        debugLog(`[Asaas Webhook] Mensalidade marcada como PAGA (${payment.id}) — org ${paymentDetails.organizationId}`);
 
         // NOTA: NÃO inserir em analyticsRevenue aqui — esta é uma mensalidade escolar (aluno→escola),
         // não receita SaaS da plataforma MusicPro. analyticsRevenue deve conter apenas cobranças de planos.
@@ -433,13 +434,13 @@ async function startServer() {
           .limit(1);
         if (due) {
           if (due.status === "atrasado") {
-            console.log(`[Asaas Webhook] Evento duplicado ignorado (já atrasado): ${event} ${payment.id}`);
+            debugLog(`[Asaas Webhook] Evento duplicado ignorado (já atrasado): ${event} ${payment.id}`);
           } else {
             await db
               .update(paymentDues)
               .set({ status: "atrasado", updatedAt: new Date() })
               .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
-            console.log(`[Asaas Webhook] Mensalidade marcada como ATRASADA (${payment.id}) — org ${due.organizationId}`);
+            debugLog(`[Asaas Webhook] Mensalidade marcada como ATRASADA (${payment.id}) — org ${due.organizationId}`);
           }
         } else {
           console.warn(`[Asaas Webhook] PAYMENT_OVERDUE — asaasId não encontrado: ${payment.id}`);
@@ -456,13 +457,13 @@ async function startServer() {
           .limit(1);
         if (due) {
           if (!due.asaasId) {
-            console.log(`[Asaas Webhook] Evento duplicado ignorado (asaasId já nulo): ${event} ${payment.id}`);
+            debugLog(`[Asaas Webhook] Evento duplicado ignorado (asaasId já nulo): ${event} ${payment.id}`);
           } else {
             await db
               .update(paymentDues)
               .set({ status: "pendente", asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
               .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
-            console.log(`[Asaas Webhook] Cobrança removida/estornada (${payment.id}) — org ${due.organizationId}`);
+            debugLog(`[Asaas Webhook] Cobrança removida/estornada (${payment.id}) — org ${due.organizationId}`);
           }
         } else {
           console.warn(`[Asaas Webhook] ${event} — asaasId não encontrado: ${payment.id}`);
@@ -482,7 +483,7 @@ async function startServer() {
             .update(paymentDues)
             .set({ status: "pendente", updatedAt: new Date() })
             .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
-          console.log(`[Asaas Webhook] Nova cobrança criada/registrada (${payment.id}) — org ${due.organizationId}`);
+          debugLog(`[Asaas Webhook] Nova cobrança criada/registrada (${payment.id}) — org ${due.organizationId}`);
         }
       }
 
@@ -525,7 +526,7 @@ async function startServer() {
         payment?: { id: string; status: string; customer: string; subscription?: string };
       };
 
-      console.log(`[Asaas Platform Webhook] Evento recebido: ${event}`, payment?.id);
+      debugLog(`[Asaas Platform Webhook] Evento recebido: ${event}`, payment?.id);
 
       if (!payment?.customer) {
         return res.status(200).json({ ok: true });
@@ -587,13 +588,13 @@ async function startServer() {
             updatedAt: new Date()
           })
           .where(eq(organizations.id, targetOrg.id));
-        console.log(`[Asaas Platform Webhook] Assinatura ATIVADA para customer ${payment.customer} | próximo vencimento: ${nextPeriodEnd.toISOString().slice(0,10)}`);
+        debugLog(`[Asaas Platform Webhook] Assinatura ATIVADA para customer ${payment.customer} | próximo vencimento: ${nextPeriodEnd.toISOString().slice(0,10)}`);
       } else if (event === "PAYMENT_OVERDUE") {
         await db
           .update(organizations)
           .set({ subscriptionStatus: "past_due", updatedAt: new Date() })
           .where(eq(organizations.id, targetOrg.id));
-        console.log(`[Asaas Platform Webhook] Assinatura ATRASADA para customer ${payment.customer}`);
+        debugLog(`[Asaas Platform Webhook] Assinatura ATRASADA para customer ${payment.customer}`);
       } else if (event === "SUBSCRIPTION_CANCELED" || event === "SUBSCRIPTION_DELETED" || event === "PAYMENT_REFUNDED") {
         // ── BUG 2 FIX: Tratar cancelamento de assinatura pelo portal Asaas ───
         await db
@@ -604,7 +605,7 @@ async function startServer() {
             updatedAt: new Date()
           })
           .where(eq(organizations.id, targetOrg.id));
-        console.log(`[Asaas Platform Webhook] Assinatura CANCELADA para customer ${payment.customer}`);
+        debugLog(`[Asaas Platform Webhook] Assinatura CANCELADA para customer ${payment.customer}`);
       } else {
         // FIX-7: Log de eventos não mapeados para facilitar diagnóstico futuro
         console.warn(`[Asaas Platform Webhook] Evento não tratado recebido: "${event}" para customer ${payment.customer}`);
@@ -655,7 +656,7 @@ async function startServer() {
       const docId = body.object?.id || (body.payload as any)?.document_id || null;
       const eventId = body.id !== undefined ? String(body.id) : null;
 
-      console.log(`[Assinafy Webhook] Evento recebido: ${event} (doc: ${docId || "?"})`);
+      debugLog(`[Assinafy Webhook] Evento recebido: ${event} (doc: ${docId || "?"})`);
 
       if (!docId) {
         return res.status(200).json({ ok: true, ignored: "no document id" });
@@ -976,11 +977,11 @@ async function startServer() {
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    debugLog(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    debugLog(`Server running on http://localhost:${port}/`);
     // Iniciar job de automação de lembretes
     startAutomationJob();
     // Iniciar job de automação de marketing

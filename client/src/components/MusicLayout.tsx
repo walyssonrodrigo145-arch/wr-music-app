@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { MobileTabBar } from "./MobileTabBar";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Loader2, Music } from "lucide-react";
 import { useBreakpoint } from "@/hooks/useBreakpoint";

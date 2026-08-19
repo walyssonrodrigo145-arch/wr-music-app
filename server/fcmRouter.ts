@@ -1,3 +1,4 @@
+import { debugLog } from "./_core/logger";
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
@@ -109,7 +110,7 @@ export const fcmRouter = router({
     const failedErrors: string[] = [];
 
     for (const device of tokens) {
-      console.log(`[Push Test] Tentando enviar para device: ${device.deviceInfo} | token: ${device.token.substring(0, 30)}...`);
+      debugLog(`[Push Test] Tentando enviar para device: ${device.deviceInfo} | token: ${device.token.substring(0, 30)}...`);
       const res = await sendPushNotification(
         device.token,
         "Teste de Notificação 🎉",
@@ -117,7 +118,7 @@ export const fcmRouter = router({
       );
       if (res.success) {
         sentCount++;
-        console.log(`[Push Test] ✅ Sucesso para device: ${device.deviceInfo}`);
+        debugLog(`[Push Test] ✅ Sucesso para device: ${device.deviceInfo}`);
       } else {
         console.warn(`[Push Test] ❌ Falha para device: ${device.deviceInfo} — erro: ${res.error}`);
         failedErrors.push(res.error || "UNKNOWN");
@@ -137,7 +138,7 @@ export const fcmRouter = router({
       for (const deadToken of deadTokens) {
         await db.delete(fcmTokens).where(eq(fcmTokens.token, deadToken));
       }
-      console.log(`[Push Clean] Removidos ${deadTokens.length} tokens mortos para userId ${ctx.user.id}`);
+      debugLog(`[Push Clean] Removidos ${deadTokens.length} tokens mortos para userId ${ctx.user.id}`);
     }
 
     if (sentCount === 0 && tokens.length > 0) {

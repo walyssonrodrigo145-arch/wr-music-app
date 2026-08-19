@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { EditMensalidadeModal } from "@/components/modals/EditMensalidadeModal";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -113,9 +113,6 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
 
   if (!open || !payment) return null;
 
-  const currencyFormat = (val: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
-
   const isPending = generateAsaasMutation.isPending || generateMPMutation.isPending;
 
   return (
@@ -146,7 +143,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
           {/* Valor */}
           <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Valor da cobrança</span>
-            <span className="text-lg font-black text-foreground">{currencyFormat(Number(payment.amount))}</span>
+            <span className="text-lg font-black text-foreground">{formatBRL(Number(payment.amount))}</span>
           </div>
 
           {!result ? (
@@ -731,9 +728,6 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
     return { recebido, pendente, atrasado, total };
   }, [payments]);
 
-  const currencyFormat = (val: number) => 
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
-
   return (
     <div className="space-y-6 lg:space-y-8">
       <input 
@@ -811,7 +805,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                <div className="relative z-10">
                  <p className={cn("text-[9px] lg:text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1 lg:mb-2", item.color)}>{item.label}</p>
                  <p className="text-sm lg:text-2xl font-black text-foreground leading-none">
-                    {currencyFormat(item.amount)}
+                    {formatBRL(item.amount)}
                  </p>
                </div>
              </div>
@@ -864,7 +858,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                 <div key={i} className="p-3.5 lg:p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 group-hover:text-blue-500 transition-colors">{item.label}</p>
                    <p className="text-sm font-black text-foreground tracking-tighter">
-                      {currencyFormat(item.amount)}
+                      {formatBRL(item.amount)}
                    </p>
                 </div>
               ))}
@@ -961,12 +955,12 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                         <td className="px-8 py-4">
                           <div className="flex flex-col">
                             <p className="text-sm font-black text-foreground">
-                               {currencyFormat(Number(payment.amount))}
+                               {formatBRL(Number(payment.amount))}
                             </p>
                             {(payment as any).calculation && ((payment as any).calculation.lateFeeAmount > 0 || (payment as any).calculation.interestAmount > 0 || (payment as any).calculation.earlyDiscountAmount > 0) && (
                               <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium mt-0.5">
                                 <span className="text-muted-foreground line-through">
-                                  Orig: {currencyFormat((payment as any).calculation.originalAmount)}
+                                  Orig: {formatBRL((payment as any).calculation.originalAmount)}
                                 </span>
                                 {(payment as any).calculation.lateFeeAmount > 0 && (
                                   <span className="text-emerald-500 font-bold">
@@ -1137,7 +1131,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                       <div>
                         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Valor</p>
                         <p className="text-xs font-black text-foreground">
-                          {currencyFormat(Number(payment.amount))}
+                          {formatBRL(Number(payment.amount))}
                         </p>
                       </div>
                       <div>

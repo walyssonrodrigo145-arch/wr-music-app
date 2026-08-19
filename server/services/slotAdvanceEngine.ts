@@ -1,3 +1,4 @@
+import { debugLog } from "../_core/logger";
 import { getDb } from "../db";
 import { lessons, students, settings, slotOffers, users, notifications } from "../../drizzle/schema";
 import { eq, and, gt, gte, lte, or, sql, isNull, inArray } from "drizzle-orm";
@@ -35,7 +36,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
       .limit(1);
 
     if (!userSettings || userSettings.autoAdvanceSlotsEnabled !== 1) {
-      console.log("[SlotAdvance] Automação desativada nas configurações da organização", organizationId);
+      debugLog("[SlotAdvance] Automação desativada nas configurações da organização", organizationId);
       return;
     }
 
@@ -65,7 +66,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
 
     // Tolerância de 60 min caso a falta seja marcada logo após o início do horário
     if (lessonDate.getTime() + 60 * 60000 < now.getTime()) {
-      console.log("[SlotAdvance] Horário da falta já passou há mais de 1h:", lessonDate);
+      debugLog("[SlotAdvance] Horário da falta já passou há mais de 1h:", lessonDate);
       return;
     }
 
@@ -138,7 +139,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
       ));
 
     if (candidateLessons.length === 0) {
-      console.log("[SlotAdvance] Nenhum aluno com aula posterior encontrado para hoje.");
+      debugLog("[SlotAdvance] Nenhum aluno com aula posterior encontrado para hoje.");
       return;
     }
 
@@ -146,7 +147,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
     const formattedData = format(lessonDate, "dd/MM");
     const teacherDisplayName = candidateLessons[0]?.teacherName || "seu professor";
 
-    console.log(`[SlotAdvance] Ofertando vaga das ${formattedVaga} para ${candidateLessons.length} alunos elegíveis.`);
+    debugLog(`[SlotAdvance] Ofertando vaga das ${formattedVaga} para ${candidateLessons.length} alunos elegíveis.`);
 
     const appUrl = (process.env.APP_URL && !process.env.APP_URL.includes("localhost"))
       ? process.env.APP_URL
@@ -186,7 +187,7 @@ export async function triggerSlotAdvanceOnAbsence({ lessonId, organizationId, us
               token: userSettings.whatsappBotToken,
             }
           });
-          console.log(`[SlotAdvance] Envio WhatsApp para ${cand.studentName} (${cand.studentPhone}) via ${teacherSession}:`, res);
+          debugLog(`[SlotAdvance] Envio WhatsApp para ${cand.studentName} (${cand.studentPhone}) via ${teacherSession}:`, res);
         } catch (e) {
           console.error(`[SlotAdvance] Erro ao enviar WhatsApp para ${cand.studentName}:`, e);
         }

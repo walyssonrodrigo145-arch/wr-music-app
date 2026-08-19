@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { StudentSidebar } from "./StudentSidebar";
 import { AppHeader } from "./AppHeader";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Loader2, Music } from "lucide-react";
 import { useBreakpoint } from "@/hooks/useBreakpoint";

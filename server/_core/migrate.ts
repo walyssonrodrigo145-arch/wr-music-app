@@ -1,8 +1,9 @@
+import { debugLog } from "./logger";
 import { sql } from "drizzle-orm";
 import { getDb } from "../db";
 
 export async function runAutoMigrations() {
-  console.log("[Database] Verificando migrações automáticas...");
+  debugLog("[Database] Verificando migrações automáticas...");
   const db = await getDb();
   if (!db) {
     console.warn("[Database] Banco de dados não disponível para migração.");
@@ -341,7 +342,7 @@ export async function runAutoMigrations() {
     if (errors.length > 0) {
       console.warn(`[Database] Migrações concluídas com ${errors.length} erro(s):`, errors);
     } else {
-      console.log("[Database] Migrações automáticas concluídas sem erros!");
+      debugLog("[Database] Migrações automáticas concluídas sem erros!");
     }
     return { success: true, results };
   } catch (error: any) {

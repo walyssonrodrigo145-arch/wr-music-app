@@ -1,12 +1,11 @@
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { formatBRL } from "@/lib/money";
 import {
-  Users, Calendar, TrendingUp, DollarSign,
+  Users, Calendar, DollarSign,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
-  XCircle, ChevronRight, Bell,
-  Search, MinusCircle, RefreshCcw, BarChart as LucideBarChart,
-  AlertCircle, Target, Star
+  AlertCircle, Target, Star, BarChart as LucideBarChart
 } from "lucide-react";
 import {
   XAxis, YAxis, CartesianGrid,
@@ -14,8 +13,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -134,8 +132,6 @@ export default function Dashboard() {
 
   // Today's summary calculation
   const todaySummary = useMemo(() => {
-    const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-
     if (todaySummaryError) {
       return [
         { label: "ERRO AO CARREGAR", count: todaySummaryError.message || "Erro", color: "bg-red-500/10 text-red-600", icon: AlertCircle },
@@ -156,7 +152,7 @@ export default function Dashboard() {
     return [
       { label: "AULAS DE HOJE", count: todaySummaryData.aulasHoje, color: "bg-blue-500/10 text-blue-600", icon: Calendar },
       { label: "CHECK-INS REALIZADOS", count: todaySummaryData.checkins, color: "bg-emerald-500/10 text-emerald-600", icon: CheckCircle2 },
-      { label: "RECEBIDO HOJE", count: formatCurrency(todaySummaryData.recebidoHoje), color: "bg-purple-500/10 text-purple-600", icon: DollarSign },
+      { label: "RECEBIDO HOJE", count: formatBRL(todaySummaryData.recebidoHoje), color: "bg-purple-500/10 text-purple-600", icon: DollarSign },
       { label: "PAGAMENTOS PENDENTES", count: todaySummaryData.pagamentosPendentes, color: "bg-rose-500/10 text-rose-600", icon: AlertCircle },
       { label: "AULAS EXPERIMENTAIS", count: todaySummaryData.experimentais, color: "bg-orange-500/10 text-orange-600", icon: Target },
       { label: "PROFESSOR DESTAQUE", count: todaySummaryData.professorDestaque, color: "bg-amber-500/10 text-amber-600", icon: Star },
@@ -203,9 +199,6 @@ export default function Dashboard() {
       usagePercent: maxStudents >= 999999 ? 0 : Math.round((activeStudents / maxStudents) * 100),
     };
   }, [mySubscription, allPlans, stats]);
-
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   if (!hasDashboardAccess) {
     return (
@@ -258,7 +251,7 @@ export default function Dashboard() {
         {/* BUG#3 FIX: removido ternário statsLoading?0:... redundante — isLoading já controla o skeleton */}
         <MetricCard 
           title="Receita do Mês" 
-          value={formatCurrency(stats?.monthlyRevenue ?? 0)}
+          value={formatBRL(stats?.monthlyRevenue ?? 0)}
           icon={DollarSign} 
           color="text-purple-600" 
           trend={trends.receita} 
@@ -467,7 +460,7 @@ export default function Dashboard() {
                       </div>
                    </div>
                    <span className="text-xs font-black text-rose-600 tracking-tight">
-                      {formatCurrency(Number(payment.amount))}
+                      {formatBRL(Number(payment.amount))}
                    </span>
                 </div>
               ))}

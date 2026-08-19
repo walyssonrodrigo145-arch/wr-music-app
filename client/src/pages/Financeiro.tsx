@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { formatBRL } from "@/lib/money";
 import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -33,9 +34,6 @@ export default function Financeiro() {
     if (viewMonth === 12) { setViewMonth(1); setViewYear(y => y + 1); }
     else setViewMonth(m => m + 1);
   };
-
-  const currencyFormat = (val: number) => 
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
 
   const saldoLiquido = useMemo(() => {
     // BUG#8 FIX: filtrar alunos inativos para consistência com os cards de métricas
@@ -89,7 +87,7 @@ export default function Financeiro() {
             <div>
               <p className={cn("text-[10px] font-bold uppercase tracking-widest", saldoLiquido >= 0 ? "text-emerald-700" : "text-rose-700")}>Saldo Geral Líquido</p>
               <p className="text-xl lg:text-3xl font-black text-foreground mt-0.5">
-                 {currencyFormat(saldoLiquido)}
+                 {formatBRL(saldoLiquido)}
               </p>
               <p className="text-[10px] font-medium text-muted-foreground mt-0.5">Total recebido menos despesas pagas do mês.</p>
             </div>

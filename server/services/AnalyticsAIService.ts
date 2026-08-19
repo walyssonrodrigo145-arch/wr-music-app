@@ -3,6 +3,7 @@
  * Roda em background, uma vez por dia.
  */
 
+import { debugLog } from "../_core/logger";
 import type { InsertAnalyticsAiInsight } from "../../drizzle/schema";
 
 export async function generateAnalyticsInsights(): Promise<void> {
@@ -111,7 +112,7 @@ export async function generateAnalyticsInsights(): Promise<void> {
       await db.insert(analyticsAiInsights).values(insights);
     }
 
-    console.log(`[AnalyticsAI] ${insights.length} insights gerados.`);
+    debugLog(`[AnalyticsAI] ${insights.length} insights gerados.`);
   } catch (err) {
     console.error("[AnalyticsAI] Erro ao gerar insights:", err);
   }

@@ -1,3 +1,4 @@
+import { debugLog } from "./_core/logger";
 import { eq, desc, asc, sql, and, gte, lte, lt, isNotNull, inArray, aliasedTable } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -18,7 +19,7 @@ async function ensureSchemaConsistency(db: any) {
   
   console.time("[DB] schema-consistency-check");
   try {
-    console.log("[Database] Checking schema consistency...");
+    debugLog("[Database] Checking schema consistency...");
 
     // Create system tables if missing (drizzle-kit push might not run on deploy)
     try {
@@ -53,7 +54,7 @@ async function ensureSchemaConsistency(db: any) {
         )
       `);
     } catch (e) {
-      console.log("[Database] Failed to execute create system tables:", e);
+      debugLog("[Database] Failed to execute create system tables:", e);
     }
     
     // system_plans: allow_extra_students e extra_student_price
@@ -180,7 +181,7 @@ async function ensureSchemaConsistency(db: any) {
       )
     `);
 
-    console.log("[Database] Schema consistency check passed.");
+    debugLog("[Database] Schema consistency check passed.");
   } catch (error: any) {
     console.warn(`[Database] Schema consistency check failed. Code: ${error.code}. Message: ${error.message}`);
   } finally {
@@ -860,7 +861,7 @@ export async function getUserByOpenId(openId: string) {
 
     await db.update(users).set({ organizationId: orgId }).where(eq(users.id, user.id));
     user.organizationId = orgId;
-    console.log(`[DB] Auto-assigned organization ${orgId} to user ${user.id} (${user.email || user.openId})`);
+    debugLog(`[DB] Auto-assigned organization ${orgId} to user ${user.id} (${user.email || user.openId})`);
   }
 
   return user;

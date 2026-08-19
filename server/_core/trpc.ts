@@ -1,3 +1,4 @@
+import { debugLog } from "./logger";
 import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
@@ -107,7 +108,7 @@ export const studentProcedure = t.procedure.use(
       throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a alunos" });
     }
     
-    console.log(`[studentProcedure] Access granted for student ${ctx.user.name} (studentId: ${ctx.user.studentId})`);
+    debugLog(`[studentProcedure] Access granted for student ${ctx.user.name} (studentId: ${ctx.user.studentId})`);
 
     return next({
       ctx: {

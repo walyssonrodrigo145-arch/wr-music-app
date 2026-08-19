@@ -1,3 +1,4 @@
+import { debugLog } from "./_core/logger";
 import { z } from "zod";
 import { router, studentProcedure, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
@@ -297,7 +298,7 @@ export const slotAdvanceRouter = router({
               token: userSettings.whatsappBotToken,
             },
           });
-          console.log(`[SlotAdvance] Mensagem de confirmação enviada para ${studentRecord.name} (${studentRecord.phone})`);
+          debugLog(`[SlotAdvance] Mensagem de confirmação enviada para ${studentRecord.name} (${studentRecord.phone})`);
         } catch (e) {
           console.error("[SlotAdvance] Erro ao enviar mensagem de confirmação para o aluno:", e);
         }

@@ -1,3 +1,4 @@
+import { debugLog } from "../../_core/logger";
 import { getDb } from "../../db";
 import { fiscalJobs, fiscalInvoices } from "../../../drizzle/schema";
 import { eq, and, lte, sql } from "drizzle-orm";
@@ -9,7 +10,7 @@ export class FiscalQueueWorker {
 
   public static start(intervalMs: number = 20000) {
     if (this.timer) return;
-    console.log("[FiscalQueue] Worker de processamento fiscal iniciado.");
+    debugLog("[FiscalQueue] Worker de processamento fiscal iniciado.");
     this.timer = setInterval(() => this.processNextBatch(), intervalMs);
     // Processa uma primeira rodada após 5s
     setTimeout(() => this.processNextBatch(), 5000);
@@ -19,7 +20,7 @@ export class FiscalQueueWorker {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
-      console.log("[FiscalQueue] Worker parado.");
+      debugLog("[FiscalQueue] Worker parado.");
     }
   }
 

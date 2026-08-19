@@ -1,10 +1,11 @@
+import { debugLog } from "./logger";
 import axios from "axios";
 import { ENV } from "./env";
 
 export async function sendVerificationEmail(email: string, token: string) {
   if (!ENV.resendApiKey) {
     console.warn("[Email] RESEND_API_KEY not found. Skipping verification email for:", email);
-    console.log(`[Email Mock] Verification link: ${ENV.appUrl}/verify-email?token=${token}`);
+    debugLog(`[Email Mock] Verification link: ${ENV.appUrl}/verify-email?token=${token}`);
     return;
   }
 
@@ -55,7 +56,7 @@ export async function sendVerificationEmail(email: string, token: string) {
         },
       }
     );
-    console.log("[Email] Verification email sent to:", email, response.data.id);
+    debugLog("[Email] Verification email sent to:", email, response.data.id);
   } catch (error: any) {
     const errorData = error.response?.data;
     console.error("[Email] Failed to send verification email:", errorData || error.message);
@@ -71,7 +72,7 @@ export async function sendVerificationEmail(email: string, token: string) {
 export async function sendPasswordResetEmail(email: string, token: string) {
   if (!ENV.resendApiKey) {
     console.warn("[Email] RESEND_API_KEY not found. Skipping password reset email for:", email);
-    console.log(`[Email Mock] Reset link: ${ENV.appUrl}/reset-password?token=${token}`);
+    debugLog(`[Email Mock] Reset link: ${ENV.appUrl}/reset-password?token=${token}`);
     return;
   }
 
@@ -106,7 +107,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
         },
       }
     );
-    console.log("[Email] Password reset email sent to:", email);
+    debugLog("[Email] Password reset email sent to:", email);
   } catch (error: any) {
     console.error("[Email] Failed to send password reset email:", error.response?.data || error.message);
   }
@@ -134,7 +135,7 @@ export async function sendSimpleEmail(email: string, subject: string, html: stri
         },
       }
     );
-    console.log("[Email] Simple email sent to:", email, response.data.id);
+    debugLog("[Email] Simple email sent to:", email, response.data.id);
   } catch (error: any) {
     console.error("[Email] Failed to send simple email:", error.response?.data || error.message);
   }

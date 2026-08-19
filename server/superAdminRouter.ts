@@ -1,3 +1,4 @@
+import { debugLog } from "./_core/logger";
 import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
@@ -282,7 +283,7 @@ export const superAdminRouter = router({
         await tx.delete(organizations).where(eq(organizations.id, orgId));
       });
 
-      console.log(`[SuperAdmin] Organização #${orgId} ("${org.name}") excluída permanentemente.`);
+      debugLog(`[SuperAdmin] Organização #${orgId} ("${org.name}") excluída permanentemente.`);
       return { success: true };
     }),
 
@@ -422,7 +423,7 @@ export const superAdminRouter = router({
         .set({ subscriptionStatus: input.subscriptionStatus, updatedAt: new Date() })
         .where(eq(organizations.id, input.orgId));
 
-      console.log(`[SuperAdmin] Status da org #${input.orgId} alterado para "${input.subscriptionStatus}".`);
+      debugLog(`[SuperAdmin] Status da org #${input.orgId} alterado para "${input.subscriptionStatus}".`);
       return { success: true };
     }),
 
@@ -445,7 +446,7 @@ export const superAdminRouter = router({
         .set({ passwordHash, mustChangePassword: true, updatedAt: new Date() })
         .where(eq(users.id, input.userId));
 
-      console.log(`[SuperAdmin] Senha do usuário #${input.userId} redefinida pelo Super Admin.`);
+      debugLog(`[SuperAdmin] Senha do usuário #${input.userId} redefinida pelo Super Admin.`);
       return { success: true };
     }),
 

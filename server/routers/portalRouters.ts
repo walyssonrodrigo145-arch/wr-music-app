@@ -1,0 +1,1320 @@
+import { z } from "zod";
+import { COOKIE_NAME } from "@shared/const";
+import { getSessionCookieOptions } from "../_core/cookies";
+import { systemRouter } from "../_core/systemRouter";
+import { fcmRouter } from "../fcmRouter";
+import { publicProcedure, protectedProcedure, professorProcedure, studentProcedure, router } from "../_core/trpc";
+import { slotAdvanceRouter } from "../slotAdvanceRouter";
+import {
+  getDashboardStats,
+  getMonthlyStats,
+  getStudentsWithInstrument,
+  getRecentLessons,
+  getInstrumentsWithCount,
+  getLessonsByDayOfWeek,
+  getDb,
+  getSettingsByUserId,
+  upsertSettings,
+  updateUserProfile,
+  getExperimentalStats,
+} from "../db";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
+import { notifyOwner, notifyUser } from "../_core/notification";
+import { handleDbError } from "../utils/error_handler";
+import { TRPCError } from "@trpc/server";
+
+import crypto from "crypto";
+import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
+import { buildUserContext } from "../utils/aiContext";
+import { getSystemPrompt } from "../utils/aiPrompts";
+import { callGemini, genAI } from "../utils/gemini";
+import { BillingEngine } from "../services/BillingEngine";
+import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "../utils/whatsapp";
+import { nanoid } from "nanoid";
+import { sdk } from "../_core/sdk";
+import { sendVerificationEmail, sendSimpleEmail } from "../_core/email";
+import { ENV } from "../_core/env";
+import { storagePut } from "../storage";
+import { superAdminRouter } from "../superAdminRouter";
+import { pairingActiveSessions } from "../automationJob";
+import { checkFileMagicBytes } from "../utils/fileSecurity";
+import { reportEngineRouter } from "../reportEngineRouter";
+import { marketingRouter } from "../marketingRouter";
+import { analyticsRouter } from "../analyticsRouter";
+import { crmRouter } from "../crmRouter";
+import { studioRoomsRouter } from "../studioRoomsRouter";
+import { enrollmentRouter } from "../enrollmentRouter";
+import { advancedAiRouter } from "../advancedAiRouter";
+import { chatbotFlowRouter } from "../chatbotFlowRouter";
+import { schoolAiRouter } from "../schoolAiRouter";
+import { fiscalRouter } from "../fiscalRouter";
+import { FiscalService } from "../services/fiscal/FiscalService";
+import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
+export const portalRouters = {
+  chat: router({
+    getMessages: protectedProcedure.input(z.object({ withUserId: z.number() })).query(async ({ ctx, input }) => {
+       const db = await getDb();
+       if (!db) throw new Error("Database not available");
+       const orgId = ctx.user.organizationId!;
+       return db.select({
+         id: chatMessages.id,
+         senderId: chatMessages.senderId,
+         content: chatMessages.content,
+         createdAt: chatMessages.createdAt,
+         isRead: chatMessages.isRead,
+         isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
+       }).from(chatMessages)
+         .where(and(
+           eq(chatMessages.organizationId, orgId),
+           or(
+             and(eq(chatMessages.senderId, ctx.user.id), eq(chatMessages.receiverId, input.withUserId)),
+             and(eq(chatMessages.senderId, input.withUserId), eq(chatMessages.receiverId, ctx.user.id))
+           )
+         ))
+         .orderBy(asc(chatMessages.createdAt));
+    }),
+    send: protectedProcedure.input(z.object({ receiverId: z.number(), content: z.string() })).mutation(async ({ ctx, input }) => {
+       const db = await getDb();
+       if (!db) throw new Error("Database not available");
+       const orgId = ctx.user.organizationId!;
+       await db.insert(chatMessages).values({
+         organizationId: orgId,
+         senderId: ctx.user.id,
+         receiverId: input.receiverId,
+         content: input.content,
+       });
+       return { success: true };
+    }),
+    unreadCount: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      const [result] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+        .from(chatMessages)
+        .where(and(eq(chatMessages.organizationId, orgId), eq(chatMessages.receiverId, ctx.user.id), eq(chatMessages.isRead, false)));
+      return result?.count || 0;
+    }),
+    markAsRead: protectedProcedure.input(z.object({ fromUserId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      await db.update(chatMessages)
+        .set({ isRead: true })
+        .where(and(
+          eq(chatMessages.organizationId, orgId),
+          eq(chatMessages.senderId, input.fromUserId),
+          eq(chatMessages.receiverId, ctx.user.id),
+          eq(chatMessages.isRead, false)
+        ));
+      return { success: true };
+    }),
+  }),
+
+  studentPortal: router({
+    getDashboard: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+
+      if (!studentId) {
+        // BUG-008: Busca com filtro de org para prevenir IDOR
+        const [found] = await db.select({ id: students.id })
+          .from(students)
+          .where(and(eq(students.studentUserId, ctx.user.id), eq(students.organizationId, ctx.user.organizationId!)))
+          .limit(1);
+        if (found) studentId = found.id;
+      }
+
+      if (!studentId) {
+        throw new Error("Acesso não autorizado ou perfil de aluno incompleto.");
+      }
+      
+      const orgId = ctx.user.organizationId!;
+      const now = new Date();
+      
+      // BUG-008: Filtra por org para garantir isolamento multi-tenant
+      const [student] = await db.select().from(students)
+        .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+        .limit(1);
+      
+      // Parse permissions
+      let permissions = {
+        canSeeFinanceiro: true,
+        canSeeProgress: true,
+        canSeeFiles: true,
+        canSeeSchedule: true,
+        canSeeMessages: true,
+      };
+
+      if (student.permissions) {
+        try {
+          const parsed = JSON.parse(student.permissions);
+          permissions = { ...permissions, ...parsed };
+        } catch (e) {
+          console.error("[studentPortal] Error parsing permissions for student", studentId, e);
+        }
+      }
+
+      const [
+        teacher,
+        upcoming,
+        timeline,
+        dbAnnouncements,
+        materials,
+        statsDone,
+        statsPending,
+        statsTotalRecent,
+        statsDoneRecent,
+        payments,
+        latestMessages,
+        pendingGoals
+      ] = await Promise.all([
+        db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1).then(res => res[0]),
+        
+        // Upcoming (Schedule)
+        permissions.canSeeSchedule 
+          ? (() => {
+              const profUsers = aliasedTable(users, "dash_prof_users");
+              const creatorUsers = aliasedTable(users, "dash_creator_users");
+              const profData = aliasedTable(professores, "dash_prof_data");
+              const creatorData = aliasedTable(professores, "dash_creator_data");
+
+              return db.select({
+                id: lessons.id,
+                title: lessons.title,
+                scheduledAt: lessons.scheduledAt,
+                status: lessons.status,
+                duration: lessons.duration,
+                instrumentId: lessons.instrumentId,
+                studioRoomId: lessons.studioRoomId,
+                studioRoomName: studioRooms.name,
+                studioRoomColor: studioRooms.color,
+                teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
+                teacherFoto: sql<string | null>`COALESCE(${profData.foto}, ${creatorData.foto})`,
+              }).from(lessons)
+                .leftJoin(students, eq(lessons.studentId, students.id))
+                .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
+                .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+                .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
+                .leftJoin(profData, eq(students.professorId, profData.userId))
+                .leftJoin(creatorData, eq(lessons.userId, creatorData.userId))
+                .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, 'agendada')))
+                .orderBy(asc(lessons.scheduledAt))
+                .limit(5);
+            })()
+          : Promise.resolve([]),
+
+        // Timeline (Progress)
+        permissions.canSeeProgress
+          ? db.select().from(studentTimeline)
+              .where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId)))
+              .orderBy(desc(studentTimeline.achievedAt))
+              .limit(5)
+          : Promise.resolve([]),
+
+        db.select({
+          id: announcements.id,
+          title: announcements.title,
+          author: users.name,
+          date: announcements.createdAt,
+          important: announcements.important,
+          content: announcements.content,
+        })
+        .from(announcements)
+        .leftJoin(users, eq(announcements.userId, users.id))
+        .where(and(
+          eq(announcements.organizationId, orgId),
+          eq(announcements.userId, student.professorId),
+          sql`(${announcements.targetStudentId} IS NULL OR ${announcements.targetStudentId} = ${studentId})`
+        ))
+        .orderBy(desc(announcements.createdAt))
+        .limit(10),
+
+        // Materials (Files)
+        permissions.canSeeFiles
+          ? db.select().from(studentFiles)
+              .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)))
+              .orderBy(desc(studentFiles.createdAt))
+              .limit(4)
+          : Promise.resolve([]),
+
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).then(res => res[0]),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, 'pendente'))).then(res => res[0]),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date(new Date().setMonth(new Date().getMonth() - 3))), ne(lessons.status, 'cancelada'))).then(res => res[0]),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, new Date(new Date().setMonth(new Date().getMonth() - 3))), eq(lessons.status, 'concluida'))).then(res => res[0]),
+        
+        // Payments (Financeiro)
+        permissions.canSeeFinanceiro
+          ? db.select().from(paymentDues)
+              .where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId)))
+              .orderBy(desc(paymentDues.dueDate))
+              .limit(3)
+          : Promise.resolve([]),
+
+        // Latest Messages
+        permissions.canSeeMessages !== false
+          ? db.select({
+              id: chatMessages.id,
+              content: chatMessages.content,
+              createdAt: chatMessages.createdAt,
+              senderName: users.name,
+              isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
+            }).from(chatMessages)
+              .leftJoin(users, eq(chatMessages.senderId, users.id))
+              .where(and(
+                eq(chatMessages.organizationId, orgId),
+                sql`(${chatMessages.senderId} = ${ctx.user.id} OR ${chatMessages.receiverId} = ${ctx.user.id})`
+              ))
+              .orderBy(desc(chatMessages.createdAt))
+              .limit(3)
+          : Promise.resolve([]),
+          
+        // Pending Exercises (Goals)
+        db.select({
+          id: studentGoals.id,
+          title: studentGoals.title,
+          status: studentGoals.status,
+          createdAt: studentGoals.createdAt,
+        }).from(studentGoals)
+          .where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, 'pendente')))
+          .orderBy(desc(studentGoals.createdAt))
+          .limit(5)
+      ]);
+
+      const frequency = statsTotalRecent.count > 0 ? Math.round((statsDoneRecent.count / statsTotalRecent.count) * 100) : 100;
+
+      return {
+        upcomingLessons: upcoming,
+        recentActivities: timeline,
+        announcements: dbAnnouncements.map(a => ({ 
+          ...a, 
+          date: a.date instanceof Date ? a.date.toLocaleDateString('pt-BR') : a.date 
+        })),
+        materials,
+        payments,
+        pendingGoals: pendingGoals,
+        teacherName: teacher?.name || 'Professor',
+        teacherId: teacher?.id,
+        messages: latestMessages,
+        stats: {
+          lessonsDone: statsDone.count,
+          pendingExercises: statsPending.count,
+          unreadAnnouncements: dbAnnouncements.length,
+          frequency,
+          generalProgress: 85,
+          level: student.level || 'iniciante',
+        }
+      };
+    }),
+    getAnnouncements: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      const [student] = await db.select({ professorId: students.professorId })
+        .from(students)
+        .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+        .limit(1);
+      
+      if (!student) throw new Error("Estudante não encontrado.");
+
+      const dbAnnouncements = await db.select({
+        id: announcements.id,
+        title: announcements.title,
+        author: users.name,
+        date: announcements.createdAt,
+        important: announcements.important,
+        content: announcements.content,
+      })
+      .from(announcements)
+      .leftJoin(users, eq(announcements.userId, users.id))
+      .where(and(
+        eq(announcements.organizationId, orgId),
+        eq(announcements.userId, student.professorId),
+        sql`(${announcements.targetStudentId} IS NULL OR ${announcements.targetStudentId} = ${studentId})`
+      ))
+      .orderBy(desc(announcements.createdAt))
+      .limit(50);
+      
+      return dbAnnouncements.map(a => ({ 
+        ...a, 
+        date: a.date instanceof Date ? a.date.toLocaleDateString('pt-BR') : a.date 
+      }));
+    }),
+    getLessons: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      const profUsers = aliasedTable(users, "less_prof_users");
+      const creatorUsers = aliasedTable(users, "less_creator_users");
+      const profData = aliasedTable(professores, "less_prof_data");
+      const creatorData = aliasedTable(professores, "less_creator_data");
+
+      const lessonRows = await db.select({
+        id: lessons.id,
+        organizationId: lessons.organizationId,
+        userId: lessons.userId,
+        studentId: lessons.studentId,
+        isExperimental: lessons.isExperimental,
+        experimentalName: lessons.experimentalName,
+        experimentalPhone: lessons.experimentalPhone,
+        title: lessons.title,
+        description: lessons.description,
+        scheduledAt: lessons.scheduledAt,
+        duration: lessons.duration,
+        status: lessons.status,
+        lessonType: lessons.lessonType,
+        notes: lessons.notes,
+        rating: lessons.rating,
+        instrumentId: lessons.instrumentId,
+        studioRoomId: lessons.studioRoomId,
+        studioRoomName: studioRooms.name,
+        studioRoomColor: studioRooms.color,
+        teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
+        teacherFoto: sql<string | null>`COALESCE(${profData.foto}, ${creatorData.foto})`,
+      }).from(lessons)
+        .leftJoin(students, eq(lessons.studentId, students.id))
+        .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
+        .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+        .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
+        .leftJoin(profData, eq(students.professorId, profData.userId))
+        .leftJoin(creatorData, eq(lessons.userId, creatorData.userId))
+        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
+        .orderBy(desc(lessons.scheduledAt))
+        .limit(50);
+
+      // Buscar o link de reunião online do aluno e sala padrão
+      const [studentRow] = await db.select({ 
+        onlineMeetingLink: students.onlineMeetingLink, 
+        lessonType: students.lessonType,
+        studentStudioRoomId: students.studioRoomId
+      }).from(students).where(eq(students.id, studentId)).limit(1);
+
+      return lessonRows.map(l => ({ 
+        ...l, 
+        onlineMeetingLink: studentRow?.onlineMeetingLink || null, 
+        studentLessonType: studentRow?.lessonType || 'individual' 
+      }));
+    }),
+    getMaterials: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      return db.select().from(studentFiles).where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId))).orderBy(desc(studentFiles.createdAt)).limit(100);
+    }),
+    markMaterialViewed: studentProcedure.input(z.object({ fileId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      
+      let studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      await db.update(studentFiles)
+        .set({ viewedAt: new Date() })
+        .where(and(
+          eq(studentFiles.id, input.fileId),
+          eq(studentFiles.organizationId, orgId),
+          eq(studentFiles.studentId, studentId)
+        ));
+      return { success: true };
+    }),
+    getExercises: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      return db.select().from(studentGoals).where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId))).orderBy(desc(studentGoals.createdAt));
+    }),
+    getProgress: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      const [timeline, done] = await Promise.all([
+        db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, studentId), eq(studentTimeline.organizationId, orgId))).orderBy(desc(studentTimeline.achievedAt)),
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons).where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).then(res => res[0])
+      ]);
+
+      return {
+        timeline,
+        stats: {
+          lessonsDone: done.count,
+          averageGrade: 9.2, // Mock
+        }
+      };
+    }),
+    getPayments: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      return db.select().from(paymentDues).where(and(eq(paymentDues.studentId, studentId), eq(paymentDues.organizationId, orgId))).orderBy(desc(paymentDues.dueDate));
+    }),
+    getMessages: studentProcedure.input(z.object({ withUserId: z.number() })).query(async ({ ctx, input }) => {
+       const db = await getDb();
+       if (!db) throw new Error("Database not available");
+
+       let studentId = ctx.user.studentId;
+       let [student] = studentId ? await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
+       if (!student) {
+         [student] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+       }
+
+       if (student?.permissions) {
+         try {
+           const parsed = JSON.parse(student.permissions);
+           if (parsed.canSeeMessages === false) return [];
+         } catch (e) {
+           console.error("Error parsing student permissions in getMessages:", e);
+         }
+       }
+
+       const orgId = ctx.user.organizationId!;
+       return db.select({
+         id: chatMessages.id,
+         senderId: chatMessages.senderId,
+         content: chatMessages.content,
+         createdAt: chatMessages.createdAt,
+         isMe: sql`${chatMessages.senderId} = ${ctx.user.id}`,
+       }).from(chatMessages)
+         .where(and(
+           eq(chatMessages.organizationId, orgId),
+           or(
+             and(eq(chatMessages.senderId, ctx.user.id), eq(chatMessages.receiverId, input.withUserId)),
+             and(eq(chatMessages.senderId, input.withUserId), eq(chatMessages.receiverId, ctx.user.id))
+           )
+         ))
+         .orderBy(asc(chatMessages.createdAt));
+    }),
+    sendMessage: studentProcedure.input(z.object({ receiverId: z.number(), content: z.string() })).mutation(async ({ ctx, input }) => {
+       const db = await getDb();
+       if (!db) throw new Error("Database not available");
+
+       let studentId = ctx.user.studentId;
+       let [student] = studentId ? await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
+       if (!student) {
+         [student] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+       }
+
+       if (student?.permissions) {
+         try {
+           const parsed = JSON.parse(student.permissions);
+           if (parsed.canSeeMessages === false) {
+             throw new TRPCError({
+               code: 'FORBIDDEN',
+               message: 'Você não tem permissão para enviar mensagens.'
+             });
+           }
+         } catch (e) {
+           console.error("Error parsing student permissions in sendMessage:", e);
+           if (e instanceof TRPCError) throw e;
+         }
+       }
+
+       const orgId = ctx.user.organizationId!;
+       await db.insert(chatMessages).values({
+         organizationId: orgId,
+         senderId: ctx.user.id,
+         receiverId: input.receiverId,
+         content: input.content,
+       });
+       return { success: true };
+    }),
+    getProfile: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      let [student] = studentId ? await db.select({
+        id: students.id,
+        name: students.name,
+        email: students.email,
+        phone: students.phone,
+        level: students.level,
+        instrumentId: students.instrumentId,
+        teacherId: students.professorId,
+        startDate: students.startDate,
+        birthDate: students.birthDate,
+        address: students.address,
+        guardianName: students.guardianName,
+        guardianPhone: students.guardianPhone,
+        permissions: students.permissions,
+        organizationId: students.organizationId,
+      }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
+
+      if (!student) {
+        [student] = await db.select({
+          id: students.id,
+          name: students.name,
+          email: students.email,
+          phone: students.phone,
+          level: students.level,
+          instrumentId: students.instrumentId,
+          teacherId: students.professorId,
+          startDate: students.startDate,
+          birthDate: students.birthDate,
+          address: students.address,
+          guardianName: students.guardianName,
+          guardianPhone: students.guardianPhone,
+          permissions: students.permissions,
+          organizationId: students.organizationId,
+        }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+      }
+      
+      if (!student) throw new Error("Dados do aluno não encontrados.");
+      
+      const [teacher] = await db.select({ 
+        name: users.name,
+        organizationId: users.organizationId
+      })
+      .from(users)
+      .where(eq(users.id, student.teacherId))
+      .limit(1);
+
+      const resolvedOrgId = student.organizationId || teacher?.organizationId;
+
+      const [[instrument], [orgSettings], [nextGoal]] = await Promise.all([
+        student.instrumentId 
+          ? db.select({ name: instruments.name })
+              .from(instruments)
+              .where(eq(instruments.id, student.instrumentId))
+              .limit(1)
+          : Promise.resolve([{ name: null }]),
+          
+        resolvedOrgId
+          ? db.select({ pixKey: settings.pixKey, schoolPhone: settings.schoolPhone, paymentGateway: settings.paymentGateway })
+              .from(settings)
+              .innerJoin(users, eq(users.id, settings.userId))
+              .where(
+                and(
+                  eq(settings.organizationId, resolvedOrgId),
+                  eq(users.role, "admin")
+                )
+              )
+              .orderBy(desc(settings.updatedAt))
+              .limit(1)
+          : Promise.resolve([{ pixKey: null, schoolPhone: null, paymentGateway: "asaas" }]),
+          
+        db.select({ title: studentGoals.title })
+          .from(studentGoals)
+          .where(
+            and(
+              eq(studentGoals.studentId, student.id),
+              eq(studentGoals.status, 'pendente')
+            )
+          )
+          .orderBy(asc(studentGoals.targetDate))
+          .limit(1)
+      ]);
+      
+      let parsedPermissions = {
+        canSeeFinanceiro: true,
+        canSeeProgress: true,
+        canSeeFiles: true,
+        canSeeSchedule: true,
+        canSeeMessages: true,
+      };
+
+      if (student.permissions) {
+        try {
+          const parsed = JSON.parse(student.permissions);
+          parsedPermissions = { ...parsedPermissions, ...parsed };
+        } catch (e) {
+          console.error("[studentPortal] Error parsing permissions for student profile", student.id, e);
+        }
+      }
+      
+      return { 
+        ...student, 
+        permissions: parsedPermissions,
+        teacherName: teacher?.name || 'Professor',
+        teacherPixKey: orgSettings?.pixKey,
+        schoolPhone: orgSettings?.schoolPhone,
+        paymentGateway: orgSettings?.paymentGateway || 'asaas',
+        instrumentName: instrument?.name || 'Não definido',
+        nextGoal: nextGoal?.title || null
+      };
+    }),
+    generatePaymentLink: studentProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const orgId = ctx.user.organizationId!;
+        
+        const { createMPPreference } = await import('../utils/mercadopago');
+        
+        const [settingsData] = await db.select({ 
+          mpAccessToken: settings.mpAccessToken,
+          paymentGateway: settings.paymentGateway
+        })
+        .from(settings)
+        .innerJoin(users, eq(users.id, settings.userId))
+        .where(
+          and(
+            eq(settings.organizationId, orgId),
+            eq(users.role, "admin")
+          )
+        )
+        .orderBy(desc(settings.updatedAt))
+        .limit(1);
+
+        if (!settingsData || settingsData.paymentGateway !== 'mercadopago' || !settingsData.mpAccessToken) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Mercado Pago não está configurada." });
+        }
+
+        const accessToken = settingsData.mpAccessToken;
+
+        // Validar permissão do aluno para essa mensalidade
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new TRPCError({ code: "UNAUTHORIZED", message: "Acesso não autorizado" });
+
+        const [due] = await db.select().from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.studentId, studentId)))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (due.mpPaymentLink) return { paymentLink: due.mpPaymentLink }; // Já existe
+
+        const [student] = await db.select().from(students)
+          .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+          .limit(1);
+
+        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+
+        const pref = await createMPPreference({
+          items: [{
+            title: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
+            quantity: 1,
+            currency_id: "BRL",
+            unit_price: Number(due.amount)
+          }],
+          payer: {
+            name: student.name,
+            email: student.email || "aluno@musicpro.com.br"
+          },
+          external_reference: due.id.toString(),
+          successUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/painel/mensalidades`
+        }, accessToken);
+
+        await db.update(paymentDues)
+          .set({
+            mpPaymentId: pref.id,
+            mpPaymentLink: pref.init_point,
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentDues.id, input.paymentDueId));
+
+        return { paymentLink: pref.init_point };
+      }),
+    getSchedule: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id, permissions: students.permissions }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) {
+          if (found.permissions) {
+            const perms = JSON.parse(found.permissions);
+            if (perms.canSeeSchedule === false) return [];
+          }
+          studentId = found.id;
+        }
+      } else {
+        const [found] = await db.select({ permissions: students.permissions }).from(students).where(eq(students.id, studentId)).limit(1);
+        if (found?.permissions) {
+          const perms = JSON.parse(found.permissions);
+          if (perms.canSeeSchedule === false) return [];
+        }
+      }
+      if (!studentId) throw new Error("Acesso não autorizado");
+
+      const orgId = ctx.user.organizationId!;
+      const profUsers = aliasedTable(users, "sched_prof_users");
+      const creatorUsers = aliasedTable(users, "sched_creator_users");
+      const profData = aliasedTable(professores, "sched_prof_data");
+      const creatorData = aliasedTable(professores, "sched_creator_data");
+
+      return db.select({
+        id: lessons.id,
+        title: lessons.title,
+        scheduledAt: lessons.scheduledAt,
+        duration: lessons.duration,
+        status: lessons.status,
+        notes: lessons.notes,
+        lessonType: lessons.lessonType,
+        studioRoomId: lessons.studioRoomId,
+        studioRoomName: studioRooms.name,
+        studioRoomColor: studioRooms.color,
+        teacherName: sql<string>`COALESCE(${profUsers.name}, ${creatorUsers.name})`,
+        teacherFoto: sql<string | null>`COALESCE(${profData.foto}, ${creatorData.foto})`,
+      }).from(lessons)
+        .leftJoin(students, eq(lessons.studentId, students.id))
+        .leftJoin(studioRooms, eq(lessons.studioRoomId, studioRooms.id))
+        .leftJoin(profUsers, eq(students.professorId, profUsers.id))
+        .leftJoin(creatorUsers, eq(lessons.userId, creatorUsers.id))
+        .leftJoin(profData, eq(students.professorId, profData.userId))
+        .leftJoin(creatorData, eq(lessons.userId, creatorData.userId))
+        .where(and(eq(lessons.studentId, studentId), eq(lessons.organizationId, orgId)))
+        .orderBy(asc(lessons.scheduledAt))
+        .limit(100);
+    }),
+    updateProfile: studentProcedure
+      .input(z.object({
+        phone: z.string().optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        await db.update(students).set({ phone: input.phone, email: input.email }).where(eq(students.id, studentId));
+
+        const userUpdates: any = {};
+        if (input.email) userUpdates.email = input.email;
+        if (input.password) {
+           const salt = crypto.randomBytes(16).toString('hex');
+           const derivedKey = crypto.scryptSync(input.password, salt, 64).toString('hex');
+           userUpdates.passwordHash = salt + ':' + derivedKey;
+        }
+
+        if (Object.keys(userUpdates).length > 0) {
+          await db.update(users).set(userUpdates).where(eq(users.id, ctx.user.id));
+        }
+
+        return { success: true };
+      }),
+    getTeacherSchedule: studentProcedure
+      .input(z.object({ lessonId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        
+        // Find lesson
+        const [lesson] = await db.select().from(lessons).where(and(eq(lessons.id, input.lessonId), eq(lessons.organizationId, orgId))).limit(1);
+        if (!lesson) throw new Error("Lesson not found");
+
+        // Find teacher settings
+        const [teacherSettings] = await db.select({ schoolHours: settings.schoolHours, schoolPhone: settings.schoolPhone, phone: settings.phone })
+          .from(settings).where(eq(settings.userId, lesson.userId)).limit(1);
+        
+        const schoolHoursRaw = teacherSettings?.schoolHours || '{}';
+        let parsedHours = {};
+        try { parsedHours = JSON.parse(schoolHoursRaw); } catch(e) {}
+
+        // Get future booked slots for this teacher
+        const futureLessons = await db.select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
+          .from(lessons)
+          .where(and(
+            eq(lessons.userId, lesson.userId),
+            sql`${lessons.scheduledAt} > NOW()`,
+            sql`${lessons.scheduledAt} < NOW() + INTERVAL '30 days'`
+          ));
+
+        return {
+          schoolHours: parsedHours,
+          bookedSlots: futureLessons.map(l => ({ scheduledAt: l.scheduledAt.toISOString(), duration: l.duration })),
+          teacherPhone: teacherSettings?.schoolPhone || teacherSettings?.phone || '',
+          lessonDuration: lesson.duration || 60
+        };
+      }),
+
+    autoReschedule: studentProcedure
+      .input(z.object({
+        lessonId: z.number(),
+        newDateIso: z.string(), // e.g. "2024-05-10T14:00:00.000Z"
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        const [lesson] = await db.select().from(lessons).where(and(eq(lessons.id, input.lessonId), eq(lessons.studentId, studentId))).limit(1);
+        if (!lesson) throw new Error("Aula não encontrada ou não pertence a você");
+
+        const newDateObj = new Date(input.newDateIso);
+
+        // Update the lesson date
+        await db.update(lessons)
+          .set({ scheduledAt: newDateObj, status: "agendada" })
+          .where(eq(lessons.id, input.lessonId));
+
+        const formatter = new Intl.DateTimeFormat('pt-BR', {
+          weekday: 'long',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        const formattedDate = formatter.format(newDateObj);
+
+        // Create a notification for the teacher
+        const [studentData] = await db.select({ name: students.name }).from(students).where(eq(students.id, studentId)).limit(1);
+        await db.insert(notifications).values({
+          organizationId: orgId,
+          userId: lesson.userId,
+          title: "Aula Reagendada pelo Robô",
+          message: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${formattedDate}.`,
+          type: "INFO",
+          read: false,
+        });
+
+        // Send Push Notification (FCM / Web Push) to Teacher's devices (async)
+        notifyUser(lesson.userId, {
+          title: "Aula Reagendada 🔄",
+          content: `O aluno ${studentData?.name || 'desconhecido'} reagendou a aula "${lesson.title}" para ${formattedDate}.`
+        }).catch(err => console.error("Erro no push de reagendamento:", err));
+
+        // WhatsApp Notification to the Teacher (async)
+        (async () => {
+          try {
+            const [orgSettings] = await db.select({
+              whatsappBotUrl: settings.whatsappBotUrl,
+              whatsappBotToken: settings.whatsappBotToken
+            })
+            .from(settings)
+            .innerJoin(users, eq(users.id, settings.userId))
+            .where(and(eq(users.organizationId, orgId), eq(users.role, "admin")))
+            .limit(1);
+
+            const [teacherProf] = await db.select({ telefone: professores.telefone })
+              .from(professores)
+              .where(eq(professores.userId, lesson.userId))
+              .limit(1);
+
+            if (orgSettings?.whatsappBotUrl && teacherProf?.telefone) {
+              const { sendWhatsAppMessage } = await import("../utils/whatsapp");
+
+              await sendWhatsAppMessage({
+                url: orgSettings.whatsappBotUrl,
+                token: orgSettings.whatsappBotToken || "",
+                phone: teacherProf.telefone,
+                message: `🔄 *AULA REAGENDADA*\n\nOlá! O aluno *${studentData?.name || 'desconhecido'}* acabou de reagendar a aula pelo Portal do Aluno.\n\n📚 *Aula:* ${lesson.title}\n📅 *Nova Data/Hora:* ${formattedDate}`
+              });
+            }
+          } catch (e) {
+            console.error("Erro ao enviar whatsapp para professor no reagendamento", e);
+          }
+        })();
+
+        return { success: true, message: "Aula reagendada com sucesso!" };
+      }),
+    verifyAndConfirmPayment: studentProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+        fileData: z.string(),
+        fileName: z.string(),
+        fileType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Banco de dados não disponível");
+        const orgId = ctx.user.organizationId!;
+
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        const [payment] = await db.select()
+          .from(paymentDues)
+          .where(and(
+            eq(paymentDues.id, input.paymentDueId),
+            eq(paymentDues.studentId, studentId),
+            eq(paymentDues.organizationId, orgId)
+          ))
+          .limit(1);
+
+        if (!payment) throw new Error("Mensalidade não encontrada.");
+        if (payment.status === 'pago') throw new Error("Esta mensalidade já está paga.");
+
+        const [student] = await db.select()
+          .from(students)
+          .where(eq(students.id, studentId))
+          .limit(1);
+
+        const [teacher] = await db.select({
+          name: users.name,
+          pixKey: settings.pixKey,
+          geminiApiKey: settings.geminiApiKey,
+          geminiModel: settings.geminiModel
+        })
+        .from(users)
+        .leftJoin(settings, eq(users.id, settings.userId))
+        .where(eq(users.id, student.professorId))
+        .limit(1);
+
+        // Upload receipt to local storage
+        const base64Content = input.fileData.includes(',') ? input.fileData.split(',')[1] : input.fileData;
+        const buffer = Buffer.from(base64Content, 'base64');
+        const ext = input.fileName.split('.').pop() || 'dat';
+        const storageKey = `receipts/org_${orgId}/user_${ctx.user.id}/pay_${input.paymentDueId}_${nanoid(6)}.${ext}`;
+        
+        const { url: receiptUrl } = await storagePut(storageKey, buffer, input.fileType);
+
+        // AI Validation
+        try {
+          const { GoogleGenerativeAI } = await import("@google/generative-ai");
+          const apiKeyToUse = teacher?.geminiApiKey || process.env.GEMINI_API_KEY;
+          if (!apiKeyToUse) throw new Error("Chave Gemini não configurada");
+          const localGenAI = new GoogleGenerativeAI(apiKeyToUse);
+          const model = localGenAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+          const systemPrompt = `Você é um robô de inteligência artificial especializado em análise de comprovantes de pagamento (principalmente PIX) para uma escola de música.
+Sua tarefa é analisar a imagem do comprovante enviada pelo aluno e verificar se ela é válida para a mensalidade esperada.
+
+Dados da mensalidade esperada:
+- Nome do Aluno: ${student?.name || 'Não especificado'}
+- Valor Esperado: R$ ${Number(payment.amount).toFixed(2)}
+- Mês de Referência: ${payment.month}/${payment.year}
+- Chave PIX / Nome do Recebedor (Professor): ${teacher?.pixKey || 'Não especificada'} / ${teacher?.name || 'Não especificado'}
+
+Instruções de análise:
+1. Verifique se a imagem é realmente um comprovante de pagamento válido (PIX, transferência bancária ou boleto pago). Se for uma imagem irrelevante ou inválida, marque "isValidReceipt" como false.
+2. Extraia o valor pago encontrado no comprovante.
+3. Extraia a data do pagamento.
+4. Verifique se o valor pago é compatível com o valor esperado (permita variações muito pequenas, mas idealmente deve bater).
+5. Retorne estritamente um objeto JSON com o seguinte formato exato (sem formatação markdown):
+{
+  "isValidReceipt": true/false,
+  "amountPaid": 200.00,
+  "paymentDate": "YYYY-MM-DD",
+  "confidenceScore": 0.95,
+  "reason": "Motivo resumido em português explicando a validação ou recusa"
+}`;
+
+          const result = await model.generateContent({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: systemPrompt },
+                  { inlineData: { data: base64Content, mimeType: input.fileType } }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          });
+
+          let aiResponseText = result.response.text();
+          if (aiResponseText.includes("\`\`\`")) {
+            aiResponseText = aiResponseText.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
+          }
+
+          const analysis = JSON.parse(aiResponseText);
+
+          if (!analysis.isValidReceipt) {
+            return {
+              success: false,
+              verified: false,
+              reason: analysis.reason || "O comprovante não pôde ser validado."
+            };
+          }
+
+          // Confirma o pagamento no banco de dados
+          await db.update(paymentDues)
+            .set({ 
+              status: 'pago',
+              paidAt: new Date(),
+              receiptUrl: receiptUrl,
+              updatedAt: new Date()
+            })
+            .where(eq(paymentDues.id, payment.id));
+
+          const valor = Number(payment.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          await notifyUser(student.professorId, {
+            title: "Pagamento Confirmado",
+            content: `O aluno ${student.name || "Aluno"} pagou a mensalidade de ${valor} via PIX (validado por IA).`,
+          });
+
+          return {
+            success: true,
+            verified: true,
+            amountPaid: analysis.amountPaid,
+            reason: analysis.reason || "Comprovante validado com sucesso!"
+          };
+        } catch (error: any) {
+          console.error("[verifyAndConfirmPayment] Erro na análise do Gemini:", error);
+          throw new Error("Ocorreu um erro ao analisar o comprovante com a IA. Tente novamente mais tarde.");
+        }
+      }),
+    completeExercise: studentProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+        
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        const [exercise] = await db.select({
+          id: studentGoals.id,
+          title: studentGoals.title,
+          userId: studentGoals.userId,
+          studentName: students.name,
+        })
+        .from(studentGoals)
+        .leftJoin(students, eq(studentGoals.studentId, students.id))
+        .where(and(eq(studentGoals.id, input.id), eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId)))
+        .limit(1);
+
+        if (!exercise) throw new Error("Exercício não encontrado.");
+
+        await db.update(studentGoals)
+          .set({ status: "concluida", completedAt: new Date(), updatedAt: new Date() })
+          .where(eq(studentGoals.id, input.id));
+
+        // Notify the professor (exercise.userId)
+        await notifyUser(exercise.userId, {
+          title: "Exercício Concluído",
+          content: `O aluno ${exercise.studentName || "Aluno"} concluiu a atividade "${exercise.title}".`
+        });
+
+        return { success: true };
+      }),
+
+    // Retorna o contato do professor responsável pelo aluno (para o botão "Falar com o professor")
+    getProfessorContact: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new Error("Perfil de aluno não encontrado.");
+
+      // Busca o professor do aluno
+      const [student] = await db.select({ professorId: students.professorId })
+        .from(students).where(eq(students.id, studentId)).limit(1);
+      if (!student) throw new Error("Aluno não encontrado.");
+
+      // Busca o nome do professor
+      const [professor] = await db.select({ name: users.name })
+        .from(users).where(eq(users.id, student.professorId)).limit(1);
+
+      // Busca o telefone do professor nas configurações (tabela settings)
+      const [professorSettings] = await db.select({ phone: settings.phone })
+        .from(settings).where(eq(settings.userId, student.professorId)).limit(1);
+
+      return {
+        name: professor?.name || null,
+        phone: professorSettings?.phone || null,
+      };
+    }),
+
+    // Gera uma explicação detalhada de um exercício do plano de estudos via IA
+    getExerciseDetails: studentProcedure.input(z.object({
+      exerciseTitle: z.string(),
+      exerciseSubtitle: z.string().optional(),
+      exercisePoints: z.array(z.string()).optional(),
+      instrument: z.string().optional(),
+      dayFocus: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [student] = await db.select({ professorId: students.professorId, name: students.name }).from(students).where(eq(students.id, ctx.user.studentId!));
+
+        // FIX: extrair o primeiro nome do aluno (era usado no prompt mas nunca definido → ReferenceError)
+        const firstName = (student?.name || "Aluno").trim().split(" ")[0];
+        
+        const instrument = input.instrument || "seu instrumento";
+        const dayFocus = input.dayFocus || "evoluir a prática do dia";
+        const exerciseSubtitle = input.exerciseSubtitle || "Instruções do exercício";
+        const exercisePoints = input.exercisePoints && input.exercisePoints.length > 0 ? input.exercisePoints.join(", ") : "Execução prática com atenção aos detalhes";
+
+        const prompt = `# Objetivo
+Você é o professor particular de música do ${firstName}.
+O aluno clicou em "Entender Melhor" no plano de estudos.
+Agora ele espera uma explicação exatamente como receberia pelo WhatsApp do próprio professor.
+
+Jamais escreva como IA.
+Jamais escreva como documentação.
+Jamais escreva como um artigo.
+Escreva como um professor conversando naturalmente.
+
+---
+
+## Dados
+Aluno: ${firstName}
+Instrumento: ${instrument}
+Objetivo do dia: ${dayFocus}
+Exercício: ${input.exerciseTitle}
+Subtítulo: ${exerciseSubtitle}
+Pontos do exercício: ${exercisePoints}
+
+---
+
+# Como responder
+Sempre siga esta sequência de forma fluida em uma mensagem contínua:
+
+1. Explique o objetivo: Mostre por que esse exercício existe, qual habilidade ele desenvolve e por que é importante.
+2. Ensine como fazer: Explique passo a passo como se o aluno nunca tivesse feito isso. Fale sobre postura, posição das mãos, ritmo, velocidade, respiração ou coordenação de acordo com o instrumento. Nunca pule etapas.
+3. Mostre o erro mais comum: Explique o erro que quase todo aluno comete e como evitar.
+4. Como saber se está certo: Explique os sinais visíveis/sonoros que mostram que ele está executando corretamente (ex: som limpo, ritmo constante, relaxamento, troca suave dos dedos).
+5. Dica de professor: Finalize sempre com uma dica prática que normalmente só um professor experiente daria durante uma aula.
+
+---
+
+# Linguagem
+Converse naturalmente. Use frases curtas.
+Evite excesso de entusiasmo ou clichês vazios.
+NUNCA diga: "Parabéns", "Excelente", "Continue assim", "Você consegue".
+Prefira uma conversa natural de professor para aluno.
+
+---
+
+# Adaptação por instrumento (${instrument})
+Sempre adapte a explicação estritamente para o ${instrument}:
+- Se for piano: fale sobre dedos, peso da mão, articulação, dinâmica, pedal.
+- Se for violão: fale sobre posição da mão, troca de acordes, batida, palhetada, pressão dos dedos.
+- Se for guitarra: fale sobre abafamento, bends, palhetada, precisão.
+- Se for bateria: fale sobre independência, dinâmica, tempo, postura.
+- Se for canto: fale sobre respiração, apoio, emissão, ressonância.
+Nunca misture técnicas de instrumentos diferentes.
+
+---
+
+# Resultado esperado e Formatação
+A resposta deve parecer uma mensagem enviada pelo professor no WhatsApp logo após a aula.
+O aluno deve terminar a leitura pensando: "Agora entendi exatamente o que preciso fazer."
+
+REGRAS RÍGIDAS DE FORMATAÇÃO:
+- Não utilize Markdown (PROIBIDO o uso de **, #, *, _, etc).
+- Não utilize listas enormes.
+- Não utilize emojis em excesso.
+- Responda apenas com texto natural e quebras de linha normais.`;
+
+        const { getSettingsByUserId } = await import("../db");
+        const settingsData = await getSettingsByUserId(ctx.user.organizationId!, student?.professorId || ctx.user.id);
+
+        const { callGemini } = await import("../utils/gemini");
+        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const explanation = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
+        return { explanation };
+      } catch (e: any) {
+        throw new Error("Não foi possível gerar a explicação: " + e.message);
+      }
+    }),
+  }),
+
+  // ─── AI ASSISTANT (Gemini) ──────────────────────────────────────────────────────────
+
+  // ─── Helpers de validação de mensagens da IA ───────────────────────────────────────
+  // Verificações feitas ANTES de enviar ao Gemini, no endpoint ai.chat
+
+  /**
+   * Verifica se a mensagem é válida para ser enviada à IA.
+   * Retorna null se válida, ou uma string de erro se inválida.
+   */
+
+  fileComments: router({
+    list: protectedProcedure.input(z.object({ fileId: z.number() })).query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const orgId = ctx.user.organizationId!;
+      return db.select({
+        id: fileComments.id,
+        content: fileComments.content,
+        createdAt: fileComments.createdAt,
+        userId: fileComments.userId,
+        userName: users.name,
+      })
+      .from(fileComments)
+      .leftJoin(users, eq(users.id, fileComments.userId))
+      .where(and(
+        eq(fileComments.organizationId, orgId),
+        eq(fileComments.fileId, input.fileId)
+      ))
+      .orderBy(asc(fileComments.createdAt));
+    }),
+    create: protectedProcedure.input(z.object({ fileId: z.number(), content: z.string() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      // AUDIT-P1 FIX (IDOR): validar que o arquivo comentado pertence à organização
+      const [ownedFile] = await db.select({ id: studentFiles.id })
+        .from(studentFiles)
+        .where(and(eq(studentFiles.id, input.fileId), eq(studentFiles.organizationId, orgId)))
+        .limit(1);
+      if (!ownedFile) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Arquivo não encontrado nesta escola." });
+      }
+
+      const [newComment] = await db.insert(fileComments).values({
+        organizationId: orgId,
+        fileId: input.fileId,
+        userId: ctx.user.id,
+        content: input.content,
+        createdAt: new Date(),
+      }).returning();
+      
+      return newComment;
+    }),
+  }),
+
+};

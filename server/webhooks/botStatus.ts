@@ -1,3 +1,4 @@
+import { debugLog } from "../_core/logger";
 import { Router } from "express";
 import type { Response } from "express";
 import { getDb } from "../db";
@@ -29,12 +30,12 @@ router.get("/sse", (req, res) => {
   }, 25_000);
 
   sseClients.add(res);
-  console.log(`[BotStatusSSE] Cliente conectado. Total: ${sseClients.size}`);
+  debugLog(`[BotStatusSSE] Cliente conectado. Total: ${sseClients.size}`);
 
   req.on("close", () => {
     clearInterval(keepAlive);
     sseClients.delete(res);
-    console.log(`[BotStatusSSE] Cliente desconectado. Total: ${sseClients.size}`);
+    debugLog(`[BotStatusSSE] Cliente desconectado. Total: ${sseClients.size}`);
   });
 });
 
@@ -77,7 +78,7 @@ router.post("/", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    console.log(`[BotWebhook] Sessão [${sessionId}] reportou status: ${status} — motivo: ${reason}`);
+    debugLog(`[BotWebhook] Sessão [${sessionId}] reportou status: ${status} — motivo: ${reason}`);
 
     // 1. Notifica via SSE todos os navegadores abertos imediatamente
     broadcastSSE("BOT_DISCONNECTED", {

@@ -1,3 +1,4 @@
+import { debugLog } from "../_core/logger";
 import { Router } from "express";
 import crypto from "crypto";
 import { getDb } from "../db";
@@ -252,7 +253,7 @@ router.post("/", async (req, res) => {
     }
 
     const payload = req.body;
-    console.log("[Webhook Debug] Payload recebido:", JSON.stringify(payload).substring(0, 300));
+    debugLog("[Webhook Debug] Payload recebido:", JSON.stringify(payload).substring(0, 300));
 
     // O Evolution API às vezes envia "messages.upsert" (v1) e outras vezes "MESSAGES_UPSERT" (v2)
     const eventName = payload?.event || "";
@@ -276,7 +277,7 @@ router.post("/", async (req, res) => {
 
     if (!textMsg) return res.status(200).json({ ok: true });
 
-    console.log(`[Chatbot] Mensagem de ${phone}: ${textMsg}`);
+    debugLog(`[Chatbot] Mensagem de ${phone}: ${textMsg}`);
 
     const db = await getDb();
     if (!db) return res.status(500).json({ error: "DB offline" });
@@ -342,7 +343,7 @@ router.post("/", async (req, res) => {
         message: msg,
         sessionId: instanceName || "prof_1",
       });
-      console.log(`[Chatbot] Resposta para ${phone} via ${instanceName || "prof_1"}: success=${result.success}`, result.error ? `Erro: ${result.error}` : "");
+      debugLog(`[Chatbot] Resposta para ${phone} via ${instanceName || "prof_1"}: success=${result.success}`, result.error ? `Erro: ${result.error}` : "");
     };
 
     // ── Função auxiliar para notificar o professor (Push FCM + Sistema + WhatsApp) ──
@@ -393,7 +394,7 @@ router.post("/", async (req, res) => {
         message: `🤖 *${notifTitle}:*\n\n${msg}`,
         sessionId: instanceName || "prof_1",
       });
-      console.log(`[Chatbot] Notificação enviada ao professor (${profSettings.phone}): success=${result.success}`);
+      debugLog(`[Chatbot] Notificação enviada ao professor (${profSettings.phone}): success=${result.success}`);
     };
 
     // ── Identificar aluno cadastrado (pelo telefone do aluno OU do responsável) ──
@@ -595,7 +596,7 @@ router.post("/", async (req, res) => {
     // ─────────────────────────────────────────────────────
     if (isProfessorChat) {
       try {
-        console.log(`[Chatbot] IA Assistente acionada pelo Professor ${phone}`);
+        debugLog(`[Chatbot] IA Assistente acionada pelo Professor ${phone}`);
         // Indica que está "digitando..." ou manda um status de espera (opcional)
         
         // Monta o contexto da escola (planilhas virtuais, dados, etc.)
@@ -1293,7 +1294,7 @@ router.post("/", async (req, res) => {
       const telAmigo = input.replace(/\D/g, "");
       const indicadorNome = student?.name || pushName;
 
-      console.log(`[Chatbot] Indicação registrada: ${nomeAmigo} (${telAmigo}) indicado por ${indicadorNome} (${phone})`);
+      debugLog(`[Chatbot] Indicação registrada: ${nomeAmigo} (${telAmigo}) indicado por ${indicadorNome} (${phone})`);
 
       await notifyProfessor(`⭐ *Nova Indicação de Amigo Recebida!*\n\n👤 *Indicado por:* ${indicadorNome} (${phone})\n🌟 *Nome do amigo:* ${nomeAmigo}\n📱 *WhatsApp do amigo:* ${telAmigo || input}\n\nEntre em contato para oferecer uma aula experimental! 🎵`);
 

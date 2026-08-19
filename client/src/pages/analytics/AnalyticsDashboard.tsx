@@ -23,7 +23,7 @@ import {
   Building2, Wifi, WifiOff, GraduationCap, UserCheck, CreditCard, SearchX,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import DashboardComercial from "../DashboardComercial";
 

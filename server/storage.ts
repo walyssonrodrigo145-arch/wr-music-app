@@ -1,3 +1,4 @@
+import { debugLog } from "./_core/logger";
 import { ENV } from './_core/env';
 import fs from 'fs';
 import path from 'path';
@@ -94,7 +95,7 @@ export async function storagePut(
   }
 
   // Fallback to Local Storage (FileSystem)
-  console.log(`[Storage] Falling back to local storage for ${key}`);
+  debugLog(`[Storage] Falling back to local storage for ${key}`);
   const filePath = path.join(UPLOADS_DIR, key);
   const dirPath = path.dirname(filePath);
   

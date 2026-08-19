@@ -8,6 +8,7 @@
  * - Garante que o Analytics nunca impacte a latência da API principal
  */
 
+import { debugLog } from "../_core/logger";
 import type { InsertAnalyticsEvent, InsertAnalyticsSession, InsertAnalyticsVisitor } from "../../drizzle/schema";
 
 type QueuedEvent = InsertAnalyticsEvent;
@@ -38,7 +39,7 @@ class AnalyticsQueue {
     if (this.isRunning) return;
     this.isRunning = true;
     this.drainTimer = setInterval(() => this.drain(), DRAIN_INTERVAL_MS);
-    console.log("[AnalyticsQueue] Worker iniciado. Intervalo:", DRAIN_INTERVAL_MS, "ms");
+    debugLog("[AnalyticsQueue] Worker iniciado. Intervalo:", DRAIN_INTERVAL_MS, "ms");
   }
 
   stop() {
@@ -315,6 +316,6 @@ export async function syncHistoricalRevenueToAnalytics() {
   // para analyticsRevenue (receita SaaS da plataforma MusicPro), misturando dados incorretos.
   // A tabela analyticsRevenue deve conter APENAS cobranças de planos das escolas que usam o MusicPro,
   // não mensalidades internas dos alunos.
-  console.log("[AnalyticsQueue] syncHistoricalRevenueToAnalytics DESATIVADO — dados de paymentDues não pertencem ao analytics SaaS.");
+  debugLog("[AnalyticsQueue] syncHistoricalRevenueToAnalytics DESATIVADO — dados de paymentDues não pertencem ao analytics SaaS.");
 }
 

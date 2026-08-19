@@ -1,3 +1,4 @@
+import { debugLog } from "./_core/logger";
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import * as dotenv from 'dotenv';
@@ -16,9 +17,9 @@ if (!getApps().length) {
         privateKey: privateKey,
       }),
     });
-    console.log('Firebase Admin inicializado com sucesso.');
+    debugLog('Firebase Admin inicializado com sucesso.');
   } else {
-    console.log('Firebase Admin não inicializado. Faltam credenciais no .env.');
+    debugLog('Firebase Admin não inicializado. Faltam credenciais no .env.');
   }
 }
 
@@ -32,7 +33,7 @@ export async function sendPushNotification(
   opts?: { icon?: string; badge?: string; url?: string }
 ): Promise<{ success: boolean; error?: string }> {
   if (!messaging) {
-    console.log('Firebase messaging não está configurado.');
+    debugLog('Firebase messaging não está configurado.');
     return { success: false, error: 'NOT_CONFIGURED' };
   }
 
@@ -45,7 +46,7 @@ export async function sendPushNotification(
       const endpoint = parsed.endpoint || '';
       if (endpoint.includes('/fcm/send/')) {
         targetToken = endpoint.split('/fcm/send/')[1];
-        console.log('[Push Fix] Token extraído do Endpoint WebPush com sucesso:', targetToken.substring(0, 30));
+        debugLog('[Push Fix] Token extraído do Endpoint WebPush com sucesso:', targetToken.substring(0, 30));
       }
     } catch (e) {
       console.warn('[Push Fix] Falha ao parsear JSON de endpoint token:', e);
@@ -107,7 +108,7 @@ export async function sendPushNotification(
         ...data,
       },
     });
-    console.log('Notificação push enviada para o dispositivo com sucesso:', response);
+    debugLog('Notificação push enviada para o dispositivo com sucesso:', response);
     return { success: true };
   } catch (error: any) {
     const errCode = error?.code || error?.message || 'UNKNOWN_ERROR';

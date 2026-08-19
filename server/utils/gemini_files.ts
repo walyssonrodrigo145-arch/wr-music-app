@@ -1,3 +1,4 @@
+import { debugLog } from "../_core/logger";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -69,19 +70,19 @@ export async function syncFolderToGemini(folderPath: string, customApiKey?: stri
     const stat = fs.statSync(fullPath);
     if (!stat.isFile()) continue;
 
-    console.log(`Syncing ${file} (${(stat.size / 1024 / 1024).toFixed(2)} MB)...`);
+    debugLog(`Syncing ${file} (${(stat.size / 1024 / 1024).toFixed(2)} MB)...`);
 
     try {
       const hash = getFileHash(fullPath);
       
       // Check cache
       if (cache[hash]) {
-        console.log(`Using cached version for ${file}`);
+        debugLog(`Using cached version for ${file}`);
         uploadedFiles.push(cache[hash]);
         continue;
       }
 
-      console.log(`Uploading ${file} to Gemini... This may take a while depending on size.`);
+      debugLog(`Uploading ${file} to Gemini... This may take a while depending on size.`);
       
       // Native File API Upload logic
       const fileStats = fs.statSync(fullPath);

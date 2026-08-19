@@ -8,6 +8,7 @@
  * - Logging estruturado com tempo de execução em todos os endpoints
  */
 
+import { debugLog } from "../_core/logger";
 import { ENV } from "../_core/env";
 
 const headers = (apiKey?: string) => ({
@@ -32,14 +33,14 @@ async function asaasRequest(
 ): Promise<Response> {
   const start = Date.now();
   const shortUrl = url.replace(ENV.asaasBaseUrl, "");
-  console.log(`[Asaas] → ${method} ${shortUrl}`, body ? JSON.stringify(body) : "");
+  debugLog(`[Asaas] → ${method} ${shortUrl}`, body ? JSON.stringify(body) : "");
   try {
     const res = await asaasFetch(url, {
       method,
       headers: headers(apiKey),
       body: body ? JSON.stringify(body) : undefined,
     });
-    console.log(`[Asaas] ← ${res.status} ${shortUrl} (${Date.now() - start}ms)`);
+    debugLog(`[Asaas] ← ${res.status} ${shortUrl} (${Date.now() - start}ms)`);
     return res;
   } catch (err: any) {
     const isTimeout = err?.name === "AbortError";

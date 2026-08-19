@@ -1,8 +1,9 @@
+import { debugLog } from "./logger";
 import { sql } from "drizzle-orm";
 import { getDb } from "../db";
 
 export async function runTenantMigrations() {
-  console.log("[Database] Verificando migrações de isolamento de dados (Multi-tenancy)...");
+  debugLog("[Database] Verificando migrações de isolamento de dados (Multi-tenancy)...");
   const db = await getDb();
   if (!db) return;
 
@@ -33,7 +34,7 @@ export async function runTenantMigrations() {
       }
     }
 
-    console.log("[Database] Migrações de isolamento concluídas!");
+    debugLog("[Database] Migrações de isolamento concluídas!");
   } catch (error: any) {
     console.error("[Database] Erro na migração de tenants:", error.message);
   }

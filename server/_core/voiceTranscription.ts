@@ -11,9 +11,9 @@
  * // Frontend component
  * const transcribeMutation = trpc.voice.transcribe.useMutation({
  *   onSuccess: (data) => {
- *     console.log(data.text); // Full transcription
- *     console.log(data.language); // Detected language
- *     console.log(data.segments); // Timestamped segments
+ *     debugLog(data.text); // Full transcription
+ *     debugLog(data.language); // Detected language
+ *     debugLog(data.segments); // Timestamped segments
  *   }
  * });
  * 
@@ -25,6 +25,7 @@
  * });
  * ```
  */
+import { debugLog } from "./logger";
 import { ENV } from "./env";
 
 export type TranscribeOptions = {

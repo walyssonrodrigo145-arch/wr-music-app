@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import jsQR from "jsqr";

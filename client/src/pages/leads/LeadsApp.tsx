@@ -17,7 +17,7 @@ import {
   MessageCircle, Share2, CheckSquare, XCircle, AlertCircle, Compass, Flame, Music, LogOut,
   ArrowLeft, CheckCircle, Award, Star, Send, ShieldAlert, FileCheck
 } from "lucide-react";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 // Estágios do Funil Comercial de Música MusicPro
 const DEFAULT_STAGES = [

@@ -24,7 +24,7 @@ import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { EditProfileModal } from "@/components/EditProfileModal";
 import { motion } from "framer-motion";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 const container = {
   hidden: { opacity: 0 },

@@ -13,7 +13,7 @@ import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { parseBRL } from "@/lib/money";
+import { parseBRL, formatBRL } from "@/lib/money";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "recharts";
@@ -550,9 +550,6 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
       .slice(0, 5);
   }, [expenses]);
 
-  const currencyFormat = (val: number) => 
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
-
   const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#6b7280'];
 
   const exportCSV = () => {
@@ -649,7 +646,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
             </div>
           </div>
           <div className="mt-4">
-            <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{currencyFormat(stats.currentSum)}</p>
+            <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{formatBRL(stats.currentSum)}</p>
             <div className="flex items-center gap-1.5 mt-2">
               <span className={cn("inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-md", stats.percentTotal <= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}>
                 {stats.percentTotal <= 0 ? <TrendingDown size={12} className="mr-1" /> : <TrendingUp size={12} className="mr-1" />}
@@ -669,7 +666,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
             </div>
           </div>
           <div className="mt-4">
-            <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{currencyFormat(stats.fixasSum)}</p>
+            <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{formatBRL(stats.fixasSum)}</p>
             <div className="flex items-center gap-1.5 mt-2">
               <span className="inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600">
                 {stats.percentFixas.toFixed(1)}% do total
@@ -688,7 +685,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
             </div>
           </div>
           <div className="mt-4">
-            <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{currencyFormat(stats.variaveisSum)}</p>
+            <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{formatBRL(stats.variaveisSum)}</p>
             <div className="flex items-center gap-1.5 mt-2">
               <span className={cn("inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-md", stats.percentVariaveis <= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600")}>
                 {stats.percentVariaveis <= 0 ? <TrendingDown size={12} className="mr-1" /> : <TrendingUp size={12} className="mr-1" />}
@@ -708,7 +705,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
             </div>
           </div>
           <div className="mt-4">
-            <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{currencyFormat(stats.mediaDiaria)}</p>
+            <p className="text-2xl lg:text-3xl font-black text-foreground tracking-tight">{formatBRL(stats.mediaDiaria)}</p>
             <div className="flex items-center gap-1.5 mt-2">
               <span className="inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600">
                 Período Atual
@@ -749,7 +746,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
                     ))}
                   </Pie>
                   <Tooltip 
-                    formatter={(val: any) => currencyFormat(Number(val))}
+                    formatter={(val: any) => formatBRL(Number(val))}
                     contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '0.75rem', fontSize: '12px', fontWeight: 'bold' }}
                   />
                 </PieChart>
@@ -782,7 +779,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
                 <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={45} tickFormatter={(val) => `R$${val/1000}k`} />
                 <Tooltip 
-                  formatter={(val: any) => currencyFormat(Number(val))}
+                  formatter={(val: any) => formatBRL(Number(val))}
                   contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '0.75rem', fontSize: '12px', fontWeight: 'bold' }}
                 />
                 <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} dot={{ r: 3, fill: '#3b82f6' }} activeDot={{ r: 5 }} />
@@ -810,7 +807,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
                     <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{format(new Date(exp.date + "T12:00:00"), "dd/MM")} • {exp.account || "Sem conta"}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-xs font-black text-amber-600 tracking-tight">{currencyFormat(Number(exp.amount))}</p>
+                    <p className="text-xs font-black text-amber-600 tracking-tight">{formatBRL(Number(exp.amount))}</p>
                   </div>
                 </div>
               ))
@@ -928,7 +925,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
                     </td>
                     <td className="px-6 py-4 text-right">
                       <p className="text-sm font-black text-foreground tracking-tight">
-                        {currencyFormat(Number(expense.amount))}
+                        {formatBRL(Number(expense.amount))}
                       </p>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -1016,7 +1013,7 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
 
                   <div className="text-right">
                     <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Valor</p>
-                    <p className="text-sm font-black text-foreground">{currencyFormat(Number(expense.amount))}</p>
+                    <p className="text-sm font-black text-foreground">{formatBRL(Number(expense.amount))}</p>
                   </div>
                 </div>
               </div>

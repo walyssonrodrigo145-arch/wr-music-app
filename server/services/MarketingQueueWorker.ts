@@ -1,3 +1,4 @@
+import { debugLog } from "../_core/logger";
 import { getDb } from "../db";
 import { marketingCampaigns, marketingContacts, marketingJobs, marketingLogs, settings } from "../../drizzle/schema";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
@@ -14,7 +15,7 @@ export class MarketingQueueWorker {
     if (this.isRunning) return;
     this.isRunning = true;
     this.intervalId = setInterval(() => this.processQueue(), WORKER_INTERVAL_MS);
-    console.log(`[Marketing Worker] Started with ID ${this.workerId}`);
+    debugLog(`[Marketing Worker] Started with ID ${this.workerId}`);
   }
 
   stop() {
@@ -23,7 +24,7 @@ export class MarketingQueueWorker {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    console.log(`[Marketing Worker] Stopped`);
+    debugLog(`[Marketing Worker] Stopped`);
   }
 
   private async processQueue() {
@@ -96,7 +97,7 @@ export class MarketingQueueWorker {
           .set({ status: 'completed', completedAt: new Date() })
           .where(eq(marketingCampaigns.id, campaign.id));
         await db.update(marketingJobs).set({ status: 'completed' }).where(eq(marketingJobs.id, job.id));
-        console.log(`[Marketing Worker] Campaign ${campaign.id} completed.`);
+        debugLog(`[Marketing Worker] Campaign ${campaign.id} completed.`);
         return;
       }
 

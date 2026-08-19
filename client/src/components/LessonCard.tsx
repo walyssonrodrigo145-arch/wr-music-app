@@ -11,9 +11,9 @@
   Beaker
 } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { LESSON_STATUS_CONFIG } from "@/lib/status";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,15 +47,7 @@ interface LessonCardProps {
 export default function LessonCard({ lesson, onStatusChange, onDelete, onEdit, onClick }: LessonCardProps) {
   const date = new Date(lesson.scheduledAt);
   
-  const statusConfig = {
-    agendada: { icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10", label: "Agendada", border: "border-blue-500/20" },
-    concluida: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Concluída", border: "border-emerald-500/20" },
-    cancelada: { icon: XCircle, color: "text-rose-500", bg: "bg-rose-500/10", label: "Cancelada", border: "border-rose-500/20" },
-    remarcada: { icon: CalendarDays, color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Remarcada", border: "border-yellow-500/20" },
-    falta: { icon: AlertCircle, color: "text-orange-500", bg: "bg-orange-500/10", label: "Falta", border: "border-orange-500/20" },
-  };
-
-  const config = statusConfig[lesson.status] || statusConfig.agendada;
+  const config = LESSON_STATUS_CONFIG[lesson.status] || LESSON_STATUS_CONFIG.agendada;
   const StatusIcon = config.icon;
 
   return (

@@ -2,17 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { validateCPF } from "@/lib/cpf";
+import { parseBRL } from "@/lib/money";
+import { maskCPF, maskPhone } from "@/lib/masks";
+import { parseDueDaysOptions } from "@/lib/settings";
 import { 
   ChevronLeft, 
   Save, 
-  X, 
   User, 
   GraduationCap, 
   Phone, 
   Users, 
   FileText,
   Calendar as CalendarIcon,
-  Search,
   Check,
   Loader2,
   AlertCircle,
@@ -48,19 +49,9 @@ import { differenceInYears, parseISO, isValid } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { CreateContractModal } from "@/components/modals/StudentContractsSection";
+import { PortalAccessCard } from "@/components/alunos/PortalAccessCard";
 
 const nameRegex = /^[a-zA-ZáàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ\s]+$/;
-
-const parseFee = (val: any) => {
-  if (val === undefined || val === null || val === "") return 0;
-  if (typeof val === "number") return isNaN(val) ? 0 : val;
-  const clean = String(val).replace(/R\$\s*/g, "").replace(/\s/g, "");
-  const normalized = clean.includes(",")
-    ? clean.replace(/\./g, "").replace(",", ".")
-    : clean;
-  const num = parseFloat(normalized);
-  return isNaN(num) ? 0 : num;
-};
 
 export default function NovoAluno() {
   const [location, setLocation] = useLocation();
@@ -84,11 +75,7 @@ export default function NovoAluno() {
 
   const { data: settings } = trpc.settings.get.useQuery();
 
-  const dueDaysOptions = (() => {
-    const raw = (settings?.dueDaysForecast ?? "5,10,15,20") as string;
-    const parsed = raw.split(",").map(d => Number(d.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 31);
-    return parsed.length > 0 ? Array.from(new Set(parsed)).sort((a, b) => a - b) : [5, 10, 15, 20];
-  })();
+  const dueDaysOptions = parseDueDaysOptions(settings?.dueDaysForecast);
 
   useEffect(() => {
     if (settings?.lessonDuration) {
@@ -275,48 +262,6 @@ export default function NovoAluno() {
     reader.readAsDataURL(file);
   };
 
-  // Auto-masking for CPF and Phone
-  const maskCPF = (value: string) => {
-    return value
-      .replace(/\D/g, "")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})/, "$1-$2")
-      .replace(/(-\d{2})\d+?$/, "$1");
-  };
-
-  const maskPhone = (value: string) => {
-    if (!value) return "";
-    // Se o usuário digitou um '+' no início ou DDI customizado
-    if (value.startsWith("+")) {
-      const clean = value.replace(/[^\d+]/g, "");
-      return clean;
-    }
-
-    let clean = value.replace(/\D/g, "");
-    if (!clean) return "";
-    
-    let prefix = "";
-    if (clean.startsWith("55") && clean.length > 11) {
-      prefix = "+55 ";
-      clean = clean.substring(2);
-    }
-    
-    if (clean.length <= 2) {
-      return prefix + clean;
-    }
-    
-    if (clean.length <= 6) {
-      return prefix + `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
-    }
-    
-    if (clean.length <= 10) {
-      return prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
-    }
-    
-    return prefix + `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
-  };
-
   const handleInputChange = (field: string | React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, value?: string) => {
     if (typeof field !== 'string') {
         const { name, value: eValue } = field.target;
@@ -368,7 +313,7 @@ export default function NovoAluno() {
         const now = new Date();
         generateMonthlyMutation.mutate({
           studentId: data.studentId,
-          amount: parseFee(form.monthlyFee),
+          amount: parseBRL(form.monthlyFee),
           dueDay: Number(form.dueDay) || 10,
           startMonth: now.getMonth() + 1,
           startYear: now.getFullYear(),
@@ -547,7 +492,7 @@ export default function NovoAluno() {
           studioRoomId: form.studioRoomId ? Number(form.studioRoomId) : undefined,
           level: form.level as any,
           startDate: form.startDate,
-          monthlyFee: parseFee(form.monthlyFee),
+          monthlyFee: parseBRL(form.monthlyFee),
           billingPeriodicity: form.billingPeriodicity as any,
           dueDay: form.dueDay ? Number(form.dueDay) : 10,
           lessonType: form.lessonType as any,
@@ -786,7 +731,7 @@ export default function NovoAluno() {
       studioRoomId: form.studioRoomId ? Number(form.studioRoomId) : undefined,
       professorId: form.professorId ? Number(form.professorId) : undefined,
       level: form.level as "iniciante" | "intermediario" | "avancado",
-      monthlyFee: parseFee(form.monthlyFee),
+      monthlyFee: parseBRL(form.monthlyFee),
       billingPeriodicity: form.billingPeriodicity as any,
       dueDay: Number(form.dueDay) || 10,
       lessonType: form.lessonType as any,
@@ -819,52 +764,6 @@ export default function NovoAluno() {
 
 
   // UI section for Portal Access
-  const renderPortalAccessCard = () => (
-    <motion.div variants={cardVariants} className="bg-card rounded-[2rem] p-8 shadow-sm border border-emerald-500/20 bg-emerald-500/5 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-500 relative overflow-hidden group">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-700 blur-3xl opacity-50" />
-      
-      <div className="flex items-center gap-4 mb-8 relative z-10">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-110 transition-transform">
-          <UserCheck size={24} />
-        </div>
-        <div>
-          <h3 className="text-lg font-black text-foreground tracking-tight">Portal do Aluno</h3>
-          <p className="text-[10px] text-emerald-600/70 font-bold uppercase tracking-[0.2em]">Acesso ao portal</p>
-        </div>
-      </div>
-
-      <div className="space-y-6 relative z-10">
-        <div className="space-y-2">
-          {form.email?.toLowerCase().endsWith('@gmail.com') ? (
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-              <p className="text-sm font-bold text-emerald-700">Acesso via Google Detectado</p>
-              <p className="text-xs text-emerald-600 mt-1">Como o e-mail cadastrado é um @gmail.com, o aluno poderá fazer login diretamente clicando em "Entrar com Google". Nenhuma senha temporária é necessária.</p>
-            </div>
-          ) : (
-            <>
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
-                Senha Temporária (mín. 6 caracteres)
-              </label>
-              <div className="relative group/input">
-                <Input 
-                  placeholder="Defina uma senha inicial" 
-                  type="password"
-                  value={form.temporaryPassword}
-                  onChange={(e) => handleInputChange('temporaryPassword', e.target.value)}
-                  className="h-12 rounded-xl border-border bg-muted/30 focus:bg-background focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-semibold pl-11"
-                />
-                <AlertCircle className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/70 group-focus-within/input:text-emerald-500 transition-colors" size={18} />
-              </div>
-              <p className="text-[10px] text-muted-foreground/70 font-medium px-1">
-                O aluno usará o e-mail cadastrado e esta senha para o primeiro acesso.
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-
   const containerVariants: any = {
     hidden: { opacity: 0 },
     visible: { 
@@ -1840,7 +1739,7 @@ export default function NovoAluno() {
             </motion.div>
 
             {/* CARD 6 — Portal do Aluno (Novo) */}
-            {!isEditMode && renderPortalAccessCard()}
+            {!isEditMode && <PortalAccessCard form={form} handleInputChange={handleInputChange} cardVariants={cardVariants} />}
           </div>
         </motion.div>
 

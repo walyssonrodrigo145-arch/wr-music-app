@@ -11,13 +11,14 @@ import {
   Layers, GraduationCap, BarChart2, Sparkles, FileText, AlertCircle, Activity, Loader2
 } from 'lucide-react';
 import { trpc } from '../lib/trpc';
+import { formatBRL } from '../lib/money';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadBase64File } from '../utils/downloadReport';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import DashboardComercial from './DashboardComercial';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -189,10 +190,6 @@ const Relatorios: React.FC = () => {
   const pausedStudents  = useMemo(() => studentsQuery.data?.filter((s: any) => s.status === 'pausado').length || 0, [studentsQuery.data]);
   const totalStudents   = useMemo(() => (studentsQuery.data?.length || 1), [studentsQuery.data]);
 
-  // ── Formatters ─────────────────────────────────────────────────────────────
-  const currencyFormat = (val: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-
   const tooltipStyle = {
     backgroundColor: 'var(--card)',
     borderColor: 'var(--border)',
@@ -297,10 +294,10 @@ const Relatorios: React.FC = () => {
     return (
       <div className="space-y-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <ReportMetricCard title="Receita Recebida"  value={currencyFormat(cur?.pago     || 0)} trend={trendPago}     gradient="bg-emerald-500" icon={DollarSign}  subtitle="vs mês anterior" delay={0.05} />
-          <ReportMetricCard title="A Receber"         value={currencyFormat(cur?.pendente  || 0)} trend={trendPendente} gradient="bg-amber-500"   icon={Clock}        subtitle="vs mês anterior" delay={0.1} />
-          <ReportMetricCard title="Inadimplência"     value={currencyFormat(cur?.atrasado  || 0)} trend={trendAtrasado} gradient="bg-rose-500"    icon={CreditCard}   subtitle="vs mês anterior" delay={0.15} invertTrend={true} />
-          <ReportMetricCard title="Total Projetado"   value={currencyFormat(cur?.total     || 0)} trend={trendTotal}    gradient="bg-indigo-500"  icon={Activity}     subtitle="vs mês anterior" delay={0.2} />
+          <ReportMetricCard title="Receita Recebida"  value={formatBRL(cur?.pago     || 0)} trend={trendPago}     gradient="bg-emerald-500" icon={DollarSign}  subtitle="vs mês anterior" delay={0.05} />
+          <ReportMetricCard title="A Receber"         value={formatBRL(cur?.pendente  || 0)} trend={trendPendente} gradient="bg-amber-500"   icon={Clock}        subtitle="vs mês anterior" delay={0.1} />
+          <ReportMetricCard title="Inadimplência"     value={formatBRL(cur?.atrasado  || 0)} trend={trendAtrasado} gradient="bg-rose-500"    icon={CreditCard}   subtitle="vs mês anterior" delay={0.15} invertTrend={true} />
+          <ReportMetricCard title="Total Projetado"   value={formatBRL(cur?.total     || 0)} trend={trendTotal}    gradient="bg-indigo-500"  icon={Activity}     subtitle="vs mês anterior" delay={0.2} />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -386,9 +383,9 @@ const Relatorios: React.FC = () => {
     return (
       <div className="space-y-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <ReportMetricCard title="Receita Total"    value={currencyFormat(receitaPrevista)} trend={trendReceita}  gradient="bg-indigo-500"  icon={DollarSign}  subtitle="mês selecionado" delay={0.05} />
-          <ReportMetricCard title="Despesas do Mês"  value={currencyFormat(despesasTotal)}   trend={trendDespesas} gradient="bg-rose-500"    icon={CreditCard}  subtitle="saídas registradas" delay={0.1} invertTrend={true} />
-          <ReportMetricCard title="Lucro Líquido"    value={currencyFormat(lucroLiquido)}    trend={trendLucro}    gradient={lucroLiquido >= 0 ? "bg-emerald-500" : "bg-rose-500"} icon={TrendingUp}  subtitle="receita − despesa" delay={0.15} />
+          <ReportMetricCard title="Receita Total"    value={formatBRL(receitaPrevista)} trend={trendReceita}  gradient="bg-indigo-500"  icon={DollarSign}  subtitle="mês selecionado" delay={0.05} />
+          <ReportMetricCard title="Despesas do Mês"  value={formatBRL(despesasTotal)}   trend={trendDespesas} gradient="bg-rose-500"    icon={CreditCard}  subtitle="saídas registradas" delay={0.1} invertTrend={true} />
+          <ReportMetricCard title="Lucro Líquido"    value={formatBRL(lucroLiquido)}    trend={trendLucro}    gradient={lucroLiquido >= 0 ? "bg-emerald-500" : "bg-rose-500"} icon={TrendingUp}  subtitle="receita − despesa" delay={0.15} />
           <ReportMetricCard title="Margem de Lucro"  value={`${margem.toFixed(1)}%`}         trend={trendMargem}   gradient="bg-purple-500"  icon={PieIcon}     subtitle="sobre faturamento" delay={0.2} />
         </div>
 
@@ -407,12 +404,12 @@ const Relatorios: React.FC = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(val: number) => currencyFormat(Number(val))} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(val: number) => formatBRL(Number(val))} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Faturamento</span>
-                <span className="text-lg font-black text-foreground mt-0.5 font-outfit">{currencyFormat(receitaPrevista)}</span>
+                <span className="text-lg font-black text-foreground mt-0.5 font-outfit">{formatBRL(receitaPrevista)}</span>
               </div>
             </div>
 
@@ -421,7 +418,7 @@ const Relatorios: React.FC = () => {
                 <div key={d.name} className="flex items-center gap-2">
                   <span className="w-3 h-3 rounded-md shrink-0" style={{ backgroundColor: d.color }} />
                   <span className="text-xs font-semibold text-muted-foreground">{d.name}</span>
-                  <span className="text-xs font-black text-foreground">({currencyFormat(d.value)})</span>
+                  <span className="text-xs font-black text-foreground">({formatBRL(d.value)})</span>
                 </div>
               ))}
             </div>
@@ -441,7 +438,7 @@ const Relatorios: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 700 }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 700 }} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={(val: number) => currencyFormat(Number(val))} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(val: number) => formatBRL(Number(val))} />
                     <Bar dataKey="value" name="Valor" fill="#ef4444" radius={[8, 8, 0, 0]} barSize={36} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -471,10 +468,10 @@ const Relatorios: React.FC = () => {
     return (
       <div className="space-y-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <ReportMetricCard title="Receita Recorrente" value={currencyFormat(receitaBase)}  trend={calcTrend(receitaBase, prevTotalRef)} gradient="bg-indigo-500"  icon={DollarSign}  subtitle="alunos ativos"  delay={0.05} />
-          <ReportMetricCard title="Despesa Fixa Mensal" value={currencyFormat(despesaBase)} trend={calcTrend(despesaBase, prevDespRef)}  gradient="bg-rose-500"    icon={CreditCard}   subtitle="contas mensais" delay={0.1} />
-          <ReportMetricCard title="Lucro Mensal Base"   value={currencyFormat(lucroBase)}   trend={calcTrend(lucroBase,   prevLucroRef)} gradient="bg-emerald-500" icon={TrendingUp}   subtitle="projeção base"  delay={0.15} />
-          <ReportMetricCard title="Lucro em 6 Meses"    value={currencyFormat(lucro6Meses)} trend={calcTrend(lucro6Meses, prevLucroRef * 6)} gradient="bg-purple-500" icon={Wallet}   subtitle="projeção total" delay={0.2} />
+          <ReportMetricCard title="Receita Recorrente" value={formatBRL(receitaBase)}  trend={calcTrend(receitaBase, prevTotalRef)} gradient="bg-indigo-500"  icon={DollarSign}  subtitle="alunos ativos"  delay={0.05} />
+          <ReportMetricCard title="Despesa Fixa Mensal" value={formatBRL(despesaBase)} trend={calcTrend(despesaBase, prevDespRef)}  gradient="bg-rose-500"    icon={CreditCard}   subtitle="contas mensais" delay={0.1} />
+          <ReportMetricCard title="Lucro Mensal Base"   value={formatBRL(lucroBase)}   trend={calcTrend(lucroBase,   prevLucroRef)} gradient="bg-emerald-500" icon={TrendingUp}   subtitle="projeção base"  delay={0.15} />
+          <ReportMetricCard title="Lucro em 6 Meses"    value={formatBRL(lucro6Meses)} trend={calcTrend(lucro6Meses, prevLucroRef * 6)} gradient="bg-purple-500" icon={Wallet}   subtitle="projeção total" delay={0.2} />
         </div>
 
         <ChartCard>
@@ -497,8 +494,8 @@ const Relatorios: React.FC = () => {
                 <ComposedChart data={proj?.projection || []}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="monthName" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 700 }} dy={8} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 700 }} width={80} tickFormatter={v => currencyFormat(v)} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(val: number) => currencyFormat(Number(val))} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 700 }} width={80} tickFormatter={v => formatBRL(v)} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(val: number) => formatBRL(Number(val))} />
                   <Bar dataKey="receita" name="Receita Projetada" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={28} />
                   <Bar dataKey="despesa" name="Despesa Projetada" fill="#ef4444" radius={[6, 6, 0, 0]} barSize={28} />
                   <Line type="monotone" dataKey="lucro" name="Lucro Líquido" stroke="#10b981" strokeWidth={3} dot={{ r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} />
@@ -739,7 +736,7 @@ const Relatorios: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 700 }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 700 }} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => currencyFormat(value)} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => formatBRL(value)} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 700 }} />
                     <Bar dataKey="Recebido"   fill="#10b981" radius={[6, 6, 0, 0]} barSize={22} />
                     <Bar dataKey="A Receber"  fill="#f59e0b" radius={[6, 6, 0, 0]} barSize={22} />
@@ -769,12 +766,12 @@ const Relatorios: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{s.lessonType === 'individual' ? 'Aula Individual' : 'Aula em Turma'}</p>
-                    <p className="text-2xl font-black text-foreground font-outfit">{currencyFormat(s.avg)}</p>
+                    <p className="text-2xl font-black text-foreground font-outfit">{formatBRL(s.avg)}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">{s.count} Alunos</p>
-                  <p className="text-xs font-semibold text-muted-foreground">Total: {currencyFormat(s.revenue)}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">Total: {formatBRL(s.revenue)}</p>
                 </div>
               </motion.div>
             ))}
@@ -872,7 +869,7 @@ const Relatorios: React.FC = () => {
                         {format(new Date(pay.dueDate), 'dd/MM/yyyy')}
                       </td>
                       <td className="py-5 px-4 font-black text-foreground text-sm font-outfit">
-                        {currencyFormat(Number(pay.amount))}
+                        {formatBRL(Number(pay.amount))}
                       </td>
                       <td className="py-5 px-4">
                         <span className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest",
@@ -1035,7 +1032,7 @@ const Relatorios: React.FC = () => {
               {[
                 { label: 'Alunos (Ativos)', value: activeStudents ?? '—' },
                 { label: 'Aulas/Mês', value: statsQuery.data?.monthLessons ?? '—' },
-                { label: 'Receita', value: financeiroQuery.data?.total != null ? currencyFormat(financeiroQuery.data.total) : '—' },
+                { label: 'Receita', value: financeiroQuery.data?.total != null ? formatBRL(financeiroQuery.data.total) : '—' },
               ].map(kpi => (
                 <div key={kpi.label} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-5 py-3 text-center">
                   <p className="text-white font-black text-xl font-outfit">{kpi.value}</p>

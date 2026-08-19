@@ -21,12 +21,12 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LESSON_STATUS_CONFIG, type LessonStatus } from "@/lib/status";
 
 interface LessonDetailModalProps {
   lesson: any;
@@ -96,15 +96,7 @@ export default function LessonDetailModal({
 
   const date = new Date(lesson.scheduledAt);
   
-  const statusConfig: any = {
-    agendada: { icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10", label: "Agendada", border: "border-blue-500/20" },
-    concluida: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Concluída", border: "border-emerald-500/20" },
-    cancelada: { icon: XCircle, color: "text-rose-500", bg: "bg-rose-500/10", label: "Cancelada", border: "border-rose-500/20" },
-    remarcada: { icon: CalendarDays, color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Remarcada", border: "border-yellow-500/20" },
-    falta: { icon: AlertCircle, color: "text-orange-500", bg: "bg-orange-500/10", label: "Falta", border: "border-orange-500/20" },
-  };
-
-  const config = statusConfig[lesson.status] || statusConfig.agendada;
+  const config = LESSON_STATUS_CONFIG[(lesson.status as LessonStatus) || "agendada"] || LESSON_STATUS_CONFIG.agendada;
   const StatusIcon = config.icon;
 
   const handleStudentAttendance = (lessonId: number, status: 'concluida' | 'falta' | 'agendada') => {
@@ -246,7 +238,7 @@ export default function LessonDetailModal({
                   ) : (
                     turmaDetails.map((item: any) => {
                       const currentStatus = localStatuses[item.id] || item.status || 'agendada';
-                      const itemCfg = statusConfig[currentStatus] || statusConfig.agendada;
+                      const itemCfg = LESSON_STATUS_CONFIG[(currentStatus as LessonStatus) || "agendada"] || LESSON_STATUS_CONFIG.agendada;
                       const isConcluido = currentStatus === 'concluida';
                       const isFalta = currentStatus === 'falta';
 

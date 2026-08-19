@@ -1,3 +1,4 @@
+import { debugLog } from "./logger";
 import { TRPCError } from "@trpc/server";
 import { ENV } from "./env";
 import { sendPushNotification } from "../firebaseAdmin";
@@ -129,7 +130,7 @@ export async function notifyUser(
     } else {
       const tokens = await db.select().from(fcmTokens).where(eq(fcmTokens.userId, userId));
       if (tokens.length === 0) {
-        console.log(`[Push] No FCM tokens registered for userId ${userId}`);
+        debugLog(`[Push] No FCM tokens registered for userId ${userId}`);
       } else {
         let sentCount = 0;
         for (const device of tokens) {
@@ -140,7 +141,7 @@ export async function notifyUser(
           });
           if (res.success) sentCount++;
         }
-        console.log(`[Push] Sent ${sentCount} notifications to userId ${userId}`);
+        debugLog(`[Push] Sent ${sentCount} notifications to userId ${userId}`);
       }
     }
   } catch (error) {

@@ -1,3 +1,4 @@
+import { debugLog } from "../_core/logger";
 import crypto from "crypto";
 
 interface SendWhatsAppParams {
@@ -241,7 +242,7 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
       return {};
     }) as any;
 
-    console.log(`[WhatsApp] Connect data for ${sessionId}:`, JSON.stringify(connectData).substring(0, 200));
+    debugLog(`[WhatsApp] Connect data for ${sessionId}:`, JSON.stringify(connectData).substring(0, 200));
 
     const pairingCode = connectData?.pairingCode || "";
     const qrBase64   = connectData?.base64 || connectData?.qrcode || "";
@@ -332,7 +333,7 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
         return {};
       }) as any;
 
-      console.log(`[WhatsApp] Status polling connect data for ${sessionId}:`, JSON.stringify(connectData).substring(0, 200));
+      debugLog(`[WhatsApp] Status polling connect data for ${sessionId}:`, JSON.stringify(connectData).substring(0, 200));
 
       return {
         sessionId,
@@ -468,7 +469,7 @@ export async function setupEvolutionWebhook(instanceName: string = DEFAULT_INSTA
     });
 
     if (res.ok) {
-      console.log(`[Evolution API] Webhook registrado com sucesso em: ${webhookUrl}`);
+      debugLog(`[Evolution API] Webhook registrado com sucesso em: ${webhookUrl}`);
     } else {
       const errTxt = await res.text();
       console.error(`[Evolution API] Falha ao registrar webhook: ${errTxt}`);
@@ -504,7 +505,7 @@ export async function setupAllEvolutionWebhooks() {
 
     const instances: any[] = await res.json();
     if (!Array.isArray(instances) || instances.length === 0) {
-      console.log("[Evolution API] Nenhuma instância encontrada para registrar webhook.");
+      debugLog("[Evolution API] Nenhuma instância encontrada para registrar webhook.");
       return;
     }
 
@@ -514,7 +515,7 @@ export async function setupAllEvolutionWebhooks() {
       await setupEvolutionWebhook(instanceName);
     }
 
-    console.log(`[Evolution API] Webhooks registrados para ${instances.length} instância(s).`);
+    debugLog(`[Evolution API] Webhooks registrados para ${instances.length} instância(s).`);
   } catch (err: any) {
     console.error(`[Evolution API] Erro ao registrar webhooks no startup: ${err.message}`);
   }

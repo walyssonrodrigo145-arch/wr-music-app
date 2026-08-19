@@ -4,6 +4,7 @@
  * de acordo com as regras de negócio de automação avançada.
  */
 
+import { debugLog } from "./_core/logger";
 import { eq, and, gte, lte, lt, desc, sql, or, like } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
@@ -60,7 +61,7 @@ const PAIRING_SESSION_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutos
 
 async function runAutomation() {
   if (isAutomationRunning) {
-    console.log("[Automation] Skipping — execução anterior ainda em andamento.");
+    debugLog("[Automation] Skipping — execução anterior ainda em andamento.");
     return;
   }
   isAutomationRunning = true;
@@ -115,7 +116,7 @@ async function runAutomation() {
     if (userSettings.automationLastRun) {
       const msSinceLastRun = now.getTime() - new Date(userSettings.automationLastRun).getTime();
       if (msSinceLastRun < 50 * 1000) {
-        console.log(`[Automation] Skipping userId=${userId} — outro processo executou há ${Math.round(msSinceLastRun / 1000)}s (DB lock).`);
+        debugLog(`[Automation] Skipping userId=${userId} — outro processo executou há ${Math.round(msSinceLastRun / 1000)}s (DB lock).`);
         continue;
       }
     }
@@ -141,7 +142,7 @@ async function runAutomation() {
           const elapsed = now.getTime() - pairingStartedAt;
           if (elapsed < PAIRING_SESSION_TIMEOUT_MS) {
             // Ainda dentro do tempo de pareamento → pula o keep-alive
-            console.log(`[Keep-Alive] Sessão ${sessionId} em pareamento ativo — ignorando reconexão automática.`);
+            debugLog(`[Keep-Alive] Sessão ${sessionId} em pareamento ativo — ignorando reconexão automática.`);
             lastKeepAliveBySession.set(sessionId, now.getTime());
             continue; // ← pula para o próximo usuário
           } else {
@@ -152,13 +153,13 @@ async function runAutomation() {
         // ───────────────────────────────────────────────────────────────────────
 
         try {
-          console.log('[Trace] Calling getWhatsAppSessionStatus'); const statusResult = await getWhatsAppSessionStatus({
+          debugLog('[Trace] Calling getWhatsAppSessionStatus'); const statusResult = await getWhatsAppSessionStatus({
             url: userSettings.whatsappBotUrl || undefined,
             token: userSettings.whatsappBotToken || undefined,
             sessionId,
           });
           lastKeepAliveBySession.set(sessionId, now.getTime());
-          console.log(`[Keep-Alive] Ping OK para sessão ${sessionId} — status: ${statusResult.status}`);
+          debugLog(`[Keep-Alive] Ping OK para sessão ${sessionId} — status: ${statusResult.status}`);
 
           // Se detectou que a sessão caiu, tenta reconectar automaticamente
           if (statusResult.status === 'DISCONNECTED') {
@@ -167,7 +168,7 @@ async function runAutomation() {
               (reconnectInfo.count < MAX_AUTO_RECONNECT && now.getTime() - reconnectInfo.lastAt >= AUTO_RECONNECT_COOLDOWN_MS);
 
             if (canRetry) {
-              console.log(`[Keep-Alive] Sessão ${sessionId} DESCONECTADA — tentando reconexão automática...`);
+              debugLog(`[Keep-Alive] Sessão ${sessionId} DESCONECTADA — tentando reconexão automática...`);
               try {
                 await reconnectWhatsAppSession({
                   url: userSettings.whatsappBotUrl || undefined,
@@ -178,7 +179,7 @@ async function runAutomation() {
                   count: (reconnectInfo?.count ?? 0) + 1,
                   lastAt: now.getTime(),
                 });
-                console.log(`[Keep-Alive] Reconexão automática solicitada para ${sessionId}`);
+                debugLog(`[Keep-Alive] Reconexão automática solicitada para ${sessionId}`);
               } catch (reconErr) {
                 console.error(`[Keep-Alive] Falha na reconexão automática para ${sessionId}:`, reconErr);
               }
@@ -231,7 +232,7 @@ async function runAutomation() {
         // O limite de visualização já é gerenciado pelo tRPC limit(200) na tela.
         lastCleanupByUser.set(cleanupKey, brazilDateStr);
         ranCleanupThisCycle = true;
-        console.log(`[Automation] ✅ Limpeza semanal (pular deleção para manter histórico) — domingo ${brazilDateStr} (userId=${userId})`);
+        debugLog(`[Automation] ✅ Limpeza semanal (pular deleção para manter histórico) — domingo ${brazilDateStr} (userId=${userId})`);
       }
 
 
@@ -399,7 +400,7 @@ async function runAutomation() {
           }
 
           if (refType) {
-            console.log('[Trace] Calling db.select for existingExp');
+            debugLog('[Trace] Calling db.select for existingExp');
             // BUG-009 FIX: Inclui userId na query de dedup para isolar professores da mesma org
             const existingExp = await db.select({ id: reminders.id }).from(reminders)
               .where(and(
@@ -531,7 +532,7 @@ async function runAutomation() {
         for (const rem of pendingReminders) {
                 if (rem.allowAutoReminders === false) continue;
           if (messagesSentThisCycle >= MAX_MESSAGES_PER_MINUTE) {
-            console.log(`[Automation] Limite de ${MAX_MESSAGES_PER_MINUTE} mensagem/min atingido. Fila continua no próximo ciclo.`);
+            debugLog(`[Automation] Limite de ${MAX_MESSAGES_PER_MINUTE} mensagem/min atingido. Fila continua no próximo ciclo.`);
             break;
           }
 
@@ -564,7 +565,7 @@ async function runAutomation() {
             ? String(userSettings.logoUrl).trim()
             : null;
 
-          console.log('[Trace] Calling sendWhatsAppMessage for ', targetPhone);
+          debugLog('[Trace] Calling sendWhatsAppMessage for ', targetPhone);
           const sendRes = await sendWhatsAppMessage({
             url: userSettings.whatsappBotUrl,
             token: userSettings.whatsappBotToken,
@@ -1498,6 +1499,6 @@ export function startAutomationJob() {
     runAutomation().catch(err => console.error("[Automation] Scheduled run error:", err));
   }, 60 * 1000);
 
-  console.log("[Automation] Job scheduler started — runs every 1 minute");
+  debugLog("[Automation] Job scheduler started — runs every 1 minute");
 }
 

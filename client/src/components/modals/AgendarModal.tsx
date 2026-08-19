@@ -11,7 +11,6 @@ import {
   CalendarDays,
   CalendarRange,
   ChevronLeft,
-  Info,
   Beaker,
   UserPlus,
   Users,
@@ -22,8 +21,8 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { safeFormat } from "@/lib/dates";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
@@ -103,16 +102,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  const safeFormat = (date: any, formatStr: string) => {
-    try {
-      const d = new Date(date);
-      if (isNaN(d.getTime())) return "Inválida";
-      return format(d, formatStr);
-    } catch {
-      return "Inválida";
-    }
-  };  const lastLoadedLessonId = useRef<string | number | null>(null);
+  const lastLoadedLessonId = useRef<string | number | null>(null);
 
   useEffect(() => {
     if (!open) {

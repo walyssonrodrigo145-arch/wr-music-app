@@ -13,7 +13,7 @@ import { Megaphone, Plus, ArrowRight, Play, Pause, CheckCircle2, AlertTriangle, 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import CrmKanban from "./CrmKanban";
 
