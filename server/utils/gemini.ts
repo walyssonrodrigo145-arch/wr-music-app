@@ -61,9 +61,9 @@ export async function callGemini(
         safeModel = safeModel.includes("8b") ? "openai/gpt-oss-20b" : "openai/gpt-oss-120b";
       }
 
-      const GROQ_TIMEOUT_MS = 30_000;
+      const GROQ_TIMEOUT_MS = 60_000;
       const timeoutPromise = () => new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("[Groq] Timeout: A API não respondeu em 30 segundos.")), GROQ_TIMEOUT_MS)
+        setTimeout(() => reject(new Error("[Groq] Timeout: A API não respondeu em 60 segundos.")), GROQ_TIMEOUT_MS)
       );
 
       const requestCompletion = async (jsonMode: boolean, maxTokens?: number) => {
@@ -103,7 +103,8 @@ export async function callGemini(
           const jsonValidationFailed = needsJsonMode && (msg.includes("json_validate_failed") || msg.includes("Failed to validate JSON"));
           const maxTokensRejected = lower.includes("max_tokens");
           const tpmLimit = attemptError?.status === 413 || lower.includes("tokens per minute") || lower.includes("rate_limit_exceeded") || lower.includes("request too large");
-          if (!jsonValidationFailed && !maxTokensRejected && !tpmLimit) throw attemptError;
+          const isTimeout = lower.includes("timeout") || lower.includes("não respondeu") || lower.includes("api não responde");
+          if ((!jsonValidationFailed && !maxTokensRejected && !tpmLimit && !isTimeout) || (isTimeout && attemptCount >= 2)) throw attemptError;
           console.warn("[Groq] Tentativa falhou, ajustando requisição e tentando de novo:", msg);
           if (jsonValidationFailed) needsJsonMode = false;
           if (maxTokensRejected) maxTokens = undefined;
@@ -185,10 +186,10 @@ export async function callGemini(
     
     const lastMessage = formattedMessages[formattedMessages.length - 1];
     
-    // Timeout explícito de 30 segundos para chamadas à API do Gemini
-    const GEMINI_TIMEOUT_MS = 30_000;
+    // Timeout explícito de 60 segundos para chamadas à API do Gemini
+    const GEMINI_TIMEOUT_MS = 60_000;
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("[Gemini] Timeout: A API não respondeu em 30 segundos.")), GEMINI_TIMEOUT_MS)
+      setTimeout(() => reject(new Error("[Gemini] Timeout: A API não respondeu em 60 segundos.")), GEMINI_TIMEOUT_MS)
     );
     
     const result = await Promise.race([

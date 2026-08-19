@@ -511,6 +511,7 @@ ${weeklyGoalsText}
 # ✏️ REGRA Nº 2 — LINGUAGEM SIMPLES DE INICIANTE
 
 - Escreva como um professor falando com uma criança que está começando: frases curtas, palavras do dia a dia, em 1ª pessoa ("vamos", "coloque seus dedos", "eu quero que você...").
+- Seja CONCISO: 2 a 3 pontos curtos por exercício e frases com no máximo 10 palavras.
 - PROIBIDO usar termos técnicos: "traste", "strum", "compasso", "memória muscular", "abafamento", "pressão dos dedos", "escalas", "posição de Xª casa", "corda X" e letras de acorde em inglês (C, D, E, G, A).
 - Use SEMPRE o nome do acorde igual ao da meta: "Dó maior", "Mi maior", "Ré maior" — nunca "C", "E" ou "D".
 
