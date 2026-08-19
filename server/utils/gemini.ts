@@ -11,6 +11,21 @@ if (!defaultApiKey) {
 export const genAI = new GoogleGenerativeAI(defaultApiKey || "");
 import Groq from "groq-sdk";
 
+// Extrai o JSON de uma resposta de IA, mesmo com markdown, texto antes/depois ou truncamento.
+export function extractJsonFromText(text: string): string {
+  if (!text) return "";
+  let cleaned = text
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
+}
+
 export async function callGemini(
   messages: Array<{ role: string; content: string }>,
   systemPrompt?: string,
@@ -47,25 +62,85 @@ export async function callGemini(
       }
 
       const GROQ_TIMEOUT_MS = 30_000;
-      const timeoutPromise = new Promise<never>((_, reject) =>
+      const timeoutPromise = () => new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("[Groq] Timeout: A API não respondeu em 30 segundos.")), GROQ_TIMEOUT_MS)
       );
 
-      const completion = await Promise.race([
-        groq.chat.completions.create({
-          messages: groqMessages,
-          model: safeModel,
-          temperature: 0.3,
-          response_format: isJson ? { type: "json_object" } : undefined,
-        }),
-        timeoutPromise,
-      ]) as any;
+      const requestCompletion = async (jsonMode: boolean, maxTokens?: number) => {
+        const completion = await Promise.race([
+          groq.chat.completions.create({
+            messages: groqMessages,
+            model: safeModel,
+            temperature: 0.3,
+            max_tokens: maxTokens,
+            response_format: jsonMode ? { type: "json_object" } : undefined,
+          }),
+          timeoutPromise(),
+        ]) as any;
+        return completion.choices[0]?.message?.content || "";
+      };
 
-      return completion.choices[0]?.message?.content || "";
+      let rawContent = "";
+
+      // Cota de saída compatível com tiers TPM 8000/6000 (ex.: gpt-oss-20b on_demand):
+      // input (~1400 no plano diário) + max_tokens precisa ficar abaixo do limite TPM.
+      // Planos diários reais têm até ~2.600 tokens de saída — 4096 é folgado e seguro.
+      const MAX_OUTPUT_TOKENS = isJson ? 4096 : undefined;
+      const MAX_OUTPUT_TOKENS_BAIXO = 3000;
+
+      let needsJsonMode = isJson;
+      let maxTokens = MAX_OUTPUT_TOKENS;
+      let attemptCount = 0;
+
+      while (attemptCount < 4) {
+        attemptCount++;
+        try {
+          rawContent = await requestCompletion(needsJsonMode, maxTokens);
+          break;
+        } catch (attemptError: any) {
+          const msg = String(attemptError?.message || "");
+          const lower = msg.toLowerCase();
+          const jsonValidationFailed = needsJsonMode && (msg.includes("json_validate_failed") || msg.includes("Failed to validate JSON"));
+          const maxTokensRejected = lower.includes("max_tokens");
+          const tpmLimit = attemptError?.status === 413 || lower.includes("tokens per minute") || lower.includes("rate_limit_exceeded") || lower.includes("request too large");
+          if (!jsonValidationFailed && !maxTokensRejected && !tpmLimit) throw attemptError;
+          console.warn("[Groq] Tentativa falhou, ajustando requisição e tentando de novo:", msg);
+          if (jsonValidationFailed) needsJsonMode = false;
+          if (maxTokensRejected) maxTokens = undefined;
+          if (tpmLimit) maxTokens = maxTokens === undefined || maxTokens === MAX_OUTPUT_TOKENS ? MAX_OUTPUT_TOKENS_BAIXO : Math.max(1024, Math.floor(maxTokens / 2));
+        }
+      }
+
+      if (!rawContent) {
+        throw new Error("Limite de tokens do modelo Groq excedido. Tente novamente em instantes ou selecione um modelo maior (ex.: gpt-oss-120b) nas Configurações.");
+      }
+
+      if (isJson) {
+        const cleaned = extractJsonFromText(rawContent);
+        try {
+          JSON.parse(cleaned);
+          return cleaned;
+        } catch (parseError) {
+          console.warn("[Groq] JSON inválido recebido, regenerando sem response_format json_object.");
+          rawContent = await requestCompletion(false, MAX_OUTPUT_TOKENS_BAIXO);
+          const cleanedFallback = extractJsonFromText(rawContent);
+          try {
+            JSON.parse(cleanedFallback);
+            return cleanedFallback;
+          } catch (parseErrorFallback) {
+            throw new Error("A IA retornou uma resposta que não é um JSON válido. Tente gerar novamente.");
+          }
+        }
+      }
+
+      return rawContent;
     } catch (groqError: any) {
       console.error("[Groq API Error]:", groqError);
       if (groqError.status === 401 || groqError.status === 403 || groqError.message?.toLowerCase().includes("api key") || groqError.message?.toLowerCase().includes("unauthorized")) {
         throw new Error("A chave da API do Groq está incorreta ou é inválida. Verifique a chave informada nas Configurações.");
+      }
+      if (groqError.status === 413 || groqError.message?.toLowerCase().includes("tokens per minute") || groqError.message?.toLowerCase().includes("rate_limit_exceeded") || groqError.message?.toLowerCase().includes("request too large")) {
+        throw new Error("O modelo Groq atingiu o limite de tokens por minuto (a solicitação é grande demais para ele). Tente novamente em instantes ou selecione um modelo maior (ex.: gpt-oss-120b) nas Configurações.");
       }
       if (groqError.status === 429 || groqError.message?.toLowerCase().includes("rate limit") || groqError.message?.toLowerCase().includes("limit exceeded")) {
         throw new Error("Limite de requisições excedido no Groq. Tente novamente em instantes.");

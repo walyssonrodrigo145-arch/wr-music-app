@@ -559,6 +559,17 @@ ${jsonSchemaFormat}`;
         const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
         const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, true, apiKey, model);
 
+        // Garante que a resposta é um JSON do plano (client renderiza via JSON.parse) antes de salvar.
+        let parsedPlan: any;
+        try {
+          parsedPlan = JSON.parse(responseText);
+        } catch (parseErr) {
+          throw new Error("A IA retornou um plano em formato inválido. Tente gerar novamente.");
+        }
+        if (!parsedPlan || !Array.isArray(parsedPlan.days) || parsedPlan.days.length === 0) {
+          throw new Error("A IA não gerou os dias de treino corretamente. Tente gerar novamente.");
+        }
+
         // Salva novo plano no banco como rascunho (não inativa os antigos ainda)
         const [inserted] = await db.insert(dailyStudyPlans).values({
           organizationId: orgId,
