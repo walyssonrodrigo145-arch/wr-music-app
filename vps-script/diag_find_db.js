@@ -1,5 +1,5 @@
 const { Client } = require('ssh2');
-const config = { host: '179.197.76.174', port: 22, username: 'root', password: 'Walysson2003@' };
+const config = { host: '179.197.76.174', port: 22, username: 'root', password: 'REDACTED_AUDIT' };
 const conn = new Client();
 conn.on('ready', () => {
   // Lista todos os containers e bancos disponíveis

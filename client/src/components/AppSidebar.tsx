@@ -35,7 +35,6 @@ import {
   Target,
   FileSignature,
   Receipt,
-  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";

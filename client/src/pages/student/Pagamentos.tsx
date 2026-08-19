@@ -308,10 +308,14 @@ export default function StudentPayments() {
                       <span className="text-xs font-bold text-white/80">Próxima Mensalidade</span>
                       <span className="text-sm font-black">R$ {nextValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                    </div>
-                   <button 
-                     onClick={() => {
-                       const gateway = profile?.paymentGateway || "asaas";
-                       
+                    <button 
+                      onClick={() => {
+                        if (!nextPayment) {
+                          toast.error("Mensalidade não encontrada.");
+                          return;
+                        }
+                        const gateway = profile?.paymentGateway || "asaas";
+                        
                        if (gateway === "mercadopago") {
                          if (nextPayment?.mpPaymentLink) {
                            window.location.href = nextPayment.mpPaymentLink;

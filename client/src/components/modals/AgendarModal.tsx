@@ -170,21 +170,9 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     setStep("form");
   }, [open, initialDate, editingLesson, freshLesson, settings]);
 
-  const checkConflicts = trpc.lessons.checkConflicts.useQuery({
-    firstDate: (() => {
-      try {
-        const [y, M, d] = formData.date.split("-").map(Number);
-        const [h, m] = formData.time.split(":").map(Number);
-        const date = new Date(y, M - 1, d, h, m, 0, 0);
-        return date.toISOString();
-      } catch (e) {
-        return new Date().toISOString();
-      }
-    })(),
-    duration: formData.duration,
-    weeksCount: formData.weeksCount,
-    studioRoomId: formData.studioRoomId ? parseInt(formData.studioRoomId) : undefined
-  }, { enabled: false });
+  // BUG FIX: checkConflicts é uma MUTATION no server (aceita slots dinâmicos).
+  // Antes aqui usava-se useQuery — a propriedade não existia e isso quebrava em runtime.
+  const checkConflictsMutation = trpc.lessons.checkConflicts.useMutation();
 
   const createBatchMutation = trpc.lessons.createBatch.useMutation({
     onSuccess: (data) => {
@@ -394,7 +382,21 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           }
         }
 
-        const conflicts = await checkConflicts.refetch();
+        const conflictInput = {
+          firstDate: (() => {
+            try {
+              const [cY, cMo, cD] = formData.date.split("-").map(Number);
+              const [cH, cMi] = formData.time.split(":").map(Number);
+              return new Date(cY, cMo - 1, cD, cH, cMi, 0, 0).toISOString();
+            } catch {
+              return new Date().toISOString();
+            }
+          })(),
+          duration: formData.duration,
+          weeksCount: formData.weeksCount,
+          studioRoomId: formData.studioRoomId ? parseInt(formData.studioRoomId) : undefined,
+        };
+        const conflicts = { data: await checkConflictsMutation.mutateAsync(conflictInput) };
         if (conflicts.data) {
           const hasAnyConflict = conflicts.data.some((c: any) => c.hasConflict);
           if (hasAnyConflict) {
@@ -1008,11 +1010,11 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           )}
 
           <button
-            disabled={createMutation.isPending || checkConflicts.isFetching || updateMutation.isPending}
+            disabled={createMutation.isPending || checkConflictsMutation.isPending || updateMutation.isPending}
             type="submit"
             className="w-full h-16 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            {createMutation.isPending || checkConflicts.isFetching || updateMutation.isPending ? (
+            {createMutation.isPending || checkConflictsMutation.isPending || updateMutation.isPending ? (
               <Loader2 size={24} className="animate-spin" />
             ) : (
               <>

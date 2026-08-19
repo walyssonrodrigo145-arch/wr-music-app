@@ -7,7 +7,7 @@ const config = {
   port: parseInt(process.env.VPS_PORT || '22', 10),
   username: process.env.VPS_USER || 'root',
   // AUDIT-P0 FIX: senha hardcoded removida — defina VPS_PASSWORD no ambiente do deploy.
-  // (A senha 'Walysson2003@' estava no código-fonte = acesso root na VPS para quem lê o repo)
+  // (A senha redigida aqui estava no código-fonte = acesso root na VPS para quem lê o repo)
   password: process.env.VPS_PASSWORD,
 };
 

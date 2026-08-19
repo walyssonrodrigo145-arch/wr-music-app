@@ -25,6 +25,13 @@ function safeEqualStr(a: string, b: string): boolean {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+// ─── Menus do bot (AUDIT FIX: eram chamados mas não definidos → 500 no webhook)
+const menuPrincipalMsg = (schoolName: string, primeiroNome: string) =>
+  `Olá, *${primeiroNome}*! Bem-vindo(a) à *${schoolName}*!\n\nO que você deseja fazer?\n\n1️⃣  Minhas Aulas\n2️⃣  Financeiro\n3️⃣  Agendar uma Aula\n4️⃣  Reagendar Aula\n5️⃣  Falar com o Professor\n6️⃣  Indicar um amigo\n\n_Digite o número da opção_ 💬`;
+
+const menuPrincipalNovoMsg = (schoolName: string) =>
+  `Olá! Bem-vindo(a) à *${schoolName}*!\n\nComo posso ajudar?\n\n1️⃣  Quero me matricular\n2️⃣  Quero falar com a escola\n\n_Digite o número da opção_ 💬`;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Extrai o texto da mensagem do payload do Baileys/Evolution */

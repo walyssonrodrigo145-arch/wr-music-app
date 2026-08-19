@@ -24,7 +24,9 @@ try {
   console.log('✅ Alterações sincronizadas com sucesso no GitHub.');
 
   console.log('\n🚀 3. Disparando Deploy na VPS (Produção)...');
-  require('./upload_and_deploy_fixed.js');
+  // AUDIT FIX: substitui upload_and_deploy_fixed.js (lista parcial + DELETEs hardcoded no DB)
+  // por um deploy git-based: puxa origin/main e reconstrói via docker compose.
+  require('./deploy_production.js');
 
 } catch (err) {
   console.error('\n❌ Erro durante a esteira de promoção para produção:', err.message);

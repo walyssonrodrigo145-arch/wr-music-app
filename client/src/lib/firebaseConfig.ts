@@ -351,10 +351,10 @@ async function captureBrowserState() {
     const regs = await navigator.serviceWorker.getRegistrations();
     swRegistrations = regs.map(r => ({
       scope: r.scope,
-      activeScriptURL: r.active?.scriptUrl,
+      activeScriptURL: r.active?.scriptURL,
       activeState: r.active?.state,
-      installingScriptURL: r.installing?.scriptUrl,
-      waitingScriptURL: r.waiting?.scriptUrl,
+      installingScriptURL: r.installing?.scriptURL,
+      waitingScriptURL: r.waiting?.scriptURL,
     }));
   } catch (e: any) {
     swRegistrations = [{ error: e.message }];
@@ -367,7 +367,7 @@ async function captureBrowserState() {
     const readyReg = await navigator.serviceWorker.ready;
     readyRegistrationInfo = {
       scope: readyReg.scope,
-      activeScriptURL: readyReg.active?.scriptUrl,
+      activeScriptURL: readyReg.active?.scriptURL,
       activeState: readyReg.active?.state
     };
 
@@ -394,7 +394,7 @@ async function captureBrowserState() {
     onLine: navigator.onLine,
     userAgent: navigator.userAgent,
     hasController: !!navigator.serviceWorker.controller,
-    controllerScriptURL: navigator.serviceWorker.controller?.scriptUrl,
+    controllerScriptURL: navigator.serviceWorker.controller?.scriptURL,
     controllerState: navigator.serviceWorker.controller?.state,
     swRegistrations,
     readyRegistration: readyRegistrationInfo,
@@ -425,7 +425,7 @@ export async function runIsolatedPushTest() {
 
     const subscription = await swReg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: keyUint8
+      applicationServerKey: keyUint8 as BufferSource
     });
 
     const durationMs = performance.now() - start;

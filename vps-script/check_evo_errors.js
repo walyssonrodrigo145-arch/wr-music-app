@@ -1,6 +1,6 @@
 const { Client } = require('ssh2');
 const conn = new Client();
-const config = { host: '179.197.76.174', port: 22, username: 'root', password: 'Walysson2003@', readyTimeout: 30000 };
+const config = { host: '179.197.76.174', port: 22, username: 'root', password: 'REDACTED_AUDIT', readyTimeout: 30000 };
 
 conn.on('ready', () => {
   conn.exec(`docker logs evolution-api | grep -i "disconnect\\|error\\|463\\|unauthorized" | tail -n 50`, (err, stream) => {

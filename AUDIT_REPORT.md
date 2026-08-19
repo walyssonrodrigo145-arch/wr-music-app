@@ -62,7 +62,7 @@ Autenticação (login/logout/registro/2 fluxos), Dashboard, IA Assistente, Aluno
 
 | ID | Módulo | Título | Como reproduzir | Causa raiz | Correção |
 |---|---|---|---|---|---|
-| BUG-001 | Autenticação | **Backdoor: senhas master hardcoded no login** | Enviar `"Walysson2003@"` ou `"Walysson@MasterAdmin2026"` no login de QUALQUER usuário | `routers.ts:607-612` aceitava senhas fixas no fonte, ignorando hash e verificação de e-mail | Removidas do código; senha master agora só via `SUPER_ADMIN_PASSWORD` (env), **só para contas super admin**, comparação timing-safe. Sem env → recurso desativado. `env.ts:86` sem default |
+| BUG-001 | Autenticação | **Backdoor: senhas master hardcoded no login** | Enviar `"REDACTED_AUDIT"` ou `"REDACTED_AUDIT"` no login de QUALQUER usuário | `routers.ts:607-612` aceitava senhas fixas no fonte, ignorando hash e verificação de e-mail | Removidas do código; senha master agora só via `SUPER_ADMIN_PASSWORD` (env), **só para contas super admin**, comparação timing-safe. Sem env → recurso desativado. `env.ts:86` sem default |
 | BUG-002 | Financeiro/WhatsApp | **Webhook WhatsApp sem autenticação que dava baixa em mensalidade** | `POST /api/webhooks/whatsapp` com texto "paguei"/foto → mensalidade marcada PAGO | Webhook não validava origem; heurística/AI marcava `paymentDues.status='pago'` | Token obrigatório via `WHATSAPP_WEBHOOK_TOKEN` (env, header `X-Webhook-Token`, timing-safe); **baixa automática removida** — escola é notificada para confirmar manualmente no Financeiro |
 | BUG-003 | Multi-tenant | **Cadeia de takeover de super admin** | Registrar `walyssonrodrigo145@gmail.com` via `registerWithPlan` (público, sem token) → e-mail hardcoded na allowlist → acesso a `deleteOrganization`/`resetUserPassword` | E-mails de super admin hardcoded (`env.ts`, `superAdminRouter.ts`) + `registerWithPlan` sem token | Super admin exclusivamente via env (`SUPER_ADMIN_EMAIL(S)`); e-mails reservados bloqueados no cadastro público |
 | BUG-004 | Sistema | **`forceMigrations` público (DDL sem autenticação)** | `POST /api/trpc/system.forceMigrations` anônimo | Mutation `publicProcedure` | Agora `protectedProcedure` + verificação de super admin |
@@ -119,7 +119,7 @@ Autenticação (login/logout/registro/2 fluxos), Dashboard, IA Assistente, Aluno
 - **Antes:** 4/5 suítes quebravam na importação (`JWT_SECRET` ausente) → 5 testes executáveis.
 - **Depois:** env de teste em `vitest.config.ts`, mock de banco encadeável com fila de resultados em `music.test.ts`, teste de logout alinhado ao contrato de segurança atual.
 - **Novo:** `server/critical.regression.test.ts` — **13 testes de regressão crítica**:
-  1. Backdoor `"Walysson2003@"` rejeitado ×3 (login)
+  1. Backdoor `"REDACTED_AUDIT"` rejeitado ×3 (login)
   2. Senha master desativada sem env
   3. `ENV.superAdminEmails` vazio no ambiente de teste (sem hardcoded)
   4. E-mail hardcoded antigo NÃO acessa superAdminRouter

@@ -5,7 +5,7 @@
  */
 const { Client } = require('ssh2');
 const conn = new Client();
-const config = { host: '179.197.76.174', port: 22, username: 'root', password: 'Walysson2003@', readyTimeout: 30000 };
+const config = { host: '179.197.76.174', port: 22, username: 'root', password: 'REDACTED_AUDIT', readyTimeout: 30000 };
 
 const script = `
 echo "===== [1] Verificando se existe tabela chatbotSessions (camelCase) ====="
