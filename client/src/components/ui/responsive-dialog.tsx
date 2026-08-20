@@ -60,14 +60,16 @@ export function ResponsiveDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          {title && <DialogTitle>{title}</DialogTitle>}
-          {description && (
-            <DialogDescription>{description}</DialogDescription>
-          )}
-        </DialogHeader>
-        <div className="overflow-y-auto overflow-x-hidden flex-1 max-h-[calc(90vh-120px)] pr-1 -mr-1">
+      <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        {(title || description) && (
+          <DialogHeader className="p-6 pb-2">
+            {title && <DialogTitle>{title}</DialogTitle>}
+            {description && (
+              <DialogDescription>{description}</DialogDescription>
+            )}
+          </DialogHeader>
+        )}
+        <div className="overflow-y-auto overflow-x-hidden flex-1 max-h-[calc(90vh-80px)] px-6 pb-6 subtle-scrollbar">
           {children}
         </div>
       </DialogContent>
