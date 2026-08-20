@@ -363,7 +363,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         const [startY, startM, startD] = formData.date.split("-").map(Number);
 
         // Se tiver slots adicionais configurados
-        const slotsToUse = (formData.weeklySlots && formData.weeklySlots.length > 0)
+        const slotsToUse = (formData.lessonsPerWeek > 1 && formData.weeklySlots && formData.weeklySlots.length > 0)
           ? formData.weeklySlots
           : [{ dayOfWeek: new Date(startY, startM - 1, startD).getDay(), time: formData.time, studioRoomId: formData.studioRoomId }];
 
@@ -376,7 +376,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
 
             const targetDate = new Date(baseDate);
             targetDate.setDate(baseDate.getDate() + (w * 7) + dayDiff);
-            const [sh, sm] = slot.time.split(":").map(Number);
+            const [sh, sm] = (slot.time || formData.time).split(":").map(Number);
             targetDate.setHours(sh, sm, 0, 0);
 
             allItems.push({
@@ -387,18 +387,13 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         }
 
         const conflictInput = {
-          firstDate: (() => {
-            try {
-              const [cY, cMo, cD] = formData.date.split("-").map(Number);
-              const [cH, cMi] = formData.time.split(":").map(Number);
-              return new Date(cY, cMo - 1, cD, cH, cMi, 0, 0).toISOString();
-            } catch {
-              return new Date().toISOString();
-            }
-          })(),
           duration: formData.duration,
           weeksCount: formData.weeksCount,
           studioRoomId: formData.studioRoomId ? parseInt(formData.studioRoomId) : undefined,
+          slots: allItems.map(item => ({
+            scheduledAt: item.scheduledAt,
+            studioRoomId: item.studioRoomId
+          }))
         };
         const conflicts = { data: await checkConflictsMutation.mutateAsync(conflictInput) };
         if (conflicts.data) {
@@ -774,7 +769,20 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
               <input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  const [y, m, d] = newDate.split("-").map(Number);
+                  const newDay = !isNaN(y) && !isNaN(m) && !isNaN(d) ? new Date(y, m - 1, d).getDay() : formData.weeklySlots[0]?.dayOfWeek ?? 1;
+                  const updatedSlots = [...formData.weeklySlots];
+                  if (updatedSlots.length > 0) {
+                    updatedSlots[0] = { ...updatedSlots[0], dayOfWeek: newDay };
+                  }
+                  setFormData({
+                    ...formData,
+                    date: newDate,
+                    weeklySlots: updatedSlots
+                  });
+                }}
                 className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all"
               />
             </div>
@@ -790,7 +798,18 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
               <input
                 type="time"
                 value={formData.time}
-                onChange={(e) => setFormData({...formData, time: e.target.value})}
+                onChange={(e) => {
+                  const newTime = e.target.value;
+                  const updatedSlots = [...formData.weeklySlots];
+                  if (updatedSlots.length > 0) {
+                    updatedSlots[0] = { ...updatedSlots[0], time: newTime };
+                  }
+                  setFormData({
+                    ...formData,
+                    time: newTime,
+                    weeklySlots: updatedSlots
+                  });
+                }}
                 className="w-full h-12 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all"
               />
               <div className="flex flex-wrap gap-1 pt-1">
@@ -798,7 +817,17 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setFormData({ ...formData, time: t })}
+                    onClick={() => {
+                      const updatedSlots = [...formData.weeklySlots];
+                      if (updatedSlots.length > 0) {
+                        updatedSlots[0] = { ...updatedSlots[0], time: t };
+                      }
+                      setFormData({
+                        ...formData,
+                        time: t,
+                        weeklySlots: updatedSlots
+                      });
+                    }}
                     className={cn(
                       "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer",
                       formData.time === t
