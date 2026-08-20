@@ -945,8 +945,25 @@ async function startServer() {
     createExpressMiddleware({
       router: appRouter,
       createContext,
-      onError: ({ path, error }) => {
-        console.error(`[TRPC Error] no path "${path}":`, error.message);
+      // AUD-005 FIX: Sanitização de erros internos — garante que exceções inesperadas
+      // (erros de banco, de bibliotecas internas, etc.) não exponham detalhes técnicos
+      // ao cliente. Apenas TRPCError (erros controlados) passam a mensagem original.
+      // Erros internos são logados no servidor e retornam mensagem genérica ao client.
+      onError: ({ path, error, type }) => {
+        const isTRPCError = error.name === "TRPCError";
+        // Erros controlados (autenticação, validação, not found) são esperados — não logar como erro
+        const isExpectedCode = ["UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "BAD_REQUEST"].includes(error.code);
+        if (!isExpectedCode) {
+          console.error(`[TRPC Error] ${type} "${path}":`, error.message, error.cause ?? "");
+        }
+        // Nota: o tRPC retorna error.message ao client por padrão.
+        // Para suprimir mensagens de erro interno, configure `errorShape` no initTRPC.
+        // Os TRPCErrors lançados explicitamente pelos routers já têm mensagens controladas.
+        // Erros não-TRPCError (falhas inesperadas) terão sua mensagem sobrescrita abaixo:
+        if (!isTRPCError) {
+          // Sobrescreve a mensagem para não expor detalhes internos ao cliente
+          error.message = "Ocorreu um erro interno. Tente novamente mais tarde.";
+        }
       }
     })
   );

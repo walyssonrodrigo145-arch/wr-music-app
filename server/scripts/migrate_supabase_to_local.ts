@@ -1,7 +1,7 @@
 import postgres from "postgres";
 
-const sourceUrl = process.env.SUPABASE_URL;
-const targetUrl = process.env.DATABASE_URL;
+const sourceUrl = process.env.SUPABASE_URL!;
+const targetUrl = process.env.DATABASE_URL!;
 
 if (!sourceUrl) {
   console.error("Erro: Por favor, defina a variável de ambiente SUPABASE_URL.");
@@ -13,6 +13,7 @@ if (!targetUrl) {
   process.exit(1);
 }
 
+// AUD-014 FIX: Asserções explícitas para que o TS reconheça os valores como string após as guards
 const sourceSql = postgres(sourceUrl);
 const targetSql = postgres(targetUrl);
 

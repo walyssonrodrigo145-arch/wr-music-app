@@ -198,8 +198,9 @@ export class AssinafyProvider implements SignatureProvider {
   // ── Documento ─────────────────────────────────────────────────────────────
   async uploadDocument(accountId: string, pdfBuffer: Buffer, name: string): Promise<AssinafyDocument> {
     const form = new FormData();
-    const uint8Array = new Uint8Array(pdfBuffer.buffer, pdfBuffer.byteOffset, pdfBuffer.byteLength);
-    const blob = new Blob([uint8Array], { type: "application/pdf" });
+    // AUD-004 FIX: Uint8Array<ArrayBufferLike> não é BlobPart diretamente (tipos incompíveis com ArrayBuffer).
+    // Usar Buffer.from para garantir compatibilidade de tipos com Blob no Node.js.
+    const blob = new Blob([Buffer.from(pdfBuffer)], { type: "application/pdf" });
     form.append("file", blob, name);
     return withRetry(() =>
       this.request<AssinafyDocument>("POST", `/accounts/${accountId}/documents`, form, true)

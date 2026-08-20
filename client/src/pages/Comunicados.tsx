@@ -97,7 +97,7 @@ export default function Comunicados() {
 
   const handleSelectAllFilteredStudents = () => {
     const activeStudentIds = filteredStudentsList.map((s: any) => s.id);
-    const allSelected = activeStudentIds.every(id => selectedStudentIds.includes(id));
+    const allSelected = activeStudentIds.every((id: any) => selectedStudentIds.includes(id));
     if (allSelected) {
       setSelectedStudentIds(prev => prev.filter(id => !activeStudentIds.includes(id)));
     } else {

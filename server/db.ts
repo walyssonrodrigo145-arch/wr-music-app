@@ -1167,11 +1167,16 @@ export async function getInstrumentsWithCount(organizationId: number, professorI
 export async function getSettingsByUserId(organizationId: number, userId: number) {
   const db = await getDb();
   if (!db) return null;
+  const { decryptSecret } = await import("./utils/integrationCrypto");
   const result = await db.select().from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);
   if (result.length > 0) {
-    const row = result[0];
+    const row = { ...result[0] };
     if (!row.whatsappBotUrl) row.whatsappBotUrl = process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080";
     if (!row.whatsappBotToken) row.whatsappBotToken = process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
+    if (row.asaasApiKey) row.asaasApiKey = decryptSecret(row.asaasApiKey);
+    if (row.mpAccessToken) row.mpAccessToken = decryptSecret(row.mpAccessToken);
+    if (row.geminiApiKey) row.geminiApiKey = decryptSecret(row.geminiApiKey);
+    if (row.groqApiKey) row.groqApiKey = decryptSecret(row.groqApiKey);
     return row;
   }
 
@@ -1196,9 +1201,13 @@ export async function getSettingsByUserId(organizationId: number, userId: number
   }
   const created = await db.select().from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);
   if (created.length > 0) {
-    const row = created[0];
+    const row = { ...created[0] };
     if (!row.whatsappBotUrl) row.whatsappBotUrl = process.env.EVOLUTION_API_URL || "http://179.197.76.174:8080";
     if (!row.whatsappBotToken) row.whatsappBotToken = process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
+    if (row.asaasApiKey) row.asaasApiKey = decryptSecret(row.asaasApiKey);
+    if (row.mpAccessToken) row.mpAccessToken = decryptSecret(row.mpAccessToken);
+    if (row.geminiApiKey) row.geminiApiKey = decryptSecret(row.geminiApiKey);
+    if (row.groqApiKey) row.groqApiKey = decryptSecret(row.groqApiKey);
     return row;
   }
   return null;
@@ -1207,6 +1216,7 @@ export async function getSettingsByUserId(organizationId: number, userId: number
 export async function upsertSettings(organizationId: number, userId: number, data: Partial<InsertSettings>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const { encryptSecret } = await import("./utils/integrationCrypto");
 
   // Sanitize hiddenTabs: se vier como array, converte para string CSV; se vier como outro tipo, força string vazia
   const sanitized: Partial<InsertSettings> = { ...data };
@@ -1228,8 +1238,22 @@ export async function upsertSettings(organizationId: number, userId: number, dat
     delete sanitized.whatsappBotToken;
   }
 
-  const existing = await getSettingsByUserId(organizationId, userId);
-  if (existing) {
+  // Criptografar chaves de integração sensíveis antes de persistir no banco de dados
+  if (sanitized.asaasApiKey && !sanitized.asaasApiKey.startsWith("v1:")) {
+    sanitized.asaasApiKey = encryptSecret(sanitized.asaasApiKey.trim());
+  }
+  if (sanitized.mpAccessToken && !sanitized.mpAccessToken.startsWith("v1:")) {
+    sanitized.mpAccessToken = encryptSecret(sanitized.mpAccessToken.trim());
+  }
+  if (sanitized.geminiApiKey && !sanitized.geminiApiKey.startsWith("v1:")) {
+    sanitized.geminiApiKey = encryptSecret(sanitized.geminiApiKey.trim());
+  }
+  if (sanitized.groqApiKey && !sanitized.groqApiKey.startsWith("v1:")) {
+    sanitized.groqApiKey = encryptSecret(sanitized.groqApiKey.trim());
+  }
+
+  const existing = await db.select({ id: settings.id }).from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);
+  if (existing.length > 0) {
     await db.update(settings).set({ ...sanitized, updatedAt: new Date() }).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId)));
   } else {
     // Fornece defaults seguros para colunas NOT NULL ao criar o primeiro registro

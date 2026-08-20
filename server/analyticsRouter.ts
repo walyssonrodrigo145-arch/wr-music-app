@@ -581,7 +581,8 @@ const analyticsQueryRouter = router({
       }
 
       let asaasNextMonth = 0;
-      for (const key of apiKeys) {
+      // AUD-004 FIX: Array.from para compatibilidade com o target TS (Set<string> não iterável diretamente)
+      for (const key of Array.from(apiKeys)) {
         try {
           const rev = await getAsaasNextMonthRevenue(key);
           asaasNextMonth += rev;

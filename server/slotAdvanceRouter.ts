@@ -260,8 +260,10 @@ export const slotAdvanceRouter = router({
       }
 
       // 5. Buscar dados do professor e configurações da escola
+      // AUD-004 FIX: users não possui coluna `phone` — buscar apenas `name`.
+      // O telefone da escola está em settings.phone (buscado abaixo).
       const [teacher] = await db
-        .select({ name: users.name, phone: users.phone })
+        .select({ name: users.name })
         .from(users)
         .where(eq(users.id, acceptedOffer.teacherId))
         .limit(1);

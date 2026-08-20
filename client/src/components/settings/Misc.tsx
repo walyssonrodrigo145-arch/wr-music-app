@@ -35,7 +35,14 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 // ─── DebouncedInput ─────────────────────────────────────────────────────────
-export function DebouncedInput({ value, onChange, ...props }: any) {
+export function DebouncedInput({ 
+  value, 
+  onChange, 
+  ...props 
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> & {
+  value?: string | number;
+  onChange?: (e: any) => void;
+}) {
   const [localValue, setLocalValue] = useState(value ?? "");
 
   useEffect(() => {
@@ -45,7 +52,7 @@ export function DebouncedInput({ value, onChange, ...props }: any) {
   useEffect(() => {
     const handler = setTimeout(() => {
       if (localValue !== (value ?? "") && onChange) {
-        onChange({ target: { value: localValue } });
+        onChange({ target: { value: String(localValue) } });
       }
     }, 400);
     return () => clearTimeout(handler);
@@ -62,7 +69,14 @@ export function DebouncedInput({ value, onChange, ...props }: any) {
 }
 
 // ─── DebouncedTextarea ────────────────────────────────────────────────────────
-export function DebouncedTextarea({ value, onChange, ...props }: any) {
+export function DebouncedTextarea({ 
+  value, 
+  onChange, 
+  ...props 
+}: Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange"> & {
+  value?: string | number;
+  onChange?: (e: { target: { value: string } }) => void;
+}) {
   const [localValue, setLocalValue] = useState(value ?? "");
 
   useEffect(() => {
@@ -72,7 +86,7 @@ export function DebouncedTextarea({ value, onChange, ...props }: any) {
   useEffect(() => {
     const handler = setTimeout(() => {
       if (localValue !== (value ?? "") && onChange) {
-        onChange({ target: { value: localValue } });
+        onChange({ target: { value: String(localValue) } });
       }
     }, 400);
     return () => clearTimeout(handler);

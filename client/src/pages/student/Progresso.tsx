@@ -67,6 +67,7 @@ function parseDaysCompleted(raw: any): boolean[] {
   } catch (e) {
     return [false, false, false, false, false];
   }
+  return [false, false, false, false, false];
 }
 
 function parseDaysTimeSpent(raw: any): number[] {

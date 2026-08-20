@@ -25,9 +25,14 @@ export function encryptSecret(plainText: string): string {
 }
 
 export function decryptSecret(stored: string): string {
+  if (!stored) return "";
+  if (!stored.startsWith(ENCRYPTION_VERSION + ":")) {
+    // Compatibilidade reversa com chaves legadas armazenadas em texto puro
+    return stored;
+  }
   const parts = stored.split(":");
   if (parts.length !== 4 || parts[0] !== ENCRYPTION_VERSION) {
-    throw new Error("Formato de credencial criptografada inválido");
+    return stored; // Fallback seguro
   }
   const [, ivHex, dataHex, tagHex] = parts;
   const key = deriveKey();

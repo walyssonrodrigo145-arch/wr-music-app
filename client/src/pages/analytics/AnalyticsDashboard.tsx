@@ -681,8 +681,8 @@ function RevenueTab({ preset }: { preset: Preset }) {
         <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6">
           <SectionTitle><Target size={18} className="text-emerald-500" /> Receita por Campanha</SectionTitle>
           <div className="mt-4 space-y-2">
-            {data?.byCampaign && data.byCampaign.length > 0 ? (
-              data.byCampaign.map((c, i) => (
+            {(data as any)?.byCampaign && (data as any).byCampaign.length > 0 ? (
+              (data as any).byCampaign.map((c: any, i: number) => (
                 <div key={c.campaign} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
@@ -697,12 +697,12 @@ function RevenueTab({ preset }: { preset: Preset }) {
       </div>
 
       {/* Receita por Estado */}
-      {data?.byState && data.byState.length > 0 && (
+      {(data as any)?.byState && (data as any).byState.length > 0 && (
         <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md p-6">
           <SectionTitle><Map size={18} className="text-cyan-500" /> Receita por Estado</SectionTitle>
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.byState.slice(0, 15)}>
+              <BarChart data={(data as any).byState.slice(0, 15)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="state" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${v}`} />
@@ -876,8 +876,7 @@ function HeatmapTab() {
 
   const { data: pagesData } = trpc.analytics.query.getHeatmapPages.useQuery();
   const { data, isLoading } = trpc.analytics.query.getHeatmapData.useQuery(
-    { pageUrl, eventType, limit: 2000 },
-    { keepPreviousData: true }
+    { pageUrl, eventType, limit: 2000 }
   );
 
   // Auto-seleciona a primeira página registrada se a atual for "/" sem dados e houver páginas

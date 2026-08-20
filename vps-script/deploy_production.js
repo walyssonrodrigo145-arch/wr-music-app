@@ -33,6 +33,10 @@ conn.on('ready', () => {
       // NÃO há uploads SFTP nem comandos destrutivos: o código vem 100% do origin/main.
       const rebuildCmd = `
         cd ${repoPath}
+        echo "📦 Gerando backup de segurança do banco de dados na VPS..."
+        mkdir -p /root/backups
+        docker compose exec -T db pg_dump -U postgres wrmusic > /root/backups/backup_auto_$(date +%Y%m%d_%H%M%S).sql || echo "⚠️ Aviso: Backup ignorado se o container do banco ainda não estiver ativo."
+        echo "🔄 Sincronizando código com origin/main..."
         git fetch origin main && git reset --hard origin/main || { echo "FALHA ao sincronizar com origin/main"; exit 1; }
         docker compose -f docker-compose.yml build --no-cache
         docker compose -f docker-compose.yml up -d

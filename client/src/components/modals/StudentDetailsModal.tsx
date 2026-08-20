@@ -29,7 +29,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
 
   const enableAccessMutation = trpc.students.enablePortalAccess.useMutation({
     onSuccess: (data) => {
-      setCredentials(data);
+      setCredentials(data ? { email: data.email, password: data.password || "" } : null);
       utils.students.getDetails.invalidate({ id: studentId as number });
       utils.students.list.invalidate();
       toast.success("Acesso liberado com sucesso!");

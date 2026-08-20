@@ -325,7 +325,7 @@ export default function Assinatura() {
                 </div>
                 
                 <div className="flex-1 space-y-2.5 mb-6">
-                  {p.features.map((f, i) => (
+                  {p.features.map((f: any, i: number) => (
                     <div key={i} className="flex items-start gap-2 text-xs">
                       <CheckCircle2 size={13} className="text-blue-600 shrink-0 mt-0.5" />
                       <span className="text-muted-foreground font-medium leading-tight">{f}</span>

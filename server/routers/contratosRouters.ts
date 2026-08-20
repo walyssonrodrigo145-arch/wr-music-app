@@ -667,7 +667,8 @@ export const contratosRouters = {
       .mutation(async ({ input }) => {
         let text = input.content;
 
-        const replacements: [RegExp, string][] = [
+        // AUD-004 FIX: Tipo correto para replacements que aceitam string ou callback
+        const replacements: [RegExp, string | ((...args: any[]) => string)][] = [
           [/(?:nome do aluno|aluno\(a\)|contratante|aluno):\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]{3,40})/gi, (match) => match.replace(/:.*/, ": {{student_name}}")],
           [/(?:denominado\(a\)|chamado\(a\))\s+CONTRATANTE,?\s+([A-Za-zÀ-ÖØ-öø-ÿ\s]{3,30})/gi, "denominado(a) CONTRATANTE, {{student_name}}"],
           [/(?:cpf|inscrito\(a\) no cpf)(?: nº|:)?\s*[\d\.\-\s]{11,14}/gi, "CPF nº {{student_cpf}}"],

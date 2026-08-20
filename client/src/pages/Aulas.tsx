@@ -444,7 +444,7 @@ export default function Aulas() {
                 className="h-9 px-3 rounded-xl bg-card border border-border/60 text-xs font-bold text-foreground outline-none shadow-sm cursor-pointer"
               >
                 <option value="todos">Todos</option>
-                {professoresList.map(p => <option key={p.id} value={String(p.userId)}>{p.nome}</option>)}
+                {professoresList.map(p => <option key={p.id} value={String(p.userId)}>{p.name || "Professor"}</option>)}
               </select>
             </div>
 
@@ -1107,7 +1107,7 @@ export default function Aulas() {
                   <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-card rounded-[2.5rem] p-6 lg:p-8 border border-border shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[180px] min-w-0 overflow-hidden" onClick={() => setDetailLessonId(lesson.id)}>
                     <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("w-1.5 h-6 rounded-full", isTurma ? "bg-purple-600" : config.color)} />
+                        <div className={cn("w-1.5 h-6 rounded-full", isTurma ? "bg-purple-600" : config.badgeBg.split(" ")[0])} />
                         <span className="text-lg font-black text-foreground tracking-tighter">{safeFormat(lesson.scheduledAt, "HH:mm")}</span>
                       </div>
                       <span className={cn(
@@ -1118,7 +1118,7 @@ export default function Aulas() {
                             : lesson.status === 'falta'
                             ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
                             : "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                          : cn(config.bg, config.text, config.border)
+                          : cn(config.badgeBg, config.border)
                       )}>
                         {isTurma ? (
                           <span className="truncate">

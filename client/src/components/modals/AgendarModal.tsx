@@ -218,7 +218,11 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       experimentalName: "",
       experimentalPhone: "",
       lessonType: "individual",
-      turmaStudentIds: []
+      turmaStudentIds: [],
+      lessonsPerWeek: 1,
+      weeklySlots: [
+        { dayOfWeek: initialDate ? new Date(initialDate).getDay() : 1, time: initialDate ? format(initialDate, "HH:mm") : "09:00", studioRoomId: "" }
+      ]
     });
     setStep("form");
     setBatchItems([]);
@@ -230,9 +234,9 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       toast.success("Aula agendada com sucesso!");
       utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
-      utils.lessons.getById.invalidate();
+      (utils.lessons as any).getById?.invalidate();
       utils.students.list.invalidate();
-      utils.students.getById.invalidate();
+      (utils.students as any).getById?.invalidate();
       utils.studioRooms.list.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);
@@ -252,9 +256,9 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       toast.success("Aula atualizada com sucesso!");
       utils.lessons.list.invalidate();
       utils.lessons.listRange.invalidate();
-      utils.lessons.getById.invalidate();
+      (utils.lessons as any).getById?.invalidate();
       utils.students.list.invalidate();
-      utils.students.getById.invalidate();
+      (utils.students as any).getById?.invalidate();
       utils.studioRooms.list.invalidate();
       utils.dashboard.stats.invalidate();
       onOpenChange(false);

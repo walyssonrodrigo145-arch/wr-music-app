@@ -228,7 +228,7 @@ const Relatorios: React.FC = () => {
             e.description,
             e.category || '-',
             Number(e.amount),
-            e.isPaid ? 'PAGO' : 'PENDENTE'
+            e.status === 'pago' ? 'PAGO' : 'PENDENTE'
           ]);
         });
       } else if (activeTab === 'projecao') {
@@ -1142,7 +1142,6 @@ const Relatorios: React.FC = () => {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'comercial'    && <DashboardComercial />}
             {activeTab === 'financeiro'   && renderFinanceiro()}
             {activeTab === 'despesas'     && renderDespesas()}
             {activeTab === 'projecao'     && renderProjecao()}

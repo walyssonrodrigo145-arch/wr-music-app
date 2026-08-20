@@ -91,7 +91,7 @@ export default function RecepcaoQRCode() {
 
   // Generate token on mount
   const refreshToken = useCallback(() => {
-    generateToken.mutate({});
+    generateToken.mutate(undefined as any);
   }, [generateToken]);
 
   useEffect(() => {

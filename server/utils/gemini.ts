@@ -56,12 +56,17 @@ export async function callGemini(
       }
       // Modelos ativamente disponíveis na conta Groq (verificado via API em 2026-08)
       const LEGACY_MODELS = ["llama-3.3-70b-versatile", "llama-3.3-70b-specdec", "llama-3.1-8b-instant", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"];
-      let safeModel = customModel || "openai/gpt-oss-120b";
+      // Perf fix: quando o modelo Groq é o padrão (não escolhido) ou legado, usar o
+      // GPT-OSS 20B ("Mais rápido"). O 120B gera o mesmo JSON mas leva ~5-10x mais tempo
+      // (o plano de estudo diário ficou lento após adotar a Groq com o 120B).
+      let safeModel = customModel || "openai/gpt-oss-20b";
       if (!safeModel || LEGACY_MODELS.includes(safeModel) || safeModel.includes("8192")) {
-        safeModel = safeModel.includes("8b") ? "openai/gpt-oss-20b" : "openai/gpt-oss-120b";
+        safeModel = "openai/gpt-oss-20b";
       }
 
-      const GROQ_TIMEOUT_MS = 60_000;
+      // Perf fix: 60s por tentativa + até 4 tentativas = plano pode demorar minutos.
+      // 25s é suficiente para o GPT-OSS-20B e falha rápido em caso de pendência.
+      const GROQ_TIMEOUT_MS = 25_000;
       const timeoutPromise = () => new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("[Groq] Timeout: A API não respondeu em 60 segundos.")), GROQ_TIMEOUT_MS)
       );

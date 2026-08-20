@@ -20,11 +20,17 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   window.location.href = "/login";
 };
 
+// AUD-007 FIX: Não expor erros internos de API no console em produção.
+// Em desenvolvimento, manter os logs para facilitar debug.
+const isDev = import.meta.env.DEV;
+
 queryClient.getQueryCache().subscribe((event: any) => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.query.state.error;
     redirectToLoginIfUnauthorized(error);
-    console.error("[API Query Error]", error);
+    if (isDev) {
+      console.error("[API Query Error]", error);
+    }
   }
 });
 
@@ -32,7 +38,9 @@ queryClient.getMutationCache().subscribe((event: any) => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.mutation.state.error;
     redirectToLoginIfUnauthorized(error);
-    console.error("[API Mutation Error]", error);
+    if (isDev) {
+      console.error("[API Mutation Error]", error);
+    }
   }
 });
 

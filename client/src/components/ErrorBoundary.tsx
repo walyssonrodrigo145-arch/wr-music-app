@@ -1,4 +1,4 @@
-﻿import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Component, ReactNode } from "react";
 
@@ -11,6 +11,10 @@ interface State {
   error: Error | null;
 }
 
+// AUD-001 FIX: O ErrorBoundary não deve expor stack traces ou detalhes técnicos
+// em produção. Somente em desenvolvimento (import.meta.env.DEV) o stack é visível.
+const isDev = import.meta.env.DEV;
+
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -19,6 +23,13 @@ class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    // Logs técnicos ficam apenas no servidor de monitoramento, nunca visíveis ao usuário.
+    // Em produção, este log vai para o console do browser (visível somente em DevTools),
+    // não para a interface do usuário.
+    console.error("[ErrorBoundary] Uncaught error:", error, info.componentStack);
   }
 
   render() {
@@ -31,12 +42,23 @@ class ErrorBoundary extends Component<Props, State> {
               className="text-destructive mb-6 flex-shrink-0"
             />
 
-            <h2 className="text-xl mb-4">An unexpected error occurred.</h2>
+            <h2 className="text-xl mb-4">Ocorreu um erro inesperado.</h2>
 
-            <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
-              <pre className="text-sm text-muted-foreground whitespace-break-spaces">
-                {this.state.error?.stack}
-              </pre>
+            {/* AUD-001: Em produção, exibir apenas mensagem genérica.
+                Em desenvolvimento, exibir o stack técnico para facilitar debug. */}
+            <div className="p-4 w-full rounded bg-muted overflow-auto mb-6 text-center">
+              {isDev ? (
+                <pre className="text-sm text-muted-foreground whitespace-break-spaces text-left">
+                  {this.state.error?.message}
+                  {"\n\n"}
+                  {this.state.error?.stack}
+                </pre>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Ocorreu um erro ao processar sua solicitação. Por favor, recarregue a página e tente novamente.
+                  Se o problema persistir, entre em contato com o suporte.
+                </p>
+              )}
             </div>
 
             <button
@@ -48,7 +70,7 @@ class ErrorBoundary extends Component<Props, State> {
               )}
             >
               <RotateCcw size={16} />
-              Reload Page
+              Recarregar Página
             </button>
           </div>
         </div>
