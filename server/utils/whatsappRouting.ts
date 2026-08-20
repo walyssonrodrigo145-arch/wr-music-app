@@ -49,30 +49,13 @@ export async function sendSmartWhatsAppNotification({
   }
 
   // --- PLANO B (FALLBACK) ---
-  // Se o resultado for 0 números (ex: marcou para enviar pro pai, mas não tem pai cadastrado)
+  // Se o resultado for 0 números (ex: marcou para enviar pro responsável, mas não há responsável preenchido)
   if (targetPhones.length === 0) {
-    // Se marcou apenas Responsável, mas ele não tem, e o aluno tem -> Manda pro Aluno
-    // NOVIDADE: Apenas faz esse fallback se o aluno for MAIOR de idade (>= 18) ou se não tiver data de nascimento cadastrada (presume-se maior)
+    // Se marcou apenas Responsável, mas ele não tem, e o aluno/família possui telefone cadastrado -> Envia para o telefone de contato cadastrado
     if (sendToGuardian && !hasGuardianPhone && hasStudentPhone) {
-      let isAdult = true; // Assume adult if no birthdate
-      if (student.birthDate) {
-        const bDate = new Date(student.birthDate);
-        if (!isNaN(bDate.getTime())) {
-          const today = new Date();
-          let age = today.getFullYear() - bDate.getFullYear();
-          const m = today.getMonth() - bDate.getMonth();
-          if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) {
-            age--;
-          }
-          if (age < 18) isAdult = false;
-        }
-      }
-
-      if (isAdult) {
-        targetPhones.push(student.phone!);
-      }
+      targetPhones.push(student.phone!);
     }
-    // Se marcou apenas Aluno, mas ele não tem, e o responsável tem -> Manda pro Responsável
+    // Se marcou apenas Aluno, mas ele não tem, e o responsável tem -> Envia para o Responsável
     else if (sendToStudent && !hasStudentPhone && hasGuardianPhone) {
       targetPhones.push(student.guardianPhone!);
     }
