@@ -35,16 +35,21 @@ export function PrintableQrBannerModal({
     try {
       toast.loading("Gerando imagem em alta resolução...", { id: "qr-download" });
 
-      // ─── 1. Gerar QR Code diretamente no canvas auxiliar via lib `qrcode` ───
-      // Usamos qrcode.toCanvas() para desenhar o QR diretamente num canvas nativo.
-      // Essa abordagem é 100% confiável: não depende de serializar SVG (que falha
-      // silenciosamente quando o browser bloqueia drawImage de SVG externo).
-      const qrCanvas = document.createElement("canvas");
-      await QRCodeLib.toCanvas(qrCanvas, token, {
+      // ─── 1. Gerar QR Code via toDataURL e carregar como Image nativa ───
+      // toDataURL gera uma imagem PNG em base64 pura (sem SVG, sem Canvas DOM issues).
+      // Ao carregar a imagem em um HTMLImageElement garantimos 100% de compatibilidade com ctx.drawImage.
+      const qrDataUrl = await QRCodeLib.toDataURL(token, {
         width: 600,
         margin: 2,
         color: { dark: "#000000", light: "#f8fafc" },
         errorCorrectionLevel: "Q",
+      });
+
+      const qrImg = new Image();
+      await new Promise<void>((resolve, reject) => {
+        qrImg.onload = () => resolve();
+        qrImg.onerror = (e) => reject(e);
+        qrImg.src = qrDataUrl;
       });
 
       // ─── 2. Montar o totem completo num canvas principal 1200×1600 ───
@@ -106,8 +111,8 @@ export function PrintableQrBannerModal({
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Desenha o QR Code REAL diretamente (canvas → canvas, sem serialização SVG!)
-      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+      // Desenha o QR Code REAL diretamente (Image PNG base64)
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
       // ─── Box dos 3 Passos ───
       const stepsY = 1020;
