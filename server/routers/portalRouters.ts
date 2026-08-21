@@ -442,7 +442,7 @@ export const portalRouters = {
       // Gera uma URL acessível para o arquivo — necessário porque iframes e players
       // de mídia não enviam o cookie de sessão que protege a rota /uploads direta.
       // Para arquivos externos (Forge/S3) retorna a URL diretamente.
-      // Para arquivos locais (/uploads/) gera um token temporário de 30 min.
+      // Para arquivos locais (/uploads/) verifica existência no disco antes de gerar token.
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
@@ -466,17 +466,27 @@ export const portalRouters = {
       // Se for URL externa (http/https e não aponta para /uploads/ local), retorna direto
       const isLocal = rawUrl.startsWith("/uploads/") || rawUrl.match(/https?:\/\/[^/]+\/uploads\//);
       if (!isLocal) {
-        return { url: rawUrl };
+        return { url: rawUrl, fileNotFound: false };
       }
 
       // Extrai o caminho relativo dentro de /uploads/
       const relKey = rawUrl.replace(/^https?:\/\/[^/]+\/uploads\//, "").replace(/^\/uploads\//, "");
 
+      // Verifica se o arquivo físico existe no disco antes de gerar o token.
+      // Arquivos podem ter sido perdidos se o deploy foi feito sem volume persistente.
+      const { existsSync } = await import("fs");
+      const { resolve } = await import("path");
+      const absPath = resolve(process.cwd(), "uploads", relKey);
+      if (!existsSync(absPath)) {
+        // Arquivo perdido (ex: rebuild Docker sem volume) — retorna flag para o client exibir mensagem
+        return { url: "", fileNotFound: true };
+      }
+
       const token = createFileToken(relKey);
       const fileName = encodeURIComponent(file.fileName ?? relKey.split("/").pop() ?? "arquivo");
       const url = `/uploads-token/${token}/${fileName}`;
 
-      return { url };
+      return { url, fileNotFound: false };
     }),
     getExercises: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();

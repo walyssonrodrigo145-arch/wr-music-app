@@ -388,8 +388,13 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                             src={getFixedUrl(file.thumbnailUrl || file.fileUrl)} 
                             alt={file.fileName}
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            onError={(e) => {
+                              // Se a imagem falhar ao carregar (ex: arquivo não existe no disco), esconde a tag e mostra placeholder
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
                           />
-                        ) : (
+                        ) : null}
+                        {(!(file.category === 'imagem' || file.thumbnailUrl)) && (
                           <>
                             <div className={cn(
                               "absolute inset-0 opacity-20 transition-transform duration-700 group-hover:scale-110",
@@ -629,6 +634,17 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                      src={getFixedUrl(previewFile.fileUrl)} 
                      alt={previewFile.fileName}
                      className="max-h-full max-w-full object-contain z-10 shadow-2xl"
+                     onError={(e) => {
+                       const target = e.target as HTMLElement;
+                       target.style.display = 'none';
+                       const parent = target.parentElement;
+                       if (parent && !parent.querySelector('.img-error-msg')) {
+                         const msg = document.createElement('div');
+                         msg.className = 'img-error-msg z-10 flex flex-col items-center gap-3 p-8 text-center text-white';
+                         msg.innerHTML = '<div class="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-rose-400"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div><p class="text-sm font-bold">Arquivo físico não encontrado no servidor</p><p class="text-xs text-white/60 max-w-sm">Este arquivo foi enviado antes da configuração do volume persistente. Por favor, exclua este item e envie o arquivo novamente.</p>';
+                         parent.appendChild(msg);
+                       }
+                     }}
                    />
                 )}
              </div>
