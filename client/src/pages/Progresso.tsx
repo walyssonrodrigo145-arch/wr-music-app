@@ -1226,23 +1226,23 @@ export default function Progresso() {
 
       {/* MODAL PARA NOVO REGISTRO */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[440px] p-0 gap-0 border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
-          <div className="px-8 py-8 border-b border-border bg-muted/50">
+        <DialogContent className="sm:max-w-[480px] w-[95vw] max-h-[90dvh] sm:max-h-[85vh] p-0 gap-0 border-none shadow-2xl rounded-[2rem] sm:rounded-[2.5rem] flex flex-col overflow-hidden">
+          <div className="px-6 py-5 sm:px-8 sm:py-6 border-b border-border bg-muted/50 shrink-0">
              <DialogHeader>
-                <DialogTitle className="text-xl font-black text-foreground uppercase tracking-tighter">
+                <DialogTitle className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tighter">
                    {editingEvent ? "Editar Registro" : "Novo Registro de Evolução"}
                 </DialogTitle>
                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">Documente o desempenho e feedback do aluno</p>
              </DialogHeader>
           </div>
           
-          <div className="p-8 space-y-6 bg-card">
+          <div className="p-6 sm:p-8 space-y-5 bg-card overflow-y-auto subtle-scrollbar flex-1">
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Data da Atividade</label>
                    <Input 
                      type="datetime-local" 
-                     className="rounded-2xl h-12 bg-muted/50 border-border text-xs font-bold"
+                     className="rounded-2xl h-11 sm:h-12 bg-muted/50 border-border text-xs font-bold"
                      value={formData.achievedAt}
                      onChange={e => setFormData({...formData, achievedAt: e.target.value})}
                    />
@@ -1250,7 +1250,7 @@ export default function Progresso() {
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Categoria</label>
                    <Select value={formData.category} onValueChange={v => setFormData({...formData, category: v as any})}>
-                      <SelectTrigger className="rounded-2xl h-12 bg-muted/50 border-border text-xs font-bold">
+                      <SelectTrigger className="rounded-2xl h-11 sm:h-12 bg-muted/50 border-border text-xs font-bold">
                          <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl border-border">
@@ -1267,7 +1267,7 @@ export default function Progresso() {
                 <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Título do Evento</label>
                 <Input 
                   placeholder="Ex: Escala Pentatônica Am" 
-                  className="rounded-2xl h-12 bg-muted/50 border-border text-xs font-bold"
+                  className="rounded-2xl h-11 sm:h-12 bg-muted/50 border-border text-xs font-bold"
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
                 />
@@ -1277,7 +1277,7 @@ export default function Progresso() {
                 <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Observações / Feedback</label>
                 <Textarea 
                   placeholder="Detalhes sobre o progresso..." 
-                  className="rounded-2xl bg-muted/50 border-border text-xs font-bold min-h-[100px] p-4 resize-none"
+                  className="rounded-2xl bg-muted/50 border-border text-xs font-bold min-h-[110px] max-h-[220px] p-4 resize-y"
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
                 />
@@ -1289,7 +1289,7 @@ export default function Progresso() {
                    <Input 
                      type="number" 
                      min="0" max="10" step="0.5"
-                     className="rounded-2xl h-12 w-24 bg-muted/50 border-border text-center font-black text-lg"
+                     className="rounded-2xl h-11 sm:h-12 w-20 sm:w-24 bg-muted/50 border-border text-center font-black text-base sm:text-lg"
                      value={formData.grade}
                      onChange={e => setFormData({...formData, grade: e.target.value})}
                    />
@@ -1300,10 +1300,10 @@ export default function Progresso() {
              </div>
           </div>
 
-          <DialogFooter className="p-8 bg-muted/50 border-t border-border flex gap-3">
-             <Button variant="ghost" className="flex-1 h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+          <DialogFooter className="p-4 sm:p-6 bg-muted/50 border-t border-border flex flex-row gap-3 shrink-0">
+             <Button variant="ghost" className="flex-1 h-11 sm:h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
              <Button 
-               className="flex-1 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/10"
+               className="flex-1 h-11 sm:h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/10"
                onClick={handleSubmit}
                disabled={createMutation.isPending || updateMutation.isPending}
              >
