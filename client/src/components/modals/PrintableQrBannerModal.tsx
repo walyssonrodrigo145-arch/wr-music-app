@@ -189,6 +189,7 @@ export function PrintableQrBannerModal({
     }
   };
 
+  return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl w-[95vw] max-h-[92vh] flex flex-col p-0 border border-white/10 bg-slate-950 text-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Header fixo no topo */}
