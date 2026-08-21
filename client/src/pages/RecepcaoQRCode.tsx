@@ -73,15 +73,27 @@ export default function RecepcaoQRCode() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [printModalOpen, setPrintModalOpen] = useState(false);
 
-  // tRPC calls
+  // tRPC calls: Busca token ativo persistente imediatamente
+  const { data: activeTokenData, refetch: refetchActiveToken } = trpc.attendance.getActiveToken.useQuery(undefined, {
+    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 5, // 5 min
+  });
+
   const generateToken = trpc.attendance.generateToken.useMutation({
     onSuccess: (data) => {
       setToken(data.token);
     },
-    onError: () => {
-      // Tentar de novo
-    },
   });
+
+  // Atualiza o estado token sempre que o activeTokenData mudar
+  useEffect(() => {
+    if (activeTokenData?.token) {
+      setToken(activeTokenData.token);
+    } else if (activeTokenData === null) {
+      // Se não tem token ativo no banco, gera um novo imediatamente
+      generateToken.mutate(undefined as any);
+    }
+  }, [activeTokenData]);
 
   const { data: recentLogs } = trpc.attendance.getLogs.useQuery(
     { 
@@ -93,14 +105,16 @@ export default function RecepcaoQRCode() {
     }
   );
 
-  // Generate token on mount
+  // Força atualização manual de token
   const refreshToken = useCallback(() => {
     generateToken.mutate(undefined as any);
   }, [generateToken]);
 
   useEffect(() => {
-    refreshToken();
-  }, [refreshToken]);
+    if (!token && activeTokenData === undefined) {
+      generateToken.mutate(undefined as any);
+    }
+  }, []);
 
   // Clock
   useEffect(() => {

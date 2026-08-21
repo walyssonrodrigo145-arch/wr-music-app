@@ -208,17 +208,19 @@ export function PrintableQrBannerModal({
               type="button"
               variant="outline"
               size="sm"
+              disabled={!token}
               onClick={handleDownloadPng}
-              className="gap-2 rounded-xl bg-white/5 hover:bg-white/15 border-white/15 text-white font-bold text-xs h-9 px-4 transition-all cursor-pointer"
+              className="gap-2 rounded-xl bg-white/5 hover:bg-white/15 border-white/15 text-white font-bold text-xs h-9 px-4 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download size={14} />
-              Baixar PNG (HD)
+              {token ? "Baixar PNG (HD)" : "Gerando..."}
             </Button>
             <Button
               type="button"
               size="sm"
+              disabled={!token}
               onClick={handlePrint}
-              className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 px-5 shadow-lg shadow-indigo-500/25 transition-all cursor-pointer"
+              className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 px-5 shadow-lg shadow-indigo-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Printer size={14} />
               Imprimir
