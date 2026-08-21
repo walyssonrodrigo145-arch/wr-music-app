@@ -5,6 +5,7 @@ import helmet from "helmet";
 import cors from "cors";
 import { createServer } from "http";
 import net from "net";
+import path from "path";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerGoogleAuthRoutes } from "./googleAuth";
@@ -29,6 +30,8 @@ import { eq, and, sql } from "drizzle-orm";
 import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whatsapp";
 import { notifyUser } from "./notification";
 import { sdk } from "./sdk";
+import { fileTokenStore, createFileToken } from "./fileTokens";
+export { fileTokenStore, createFileToken };
 
 // ─── Notificação de eventos de contrato (assinado / recusado) ──────────────
 // Notifica os administradores da escola (push + notificação in-app) e o
@@ -794,6 +797,41 @@ async function startServer() {
     }
     next();
   }, express.static("uploads"));
+
+  // ─── Tokens temporários para servir arquivos locais em iframes/players ────
+  // Contexto: iframes, <video> e <audio> carregam URLs em contexto isolado
+  // e não enviam o cookie de sessão → a rota /uploads retorna 401.
+  // Solução: o tRPC gera um token UUID (via createFileToken) válido por 30 min
+  // e retorna /uploads-token/{token}/{filename}. Esta rota pública valida o
+  // token e serve o arquivo sem exigir cookie.
+  app.use("/uploads-token", async (req: express.Request, res: express.Response) => {
+    const parts = req.path.split("/").filter(Boolean);
+    const token = parts[0];
+    if (!token) {
+      return res.status(400).json({ error: "Missing token" });
+    }
+
+    const entry = fileTokenStore.get(token);
+    if (!entry) {
+      return res.status(403).json({ error: "Invalid or expired token" });
+    }
+    if (Date.now() > entry.expiresAt) {
+      fileTokenStore.delete(token);
+      return res.status(403).json({ error: "Token expired" });
+    }
+
+    const absPath = path.resolve(process.cwd(), "uploads", entry.relKey);
+    if (!absPath.startsWith(path.resolve(process.cwd(), "uploads"))) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    return res.sendFile(absPath, (err) => {
+      if (err) {
+        debugLog("[uploads-token] sendFile error:", (err as Error).message);
+        if (!res.headersSent) res.status(404).json({ error: "File not found" });
+      }
+    });
+  });
 
 
   // CRÍTICO-03 FIX: CSP habilitado em produção com política restritiva.

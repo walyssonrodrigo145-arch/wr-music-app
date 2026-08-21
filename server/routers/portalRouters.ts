@@ -51,6 +51,8 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
+import { createFileToken } from "../_core/fileTokens";
+
 export const portalRouters = {
   chat: router({
     getMessages: protectedProcedure.input(z.object({ withUserId: z.number() })).query(async ({ ctx, input }) => {
@@ -435,6 +437,46 @@ export const portalRouters = {
           eq(studentFiles.studentId, studentId)
         ));
       return { success: true };
+    }),
+    getFileUrl: studentProcedure.input(z.object({ fileId: z.number() })).mutation(async ({ ctx, input }) => {
+      // Gera uma URL acessível para o arquivo — necessário porque iframes e players
+      // de mídia não enviam o cookie de sessão que protege a rota /uploads direta.
+      // Para arquivos externos (Forge/S3) retorna a URL diretamente.
+      // Para arquivos locais (/uploads/) gera um token temporário de 30 min.
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      let studentId = ctx.user.studentId || (await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1).then(res => res[0]?.id));
+      if (!studentId) throw new TRPCError({ code: "UNAUTHORIZED", message: "Acesso não autorizado" });
+
+      const [file] = await db.select({ id: studentFiles.id, fileUrl: studentFiles.fileUrl, fileName: studentFiles.fileName })
+        .from(studentFiles)
+        .where(and(
+          eq(studentFiles.id, input.fileId),
+          eq(studentFiles.organizationId, orgId),
+          eq(studentFiles.studentId, studentId)
+        ))
+        .limit(1);
+
+      if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "Arquivo não encontrado" });
+
+      const rawUrl: string = file.fileUrl ?? "";
+
+      // Se for URL externa (http/https e não aponta para /uploads/ local), retorna direto
+      const isLocal = rawUrl.startsWith("/uploads/") || rawUrl.match(/https?:\/\/[^/]+\/uploads\//);
+      if (!isLocal) {
+        return { url: rawUrl };
+      }
+
+      // Extrai o caminho relativo dentro de /uploads/
+      const relKey = rawUrl.replace(/^https?:\/\/[^/]+\/uploads\//, "").replace(/^\/uploads\//, "");
+
+      const token = createFileToken(relKey);
+      const fileName = encodeURIComponent(file.fileName ?? relKey.split("/").pop() ?? "arquivo");
+      const url = `/uploads-token/${token}/${fileName}`;
+
+      return { url };
     }),
     getExercises: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();

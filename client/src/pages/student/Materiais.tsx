@@ -57,7 +57,10 @@ export default function StudentMaterials() {
   const [category, setCategory] = useState("todos");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [previewFile, setPreviewFile] = useState<any>(null);
-  
+  // URL resolvida (pode ser um token temporário para arquivos locais)
+  const [resolvedUrl, setResolvedUrl] = useState<string>("");
+  const [urlLoading, setUrlLoading] = useState(false);
+
   // Comments UI state
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
@@ -65,6 +68,7 @@ export default function StudentMaterials() {
   const utils = trpc.useUtils();
   const { data: materials, isLoading } = trpc.studentPortal.getMaterials.useQuery();
   const markViewedMutation = trpc.studentPortal.markMaterialViewed.useMutation();
+  const getFileUrlMutation = trpc.studentPortal.getFileUrl.useMutation();
 
   const { data: comments } = trpc.fileComments.list.useQuery(
     { fileId: previewFile?.id },
@@ -78,10 +82,28 @@ export default function StudentMaterials() {
     }
   });
 
-  const handlePreview = (file: any) => {
+  const handlePreview = async (file: any) => {
     setPreviewFile(file);
+    setResolvedUrl(getFixedUrl(file.fileUrl)); // mostra de imediato; será substituído
+    setUrlLoading(true);
     markViewedMutation.mutate({ fileId: file.id });
+    try {
+      const result = await getFileUrlMutation.mutateAsync({ fileId: file.id });
+      setResolvedUrl(result.url);
+    } catch {
+      // fallback: usa a URL original (funciona quando o armazenamento é externo)
+      setResolvedUrl(getFixedUrl(file.fileUrl));
+    } finally {
+      setUrlLoading(false);
+    }
   };
+
+  const handleClosePreview = () => {
+    setPreviewFile(null);
+    setResolvedUrl("");
+    setShowComments(false);
+  };
+
 
   const filteredMaterials = materials?.filter(m => {
     const matchesSearch = m.fileName.toLowerCase().includes(search.toLowerCase());
@@ -436,7 +458,7 @@ export default function StudentMaterials() {
       </div>
 
       {/* PREVIEW DIALOG */}
-      <Dialog open={!!previewFile} onOpenChange={() => { setPreviewFile(null); setShowComments(false); }}>
+      <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
          <DialogContent className={cn("p-0 overflow-hidden bg-background border-none rounded-[1.5rem] md:rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[95vw] md:max-w-7xl" : "max-w-[95vw] md:max-w-5xl")}>
             <DialogHeader className="p-4 md:p-8 bg-card/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-20">
                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -446,7 +468,7 @@ export default function StudentMaterials() {
                            {previewFile?.category}
                         </span>
                         <span className="text-[9px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">
-                           Visualização em Alta Definição
+                           Visualização de Material • {previewFile?.category?.toUpperCase()}
                         </span>
                      </div>
                      <DialogTitle className="text-lg md:text-2xl font-black text-foreground tracking-tight truncate leading-none">
@@ -467,13 +489,13 @@ export default function StudentMaterials() {
                       asChild
                       className="h-10 md:h-12 rounded-xl bg-primary hover:bg-primary/90 text-white text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95 hidden sm:flex"
                     >
-                       <a href={getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
+                       <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
                           <Download size={16} className="md:mr-2" /> 
                           <span className="hidden md:inline">Baixar Arquivo</span>
                        </a>
                     </Button>
                     <button 
-                      onClick={() => { setPreviewFile(null); setShowComments(false); }}
+                      onClick={handleClosePreview}
                       className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground flex items-center justify-center transition-all shrink-0"
                     >
                       <X size={18} />
@@ -485,15 +507,21 @@ export default function StudentMaterials() {
             <div className="flex flex-col md:flex-row h-[70vh] bg-muted/30">
                {/* Content Rendering */}
                <div className={cn("h-full flex items-center justify-center relative z-10 transition-all p-4 md:p-0", showComments ? "w-full md:w-2/3" : "w-full")}>
-                 {previewFile?.category === 'video' && (
+                 {urlLoading && (
+                   <div className="flex flex-col items-center gap-4 text-muted-foreground">
+                     <Loader2 size={40} className="animate-spin text-primary" />
+                     <p className="text-sm font-semibold">Carregando arquivo...</p>
+                   </div>
+                 )}
+                 {!urlLoading && previewFile?.category === 'video' && (
                     <video 
-                      src={getFixedUrl(previewFile.fileUrl)} 
+                      src={resolvedUrl} 
                       controls 
                       className="max-h-[90%] max-w-[100%] md:max-w-[95%] rounded-xl md:rounded-2xl shadow-2xl bg-black"
                       autoPlay
                     />
                  )}
-                 {previewFile?.category === 'audio' && (
+                 {!urlLoading && previewFile?.category === 'audio' && (
                     <div className="flex flex-col items-center gap-6 md:gap-10 w-full max-w-2xl px-6 py-10 md:px-12 md:py-20 bg-card rounded-[2rem] md:rounded-[3rem] shadow-2xl border border-border/50">
                        <div className="w-24 h-24 md:w-40 md:h-40 rounded-[2rem] md:rounded-[3rem] bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-primary/30 relative">
                           <Music size={48} className="relative z-10 md:w-16 md:h-16" />
@@ -504,23 +532,23 @@ export default function StudentMaterials() {
                           <p className="text-sm md:text-xl font-bold text-foreground truncate w-full">{previewFile.fileName}</p>
                        </div>
                        <audio 
-                         src={getFixedUrl(previewFile.fileUrl)} 
+                         src={resolvedUrl} 
                          controls 
                          className="w-full h-12 md:h-14 custom-audio-player"
                          autoPlay
                        />
                     </div>
                  )}
-                 {previewFile?.category === 'pdf' && (
+                 {!urlLoading && previewFile?.category === 'pdf' && (
                     <iframe 
-                      src={`${getFixedUrl(previewFile.fileUrl)}#toolbar=0`} 
+                      src={`${resolvedUrl}#toolbar=0`} 
                       className="w-full h-full border-none"
                       title={previewFile.fileName}
                     />
                  )}
-                 {previewFile?.category === 'imagem' && (
+                 {!urlLoading && previewFile?.category === 'imagem' && (
                     <img 
-                      src={getFixedUrl(previewFile.fileUrl)} 
+                      src={resolvedUrl} 
                       alt={previewFile.fileName}
                       className="max-h-[90%] max-w-[100%] md:max-w-[95%] object-contain rounded-xl md:rounded-2xl shadow-2xl border border-border/50"
                     />
