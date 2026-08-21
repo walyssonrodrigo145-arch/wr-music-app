@@ -28,10 +28,10 @@ export function PrintableQrBannerModal({
 
   const handleDownloadPng = async () => {
     try {
-      // Cria um canvas em alta resolução a partir do SVG do QR Code
-      const svgElement = printRef.current?.querySelector("svg");
+      // 1. Busca especificamente o SVG do QR Code (e não os ícones do Lucide como Sparkles/Music/Shield)
+      const svgElement = printRef.current?.querySelector("#qr-code-totem-svg");
       if (!svgElement) {
-        toast.error("Não foi possível gerar a imagem.");
+        toast.error("Não foi possível encontrar o QR Code para gerar a imagem.");
         return;
       }
 
@@ -53,44 +53,122 @@ export function PrintableQrBannerModal({
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Borda decorativa
+        // Borda decorativa interna
         ctx.strokeStyle = "#4f46e5";
-        ctx.lineWidth = 16;
-        ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
+        ctx.lineWidth = 14;
+        ctx.strokeRect(36, 36, canvas.width - 72, canvas.height - 72);
+
+        // Badge superior
+        ctx.fillStyle = "#eef2ff";
+        ctx.roundRect ? ctx.roundRect((canvas.width - 320) / 2, 70, 320, 48, 24) : ctx.fillRect((canvas.width - 320) / 2, 70, 320, 48);
+        ctx.fill();
+        ctx.strokeStyle = "#c7d2fe";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = "#4338ca";
+        ctx.font = "bold 22px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("PRESENÇA DIGITAL", canvas.width / 2, 102);
 
         // Header / Nome da Escola
-        ctx.fillStyle = "#1e1b4b";
-        ctx.font = "bold 52px sans-serif";
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "900 48px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(schoolName.toUpperCase(), canvas.width / 2, 140);
+        ctx.fillText(schoolName.toUpperCase(), canvas.width / 2, 180);
 
         // Subtítulo
         ctx.fillStyle = "#4f46e5";
-        ctx.font = "bold 32px sans-serif";
-        ctx.fillText("SISTEMA DE PRESENÇA DIGITAL", canvas.width / 2, 200);
+        ctx.font = "bold 26px sans-serif";
+        ctx.fillText("FAÇA SEU CHECK-IN DE AULA", canvas.width / 2, 230);
 
         // Título de Chamada
-        ctx.fillStyle = "#0f172a";
-        ctx.font = "bold 44px sans-serif";
-        ctx.fillText("APONTE SUA CÂMERA E FAÇA SEU CHECK-IN", canvas.width / 2, 280);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "600 22px sans-serif";
+        ctx.fillText("Aponte a câmera do celular para o QR Code abaixo", canvas.width / 2, 270);
 
-        // QR Code no centro
-        const qrSize = 650;
+        // QR Code no centro com moldura
+        const qrSize = 600;
         const qrX = (canvas.width - qrSize) / 2;
-        const qrY = 340;
+        const qrY = 320;
+
+        // Container do QR Code
+        ctx.fillStyle = "#f8fafc";
+        ctx.roundRect ? ctx.roundRect(qrX - 25, qrY - 25, qrSize + 50, qrSize + 50, 30) : ctx.fillRect(qrX - 25, qrY - 25, qrSize + 50, qrSize + 50);
+        ctx.fill();
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Desenha o QR Code real
         ctx.drawImage(image, qrX, qrY, qrSize, qrSize);
 
-        // Instruções
-        ctx.fillStyle = "#334155";
-        ctx.font = "600 28px sans-serif";
-        ctx.fillText("1. Abra a câmera do celular ou o Portal do Aluno", canvas.width / 2, 1080);
-        ctx.fillText("2. Aponte para este QR Code", canvas.width / 2, 1140);
-        ctx.fillText("3. Sua presença é registrada automaticamente!", canvas.width / 2, 1200);
+        // Container dos 3 Passos
+        const stepsBoxY = 1000;
+        const stepsBoxW = 900;
+        const stepsBoxH = 260;
+        const stepsBoxX = (canvas.width - stepsBoxW) / 2;
+
+        ctx.fillStyle = "#f8fafc";
+        ctx.roundRect ? ctx.roundRect(stepsBoxX, stepsBoxY, stepsBoxW, stepsBoxH, 24) : ctx.fillRect(stepsBoxX, stepsBoxY, stepsBoxW, stepsBoxH);
+        ctx.fill();
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Passos
+        ctx.textAlign = "left";
+        
+        // Passo 1
+        ctx.fillStyle = "#4f46e5";
+        ctx.beginPath();
+        ctx.arc(stepsBoxX + 50, stepsBoxY + 55, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("1", stepsBoxX + 50, stepsBoxY + 62);
+
+        ctx.fillStyle = "#1e293b";
+        ctx.font = "bold 24px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("Abra a câmera do celular ou o Portal do Aluno", stepsBoxX + 90, stepsBoxY + 63);
+
+        // Passo 2
+        ctx.fillStyle = "#4f46e5";
+        ctx.beginPath();
+        ctx.arc(stepsBoxX + 50, stepsBoxY + 130, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("2", stepsBoxX + 50, stepsBoxY + 137);
+
+        ctx.fillStyle = "#1e293b";
+        ctx.font = "bold 24px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("Aponte para este QR Code de presença", stepsBoxX + 90, stepsBoxY + 138);
+
+        // Passo 3
+        ctx.fillStyle = "#059669";
+        ctx.beginPath();
+        ctx.arc(stepsBoxX + 50, stepsBoxY + 205, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("✓", stepsBoxX + 50, stepsBoxY + 212);
+
+        ctx.fillStyle = "#065f46";
+        ctx.font = "bold 24px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("Pronto! Sua presença foi confirmada.", stepsBoxX + 90, stepsBoxY + 213);
 
         // Rodapé
-        ctx.fillStyle = "#64748b";
-        ctx.font = "bold 24px sans-serif";
-        ctx.fillText(`Presença Segura • ${schoolName} • MusicPro`, canvas.width / 2, 1480);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "bold 20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`Totem Oficial • ${schoolName} • MusicPro`, canvas.width / 2, 1500);
 
         // Download
         const pngUrl = canvas.toDataURL("image/png");
@@ -190,6 +268,7 @@ export function PrintableQrBannerModal({
             <div className="p-4 bg-slate-50 border-2 border-indigo-100 rounded-2xl shadow-inner mb-6">
               {token ? (
                 <QRCode
+                  id="qr-code-totem-svg"
                   value={token}
                   size={260}
                   style={{ height: "auto", maxWidth: "100%", width: "100%" }}
