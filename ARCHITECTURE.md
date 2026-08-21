@@ -91,4 +91,5 @@ server/router → services/, utils/, db, drizzle    ✓  (use serviços para ló
 - **Segurança**: `getSessionCookieOptions`/`COOKIE_NAME`, `loginAttempts` (rate-limit), `isReservedSuperAdminEmail`, `safeEqualStr` (timing-safe). Super admin vem SOMENTE de `ENV.superAdminEmails`.
 - **Billing**: juros/multa/carência SEMPRE via `BillingEngine`. Excedentes/assinatura via helpers de `server/routers/helpers.ts`. Regras de vencimento/atrasado/folha de professor: `buildDueDateSeries`/`markOverdueRows` (helpers) e `ProfessorPaymentService`.
 - **Logging**: debug via `debugLog` de `server/_core/logger.ts` (silencioso em produção); `console.error`/`warn` para erros operacionais.
+- **Documentação de estrutura**: `ARCHITECTURE.md`. Mapa para IA: `AI_CONTEXT.md`. PRD Master & Requisitos: `PRD_MASTER.md`. Diagnóstico histórico: `ARCHITECTURE_AUDIT.md`.
 - **Idempotência de baixa**: `markPaid` é idempotente (AUDIT-P1) — nunca remover o early-return `alreadyPaid`.

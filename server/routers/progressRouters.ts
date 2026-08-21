@@ -401,10 +401,19 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       }
     }),
 
-    generateDailyStudyPlan: protectedProcedure.input(z.object({ studentId: z.number() })).mutation(async ({ ctx, input }) => {
+    generateDailyStudyPlan: protectedProcedure.input(z.object({
+      studentId: z.number(),
+      targetMinutes: z.number().min(10).max(120).optional().default(30),
+    })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
+      const totalMinutes = input.targetMinutes || 30;
+
+      // Cálculo sugerido para os blocos de acordo com o total de minutos
+      const warmMin = totalMinutes <= 15 ? Math.max(2, Math.round(totalMinutes * 0.25)) : Math.max(5, Math.round(totalMinutes * 0.2));
+      const challengeMin = totalMinutes <= 15 ? Math.max(2, Math.round(totalMinutes * 0.25)) : Math.max(5, Math.round(totalMinutes * 0.2));
+      const mainMin = Math.max(5, totalMinutes - warmMin - challengeMin);
       
       const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
       if (!student) throw new Error("Aluno não encontrado");
@@ -444,6 +453,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       const jsonSchemaFormat = `{
   "weeklyGoal": "Resumo motivador e didático do objetivo da semana direto para o aluno.",
   "importantMessage": "Dica prática do professor para o aluno sobre paciência e postura.",
+  "targetDailyMinutes": ${totalMinutes},
   "days": [
     {
       "dayName": "Dia 1",
@@ -455,18 +465,17 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         {
           "title": "Aquecimento",
           "subtitle": "Exercício de coordenação e agilidade inicial",
-          "duration": "10 min",
+          "duration": "${warmMin} min",
           "points": [
             "Instrução técnica 1 de execução passo a passo no instrumento.",
-            "Instrução técnica 2 sobre o que observar na postura/som.",
-            "Instrução técnica 3 sobre como identificar se a execução está correta."
+            "Instrução técnica 2 sobre o que observar na postura/som."
           ],
           "icon": "music"
         },
         {
           "title": "Prática Principal",
           "subtitle": "Trabalho prático nas metas da semana",
-          "duration": "30 min",
+          "duration": "${mainMin} min",
           "points": [
             "Passo 1: Como posicionar e executar com exatidão no instrumento.",
             "Passo 2: Qual ritmo ou contagem utilizar durante a prática.",
@@ -477,7 +486,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         {
           "title": "Teoria ou Desafio",
           "subtitle": "Desafio prático de aplicação",
-          "duration": "10 min",
+          "duration": "${challengeMin} min",
           "points": [
             "Desafio prático objetivo relacionado diretamente à meta.",
             "Critério claro para o aluno saber que conquistou o desafio."
@@ -494,6 +503,16 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
 Você é o PROFESSOR PARTICULAR do aluno **${student.name}**, que está no nível **${student.level}** de **${instrumentName}** (${instrumentCategory}).
 Sua ÚNICA função é montar o plano de treino da semana no aplicativo, dividido em 5 dias, falando APENAS das metas que o professor cadastrou.
+
+---
+
+# ⏱️ REGRA FUNDAMENTAL DE TEMPO DIÁRIO: ${totalMinutes} MINUTOS POR DIA
+- O professor definiu que o tempo de treino diário do aluno deve ser de exatamente **${totalMinutes} minutos por dia**.
+- Para CADA dia, divida o tempo entre os 3 blocos:
+  * "Aquecimento": aproximadamente **${warmMin} min**
+  * "Prática Principal": aproximadamente **${mainMin} min**
+  * "Teoria ou Desafio": aproximadamente **${challengeMin} min**
+- A SOMA das durações dos 3 exercícios de cada dia DEVE ser igual a **${totalMinutes} min**. Preencha o campo "duration" de cada exercício em texto (ex: "${warmMin} min", "${mainMin} min", "${challengeMin} min").
 
 ---
 
@@ -529,7 +548,7 @@ Monte os 5 dias usando SÓ as metas, na ordem em que aparecem, assim:
 
 - "Aquecimento": preparar os dedos no acorde do dia.
 - "Prática Principal": tocar o acorde do dia bem devagar, ouvindo cada corda; no dia de troca, trocar devagar entre os acordes das metas.
-- "Desafio": um desafio simples usando só as metas (ex.: trocar do acorde X para o Y em alguns segundos).
+- "Teoria ou Desafio": um desafio simples usando só as metas (ex.: trocar do acorde X para o Y em alguns segundos).
 
 # 🚫 REGRA Nº 5 — NADA DE METALINGUAGEM
 

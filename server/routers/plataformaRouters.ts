@@ -90,6 +90,8 @@ export const plataformaRouters = {
       schoolHours: z.string().optional(),
       lessonDuration: z.number().optional(),
       dueDaysForecast: z.string().optional(),
+      attendanceCheckinMoment: z.enum(["inicio", "fim", "livre"]).optional(),
+      attendanceToleranceMinutes: z.number().min(0).max(180).optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
       await upsertSettings(orgId, ctx.user.id, {

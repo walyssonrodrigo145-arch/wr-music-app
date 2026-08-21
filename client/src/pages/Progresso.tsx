@@ -168,6 +168,7 @@ export default function Progresso() {
   const [studyPlanId, setStudyPlanId] = useState<number | null>(null);
   const [studyPlanStatus, setStudyPlanStatus] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
+  const [targetDailyStudyMinutes, setTargetDailyStudyMinutes] = useState(30);
 
   const { data: planHistory = [], isLoading: historyLoading } = trpc.progress.getStudentPlanHistory.useQuery(
     { studentId: selectedStudentId! },
@@ -1506,19 +1507,51 @@ export default function Progresso() {
                   ))
                 )}
               </div>
-              <div className="p-4 border-t border-border">
+              <div className="p-4 border-t border-border space-y-3 bg-card/80">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                      <Clock size={13} className="text-orange-500" />
+                      Tempo de Treino Diário
+                    </span>
+                    <span className="text-[11px] font-black text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md">
+                      {targetDailyStudyMinutes} min/dia
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[10, 20, 30, 40, 50, 60].map((mins) => (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => setTargetDailyStudyMinutes(mins)}
+                        className={cn(
+                          "h-8 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                          targetDailyStudyMinutes === mins
+                            ? "bg-orange-500 text-white border-orange-600 shadow-sm shadow-orange-500/20"
+                            : "bg-muted/60 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                        )}
+                      >
+                        {mins}m
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <Button 
                   onClick={() => {
                     setStudyPlanContent(null);
                     setStudyPlanId(null);
                     setStudyPlanStatus(null);
-                    generateDailyStudyPlanMutation.mutate({ studentId: selectedStudentId! });
+                    generateDailyStudyPlanMutation.mutate({
+                      studentId: selectedStudentId!,
+                      targetMinutes: targetDailyStudyMinutes,
+                    });
                   }}
                   disabled={generateDailyStudyPlanMutation.isPending}
-                  className="w-full h-10 rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-700 text-xs font-black uppercase tracking-widest"
+                  className="w-full h-10 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black uppercase tracking-widest shadow-md shadow-orange-500/20"
                 >
                   {generateDailyStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
-                  Gerar Novo
+                  Gerar Novo ({targetDailyStudyMinutes} min)
                 </Button>
               </div>
             </div>

@@ -280,6 +280,8 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "graceDays" integer DEFAULT 3 NOT NULL`, "settings graceDays");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "autoUpdateInvoice" integer DEFAULT 1 NOT NULL`, "settings autoUpdateInvoice");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "showFeeBreakdown" integer DEFAULT 1 NOT NULL`, "settings showFeeBreakdown");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendanceCheckinMoment" varchar(20) DEFAULT 'inicio' NOT NULL`, "settings attendanceCheckinMoment");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendanceToleranceMinutes" integer DEFAULT 30 NOT NULL`, "settings attendanceToleranceMinutes");
     await safeExecute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "studioRoomId" integer`, "lessons studioRoomId");
 
     // Tabela studio_rooms

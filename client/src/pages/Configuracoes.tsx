@@ -161,6 +161,10 @@ export default function Configuracoes() {
   const [earlyDiscountValue, setEarlyDiscountValue] = useState(5.0);
   const [earlyDiscountDays, setEarlyDiscountDays] = useState(0);
 
+  // ── Presença Digital / QR Code ──
+  const [attendanceCheckinMoment, setAttendanceCheckinMoment] = useState<"inicio" | "fim" | "livre">("inicio");
+  const [attendanceToleranceMinutes, setAttendanceToleranceMinutes] = useState(30);
+
   // ── IA state ──
   const [aiProvider, setAiProvider] = useState("gemini");
   const [geminiApiKey, setGeminiApiKey] = useState("");
@@ -206,6 +210,8 @@ export default function Configuracoes() {
       setEarlyDiscountType(((settings as any).earlyDiscountType === "fixed" ? "fixed" : "percentage"));
       setEarlyDiscountValue(Number((settings as any).earlyDiscountValue ?? 5.0));
       setEarlyDiscountDays(Number((settings as any).earlyDiscountDays ?? 0));
+      setAttendanceCheckinMoment(((settings as any).attendanceCheckinMoment as "inicio" | "fim" | "livre") || "inicio");
+      setAttendanceToleranceMinutes(Number((settings as any).attendanceToleranceMinutes ?? 30));
       if ((settings as any).lessonDuration) {
         setLessonDuration(Number((settings as any).lessonDuration));
       }
@@ -597,7 +603,23 @@ export default function Configuracoes() {
                             return;
                          }
                       }
-                      updateSchool.mutate({ schoolName, schoolCnpj, schoolAddress, schoolCity, schoolPhone, schoolEmail, schoolWebsite, schoolDescription, showSchoolName, logoUrl, schoolHours: JSON.stringify(schoolHours), lessonDuration, dueDaysForecast });
+                      updateSchool.mutate({
+                        schoolName,
+                        schoolCnpj,
+                        schoolAddress,
+                        schoolCity,
+                        schoolPhone,
+                        schoolEmail,
+                        schoolWebsite,
+                        schoolDescription,
+                        showSchoolName,
+                        logoUrl,
+                        schoolHours: JSON.stringify(schoolHours),
+                        lessonDuration,
+                        dueDaysForecast,
+                        attendanceCheckinMoment,
+                        attendanceToleranceMinutes,
+                      });
                     }}
                   >
                     {updateSchool.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -879,6 +901,113 @@ export default function Configuracoes() {
                       <SelectItem value="120">120 Minutos (2 Horas)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* 📍 SEÇÃO: PRESENÇA DIGITAL & QR CODE */}
+                <div className="pt-6 border-t border-border space-y-5">
+                  <div>
+                    <h4 className="text-sm font-black text-foreground uppercase tracking-wider flex items-center gap-2">
+                      <Shield size={16} className="text-indigo-500" />
+                      Presença Digital & Leitura de QR Code
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                      Configure como e quando os alunos devem registrar a presença através do QR Code na recepção ou nas salas.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {/* Momento de Leitura */}
+                    <div className="p-4 rounded-2xl border border-border bg-card/60 space-y-3">
+                      <Label className="text-xs font-bold text-foreground uppercase tracking-wider block">
+                        Momento Obrigatório do Check-in
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Defina se o aluno deve escanear o QR Code ao chegar na escola ou ao terminar a aula.
+                      </p>
+                      <div className="space-y-2 pt-1">
+                        {[
+                          {
+                            id: "inicio",
+                            title: "No Início da Aula (Chegada)",
+                            desc: "O aluno deve escanear ao chegar. Ideal para validar pontualidade.",
+                          },
+                          {
+                            id: "fim",
+                            title: "No Término da Aula (Saída)",
+                            desc: "O aluno só pode escanear ao final. Atesta que assistiu toda a aula.",
+                          },
+                          {
+                            id: "livre",
+                            title: "Horário Flexível (Livre)",
+                            desc: "Permite escanear a qualquer momento no decorrer da aula.",
+                          },
+                        ].map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setAttendanceCheckinMoment(opt.id as any)}
+                            className={cn(
+                              "w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 cursor-pointer",
+                              attendanceCheckinMoment === opt.id
+                                ? "border-indigo-500 bg-indigo-500/10 shadow-sm"
+                                : "border-border/60 bg-muted/40 hover:bg-muted"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0",
+                                attendanceCheckinMoment === opt.id
+                                  ? "border-indigo-600 bg-indigo-600"
+                                  : "border-muted-foreground/40"
+                              )}
+                            >
+                              {attendanceCheckinMoment === opt.id && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-foreground">{opt.title}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tolerância de Horário */}
+                    <div className="p-4 rounded-2xl border border-border bg-card/60 space-y-3 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-bold text-foreground uppercase tracking-wider block">
+                          Tolerância de Horário (Minutos)
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Janela de minutos antes e depois do momento escolhido em que o QR Code aceitará o registro.
+                        </p>
+                        <div className="pt-2">
+                          <Select
+                            value={String(attendanceToleranceMinutes)}
+                            onValueChange={(val) => setAttendanceToleranceMinutes(Number(val))}
+                          >
+                            <SelectTrigger className="w-full h-11 rounded-xl bg-background border-border font-bold text-sm">
+                              <SelectValue placeholder="Selecione a tolerância" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="10">10 Minutos de tolerância</SelectItem>
+                              <SelectItem value="15">15 Minutos de tolerância</SelectItem>
+                              <SelectItem value="20">20 Minutos de tolerância</SelectItem>
+                              <SelectItem value="30">30 Minutos de tolerância (Recomendado)</SelectItem>
+                              <SelectItem value="45">45 Minutos de tolerância</SelectItem>
+                              <SelectItem value="60">60 Minutos (1 Hora)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-indigo-300 font-medium">
+                        💡 <b>Dica:</b> Para aulas de 1h com check-in <b>no início</b> e tolerância de 15min, o aluno de uma aula às 14h poderá escanear entre 13:45 e 14:15.
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

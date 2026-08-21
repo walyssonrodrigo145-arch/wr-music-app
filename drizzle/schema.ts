@@ -276,6 +276,9 @@ export const settings = pgTable("settings", {
   // Antecipação Inteligente de Vagas por Falta (Desativado por padrão)
   autoAdvanceSlotsEnabled: integer("autoAdvanceSlotsEnabled").default(0).notNull(),
   autoAdvanceWhatsAppTemplate: text("autoAdvanceWhatsAppTemplate"),
+  // Presença Digital / QR Code de Recepção (Check-in momento e tolerância)
+  attendanceCheckinMoment: varchar("attendanceCheckinMoment", { length: 20 }).default("inicio").notNull(), // 'inicio' | 'fim' | 'livre'
+  attendanceToleranceMinutes: integer("attendanceToleranceMinutes").default(30).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

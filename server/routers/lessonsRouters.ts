@@ -1521,33 +1521,92 @@ export const lessonsRouters = {
             throw new TRPCError({ code: "BAD_REQUEST", message: "Token expirado" });
           }
 
-          // 2. Find the user's lesson (scheduled status)
-          // Allow checking into lessons that started up to 12 hours ago, and up to 30 minutes in the future.
-          // This avoids complex timezone string parsing issues on UTC servers.
-          const now = new Date();
-          const minAllowedTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
-          const maxAllowedTime = new Date(now.getTime() + 30 * 60 * 1000);
-
-          // Determine if the user is a student or a professor
           // Trava 1: Apenas alunos podem registrar presença via QR Code
           if (ctx.user.role !== "aluno" || !ctx.user.studentId) {
             throw new TRPCError({ code: "FORBIDDEN", message: "Apenas alunos podem registrar presença via QR Code." });
           }
 
-          const [todayLesson] = await db.select()
+          // 2. Obter configurações de presença da escola
+          const [schoolSettings] = await db.select({
+            checkinMoment: settings.attendanceCheckinMoment,
+            toleranceMinutes: settings.attendanceToleranceMinutes,
+            lessonDuration: settings.lessonDuration,
+          }).from(settings).where(eq(settings.organizationId, orgId)).limit(1);
+
+          const checkinMoment = schoolSettings?.checkinMoment || "inicio";
+          const toleranceMs = (schoolSettings?.toleranceMinutes ?? 30) * 60 * 1000;
+          const defaultDurationMin = schoolSettings?.lessonDuration ?? 60;
+
+          // Buscar aulas agendadas do aluno para hoje (com ampla margem para checagem contextual)
+          const now = new Date();
+          const dayStart = new Date(now);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(now);
+          dayEnd.setHours(23, 59, 59, 999);
+
+          const candidateLessons = await db.select()
             .from(lessons)
             .where(and(
               eq(lessons.organizationId, orgId),
               eq(lessons.studentId, ctx.user.studentId),
               eq(lessons.status, "agendada"),
-              gte(lessons.scheduledAt, minAllowedTime),
-              lte(lessons.scheduledAt, maxAllowedTime),
+              gte(lessons.scheduledAt, dayStart),
+              lte(lessons.scheduledAt, dayEnd),
             ))
-            .orderBy(asc(lessons.scheduledAt))
-            .limit(1);
+            .orderBy(asc(lessons.scheduledAt));
+
+          if (candidateLessons.length === 0) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Nenhuma aula agendada encontrada para você hoje." });
+          }
+
+          // Encontrar a aula que se enquadra na janela temporal permitida
+          let todayLesson: typeof candidateLessons[0] | null = null;
+          let feedbackError: string | null = null;
+
+          for (const lesson of candidateLessons) {
+            const lessonStart = new Date(lesson.scheduledAt);
+            const durationMin = (lesson as any).durationMinutes ?? defaultDurationMin;
+            const lessonEnd = new Date(lessonStart.getTime() + durationMin * 60 * 1000);
+
+            const horaInicio = lessonStart.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+            const horaFim = lessonEnd.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+            let validWindowStart: Date;
+            let validWindowEnd: Date;
+
+            if (checkinMoment === "fim") {
+              // Check-in na saída: janela centrada no término da aula
+              validWindowStart = new Date(lessonEnd.getTime() - toleranceMs);
+              validWindowEnd = new Date(lessonEnd.getTime() + toleranceMs);
+            } else if (checkinMoment === "livre") {
+              // Check-in livre: do início menos tolerância até o fim mais tolerância
+              validWindowStart = new Date(lessonStart.getTime() - toleranceMs);
+              validWindowEnd = new Date(lessonEnd.getTime() + toleranceMs);
+            } else {
+              // Check-in no início (padrão): janela centrada no início da aula
+              validWindowStart = new Date(lessonStart.getTime() - toleranceMs);
+              validWindowEnd = new Date(lessonStart.getTime() + toleranceMs);
+            }
+
+            if (now >= validWindowStart && now <= validWindowEnd) {
+              todayLesson = lesson;
+              break;
+            } else if (now < validWindowStart) {
+              if (checkinMoment === "fim") {
+                feedbackError = `O check-in desta escola é feito no término da aula (${horaFim}). Aguarde o fim da aula para registrar.`;
+              } else {
+                feedbackError = `Sua aula inicia às ${horaInicio}. O check-in será liberado próximo ao início da aula.`;
+              }
+            } else if (now > validWindowEnd) {
+              feedbackError = `O horário limite de check-in para a aula das ${horaInicio} já expirou.`;
+            }
+          }
 
           if (!todayLesson) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Nenhuma aula agendada disponível para check-in neste momento. (Aguarde o horário da aula)" });
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: feedbackError || "Nenhuma aula agendada disponível para check-in neste momento.",
+            });
           }
 
           // 3. Check for duplicate scan

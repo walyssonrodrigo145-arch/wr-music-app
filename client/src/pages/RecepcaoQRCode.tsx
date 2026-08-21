@@ -13,11 +13,14 @@ import {
   WifiOff,
   CheckCircle2,
   AlertCircle,
+  Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import QRCode from "react-qr-code";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { PrintableQrBannerModal } from "@/components/modals/PrintableQrBannerModal";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TOKEN_REFRESH_INTERVAL = 30; // seconds
@@ -68,6 +71,7 @@ export default function RecepcaoQRCode() {
   const [token, setToken] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [printModalOpen, setPrintModalOpen] = useState(false);
 
   // tRPC calls
   const generateToken = trpc.attendance.generateToken.useMutation({
@@ -257,8 +261,17 @@ export default function RecepcaoQRCode() {
               </div>
             </motion.div>
 
-            {/* Security Info */}
-            <div className="flex items-center gap-6">
+            {/* Security Info & Print Action */}
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <Button
+                type="button"
+                onClick={() => setPrintModalOpen(true)}
+                className="gap-2 rounded-2xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 font-bold text-xs px-5 h-10 shadow-lg shadow-indigo-500/10 transition-all cursor-pointer"
+              >
+                <Printer size={15} />
+                Imprimir / Baixar Placa QR Code
+              </Button>
+
               <div className="flex items-center gap-2 text-white/30">
                 <Shield size={16} />
                 <span className="text-xs font-medium">
@@ -351,6 +364,15 @@ export default function RecepcaoQRCode() {
           </div>
         </footer>
       </div>
+
+      {/* Modal de Impressão e Download do Totem QR Code */}
+      <PrintableQrBannerModal
+        open={printModalOpen}
+        onOpenChange={setPrintModalOpen}
+        schoolName={schoolName}
+        schoolLogo={schoolLogo}
+        token={token}
+      />
     </div>
   );
 }
