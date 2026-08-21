@@ -253,8 +253,13 @@ export function PrintableQrBannerModal({
       const qrBoxSize = 640;
       const qrBoxX = (canvas.width - qrBoxSize) / 2;
       const qrBoxY = 320;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 28);
+      } else {
+        ctx.rect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
+      }
       ctx.fillStyle = "#ffffff";
-      if (ctx.roundRect) ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 28); else ctx.rect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
       ctx.fill();
       ctx.strokeStyle = "#e0e7ff";
       ctx.lineWidth = 4;
@@ -265,7 +270,7 @@ export function PrintableQrBannerModal({
       const moduleCount = qrData.modules.size;
       const marginModules = 2;
       const totalModules = moduleCount + marginModules * 2;
-      const innerSize = 580;
+      const innerSize = 560;
       const modulePixelSize = innerSize / totalModules;
       const drawOffsetX = (canvas.width - innerSize) / 2;
       const drawOffsetY = qrBoxY + (qrBoxSize - innerSize) / 2;
@@ -279,8 +284,8 @@ export function PrintableQrBannerModal({
             ctx.fillRect(
               Math.floor(x),
               Math.floor(y),
-              Math.ceil(modulePixelSize),
-              Math.ceil(modulePixelSize)
+              Math.ceil(modulePixelSize) + 1,
+              Math.ceil(modulePixelSize) + 1
             );
           }
         }
@@ -291,8 +296,13 @@ export function PrintableQrBannerModal({
       const stepsW = 920;
       const stepsH = 270;
       const stepsX = (canvas.width - stepsW) / 2;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(stepsX, stepsY, stepsW, stepsH, 24);
+      } else {
+        ctx.rect(stepsX, stepsY, stepsW, stepsH);
+      }
       ctx.fillStyle = "#f8fafc";
-      if (ctx.roundRect) ctx.roundRect(stepsX, stepsY, stepsW, stepsH, 24); else ctx.rect(stepsX, stepsY, stepsW, stepsH);
       ctx.fill();
       ctx.strokeStyle = "#e2e8f0";
       ctx.lineWidth = 2;
