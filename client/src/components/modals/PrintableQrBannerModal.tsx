@@ -2,7 +2,8 @@ import React, { useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import QRCode from "react-qr-code";
-import { Printer, Download, Music, QrCode, Smartphone, CheckCircle, Shield, Sparkles } from "lucide-react";
+import QRCodeLib from "qrcode";
+import { Printer, Download, Music, Shield, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface PrintableQrBannerModalProps {
@@ -27,165 +28,149 @@ export function PrintableQrBannerModal({
   };
 
   const handleDownloadPng = async () => {
+    if (!token) {
+      toast.error("Token do QR Code não encontrado. Recarregue a página.");
+      return;
+    }
     try {
-      // 1. Busca especificamente o SVG do QR Code (e não os ícones do Lucide como Sparkles/Music/Shield)
-      const svgElement = printRef.current?.querySelector("#qr-code-totem-svg");
-      if (!svgElement) {
-        toast.error("Não foi possível encontrar o QR Code para gerar a imagem.");
-        return;
-      }
+      toast.loading("Gerando imagem em alta resolução...", { id: "qr-download" });
 
-      const svgString = new XMLSerializer().serializeToString(svgElement);
-      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-      const URL = window.URL || window.webkitURL || window;
-      const blobURL = URL.createObjectURL(svgBlob);
+      // ─── 1. Gerar QR Code diretamente no canvas auxiliar via lib `qrcode` ───
+      // Usamos qrcode.toCanvas() para desenhar o QR diretamente num canvas nativo.
+      // Essa abordagem é 100% confiável: não depende de serializar SVG (que falha
+      // silenciosamente quando o browser bloqueia drawImage de SVG externo).
+      const qrCanvas = document.createElement("canvas");
+      await QRCodeLib.toCanvas(qrCanvas, token, {
+        width: 600,
+        margin: 2,
+        color: { dark: "#000000", light: "#f8fafc" },
+        errorCorrectionLevel: "Q",
+      });
 
-      const image = new Image();
-      image.onload = () => {
-        const canvas = document.createElement("canvas");
-        const scale = 3; // Ultra HD
-        canvas.width = 1200;
-        canvas.height = 1600;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+      // ─── 2. Montar o totem completo num canvas principal 1200×1600 ───
+      const canvas = document.createElement("canvas");
+      canvas.width = 1200;
+      canvas.height = 1600;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { toast.dismiss("qr-download"); return; }
 
-        // Fundo Branco limpo
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Fundo branco
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Borda decorativa interna
-        ctx.strokeStyle = "#4f46e5";
-        ctx.lineWidth = 14;
-        ctx.strokeRect(36, 36, canvas.width - 72, canvas.height - 72);
+      // Borda decorativa (azul índigo)
+      ctx.strokeStyle = "#4f46e5";
+      ctx.lineWidth = 14;
+      ctx.strokeRect(36, 36, canvas.width - 72, canvas.height - 72);
 
-        // Badge superior
-        ctx.fillStyle = "#eef2ff";
-        ctx.roundRect ? ctx.roundRect((canvas.width - 320) / 2, 70, 320, 48, 24) : ctx.fillRect((canvas.width - 320) / 2, 70, 320, 48);
+      // Badge "PRESENÇA DIGITAL"
+      const badgeW = 340;
+      const badgeH = 50;
+      const badgeX = (canvas.width - badgeW) / 2;
+      ctx.fillStyle = "#eef2ff";
+      if (ctx.roundRect) ctx.roundRect(badgeX, 68, badgeW, badgeH, 25); else ctx.rect(badgeX, 68, badgeW, badgeH);
+      ctx.fill();
+      ctx.strokeStyle = "#c7d2fe";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#4338ca";
+      ctx.font = "bold 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("✦  PRESENÇA DIGITAL  ✦", canvas.width / 2, 103);
+
+      // Nome da escola
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "900 52px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(schoolName.toUpperCase(), canvas.width / 2, 190);
+
+      // Subtítulo
+      ctx.fillStyle = "#4f46e5";
+      ctx.font = "bold 28px sans-serif";
+      ctx.fillText("FAÇA SEU CHECK-IN DE AULA", canvas.width / 2, 244);
+
+      // Instrução
+      ctx.fillStyle = "#64748b";
+      ctx.font = "500 22px sans-serif";
+      ctx.fillText("Aponte a câmera do celular para o QR Code abaixo", canvas.width / 2, 285);
+
+      // ─── Container do QR Code ───
+      const qrSize = 600;
+      const qrX = (canvas.width - qrSize) / 2;
+      const qrY = 318;
+      const pad = 28;
+      ctx.fillStyle = "#f8fafc";
+      if (ctx.roundRect) ctx.roundRect(qrX - pad, qrY - pad, qrSize + pad * 2, qrSize + pad * 2, 28); else ctx.rect(qrX - pad, qrY - pad, qrSize + pad * 2, qrSize + pad * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#e0e7ff";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Desenha o QR Code REAL diretamente (canvas → canvas, sem serialização SVG!)
+      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+      // ─── Box dos 3 Passos ───
+      const stepsY = 1020;
+      const stepsW = 920;
+      const stepsH = 270;
+      const stepsX = (canvas.width - stepsW) / 2;
+      ctx.fillStyle = "#f8fafc";
+      if (ctx.roundRect) ctx.roundRect(stepsX, stepsY, stepsW, stepsH, 24); else ctx.rect(stepsX, stepsY, stepsW, stepsH);
+      ctx.fill();
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const drawStep = (num: string, text: string, y: number, color: string) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(stepsX + 52, y, 20, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = "#c7d2fe";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.fillStyle = "#4338ca";
+        ctx.fillStyle = "#ffffff";
         ctx.font = "bold 22px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("PRESENÇA DIGITAL", canvas.width / 2, 102);
-
-        // Header / Nome da Escola
-        ctx.fillStyle = "#0f172a";
-        ctx.font = "900 48px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(schoolName.toUpperCase(), canvas.width / 2, 180);
-
-        // Subtítulo
-        ctx.fillStyle = "#4f46e5";
+        ctx.fillText(num, stepsX + 52, y + 8);
+        ctx.fillStyle = "#1e293b";
         ctx.font = "bold 26px sans-serif";
-        ctx.fillText("FAÇA SEU CHECK-IN DE AULA", canvas.width / 2, 230);
-
-        // Título de Chamada
-        ctx.fillStyle = "#64748b";
-        ctx.font = "600 22px sans-serif";
-        ctx.fillText("Aponte a câmera do celular para o QR Code abaixo", canvas.width / 2, 270);
-
-        // QR Code no centro com moldura
-        const qrSize = 600;
-        const qrX = (canvas.width - qrSize) / 2;
-        const qrY = 320;
-
-        // Container do QR Code
-        ctx.fillStyle = "#f8fafc";
-        ctx.roundRect ? ctx.roundRect(qrX - 25, qrY - 25, qrSize + 50, qrSize + 50, 30) : ctx.fillRect(qrX - 25, qrY - 25, qrSize + 50, qrSize + 50);
-        ctx.fill();
-        ctx.strokeStyle = "#e2e8f0";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        // Desenha o QR Code real
-        ctx.drawImage(image, qrX, qrY, qrSize, qrSize);
-
-        // Container dos 3 Passos
-        const stepsBoxY = 1000;
-        const stepsBoxW = 900;
-        const stepsBoxH = 260;
-        const stepsBoxX = (canvas.width - stepsBoxW) / 2;
-
-        ctx.fillStyle = "#f8fafc";
-        ctx.roundRect ? ctx.roundRect(stepsBoxX, stepsBoxY, stepsBoxW, stepsBoxH, 24) : ctx.fillRect(stepsBoxX, stepsBoxY, stepsBoxW, stepsBoxH);
-        ctx.fill();
-        ctx.strokeStyle = "#e2e8f0";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Passos
         ctx.textAlign = "left";
-        
-        // Passo 1
-        ctx.fillStyle = "#4f46e5";
-        ctx.beginPath();
-        ctx.arc(stepsBoxX + 50, stepsBoxY + 55, 18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 20px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("1", stepsBoxX + 50, stepsBoxY + 62);
-
-        ctx.fillStyle = "#1e293b";
-        ctx.font = "bold 24px sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText("Abra a câmera do celular ou o Portal do Aluno", stepsBoxX + 90, stepsBoxY + 63);
-
-        // Passo 2
-        ctx.fillStyle = "#4f46e5";
-        ctx.beginPath();
-        ctx.arc(stepsBoxX + 50, stepsBoxY + 130, 18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 20px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("2", stepsBoxX + 50, stepsBoxY + 137);
-
-        ctx.fillStyle = "#1e293b";
-        ctx.font = "bold 24px sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText("Aponte para este QR Code de presença", stepsBoxX + 90, stepsBoxY + 138);
-
-        // Passo 3
-        ctx.fillStyle = "#059669";
-        ctx.beginPath();
-        ctx.arc(stepsBoxX + 50, stepsBoxY + 205, 18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 20px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("✓", stepsBoxX + 50, stepsBoxY + 212);
-
-        ctx.fillStyle = "#065f46";
-        ctx.font = "bold 24px sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText("Pronto! Sua presença foi confirmada.", stepsBoxX + 90, stepsBoxY + 213);
-
-        // Rodapé
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "bold 20px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(`Totem Oficial • ${schoolName} • MusicPro`, canvas.width / 2, 1500);
-
-        // Download
-        const pngUrl = canvas.toDataURL("image/png");
-        const downloadLink = document.createElement("a");
-        downloadLink.href = pngUrl;
-        downloadLink.download = `totem-presenca-qrcode-${schoolName.toLowerCase().replace(/\s+/g, "-")}.png`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        URL.revokeObjectURL(blobURL);
-        toast.success("Placa QR Code baixada em alta resolução!");
+        ctx.fillText(text, stepsX + 94, y + 9);
       };
 
-      image.src = blobURL;
+      drawStep("1", "Abra a câmera do celular ou o Portal do Aluno", stepsY + 58, "#4f46e5");
+      drawStep("2", "Aponte para este QR Code de presença", stepsY + 138, "#4f46e5");
+      // Passo 3 (verde)
+      ctx.fillStyle = "#059669";
+      ctx.beginPath();
+      ctx.arc(stepsX + 52, stepsY + 218, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("✓", stepsX + 52, stepsY + 226);
+      ctx.fillStyle = "#065f46";
+      ctx.font = "bold 26px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("Pronto! Sua presença foi confirmada.", stepsX + 94, stepsY + 227);
+
+      // Rodapé
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "500 20px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`Totem Oficial  •  ${schoolName}  •  MusicPro`, canvas.width / 2, 1520);
+
+      // ─── 3. Exportar PNG e acionar download ───
+      const pngUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = pngUrl;
+      link.download = `totem-presenca-qrcode-${schoolName.toLowerCase().replace(/\s+/g, "-")}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Placa QR Code baixada em alta resolução!", { id: "qr-download" });
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao baixar a placa em imagem.");
+      toast.error("Erro ao gerar a imagem do totem.", { id: "qr-download" });
     }
   };
 
