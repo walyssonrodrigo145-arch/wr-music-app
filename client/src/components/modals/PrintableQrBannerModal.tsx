@@ -189,35 +189,37 @@ export function PrintableQrBannerModal({
     }
   };
 
-  return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 border-0 bg-slate-900 text-white rounded-3xl shadow-2xl">
-        <DialogHeader className="p-6 pb-2 border-b border-white/10 flex flex-row items-center justify-between">
-          <div>
-            <DialogTitle className="text-xl font-black uppercase tracking-wider flex items-center gap-2 text-white">
-              <Printer size={20} className="text-indigo-400" />
-              Imprimir Totem / Placa de Recepção
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[92vh] flex flex-col p-0 border border-white/10 bg-slate-950 text-white rounded-3xl shadow-2xl overflow-hidden">
+        {/* Header fixo no topo */}
+        <DialogHeader className="p-5 px-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 bg-slate-900/80 backdrop-blur-md">
+          <div className="min-w-0">
+            <DialogTitle className="text-lg sm:text-xl font-black uppercase tracking-wider flex items-center gap-2.5 text-white">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
+                <Printer size={16} />
+              </div>
+              <span>Imprimir Totem / Placa de Recepção</span>
             </DialogTitle>
-            <p className="text-xs text-white/50 mt-1">
-              Imprima ou baixe esta placa em alta definição para fixar na recepção ou nas salas de aula.
+            <p className="text-xs text-slate-400 mt-1 font-medium">
+              Gere a placa em alta definição para fixar na recepção ou nas salas de aula da sua escola.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleDownloadPng}
-              className="gap-2 rounded-xl bg-white/10 hover:bg-white/20 border-white/10 text-white font-bold text-xs"
+              className="gap-2 rounded-xl bg-white/5 hover:bg-white/15 border-white/15 text-white font-bold text-xs h-9 px-4 transition-all cursor-pointer"
             >
               <Download size={14} />
-              Baixar PNG
+              Baixar PNG (HD)
             </Button>
             <Button
               type="button"
               size="sm"
               onClick={handlePrint}
-              className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25"
+              className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 px-5 shadow-lg shadow-indigo-500/25 transition-all cursor-pointer"
             >
               <Printer size={14} />
               Imprimir
@@ -225,93 +227,93 @@ export function PrintableQrBannerModal({
           </div>
         </DialogHeader>
 
-        {/* ── Visualização da Folha / Totem ─────────────────────────── */}
-        <div className="p-6 flex justify-center bg-slate-950/60">
+        {/* ── Visualização da Folha / Totem com scroll sutil apenas quando necessário ─────────────────────────── */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex items-center justify-center bg-slate-950/90 subtle-scrollbar">
           <div
             ref={printRef}
             id="printable-totem-card"
-            className="w-full max-w-[500px] bg-white text-slate-900 rounded-3xl p-8 border-4 border-indigo-600 shadow-2xl flex flex-col items-center text-center relative overflow-hidden"
+            className="w-full max-w-[420px] bg-white text-slate-900 rounded-3xl p-6 border-4 border-indigo-600 shadow-2xl flex flex-col items-center text-center relative overflow-hidden my-auto"
           >
             {/* Top Badge */}
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black uppercase tracking-widest mb-4">
-              <Sparkles size={14} />
+            <div className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-black uppercase tracking-widest mb-3">
+              <Sparkles size={12} />
               Presença Digital
             </div>
 
             {/* Logo & School Name */}
-            <div className="flex flex-col items-center gap-2 mb-4">
+            <div className="flex flex-col items-center gap-1.5 mb-3">
               {schoolLogo ? (
-                <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 p-1 flex items-center justify-center bg-white shadow-sm">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 p-1 flex items-center justify-center bg-white shadow-sm">
                   <img src={schoolLogo} alt={schoolName} className="w-full h-full object-contain" />
                 </div>
               ) : (
-                <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
-                  <Music size={28} />
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                  <Music size={24} />
                 </div>
               )}
-              <h2 className="text-xl font-black tracking-tight text-slate-900 uppercase mt-1">
+              <h2 className="text-lg font-black tracking-tight text-slate-900 uppercase">
                 {schoolName}
               </h2>
             </div>
 
             {/* Chamada */}
-            <div className="mb-4">
-              <h3 className="text-lg font-black text-indigo-900 leading-tight">
+            <div className="mb-3">
+              <h3 className="text-base font-black text-indigo-900 leading-tight">
                 Faça seu Check-in de Aula
               </h3>
-              <p className="text-xs text-slate-500 font-semibold mt-0.5">
+              <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
                 Aponte a câmera do seu celular para o QR Code abaixo
               </p>
             </div>
 
             {/* QR Code Container */}
-            <div className="p-4 bg-slate-50 border-2 border-indigo-100 rounded-2xl shadow-inner mb-6">
+            <div className="p-3 bg-slate-50 border-2 border-indigo-100 rounded-2xl shadow-inner mb-4">
               {token ? (
                 <QRCode
                   id="qr-code-totem-svg"
                   value={token}
-                  size={260}
+                  size={200}
                   style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                   level="Q"
                 />
               ) : (
-                <div className="w-[260px] h-[260px] flex items-center justify-center text-slate-400">
+                <div className="w-[200px] h-[200px] flex items-center justify-center text-slate-400 text-xs">
                   Gerando código...
                 </div>
               )}
             </div>
 
             {/* 3 Passos */}
-            <div className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left space-y-2 mb-4">
-              <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+            <div className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl p-3 text-left space-y-1.5 mb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
                   1
                 </span>
-                <p className="text-xs font-bold text-slate-700">
+                <p className="text-[11px] font-bold text-slate-700">
                   Abra a câmera ou o <b>Portal do Aluno</b>
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
                   2
                 </span>
-                <p className="text-xs font-bold text-slate-700">
+                <p className="text-[11px] font-bold text-slate-700">
                   Aponte para o <b>QR Code</b>
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
                   ✓
                 </span>
-                <p className="text-xs font-bold text-emerald-800">
+                <p className="text-[11px] font-bold text-emerald-800">
                   Pronto! Sua presença foi confirmada.
                 </p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-semibold">
-              <Shield size={12} className="text-indigo-500" />
+            <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-semibold">
+              <Shield size={11} className="text-indigo-500" />
               <span>Totem Oficial • {schoolName}</span>
             </div>
           </div>
