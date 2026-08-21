@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import QRCode from "react-qr-code";
-import QRCodeLib from "qrcode";
+import html2canvas from "html2canvas";
 import { Printer, Download, Music, Shield, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,146 +32,24 @@ export function PrintableQrBannerModal({
       toast.error("Token do QR Code não encontrado. Recarregue a página.");
       return;
     }
+    if (!printRef.current) {
+      toast.error("Elemento da placa não encontrado na tela.");
+      return;
+    }
+
     try {
-      toast.loading("Gerando imagem em alta resolução...", { id: "qr-download" });
+      toast.loading("Renderizando placa oficial em alta definição...", { id: "qr-download" });
 
-      // ─── 1. Montar o totem completo num canvas principal 1200×1600 ───
-      const canvas = document.createElement("canvas");
-      canvas.width = 1200;
-      canvas.height = 1600;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { toast.dismiss("qr-download"); return; }
+      // Captura o próprio elemento do Totem diretamente do DOM usando html2canvas
+      // Isso garante 100% que o QR Code, logotipo, 3 passos e textos sairão exatamente como na tela
+      const canvas = await html2canvas(printRef.current, {
+        scale: 3, // Ultra Resolução 300 DPI
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
 
-      // Fundo branco
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Borda decorativa (azul índigo)
-      ctx.strokeStyle = "#4f46e5";
-      ctx.lineWidth = 14;
-      ctx.strokeRect(36, 36, canvas.width - 72, canvas.height - 72);
-
-      // Badge "PRESENÇA DIGITAL"
-      const badgeW = 340;
-      const badgeH = 50;
-      const badgeX = (canvas.width - badgeW) / 2;
-      ctx.fillStyle = "#eef2ff";
-      if (ctx.roundRect) ctx.roundRect(badgeX, 68, badgeW, badgeH, 25); else ctx.rect(badgeX, 68, badgeW, badgeH);
-      ctx.fill();
-      ctx.strokeStyle = "#c7d2fe";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.fillStyle = "#4338ca";
-      ctx.font = "bold 22px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("✦  PRESENÇA DIGITAL  ✦", canvas.width / 2, 103);
-
-      // Nome da escola
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "900 52px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(schoolName.toUpperCase(), canvas.width / 2, 190);
-
-      // Subtítulo
-      ctx.fillStyle = "#4f46e5";
-      ctx.font = "bold 28px sans-serif";
-      ctx.fillText("FAÇA SEU CHECK-IN DE AULA", canvas.width / 2, 244);
-
-      // Instrução
-      ctx.fillStyle = "#64748b";
-      ctx.font = "500 22px sans-serif";
-      ctx.fillText("Aponte a câmera do celular para o QR Code abaixo", canvas.width / 2, 285);
-
-      // ─── Container do QR Code ───
-      const qrBoxSize = 640;
-      const qrBoxX = (canvas.width - qrBoxSize) / 2;
-      const qrBoxY = 320;
-      ctx.fillStyle = "#ffffff";
-      if (ctx.roundRect) ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 28); else ctx.rect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
-      ctx.fill();
-      ctx.strokeStyle = "#e0e7ff";
-      ctx.lineWidth = 4;
-      ctx.stroke();
-
-      // ─── DESENHO DIRETO DA MATRIZ DO QR CODE (PURA MATEMÁTICA / SEM DOM / SEM ASYNC IMAGE) ───
-      // Obtém a matriz de dados binários do QR Code usando o algoritmo do QRCodeLib
-      const qrData = QRCodeLib.create(token, { errorCorrectionLevel: "Q" });
-      const moduleCount = qrData.modules.size;
-      const marginModules = 2;
-      const totalModules = moduleCount + marginModules * 2;
-      const innerSize = 580;
-      const modulePixelSize = innerSize / totalModules;
-      const drawOffsetX = (canvas.width - innerSize) / 2;
-      const drawOffsetY = qrBoxY + (qrBoxSize - innerSize) / 2;
-
-      // Desenha cada quadradinho preto diretamente no canvas com fillRect
-      ctx.fillStyle = "#000000";
-      for (let row = 0; row < moduleCount; row++) {
-        for (let col = 0; col < moduleCount; col++) {
-          if (qrData.modules.get(row, col)) {
-            const x = drawOffsetX + (col + marginModules) * modulePixelSize;
-            const y = drawOffsetY + (row + marginModules) * modulePixelSize;
-            // Math.ceil no tamanho evita fendas de subpixel entre os módulos
-            ctx.fillRect(
-              Math.floor(x),
-              Math.floor(y),
-              Math.ceil(modulePixelSize),
-              Math.ceil(modulePixelSize)
-            );
-          }
-        }
-      }
-
-      // ─── Box dos 3 Passos ───
-      const stepsY = 1020;
-      const stepsW = 920;
-      const stepsH = 270;
-      const stepsX = (canvas.width - stepsW) / 2;
-      ctx.fillStyle = "#f8fafc";
-      if (ctx.roundRect) ctx.roundRect(stepsX, stepsY, stepsW, stepsH, 24); else ctx.rect(stepsX, stepsY, stepsW, stepsH);
-      ctx.fill();
-      ctx.strokeStyle = "#e2e8f0";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      const drawStep = (num: string, text: string, y: number, color: string) => {
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(stepsX + 52, y, 20, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 22px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(num, stepsX + 52, y + 8);
-        ctx.fillStyle = "#1e293b";
-        ctx.font = "bold 26px sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText(text, stepsX + 94, y + 9);
-      };
-
-      drawStep("1", "Abra a câmera do celular ou o Portal do Aluno", stepsY + 58, "#4f46e5");
-      drawStep("2", "Aponte para este QR Code de presença", stepsY + 138, "#4f46e5");
-      // Passo 3 (verde)
-      ctx.fillStyle = "#059669";
-      ctx.beginPath();
-      ctx.arc(stepsX + 52, stepsY + 218, 20, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 22px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("✓", stepsX + 52, stepsY + 226);
-      ctx.fillStyle = "#065f46";
-      ctx.font = "bold 26px sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText("Pronto! Sua presença foi confirmada.", stepsX + 94, stepsY + 227);
-
-      // Rodapé
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "500 20px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(`Totem Oficial  •  ${schoolName}  •  MusicPro`, canvas.width / 2, 1520);
-
-      // ─── 3. Exportar PNG e acionar download ───
       const pngUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = pngUrl;
@@ -180,9 +58,9 @@ export function PrintableQrBannerModal({
       link.click();
       document.body.removeChild(link);
 
-      toast.success("Placa QR Code baixada em alta resolução!", { id: "qr-download" });
+      toast.success("Placa QR Code baixada com sucesso!", { id: "qr-download" });
     } catch (err) {
-      console.error(err);
+      console.error("Erro no html2canvas:", err);
       toast.error("Erro ao gerar a imagem do totem.", { id: "qr-download" });
     }
   };
@@ -320,24 +198,32 @@ export function PrintableQrBannerModal({
           </div>
         </div>
 
-        {/* Estilo Global de Impressão (@media print) */}
+        {/* Estilo Global de Impressão Oficial (@media print) */}
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
-            body * {
+            body {
               visibility: hidden !important;
+              background: #ffffff !important;
             }
             #printable-totem-card, #printable-totem-card * {
               visibility: visible !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             #printable-totem-card {
-              position: fixed !important;
+              position: absolute !important;
               left: 50% !important;
               top: 50% !important;
-              transform: translate(-50%, -50%) !important;
-              width: 90% !important;
-              max-width: 600px !important;
+              transform: translate(-50%, -50%) scale(1.1) !important;
+              width: 85% !important;
+              max-width: 520px !important;
+              margin: 0 auto !important;
+              padding: 24px !important;
               box-shadow: none !important;
               border: 4px solid #4f46e5 !important;
+              border-radius: 24px !important;
+              background-color: #ffffff !important;
+              color: #0f172a !important;
             }
           }
         ` }} />
