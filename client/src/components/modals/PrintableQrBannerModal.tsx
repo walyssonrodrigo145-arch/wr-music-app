@@ -35,24 +35,7 @@ export function PrintableQrBannerModal({
     try {
       toast.loading("Gerando imagem em alta resolução...", { id: "qr-download" });
 
-      // ─── 1. Gerar QR Code via toDataURL e carregar como Image nativa ───
-      // toDataURL gera uma imagem PNG em base64 pura (sem SVG, sem Canvas DOM issues).
-      // Ao carregar a imagem em um HTMLImageElement garantimos 100% de compatibilidade com ctx.drawImage.
-      const qrDataUrl = await QRCodeLib.toDataURL(token, {
-        width: 600,
-        margin: 2,
-        color: { dark: "#000000", light: "#f8fafc" },
-        errorCorrectionLevel: "Q",
-      });
-
-      const qrImg = new Image();
-      await new Promise<void>((resolve, reject) => {
-        qrImg.onload = () => resolve();
-        qrImg.onerror = (e) => reject(e);
-        qrImg.src = qrDataUrl;
-      });
-
-      // ─── 2. Montar o totem completo num canvas principal 1200×1600 ───
+      // ─── 1. Montar o totem completo num canvas principal 1200×1600 ───
       const canvas = document.createElement("canvas");
       canvas.width = 1200;
       canvas.height = 1600;
@@ -100,19 +83,44 @@ export function PrintableQrBannerModal({
       ctx.fillText("Aponte a câmera do celular para o QR Code abaixo", canvas.width / 2, 285);
 
       // ─── Container do QR Code ───
-      const qrSize = 600;
-      const qrX = (canvas.width - qrSize) / 2;
-      const qrY = 318;
-      const pad = 28;
-      ctx.fillStyle = "#f8fafc";
-      if (ctx.roundRect) ctx.roundRect(qrX - pad, qrY - pad, qrSize + pad * 2, qrSize + pad * 2, 28); else ctx.rect(qrX - pad, qrY - pad, qrSize + pad * 2, qrSize + pad * 2);
+      const qrBoxSize = 640;
+      const qrBoxX = (canvas.width - qrBoxSize) / 2;
+      const qrBoxY = 320;
+      ctx.fillStyle = "#ffffff";
+      if (ctx.roundRect) ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 28); else ctx.rect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
       ctx.fill();
       ctx.strokeStyle = "#e0e7ff";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.stroke();
 
-      // Desenha o QR Code REAL diretamente (Image PNG base64)
-      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      // ─── DESENHO DIRETO DA MATRIZ DO QR CODE (PURA MATEMÁTICA / SEM DOM / SEM ASYNC IMAGE) ───
+      // Obtém a matriz de dados binários do QR Code usando o algoritmo do QRCodeLib
+      const qrData = QRCodeLib.create(token, { errorCorrectionLevel: "Q" });
+      const moduleCount = qrData.modules.size;
+      const marginModules = 2;
+      const totalModules = moduleCount + marginModules * 2;
+      const innerSize = 580;
+      const modulePixelSize = innerSize / totalModules;
+      const drawOffsetX = (canvas.width - innerSize) / 2;
+      const drawOffsetY = qrBoxY + (qrBoxSize - innerSize) / 2;
+
+      // Desenha cada quadradinho preto diretamente no canvas com fillRect
+      ctx.fillStyle = "#000000";
+      for (let row = 0; row < moduleCount; row++) {
+        for (let col = 0; col < moduleCount; col++) {
+          if (qrData.modules.get(row, col)) {
+            const x = drawOffsetX + (col + marginModules) * modulePixelSize;
+            const y = drawOffsetY + (row + marginModules) * modulePixelSize;
+            // Math.ceil no tamanho evita fendas de subpixel entre os módulos
+            ctx.fillRect(
+              Math.floor(x),
+              Math.floor(y),
+              Math.ceil(modulePixelSize),
+              Math.ceil(modulePixelSize)
+            );
+          }
+        }
+      }
 
       // ─── Box dos 3 Passos ───
       const stepsY = 1020;
