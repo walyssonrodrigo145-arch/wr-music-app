@@ -278,6 +278,8 @@ function AppTracking() {
   return null;
 }
 
+import { ImpersonationBanner } from "./components/ImpersonationBanner";
+
 function App() {
   // Escuta eventos SSE do bot e exibe toast quando a sessão WhatsApp cair
   useBotStatusSSE();
@@ -290,6 +292,7 @@ function App() {
           <TourProvider>
             <AppTracking />
             <WelcomeModal />
+            <ImpersonationBanner />
             <Router />
           </TourProvider>
         </TooltipProvider>

@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import {
   Loader2, Plus, Edit, Check, X, Tag, ListFilter, Users, Building,
   ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
-  Upload, Image as ImageIcon, Link as LinkIcon
+  Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -52,7 +52,7 @@ export default function SuperAdmin() {
 // ─── Painel principal (renderizado apenas para o Super Admin autenticado) ─────
 function SuperAdminPanel() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "plans" | "coupons" | "clientes" | "slides">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides">("dashboard");
 
   // ── Estado dos modais ──────────────────────────────────────────────────────
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
@@ -65,6 +65,10 @@ function SuperAdminPanel() {
   // Redefinir Senha
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
   const [newPasswordInput, setNewPasswordInput] = useState("");
+
+  // Busca e Filtros de Usuários
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState<"all" | "admin" | "professor" | "aluno">("all");
 
   // FIX: estados controlados para os Switches dos planos
   const [planIsActive, setPlanIsActive] = useState(true);
@@ -91,7 +95,24 @@ function SuperAdminPanel() {
   const { data: orgs, isLoading: loadingOrgs, isError: errorOrgs, error: errorOrgsData, refetch: refetchOrgs } =
     trpc.superAdmin.getOrganizations.useQuery(undefined, { enabled: activeTab === "escolas" });
 
+  const { data: allUsers, isLoading: loadingUsers, isError: errorUsers, error: errorUsersData, refetch: refetchUsers } =
+    trpc.superAdmin.listAllUsers.useQuery({
+      search: userSearchTerm || undefined,
+      role: userRoleFilter === "all" ? undefined : userRoleFilter,
+      limit: 100,
+    }, { enabled: activeTab === "usuarios" });
+
   // ── Mutations ──────────────────────────────────────────────────────────────
+  const impersonateMutation = trpc.superAdmin.impersonateUser.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Acessando a conta de ${data.targetUser.name || data.targetUser.email}...`);
+      setTimeout(() => {
+        window.location.href = data.redirectUrl || "/dashboard";
+      }, 400);
+    },
+    onError: (err) => toast.error(`Erro ao acessar conta: ${err.message}`),
+  });
+
   // FIX: todas as mutations agora têm onError com toast
   const deleteSchool = trpc.superAdmin.deleteOrganization.useMutation({
     onSuccess: () => {
@@ -224,6 +245,7 @@ function SuperAdminPanel() {
         {[
           { id: "dashboard", label: "Visão Geral", icon: <ListFilter size={16} /> },
           { id: "escolas", label: "Escolas", icon: <Building size={16} /> },
+          { id: "usuarios", label: "Usuários & Suporte", icon: <UserCheck size={16} /> },
           { id: "plans", label: "Planos", icon: <Tag size={16} /> },
           { id: "coupons", label: "Cupons", icon: <Tag size={16} /> },
           { id: "clientes", label: "Clientes (Landing)", icon: <Users size={16} /> },
@@ -373,12 +395,26 @@ function SuperAdminPanel() {
                           </div>
                         )}
                         {selectedSchool.owner?.id && (
-                          <button
-                            onClick={() => { setNewPasswordInput(""); setIsResetPasswordOpen(true); }}
-                            className="text-[11px] font-bold text-indigo-500 hover:text-indigo-600 hover:underline flex items-center gap-1"
-                          >
-                            🔑 Definir Nova Senha
-                          </button>
+                          <div className="flex flex-col gap-1.5 items-end">
+                            <button
+                              onClick={() => {
+                                if (confirm(`Deseja acessar o sistema com a conta de "${selectedSchool.owner?.name || selectedSchool.name}" em modo de suporte?`)) {
+                                  impersonateMutation.mutate({ targetUserId: selectedSchool.owner.id });
+                                }
+                              }}
+                              disabled={impersonateMutation.isPending}
+                              className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 rounded-md flex items-center gap-1 border border-emerald-500/20 transition-all cursor-pointer"
+                            >
+                              {impersonateMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <LogIn size={12} />}
+                              Acessar Conta
+                            </button>
+                            <button
+                              onClick={() => { setNewPasswordInput(""); setIsResetPasswordOpen(true); }}
+                              className="text-[11px] font-bold text-indigo-500 hover:text-indigo-600 hover:underline flex items-center gap-1"
+                            >
+                              🔑 Definir Nova Senha
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -492,6 +528,132 @@ function SuperAdminPanel() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </div>
+      )}
+
+      {/* ── TAB: Usuários & Suporte (Impersonate) ───────────────────────── */}
+      {activeTab === "usuarios" && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-xl font-black text-foreground">Gestão de Usuários & Modo de Suporte</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Acesse a conta de qualquer administrador, professor ou aluno instantaneamente para prestar suporte sem precisar alterar a senha.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetchUsers()}
+              className="flex items-center gap-2 font-bold text-xs"
+            >
+              <RefreshCw size={13} /> Atualizar Lista
+            </Button>
+          </div>
+
+          {/* Filtros e Busca */}
+          <div className="bg-card border border-border p-4 rounded-2xl flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm">
+            <div className="relative w-full sm:w-80">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou e-mail..."
+                value={userSearchTerm}
+                onChange={(e) => setUserSearchTerm(e.target.value)}
+                className="pl-9 h-10 text-sm bg-background"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {(["all", "admin", "professor", "aluno"] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setUserRoleFilter(r)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all capitalize ${
+                    userRoleFilter === r
+                      ? "bg-primary text-white shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {r === "all" ? "Todos" : r === "admin" ? "Admins / Donos" : r === "professor" ? "Professores" : "Alunos"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loadingUsers && <Loader2 className="animate-spin text-primary mx-auto my-10" />}
+          {errorUsers && <ErrorState message={`Erro ao carregar usuários: ${errorUsersData?.message || "Desconhecido"}`} onRetry={refetchUsers} />}
+
+          {allUsers && allUsers.length > 0 && (
+            <div className="bg-card border border-border rounded-2xl overflow-x-auto shadow-sm">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-muted text-muted-foreground font-bold text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3">ID</th>
+                    <th className="px-4 py-3">Nome / E-mail</th>
+                    <th className="px-4 py-3">Perfil</th>
+                    <th className="px-4 py-3">Escola Vinculada</th>
+                    <th className="px-4 py-3">Último Acesso</th>
+                    <th className="px-4 py-3 text-right">Ação de Suporte</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {allUsers.map((u: any) => (
+                    <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-medium text-muted-foreground text-xs">#{u.id}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-foreground">{u.name || "Sem Nome"}</div>
+                        <div className="text-xs text-muted-foreground">{u.email}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                          u.role === 'admin' ? 'bg-purple-500/10 text-purple-600 border border-purple-500/20' :
+                          u.role === 'professor' ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' :
+                          'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                        }`}>
+                          {u.role === 'admin' ? 'Dono / Admin' : u.role === 'professor' ? 'Professor' : 'Aluno'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-xs text-muted-foreground">
+                        {u.organizationName}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {u.lastSignedIn ? (
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            {new Date(u.lastSignedIn).toLocaleDateString('pt-BR')} {new Date(u.lastSignedIn).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        ) : (
+                          "Nunca acessou"
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          disabled={impersonateMutation.isPending}
+                          onClick={() => {
+                            if (confirm(`Deseja acessar o sistema com a conta de "${u.name || u.email}" em modo de suporte?`)) {
+                              impersonateMutation.mutate({ targetUserId: u.id });
+                            }
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-8 px-3 rounded-lg shadow-sm flex items-center gap-1.5 ml-auto transition-all active:scale-95 cursor-pointer"
+                        >
+                          {impersonateMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <LogIn size={13} />}
+                          Acessar Conta
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {allUsers && allUsers.length === 0 && (
+            <div className="bg-card border border-border/50 rounded-2xl py-12 text-center text-muted-foreground">
+              <Users size={36} className="mx-auto text-muted-foreground/40 mb-2" />
+              <p className="font-bold text-foreground">Nenhum usuário encontrado</p>
+              <p className="text-xs text-muted-foreground mt-1">Tente ajustar os termos de busca ou filtros.</p>
+            </div>
+          )}
         </div>
       )}
 

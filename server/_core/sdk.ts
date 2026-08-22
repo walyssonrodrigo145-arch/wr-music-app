@@ -23,6 +23,8 @@ export type SessionPayload = {
   openId: string;
   appId: string;
   name: string;
+  impersonatorAdminId?: number;
+  impersonatorAdminName?: string;
 };
 
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
@@ -167,13 +169,15 @@ class SDKServer {
    */
   async createSessionToken(
     openId: string,
-    options: { expiresInMs?: number; name?: string } = {}
+    options: { expiresInMs?: number; name?: string; impersonatorAdminId?: number; impersonatorAdminName?: string } = {}
   ): Promise<string> {
     return this.signSession(
       {
         openId,
         appId: ENV.appId,
         name: options.name || "",
+        impersonatorAdminId: options.impersonatorAdminId,
+        impersonatorAdminName: options.impersonatorAdminName,
       },
       options
     );
@@ -188,11 +192,19 @@ class SDKServer {
     const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
     const secretKey = this.getSessionSecret();
 
-    return new SignJWT({
+    const jwtPayload: Record<string, any> = {
       openId: payload.openId,
       appId: payload.appId,
       name: payload.name,
-    })
+    };
+    if (payload.impersonatorAdminId) {
+      jwtPayload.impersonatorAdminId = payload.impersonatorAdminId;
+    }
+    if (payload.impersonatorAdminName) {
+      jwtPayload.impersonatorAdminName = payload.impersonatorAdminName;
+    }
+
+    return new SignJWT(jwtPayload)
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setExpirationTime(expirationSeconds)
       .sign(secretKey);
@@ -200,7 +212,7 @@ class SDKServer {
 
   async verifySession(
     cookieValue: string | undefined | null
-  ): Promise<{ openId: string; appId: string; name: string } | null> {
+  ): Promise<{ openId: string; appId: string; name: string; impersonatorAdminId?: number; impersonatorAdminName?: string } | null> {
     if (!cookieValue) {
       console.warn("[Auth] Missing session cookie");
       return null;
@@ -211,7 +223,7 @@ class SDKServer {
       const { payload } = await jwtVerify(cookieValue, secretKey, {
         algorithms: ["HS256"],
       });
-      const { openId, appId, name } = payload as Record<string, unknown>;
+      const { openId, appId, name, impersonatorAdminId, impersonatorAdminName } = payload as Record<string, unknown>;
 
       if (!isNonEmptyString(openId)) {
         console.warn("[Auth] Session payload missing openId");
@@ -222,6 +234,8 @@ class SDKServer {
         openId,
         appId: typeof appId === "string" ? appId : "",
         name: typeof name === "string" ? name : "",
+        impersonatorAdminId: typeof impersonatorAdminId === "number" ? impersonatorAdminId : undefined,
+        impersonatorAdminName: typeof impersonatorAdminName === "string" ? impersonatorAdminName : undefined,
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));

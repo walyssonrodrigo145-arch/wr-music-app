@@ -594,6 +594,164 @@ export const superAdminRouter = router({
       await db.delete(landingHeroSlides).where(eq(landingHeroSlides.id, input.id));
       return { success: true };
     }),
+
+  // ─── BUSCA GLOBAL DE USUÁRIOS (Para Impersonação / Suporte) ───────────────
+  listAllUsers: isSuperAdmin
+    .input(z.object({
+      search: z.string().optional(),
+      role: z.enum(['admin', 'professor', 'aluno']).optional(),
+      organizationId: z.number().int().optional(),
+      limit: z.number().int().default(50),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const { ilike, or, and, desc } = await import("drizzle-orm");
+      const conditions: any[] = [];
+
+      if (input?.search && input.search.trim()) {
+        const term = `%${input.search.trim()}%`;
+        conditions.push(or(ilike(users.name, term), ilike(users.email, term)));
+      }
+
+      if (input?.role) {
+        conditions.push(eq(users.role, input.role));
+      }
+
+      if (input?.organizationId) {
+        conditions.push(eq(users.organizationId, input.organizationId));
+      }
+
+      const usersList = await db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        organizationId: users.organizationId,
+        studentId: users.studentId,
+        lastSignedIn: users.lastSignedIn,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(users.lastSignedIn), desc(users.id))
+      .limit(input?.limit || 50);
+
+      // Buscar nomes das organizações correspondentes
+      const orgIds = Array.from(new Set(usersList.map(u => u.organizationId).filter(Boolean))) as number[];
+      let orgMap = new Map<number, string>();
+      if (orgIds.length > 0) {
+        const orgs = await db.select({ id: organizations.id, name: organizations.name })
+          .from(organizations)
+          .where(inArray(organizations.id, orgIds));
+        orgMap = new Map(orgs.map(o => [o.id, o.name]));
+      }
+
+      return usersList.map(u => ({
+        ...u,
+        organizationName: u.organizationId ? orgMap.get(u.organizationId) || "Escola Desconhecida" : "Sem Escola",
+      }));
+    }),
+
+  // ─── INICIAR SESSÃO DE SUPORTE / IMPERSONAÇÃO ─────────────────────────────
+  impersonateUser: isSuperAdmin
+    .input(z.object({
+      targetUserId: z.number().int().positive(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      // Localiza o usuário alvo
+      const [targetUser] = await db.select().from(users).where(eq(users.id, input.targetUserId)).limit(1);
+      if (!targetUser) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Usuário alvo não encontrado." });
+      }
+
+      if (targetUser.id === ctx.user.id) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Você já está conectado na sua própria conta de Super Admin." });
+      }
+
+      const { sdk } = await import("./_core/sdk");
+      const { COOKIE_NAME } = await import("@shared/const");
+      const { getSessionCookieOptions } = await import("./_core/cookies");
+
+      // Gera o token de sessão do usuário alvo preservando a identidade do Super Admin
+      const sessionToken = await sdk.createSessionToken(targetUser.openId, {
+        name: targetUser.name || "",
+        expiresInMs: 4 * 60 * 60 * 1000, // 4 horas de sessão de suporte
+        impersonatorAdminId: ctx.user.id,
+        impersonatorAdminName: ctx.user.name || ctx.user.email || "Super Admin",
+      });
+
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: 4 * 60 * 60 * 1000,
+      });
+
+      debugLog(`[Impersonation] Super Admin #${ctx.user.id} (${ctx.user.email}) acessou a conta de #${targetUser.id} (${targetUser.email} - ${targetUser.role})`);
+
+      // Determina a rota de redirecionamento apropriada
+      let redirectUrl = "/dashboard";
+      if (targetUser.role === "aluno") {
+        redirectUrl = "/portal";
+      }
+
+      return {
+        success: true,
+        targetUser: {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          role: targetUser.role,
+        },
+        redirectUrl,
+      };
+    }),
+
+  // ─── ENCERRAR SESSÃO DE SUPORTE / VOLTAR PARA SUPER ADMIN ─────────────────
+  stopImpersonation: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      if (!ctx.impersonatorAdminId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Você não está em uma sessão de impersonação / modo suporte ativa.",
+        });
+      }
+
+      const [adminUser] = await db.select().from(users).where(eq(users.id, ctx.impersonatorAdminId)).limit(1);
+      if (!adminUser) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Conta de Super Admin de origem não encontrada." });
+      }
+
+      const { sdk } = await import("./_core/sdk");
+      const { COOKIE_NAME } = await import("@shared/const");
+      const { getSessionCookieOptions } = await import("./_core/cookies");
+
+      // Gera o token restaurado do Super Admin
+      const sessionToken = await sdk.createSessionToken(adminUser.openId, {
+        name: adminUser.name || "",
+        expiresInMs: 30 * 24 * 60 * 60 * 1000,
+      });
+
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
+      debugLog(`[Impersonation] Sessão de suporte encerrada. Retornando para Super Admin #${adminUser.id} (${adminUser.email})`);
+
+      return {
+        success: true,
+        redirectUrl: "/super-admin",
+      };
+    }),
 });
 
 

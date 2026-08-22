@@ -268,6 +268,8 @@ export const authRouters = {
           schoolName,
           schoolEmail,
           showSchoolName,
+          isImpersonated: Boolean(ctx.impersonatorAdminId),
+          impersonatorAdminName: ctx.impersonatorAdminName || null,
         };
       }
 
@@ -280,6 +282,8 @@ export const authRouters = {
         permissions: [],
         schoolEmail: null,
         showSchoolName: 1,
+        isImpersonated: Boolean(ctx.impersonatorAdminId),
+        impersonatorAdminName: ctx.impersonatorAdminName || null,
       };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
