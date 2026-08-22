@@ -126,12 +126,15 @@ export function WhatsAppSessionManager() {
     }
   };
 
-  // Garante a formatação exata de 4 em 4 (Ex: YVOA - 252N)
+  // Garante a formatação exata de 4 em 4 (Ex: YVOA - 252N) e bloqueia hashes residuais
   const formattedPairingCode = (() => {
     if (!pairingCode) return "";
     const cleanCode = pairingCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-    if (cleanCode.length >= 8) {
+    if (cleanCode.length === 8) {
       return `${cleanCode.slice(0, 4)} - ${cleanCode.slice(4)}`;
+    }
+    if (cleanCode.length > 8) {
+      return `${cleanCode.slice(0, 4)} - ${cleanCode.slice(4, 8)}`;
     }
     return pairingCode;
   })();

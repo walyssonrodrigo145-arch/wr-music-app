@@ -237,6 +237,18 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
     let pairingCode = "";
     let qrBase64 = "";
 
+    // Função utilitária para extrair código de pareamento válido (exatamente 8 caracteres alfanuméricos)
+    const extractValidPairingCode = (data: any): string => {
+      const raw = data?.pairingCode || data?.pairing_code || "";
+      if (typeof raw === "string") {
+        const clean = raw.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+        if (clean.length === 8) {
+          return `${clean.slice(0, 4)}-${clean.slice(4)}`;
+        }
+      }
+      return "";
+    };
+
     // No modo PAIRING_CODE, o Baileys pode levar alguns segundos adicionais para negociar o código
     const maxAttempts = mode === "PAIRING_CODE" ? 5 : 2;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -250,8 +262,8 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
 
       debugLog(`[WhatsApp] Connect data for ${sessionId} (attempt ${attempt}):`, JSON.stringify(connectData).substring(0, 200));
 
-      pairingCode = connectData?.pairingCode || connectData?.code || "";
-      qrBase64 = connectData?.base64 || connectData?.qrcode || "";
+      pairingCode = extractValidPairingCode(connectData);
+      qrBase64 = connectData?.base64 || connectData?.qrcode || (typeof connectData?.code === "string" && connectData.code.length > 20 ? connectData.code : "");
 
       if (mode === "PAIRING_CODE" && pairingCode) {
         break;
@@ -352,13 +364,22 @@ export async function getWhatsAppSessionStatus({ url, token, sessionId }: Sessio
 
       debugLog(`[WhatsApp] Status polling connect data for ${sessionId}:`, JSON.stringify(connectData).substring(0, 200));
 
+      let statusPairingCode = "";
+      const rawCode = connectData?.pairingCode || connectData?.pairing_code || "";
+      if (typeof rawCode === "string") {
+        const clean = rawCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+        if (clean.length === 8) {
+          statusPairingCode = `${clean.slice(0, 4)}-${clean.slice(4)}`;
+        }
+      }
+
       return {
         sessionId,
         status: "PAIRING" as const,
         phone: "",
         mode: "QR_CODE" as const,
         qr: connectData?.base64 || connectData?.qrcode || "",
-        pairingCode: connectData?.pairingCode || "",
+        pairingCode: statusPairingCode,
       };
     }
 
