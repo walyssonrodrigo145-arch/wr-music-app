@@ -76,10 +76,16 @@ export function WhatsAppSessionManager() {
         mode: modeTab,
       });
       if (res.success) {
-        if (res.qr) setQrString(res.qr);
-        if (res.pairingCode) setPairingCode(res.pairingCode);
+        if (res.mode === "QR_CODE" && modeTab === "PAIRING_CODE" && !res.pairingCode && res.qr) {
+          setModeTab("QR_CODE");
+          setQrString(res.qr);
+          toast.info("Código de pareamento direto indisponível no momento. Geramos o QR Code para conexão.");
+        } else {
+          if (res.qr) setQrString(res.qr);
+          if (res.pairingCode) setPairingCode(res.pairingCode);
+          toast.success(res.mode === "PAIRING_CODE" && res.pairingCode ? "Código gerado! Digite no WhatsApp." : "QR Code gerado! Escaneie com seu celular.");
+        }
         setStep("PAIRING");
-        toast.success(modeTab === "QR_CODE" ? "QR Code gerado! Escaneie com seu celular." : "Código gerado! Digite no WhatsApp.");
         getStatusQuery.refetch();
       } else {
         toast.error((res as any).error || "Falha ao iniciar pareamento.");

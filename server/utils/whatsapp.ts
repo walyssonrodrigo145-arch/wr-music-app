@@ -234,29 +234,46 @@ export async function startWhatsAppSession({ url, token, sessionId, phoneNumber,
       connectUrl += `?number=${cleanPhone}`;
     }
 
-    const connectData = await fetch(connectUrl, {
-      method: "GET",
-      headers: { "apikey": activeToken },
-    }).then(r => r.json()).catch((e) => {
-      console.error("[WhatsApp] Error fetching connect url:", e);
-      return {};
-    }) as any;
+    let pairingCode = "";
+    let qrBase64 = "";
 
-    debugLog(`[WhatsApp] Connect data for ${sessionId}:`, JSON.stringify(connectData).substring(0, 200));
+    // No modo PAIRING_CODE, o Baileys pode levar alguns segundos adicionais para negociar o código
+    const maxAttempts = mode === "PAIRING_CODE" ? 5 : 2;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const connectData = await fetch(connectUrl, {
+        method: "GET",
+        headers: { "apikey": activeToken },
+      }).then(r => r.json()).catch((e) => {
+        console.error(`[WhatsApp] Error fetching connect url (attempt ${attempt}):`, e);
+        return {};
+      }) as any;
 
-    const pairingCode = connectData?.pairingCode || "";
-    const qrBase64   = connectData?.base64 || connectData?.qrcode || "";
+      debugLog(`[WhatsApp] Connect data for ${sessionId} (attempt ${attempt}):`, JSON.stringify(connectData).substring(0, 200));
+
+      pairingCode = connectData?.pairingCode || connectData?.code || "";
+      qrBase64 = connectData?.base64 || connectData?.qrcode || "";
+
+      if (mode === "PAIRING_CODE" && pairingCode) {
+        break;
+      }
+      if (mode === "QR_CODE" && qrBase64) {
+        break;
+      }
+      if (attempt < maxAttempts) {
+        await sleep(1500);
+      }
+    }
 
     if (mode === "PAIRING_CODE") {
       if (pairingCode) {
         return { success: true, status: "PAIRING" as const, mode: "PAIRING_CODE" as const, pairingCode, qr: "" };
       }
-      // v2.3.7: pairing code retorna null → fallback automático para QR Code
+      // Se não retornou pairingCode mas tem QR Code, informa fallback
       if (qrBase64) {
-        console.warn(`[WhatsApp] Pairing code indisponível (v2) — usando QR Code como fallback para sessão ${sessionId}.`);
+        console.warn(`[WhatsApp] Pairing code indisponível — usando QR Code como fallback para sessão ${sessionId}.`);
         return { success: true, status: "PAIRING" as const, mode: "QR_CODE" as const, pairingCode: "", qr: qrBase64 };
       }
-      throw new Error("Falha ao obter código de conexão. Tente novamente em instantes.");
+      throw new Error("Falha ao gerar código de pareamento. Verifique o número digitado ou utilize a opção QR Code.");
     }
 
     return { success: true, status: "PAIRING" as const, mode: "QR_CODE" as const, pairingCode: "", qr: qrBase64 };
