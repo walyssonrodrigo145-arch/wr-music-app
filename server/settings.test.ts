@@ -29,6 +29,10 @@ vi.mock("./db", async (importOriginal) => {
     }),
     upsertSettings: vi.fn().mockResolvedValue(null),
     updateUserProfile: vi.fn().mockResolvedValue({ id: 1, name: "Novo Nome", email: "novo@email.com" }),
+    // updateSchool espelha dados na tabela organizations via getDb(); sem Postgres
+    // local no ambiente de teste, o postgres-js entra em retry infinito (ECONNREFUSED)
+    // e o teste estoura o timeout. Mockar getDb → null faz o teste cobrir só o upsertSettings.
+    getDb: vi.fn().mockResolvedValue(null),
   };
 });
 

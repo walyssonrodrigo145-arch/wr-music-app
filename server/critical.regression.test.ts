@@ -205,6 +205,9 @@ describe("AUDIT-P1: paymentDues.create rejeita mensalidade duplicada", () => {
 
 // ─── 4. Webhook WhatsApp exige token ────────────────────────────────────────
 describe("AUDIT-P0: webhook WhatsApp autenticado", () => {
+  // Timeout ampliado: o import dinâmico do webhook (firebaseAdmin, db, gemini...)
+  // acontece dentro do teste e, sob execução paralela da suíte, o event loop fica
+  // congestionado — o teste estourava o padrão de 5s sem ser falha de lógica.
   it("sem token → 401; token errado → 401; token correto → processa", async () => {
     expect(ENV.whatsappWebhookToken).toBe("test-webhook-secret");
     const whatsappWebhook = (await import("./webhooks/whatsapp")).default;
@@ -239,7 +242,7 @@ describe("AUDIT-P0: webhook WhatsApp autenticado", () => {
     // Token correto → passa do gate (evento ignorado responde 200)
     r = await callWebhook({ "x-webhook-token": "test-webhook-secret" }, { event: "IGNORED" });
     expect(r.status).toBe(200);
-  });
+  }, 20000);
 });
 
 // ─── 5. Parsing monetário do client ─────────────────────────────────────────
