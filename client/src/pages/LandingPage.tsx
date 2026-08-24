@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Music, 
@@ -23,6 +23,7 @@ import {
   Phone,
   ChevronRight,
   ChevronDown,
+  Loader2,
   MessageCircle,
   Sparkles,
   Eye,
@@ -63,6 +64,9 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+  const cepAbortRef = useRef<AbortController | null>(null);
   const [form, setForm] = useState<SignupForm>({
     nome: '', email: '', senha: '', telefone: '', cpfCnpj: '',
     cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '',
@@ -103,19 +107,65 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
-  const lookupCep = async (cep: string) => {
-    const clean = cep.replace(/\D/g, '');
+  const formatCep = (v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, 8);
+    return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
+  };
+
+  const lookupCep = async (raw: string) => {
+    const clean = raw.replace(/\D/g, '');
+    cepAbortRef.current?.abort();
+    setCepError(null);
     if (clean.length !== 8) return;
+
+    const controller = new AbortController();
+    cepAbortRef.current = controller;
+    const isCurrent = () => cepAbortRef.current === controller;
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 5000);
+    setCepLoading(true);
+
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
-        set('rua', data.logradouro || '');
-        set('bairro', data.bairro || '');
-        set('cidade', data.localidade || '');
-        set('estado', data.uf || '');
+      let addr: { street?: string; district?: string; city?: string; state?: string } | null = null;
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`, { signal: controller.signal });
+        const data = await res.json();
+        if (!data.erro) {
+          addr = { street: data.logradouro, district: data.bairro, city: data.localidade, state: data.uf };
+        }
+      } catch (e) {
+        if (controller.signal.aborted) throw e;
       }
-    } catch {}
+
+      // Fallback: BrasilAPI (base de dados independente da ViaCEP)
+      if (!addr) {
+        const res2 = await fetch(`https://brasilapi.com.br/api/cep/v2/${clean}`, { signal: controller.signal });
+        const data2 = await res2.json();
+        if (data2 && data2.city) {
+          addr = { street: data2.street, district: data2.neighborhood, city: data2.city, state: data2.state };
+        }
+      }
+
+      if (!isCurrent()) return;
+      if (addr && (addr.street || addr.city)) {
+        set('rua', addr.street || '');
+        set('bairro', addr.district || '');
+        set('cidade', addr.city || '');
+        set('estado', (addr.state || '').toUpperCase());
+      } else {
+        setCepError('CEP não encontrado — verifique o número ou preencha manualmente.');
+      }
+    } catch {
+      if (!isCurrent()) return;
+      if (timedOut) {
+        setCepError('A consulta demorou demais — preencha manualmente se preferir.');
+      } else if (!controller.signal.aborted) {
+        setCepError('Não foi possível consultar o CEP — preencha manualmente.');
+      }
+    } finally {
+      clearTimeout(timeout);
+      if (isCurrent()) setCepLoading(false);
+    }
   };
 
   const handleNext = async () => {
@@ -144,6 +194,14 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
           planType: "MONTHLY",
           planId: plan,
           cpfCnpj: form.cpfCnpj.replace(/\D/g, ''),
+          address: {
+            zipCode: form.cep,
+            street: form.rua,
+            number: form.numero,
+            district: form.bairro,
+            city: form.cidade,
+            state: form.estado,
+          },
         });
 
         if (result.invoiceUrl) {
@@ -323,12 +381,18 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
                     <div className="relative">
                       <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                       <input
-                        type="text" placeholder="00000-000" maxLength={9}
+                        type="text" placeholder="00000-000" inputMode="numeric" maxLength={9}
                         value={form.cep}
-                        onChange={e => { set('cep', e.target.value); lookupCep(e.target.value); }}
-                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
+                        onChange={e => { const v = formatCep(e.target.value); set('cep', v); lookupCep(v); }}
+                        className="w-full pl-10 pr-10 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
                       />
+                      {cepLoading && (
+                        <Loader2 size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" />
+                      )}
                     </div>
+                    {cepError && (
+                      <p className="text-[11px] text-amber-600 font-bold mt-1" aria-live="polite">{cepError}</p>
+                    )}
                   </div>
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Estado</label>

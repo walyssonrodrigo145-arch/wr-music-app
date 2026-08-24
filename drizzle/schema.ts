@@ -60,6 +60,14 @@ export const organizations = pgTable("organizations", {
   asaasSubscriptionId: varchar("asaasSubscriptionId", { length: 100 }),
   planId: varchar("planId", { length: 50 }).default("premium").notNull(),
 
+  // Endereço da escola (capturado no cadastro público — ViaCEP)
+  zipCode: varchar("zipCode", { length: 9 }),
+  addressStreet: varchar("addressStreet", { length: 255 }),
+  addressNumber: varchar("addressNumber", { length: 20 }),
+  addressDistrict: varchar("addressDistrict", { length: 120 }),
+  addressCity: varchar("addressCity", { length: 120 }),
+  addressState: varchar("addressState", { length: 2 }),
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });

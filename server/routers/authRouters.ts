@@ -508,6 +508,14 @@ export const authRouters = {
         planType: z.enum(["MONTHLY", "YEARLY"]),
         planId: z.string(),
         cpfCnpj: z.string().optional(),
+        address: z.object({
+          zipCode: z.string().max(9).optional(),
+          street: z.string().max(255).optional(),
+          number: z.string().max(20).optional(),
+          district: z.string().max(120).optional(),
+          city: z.string().max(120).optional(),
+          state: z.string().max(2).optional(),
+        }).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -556,6 +564,12 @@ export const authRouters = {
           subscriptionStatus: "trialing",
           trialEndsAt: trialEndsAt,
           planId: input.planId,
+          zipCode: input.address?.zipCode || null,
+          addressStreet: input.address?.street || null,
+          addressNumber: input.address?.number || null,
+          addressDistrict: input.address?.district || null,
+          addressCity: input.address?.city || null,
+          addressState: input.address?.state?.toUpperCase() || null,
           createdAt: new Date(),
         }).returning();
 

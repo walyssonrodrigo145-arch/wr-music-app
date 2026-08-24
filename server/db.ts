@@ -90,6 +90,12 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "currentPeriodEnd" timestamp`);
     await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "asaasCustomerId" varchar(100)`);
     await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "asaasSubscriptionId" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "zipCode" varchar(9)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "addressStreet" varchar(255)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "addressNumber" varchar(20)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "addressDistrict" varchar(120)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "addressCity" varchar(120)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "addressState" varchar(2)`);
 
     // students.studentUserId
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "studentUserId" integer`);
