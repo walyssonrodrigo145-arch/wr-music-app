@@ -147,7 +147,14 @@ export default function NovoAluno() {
   });
   const [scheduleStep, setScheduleStep] = useState<"form" | "conflicts">("form");
   const [batchItems, setBatchItems] = useState<any[]>([]);
-  const [scheduleErrors, setScheduleErrors] = useState<Record<string, string>>({}); 
+  const [scheduleErrors, setScheduleErrors] = useState<Record<string, string>>({});
+  // Indica se o usuário interagiu com o formulário de agendamento, para que o
+  // botão "Salvar Aluno" também agende as aulas quando a seção estiver preenchida.
+  const [scheduleTouched, setScheduleTouched] = useState(false);
+  const updateSchedule = (updater: (p: typeof scheduleForm) => typeof scheduleForm) => {
+    setScheduleForm(updater);
+    setScheduleTouched(true);
+  };
 
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
@@ -441,9 +448,9 @@ export default function NovoAluno() {
     return new Date(y, M - 1, d, h, m, 0, 0);
   };
 
-  const handleScheduleSubmit = async () => {
+  const handleScheduleSubmit = async (preCreatedStudentId?: number) => {
     // Se for novo aluno, precisa ter o nome preenchido
-    if (!isEditMode && !form.name.trim()) {
+    if (!isEditMode && !preCreatedStudentId && !form.name.trim()) {
       setActiveTab("dados");
       toast.error("Por favor, preencha o Nome do Aluno na aba de dados antes de agendar.");
       return;
@@ -465,10 +472,10 @@ export default function NovoAluno() {
     if (Object.keys(errs).length > 0) { setScheduleErrors(errs); return; }
     setScheduleErrors({});
 
-    let targetStudentId = studentId;
+    let targetStudentId = preCreatedStudentId ?? studentId;
 
     // Se for novo aluno, salvar o aluno primeiro
-    if (!isEditMode) {
+    if (!isEditMode && !preCreatedStudentId) {
       const cpfErr = validateCPF(form.cpf);
       if (cpfErr) {
         setActiveTab("dados");
@@ -745,6 +752,17 @@ export default function NovoAluno() {
 
     if (isEditMode) {
       updateMutation.mutate({ id: studentId!, ...payload });
+      // Se o usuário preencheu o agendamento, agenda também as aulas do aluno
+      if (scheduleTouched) handleScheduleSubmit();
+    } else if (scheduleTouched) {
+      // Se preencheu o agendamento, cadastra o aluno e agenda as aulas
+      try {
+        const newStudent = await createMutation.mutateAsync(payload);
+        await handleScheduleSubmit(newStudent.studentId);
+        setIsSaving(false);
+      } catch {
+        setIsSaving(false);
+      }
     } else {
       createMutation.mutate(payload);
     }
@@ -1079,7 +1097,7 @@ export default function NovoAluno() {
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Título da Aula *</label>
                   <Input
                     value={scheduleForm.title}
-                    onChange={e => setScheduleForm(p => ({ ...p, title: e.target.value }))}
+                    onChange={e => updateSchedule(p => ({ ...p, title: e.target.value }))}
                     placeholder={`Aula de ${instruments.find((i: any) => i.id.toString() === scheduleForm.instrumentId)?.name ?? "Música"} - ${form.name || "Aluno"}`}
                     className={cn("h-12 rounded-xl text-sm font-semibold border-border bg-muted/30", scheduleErrors.title && "border-red-500")}
                   />
@@ -1094,7 +1112,7 @@ export default function NovoAluno() {
                       <Input
                         type="date"
                         value={scheduleForm.date}
-                        onChange={e => setScheduleForm(p => ({ ...p, date: e.target.value }))}
+                        onChange={e => updateSchedule(p => ({ ...p, date: e.target.value }))}
                         className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.date && "border-red-500")}
                       />
                       <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
@@ -1120,7 +1138,7 @@ export default function NovoAluno() {
                           <Input
                             type="time"
                             value={scheduleForm.time}
-                            onChange={e => setScheduleForm(p => ({ ...p, time: e.target.value }))}
+                            onChange={e => updateSchedule(p => ({ ...p, time: e.target.value }))}
                             className={cn("h-12 rounded-xl pl-10 text-sm font-semibold border-border bg-muted/30", scheduleErrors.time && "border-red-500")}
                           />
                           <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
@@ -1131,7 +1149,7 @@ export default function NovoAluno() {
                             <button
                               key={t}
                               type="button"
-                              onClick={() => setScheduleForm(p => ({ ...p, time: t }))}
+                              onClick={() => updateSchedule(p => ({ ...p, time: t }))}
                               className={cn(
                                 "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer",
                                 scheduleForm.time === t
@@ -1155,7 +1173,7 @@ export default function NovoAluno() {
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Duração</label>
                     <Select
                       value={String(scheduleForm.duration)}
-                      onValueChange={v => setScheduleForm(p => ({ ...p, duration: Number(v) }))}
+                      onValueChange={v => updateSchedule(p => ({ ...p, duration: Number(v) }))}
                     >
                       <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
                         <div className="flex items-center gap-2">
@@ -1177,7 +1195,7 @@ export default function NovoAluno() {
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Instrumento</label>
                     <Select
                       value={scheduleForm.instrumentId}
-                      onValueChange={v => setScheduleForm(p => ({ ...p, instrumentId: v }))}
+                      onValueChange={v => updateSchedule(p => ({ ...p, instrumentId: v }))}
                     >
                       <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
                         <SelectValue placeholder="Selecionar" />
@@ -1197,7 +1215,7 @@ export default function NovoAluno() {
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula (opcional)</label>
                     <Select
                       value={scheduleForm.studioRoomId || "none"}
-                      onValueChange={v => setScheduleForm(p => ({ ...p, studioRoomId: v === "none" ? "" : v }))}
+                      onValueChange={v => updateSchedule(p => ({ ...p, studioRoomId: v === "none" ? "" : v }))}
                     >
                       <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
                         <SelectValue placeholder="Nenhuma sala" />
@@ -1217,7 +1235,7 @@ export default function NovoAluno() {
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Recorrência Semanal</label>
                   <Select
                     value={String(scheduleForm.weeksCount)}
-                    onValueChange={v => setScheduleForm(p => ({ ...p, weeksCount: Number(v) }))}
+                    onValueChange={v => updateSchedule(p => ({ ...p, weeksCount: Number(v) }))}
                   >
                     <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
                       <div className="flex items-center gap-2">
@@ -1264,7 +1282,7 @@ export default function NovoAluno() {
                                 studioRoomId: ""
                               });
                             }
-                            setScheduleForm(p => ({
+                            updateSchedule(p => ({
                               ...p,
                               lessonsPerWeek: num,
                               weeklySlots: newSlots,
@@ -1297,7 +1315,7 @@ export default function NovoAluno() {
                                 const val = Number(e.target.value);
                                 const updated = [...scheduleForm.weeklySlots];
                                 updated[idx].dayOfWeek = val;
-                                setScheduleForm(p => ({ ...p, weeklySlots: updated }));
+                                updateSchedule(p => ({ ...p, weeklySlots: updated }));
                               }}
                               className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
                             >
@@ -1316,7 +1334,7 @@ export default function NovoAluno() {
                                 const val = e.target.value;
                                 const updated = [...scheduleForm.weeklySlots];
                                 updated[idx].time = val;
-                                setScheduleForm(p => ({ ...p, weeklySlots: updated }));
+                                updateSchedule(p => ({ ...p, weeklySlots: updated }));
                               }}
                               className="h-9 bg-muted/20 border border-border/40 rounded-lg px-2 text-xs font-bold outline-none"
                             />
@@ -1332,7 +1350,7 @@ export default function NovoAluno() {
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Observações da Aula</label>
                   <Textarea
                     value={scheduleForm.notes}
-                    onChange={e => setScheduleForm(p => ({ ...p, notes: e.target.value }))}
+                    onChange={e => updateSchedule(p => ({ ...p, notes: e.target.value }))}
                     placeholder="Conteúdo da aula, objetivos, materiais..."
                     className="rounded-xl text-sm resize-none border-border bg-muted/30"
                     rows={3}
@@ -1344,7 +1362,7 @@ export default function NovoAluno() {
                 <Button
                   type="button"
                   className="w-full h-13 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-violet-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-                  onClick={handleScheduleSubmit}
+                  onClick={() => handleScheduleSubmit()}
                   disabled={createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving}
                 >
                   {(createLessonMutation.isPending || createBatchLessonMutation.isPending || checkConflictsMutation.isPending || isSaving) ? (
