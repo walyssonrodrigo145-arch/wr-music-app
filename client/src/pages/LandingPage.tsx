@@ -22,6 +22,7 @@ import {
   Lock,
   Phone,
   ChevronRight,
+  ChevronDown,
   MessageCircle,
   Sparkles,
   Eye,
@@ -447,11 +448,170 @@ const SignupModal = ({ plan, onClose }: { plan: string; onClose: () => void }) =
   );
 };
 
+// ─── CARD DE PLANO (reuso: grid da landing + modal "ver mais planos") ─────────
+const PlanCard = ({ plan, index = 0, onSelect, animate = true }: {
+  plan: any;
+  index?: number;
+  onSelect: (planId: string) => void;
+  animate?: boolean;
+}) => {
+  const cardClass = `relative flex flex-col rounded-[40px] transition-all duration-300 ${
+    plan.highlight
+      ? 'bg-card text-card-foreground border-2 border-blue-500 shadow-2xl shadow-blue-500/20 md:-translate-y-4 p-10'
+      : 'bg-card/40 backdrop-blur-xl shadow-2xl shadow-primary/5 border border-border/50 hover:border-primary/30 hover:shadow-primary/20 p-10'
+  }`;
+
+  const content = (
+    <>
+      {/* Badge */}
+      {plan.badge && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-5 py-2 rounded-full shadow-lg whitespace-nowrap">
+          {plan.badge}
+        </div>
+      )}
+
+      {/* Plan Info */}
+      <div className="mb-6">
+        <h4 className={`text-2xl font-outfit font-extrabold mb-1 ${plan.highlight ? 'text-primary' : 'text-foreground'}`}>
+          {plan.name}
+        </h4>
+        <p className={`text-sm font-medium ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
+          {plan.subtitle}
+        </p>
+        {plan.allowExtraStudents && plan.maxStudents < 999999 && (
+          <p className={`text-xs font-semibold mt-1 ${plan.highlight ? 'text-blue-400' : 'text-primary/60'}`}>
+            + R$ {plan.extraStudentPrice.toFixed(2)}/aluno adicional
+          </p>
+        )}
+      </div>
+
+      {/* Price */}
+      <div className={`flex items-baseline gap-1 mb-8 ${plan.highlight ? 'text-primary' : 'text-foreground'}`}>
+        <span className="text-base font-bold text-gray-500">R$</span>
+        <span className="text-5xl font-black tracking-tight">{plan.price}</span>
+        <span className="text-2xl font-black">,{plan.cents}</span>
+        <span className="text-gray-400 font-medium text-sm">/mês</span>
+      </div>
+
+      {/* Features */}
+      <ul className="space-y-4 mb-10 flex-1">
+        {plan.features.map((feat: string) => (
+          <li key={feat} className={`flex items-center gap-3 text-sm font-medium ${plan.highlight ? 'text-foreground' : 'text-muted-foreground'}`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+              plan.highlight ? 'bg-blue-600 text-white' : 'bg-primary/10 text-primary'
+            }`}>
+              <Check size={13} strokeWidth={3} />
+            </div>
+            {feat}
+          </li>
+        ))}
+      </ul>
+
+      {/* CTA */}
+      <button
+        onClick={() => onSelect(plan.id)}
+        className={`w-full py-4 rounded-2xl font-black text-sm transition-all active:scale-[0.98] ${
+          plan.highlight
+            ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/30'
+            : plan.id === 'premium'
+            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:opacity-90 shadow-lg'
+            : 'border-2 border-border text-foreground hover:bg-muted hover:border-primary/50'
+        }`}
+      >
+        {plan.cta}
+      </button>
+
+      {/* Trial note */}
+      <div className={`text-center mt-4 space-y-1 ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
+        <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">✓ {TRIAL_DAYS} Dias Grátis</p>
+        <p className="text-[10px] font-medium leading-tight">
+          Sem fidelidade. Cancele ou mude de plano quando quiser.
+        </p>
+      </div>
+    </>
+  );
+
+  if (!animate) {
+    return <div className={cardClass}>{content}</div>;
+  }
+  return (
+    <motion.div
+      key={plan.id}
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6, delay: index * 0.15 }}
+      className={cardClass}
+    >
+      {content}
+    </motion.div>
+  );
+};
+
+// ─── MODAL "VER MAIS PLANOS" ──────────────────────────────────────────────────
+const AllPlansModal = ({ plans, onClose, onSelect }: {
+  plans: any[];
+  onClose: () => void;
+  onSelect: (planId: string) => void;
+}) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.2 }}
+        className="bg-background rounded-[32px] border border-border shadow-2xl w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden"
+        onClick={(e: any) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 md:px-8 py-5 border-b border-border/60 shrink-0">
+          <div>
+            <h3 className="text-xl md:text-2xl font-outfit font-extrabold text-foreground">Todos os planos</h3>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
+              Todos incluem acesso imediato ao sistema completo e {TRIAL_DAYS} dias grátis.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Fechar"
+            className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Grid scrollável */}
+        <div className="overflow-y-auto p-6 md:p-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 items-start">
+            {plans.map((plan, i) => (
+              <PlanCard key={plan.id} plan={plan} index={i} onSelect={onSelect} animate={false} />
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 // ─── LANDING PAGE PRINCIPAL ───────────────────────────────────────────────────
 const LandingPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [signupPlan, setSignupPlan] = useState<string | null>(null);
+  const [showAllPlans, setShowAllPlans] = useState(false);
   const [, setLocation] = useLocation();
   const { isAuthenticated, loading, user } = useAuth();
 
@@ -475,13 +635,13 @@ const LandingPage = () => {
 
   // Bloquear scroll quando modal aberto
   useEffect(() => {
-    if (signupPlan) {
+    if (signupPlan || showAllPlans) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [signupPlan]);
+  }, [signupPlan, showAllPlans]);
 
   const { data: dbPlans, isLoading: loadingPlans } = trpc.publicData.getPlans.useQuery();
 
@@ -538,6 +698,15 @@ const LandingPage = () => {
       <AnimatePresence>
         {signupPlan && (
           <SignupModal plan={signupPlan} onClose={() => setSignupPlan(null)} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showAllPlans && (
+          <AllPlansModal
+            plans={plans}
+            onClose={() => setShowAllPlans(false)}
+            onSelect={(planId) => { setShowAllPlans(false); setSignupPlan(planId); }}
+          />
         )}
       </AnimatePresence>
 
@@ -987,85 +1156,26 @@ const LandingPage = () => {
             </div>
           ) : (
             <div className="grid md:grid-cols-3 gap-6 items-center">
-              {plans.map((plan, i) => (
-                <motion.div
-                key={plan.id}
-                {...fadeIn}
-                transition={{ delay: i * 0.15 }}
-                className={`relative flex flex-col rounded-[40px] transition-all duration-300 ${
-                  plan.highlight
-                    ? 'bg-card text-card-foreground border-2 border-blue-500 shadow-2xl shadow-blue-500/20 md:-translate-y-4 p-10'
-                    : 'bg-card/40 backdrop-blur-xl shadow-2xl shadow-primary/5 border border-border/50 hover:border-primary/30 hover:shadow-primary/20 p-10'
-                }`}
-              >
-                {/* Badge */}
-                {plan.badge && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-5 py-2 rounded-full shadow-lg whitespace-nowrap">
-                    {plan.badge}
-                  </div>
-                )}
-
-                {/* Plan Info */}
-                <div className="mb-6">
-                  <h4 className={`text-2xl font-outfit font-extrabold mb-1 ${plan.highlight ? 'text-primary' : 'text-foreground'}`}>
-                    {plan.name}
-                  </h4>
-                  <p className={`text-sm font-medium ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
-                    {plan.subtitle}
-                  </p>
-                  {plan.allowExtraStudents && plan.maxStudents < 999999 && (
-                    <p className={`text-xs font-semibold mt-1 ${plan.highlight ? 'text-blue-400' : 'text-primary/60'}`}>
-                      + R$ {plan.extraStudentPrice.toFixed(2)}/aluno adicional
-                    </p>
-                  )}
-                </div>
-
-                {/* Price */}
-                <div className={`flex items-baseline gap-1 mb-8 ${plan.highlight ? 'text-primary' : 'text-foreground'}`}>
-                  <span className="text-base font-bold text-gray-500">R$</span>
-                  <span className="text-5xl font-black tracking-tight">{plan.price}</span>
-                  <span className="text-2xl font-black">,{plan.cents}</span>
-                  <span className="text-gray-400 font-medium text-sm">/mês</span>
-                </div>
-
-                {/* Features */}
-                <ul className="space-y-4 mb-10 flex-1">
-                  {plan.features.map(feat => (
-                    <li key={feat} className={`flex items-center gap-3 text-sm font-medium ${plan.highlight ? 'text-foreground' : 'text-muted-foreground'}`}>
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                        plan.highlight ? 'bg-blue-600 text-white' : 'bg-primary/10 text-primary'
-                      }`}>
-                        <Check size={13} strokeWidth={3} />
-                      </div>
-                      {feat}
-                    </li>
-                  ))}
-                </ul>
-
-                {/* CTA */}
-                <button
-                  onClick={() => setSignupPlan(plan.id)}
-                  className={`w-full py-4 rounded-2xl font-black text-sm transition-all active:scale-[0.98] ${
-                    plan.highlight
-                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/30'
-                      : plan.id === 'premium'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:opacity-90 shadow-lg'
-                      : 'border-2 border-border text-foreground hover:bg-muted hover:border-primary/50'
-                  }`}
-                >
-                  {plan.cta}
-                </button>
-
-                {/* Trial note */}
-                <div className={`text-center mt-4 space-y-1 ${plan.highlight ? 'text-primary/70' : 'text-muted-foreground'}`}>
-                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-500">✓ 7 Dias Grátis</p>
-                  <p className="text-[10px] font-medium leading-tight">
-                    Sem fidelidade. Cancele ou mude de plano quando quiser.
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+              {plans.slice(0, 3).map((plan, i) => (
+                <PlanCard key={plan.id} plan={plan} index={i} onSelect={setSignupPlan} />
+              ))}
             </div>
+          )}
+
+          {/* Ver mais planos */}
+          {plans.length > 3 && (
+            <motion.div {...fadeIn} className="mt-10 text-center">
+              <button
+                onClick={() => setShowAllPlans(true)}
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl border-2 border-border bg-card/60 backdrop-blur-xl text-foreground font-black text-sm hover:border-primary/50 hover:bg-muted transition-all active:scale-[0.98]"
+              >
+                Ver mais planos
+                <ChevronDown size={16} strokeWidth={3} className="text-primary" />
+              </button>
+              <p className="text-xs text-muted-foreground font-medium mt-2">
+                {plans.length - 3} {plans.length - 3 > 1 ? 'planos adicionais disponíveis' : 'plano adicional disponível'}
+              </p>
+            </motion.div>
           )}
 
           {/* Garantia */}

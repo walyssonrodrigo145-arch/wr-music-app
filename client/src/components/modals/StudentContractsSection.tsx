@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   FileSignature, Plus, Copy, Eye, RefreshCw, Ban, Download, Loader2,
-  Clock, CheckCircle2, XCircle, AlertTriangle, History, Link2, FileText, RotateCcw,
+  Clock, CheckCircle2, XCircle, AlertTriangle, History, Link2, FileText, RotateCcw, Trash2,
 } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> = {
@@ -271,6 +271,7 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
   const [refreshing, setRefreshing] = useState<number | null>(null);
   const [renewing, setRenewing] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   const invalidate = () => {
     utils.contracts.list.invalidate({ studentId });
@@ -284,6 +285,11 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
 
   const cancelMutation = trpc.contracts.cancel.useMutation({
     onSuccess: () => { toast.success("Contrato cancelado."); invalidate(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteMutation = trpc.contracts.remove.useMutation({
+    onSuccess: () => { toast.success("Contrato excluído."); invalidate(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -457,6 +463,14 @@ export function StudentContractsSection({ studentId, student }: { studentId: num
                   )}
                   <Button size="sm" variant="ghost" className="h-8 rounded-lg text-[10px] font-bold" onClick={() => setDetailsId(detailsId === contract.id ? null : contract.id)}>
                     <History size={12} className="mr-1" /> Histórico
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 rounded-lg text-[10px] font-bold text-rose-600 border-rose-500/20 hover:bg-rose-500/10" disabled={deleting === contract.id} onClick={() => {
+                    if (!window.confirm("Excluir este contrato permanentemente? Esta ação não pode ser desfeita.")) return;
+                    setDeleting(contract.id);
+                    deleteMutation.mutate({ id: contract.id }, { onSettled: () => setDeleting(null) });
+                  }}>
+                    {deleting === contract.id ? <Loader2 size={12} className="animate-spin mr-1" /> : <Trash2 size={12} className="mr-1" />}
+                    Excluir
                   </Button>
                 </div>
 

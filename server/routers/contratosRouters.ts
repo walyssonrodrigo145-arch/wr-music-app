@@ -300,6 +300,25 @@ export const contratosRouters = {
         return { success: true };
       }),
 
+    remove: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+
+        const [contract] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.id), eq(contracts.organizationId, orgId)))
+          .limit(1);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+
+        await db.delete(contractEvents).where(eq(contractEvents.contractId, contract.id));
+        await db.delete(contracts).where(eq(contracts.id, contract.id));
+
+        return { success: true };
+      }),
+
     resend: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
