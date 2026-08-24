@@ -864,6 +864,8 @@ async function startServer() {
           "https://*.googleapis.com",
           "https://*.firebaseio.com",
           "https://*.firebaseapp.com",
+          "https://viacep.com.br",
+          "https://brasilapi.com.br",
           "wss:",
         ],
         mediaSrc: ["'self'", "blob:", "https:"],
