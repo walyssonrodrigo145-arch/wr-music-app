@@ -18,8 +18,8 @@ export function createFileToken(relKey: string): string {
   fileTokenStore.set(token, { relKey, expiresAt });
   // Limpa tokens expirados a cada geração (low-traffic path)
   const now = Date.now();
-  for (const [k, v] of fileTokenStore) {
+  fileTokenStore.forEach((v, k) => {
     if (now > v.expiresAt) fileTokenStore.delete(k);
-  }
+  });
   return token;
 }

@@ -148,7 +148,7 @@ class SDKServer {
     } as GetUserInfoResponse;
   }
 
-  private parseCookies(cookieHeader: string | undefined) {
+  parseCookies(cookieHeader: string | undefined) {
     if (!cookieHeader) {
       return new Map<string, string>();
     }
