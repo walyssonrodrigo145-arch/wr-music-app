@@ -1,13 +1,12 @@
-import { X, Calendar as CalendarIcon, User as UserIcon, DollarSign, Activity, Loader2, Edit3, Trash2, CheckCircle2, Clock, Users } from "lucide-react";
+import { Calendar, DollarSign, Clock, Loader2, Edit3, Trash2, CheckCircle2, Activity, Mail, Phone, Users, MapPin } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Link } from "wouter";
 import { StudentContractsSection } from "./StudentContractsSection";
 
 interface StudentDetailsModalProps {
@@ -16,6 +15,47 @@ interface StudentDetailsModalProps {
   studentId: number | null;
   onEdit: () => void;
   onDelete: () => void;
+}
+
+// Mini-card de métrica — densidade alta, hierarquia label pequeno + valor forte
+function MetricCard({ icon: Icon, label, value, accent }: {
+  icon: typeof Calendar;
+  label: string;
+  value: string;
+  accent: string;
+}) {
+  return (
+    <div className="bg-muted/30 p-3 rounded-2xl border border-border/30 min-w-0">
+      <div className="flex items-center gap-1.5 text-muted-foreground/50 mb-1.5">
+        <Icon size={12} strokeWidth={2.5} className={accent} />
+        <span className="text-[9px] font-black uppercase tracking-[0.15em] truncate">{label}</span>
+      </div>
+      <p className="text-[13px] font-black text-foreground tracking-tight leading-tight truncate" title={value}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+// Linha de informação densa (contato/modalidade)
+function InfoRow({ icon: Icon, label, value, action }: {
+  icon: typeof Mail;
+  label: string;
+  value: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-border/30 last:border-0 group">
+      <div className="w-7 h-7 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground/60 shrink-0">
+        <Icon size={13} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-0.5">{label}</p>
+        <p className="text-xs font-bold text-foreground truncate" title={value}>{value}</p>
+      </div>
+      {action}
+    </div>
+  );
 }
 
 export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onDelete }: StudentDetailsModalProps) {
@@ -39,18 +79,20 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
 
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case "ativo": return { label: "Ativo", color: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20" };
-      case "pausado": return { label: "Pausado", color: "text-amber-600 bg-amber-500/10 border-amber-500/20" };
-      case "inativo": return { label: "Inativo", color: "text-rose-600 bg-rose-500/10 border-rose-500/20" };
-      default: return { label: status, color: "text-muted-foreground bg-muted" };
+      case "ativo": return { label: "Ativo", color: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-500" };
+      case "pausado": return { label: "Pausado", color: "text-amber-600 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-500" };
+      case "inativo": return { label: "Inativo", color: "text-rose-600 bg-rose-500/10 border-rose-500/20", dot: "bg-rose-500" };
+      default: return { label: status, color: "text-muted-foreground bg-muted border-border", dot: "bg-muted-foreground" };
     }
   };
 
-  const statusConfig = student ? getStatusConfig(student.status) : { label: "...", color: "" };
+  const statusConfig = student ? getStatusConfig(student.status) : null;
+  const initials = student?.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() ?? "?";
+  const brl = (v: number | string) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px] max-h-[90vh] flex flex-col rounded-[2.5rem] border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
+      <DialogContent className="sm:max-w-[440px] max-h-[92vh] flex flex-col rounded-3xl border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
         {isLoading && !student ? (
           <div className="flex flex-col items-center justify-center p-16">
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
@@ -64,209 +106,130 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
           </div>
         ) : (
           <>
-            {/* Profile Header */}
-            <div className="px-8 pt-10 pb-8 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent flex flex-col items-center text-center relative border-b border-border/10 flex-shrink-0">
-              {/* Profile Avatar with status indicator */}
-              <div className="relative mb-6">
-                <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary via-indigo-600 to-violet-600 flex items-center justify-center shadow-2xl shadow-primary/30 text-white font-black text-3xl border-4 border-background transition-all hover:scale-105 hover:rotate-2 duration-500">
-                   {student.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+            {/* ── Header compacto: avatar + identidade + ações em 1 linha ── */}
+            <div className="px-5 pt-5 pb-4 border-b border-border/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex-shrink-0">
+              <div className="flex items-start gap-3.5">
+                <div className="relative shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-primary/20 text-white font-black text-lg border-2 border-background">
+                    {initials}
+                  </div>
+                  <div className={cn(
+                    "absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-[3px] border-background",
+                    statusConfig?.dot
+                  )} />
                 </div>
-                <div className={cn(
-                  "absolute -bottom-1 -right-1 w-7 h-7 rounded-full border-4 border-background shadow-lg flex items-center justify-center",
-                  student.status === 'ativo' ? 'bg-emerald-500' : student.status === 'pausado' ? 'bg-amber-500' : 'bg-rose-500'
-                )}>
-                  {student.status === 'ativo' ? <CheckCircle2 size={12} className="text-white" /> : <Activity size={12} className="text-white" />}
+
+                <div className="flex-1 min-w-0">
+                  <DialogTitle className="text-[15px] font-black text-foreground leading-snug line-clamp-2">
+                    {student.name}
+                  </DialogTitle>
+                  <div className="flex items-center flex-wrap gap-1.5 mt-2">
+                    <span className="px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
+                      {student.instrumentName || "Estudante"}
+                    </span>
+                    <span className={cn("px-2 py-0.5 rounded-lg border text-[9px] font-black uppercase tracking-wider", statusConfig?.color)}>
+                      {statusConfig?.label}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              
-              <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-tight px-4 flex flex-col items-center gap-1.5">
-                {student.name}
-                <div className="flex items-center gap-2">
-                   <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                   <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.25em]">
-                     {student.instrumentName || "Estudante"}
-                   </span>
-                   <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                </div>
-              </DialogTitle>
-              
-              {/* Action row - Premium Glassmorphism */}
-              <div className="flex items-center gap-3 mt-8">
-                <div className={cn("px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-[0.2em] shadow-sm backdrop-blur-md transition-all hover:scale-105", statusConfig.color)}>
-                  {statusConfig.label}
-                </div>
-                
-                <div className="flex items-center gap-1.5 bg-muted/40 p-1.5 rounded-2xl border border-border/20 shadow-inner">
+
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={onEdit}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-background hover:bg-primary hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40 group"
+                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-background hover:bg-primary hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40"
                     title="Editar Aluno"
                   >
-                    <Edit3 size={15} className="group-hover:rotate-12 transition-transform" />
+                    <Edit3 size={14} />
                   </button>
                   <button
                     onClick={onDelete}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-background hover:bg-destructive hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40 group"
+                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-background hover:bg-destructive hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40"
                     title="Excluir Aluno"
                   >
-                    <Trash2 size={15} className="group-hover:scale-110 transition-transform" />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Details Content - Scrollable */}
-            <div className="overflow-y-auto flex-1 p-8 pt-6 space-y-6">
-              
-              {/* Info Grid - Matrícula, Mensalidade e Sala */}
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="bg-muted/30 p-4 rounded-3xl border border-border/30 flex flex-col justify-center relative overflow-hidden group hover:border-primary/20 transition-colors">
-                    <div className="flex items-center gap-2 text-muted-foreground/50 mb-2">
-                       <CalendarIcon size={13} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-[0.2em]">Início</span>
-                    </div>
-                    <p className="text-sm font-black text-foreground tracking-tight">
-                       {student.createdAt ? format(new Date(student.createdAt), "dd MMM, yyyy", { locale: ptBR }) : "—"}
-                    </p>
-                 </div>
-                 
-                 <div className="bg-muted/30 p-4 rounded-3xl border border-border/30 flex flex-col justify-center relative overflow-hidden group hover:border-emerald-500/20 transition-colors">
-                    <div className="flex items-center gap-2 text-muted-foreground/50 mb-2">
-                       <DollarSign size={13} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-[0.2em]">Valor</span>
-                    </div>
-                    <p className="text-sm font-black text-foreground tracking-tight">
-                       {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(student.monthlyFee))}
-                    </p>
-                 </div>
-
-                 {student.studioRoomName && (
-                   <div className="col-span-2 bg-blue-500/5 p-4 rounded-3xl border border-blue-500/20 flex items-center justify-between relative overflow-hidden">
-                      <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold">
-                            🏫
-                         </div>
-                         <div>
-                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500">Sala de Aula Padrão</span>
-                            <p className="text-sm font-black text-foreground">{student.studioRoomName}</p>
-                         </div>
-                      </div>
-                   </div>
-                 )}
+            {/* ── Conteúdo scrollável — grid denso, tudo visível com pouco scroll ── */}
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+              {/* Métricas 2×2: cadastro, mensalidade, vencimento, último pagamento */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <MetricCard
+                  icon={Calendar}
+                  label="Matrícula"
+                  accent="text-primary/60"
+                  value={student.createdAt ? format(new Date(student.createdAt), "dd MMM yyyy", { locale: ptBR }) : "—"}
+                />
+                <MetricCard
+                  icon={DollarSign}
+                  label="Mensalidade"
+                  accent="text-emerald-500/70"
+                  value={brl(student.monthlyFee)}
+                />
+                <MetricCard
+                  icon={Clock}
+                  label="Próx. vencimento"
+                  accent="text-amber-500/70"
+                  value={student.nextDueDate ? format(new Date(student.nextDueDate), "dd MMM yyyy", { locale: ptBR }) : "Em dia"}
+                />
+                <MetricCard
+                  icon={CheckCircle2}
+                  label="Último pagamento"
+                  accent="text-emerald-500/70"
+                  value={student.lastPaymentDate ? format(new Date(student.lastPaymentDate), "dd MMM yyyy", { locale: ptBR }) : "Sem registros"}
+                />
               </div>
 
-              {/* Financeiro - Distinct Section */}
-              <div className="bg-card p-6 rounded-[2rem] border border-border/40 space-y-5 shadow-sm relative overflow-hidden">
-                 <div className="absolute right-0 top-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16" />
-                 
-                 <div className="grid grid-cols-1 gap-5">
-                    <div className="flex items-center justify-between group">
-                       <div className="space-y-1">
-                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 flex items-center gap-2">
-                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                             Vencimento
-                          </h4>
-                          <p className="text-base font-black text-foreground group-hover:text-amber-600 transition-colors">
-                             {student.nextDueDate ? format(new Date(student.nextDueDate), "dd 'de' MMMM", { locale: ptBR }) : "Sem pendências"}
-                          </p>
-                       </div>
-                       <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
-                          <Clock size={18} />
-                       </div>
-                    </div>
-
-                    <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-border/20 to-transparent" />
-
-                    <div className="flex items-center justify-between group">
-                       <div className="space-y-1">
-                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 flex items-center gap-2">
-                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                             Último Pago
-                          </h4>
-                          <p className="text-base font-black text-foreground group-hover:text-emerald-600 transition-colors">
-                             {student.lastPaymentDate ? format(new Date(student.lastPaymentDate), "dd 'de' MMMM", { locale: ptBR }) : "Sem registros"}
-                          </p>
-                       </div>
-                       <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                          <CheckCircle2 size={18} />
-                       </div>
-                    </div>
-                 </div>
+              {/* Contato e modalidade — lista densa */}
+              <div className="px-1">
+                {student.email && (
+                  <InfoRow icon={Mail} label="E-mail" value={student.email} />
+                )}
+                {student.phone && (
+                  <InfoRow icon={Phone} label="WhatsApp" value={student.phone} />
+                )}
+                <InfoRow
+                  icon={Users}
+                  label="Modalidade"
+                  value={`Aula ${student.lessonType || "Individual"}`}
+                />
+                {student.studioRoomName && (
+                  <InfoRow icon={MapPin} label="Sala de aula" value={student.studioRoomName} />
+                )}
               </div>
 
-               {/* Contratos Digitais */}
-               <StudentContractsSection studentId={student.id} student={student} />
-
-               {/* Contact Pills */}
-              <div className="flex flex-col gap-3">
-                 <div className="flex items-center gap-3 bg-muted/20 p-3 rounded-2xl border border-border/10 hover:bg-muted/30 transition-colors group">
-                    <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-muted-foreground/60 shadow-sm">
-                       <UserIcon size={14} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                       <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest leading-none mb-1">E-mail</p>
-                       <p className="text-xs font-black text-foreground truncate">{student.email}</p>
-                    </div>
-                 </div>
-                 
-                 {student.phone && (
-                    <div className="flex items-center gap-3 bg-muted/20 p-3 rounded-2xl border border-border/10 hover:bg-muted/30 transition-colors group">
-                       <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-muted-foreground/60 shadow-sm">
-                          <Activity size={14} />
-                       </div>
-                       <div className="flex-1 min-w-0">
-                          <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest leading-none mb-1">WhatsApp</p>
-                          <p className="text-xs font-black text-foreground truncate">{student.phone}</p>
-                       </div>
-                    </div>
-                 )}
-
-                 <div className="flex items-center gap-3 bg-muted/20 p-3 rounded-2xl border border-border/10 hover:bg-muted/30 transition-colors group">
-                    <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-muted-foreground/60 shadow-sm">
-                       <Users size={14} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                       <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest leading-none mb-1">Modalidade</p>
-                       <p className="text-xs font-black text-foreground truncate capitalize">Aula {student.lessonType || "Individual"}</p>
-                    </div>
-                 </div>
-              </div>
+              {/* Contratos digitais */}
+              <StudentContractsSection studentId={student.id} student={student} />
             </div>
 
-            {/* Bottom Actions - Fixed footer, outside scroll */}
-            <div className="p-8 pt-4 space-y-3 border-t border-border/10 flex-shrink-0 bg-card">
-               <Button
-                 className={cn(
-                   "w-full h-14 rounded-3xl text-[11px] font-black uppercase tracking-[0.25em] shadow-2xl transition-all active:scale-95 border-none relative overflow-hidden group",
-                   student.hasPortalAccess 
-                    ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-amber-500/20" 
-                    : "bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white shadow-indigo-500/30"
-                 )}
-                 onClick={() => {
-                   enableAccessMutation.mutate({ studentId: student.id });
-                 }}
-                 disabled={enableAccessMutation.isPending}
-               >
-                 {enableAccessMutation.isPending ? (
-                    <Loader2 size={16} className="animate-spin mr-3" />
-                 ) : (
-                    <Activity size={16} className="mr-3 group-hover:scale-110 transition-transform" />
-                 )}
-                 {student.hasPortalAccess ? "Gerar Novo Acesso" : "Liberar Acesso Portal"}
-               </Button>
-
-               <Button
-                 variant="ghost"
-                 className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-                 onClick={() => onOpenChange(false)}
-               >
-                 Fechar Detalhes
-               </Button>
+            {/* ── Footer: 1 ação principal (fechar = X do Dialog) ── */}
+            <div className="px-5 py-4 border-t border-border/30 flex-shrink-0 bg-muted/10">
+              <Button
+                className={cn(
+                  "w-full h-11 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] shadow-lg transition-all active:scale-95 border-none gap-2",
+                  student.hasPortalAccess 
+                   ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-amber-500/20" 
+                   : "bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white shadow-indigo-500/30"
+                )}
+                onClick={() => {
+                  enableAccessMutation.mutate({ studentId: student.id });
+                }}
+                disabled={enableAccessMutation.isPending}
+              >
+                {enableAccessMutation.isPending ? (
+                   <Loader2 size={15} className="animate-spin" />
+                ) : (
+                   <Activity size={15} />
+                )}
+                {student.hasPortalAccess ? "Gerar Novo Acesso" : "Liberar Acesso ao Portal"}
+              </Button>
             </div>
           </>
         )}
 
-        {/* Credentials Modal - Moved outside the loading/student check to stay visible during refetch */}
+        {/* Credentials Modal */}
         {credentials && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-card border border-border shadow-2xl rounded-[2rem] p-8 max-w-sm w-full text-center space-y-6 animate-in zoom-in-95 duration-300">
@@ -304,4 +267,3 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
     </Dialog>
   );
 }
-

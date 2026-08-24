@@ -130,4 +130,50 @@ describe("BillingEngine - Financial Calculation Tests", () => {
     expect(res.interestAmount).toBe(0);
     expect(res.updatedAmount).toBe(200.0);
   });
+
+  // AUDIT-06 FIX: cobre o caminho de desconto por antecipação (earlyDiscount),
+  // que não tinha nenhum caso de teste e nunca fora exercitado com dados reais.
+  it("AUDIT-06: deve aplicar desconto antecipado dentro da janela configurada", () => {
+    const settingsWithDiscount: SchoolBillingSettings = {
+      ...defaultSettings,
+      earlyDiscountEnabled: true,
+      earlyDiscountType: "percentage",
+      earlyDiscountValue: 5.0, // 5%
+      earlyDiscountDays: 7, // janela mínima de 7 dias antes do vencimento
+    };
+
+    const invoice = {
+      id: 6,
+      amount: "200.00",
+      dueDate: "2026-07-30",
+      status: "pendente",
+    };
+
+    // Pagando 10 dias antes (10 >= 7) → desconto de 5% = R$ 10,00
+    const resEarly = BillingEngine.computeInvoiceAmounts(invoice, settingsWithDiscount, new Date(2026, 6, 20));
+    expect(resEarly.daysOverdue).toBe(0);
+    expect(resEarly.lateFeeAmount).toBe(0);
+    expect(resEarly.interestAmount).toBe(0);
+    expect(resEarly.earlyDiscountAmount).toBe(10.0);
+    expect(resEarly.updatedAmount).toBe(190.0);
+
+    // Fora da janela (2 dias antes < 7) → SEM desconto
+    const resInsideWindow = BillingEngine.computeInvoiceAmounts(invoice, settingsWithDiscount, new Date(2026, 6, 28));
+    expect(resInsideWindow.earlyDiscountAmount).toBe(0);
+    expect(resInsideWindow.updatedAmount).toBe(200.0);
+
+    // No próprio dia do vencimento com janela 7 → sem desconto (0 < 7)
+    const resOnDueDate = BillingEngine.computeInvoiceAmounts(invoice, settingsWithDiscount, new Date(2026, 6, 30));
+    expect(resOnDueDate.earlyDiscountAmount).toBe(0);
+    expect(resOnDueDate.updatedAmount).toBe(200.0);
+
+    // Janela 0 → desconto vale inclusive no dia do vencimento
+    const resZeroWindow = BillingEngine.computeInvoiceAmounts(
+      invoice,
+      { ...settingsWithDiscount, earlyDiscountDays: 0 },
+      new Date(2026, 6, 30)
+    );
+    expect(resZeroWindow.earlyDiscountAmount).toBe(10.0);
+    expect(resZeroWindow.updatedAmount).toBe(190.0);
+  });
 });

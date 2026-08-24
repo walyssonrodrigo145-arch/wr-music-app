@@ -792,10 +792,13 @@ export const studentsRouters = {
         ));
 
         if (input.deletePendingData && (input.status === 'inativo' || input.status === 'pausado')) {
+          // AUDIT-01 FIX: apagar apenas aulas agendadas FUTURAS — aulas passadas
+          // são histórico do aluno e não devem ser destruídas na desativação.
           await db.delete(lessons).where(and(
-            eq(lessons.studentId, input.id), 
-            eq(lessons.organizationId, orgId), 
-            eq(lessons.status, 'agendada')
+            eq(lessons.studentId, input.id),
+            eq(lessons.organizationId, orgId),
+            eq(lessons.status, 'agendada'),
+            gte(lessons.scheduledAt, new Date())
           ));
           await db.delete(paymentDues).where(and(
             eq(paymentDues.studentId, input.id), 

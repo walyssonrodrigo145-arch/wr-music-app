@@ -23,6 +23,7 @@ import { organizations, users, students, lessons, instruments, reminders, remind
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
+import { isValidCNPJ } from "./helpers";
 import { TRPCError } from "@trpc/server";
 
 import crypto from "crypto";
@@ -94,6 +95,11 @@ export const plataformaRouters = {
       attendanceToleranceMinutes: z.number().min(0).max(180).optional(),
     })).mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId!;
+      // AUDIT-04 FIX: rejeita CNPJ com dígitos verificadores inválidos (evita
+      // rejeição posterior na NFS-e/contratos por dados fiscais incorretos).
+      if (input.schoolCnpj && !isValidCNPJ(input.schoolCnpj)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "CNPJ inválido. Verifique os dígitos e tente novamente." });
+      }
       await upsertSettings(orgId, ctx.user.id, {
         ...input,
         showSchoolName: input.showSchoolName !== undefined ? (input.showSchoolName ? 1 : 0) : undefined,

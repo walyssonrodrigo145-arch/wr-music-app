@@ -88,6 +88,22 @@ export function isReservedSuperAdminEmail(email: string | null | undefined): boo
   return ENV.superAdminEmails.includes(email.trim().toLowerCase());
 }
 
+// AUDIT-04 FIX: validação de CNPJ com dígitos verificadores (aceita formatado ou só dígitos)
+export function isValidCNPJ(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const cnpj = value.replace(/\D/g, "");
+  if (cnpj.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(cnpj)) return false; // sequência repetida
+  const calcDigit = (base: string, weights: number[]): number => {
+    const sum = base.split("").reduce((acc, d, i) => acc + Number(d) * weights[i], 0);
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  const d1 = calcDigit(cnpj.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const d2 = calcDigit(cnpj.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return String(d1) === cnpj[12] && String(d2) === cnpj[13];
+}
+
 // ─── Helper: busca limites do plano da organização no banco ──────────────────
 export async function getOrgPlanLimits(db: any, orgId: number) {
   const { systemPlans } = await import("../../drizzle/schema");
@@ -234,6 +250,20 @@ export async function runCreateAssinafyContract(
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
       message: "Assinatura digital não configurada. Conecte sua conta da Assinafy em Configurações > Integrações.",
+    });
+  }
+
+  // AUDIT-04 FIX: contrato sem CNPJ da escola é rejeitado pelo provedor de
+  // assinatura/fiscal — bloqueia cedo com mensagem clara.
+  const { settings: settingsTable } = await import("../../drizzle/schema");
+  const [orgSettings] = await db.select({ schoolCnpj: settingsTable.schoolCnpj })
+    .from(settingsTable)
+    .where(eq(settingsTable.organizationId, orgId))
+    .limit(1);
+  if (!isValidCNPJ(orgSettings?.schoolCnpj)) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Cadastre o CNPJ válido da escola em Configurações > Dados da Escola antes de emitir contratos.",
     });
   }
 

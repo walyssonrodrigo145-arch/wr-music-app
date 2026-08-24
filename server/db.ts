@@ -921,8 +921,11 @@ export async function getDashboardStats(organizationId: number, userId?: number)
     db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(lessons)
       .where(and(
         lessonOrgFilter,
-        lessonUserFilter, 
+        lessonUserFilter,
         eq(lessons.status, 'agendada'),
+        // AUDIT-01 FIX: conta apenas aulas agendadas FUTURAS — aulas passadas
+        // ainda marcadas como 'agendada' (professor não deu baixa) inflavam o card.
+        gte(lessons.scheduledAt, now),
         gte(lessons.scheduledAt, startOfMonth),
         lte(lessons.scheduledAt, endOfMonth)
       )),

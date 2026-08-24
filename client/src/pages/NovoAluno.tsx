@@ -391,7 +391,7 @@ export default function NovoAluno() {
     { enabled: isEditMode && !!studentId, staleTime: 0 }
   );
   const studentUpcomingLessons = isEditMode
-    ? studentLessons.filter((l: any) => l.status === "agendada")
+    ? studentLessons.filter((l: any) => l.status === "agendada" && new Date(l.scheduledAt).getTime() >= Date.now())
         .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
         .slice(0, 5)
     : [];
