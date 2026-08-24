@@ -4,8 +4,11 @@ import { trpc } from "@/lib/trpc";
 import {
   Loader2, Plus, Edit, Check, X, Tag, ListFilter, Users, Building,
   ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
-  Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search
+  Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search,
+  CheckCircle2, Eye,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { SLIDE_THEMES, getSlideTheme } from "@/lib/slideThemes";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import {
@@ -1055,13 +1058,6 @@ function HeroSlidesManager() {
     }
   };
 
-  const THEMES_OPTIONS = [
-    { id: "slate-900", label: "Dark Escuro (slate-900)", color: "bg-slate-900 text-white" },
-    { id: "blue-600", label: "Azul Vibrante (blue-600)", color: "bg-blue-600 text-white" },
-    { id: "slate-50", label: "Claro Minimalista (slate-50)", color: "bg-slate-100 text-slate-900 border" },
-    { id: "indigo-50", label: "Índigo Suave (indigo-50)", color: "bg-indigo-100 text-indigo-950 border" },
-  ];
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -1215,33 +1211,94 @@ function HeroSlidesManager() {
                 )}
               </div>
 
-              {/* Tema de Fundo & Ordem */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <Label htmlFor="slide-theme">Tema Visual / Cor de Fundo</Label>
-                  <select
-                    id="slide-theme"
-                    value={bgTheme}
-                    onChange={(e) => setBgTheme(e.target.value)}
-                    className="w-full mt-1 p-2.5 rounded-xl border border-input bg-background text-sm"
-                  >
-                    {THEMES_OPTIONS.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
+              {/* Tema Visual — picker padronizado (fonte única: slideThemes.ts) */}
+              <div>
+                <Label className="block text-sm font-semibold mb-1.5">Tema Visual do Slide</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {SLIDE_THEMES.map((t) => (
+                    <button
+                      type="button"
+                      key={t.id}
+                      onClick={() => setBgTheme(t.id)}
+                      className={cn(
+                        "relative rounded-xl border-2 p-2.5 text-left transition-all",
+                        bgTheme === t.id
+                          ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+                          : "border-border hover:border-primary/40"
+                      )}
+                    >
+                      <div
+                        className={cn("h-10 rounded-lg mb-2 flex items-center justify-center gap-1 border border-black/5", t.bg)}
+                        style={{ backgroundColor: t.previewHex }}
+                      >
+                        <span className={cn("text-xs font-black", t.textColor)}>
+                          Aa <span className={t.highlightColor}>Aa</span>
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-bold text-foreground leading-tight">{t.label}</p>
+                      <p className="text-[9px] text-muted-foreground">{t.dark ? "Fundo escuro" : "Fundo claro"}</p>
+                      {bgTheme === t.id && (
+                        <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                          <Check size={12} strokeWidth={3} />
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              {/* Ordem de exibição */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="slide-order">Ordem</Label>
+                  <Label htmlFor="slide-order">Ordem de Exibição</Label>
                   <Input
                     id="slide-order"
                     type="number"
+                    placeholder="1 = primeiro"
                     value={order}
                     onChange={(e) => setOrder(Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
+                <div className="md:col-span-2 flex items-end">
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Slides com números menores aparecem primeiro no carrossel da landing page.
+                  </p>
+                </div>
+              </div>
+
+              {/* Pré-visualização ao vivo */}
+              <div>
+                <Label className="block text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                  <Eye size={14} /> Pré-visualização ao vivo
+                </Label>
+                {(() => {
+                  const theme = getSlideTheme(bgTheme);
+                  const previewPoints = pointsText.split("\n").map((p) => p.trim()).filter(Boolean);
+                  return (
+                    <div className={cn("rounded-2xl p-5 transition-colors duration-300", theme.bg)} style={{ backgroundColor: theme.previewHex }}>
+                      <div className={cn("space-y-2", theme.textColor)}>
+                        <p className="text-lg font-black leading-tight">
+                          {title || "Título do Slide"}{" "}
+                          <span className={theme.highlightColor}>{highlight || "Destaque"}</span>
+                        </p>
+                        <p className="text-xs font-medium opacity-90 leading-relaxed">
+                          {subtitle || "O subtítulo do slide aparece aqui, exatamente como na landing page."}
+                        </p>
+                        {previewPoints.length > 0 && (
+                          <ul className="space-y-1 pt-1.5">
+                            {previewPoints.map((pt, i) => (
+                              <li key={i} className="text-[11px] font-semibold opacity-90 flex items-center gap-1.5">
+                                <CheckCircle2 size={12} className="shrink-0" />
+                                {pt}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="flex items-center justify-between p-3 bg-muted/40 rounded-xl">
@@ -1301,6 +1358,16 @@ function HeroSlidesManager() {
                       </span>
                       <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full">
                         #{s.order}
+                      </span>
+                      <span
+                        className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border border-border/60"
+                        title={`Tema: ${getSlideTheme(s.bgTheme).label}`}
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full border border-black/10"
+                          style={{ backgroundColor: getSlideTheme(s.bgTheme).previewHex }}
+                        />
+                        {getSlideTheme(s.bgTheme).label}
                       </span>
                     </div>
                   </div>
