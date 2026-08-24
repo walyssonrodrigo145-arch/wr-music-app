@@ -560,6 +560,11 @@ const AllPlansModal = ({ plans, onClose, onSelect }: {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Modal sempre ordenado do menor para o maior valor
+  const sortedPlans = [...plans].sort((a, b) =>
+    parseFloat(`${a.price}.${a.cents}`) - parseFloat(`${b.price}.${b.cents}`)
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -596,7 +601,7 @@ const AllPlansModal = ({ plans, onClose, onSelect }: {
         {/* Grid scrollável */}
         <div className="overflow-y-auto p-6 md:p-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 items-start">
-            {plans.map((plan, i) => (
+            {sortedPlans.map((plan, i) => (
               <PlanCard key={plan.id} plan={plan} index={i} onSelect={onSelect} animate={false} />
             ))}
           </div>
