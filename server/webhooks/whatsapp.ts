@@ -2,11 +2,11 @@ import { debugLog } from "../_core/logger";
 import { Router } from "express";
 import crypto from "crypto";
 import { getDb } from "../db";
-import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows, schoolKnowledgeBase } from "../../drizzle/schema";
+import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows, schoolKnowledgeBase, instruments } from "../../drizzle/schema";
 import { eq, and, gte, ilike } from "drizzle-orm";
 import { sendWhatsAppMessage } from "../utils/whatsapp";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt } from "../utils/aiPrompts";
+import { getSystemPrompt, getAttendancePrompt } from "../utils/aiPrompts";
 import { callGemini } from "../utils/gemini";
 import { sendPushNotification } from "../firebaseAdmin";
 import { getDefaultFlow, ChatbotFlowData } from "../chatbotFlowRouter";
@@ -308,6 +308,9 @@ router.post("/", async (req, res) => {
         whatsappBotUrl: settings.whatsappBotUrl,
         whatsappBotToken: settings.whatsappBotToken,
         schoolHours: settings.schoolHours,
+        conversationalMode: settings.conversationalMode,
+        attendancePersonaName: settings.attendancePersonaName,
+        attendanceTone: settings.attendanceTone,
         phone: settings.phone,
         organizationId: settings.organizationId,
         geminiApiKey: settings.geminiApiKey,
@@ -509,6 +512,169 @@ router.post("/", async (req, res) => {
         await sendReply("Estou de volta! 🤖✨\nPode falar comigo normalmente, estou aqui pra te ajudar!");
       }
       return res.status(200).json({ ok: true });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // RECEPCIONISTA VIRTUAL — IA conversacional em linguagem natural.
+    // Intercepta mensagens livres nos estados de conversa. Entradas numéricas,
+    // a palavra MENU e comprovantes seguem para os fluxos tradicionais.
+    // ─────────────────────────────────────────────────────
+    const CONVERSATIONAL_STATES = ["START", "MENU_ALUNO", "MENU_NOVO", "AGUARDANDO_MENU"];
+    const isNumericInput = /^\d{1,2}$/.test(input);
+    const isReceiptMsg =
+      !!messageData.imageMessage ||
+      !!messageData.documentMessage ||
+      /comprovante|paguei|pix|transferencia|transferência|pagamento|deposito|depósito/i.test(textMsg);
+
+    if (
+      profSettings.conversationalMode !== 0 &&
+      !isProfessorChat &&
+      CONVERSATIONAL_STATES.includes(session.state) &&
+      !isNumericInput &&
+      inputUpper !== "MENU" &&
+      !isReceiptMsg &&
+      input.trim().length >= 2
+    ) {
+      try {
+        // ── Contexto do aluno (próxima aula, mensalidades, instrumento) ──
+        let studentContext = "";
+        if (student) {
+          const [nextLesson] = await db
+            .select()
+            .from(lessons)
+            .where(and(eq(lessons.studentId, student.id), gte(lessons.scheduledAt, new Date()), eq(lessons.status, "agendada")))
+            .orderBy(lessons.scheduledAt)
+            .limit(1);
+
+          const pendDues = await db
+            .select()
+            .from(paymentDues)
+            .where(and(eq(paymentDues.studentId, student.id), eq(paymentDues.status, "pendente")));
+
+          let instrumentName: string | null = null;
+          if ((student as any).instrumentId) {
+            const [inst] = await db
+              .select({ name: instruments.name })
+              .from(instruments)
+              .where(eq(instruments.id, (student as any).instrumentId))
+              .limit(1);
+            instrumentName = inst?.name || null;
+          }
+
+          const fmtD = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+          const fmtH = (d: Date) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+          studentContext += `- Nome: ${student.name}\n`;
+          if (instrumentName) studentContext += `- Instrumento: ${instrumentName}\n`;
+          if (nextLesson) studentContext += `- Próxima aula: ${fmtD(nextLesson.scheduledAt)} às ${fmtH(nextLesson.scheduledAt)} (${nextLesson.duration} min)\n`;
+          else studentContext += `- Próxima aula: nenhuma aula futura agendada\n`;
+          if (pendDues.length === 0) studentContext += `- Financeiro: em dia ✅\n`;
+          else {
+            const p = pendDues[0];
+            const valor = parseFloat(String(p.amount)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            studentContext += `- Financeiro: ${pendDues.length} mensalidade(s) em aberto, a mais antiga de ${valor} vencida em ${new Date(p.dueDate + "T12:00:00").toLocaleDateString("pt-BR")}\n`;
+          }
+        }
+
+        // ── Base de conhecimento da escola (FAQ) ──
+        let knowledgeContext = "";
+        try {
+          const topics = await db
+            .select()
+            .from(schoolKnowledgeBase)
+            .where(and(eq(schoolKnowledgeBase.organizationId, profSettings.organizationId || 1), eq(schoolKnowledgeBase.isActive, 1)));
+          for (const t of topics.slice(0, 20)) {
+            knowledgeContext += `\n--- [TÓPICO: ${t.title}] ---\n${t.content}\n`;
+          }
+        } catch (kbErr) {
+          console.error("[AI Atendimento] Erro ao carregar base de conhecimento:", kbErr);
+        }
+
+        // ── Histórico da conversa (últimas 20 mensagens) ──
+        const historyObj: any[] = Array.isArray(sessionData.aiHistory) ? sessionData.aiHistory : [];
+        historyObj.push({ role: "user", content: input });
+        if (historyObj.length > 20) historyObj.splice(0, historyObj.length - 20);
+
+        const nowInfo = new Date().toLocaleString("pt-BR", {
+          weekday: "long", day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo",
+        });
+        const enrollmentLink = `https://wrmusicpro.com.br/matricula/${schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+
+        const systemPrompt = getAttendancePrompt({
+          schoolName,
+          personaName: profSettings.attendancePersonaName,
+          tone: profSettings.attendanceTone,
+          studentName: student?.name || pushName,
+          isStudent: !!student,
+          studentContext,
+          knowledgeContext,
+          enrollmentLink,
+          pixKey: profSettings.pixKey,
+          nowInfo,
+        });
+
+        const apiKey = profSettings.aiProvider === "groq" ? profSettings.groqApiKey : profSettings.geminiApiKey;
+        const model = profSettings.aiProvider === "groq" ? profSettings.groqModel : profSettings.geminiModel;
+
+        const aiRaw = await callGemini(historyObj, systemPrompt, false, apiKey, model);
+
+        if (aiRaw && aiRaw.trim()) {
+          // ── Executar agendamentos solicitados via ACTION (com validação de slot) ──
+          const SCHEDULE_ACTION_REGEX = /<!--ACTION:SCHEDULE_LESSON\s+(\{[\s\S]*?\})-->/g;
+          const confirmedSlots: Date[] = [];
+          let actionMatch;
+          while ((actionMatch = SCHEDULE_ACTION_REGEX.exec(aiRaw)) !== null) {
+            try {
+              const lessonData = JSON.parse(actionMatch[1]);
+              const scheduledDate = new Date(lessonData.scheduledAt);
+              if (isNaN(scheduledDate.getTime()) || scheduledDate < new Date()) continue;
+
+              const ocupadas = await db
+                .select()
+                .from(lessons)
+                .where(and(eq(lessons.userId, professorUserId), gte(lessons.scheduledAt, new Date()), eq(lessons.status, "agendada")));
+
+              if (!isSlotFree(scheduledDate, ocupadas, profSettings.lessonDuration || 60)) continue;
+
+              await db.insert(lessons).values({
+                organizationId: profSettings.organizationId || 1,
+                userId: professorUserId,
+                studentId: student?.id || null,
+                title: lessonData.title || `Aula - ${student?.name || pushName}`,
+                scheduledAt: scheduledDate,
+                duration: lessonData.duration || profSettings.lessonDuration || 60,
+                status: "agendada",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              confirmedSlots.push(scheduledDate);
+            } catch (actErr) {
+              console.error("[AI Atendimento] ACTION:SCHEDULE_LESSON inválido:", actErr);
+            }
+          }
+
+          // ── Resposta visível (sem blocos técnicos) ──
+          let visible = aiRaw.replace(/<!--ACTION:[\s\S]*?-->/g, "").trim();
+          for (const d of confirmedSlots) {
+            const dataStr = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+            const horaStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+            visible += `\n\n📅 Aula agendada: *${dataStr}* às *${horaStr}*. Até lá! 🎵`;
+          }
+
+          // ── Humanização: simula tempo de digitação proporcional ──
+          const typingMs = Math.min(4000, 600 + visible.length * 10);
+          await new Promise((r) => setTimeout(r, typingMs));
+
+          historyObj.push({ role: "assistant", content: visible });
+          await updateState("AGUARDANDO_MENU", { aiHistory: historyObj });
+          await sendReply(visible);
+          return res.status(200).json({ ok: true });
+        }
+        // Resposta vazia da IA → cai no fluxo tradicional (menus/fallback)
+      } catch (aiErr) {
+        console.error("[AI Atendimento] Falha na IA, usando fluxo tradicional:", aiErr);
+        // Fallback: continua para os menus numéricos (sistema nunca fica mudo)
+      }
     }
 
     // ─────────────────────────────────────────────────────

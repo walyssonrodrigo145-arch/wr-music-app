@@ -66,6 +66,9 @@ async function ensureSchemaConsistency(db: any) {
     
     // settings.pixKey and settings.hiddenTabs
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "pixKey" text`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "conversationalMode" integer DEFAULT 1 NOT NULL`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendancePersonaName" varchar(60)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendanceTone" varchar(20)`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hiddenTabs" text DEFAULT '' NOT NULL`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "chatbotEnabled" integer NOT NULL DEFAULT 0`);
     

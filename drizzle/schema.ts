@@ -249,6 +249,10 @@ export const settings = pgTable("settings", {
   whatsappAutoSend: integer("whatsappAutoSend").default(0).notNull(),
   // Chatbot (Robô de Autoatendimento WhatsApp)
   chatbotEnabled: integer("chatbotEnabled").default(0).notNull(),
+  // Recepcionista Virtual (IA conversacional no WhatsApp)
+  conversationalMode: integer("conversationalMode").default(1).notNull(),
+  attendancePersonaName: varchar("attendancePersonaName", { length: 60 }),
+  attendanceTone: varchar("attendanceTone", { length: 20 }), // 'amigavel' | 'formal' | 'direto'
   // Asaas Integration
   asaasApiKey: text("asaasApiKey"),
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
