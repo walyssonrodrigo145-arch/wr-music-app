@@ -208,6 +208,16 @@ async function answerWithSchoolKnowledge(
   studentName?: string
 ): Promise<string | null> {
   try {
+    // Sem nenhuma chave de IA configurada → responde null imediatamente (fluxo tradicional)
+    const primaryIsGroq = profSettings?.aiProvider === "groq";
+    let apiKey = primaryIsGroq ? profSettings?.groqApiKey : profSettings?.geminiApiKey;
+    let model = primaryIsGroq ? profSettings?.groqModel : profSettings?.geminiModel;
+    if (!apiKey) {
+      apiKey = primaryIsGroq ? profSettings?.geminiApiKey : profSettings?.groqApiKey;
+      model = primaryIsGroq ? profSettings?.geminiModel : profSettings?.groqModel;
+    }
+    if (!apiKey) return null;
+
     const activeTopics = await db
       .select()
       .from(schoolKnowledgeBase)
@@ -232,9 +242,6 @@ DIRETRIZES DE ATENDIMENTO:
 1. Responda à dúvida do cliente (${primeiroNome}) com empatia, naturalidade, emojis musicais adequados (🎵🎸🎹) e texto conciso (1 a 3 parágrafos).
 2. NUNCA invente valores, regras ou dados que não estejam na base de conhecimento.
 3. Finalize sempre com um convite educado para ação (ex: agendar uma aula experimental, fazer a matrícula online pelo link ${enrollmentLink} ou digitar *MENU* para ver as opções numéricas).`;
-
-    const apiKey = profSettings?.aiProvider === "groq" ? profSettings.groqApiKey : profSettings?.geminiApiKey;
-    const model = profSettings?.aiProvider === "groq" ? profSettings.groqModel : profSettings?.geminiModel;
 
     const reply = await callGemini([{ role: "user", content: userQuestion }], systemPrompt, false, apiKey, model);
     return reply && reply.trim() ? reply.trim() : null;
@@ -526,8 +533,19 @@ router.post("/", async (req, res) => {
       !!messageData.documentMessage ||
       /comprovante|paguei|pix|transferencia|transferência|pagamento|deposito|depósito/i.test(textMsg);
 
+    // Resolve chaves de IA: usa o provedor configurado; se vazio, tenta o outro (fallback)
+    const primaryIsGroq = profSettings.aiProvider === "groq";
+    let aiKey = primaryIsGroq ? profSettings.groqApiKey : profSettings.geminiApiKey;
+    let aiModel = primaryIsGroq ? profSettings.groqModel : profSettings.geminiModel;
+    if (!aiKey) {
+      aiKey = primaryIsGroq ? profSettings.geminiApiKey : profSettings.groqApiKey;
+      aiModel = primaryIsGroq ? profSettings.geminiModel : profSettings.groqModel;
+    }
+    const hasAIKey = !!aiKey;
+
     if (
       profSettings.conversationalMode !== 0 &&
+      hasAIKey &&
       !isProfessorChat &&
       CONVERSATIONAL_STATES.includes(session.state) &&
       !isNumericInput &&
@@ -613,10 +631,7 @@ router.post("/", async (req, res) => {
           nowInfo,
         });
 
-        const apiKey = profSettings.aiProvider === "groq" ? profSettings.groqApiKey : profSettings.geminiApiKey;
-        const model = profSettings.aiProvider === "groq" ? profSettings.groqModel : profSettings.geminiModel;
-
-        const aiRaw = await callGemini(historyObj, systemPrompt, false, apiKey, model);
+        const aiRaw = await callGemini(historyObj, systemPrompt, false, aiKey, aiModel);
 
         if (aiRaw && aiRaw.trim()) {
           // ── Executar agendamentos solicitados via ACTION (com validação de slot) ──
