@@ -16,6 +16,101 @@ const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "minha_chave_secreta_
 
 const DEFAULT_INSTANCE = "prof_1";
 
+// ─── REGISTRO DE ENVIOS DO BOT ────────────────────────────────────────────────
+// Permite ao webhook diferenciar o "eco" de uma mensagem enviada pelo próprio
+// bot (fromMe=true) de uma resposta MANUAL digitada pelo professor no celular.
+// Sem isso, a resposta manual do professor era ignorada e o robô continuava
+// respondendo por cima dele (conflito de atendimento).
+interface BotSendRecord {
+  messageId: string;
+  textHash: string;
+  sentAt: number;
+}
+
+const BOT_SEND_TTL_MS = 15 * 60 * 1000; // janela de matching do eco (15 min)
+const botSentRegistry = new Map<string, BotSendRecord[]>(); // key: `${sessionId}|${cleanPhone}`
+
+function hashWaText(text: string | undefined): string {
+  return crypto.createHash("sha256").update(text || "", "utf8").digest("hex");
+}
+
+function purgeBotSentRegistry(now = Date.now()) {
+  const expiredKeys: string[] = [];
+  botSentRegistry.forEach((records: BotSendRecord[], key: string) => {
+    const alive = records.filter((r: BotSendRecord) => now - r.sentAt < BOT_SEND_TTL_MS);
+    if (alive.length === 0) expiredKeys.push(key);
+    else botSentRegistry.set(key, alive);
+  });
+  for (const k of expiredKeys) {
+    botSentRegistry.delete(k);
+  }
+}
+
+/** Normaliza telefone para comparação com o registro de envios. */
+export function normalizeWaPhone(phone: string): string {
+  let clean = (phone || "").replace(/\D/g, "");
+  if (clean.length === 10 || clean.length === 11) clean = "55" + clean;
+  return clean;
+}
+
+/**
+ * Registra um envio bem-sucedido do bot (chamado dentro de sendWhatsAppMessage).
+ * @param sessionId nome da instância Evolution (ex.: "prof_1")
+ * @param phone destinatário (qualquer formato; normalizado internamente)
+ * @param messageId id retornado pela Evolution API (matching primário)
+ * @param message texto enviado (hash como fallback de matching)
+ */
+export function registerBotSend(sessionId: string | undefined, phone: string, messageId?: string, message?: string) {
+  try {
+    const clean = normalizeWaPhone(phone);
+    if (!clean) return;
+    purgeBotSentRegistry();
+    const key = `${sessionId || DEFAULT_INSTANCE}|${clean}`;
+    const arr = botSentRegistry.get(key) || [];
+    arr.push({ messageId: (messageId || "").trim(), textHash: hashWaText(message), sentAt: Date.now() });
+    if (arr.length > 50) arr.splice(0, arr.length - 50);
+    botSentRegistry.set(key, arr);
+  } catch (_) {
+    // registro é best-effort; nunca deve quebrar o envio
+  }
+}
+
+/**
+ * Verifica se uma mensagem recebida via webhook (fromMe=true) corresponde a um
+ * envio recente do próprio bot (eco).
+ *
+ * Matching:
+ * - Se AMBOS os lados têm messageId → compara APENAS os ids (o texto é fraco:
+ *   o professor pode digitar exatamente a mesma mensagem do bot de propósito).
+ * - Fallback por hash do texto apenas quando falta id em algum lado
+ *   (ex.: resposta da Evolution sem key.id).
+ *
+ * Em caso de dúvida retorna false → tratada como mensagem manual do professor
+ * (direção segura: pausa o robô).
+ */
+export function isRecentBotMessage(sessionId: string | undefined, phone: string, messageId?: string, text?: string): boolean {
+  try {
+    const clean = normalizeWaPhone(phone);
+    if (!clean) return false;
+    const arr = botSentRegistry.get(`${sessionId || DEFAULT_INSTANCE}|${clean}`);
+    if (!arr || arr.length === 0) return false;
+    const now = Date.now();
+    const mid = (messageId || "").trim();
+    const h = hashWaText(text);
+    for (const r of arr) {
+      if (now - r.sentAt >= BOT_SEND_TTL_MS) continue;
+      if (mid && r.messageId) {
+        if (mid === r.messageId) return true;
+        continue; // ids diferentes = mensagens diferentes, mesmo texto igual
+      }
+      if (text && r.textHash && r.textHash === h) return true;
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
 // ─── ANTI-BAN: Delay humanizado entre mensagens ───────────────────────────────
 // Simula comportamento humano: pausa aleatória entre 3s e 9s.
 export function humanDelay(minMs = 3000, maxMs = 9000): Promise<void> {
@@ -125,6 +220,7 @@ export async function sendWhatsAppMessage({ url, token, phone, message, mediaUrl
             });
             if (fallbackRes.ok) {
               const fallbackData = await fallbackRes.json().catch(() => ({}));
+              registerBotSend(instanceName, phoneToTry, fallbackData?.key?.id, message);
               return { success: true, messageId: fallbackData?.key?.id || `msg-${Date.now()}` };
             }
           } catch (_) {}
@@ -144,6 +240,7 @@ export async function sendWhatsAppMessage({ url, token, phone, message, mediaUrl
         return { success: false, error: `Falha na API (${res.status}): ${errorMsg}` };
       }
 
+      registerBotSend(instanceName, phoneToTry, responseData?.key?.id, message);
       return { success: true, messageId: responseData?.key?.id || `msg-${Date.now()}` };
     };
 

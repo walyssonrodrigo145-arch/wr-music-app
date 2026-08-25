@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { getDb } from "../db";
 import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows, schoolKnowledgeBase, instruments } from "../../drizzle/schema";
 import { eq, and, gte, ilike } from "drizzle-orm";
-import { sendWhatsAppMessage } from "../utils/whatsapp";
+import { sendWhatsAppMessage, isRecentBotMessage } from "../utils/whatsapp";
 import { buildUserContext } from "../utils/aiContext";
 import { getSystemPrompt, getAttendancePrompt } from "../utils/aiPrompts";
 import { callGemini } from "../utils/gemini";
@@ -23,6 +23,55 @@ function safeEqualStr(a: string, b: string): boolean {
     return false;
   }
   return crypto.timingSafeEqual(ba, bb);
+}
+
+// ─── Tomada humana: pausa automática quando o professor responde manualmente ──
+// RN-003 (PRD): resfriamento de 24h antes de o robô aceitar voltar via "MENU".
+const HUMAN_TAKEOVER_RESUME_MS = 24 * 60 * 60 * 1000;
+// RN-005 (PRD): notificação de pausa limitada a 1 por contato a cada 30 min.
+const TAKEOVER_NOTIFY_THROTTLE_MS = 30 * 60 * 1000;
+const manualTakeoverNotifiedAt = new Map<string, number>(); // key: `${professorUserId}|${phone}`
+
+/**
+ * Indica se a sessão está sob tomada humana ativa (professor respondeu
+ * manualmente há menos de HUMAN_TAKEOVER_RESUME_MS).
+ */
+export function humanTakeoverActive(sessionData: any): boolean {
+  try {
+    if (!sessionData || sessionData.pausedBy !== "professor_manual") return false;
+    const t = new Date(sessionData.lastHumanReplyAt).getTime();
+    if (isNaN(t)) return false;
+    return Date.now() - t < HUMAN_TAKEOVER_RESUME_MS;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Pausa (ou renova a pausa de) a sessão do contato porque o professor respondeu
+ * manualmente. Preserva activeProfessorId e demais metadados existentes.
+ */
+async function pauseSessionForManualReply(db: any, phone: string, professorUserId: number): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const [session] = await db.select().from(chatbotSessions).where(eq(chatbotSessions.phone, phone)).limit(1);
+  let sd: any = {};
+  if (session?.data) {
+    try { sd = JSON.parse(session.data); } catch (_) {}
+  }
+  const merged = { ...sd, activeProfessorId: professorUserId, pausedBy: "professor_manual", lastHumanReplyAt: nowIso };
+  if (session) {
+    await db.update(chatbotSessions).set({
+      state: "PAUSED_HUMAN",
+      data: JSON.stringify(merged),
+      updatedAt: new Date(),
+    }).where(eq(chatbotSessions.id, session.id));
+  } else {
+    await db.insert(chatbotSessions).values({
+      phone,
+      state: "PAUSED_HUMAN",
+      data: JSON.stringify(merged),
+    });
+  }
 }
 
 // ─── Menus do bot (AUDIT FIX: eram chamados mas não definidos → 500 no webhook)
@@ -284,15 +333,18 @@ router.post("/", async (req, res) => {
     // O bloqueio de fromMe será feito mais abaixo, após descobrirmos se é o professor
 
     const remoteJid = payload.data.key?.remoteJid || "";
-    if (!remoteJid || remoteJid.includes("@g.us")) {
-      return res.status(200).json({ ok: true }); // ignora grupos
+    if (!remoteJid || remoteJid.includes("@g.us") || remoteJid.includes("@broadcast")) {
+      return res.status(200).json({ ok: true }); // ignora grupos e status/broadcast
     }
 
     const phone = remoteJid.split("@")[0];
     const textMsg = extractMessageText(messageData);
     const pushName = payload.data.pushName || "Aluno";
 
-    if (!textMsg) return res.status(200).json({ ok: true });
+    // Mensagens sem texto são processadas apenas se vierem do próprio número
+    // conectado (fromMe) — podem ser resposta manual do professor com mídia.
+    // De alunos/leads seguem sendo ignoradas (comportamento original).
+    if (!textMsg && !payload.data.key?.fromMe) return res.status(200).json({ ok: true });
 
     debugLog(`[Chatbot] Mensagem de ${phone}: ${textMsg}`);
 
@@ -362,10 +414,8 @@ router.post("/", async (req, res) => {
     // É o próprio professor mandando mensagem para o seu próprio número?
     const isProfessorChat = (cleanProfPhone.length > 8 && cleanMsgPhone.endsWith(cleanProfPhone.slice(-8)));
 
-    // Ignora mensagens enviadas por nós mesmos (bot), exceto se for o chat do professor (para a IA)
-    if (payload.data.key?.fromMe && !isProfessorChat) {
-      return res.status(200).json({ ok: true });
-    }
+    // Mensagens fromMe em chats de terceiros são classificadas mais abaixo
+    // (eco do bot × resposta manual do professor) após identificar o contato.
 
     // Se for o bot respondendo no chat do professor, ignoramos para não gerar loop infinito
     if (isProfessorChat && textMsg.startsWith("🤖")) {
@@ -374,6 +424,27 @@ router.post("/", async (req, res) => {
 
     // ── Função auxiliar de resposta ──
     const sendReply = async (msg: string) => {
+      // RF-007 (PRD): revalida o estado da sessão imediatamente antes do envio.
+      // Evita corrida em que o professor respondeu manualmente enquanto a IA
+      // ainda estava processando/"digitando" — nesse caso o bot aborta o envio.
+      // Pausas solicitadas PELO ALUNO (opção 0) não bloqueiam a confirmação.
+      if (!isProfessorChat) {
+        try {
+          const [fresh] = await db
+            .select({ state: chatbotSessions.state, data: chatbotSessions.data })
+            .from(chatbotSessions)
+            .where(eq(chatbotSessions.phone, phone))
+            .limit(1);
+          let freshData: any = {};
+          try { freshData = JSON.parse(fresh?.data || "{}"); } catch (_) {}
+          if (fresh?.state === "PAUSED_HUMAN" && humanTakeoverActive(freshData)) {
+            debugLog(`[Chatbot] Resposta para ${phone} abortada: conversa assumida pelo professor.`);
+            return;
+          }
+        } catch (_) {
+          // falha na checagem não deve bloquear o envio
+        }
+      }
       const result = await sendWhatsAppMessage({
         url: profSettings.whatsappBotUrl || undefined,
         token: profSettings.whatsappBotToken || undefined,
@@ -385,7 +456,7 @@ router.post("/", async (req, res) => {
     };
 
     // ── Função auxiliar para notificar o professor (Push FCM + Sistema + WhatsApp) ──
-    const notifyProfessor = async (msg: string, title?: string) => {
+    const notifyProfessor = async (msg: string, title?: string, opts?: { whatsapp?: boolean }) => {
       const notifTitle = title || "🤖 Aviso do Robô WhatsApp";
 
       // 1. Inserir no painel do sistema (banco de dados)
@@ -423,7 +494,9 @@ router.post("/", async (req, res) => {
         console.error("[notifyProfessor] Erro ao enviar Push FCM:", fcmErr);
       }
 
-      // 3. Notificar via mensagem do WhatsApp
+      // 3. Notificar via mensagem do WhatsApp (opcional — desativada na pausa
+      // por resposta manual, pois o professor acabou de falar com o contato)
+      if (opts?.whatsapp === false) return;
       if (!profSettings.phone) return;
       const result = await sendWhatsAppMessage({
         url: profSettings.whatsappBotUrl || undefined,
@@ -463,6 +536,49 @@ router.post("/", async (req, res) => {
       return false;
     });
 
+    // ─────────────────────────────────────────────────────
+    // TOMADA HUMANA (RN-001 a RN-005 do PRD): mensagens fromMe em chats de
+    // terceiros são eco do bot OU resposta manual do professor. Eco → ignorar.
+    // Manual → pausar o atendimento automático (menu E IA) para esse contato.
+    // ─────────────────────────────────────────────────────
+    if (payload.data.key?.fromMe && !isProfessorChat) {
+      const msgId = payload.data.key?.id || "";
+      if (isRecentBotMessage(instanceName, phone, msgId, textMsg)) {
+        // Eco de mensagem enviada pelo próprio robô — ignora sem pausar
+        return res.status(200).json({ ok: true });
+      }
+
+      // Resposta manual do professor → silencia o robô nesta conversa
+      debugLog(`[Chatbot] Resposta MANUAL do professor detectada para ${phone} — pausando atendimento automático.`);
+      try {
+        await pauseSessionForManualReply(db, phone, professorUserId);
+      } catch (pauseErr) {
+        console.error("[Chatbot] Erro ao pausar sessão após resposta manual:", pauseErr);
+        return res.status(200).json({ ok: true });
+      }
+
+      // Notifica o professor no painel/push (sem WhatsApp; throttle 30 min)
+      const notifyKey = `${professorUserId}|${phone}`;
+      const lastNotified = manualTakeoverNotifiedAt.get(notifyKey) || 0;
+      if (Date.now() - lastNotified > TAKEOVER_NOTIFY_THROTTLE_MS) {
+        manualTakeoverNotifiedAt.set(notifyKey, Date.now());
+        try {
+          await notifyProfessor(
+            `🤖 *Robô pausado automaticamente*\n\nVocê respondeu manualmente o contato *${student?.name || pushName}* (${phone}). O atendimento automático (menu e IA) ficou em silêncio nessa conversa para não brigar com você.\n\n_O contato volta ao atendimento automático digitando *MENU* após 24h._`,
+            "🤖 Robô pausado — você assumiu a conversa",
+            { whatsapp: false }
+          );
+        } catch (notifErr) {
+          console.error("[Chatbot] Erro ao notificar tomada humana:", notifErr);
+        }
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    // Mensagens de alunos/leads sem texto (ex.: mídia sem legenda) continuam
+    // sendo ignoradas — comportamento original preservado.
+    if (!textMsg) return res.status(200).json({ ok: true });
+
     // ── Recuperar ou criar sessão ──
     let [session] = await db
       .select()
@@ -474,15 +590,18 @@ router.post("/", async (req, res) => {
       try { sessionData = JSON.parse(session.data); } catch (_) {}
     }
 
-    // Reset de sessão se mudou de professor
+    // Reset de sessão se mudou de professor (preserva pausa por tomada humana)
     if (session && sessionData.activeProfessorId && sessionData.activeProfessorId !== professorUserId) {
-      sessionData = { activeProfessorId: professorUserId };
+      const carriedPause = humanTakeoverActive(sessionData)
+        ? { pausedBy: sessionData.pausedBy, lastHumanReplyAt: sessionData.lastHumanReplyAt }
+        : {};
+      sessionData = { activeProfessorId: professorUserId, ...carriedPause };
       await db.update(chatbotSessions).set({
-        state: "START",
+        state: carriedPause.pausedBy ? "PAUSED_HUMAN" : "START",
         data: JSON.stringify(sessionData),
         updatedAt: new Date(),
       }).where(eq(chatbotSessions.id, session.id));
-      session.state = "START";
+      session.state = carriedPause.pausedBy ? "PAUSED_HUMAN" : "START";
       session.data = JSON.stringify(sessionData);
     }
 
@@ -496,6 +615,27 @@ router.post("/", async (req, res) => {
     }
 
     const updateState = async (state: string, data?: any) => {
+      // RF-007/RN-002 (PRD): se o professor assumiu a conversa manualmente
+      // enquanto este fluxo processava, NÃO sobrescreve a pausa — preserva o
+      // silêncio do robô e os metadados de tomada humana.
+      if (session.state !== "PAUSED_HUMAN") {
+        try {
+          const [fresh] = await db
+            .select({ state: chatbotSessions.state, data: chatbotSessions.data })
+            .from(chatbotSessions)
+            .where(eq(chatbotSessions.phone, phone))
+            .limit(1);
+          let fd: any = {};
+          try { fd = JSON.parse(fresh?.data || "{}"); } catch (_) {}
+          if (fresh?.state === "PAUSED_HUMAN" && humanTakeoverActive(fd)) {
+            session.state = "PAUSED_HUMAN";
+            sessionData = fd;
+            return;
+          }
+        } catch (_) {
+          // falha na checagem não deve interromper o fluxo
+        }
+      }
       const mergedData = { ...sessionData, ...(data || {}), activeProfessorId: professorUserId };
       await db.update(chatbotSessions).set({
         state,
@@ -531,7 +671,9 @@ router.post("/", async (req, res) => {
     // ESTADO: PAUSED_HUMAN — robô em silêncio
     // ─────────────────────────────────────────────────────
     if (session.state === "PAUSED_HUMAN") {
-      if (inputUpper === "MENU") {
+      // RN-003/RN-004 (PRD): durante o resfriamento de 24h após resposta manual
+      // do professor, o robô fica em silêncio ABSOLUTO — nem "MENU" o reativa.
+      if (inputUpper === "MENU" && !humanTakeoverActive(sessionData)) {
         await updateState("START");
         await sendReply("Estou de volta! 🤖✨\nPode falar comigo normalmente, estou aqui pra te ajudar!");
       }
@@ -957,7 +1099,9 @@ router.post("/", async (req, res) => {
     // ESTADO: PAUSED_HUMAN — robô em silêncio
     // ─────────────────────────────────────────────────────
     if (session.state === "PAUSED_HUMAN") {
-      if (inputUpper === "MENU") {
+      // RN-003/RN-004 (PRD): durante o resfriamento de 24h após resposta manual
+      // do professor, o robô fica em silêncio ABSOLUTO — nem "MENU" o reativa.
+      if (inputUpper === "MENU" && !humanTakeoverActive(sessionData)) {
         await updateState("START");
         await sendReply("Estou de volta! 🤖✨\nPode falar comigo normalmente, estou aqui pra te ajudar!");
       }
