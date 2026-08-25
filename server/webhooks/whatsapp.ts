@@ -337,6 +337,23 @@ router.post("/", async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
+    // AUDIT FIX: as chaves de IA são armazenadas criptografadas (v1:...) pelo
+    // upsertSettings. Este webhook lê a settings diretamente (sem passar pelo
+    // getSettingsByUserId, que já descriptografa) — então descriptografa aqui.
+    try {
+      if (profSettings.geminiApiKey || profSettings.groqApiKey) {
+        const { decryptSecret } = await import("../utils/integrationCrypto");
+        if (profSettings.geminiApiKey?.startsWith("v1:")) {
+          profSettings.geminiApiKey = decryptSecret(profSettings.geminiApiKey);
+        }
+        if (profSettings.groqApiKey?.startsWith("v1:")) {
+          profSettings.groqApiKey = decryptSecret(profSettings.groqApiKey);
+        }
+      }
+    } catch (decErr) {
+      console.error("[Chatbot] Erro ao descriptografar chaves de IA:", decErr);
+    }
+
     const schoolName = profSettings.schoolName || "nossa Escola de Música";
 
     const cleanProfPhone = profSettings.phone ? profSettings.phone.replace(/\D/g, "") : "";
