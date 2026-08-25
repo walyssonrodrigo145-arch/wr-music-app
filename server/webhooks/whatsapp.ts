@@ -28,6 +28,9 @@ function safeEqualStr(a: string, b: string): boolean {
 // ─── Tomada humana: pausa automática quando o professor responde manualmente ──
 // RN-003 (PRD): resfriamento de 24h antes de o robô aceitar voltar via "MENU".
 const HUMAN_TAKEOVER_RESUME_MS = 24 * 60 * 60 * 1000;
+// Pausa antiga sem tomada humana (ex.: aluno pediu atendimento e sumiu) expira
+// após 24h — evita sessões órfãs em silêncio eterno.
+const STALE_PAUSE_RESUME_MS = 24 * 60 * 60 * 1000;
 // RN-005 (PRD): notificação de pausa limitada a 1 por contato a cada 30 min.
 const TAKEOVER_NOTIFY_THROTTLE_MS = 30 * 60 * 1000;
 const manualTakeoverNotifiedAt = new Map<string, number>(); // key: `${professorUserId}|${phone}`
@@ -673,11 +676,19 @@ router.post("/", async (req, res) => {
     if (session.state === "PAUSED_HUMAN") {
       // RN-003/RN-004 (PRD): durante o resfriamento de 24h após resposta manual
       // do professor, o robô fica em silêncio ABSOLUTO — nem "MENU" o reativa.
-      if (inputUpper === "MENU" && !humanTakeoverActive(sessionData)) {
-        await updateState("START");
-        await sendReply("Estou de volta! 🤖✨\nPode falar comigo normalmente, estou aqui pra te ajudar!");
+      const pauseAgeMs = session.updatedAt ? Date.now() - new Date(session.updatedAt).getTime() : 0;
+      const stalePause = !humanTakeoverActive(sessionData) && pauseAgeMs > STALE_PAUSE_RESUME_MS;
+
+      if (!stalePause) {
+        if (inputUpper === "MENU" && !humanTakeoverActive(sessionData)) {
+          await updateState("START");
+          await sendReply("Estou de volta! 🤖✨\nPode falar comigo normalmente, estou aqui pra te ajudar!");
+        }
+        return res.status(200).json({ ok: true });
       }
-      return res.status(200).json({ ok: true });
+      // Pausa antiga (>24h) sem tomada humana ativa expira automaticamente:
+      // a sessão volta ao START e ESTA mensagem segue o fluxo normal do bot.
+      await updateState("START", {});
     }
 
     // ─────────────────────────────────────────────────────
@@ -1101,11 +1112,19 @@ router.post("/", async (req, res) => {
     if (session.state === "PAUSED_HUMAN") {
       // RN-003/RN-004 (PRD): durante o resfriamento de 24h após resposta manual
       // do professor, o robô fica em silêncio ABSOLUTO — nem "MENU" o reativa.
-      if (inputUpper === "MENU" && !humanTakeoverActive(sessionData)) {
-        await updateState("START");
-        await sendReply("Estou de volta! 🤖✨\nPode falar comigo normalmente, estou aqui pra te ajudar!");
+      const pauseAgeMs = session.updatedAt ? Date.now() - new Date(session.updatedAt).getTime() : 0;
+      const stalePause = !humanTakeoverActive(sessionData) && pauseAgeMs > STALE_PAUSE_RESUME_MS;
+
+      if (!stalePause) {
+        if (inputUpper === "MENU" && !humanTakeoverActive(sessionData)) {
+          await updateState("START");
+          await sendReply("Estou de volta! 🤖✨\nPode falar comigo normalmente, estou aqui pra te ajudar!");
+        }
+        return res.status(200).json({ ok: true });
       }
-      return res.status(200).json({ ok: true });
+      // Pausa antiga (>24h) sem tomada humana ativa expira automaticamente:
+      // a sessão volta ao START e ESTA mensagem segue o fluxo normal do bot.
+      await updateState("START", {});
     }
 
     // ─────────────────────────────────────────────────────
