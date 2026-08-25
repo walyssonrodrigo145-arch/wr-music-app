@@ -166,13 +166,19 @@ export const plataformaRouters = {
       geminiModel: z.string().optional(),
       groqApiKey: z.string().optional(),
       groqModel: z.string().optional(),
+      conversationalMode: z.boolean().optional(),
+      attendancePersonaName: z.string().max(60).optional(),
+      attendanceTone: z.enum(["amigavel", "formal", "direto"]).optional(),
     })).mutation(async ({ ctx, input }) => {
-      await upsertSettings(ctx.user.organizationId!, ctx.user.id, { 
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
         aiProvider: input.aiProvider,
         geminiApiKey: input.geminiApiKey,
         geminiModel: input.geminiModel,
         groqApiKey: input.groqApiKey,
         groqModel: input.groqModel,
+        conversationalMode: input.conversationalMode !== undefined ? (input.conversationalMode ? 1 : 0) : undefined,
+        attendancePersonaName: input.attendancePersonaName,
+        attendanceTone: input.attendanceTone,
       });
       return { success: true };
     }),

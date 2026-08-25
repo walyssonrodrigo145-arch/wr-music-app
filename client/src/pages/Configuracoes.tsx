@@ -171,6 +171,10 @@ export default function Configuracoes() {
   const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash");
   const [groqApiKey, setGroqApiKey] = useState("");
   const [groqModel, setGroqModel] = useState("openai/gpt-oss-120b");
+  // Recepcionista Virtual (IA conversacional)
+  const [conversationalMode, setConversationalMode] = useState(true);
+  const [attendancePersonaName, setAttendancePersonaName] = useState("Júlia");
+  const [attendanceTone, setAttendanceTone] = useState("amigavel");
 
   // Populate from DB
   useEffect(() => {
@@ -244,6 +248,9 @@ export default function Configuracoes() {
       const LEGACY_GROQ = ["llama-3.3-70b-versatile", "llama-3.3-70b-specdec", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
       const savedModel = settings.groqModel ?? "openai/gpt-oss-120b";
       setGroqModel(LEGACY_GROQ.includes(savedModel) ? "openai/gpt-oss-120b" : savedModel);
+      setConversationalMode((settings as any).conversationalMode !== 0);
+      setAttendancePersonaName((settings as any).attendancePersonaName || "Júlia");
+      setAttendanceTone((settings as any).attendanceTone || "amigavel");
     }
   }, [settings]);
 
@@ -420,6 +427,9 @@ export default function Configuracoes() {
       geminiModel,
       groqApiKey,
       groqModel,
+      conversationalMode,
+      attendancePersonaName: attendancePersonaName.trim() || "Júlia",
+      attendanceTone: attendanceTone as "amigavel" | "formal" | "direto",
     });
   };
 
@@ -1674,6 +1684,90 @@ export default function Configuracoes() {
                       checked={chatbotEnabled}
                       onChange={handleToggleChatbot}
                     />
+                  </div>
+
+                  {/* ── Card: Recepcionista Virtual (IA conversacional) ── */}
+                  <div className={cn(
+                    "p-5 rounded-2xl border transition-all duration-300 space-y-5",
+                    conversationalMode && chatbotEnabled
+                      ? "bg-violet-500/10 border-violet-500/30"
+                      : "bg-muted border-border"
+                  )}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4 pr-2">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 text-lg",
+                          conversationalMode && chatbotEnabled
+                            ? "bg-violet-600 text-white shadow-lg shadow-violet-500/30"
+                            : "bg-muted-foreground/20 text-muted-foreground"
+                        )}>
+                          💬
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs font-black text-foreground uppercase tracking-widest">Recepcionista Virtual (IA)</p>
+                            {conversationalMode && chatbotEnabled && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-600 dark:text-violet-400 text-[9px] font-black uppercase tracking-wider">
+                                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-ping" />
+                                ATIVA
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
+                            Atende alunos e novos contatos conversando como uma pessoa real: entende linguagem natural, conhece a próxima aula e mensalidade do aluno, tira dúvidas pela Base de Conhecimento e agenda aulas sozinha. Os menus numéricos continuam funcionando (basta digitar MENU).
+                          </p>
+                        </div>
+                      </div>
+                      <Toggle
+                        checked={conversationalMode}
+                        onChange={setConversationalMode}
+                      />
+                    </div>
+
+                    {conversationalMode && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div>
+                          <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Nome da Atendente</Label>
+                          <Input
+                            placeholder="Ex: Júlia"
+                            value={attendancePersonaName}
+                            onChange={(e) => setAttendancePersonaName(e.target.value)}
+                            maxLength={60}
+                            className="h-11 rounded-xl"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Tom do Atendimento</Label>
+                          <select
+                            value={attendanceTone}
+                            onChange={(e) => setAttendanceTone(e.target.value)}
+                            className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm font-semibold"
+                          >
+                            <option value="amigavel">😊 Amigável (recomendado)</option>
+                            <option value="formal">🎩 Formal</option>
+                            <option value="direto">⚡ Direto ao ponto</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest border-violet-500/40 text-violet-600 hover:bg-violet-500/10"
+                            disabled={updateIAMutation.isPending}
+                            onClick={() => {
+                              updateIAMutation.mutate({
+                                conversationalMode,
+                                attendancePersonaName: attendancePersonaName.trim() || "Júlia",
+                                attendanceTone: attendanceTone as "amigavel" | "formal" | "direto",
+                              });
+                            }}
+                          >
+                            {updateIAMutation.isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Save size={14} className="mr-1.5" />}
+                            Salvar Atendente
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Toggle: Robô de Antecipação Inteligente por Falta ── */}
