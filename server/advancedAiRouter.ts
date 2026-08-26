@@ -31,11 +31,16 @@ export const advancedAiRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
       const orgId = ctx.user.organizationId!;
 
-      const [memory] = await db
+      const memory = await db
         .select()
         .from(studentPedagogicalMemory)
         .where(and(eq(studentPedagogicalMemory.studentId, input.studentId), eq(studentPedagogicalMemory.organizationId, orgId)))
-        .limit(1);
+        .limit(1)
+        .then((rows) => rows[0])
+        .catch((err) => {
+          console.warn("[getPedagogicalMemory] Falha ao consultar memória pedagógica:", err?.message || err);
+          return null;
+        });
 
       if (!memory) {
         return {
@@ -49,12 +54,26 @@ export const advancedAiRouter = router({
         };
       }
 
+      let strongPoints: string[] = [];
+      let weakPoints: string[] = [];
+      let repertoireMastered: string[] = [];
+      let repertoireLearning: string[] = [];
+
+      try {
+        strongPoints = JSON.parse(memory.strongPoints || "[]");
+        weakPoints = JSON.parse(memory.weakPoints || "[]");
+        repertoireMastered = JSON.parse(memory.repertoireMastered || "[]");
+        repertoireLearning = JSON.parse(memory.repertoireLearning || "[]");
+      } catch (parseErr) {
+        console.warn("[getPedagogicalMemory] Erro ao parsear JSON da memória:", parseErr);
+      }
+
       return {
         ...memory,
-        strongPoints: JSON.parse(memory.strongPoints || "[]"),
-        weakPoints: JSON.parse(memory.weakPoints || "[]"),
-        repertoireMastered: JSON.parse(memory.repertoireMastered || "[]"),
-        repertoireLearning: JSON.parse(memory.repertoireLearning || "[]"),
+        strongPoints,
+        weakPoints,
+        repertoireMastered,
+        repertoireLearning,
       };
     }),
 

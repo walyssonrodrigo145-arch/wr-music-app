@@ -499,7 +499,11 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
             eq(studentPedagogicalMemory.studentId, input.studentId),
             eq(studentPedagogicalMemory.organizationId, orgId)
           ))
-          .limit(1),
+          .limit(1)
+          .catch((err) => {
+            console.warn("[generateDailyStudyPlan] Falha não impeditiva ao consultar studentPedagogicalMemory:", err?.message || err);
+            return [];
+          }),
       ]);
 
       // ── 5. FORMATAÇÃO DOS DADOS DE CONTEXTO ─────────────────────────────────
@@ -526,9 +530,17 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       let pedagogicalMemoryBlock = "";
       const mem = pedagogicalMemoryRows[0];
       if (mem) {
-        const strongPoints = JSON.parse(mem.strongPoints || "[]") as string[];
-        const weakPoints = JSON.parse(mem.weakPoints || "[]") as string[];
-        const repertoireLearning = JSON.parse(mem.repertoireLearning || "[]") as string[];
+        let strongPoints: string[] = [];
+        let weakPoints: string[] = [];
+        let repertoireLearning: string[] = [];
+        try {
+          strongPoints = JSON.parse(mem.strongPoints || "[]") as string[];
+          weakPoints = JSON.parse(mem.weakPoints || "[]") as string[];
+          repertoireLearning = JSON.parse(mem.repertoireLearning || "[]") as string[];
+        } catch (parseErr) {
+          console.warn("[generateDailyStudyPlan] Erro ao parsear JSON da memória pedagógica:", parseErr);
+        }
+
         if (strongPoints.length > 0 || weakPoints.length > 0 || repertoireLearning.length > 0) {
           pedagogicalMemoryBlock = `
 # 🧠 MEMÓRIA PEDAGÓGICA (Use para enriquecer o plano)
