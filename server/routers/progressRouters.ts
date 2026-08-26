@@ -507,9 +507,10 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       ]);
 
       // ── 5. FORMATAÇÃO DOS DADOS DE CONTEXTO ─────────────────────────────────
-      const weeklyGoalsText = goals.length > 0
-        ? goals.map(g => `- ${g.title}${g.description ? ": " + g.description : ""}`).join("\n")
-        : "Nenhuma meta específica cadastrada. Crie um plano adequado ao nível e instrumento do aluno.";
+      const hasGoals = goals.length > 0;
+      const weeklyGoalsText = hasGoals
+        ? goals.map((g, idx) => `[META ${idx + 1}] ${g.title}${g.description ? `\n   Descrição/Detalhes da meta: ${g.description}` : ""}`).join("\n")
+        : "⚠️ NENHUMA META CADASTRADA. Baseie o plano estritamente nos fundamentos técnicos essenciais do instrumento e nível.";
 
       const lessonsText = pastLessons.length > 0
         ? pastLessons.map(l =>
@@ -543,7 +544,7 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
 
         if (strongPoints.length > 0 || weakPoints.length > 0 || repertoireLearning.length > 0) {
           pedagogicalMemoryBlock = `
-# 🧠 MEMÓRIA PEDAGÓGICA (Use para enriquecer o plano)
+# 🧠 MEMÓRIA PEDAGÓGICA (Ajuste a dificuldade técnica da meta)
 - Pontos fortes: ${strongPoints.length > 0 ? strongPoints.join(", ") : "Não identificados"}
 - Dificuldades recorrentes: ${weakPoints.length > 0 ? weakPoints.join(", ") : "Não identificadas"}
 - Repertório em aprendizado: ${repertoireLearning.length > 0 ? repertoireLearning.join(", ") : "Nenhum registrado"}
@@ -553,13 +554,13 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
       }
 
       const instrumentWarning = !student.instrumentId
-        ? "\n⚠️ ATENÇÃO: Este aluno não tem instrumento cadastrado. Crie um plano genérico de desenvolvimento musical.\n"
+        ? "\n⚠️ ATENÇÃO: Instrumento não cadastrado no perfil. Crie um plano genérico de desenvolvimento musical.\n"
         : "";
-      const goalsWarning = goals.length === 0
-        ? "\n⚠️ ATENÇÃO: Sem metas cadastradas. Baseie o plano no nível e instrumento. No campo 'importantMessage', oriente o professor a cadastrar metas.\n"
+      const goalsWarning = !hasGoals
+        ? "\n⚠️ ATENÇÃO: Nenhuma meta cadastrada. No campo 'importantMessage', oriente o professor a cadastrar as metas do aluno na aba Progresso.\n"
         : "";
       const teacherNotesBlock = input.teacherNotes
-        ? `\n# 📝 OBSERVAÇÃO EXTRA DO PROFESSOR (Priorize isso)\n"${input.teacherNotes.substring(0, 500)}"\n`
+        ? `\n# 📝 OBSERVAÇÃO ADICIONAL DO PROFESSOR SOBRE A META\n"${input.teacherNotes.substring(0, 500)}"\n`
         : "";
 
       // ── 6. CÁLCULO DOS BLOCOS DE TEMPO ──────────────────────────────────────
@@ -575,45 +576,45 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
       const jsonSchemaFormat = `{
   "instrument": "${instrumentName}",
   "level": "${studentLevel}",
-  "weeklyGoal": "Resumo motivador do objetivo da semana para ${student.name}, mencionando ${instrumentName}.",
-  "importantMessage": "Dica prática e encorajadora específica para ${instrumentName} no nível ${studentLevel}.",
+  "weeklyGoal": "Resumo objetivo e motivador do foco da semana para ${instrumentName}, sintetizando exclusivamente o conteúdo da(s) meta(s) cadastrada(s).",
+  "importantMessage": "Dica prática, técnica e encorajadora específica para a execução da(s) meta(s) em ${instrumentName} no nível ${studentLevel}.",
   "targetDailyMinutes": ${totalMinutes},
   "days": [
     {
       "dayName": "Dia 1",
       "focus": {
-        "title": "Título da meta do Dia 1 para ${instrumentName}",
-        "description": "Explicação em 2 frases claras sobre o objetivo deste dia."
+        "title": "Título do foco do Dia 1 (derivado da meta cadastrada)",
+        "description": "Explicação clara em 2 frases sobre o objetivo técnico deste dia em relação à meta."
       },
       "exercises": [
         {
           "title": "Aquecimento",
-          "subtitle": "Preparação específica para ${instrumentName}",
+          "subtitle": "Preparação dos músculos/dedos direcionada para a meta de ${instrumentName}",
           "duration": "${warmMin} min",
           "points": [
-            "Instrução 1 de aquecimento específica para ${instrumentName} no nível ${studentLevel}.",
-            "Instrução 2 sobre o que observar durante o aquecimento."
+            "Instrução 1 de aquecimento preparatório específico para a meta.",
+            "Instrução 2 sobre postura e relaxamento ao aquecer."
           ],
           "icon": "music"
         },
         {
           "title": "Prática Principal",
-          "subtitle": "Foco direto na meta do dia para ${instrumentName}",
+          "subtitle": "Execução direta e detalhada da meta cadastrada",
           "duration": "${mainMin} min",
           "points": [
-            "Passo 1: execução prática específica para ${instrumentName}.",
-            "Passo 2: o que contar, medir ou observar durante a prática.",
-            "Passo 3: erro comum a evitar e como corrigir."
+            "Passo 1: explicação didática de como executar a meta (digitação, padrão, técnica).",
+            "Passo 2: andamento sugerido no metrônomo (BPM) e como contar os tempos.",
+            "Passo 3: erro comum a evitar e autocorreção."
           ],
           "icon": "star"
         },
         {
           "title": "Teoria ou Desafio",
-          "subtitle": "Desafio prático de consolidação",
+          "subtitle": "Desafio prático de consolidação da meta",
           "duration": "${challengeMin} min",
           "points": [
-            "Desafio objetivo e mensurável para ${instrumentName}.",
-            "Critério claro para o aluno saber que conseguiu."
+            "Desafio prático e mensurável para testar o domínio da meta.",
+            "Critério objetivo para saber que a meta do dia foi cumprida."
           ],
           "icon": "pen"
         }
@@ -623,14 +624,20 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
 }`;
 
       // ── 8. CONSTRUÇÃO DO PROMPT MULTI-INSTRUMENTO ───────────────────────────
-      const prompt = `# 🎼 MusicPro AI — Plano de Estudo Semanal: ${student.name} (${instrumentName})
+      const prompt = `# 🎼 MusicPro AI — Plano de Estudo Semanal (${instrumentName})
 
-Você é o professor particular de **${instrumentName}** do aluno **${student.name}** (nível: **${studentLevel}**).
-Sua missão é criar um plano de estudos de 5 dias, prático, motivador e 100% adequado para quem toca **${instrumentName}**.
+Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**).
+Sua missão é criar um plano de estudos de 5 dias prático, técnico e focado **EXCLUSIVAMENTE nas METAS CADASTRADAS**.
 ${instrumentWarning}${goalsWarning}
 ---
 
-# 🎸 CONTEXTO DO INSTRUMENTO: ${instrumentName.toUpperCase()}
+# 🎯 METAS CADASTRADAS (FIO CONDUTOR OBRIGATÓRIO E EXCLUSIVO)
+
+${weeklyGoalsText}
+
+---
+
+# 🎸 CONTEXTO TÉCNICO DO INSTRUMENTO: ${instrumentName.toUpperCase()}
 
 ${terminologyBlock}
 ${forbiddenBlock}
@@ -639,11 +646,11 @@ Tipo de aquecimento adequado para ${instrumentName}: ${instrContext.warmupDescri
 Exemplos de focos técnicos: ${instrContext.technicalFocusExamples.join("; ")}
 Exemplos de desafios: ${instrContext.challengeExamples.join("; ")}
 
-**Instrução adicional:** ${instrContext.extraInstruction}
+**Instrução técnica adicional:** ${instrContext.extraInstruction}
 
 ---
 
-# 🎯 NÍVEL DO ALUNO: ${studentLevel.toUpperCase()}
+# 🎯 NÍVEL: ${studentLevel.toUpperCase()}
 
 ${levelHint}
 
@@ -658,40 +665,32 @@ Para cada um dos 5 dias, divida exatamente assim:
 Total: ${totalMinutes} min. A soma DEVE ser exatamente ${totalMinutes} min em todos os dias.
 
 ---
-
-# 📋 METAS DA SEMANA (Fio Condutor — Não saia delas)
-
-${weeklyGoalsText}
-
-Distribuição sugerida dos 5 dias:
-- Dia 1: foco na 1ª meta
-- Dia 2: foco na 2ª meta (se houver), senão aprofunde a 1ª
-- Dia 3: foco na 3ª meta (se houver), senão combine as anteriores
-- Dia 4: integração/transição entre as metas
-- Dia 5: revisão de todas as metas numa sequência contínua
-
----
+${teacherNotesBlock}
 ${pedagogicalMemoryBlock}
-# 📚 HISTÓRICO RECENTE DO ALUNO
-
-Últimas aulas concluídas:
+# 📚 HISTÓRICO DE AULAS CONCLUÍDAS (Referência de nível)
 ${lessonsText}
 
-Timeline de conquistas:
-${timelineText}
-
-Metodologia do professor: ${student.methodologyText || "Nenhuma cadastrada."}
-${teacherNotesBlock}
 ---
 
-# ⚠️ REGRAS ABSOLUTAS
+# ⚠️ REGRAS ABSOLUTAS E INVIOLÁVEIS
 
-1. **Todos os exercícios devem ser exclusivamente para ${instrumentName}.** Nunca use exemplos de outros instrumentos.
-2. **Nunca use os termos proibidos listados acima.** Se um termo proibido aparecer, o plano será rejeitado.
-3. **Respeite o nível ${studentLevel}:** use a linguagem adequada conforme descrito acima.
-4. **Não crie conteúdo fora das metas.** Se não há metas, baseie-se no nível e instrumento.
-5. **Não use metalinguagem** ("instrução técnica", "passo 1", "verifique"). Escreva a orientação diretamente.
-6. **A soma de tempo de cada dia deve ser exatamente ${totalMinutes} min.**
+1. **NÃO COLOQUE NOME DE PESSOA/ALUNO NO PLANO:**
+   - É expressamente PROIBIDO incluir o nome do aluno em qualquer campo do plano (nem em weeklyGoal, nem em importantMessage, nem nos exercícios).
+   - Use sempre tratamento direto, impessoal e instrutivo (ex: *"Pratique a escala em Lá menor..."*, nunca *"João, pratique..."*).
+
+2. **FOCO TOTAL E EXCLUSIVO NAS METAS CADASTRADAS:**
+   - 100% dos 5 dias de estudo devem explicar e desenvolver unicamente o conteúdo das metas listadas acima.
+   - É TERMINANTEMENTE PROIBIDO inventar assuntos, escalas, músicas ou técnicas fora das metas cadastradas.
+   - Se houver 1 meta: destrinche a meta nos 5 dias (Dia 1: postura e digitação lenta, Dia 2: precisão rítmica com metrônomo, Dia 3: aumento gradual de velocidade, Dia 4: aplicação prática e fluidez, Dia 5: consolidação e teste de domínio).
+   - Se houver múltiplas metas: distribua o foco dos dias entre as metas cadastradas sem introduzir matérias externas.
+
+3. **EXPLICAÇÃO TÉCNICA CLARA E DETALHADA:**
+   - Cada exercício deve explicar *como executar* a meta de forma clara (digitação, postura, velocidade em BPM recomendada, dinâmica e o que ouvir).
+
+4. **TODOS OS EXERCÍCIOS DEVEM SER ESPECÍFICOS PARA ${instrumentName.toUpperCase()}:**
+   - Nunca use termos ou exemplos de outros instrumentos. Respeite os termos corretos listados acima.
+
+5. **A SOMA DOS TEMPOS DE CADA DIA DEVE SER EXATAMENTE ${totalMinutes} MINUTOS.**
 
 ---
 
@@ -762,7 +761,12 @@ ${jsonSchemaFormat}`;
         parsedPlan.instrument = parsedPlan.instrument || instrumentName;
         parsedPlan.level = parsedPlan.level || studentLevel;
 
-        // Aviso de instrumento não configurado no campo importantMessage
+        // Aviso de metas ou instrumento não configurados no campo importantMessage
+        if (!hasGoals) {
+          parsedPlan.importantMessage =
+            (parsedPlan.importantMessage || "") +
+            " ⚠️ Professor: cadastre as metas deste aluno na aba Progresso para personalizar o treino nos 5 dias.";
+        }
         if (!student.instrumentId) {
           parsedPlan.importantMessage =
             (parsedPlan.importantMessage || "") +
