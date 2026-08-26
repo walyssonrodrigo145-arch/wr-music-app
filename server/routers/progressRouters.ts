@@ -576,45 +576,45 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
       const jsonSchemaFormat = `{
   "instrument": "${instrumentName}",
   "level": "${studentLevel}",
-  "weeklyGoal": "Resumo objetivo e motivador do foco da semana para ${instrumentName}, sintetizando exclusivamente o conteúdo da(s) meta(s) cadastrada(s).",
-  "importantMessage": "Dica prática, técnica e encorajadora específica para a execução da(s) meta(s) em ${instrumentName} no nível ${studentLevel}.",
+  "weeklyGoal": "Resumo musical objetivo da semana focado estritamente na(s) meta(s) de ${instrumentName}.",
+  "importantMessage": "Dica prática de postura, técnica ou pulso para ${instrumentName} no nível ${studentLevel}.",
   "targetDailyMinutes": ${totalMinutes},
   "days": [
     {
       "dayName": "Dia 1",
       "focus": {
-        "title": "Título do foco do Dia 1 (derivado da meta cadastrada)",
-        "description": "Explicação clara em 2 frases sobre o objetivo técnico deste dia em relação à meta."
+        "title": "Título pedagógico do foco do Dia 1 (ex: Memória Muscular e Ataque do Acorde de D)",
+        "description": "Explicação clara em 2 frases sobre o objetivo técnico exato deste dia."
       },
       "exercises": [
         {
           "title": "Aquecimento",
-          "subtitle": "Preparação dos músculos/dedos direcionada para a meta de ${instrumentName}",
+          "subtitle": "Subtítulo musical específico deste dia (ex: Agilidade e Abertura de Dedos em D)",
           "duration": "${warmMin} min",
           "points": [
-            "Instrução 1 de aquecimento preparatório específico para a meta.",
-            "Instrução 2 sobre postura e relaxamento ao aquecer."
+            "Passo 1 de aquecimento detalhando dedos, notas e postura.",
+            "Passo 2 com contagem e observação de relaxamento."
           ],
           "icon": "music"
         },
         {
           "title": "Prática Principal",
-          "subtitle": "Execução direta e detalhada da meta cadastrada",
+          "subtitle": "Subtítulo musical específico da prática (ex: Montagem Instantânea e Ataque Simultâneo)",
           "duration": "${mainMin} min",
           "points": [
-            "Passo 1: explicação didática de como executar a meta (digitação, padrão, técnica).",
-            "Passo 2: andamento sugerido no metrônomo (BPM) e como contar os tempos.",
-            "Passo 3: erro comum a evitar e autocorreção."
+            "Bloco 1 (5 min): Passo a passo detalhado de posicionamento (dedos, notas, cordas/teclas) e teste de clareza das notas.",
+            "Bloco 2 (7 min): Treino mecânico de repetições com metrônomo (ex: 3 séries de 10 repetições a 60 BPM).",
+            "Bloco 3 (6 min): Aplicação rítmica contínua (ex: levada em 4 tempos ou transição sem parar o pulso)."
           ],
           "icon": "star"
         },
         {
           "title": "Teoria ou Desafio",
-          "subtitle": "Desafio prático de consolidação da meta",
+          "subtitle": "Subtítulo do desafio (ex: Teste de Memória Tátil de Olhos Fechados)",
           "duration": "${challengeMin} min",
           "points": [
             "Desafio prático e mensurável para testar o domínio da meta.",
-            "Critério objetivo para saber que a meta do dia foi cumprida."
+            "Critério objetivo de acerto (ex: acertar 3 vezes seguidas sem errar nenhuma nota)."
           ],
           "icon": "pen"
         }
@@ -623,80 +623,74 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
   ]
 }`;
 
-      // ── 8. CONSTRUÇÃO DO PROMPT MULTI-INSTRUMENTO ───────────────────────────
-      const prompt = `# 🎼 MusicPro AI — Plano de Estudo Semanal (${instrumentName})
+      // ── 8. CONSTRUÇÃO DO PROMPT MULTI-INSTRUMENTO PEDAGÓGICO DE ALTA PERFORMANCE ──
+      const prompt = `# 🎼 MusicPro AI — Personal Trainer Pedagógico de ${instrumentName.toUpperCase()}
 
-Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**).
-Sua missão é criar um plano de estudos de 5 dias prático, técnico e focado **EXCLUSIVAMENTE nas METAS CADASTRADAS**.
+Você é um mestre da pedagogia musical e professor de **${instrumentName}** (nível: **${studentLevel}**).
+Sua missão é criar uma rotina de treino diário de 5 dias, **prática, altamente engajadora, rica em detalhes de execução e focada EXCLUSIVAMENTE nas METAS CADASTRADAS**.
 ${instrumentWarning}${goalsWarning}
 ---
 
-# 🎯 METAS CADASTRADAS (FIO CONDUTOR OBRIGATÓRIO E EXCLUSIVO)
-
+# 🎯 METAS DA SEMANA (FIO CONDUTOR EXCLUSIVO E OBRIGATÓRIO)
 ${weeklyGoalsText}
 
 ---
 
-# 🎸 CONTEXTO TÉCNICO DO INSTRUMENTO: ${instrumentName.toUpperCase()}
-
+# 🎸 DIRETRIZES TÉCNICAS E HARMONIA PARA: ${instrumentName.toUpperCase()}
 ${terminologyBlock}
 ${forbiddenBlock}
 
-Tipo de aquecimento adequado para ${instrumentName}: ${instrContext.warmupDescription}
-Exemplos de focos técnicos: ${instrContext.technicalFocusExamples.join("; ")}
-Exemplos de desafios: ${instrContext.challengeExamples.join("; ")}
-
-**Instrução técnica adicional:** ${instrContext.extraInstruction}
+### REGRAS ESPECÍFICAS DE INSTRUMENTO:
+- **Teclado / Piano:**
+  * Os acordes e tríades são formados na mão direita (ex: dedos 1-3-5 ou 1-2-4), enquanto a mão esquerda toca o baixo/fundamental (dedo 5 ou 1-5).
+  * **NUNCA** coloque um acorde isolado na mão direita e outro acorde isolado na mão esquerda em dias separados. Ambos os acordes devem ser treinados na mão de harmonia (direita) com seus respectivos baixos na mão esquerda.
+  * Para trocas de acordes, ensine o princípio do movimento mínimo de dedos e antecipação mental.
+- **Violão / Guitarra:**
+  * Especifique cordas, casas e dedos (1-Indicador, 2-Médio, 3-Anelar, 4-Mínimo). Detalhe a levada da mão direita (ritmo/batida/dedilhado).
+- **Canto:**
+  * Exercícios de apoio diafragmático, ressonância, vocalizes em semitons ("Brrr", "Trrr", "Voz de cabeça") aplicados à melodia da meta.
+- **Bateria:**
+  * Rudimentos, coordenação motora bumbo-caixa-chimbal e contagem vocalizada (1 e 2 e 3 e 4 e).
 
 ---
 
-# 🎯 NÍVEL: ${studentLevel.toUpperCase()}
-
-${levelHint}
+# 📈 PROGRESSÃO PEDAGÓGICA OBRIGATÓRIA DOS 5 DIAS:
+- **Dia 1 — Mecânica & Memória Muscular (Elemento A):** Posicionamento perfeito dos dedos, clareza sonora das notas e memorização da forma.
+- **Dia 2 — Mecânica & Memória Muscular (Elemento B ou aprofundamento):** Segundo acorde/técnica da meta com baixo e estabilidade.
+- **Dia 3 — A Conexão e Transição (Troca Rápida):** Técnica de troca sem perder o pulso do metrônomo (treino lento de antecipação e deslocamento de dedos).
+- **Dia 4 — Levada & Ritmo Aplicado:** Aplicação de uma levada rítmica real (ex: levada pop 4/4, batida com baixo alternado ou dedilhado) sobre a meta.
+- **Dia 5 — Performance Contínua & Resistência:** Desafio de tocar a progressão/meta em loop contínuo por vários compassos sem hesitações.
 
 ---
 
-# ⏱️ TEMPO DIÁRIO: ${totalMinutes} MINUTOS POR DIA
-
-Para cada um dos 5 dias, divida exatamente assim:
-- "Aquecimento": **${warmMin} min**
-- "Prática Principal": **${mainMin} min**
-- "Teoria ou Desafio": **${challengeMin} min**
-Total: ${totalMinutes} min. A soma DEVE ser exatamente ${totalMinutes} min em todos os dias.
+# ⏱️ ESTRUTURA REAL DO TEMPO: ${totalMinutes} MINUTOS POR DIA
+Para cada um dos 5 dias:
+- **Aquecimento (${warmMin} min):** 2 passos de aquecimento com dedilhado, escala curta ou relaxamento muscular.
+- **Prática Principal (${mainMin} min):** DEVE ser dividida em 3 Blocos de tempo reais que somam ${mainMin} min:
+  * "Bloco 1 (5 min): ..."
+  * "Bloco 2 (7 min): ..."
+  * "Bloco 3 (6 min): ..."
+- **Teoria ou Desafio (${challengeMin} min):** 1 desafio com critério claro de aprovação.
+A soma de cada dia DEVE ser exatamente ${totalMinutes} minutos.
 
 ---
 ${teacherNotesBlock}
 ${pedagogicalMemoryBlock}
-# 📚 HISTÓRICO DE AULAS CONCLUÍDAS (Referência de nível)
+# 📚 HISTÓRICO DE AULAS (Referência de nível)
 ${lessonsText}
 
 ---
 
-# ⚠️ REGRAS ABSOLUTAS E INVIOLÁVEIS
-
-1. **NÃO COLOQUE NOME DE PESSOA/ALUNO NO PLANO:**
-   - É expressamente PROIBIDO incluir o nome do aluno em qualquer campo do plano (nem em weeklyGoal, nem em importantMessage, nem nos exercícios).
-   - Use sempre tratamento direto, impessoal e instrutivo (ex: *"Pratique a escala em Lá menor..."*, nunca *"João, pratique..."*).
-
-2. **FOCO TOTAL E EXCLUSIVO NAS METAS CADASTRADAS:**
-   - 100% dos 5 dias de estudo devem explicar e desenvolver unicamente o conteúdo das metas listadas acima.
-   - É TERMINANTEMENTE PROIBIDO inventar assuntos, escalas, músicas ou técnicas fora das metas cadastradas.
-   - Se houver 1 meta: destrinche a meta nos 5 dias (Dia 1: postura e digitação lenta, Dia 2: precisão rítmica com metrônomo, Dia 3: aumento gradual de velocidade, Dia 4: aplicação prática e fluidez, Dia 5: consolidação e teste de domínio).
-   - Se houver múltiplas metas: distribua o foco dos dias entre as metas cadastradas sem introduzir matérias externas.
-
-3. **EXPLICAÇÃO TÉCNICA CLARA E DETALHADA:**
-   - Cada exercício deve explicar *como executar* a meta de forma clara (digitação, postura, velocidade em BPM recomendada, dinâmica e o que ouvir).
-
-4. **TODOS OS EXERCÍCIOS DEVEM SER ESPECÍFICOS PARA ${instrumentName.toUpperCase()}:**
-   - Nunca use termos ou exemplos de outros instrumentos. Respeite os termos corretos listados acima.
-
-5. **A SOMA DOS TEMPOS DE CADA DIA DEVE SER EXATAMENTE ${totalMinutes} MINUTOS.**
+# ⚠️ REGRAS ABSOLUTAS:
+1. **NUNCA COLOQUE NOME DE ALUNO/PESSOA NO PLANO.** Use linguagem direta e impessoal.
+2. **NUNCA USE SUBTÍTULOS GENÉRICOS OU METALINGUAGEM.** Subtítulos como "Execução direta e detalhada da meta cadastrada" ou "Preparação dos músculos/dedos" são PROIBIDOS. Crie subtítulos musicais reais.
+3. **FOCO 100% FECHADO NAS METAS.** É proibido inventar matérias ou repertórios fora das metas cadastradas.
+4. **TODOS OS EXERCÍCIOS DEVEM SER ESPECÍFICOS PARA ${instrumentName.toUpperCase()}.**
 
 ---
 
 # 📤 FORMATO DE SAÍDA
-
-Retorne SOMENTE o JSON válido abaixo, com EXATAMENTE 5 objetos em "days" (um por dia), sem texto fora do JSON, sem Markdown.
+Retorne SOMENTE o JSON válido abaixo com EXATAMENTE 5 objetos em "days" (um por dia), sem texto antes ou depois, sem blocos markdown fora do JSON.
 
 ${jsonSchemaFormat}`;
 
