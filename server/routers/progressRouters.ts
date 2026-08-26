@@ -407,11 +407,13 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
       studentId: z.number(),
       targetMinutes: z.number().min(10).max(120).optional().default(30),
       teacherNotes: z.string().max(500).optional(),
+      planMode: z.enum(["direto", "didatico", "desafio"]).optional().default("direto"),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const orgId = ctx.user.organizationId!;
       const totalMinutes = input.targetMinutes ?? 30;
+      const planMode = input.planMode || "direto";
 
       // ── 1. BUSCA DO ALUNO (com isolamento por organização) ──────────────────
       const [student] = await db
@@ -572,49 +574,85 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
         : Math.max(5, Math.round(totalMinutes * 0.2));
       const mainMin = Math.max(5, totalMinutes - warmMin - challengeMin);
 
-      // ── 7. JSON SCHEMA DE SAÍDA ──────────────────────────────────────────────
+      // ── 7. DEFINIÇÃO DO ESTILO POR MODO (3 MODOS) ──────────────────────────
+      let modeInstruction = "";
+      if (planMode === "didatico") {
+        modeInstruction = `
+# 📖 MODO ESCOLHIDO: DIDÁTICO & DETALHADO (PASSO A PASSO GUIADO)
+- ESTILO: Professor particular atencioso e detalhista na postura, curvatura dos dedos e anatomia dos movimentos.
+- Formato: Explique o "como fazer" e o "porquê" de cada movimento.
+- Pontos da Prática Principal:
+  * Ponto 1: Posição detalhada, alinhamento de pulsos/ombros e apoio do instrumento.
+  * Ponto 2: Teste de clareza sonora tecla/corda por tecla e o que escutar.
+  * Ponto 3: Correção de erro comum (como evitar som abafado ou tensão nos tendões).
+- Desafio: Teste de precisão técnica e postura relaxada.`;
+      } else if (planMode === "desafio") {
+        modeInstruction = `
+# 🎸 MODO ESCOLHIDO: DESAFIO & RITMO (LEVADAS E PERFORMANCE)
+- ESTILO: Dinâmico, enérgico, focado em levadas rítmicas reais e treinos de velocidade e resistência.
+- Formato: Foco em grooves e padrões rítmicos.
+- Pontos da Prática Principal:
+  * Ponto 1: Levada rítmica aplicada (Pop 4/4, Balada 6/8, Dedilhado ou Batida) sobre a meta.
+  * Ponto 2: Treino de troca com aceleração gradual de BPM (ex: começar a 50 BPM, subir para 70 BPM e finalizar a 85 BPM).
+  * Ponto 3: Independência e dinâmica (ex: baixo sustentado na esquerda + levada rítmica na direita).
+- Desafio: Tocar a sequência em loop por múltiplos compassos sem interrupções.`;
+      } else {
+        // Modo Padrão: "direto"
+        modeInstruction = `
+# ⚡ MODO ESCOLHIDO: DIRETO & PRÁTICO (CHECKLIST RÁPIDO - PADRÃO)
+- ESTILO: Frases curtas de 1 linha (máximo 12 a 15 palavras por ponto).
+- ZERO PARÁGRAFOS OU EXPLICAÇÕES TEÓRICAS LONGAS. Formato de comandos diretos e objetivos.
+- Pontos da Prática Principal:
+  * Ponto 1: Posição objetiva (ex: "Mão direita: Dedos 1(D), 3(F#) e 5(A).")
+  * Ponto 2: Metrônomo com repetição (ex: "Metrônomo: Toque o acorde 10 vezes a 60 BPM contando 1-2-3-4.")
+  * Ponto 3: Ação complementar (ex: "Mão esquerda: Toque a tecla Ré no baixo no tempo 1.")
+- Desafio: 1 frase curta com meta mensurável (ex: "Toque 1 minuto sem errar nenhuma nota.").`;
+      }
+
+      // ── 8. JSON SCHEMA DE SAÍDA ──────────────────────────────────────────────
       const jsonSchemaFormat = `{
   "instrument": "${instrumentName}",
   "level": "${studentLevel}",
+  "planMode": "${planMode}",
   "weeklyGoal": "Resumo musical objetivo da semana focado estritamente na(s) meta(s) de ${instrumentName}.",
-  "importantMessage": "Dica prática de postura, técnica ou pulso para ${instrumentName} no nível ${studentLevel}.",
+  "importantMessage": "Dica prática de execução para ${instrumentName} no nível ${studentLevel}.",
   "targetDailyMinutes": ${totalMinutes},
   "days": [
     {
       "dayName": "Dia 1",
       "focus": {
-        "title": "Título pedagógico do foco do Dia 1 (ex: Memória Muscular e Ataque do Acorde de D)",
-        "description": "Explicação clara em 2 frases sobre o objetivo técnico exato deste dia."
+        "title": "Título do foco do Dia 1 (ex: Memória Muscular e Ataque do Acorde de D)",
+        "description": "Objetivo técnico em 1 frase curta."
       },
       "exercises": [
         {
           "title": "Aquecimento",
-          "subtitle": "Subtítulo musical específico deste dia (ex: Agilidade e Abertura de Dedos em D)",
+          "subtitle": "Aquecimento específico de ${instrumentName}",
           "duration": "${warmMin} min",
           "points": [
-            "Passo 1 de aquecimento detalhando dedos, notas e postura.",
-            "Passo 2 com contagem e observação de relaxamento."
+            "Ação 1 de aquecimento detalhando notas e dedos.",
+            "Ação 2 de postura e relaxamento."
           ],
           "icon": "music"
         },
         {
           "title": "Prática Principal",
-          "subtitle": "Subtítulo musical específico da prática (ex: Montagem Instantânea e Ataque Simultâneo)",
+          "subtitle": "Execução da meta cadastrada",
           "duration": "${mainMin} min",
           "points": [
-            "Bloco 1 (5 min): Passo a passo detalhado de posicionamento (dedos, notas, cordas/teclas) e teste de clareza das notas.",
-            "Bloco 2 (7 min): Treino mecânico de repetições com metrônomo (ex: 3 séries de 10 repetições a 60 BPM).",
-            "Bloco 3 (6 min): Aplicação rítmica contínua (ex: levada em 4 tempos ou transição sem parar o pulso)."
+            "Ponto 1: posicionamento dos dedos e notas da meta.",
+            "Ponto 2: treino com metrônomo e repetições.",
+            "Ponto 3: aplicação prática da meta."
           ],
           "icon": "star"
         },
         {
           "title": "Teoria ou Desafio",
-          "subtitle": "Subtítulo do desafio (ex: Teste de Memória Tátil de Olhos Fechados)",
+          "subtitle": "Desafio de consolidação da meta",
           "duration": "${challengeMin} min",
           "points": [
-            "Desafio prático e mensurável para testar o domínio da meta.",
-            "Critério objetivo de acerto (ex: acertar 3 vezes seguidas sem errar nenhuma nota)."
+            "Desafio prático e mensurável para testar a meta.",
+            "Critério objetivo de acerto."
           ],
           "icon": "pen"
         }
@@ -623,12 +661,14 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
   ]
 }`;
 
-      // ── 8. CONSTRUÇÃO DO PROMPT MULTI-INSTRUMENTO PEDAGÓGICO DE ALTA PERFORMANCE ──
-      const prompt = `# 🎼 MusicPro AI — Personal Trainer Pedagógico de ${instrumentName.toUpperCase()}
+      // ── 9. CONSTRUÇÃO DO PROMPT ──────────────────────────────────────────────
+      const prompt = `# 🎼 MusicPro AI — Personal Trainer de ${instrumentName.toUpperCase()}
 
-Você é um mestre da pedagogia musical e professor de **${instrumentName}** (nível: **${studentLevel}**).
-Sua missão é criar uma rotina de treino diário de 5 dias, **prática, altamente engajadora, rica em detalhes de execução e focada EXCLUSIVAMENTE nas METAS CADASTRADAS**.
+Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**).
+Sua missão é criar uma rotina de treino diário de 5 dias focada **EXCLUSIVAMENTE nas METAS CADASTRADAS**.
 ${instrumentWarning}${goalsWarning}
+---
+${modeInstruction}
 ---
 
 # 🎯 METAS DA SEMANA (FIO CONDUTOR EXCLUSIVO E OBRIGATÓRIO)
@@ -636,7 +676,7 @@ ${weeklyGoalsText}
 
 ---
 
-# 🎸 DIRETRIZES TÉCNICAS E HARMONIA PARA: ${instrumentName.toUpperCase()}
+# 🎸 DIRETRIZES TÉCNICAS PARA: ${instrumentName.toUpperCase()}
 ${terminologyBlock}
 ${forbiddenBlock}
 
@@ -644,34 +684,29 @@ ${forbiddenBlock}
 - **Teclado / Piano:**
   * Os acordes e tríades são formados na mão direita (ex: dedos 1-3-5 ou 1-2-4), enquanto a mão esquerda toca o baixo/fundamental (dedo 5 ou 1-5).
   * **NUNCA** coloque um acorde isolado na mão direita e outro acorde isolado na mão esquerda em dias separados. Ambos os acordes devem ser treinados na mão de harmonia (direita) com seus respectivos baixos na mão esquerda.
-  * Para trocas de acordes, ensine o princípio do movimento mínimo de dedos e antecipação mental.
 - **Violão / Guitarra:**
-  * Especifique cordas, casas e dedos (1-Indicador, 2-Médio, 3-Anelar, 4-Mínimo). Detalhe a levada da mão direita (ritmo/batida/dedilhado).
+  * Especifique cordas, casas e dedos (1-Indicador, 2-Médio, 3-Anelar, 4-Mínimo) e a levada da mão direita.
 - **Canto:**
-  * Exercícios de apoio diafragmático, ressonância, vocalizes em semitons ("Brrr", "Trrr", "Voz de cabeça") aplicados à melodia da meta.
+  * Respiração diafragmática, ressonância e vocalizes aplicados à melodia da meta.
 - **Bateria:**
-  * Rudimentos, coordenação motora bumbo-caixa-chimbal e contagem vocalizada (1 e 2 e 3 e 4 e).
+  * Rudimentos, contagem vocalizada e coordenação motora bumbo-caixa-chimbal.
 
 ---
 
-# 📈 PROGRESSÃO PEDAGÓGICA OBRIGATÓRIA DOS 5 DIAS:
-- **Dia 1 — Mecânica & Memória Muscular (Elemento A):** Posicionamento perfeito dos dedos, clareza sonora das notas e memorização da forma.
-- **Dia 2 — Mecânica & Memória Muscular (Elemento B ou aprofundamento):** Segundo acorde/técnica da meta com baixo e estabilidade.
-- **Dia 3 — A Conexão e Transição (Troca Rápida):** Técnica de troca sem perder o pulso do metrônomo (treino lento de antecipação e deslocamento de dedos).
-- **Dia 4 — Levada & Ritmo Aplicado:** Aplicação de uma levada rítmica real (ex: levada pop 4/4, batida com baixo alternado ou dedilhado) sobre a meta.
-- **Dia 5 — Performance Contínua & Resistência:** Desafio de tocar a progressão/meta em loop contínuo por vários compassos sem hesitações.
+# 📈 PROGRESSÃO DOS 5 DIAS:
+- **Dia 1:** Mecânica & Memória Muscular (Elemento 1)
+- **Dia 2:** Mecânica & Memória Muscular (Elemento 2 ou aprofundamento)
+- **Dia 3:** Conexão & Troca Rápida sem Perder o Pulso
+- **Dia 4:** Levada & Ritmo Aplicado
+- **Dia 5:** Performance Contínua & Teste de Resistência
 
 ---
 
-# ⏱️ ESTRUTURA REAL DO TEMPO: ${totalMinutes} MINUTOS POR DIA
-Para cada um dos 5 dias:
-- **Aquecimento (${warmMin} min):** 2 passos de aquecimento com dedilhado, escala curta ou relaxamento muscular.
-- **Prática Principal (${mainMin} min):** DEVE ser dividida em 3 Blocos de tempo reais que somam ${mainMin} min:
-  * "Bloco 1 (5 min): ..."
-  * "Bloco 2 (7 min): ..."
-  * "Bloco 3 (6 min): ..."
-- **Teoria ou Desafio (${challengeMin} min):** 1 desafio com critério claro de aprovação.
-A soma de cada dia DEVE ser exatamente ${totalMinutes} minutos.
+# ⏱️ TEMPO DIÁRIO: ${totalMinutes} MINUTOS POR DIA
+- Aquecimento: **${warmMin} min**
+- Prática Principal: **${mainMin} min**
+- Desafio: **${challengeMin} min**
+A soma DEVE ser exatamente ${totalMinutes} min em todos os dias.
 
 ---
 ${teacherNotesBlock}
@@ -754,6 +789,7 @@ ${jsonSchemaFormat}`;
         // Garante campos de rastreabilidade
         parsedPlan.instrument = parsedPlan.instrument || instrumentName;
         parsedPlan.level = parsedPlan.level || studentLevel;
+        parsedPlan.planMode = planMode;
 
         // Aviso de metas ou instrumento não configurados no campo importantMessage
         if (!hasGoals) {

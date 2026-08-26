@@ -31,6 +31,8 @@ import {
   AlertTriangle,
   Play,
   PenTool,
+  Flame,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -169,6 +171,7 @@ export default function Progresso() {
   const [studyPlanStatus, setStudyPlanStatus] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [targetDailyStudyMinutes, setTargetDailyStudyMinutes] = useState(30);
+  const [selectedPlanMode, setSelectedPlanMode] = useState<"direto" | "didatico" | "desafio">("direto");
 
   const { data: planHistory = [], isLoading: historyLoading } = trpc.progress.getStudentPlanHistory.useQuery(
     { studentId: selectedStudentId! },
@@ -310,7 +313,7 @@ export default function Progresso() {
   const activePlanData = useMemo(() => parsePlanData(currentTeacherPlan?.planText), [currentTeacherPlan?.planText]);
   const activeDaysCompleted = useMemo(() => parseDaysCompleted(currentTeacherPlan?.daysCompleted as string | undefined), [currentTeacherPlan?.daysCompleted]);
 
-  // Converte o JSON do plano diário em texto legível para humanos
+  // Converte o JSON do plano diário em texto legível e limpo para humanos
   const formatPlanAsText = (content: string): string => {
     try {
       const planData = JSON.parse(content);
@@ -321,11 +324,13 @@ export default function Progresso() {
       }
       planData.days?.forEach((day: any) => {
         text += `📅 *${day.dayName}*: ${day.focus?.title}\n`;
-        if (day.focus?.description) text += `   ${day.focus.description}\n`;
+        if (day.focus?.description) text += `_${day.focus.description}_\n`;
         day.exercises?.forEach((ex: any) => {
-          text += `\n  🔹 *${ex.title}* (${ex.duration})\n`;
-          text += `   ${ex.subtitle}\n`;
-          ex.points?.forEach((p: string) => { text += `   - ${p}\n`; });
+          text += `\n🔹 *${ex.title}* (${ex.duration})\n`;
+          if (ex.subtitle && !ex.subtitle.toLowerCase().includes("execução direta") && !ex.subtitle.toLowerCase().includes("específico de") && !ex.subtitle.toLowerCase().includes("meta cadastrada")) {
+            text += `_${ex.subtitle}_\n`;
+          }
+          ex.points?.forEach((p: string) => { text += `• ${p}\n`; });
         });
         text += `\n`;
       });
@@ -1511,6 +1516,56 @@ export default function Progresso() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                      <Sparkles size={13} className="text-orange-500" />
+                      Estilo do Plano
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanMode("direto")}
+                      className={cn(
+                        "h-11 rounded-lg transition-all border cursor-pointer flex flex-col items-center justify-center p-1",
+                        selectedPlanMode === "direto"
+                          ? "bg-orange-500 text-white border-orange-600 shadow-sm shadow-orange-500/20"
+                          : "bg-muted/60 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                      )}
+                    >
+                      <span className="flex items-center gap-1 text-[11px] font-black"><Zap size={11} /> Direto</span>
+                      <span className="text-[9px] opacity-80 font-normal">Checklist</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanMode("didatico")}
+                      className={cn(
+                        "h-11 rounded-lg transition-all border cursor-pointer flex flex-col items-center justify-center p-1",
+                        selectedPlanMode === "didatico"
+                          ? "bg-orange-500 text-white border-orange-600 shadow-sm shadow-orange-500/20"
+                          : "bg-muted/60 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                      )}
+                    >
+                      <span className="flex items-center gap-1 text-[11px] font-black"><BookOpen size={11} /> Didático</span>
+                      <span className="text-[9px] opacity-80 font-normal">Detalhado</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanMode("desafio")}
+                      className={cn(
+                        "h-11 rounded-lg transition-all border cursor-pointer flex flex-col items-center justify-center p-1",
+                        selectedPlanMode === "desafio"
+                          ? "bg-orange-500 text-white border-orange-600 shadow-sm shadow-orange-500/20"
+                          : "bg-muted/60 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                      )}
+                    >
+                      <span className="flex items-center gap-1 text-[11px] font-black"><Flame size={11} /> Ritmo</span>
+                      <span className="text-[9px] opacity-80 font-normal">Desafio</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
                       <Clock size={13} className="text-orange-500" />
                       Tempo de Treino Diário
                     </span>
@@ -1545,13 +1600,14 @@ export default function Progresso() {
                     generateDailyStudyPlanMutation.mutate({
                       studentId: selectedStudentId!,
                       targetMinutes: targetDailyStudyMinutes,
+                      planMode: selectedPlanMode,
                     });
                   }}
                   disabled={generateDailyStudyPlanMutation.isPending}
                   className="w-full h-10 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black uppercase tracking-widest shadow-md shadow-orange-500/20"
                 >
                   {generateDailyStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
-                  Gerar Novo ({targetDailyStudyMinutes} min)
+                  Gerar Plano ({selectedPlanMode === "direto" ? "Direto" : selectedPlanMode === "didatico" ? "Didático" : "Ritmo"} • {targetDailyStudyMinutes}m)
                 </Button>
               </div>
             </div>
