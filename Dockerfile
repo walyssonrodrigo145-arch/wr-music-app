@@ -8,8 +8,8 @@ RUN apk add --no-cache python3 make g++
 # Copiar arquivos de dependência
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar pnpm
-RUN npm install -g pnpm
+# Instalar pnpm v9 compatível com lockfileVersion 9
+RUN npm install -g pnpm@9
 
 # Instalar dependências do projeto
 RUN pnpm install --shamefully-hoist
