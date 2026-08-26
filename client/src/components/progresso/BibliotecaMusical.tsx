@@ -20,6 +20,7 @@ import {
   Activity,
   Play,
   ExternalLink,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -606,101 +607,125 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
           </DialogContent>
        </Dialog>
 
-       {/* MODAL DE PREVIEW DE ARQUIVOS */}
-       <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
-          <DialogContent className="max-w-5xl p-0 overflow-hidden bg-background/95 backdrop-blur-xl border border-border/80 rounded-[2rem] shadow-2xl">
-             <DialogHeader className="p-5 md:p-6 bg-card/80 border-b border-border/60 backdrop-blur-md">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                   <div className="min-w-0 flex-1">
-                      <DialogTitle className="text-base md:text-lg font-black text-foreground uppercase tracking-tight truncate">
-                         {previewFile?.fileName}
-                      </DialogTitle>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
-                         Visualização de Material • {previewFile?.category || "PDF"}
-                      </p>
-                   </div>
-                   <div className="flex items-center gap-2">
-                      <Button 
-                        asChild
-                        variant="outline"
-                        className="h-9 rounded-xl border-border/80 hover:bg-muted font-bold text-[11px] px-3.5"
-                      >
-                         <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink size={13} className="mr-1.5" /> Nova Aba
-                         </a>
-                      </Button>
-                      <Button 
-                        asChild
-                        className="h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-wider px-4 shadow-md shadow-indigo-500/20"
-                      >
-                         <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
-                            <Download size={13} className="mr-1.5" /> Baixar Arquivo
-                         </a>
-                      </Button>
-                   </div>
-                </div>
-             </DialogHeader>
+        {/* MODAL DE PREVIEW DE ARQUIVOS */}
+        <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
+           <DialogContent showCloseButton={false} className="w-[96vw] max-w-6xl h-[90vh] max-h-[92vh] p-0 flex flex-col overflow-hidden bg-card/95 backdrop-blur-2xl border border-border/80 rounded-[2rem] shadow-2xl shadow-black/40 z-50">
+              <div className="p-4 sm:p-5 bg-card/90 border-b border-border/60 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
+                 <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className={cn(
+                       "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border shadow-sm",
+                       (previewFile?.category === 'pdf' || previewFile?.fileName?.toLowerCase().endsWith('.pdf'))
+                          ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                          : previewFile?.category === 'video'
+                          ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
+                          : previewFile?.category === 'audio'
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                          : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                    )}>
+                       {(previewFile?.category === 'pdf' || previewFile?.fileName?.toLowerCase().endsWith('.pdf')) && <FileText size={20} />}
+                       {previewFile?.category === 'video' && <Video size={20} />}
+                       {previewFile?.category === 'audio' && <Music size={20} />}
+                       {previewFile?.category === 'imagem' && <ImageIcon size={20} />}
+                       {previewFile?.category !== 'pdf' && previewFile?.category !== 'video' && previewFile?.category !== 'audio' && previewFile?.category !== 'imagem' && !previewFile?.fileName?.toLowerCase().endsWith('.pdf') && <File size={20} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                       <DialogTitle className="text-sm sm:text-base font-black text-foreground uppercase tracking-tight truncate max-w-[200px] sm:max-w-md md:max-w-xl">
+                          {previewFile?.fileName}
+                       </DialogTitle>
+                       <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
+                          Visualização de Material • {previewFile?.category?.toUpperCase() || "PDF"}
+                       </p>
+                    </div>
+                 </div>
 
-             <div className="h-[65vh] md:h-[75vh] w-full flex items-center justify-center bg-muted/20 relative overflow-hidden">
-                {urlLoading && (
-                   <div className="flex flex-col items-center gap-3 text-muted-foreground z-20">
-                      <Loader2 size={36} className="animate-spin text-indigo-600" />
-                      <p className="text-xs font-bold uppercase tracking-wider">Carregando visualização...</p>
-                   </div>
-                )}
+                 <div className="flex items-center gap-2 shrink-0">
+                    <Button 
+                      asChild
+                      variant="outline"
+                      className="h-9 sm:h-10 rounded-xl border-border/80 bg-background/50 hover:bg-muted font-bold text-[11px] uppercase tracking-wider px-3 sm:px-4 shadow-sm"
+                    >
+                       <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">Nova Aba</span>
+                       </a>
+                    </Button>
+                    <Button 
+                      asChild
+                      className="h-9 sm:h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[11px] font-black uppercase tracking-wider px-3 sm:px-5 shadow-lg shadow-indigo-500/20"
+                    >
+                       <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
+                          <Download size={14} className="sm:mr-1.5" /> <span className="hidden sm:inline">Baixar Arquivo</span><span className="sm:hidden">Baixar</span>
+                       </a>
+                    </Button>
+                    <button 
+                      onClick={handleClosePreview}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted/60 hover:bg-muted active:scale-95 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all border border-border/60 ml-1 shrink-0"
+                      title="Fechar"
+                    >
+                      <X size={18} />
+                    </button>
+                 </div>
+              </div>
 
-                {fileNotFound && !urlLoading && (
-                   <div className="z-10 flex flex-col items-center gap-3 p-8 text-center max-w-md">
-                      <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
-                         <FileText size={32} />
-                      </div>
-                      <p className="text-sm font-bold text-foreground">Arquivo físico não encontrado no servidor</p>
-                      <p className="text-xs text-muted-foreground">
-                         Este arquivo pode ter sido enviado em uma versão anterior sem persistência. Por favor, reenvie o arquivo pela biblioteca.
-                      </p>
-                   </div>
-                )}
+              <div className="flex-1 w-full h-full min-h-0 bg-muted/20 relative flex items-center justify-center overflow-hidden">
+                 {urlLoading && (
+                    <div className="flex flex-col items-center gap-3 text-muted-foreground z-20">
+                       <Loader2 size={36} className="animate-spin text-indigo-600" />
+                       <p className="text-xs font-bold uppercase tracking-wider">Carregando visualização...</p>
+                    </div>
+                 )}
 
-                {!urlLoading && !fileNotFound && previewFile?.category === 'video' && (
-                   <video 
-                     src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
-                     controls 
-                     className="max-h-full max-w-full z-10 rounded-xl"
-                     autoPlay
-                   />
-                )}
-                {!urlLoading && !fileNotFound && previewFile?.category === 'audio' && (
-                   <div className="flex flex-col items-center gap-6 z-10 w-full px-12 max-w-lg">
-                      <div className="w-28 h-28 rounded-[2rem] bg-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/40">
-                         <Music size={40} />
-                      </div>
-                      <audio 
-                        src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
-                        controls 
-                        className="w-full h-14"
-                        autoPlay
-                      />
-                   </div>
-                )}
-                {!urlLoading && !fileNotFound && (previewFile?.category === 'pdf' || previewFile?.category === 'documento' || (!previewFile?.category && previewFile?.fileName?.toLowerCase().endsWith('.pdf'))) && (
-                   <div className="w-full h-full relative flex flex-col">
-                      <iframe 
-                        src={`${resolvedUrl || getFixedUrl(previewFile.fileUrl)}#toolbar=0`} 
-                        className="w-full h-full border-none z-10 bg-card"
-                        title={previewFile.fileName}
-                      />
-                   </div>
-                )}
-                {!urlLoading && !fileNotFound && previewFile?.category === 'imagem' && (
-                   <img 
-                     src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
-                     alt={previewFile.fileName}
-                     className="max-h-full max-w-full object-contain z-10 shadow-2xl rounded-xl"
-                   />
-                )}
-             </div>
-          </DialogContent>
-       </Dialog>
+                 {fileNotFound && !urlLoading && (
+                    <div className="z-10 flex flex-col items-center gap-3 p-8 text-center max-w-md">
+                       <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                          <FileText size={32} />
+                       </div>
+                       <p className="text-sm font-bold text-foreground">Arquivo físico não encontrado no servidor</p>
+                       <p className="text-xs text-muted-foreground">
+                          Este arquivo pode ter sido enviado em uma versão anterior sem persistência. Por favor, reenvie o arquivo pela biblioteca.
+                       </p>
+                    </div>
+                 )}
+
+                 {!urlLoading && !fileNotFound && previewFile?.category === 'video' && (
+                    <video 
+                      src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
+                      controls 
+                      className="max-h-full max-w-full z-10 rounded-xl"
+                      autoPlay
+                    />
+                 )}
+                 {!urlLoading && !fileNotFound && previewFile?.category === 'audio' && (
+                    <div className="flex flex-col items-center gap-6 z-10 w-full px-12 max-w-lg">
+                       <div className="w-28 h-28 rounded-[2rem] bg-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/40">
+                          <Music size={40} />
+                       </div>
+                       <audio 
+                         src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
+                         controls 
+                         className="w-full h-14"
+                         autoPlay
+                       />
+                    </div>
+                 )}
+                 {!urlLoading && !fileNotFound && (previewFile?.category === 'pdf' || previewFile?.category === 'documento' || (!previewFile?.category && previewFile?.fileName?.toLowerCase().endsWith('.pdf'))) && (
+                    <div className="w-full h-full relative flex flex-col">
+                       <iframe 
+                         src={`${resolvedUrl || getFixedUrl(previewFile.fileUrl)}#toolbar=0`} 
+                         className="w-full h-full border-none z-10 bg-card rounded-b-[2rem]"
+                         title={previewFile.fileName}
+                       />
+                    </div>
+                 )}
+                 {!urlLoading && !fileNotFound && previewFile?.category === 'imagem' && (
+                    <img 
+                      src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
+                      alt={previewFile.fileName}
+                      className="max-h-full max-w-full object-contain z-10 shadow-2xl rounded-xl"
+                    />
+                 )}
+              </div>
+           </DialogContent>
+        </Dialog>
     </div>
   );
 }

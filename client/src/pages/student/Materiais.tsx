@@ -459,7 +459,7 @@ export default function StudentMaterials() {
 
       {/* PREVIEW DIALOG */}
       <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
-         <DialogContent className={cn("p-0 overflow-hidden bg-background border-none rounded-[1.5rem] md:rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[95vw] md:max-w-7xl" : "max-w-[95vw] md:max-w-5xl")}>
+         <DialogContent showCloseButton={false} className={cn("p-0 overflow-hidden bg-background border-none rounded-[1.5rem] md:rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[95vw] md:max-w-7xl" : "max-w-[95vw] md:max-w-5xl")}>
             <DialogHeader className="p-4 md:p-8 bg-card/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-20">
                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
