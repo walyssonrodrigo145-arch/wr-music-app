@@ -1350,6 +1350,52 @@ ${jsonSchemaFormat}`;
       
       return { success: true };
     }),
+
+    getFileUrl: protectedProcedure.input(z.object({ fileId: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      const isSuperAdmin = ctx.user.role === 'superadmin' || ctx.user.openId === ENV.ownerOpenId;
+
+      const [file] = await db.select({
+        id: studentFiles.id,
+        fileUrl: studentFiles.fileUrl,
+        fileName: studentFiles.fileName,
+        organizationId: studentFiles.organizationId
+      })
+      .from(studentFiles)
+      .where(
+        isSuperAdmin
+          ? eq(studentFiles.id, input.fileId)
+          : and(eq(studentFiles.id, input.fileId), eq(studentFiles.organizationId, orgId))
+      )
+      .limit(1);
+
+      if (!file) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Arquivo não encontrado" });
+      }
+
+      const rawUrl: string = file.fileUrl ?? "";
+      const isLocal = rawUrl.startsWith("/uploads/") || rawUrl.match(/https?:\/\/[^/]+\/uploads\//);
+      if (!isLocal) {
+        return { url: rawUrl, fileNotFound: false };
+      }
+
+      const relKey = rawUrl.replace(/^https?:\/\/[^/]+\/uploads\//, "").replace(/^\/uploads\//, "");
+      const { existsSync } = await import("fs");
+      const { resolve } = await import("path");
+      const absPath = resolve(process.cwd(), "uploads", relKey);
+      if (!existsSync(absPath)) {
+        return { url: "", fileNotFound: true };
+      }
+
+      const { createFileToken } = await import("../_core/fileTokens");
+      const token = createFileToken(relKey);
+      const fileName = encodeURIComponent(file.fileName ?? relKey.split("/").pop() ?? "arquivo");
+      const url = `/uploads-token/${token}/${fileName}`;
+
+      return { url, fileNotFound: false };
+    }),
     getStats: protectedProcedure.query(async ({ ctx }) => {
       const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
       const orgId = ctx.user.organizationId!;

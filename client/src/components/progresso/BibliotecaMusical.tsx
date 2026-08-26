@@ -65,6 +65,9 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("todos");
   const [previewFile, setPreviewFile] = useState<any>(null);
+  const [resolvedUrl, setResolvedUrl] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [fileNotFound, setFileNotFound] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Upload Modal State
@@ -77,6 +80,33 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
   const utils = trpc.useUtils();
   const { data: allFiles = [] } = trpc.musicLibrary.list.useQuery({ studentId, category: 'todos', search: '' });
   const { data: files = [], isLoading } = trpc.musicLibrary.list.useQuery({ studentId, category, search });
+  
+  const getFileUrlMutation = trpc.musicLibrary.getFileUrl.useMutation();
+
+  const handleOpenPreview = async (file: any) => {
+    setPreviewFile(file);
+    setFileNotFound(false);
+    setResolvedUrl(getFixedUrl(file.fileUrl));
+    setUrlLoading(true);
+    try {
+      const res = await getFileUrlMutation.mutateAsync({ fileId: file.id });
+      if (res.fileNotFound) {
+        setFileNotFound(true);
+      } else if (res.url) {
+        setResolvedUrl(res.url);
+      }
+    } catch {
+      setResolvedUrl(getFixedUrl(file.fileUrl));
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewFile(null);
+    setResolvedUrl("");
+    setFileNotFound(false);
+  };
   
   const uploadMutation = trpc.musicLibrary.upload.useMutation();
   const createMutation = trpc.musicLibrary.create.useMutation({
@@ -309,7 +339,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                            <motion.div 
                              key={file.id}
                              whileHover={{ scale: 1.02, y: -4 }}
-                             onClick={() => setPreviewFile(file)}
+                             onClick={() => handleOpenPreview(file)}
                              className="flex-none w-[280px] md:w-[340px] bg-card border border-border rounded-[1.5rem] md:rounded-[2rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/20 transition-all cursor-pointer relative snap-start shrink-0 flex flex-col"
                            >
                               <div className="aspect-video bg-muted/50 relative overflow-hidden flex flex-col items-center justify-center">
@@ -417,7 +447,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-all flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 z-20">
                            {/* Central Play/View Button */}
                            <button 
-                             onClick={() => setPreviewFile(file)}
+                             onClick={() => handleOpenPreview(file)}
                              className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-indigo-500 transition-all border-none focus:outline-none"
                            >
                               {file.category === 'audio' || file.category === 'video' ? (
@@ -577,74 +607,95 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
        </Dialog>
 
        {/* MODAL DE PREVIEW DE ARQUIVOS */}
-       <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-          <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90 border-none rounded-[2rem]">
-             <DialogHeader className="p-6 bg-card border-b border-border">
-                <div className="flex items-center justify-between">
-                   <div>
-                      <DialogTitle className="text-lg font-black text-foreground uppercase tracking-tight truncate max-w-[400px]">
+       <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
+          <DialogContent className="max-w-5xl p-0 overflow-hidden bg-background/95 backdrop-blur-xl border border-border/80 rounded-[2rem] shadow-2xl">
+             <DialogHeader className="p-5 md:p-6 bg-card/80 border-b border-border/60 backdrop-blur-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                   <div className="min-w-0 flex-1">
+                      <DialogTitle className="text-base md:text-lg font-black text-foreground uppercase tracking-tight truncate">
                          {previewFile?.fileName}
                       </DialogTitle>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
-                         Visualização de Material • {previewFile?.category}
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
+                         Visualização de Material • {previewFile?.category || "PDF"}
                       </p>
                    </div>
-                   <Button 
-                     asChild
-                     className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest px-5"
-                   >
-                      <a href={getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
-                         <Download size={14} className="mr-2" /> Baixar Arquivo
-                      </a>
-                   </Button>
+                   <div className="flex items-center gap-2">
+                      <Button 
+                        asChild
+                        variant="outline"
+                        className="h-9 rounded-xl border-border/80 hover:bg-muted font-bold text-[11px] px-3.5"
+                      >
+                         <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink size={13} className="mr-1.5" /> Nova Aba
+                         </a>
+                      </Button>
+                      <Button 
+                        asChild
+                        className="h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-wider px-4 shadow-md shadow-indigo-500/20"
+                      >
+                         <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
+                            <Download size={13} className="mr-1.5" /> Baixar Arquivo
+                         </a>
+                      </Button>
+                   </div>
                 </div>
              </DialogHeader>
 
-             <div className="aspect-video w-full flex items-center justify-center bg-black/40 relative overflow-hidden">
-                {previewFile?.category === 'video' && (
+             <div className="h-[65vh] md:h-[75vh] w-full flex items-center justify-center bg-muted/20 relative overflow-hidden">
+                {urlLoading && (
+                   <div className="flex flex-col items-center gap-3 text-muted-foreground z-20">
+                      <Loader2 size={36} className="animate-spin text-indigo-600" />
+                      <p className="text-xs font-bold uppercase tracking-wider">Carregando visualização...</p>
+                   </div>
+                )}
+
+                {fileNotFound && !urlLoading && (
+                   <div className="z-10 flex flex-col items-center gap-3 p-8 text-center max-w-md">
+                      <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                         <FileText size={32} />
+                      </div>
+                      <p className="text-sm font-bold text-foreground">Arquivo físico não encontrado no servidor</p>
+                      <p className="text-xs text-muted-foreground">
+                         Este arquivo pode ter sido enviado em uma versão anterior sem persistência. Por favor, reenvie o arquivo pela biblioteca.
+                      </p>
+                   </div>
+                )}
+
+                {!urlLoading && !fileNotFound && previewFile?.category === 'video' && (
                    <video 
-                     src={getFixedUrl(previewFile.fileUrl)} 
+                     src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
                      controls 
-                     className="max-h-full max-w-full z-10"
+                     className="max-h-full max-w-full z-10 rounded-xl"
                      autoPlay
                    />
                 )}
-                {previewFile?.category === 'audio' && (
-                   <div className="flex flex-col items-center gap-6 z-10 w-full px-12">
-                      <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/40">
-                         <Music size={48} />
+                {!urlLoading && !fileNotFound && previewFile?.category === 'audio' && (
+                   <div className="flex flex-col items-center gap-6 z-10 w-full px-12 max-w-lg">
+                      <div className="w-28 h-28 rounded-[2rem] bg-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/40">
+                         <Music size={40} />
                       </div>
                       <audio 
-                        src={getFixedUrl(previewFile.fileUrl)} 
+                        src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
                         controls 
                         className="w-full h-14"
                         autoPlay
                       />
                    </div>
                 )}
-                {previewFile?.category === 'pdf' && (
-                   <iframe 
-                     src={`${getFixedUrl(previewFile.fileUrl)}#toolbar=0`} 
-                     className="w-full h-full border-none z-10"
-                     title={previewFile.fileName}
-                   />
+                {!urlLoading && !fileNotFound && (previewFile?.category === 'pdf' || previewFile?.category === 'documento' || (!previewFile?.category && previewFile?.fileName?.toLowerCase().endsWith('.pdf'))) && (
+                   <div className="w-full h-full relative flex flex-col">
+                      <iframe 
+                        src={`${resolvedUrl || getFixedUrl(previewFile.fileUrl)}#toolbar=0`} 
+                        className="w-full h-full border-none z-10 bg-card"
+                        title={previewFile.fileName}
+                      />
+                   </div>
                 )}
-                {previewFile?.category === 'imagem' && (
+                {!urlLoading && !fileNotFound && previewFile?.category === 'imagem' && (
                    <img 
-                     src={getFixedUrl(previewFile.fileUrl)} 
+                     src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
                      alt={previewFile.fileName}
-                     className="max-h-full max-w-full object-contain z-10 shadow-2xl"
-                     onError={(e) => {
-                       const target = e.target as HTMLElement;
-                       target.style.display = 'none';
-                       const parent = target.parentElement;
-                       if (parent && !parent.querySelector('.img-error-msg')) {
-                         const msg = document.createElement('div');
-                         msg.className = 'img-error-msg z-10 flex flex-col items-center gap-3 p-8 text-center text-white';
-                         msg.innerHTML = '<div class="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center text-rose-400"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></div><p class="text-sm font-bold">Arquivo físico não encontrado no servidor</p><p class="text-xs text-white/60 max-w-sm">Este arquivo foi enviado antes da configuração do volume persistente. Por favor, exclua este item e envie o arquivo novamente.</p>';
-                         parent.appendChild(msg);
-                       }
-                     }}
+                     className="max-h-full max-w-full object-contain z-10 shadow-2xl rounded-xl"
                    />
                 )}
              </div>

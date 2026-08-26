@@ -795,8 +795,15 @@ async function startServer() {
     } catch {
       return res.status(401).json({ error: "Unauthorized" });
     }
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Content-Disposition", "inline");
     next();
-  }, express.static("uploads"));
+  }, express.static("uploads", {
+    setHeaders: (res) => {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.setHeader("Content-Disposition", "inline");
+    }
+  }));
 
   // ─── Tokens temporários para servir arquivos locais em iframes/players ────
   // Contexto: iframes, <video> e <audio> carregam URLs em contexto isolado
@@ -824,6 +831,9 @@ async function startServer() {
     if (!absPath.startsWith(path.resolve(process.cwd(), "uploads"))) {
       return res.status(403).json({ error: "Forbidden" });
     }
+
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Content-Disposition", "inline");
 
     return res.sendFile(absPath, (err) => {
       if (err) {
@@ -869,8 +879,15 @@ async function startServer() {
           "wss:",
         ],
         mediaSrc: ["'self'", "blob:", "https:"],
-        objectSrc: ["'none'"],
-        frameSrc: ["'none'"],
+        objectSrc: ["'self'", "blob:", "data:"],
+        frameSrc: ["'self'", "blob:", "data:", "https:"],
+        frameAncestors: [
+          "'self'",
+          "https://*.wrmusicpro.com.br",
+          "https://wrmusicpro.com.br",
+          "capacitor://localhost",
+          "http://localhost:*",
+        ],
         upgradeInsecureRequests: [],
       },
     } : false, // desabilitado em dev para compatibilidade com Vite

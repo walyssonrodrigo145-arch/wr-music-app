@@ -81,6 +81,13 @@ export function checkFileMagicBytes(buffer: Buffer, mimeType: string): boolean {
   // O arquivo precisa ter pelo menos bytes suficientes para as assinaturas
   if (buffer.length < 8) return false;
 
+  // Suporte à norma ISO 32000-1 para PDF: o cabeçalho %PDF pode iniciar nos primeiros 1024 bytes
+  if (mimeType === "application/pdf") {
+    const searchLimit = Math.min(buffer.length, 1024);
+    const pdfMagic = Buffer.from([0x25, 0x50, 0x44, 0x46]); // %PDF
+    return buffer.subarray(0, searchLimit).includes(pdfMagic);
+  }
+
   // Verifica se pelo menos UMA das assinaturas é encontrada (OR lógico)
   return signatures.some(sig => {
     const { bytes, offset } = sig;

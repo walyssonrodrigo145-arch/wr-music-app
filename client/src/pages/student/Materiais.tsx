@@ -486,6 +486,16 @@ export default function StudentMaterials() {
                        <span className="hidden md:inline">Dúvidas e Comentários</span>
                     </Button>
                     <Button 
+                       asChild
+                       variant="outline"
+                       className="h-10 md:h-12 rounded-xl border-border/80 hover:bg-muted text-[10px] md:text-xs font-bold px-3 md:px-5 shadow-sm transition-all hidden sm:flex"
+                     >
+                        <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer">
+                           <ExternalLink size={16} className="md:mr-2" /> 
+                           <span className="hidden md:inline">Nova Aba</span>
+                        </a>
+                     </Button>
+                    <Button 
                       asChild
                       className="h-10 md:h-12 rounded-xl bg-primary hover:bg-primary/90 text-white text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95 hidden sm:flex"
                     >
