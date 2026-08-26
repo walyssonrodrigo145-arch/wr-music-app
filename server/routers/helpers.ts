@@ -365,3 +365,105 @@ export async function runCreateAssinafyContract(
 
   return { contract: newContract, signUrl: result.signUrl };
 }
+
+// ─── Rate Limiter Persistente WhatsApp (Anti-Ban) ──────────────────────────
+export async function checkAndIncrementWhatsAppRateLimit(
+  db: any,
+  organizationId: number,
+  userId?: number,
+  maxPerHour: number = 30
+): Promise<boolean> {
+  if (!db || !organizationId) return true;
+  const now = new Date();
+  // Janela horária truncada (ex: 2026-08-22 16:00:00)
+  const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0);
+
+  try {
+    const { whatsappRateLimits } = await import("../../drizzle/schema");
+    const [existing] = await db
+      .select()
+      .from(whatsappRateLimits)
+      .where(
+        and(
+          eq(whatsappRateLimits.organizationId, organizationId),
+          eq(whatsappRateLimits.windowStart, windowStart)
+        )
+      )
+      .limit(1);
+
+    if (existing) {
+      if (existing.messageCount >= maxPerHour) {
+        return false;
+      }
+      await db
+        .update(whatsappRateLimits)
+        .set({
+          messageCount: sql`${whatsappRateLimits.messageCount} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(whatsappRateLimits.id, existing.id));
+      return true;
+    } else {
+      await db.insert(whatsappRateLimits).values({
+        organizationId,
+        userId: userId || null,
+        windowStart,
+        messageCount: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      return true;
+    }
+  } catch (err) {
+    debugLog("[RateLimit] Falha ao verificar/persistir rate limit de WhatsApp, fallback para permissivo:", err);
+    return true;
+  }
+}
+
+// ─── Idempotência de Webhooks ───────────────────────────────────────────────
+export async function registerWebhookEventOnce(
+  db: any,
+  gateway: string,
+  gatewayEventId: string,
+  eventType: string,
+  organizationId?: number,
+  payload?: any
+): Promise<{ isDuplicate: boolean; eventId?: number }> {
+  if (!db || !gatewayEventId) return { isDuplicate: false };
+
+  try {
+    const { webhookEvents } = await import("../../drizzle/schema");
+    const [existing] = await db
+      .select({ id: webhookEvents.id, status: webhookEvents.status })
+      .from(webhookEvents)
+      .where(
+        and(
+          eq(webhookEvents.gateway, gateway),
+          eq(webhookEvents.gatewayEventId, gatewayEventId)
+        )
+      )
+      .limit(1);
+
+    if (existing) {
+      return { isDuplicate: true, eventId: existing.id };
+    }
+
+    const [inserted] = await db
+      .insert(webhookEvents)
+      .values({
+        gateway,
+        gatewayEventId,
+        eventType,
+        organizationId: organizationId || null,
+        payload: payload || {},
+        status: "received",
+        createdAt: new Date(),
+      })
+      .returning({ id: webhookEvents.id });
+
+    return { isDuplicate: false, eventId: inserted?.id };
+  } catch (err) {
+    debugLog("[WebhookIdempotency] Erro ao registrar evento único:", err);
+    return { isDuplicate: false };
+  }
+}

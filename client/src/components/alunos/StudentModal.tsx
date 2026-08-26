@@ -5,7 +5,7 @@ import { parseDueDaysOptions } from "@/lib/settings";
 import { parseBRL } from "@/lib/money";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatFriendlyError } from "@/lib/utils";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StudentRow, FormData, EMPTY_FORM } from "./types";
@@ -84,12 +84,12 @@ export function StudentModal({
       setCredentials(data);
       utils.students.list.invalidate();
     },
-    onError: (e) => toast.error("Erro ao liberar acesso: " + e.message),
+    onError: (e) => toast.error(formatFriendlyError(e, "Erro ao liberar acesso ao portal")),
   });
 
   const createMutation = trpc.students.create.useMutation({
     onSuccess: (data: any) => {
-      toast.success("Aluno cadastrado!");
+      toast.success("Aluno cadastrado com sucesso!");
       utils.dashboard.stats.invalidate();
       if (generatePortalAccess && data.studentId) {
         enableAccessMutation.mutate({ studentId: data.studentId });
@@ -99,32 +99,18 @@ export function StudentModal({
       }
     },
     onError: (e) => {
-      let msg = e.message;
-      try {
-        const parsed = JSON.parse(msg);
-        if (Array.isArray(parsed) && parsed[0]?.message) {
-          msg = parsed.map((err: any) => err.message).join(", ");
-        }
-      } catch {}
-      toast.error("Erro: " + msg);
+      toast.error(formatFriendlyError(e, "Não foi possível cadastrar o aluno"));
     },
   });
 
   const updateMutation = trpc.students.update.useMutation({
     onSuccess: () => {
-      toast.success("Aluno atualizado!");
+      toast.success("Aluno atualizado com sucesso!");
       utils.students.list.invalidate();
       onClose();
     },
     onError: (e) => {
-      let msg = e.message;
-      try {
-        const parsed = JSON.parse(msg);
-        if (Array.isArray(parsed) && parsed[0]?.message) {
-          msg = parsed.map((err: any) => err.message).join(", ");
-        }
-      } catch {}
-      toast.error("Erro: " + msg);
+      toast.error(formatFriendlyError(e, "Não foi possível atualizar o aluno"));
     },
   });
 

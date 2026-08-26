@@ -279,3 +279,33 @@ describe("AUDIT-P1: auth.me não expõe passwordHash/tokens", () => {
     expect(me.name).toBe("Director");
   });
 });
+
+// ─── 7. Rate Limiter Persistente WhatsApp e Idempotência Webhook ────────────
+describe("AUDIT-P1: Rate Limit Persistente de WhatsApp e Idempotência de Webhook", () => {
+  it("checkAndIncrementWhatsAppRateLimit bloqueia envio ao atingir maxPerHour", async () => {
+    const { checkAndIncrementWhatsAppRateLimit } = await import("./routers/helpers");
+    const fakeDb = makeFakeDb();
+    
+    // Simula janela com 30 mensagens já enviadas
+    enqueueSelectResult([{ id: 1, organizationId: 1, messageCount: 30 }]);
+    const allowed = await checkAndIncrementWhatsAppRateLimit(fakeDb, 1, 10, 30);
+    expect(allowed).toBe(false);
+  });
+
+  it("registerWebhookEventOnce identifica eventos duplicados de gateways", async () => {
+    const { registerWebhookEventOnce } = await import("./routers/helpers");
+    const fakeDb = makeFakeDb();
+
+    // Primeiro evento inédito (select vazio)
+    enqueueSelectResult([]);
+    const firstCall = await registerWebhookEventOnce(fakeDb, "asaas", "evt_12345", "PAYMENT_RECEIVED", 1);
+    expect(firstCall.isDuplicate).toBe(false);
+
+    // Segundo evento idêntico já gravado (select retorna linha)
+    enqueueSelectResult([{ id: 99, status: "received" }]);
+    const secondCall = await registerWebhookEventOnce(fakeDb, "asaas", "evt_12345", "PAYMENT_RECEIVED", 1);
+    expect(secondCall.isDuplicate).toBe(true);
+    expect(secondCall.eventId).toBe(99);
+  });
+});
+

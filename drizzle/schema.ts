@@ -1720,3 +1720,39 @@ export const fiscalLogs = pgTable("fiscal_logs", {
 
 export type FiscalLog = typeof fiscalLogs.$inferSelect;
 export type InsertFiscalLog = typeof fiscalLogs.$inferInsert;
+
+export const webhookEvents = pgTable("webhook_events", {
+  id: serial("id").primaryKey(),
+  gateway: varchar("gateway", { length: 50 }).notNull(), // asaas, mercadopago, assinafy, focusnfe
+  gatewayEventId: varchar("gatewayEventId", { length: 255 }).notNull().unique(),
+  eventType: varchar("eventType", { length: 100 }).notNull(),
+  organizationId: integer("organizationId"),
+  payload: jsonb("payload").default({}),
+  status: varchar("status", { length: 50 }).default("received").notNull(), // received, processed, failed, ignored
+  processedAt: timestamp("processedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("webhook_events_gateway_event_idx").on(table.gateway, table.gatewayEventId),
+  index("webhook_events_org_idx").on(table.organizationId),
+  index("webhook_events_status_idx").on(table.status),
+]);
+
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type InsertWebhookEvent = typeof webhookEvents.$inferInsert;
+
+export const whatsappRateLimits = pgTable("whatsapp_rate_limits", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId"),
+  windowStart: timestamp("windowStart").notNull(),
+  messageCount: integer("messageCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  uniqueIndex("whatsapp_rate_limits_org_window_idx").on(table.organizationId, table.windowStart),
+  index("whatsapp_rate_limits_org_idx").on(table.organizationId),
+]);
+
+export type WhatsappRateLimit = typeof whatsappRateLimits.$inferSelect;
+export type InsertWhatsappRateLimit = typeof whatsappRateLimits.$inferInsert;
+

@@ -48,13 +48,10 @@ export function handleDbError(error: any, context: string = "operação"): never
     });
   }
 
-  // Erro genérico amigável (com detalhe para debug em desenvolvimento)
-  const fullDetail = detail ? ` (${detail})` : "";
-  const fullHint = hint ? ` [Dica: ${hint}]` : "";
-  
+  // Erro genérico amigável e limpo para o cliente (detalhes técnicos permanecem nos logs do console acima)
   throw new TRPCError({
     code: "INTERNAL_SERVER_ERROR",
-    message: `Erro ao realizar ${context}: ${message}${fullDetail}${fullHint}. Code: ${code}.`,
+    message: `Não foi possível ${context}. Por favor, tente novamente ou contate o suporte se o problema persistir.`,
     cause: error,
   });
 }

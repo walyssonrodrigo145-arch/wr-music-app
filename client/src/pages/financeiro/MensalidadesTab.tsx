@@ -17,7 +17,7 @@ import { EditMensalidadeModal } from "@/components/modals/EditMensalidadeModal";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, formatFriendlyError } from "@/lib/utils";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -80,7 +80,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
       utils.paymentDues.invalidate();
       toast.success("Cobrança gerada no Asaas!");
     },
-    onError: (e) => toast.error("Erro: " + e.message),
+    onError: (e) => toast.error(formatFriendlyError(e, "Erro ao gerar cobrança no Asaas")),
   });
 
   const generateMPMutation = trpc.paymentDues.generateMPCharge.useMutation({
@@ -89,7 +89,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
       utils.paymentDues.invalidate();
       toast.success("Link gerado no Mercado Pago!");
     },
-    onError: (e) => toast.error("Erro: " + e.message),
+    onError: (e) => toast.error(formatFriendlyError(e, "Erro ao gerar link no Mercado Pago")),
   });
 
   const handleGenerate = () => {

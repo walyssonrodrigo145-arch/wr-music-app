@@ -24,7 +24,7 @@ import { trpc } from "@/lib/trpc";
 import { safeFormat } from "@/lib/dates";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, formatFriendlyError } from "@/lib/utils";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 
 interface AgendarModalProps {
@@ -185,7 +185,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       onOpenChange(false);
       resetForm();
     },
-    onError: (e) => toast.error("Erro no agendamento em lote: " + e.message)
+    onError: (e) => toast.error(formatFriendlyError(e, "Erro no agendamento em lote"))
   });
 
   const createTurmaMutation = trpc.lessons.createTurma.useMutation({
@@ -199,7 +199,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       onOpenChange(false);
       resetForm();
     },
-    onError: (e) => toast.error("Erro no agendamento de turma: " + e.message)
+    onError: (e) => toast.error(formatFriendlyError(e, "Erro no agendamento de turma"))
   });
 
   const resetForm = () => {
@@ -246,7 +246,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       if (e.message.includes("conflito") || e.message.includes("sobrepõe")) {
         setConflictError(e.message);
       } else {
-        toast.error("Erro ao agendar: " + e.message);
+        toast.error(formatFriendlyError(e, "Erro ao agendar aula"));
       }
     }
   });
@@ -268,7 +268,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       if (e.message.includes("conflito") || e.message.includes("sobrepõe")) {
         setConflictError(e.message);
       } else {
-        toast.error("Erro ao atualizar: " + e.message);
+        toast.error(formatFriendlyError(e, "Erro ao atualizar aula"));
       }
     }
   });

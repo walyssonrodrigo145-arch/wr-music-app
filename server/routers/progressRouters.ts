@@ -51,6 +51,8 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
+import { getInstrumentContext } from "../utils/instrumentContexts";
+import { studentPedagogicalMemory } from "../../drizzle/schema";
 export const progressRouters = {
   progress: router({
     getGoals: protectedProcedure.input(z.object({ studentId: z.number() })).query(async ({ ctx, input }) => {
@@ -404,92 +406,202 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
     generateDailyStudyPlan: protectedProcedure.input(z.object({
       studentId: z.number(),
       targetMinutes: z.number().min(10).max(120).optional().default(30),
+      teacherNotes: z.string().max(500).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const orgId = ctx.user.organizationId!;
-      const totalMinutes = input.targetMinutes || 30;
+      const totalMinutes = input.targetMinutes ?? 30;
 
-      // Cálculo sugerido para os blocos de acordo com o total de minutos
-      const warmMin = totalMinutes <= 15 ? Math.max(2, Math.round(totalMinutes * 0.25)) : Math.max(5, Math.round(totalMinutes * 0.2));
-      const challengeMin = totalMinutes <= 15 ? Math.max(2, Math.round(totalMinutes * 0.25)) : Math.max(5, Math.round(totalMinutes * 0.2));
-      const mainMin = Math.max(5, totalMinutes - warmMin - challengeMin);
-      
-      const [student] = await db.select().from(students).where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
-      if (!student) throw new Error("Aluno não encontrado");
+      // ── 1. BUSCA DO ALUNO (com isolamento por organização) ──────────────────
+      const [student] = await db
+        .select()
+        .from(students)
+        .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)));
+      if (!student) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado ou sem permissão de acesso." });
+      }
 
+      // ── 2. BUSCA DO INSTRUMENTO ──────────────────────────────────────────────
       let instrumentName = "instrumento não especificado";
-      let instrumentCategory = "Geral";
+      let instrumentCategory = "geral";
       if (student.instrumentId) {
-        const [instrument] = await db.select({ name: instruments.name, category: instruments.category })
+        const [instrument] = await db
+          .select({ name: instruments.name, category: instruments.category })
           .from(instruments)
           .where(eq(instruments.id, student.instrumentId));
         if (instrument) {
           instrumentName = instrument.name;
-          instrumentCategory = instrument.category || "Geral";
+          instrumentCategory = (instrument.category || "geral").toLowerCase();
         }
       }
 
-      const pastLessons = await db.select({ title: lessons.title, notes: lessons.notes })
-        .from(lessons)
-        .where(and(eq(lessons.studentId, input.studentId), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida')))
-        .limit(5)
-        .orderBy(desc(lessons.scheduledAt));
-      const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, "pendente")));
-      const timeline = await db.select().from(studentTimeline).where(and(eq(studentTimeline.studentId, input.studentId), eq(studentTimeline.organizationId, orgId))).limit(10).orderBy(desc(studentTimeline.achievedAt));
+      // ── 3. CONTEXTO PEDAGÓGICO DO INSTRUMENTO ───────────────────────────────
+      const { context: instrContext } = getInstrumentContext(instrumentName, instrumentCategory);
+
+      const studentLevel = student.level || "iniciante";
+      const levelKey = (studentLevel === "avancado" || studentLevel === "avançado")
+        ? "avancado"
+        : (studentLevel === "intermediario" || studentLevel === "intermediário")
+          ? "intermediario"
+          : "iniciante";
+
+      const levelHint = instrContext.levelHints[levelKey];
+      const terminologyBlock = instrContext.terminology.length > 0
+        ? `Termos CORRETOS para este instrumento: ${instrContext.terminology.join(", ")}.`
+        : "";
+      const forbiddenBlock = instrContext.forbiddenTerms.length > 0
+        ? `PROIBIDO usar estes termos (são de outros instrumentos): ${instrContext.forbiddenTerms.join(", ")}.`
+        : "";
+
+      // ── 4. BUSCA PARALELA DE DADOS DE CONTEXTO ──────────────────────────────
+      const [pastLessons, goals, timeline, pedagogicalMemoryRows] = await Promise.all([
+        db.select({
+          title: lessons.title,
+          notes: lessons.notes,
+          rating: lessons.rating,
+          scheduledAt: lessons.scheduledAt,
+        })
+          .from(lessons)
+          .where(and(
+            eq(lessons.studentId, input.studentId),
+            eq(lessons.organizationId, orgId),
+            eq(lessons.status, "concluida")
+          ))
+          .orderBy(desc(lessons.scheduledAt))
+          .limit(10),
+
+        db.select()
+          .from(studentGoals)
+          .where(and(
+            eq(studentGoals.studentId, input.studentId),
+            eq(studentGoals.organizationId, orgId),
+            eq(studentGoals.status, "pendente")
+          )),
+
+        db.select({
+          title: studentTimeline.title,
+          category: studentTimeline.category,
+          description: studentTimeline.description,
+          grade: studentTimeline.grade,
+        })
+          .from(studentTimeline)
+          .where(and(
+            eq(studentTimeline.studentId, input.studentId),
+            eq(studentTimeline.organizationId, orgId)
+          ))
+          .orderBy(desc(studentTimeline.achievedAt))
+          .limit(10),
+
+        db.select()
+          .from(studentPedagogicalMemory)
+          .where(and(
+            eq(studentPedagogicalMemory.studentId, input.studentId),
+            eq(studentPedagogicalMemory.organizationId, orgId)
+          ))
+          .limit(1),
+      ]);
+
+      // ── 5. FORMATAÇÃO DOS DADOS DE CONTEXTO ─────────────────────────────────
+      const weeklyGoalsText = goals.length > 0
+        ? goals.map(g => `- ${g.title}${g.description ? ": " + g.description : ""}`).join("\n")
+        : "Nenhuma meta específica cadastrada. Crie um plano adequado ao nível e instrumento do aluno.";
+
+      const lessonsText = pastLessons.length > 0
+        ? pastLessons.map(l =>
+            `- "${l.title}"` +
+            (l.rating ? ` (nota: ${l.rating}/5)` : "") +
+            (l.notes ? ` | obs: ${l.notes}` : "")
+          ).join("\n")
+        : "Nenhuma aula concluída registrada ainda.";
 
       const timelineText = timeline.length > 0
-        ? timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join("\n")
+        ? timeline.map(t =>
+            `[${t.category}] ${t.title}` +
+            (t.grade ? ` (nota: ${t.grade})` : "") +
+            (t.description ? ` — ${t.description}` : "")
+          ).join("\n")
         : "Nenhum registro de conquistas anteriores.";
-      
-      const lessonsText = pastLessons.length > 0
-        ? pastLessons.map(l => "- \"" + l.title + "\"" + (l.notes ? " (notas do professor: " + l.notes + ")" : "")).join("\n")
-        : "Nenhuma aula concluída registrada.";
 
-      const weeklyGoalsText = goals.length > 0
-        ? goals.map(g => "- " + g.title + (g.description ? ": " + g.description : "")).join("\n")
-        : "Nenhuma meta específica cadastrada para esta semana.";
+      let pedagogicalMemoryBlock = "";
+      const mem = pedagogicalMemoryRows[0];
+      if (mem) {
+        const strongPoints = JSON.parse(mem.strongPoints || "[]") as string[];
+        const weakPoints = JSON.parse(mem.weakPoints || "[]") as string[];
+        const repertoireLearning = JSON.parse(mem.repertoireLearning || "[]") as string[];
+        if (strongPoints.length > 0 || weakPoints.length > 0 || repertoireLearning.length > 0) {
+          pedagogicalMemoryBlock = `
+# 🧠 MEMÓRIA PEDAGÓGICA (Use para enriquecer o plano)
+- Pontos fortes: ${strongPoints.length > 0 ? strongPoints.join(", ") : "Não identificados"}
+- Dificuldades recorrentes: ${weakPoints.length > 0 ? weakPoints.join(", ") : "Não identificadas"}
+- Repertório em aprendizado: ${repertoireLearning.length > 0 ? repertoireLearning.join(", ") : "Nenhum registrado"}
+${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectives}` : ""}
+`;
+        }
+      }
 
+      const instrumentWarning = !student.instrumentId
+        ? "\n⚠️ ATENÇÃO: Este aluno não tem instrumento cadastrado. Crie um plano genérico de desenvolvimento musical.\n"
+        : "";
+      const goalsWarning = goals.length === 0
+        ? "\n⚠️ ATENÇÃO: Sem metas cadastradas. Baseie o plano no nível e instrumento. No campo 'importantMessage', oriente o professor a cadastrar metas.\n"
+        : "";
+      const teacherNotesBlock = input.teacherNotes
+        ? `\n# 📝 OBSERVAÇÃO EXTRA DO PROFESSOR (Priorize isso)\n"${input.teacherNotes.substring(0, 500)}"\n`
+        : "";
+
+      // ── 6. CÁLCULO DOS BLOCOS DE TEMPO ──────────────────────────────────────
+      const warmMin = totalMinutes <= 15
+        ? Math.max(2, Math.round(totalMinutes * 0.25))
+        : Math.max(5, Math.round(totalMinutes * 0.2));
+      const challengeMin = totalMinutes <= 15
+        ? Math.max(2, Math.round(totalMinutes * 0.25))
+        : Math.max(5, Math.round(totalMinutes * 0.2));
+      const mainMin = Math.max(5, totalMinutes - warmMin - challengeMin);
+
+      // ── 7. JSON SCHEMA DE SAÍDA ──────────────────────────────────────────────
       const jsonSchemaFormat = `{
-  "weeklyGoal": "Resumo motivador e didático do objetivo da semana direto para o aluno.",
-  "importantMessage": "Dica prática do professor para o aluno sobre paciência e postura.",
+  "instrument": "${instrumentName}",
+  "level": "${studentLevel}",
+  "weeklyGoal": "Resumo motivador do objetivo da semana para ${student.name}, mencionando ${instrumentName}.",
+  "importantMessage": "Dica prática e encorajadora específica para ${instrumentName} no nível ${studentLevel}.",
   "targetDailyMinutes": ${totalMinutes},
   "days": [
     {
       "dayName": "Dia 1",
       "focus": {
-        "title": "Título específico da meta do Dia 1",
-        "description": "Explicação em 2 frases sobre o porquê desta prática inicial."
+        "title": "Título da meta do Dia 1 para ${instrumentName}",
+        "description": "Explicação em 2 frases claras sobre o objetivo deste dia."
       },
       "exercises": [
         {
           "title": "Aquecimento",
-          "subtitle": "Exercício de coordenação e agilidade inicial",
+          "subtitle": "Preparação específica para ${instrumentName}",
           "duration": "${warmMin} min",
           "points": [
-            "Instrução técnica 1 de execução passo a passo no instrumento.",
-            "Instrução técnica 2 sobre o que observar na postura/som."
+            "Instrução 1 de aquecimento específica para ${instrumentName} no nível ${studentLevel}.",
+            "Instrução 2 sobre o que observar durante o aquecimento."
           ],
           "icon": "music"
         },
         {
           "title": "Prática Principal",
-          "subtitle": "Trabalho prático nas metas da semana",
+          "subtitle": "Foco direto na meta do dia para ${instrumentName}",
           "duration": "${mainMin} min",
           "points": [
-            "Passo 1: Como posicionar e executar com exatidão no instrumento.",
-            "Passo 2: Qual ritmo ou contagem utilizar durante a prática.",
-            "Passo 3: Qual erro evitar e como corrigir imediatamente."
+            "Passo 1: execução prática específica para ${instrumentName}.",
+            "Passo 2: o que contar, medir ou observar durante a prática.",
+            "Passo 3: erro comum a evitar e como corrigir."
           ],
           "icon": "star"
         },
         {
           "title": "Teoria ou Desafio",
-          "subtitle": "Desafio prático de aplicação",
+          "subtitle": "Desafio prático de consolidação",
           "duration": "${challengeMin} min",
           "points": [
-            "Desafio prático objetivo relacionado diretamente à meta.",
-            "Critério claro para o aluno saber que conquistou o desafio."
+            "Desafio objetivo e mensurável para ${instrumentName}.",
+            "Critério claro para o aluno saber que conseguiu."
           ],
           "icon": "pen"
         }
@@ -498,114 +610,179 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
   ]
 }`;
 
-      const prompt = `
-# 🎼 MusicPro AI — Plano de Treino Diário (${student.name})
+      // ── 8. CONSTRUÇÃO DO PROMPT MULTI-INSTRUMENTO ───────────────────────────
+      const prompt = `# 🎼 MusicPro AI — Plano de Estudo Semanal: ${student.name} (${instrumentName})
 
-Você é o PROFESSOR PARTICULAR do aluno **${student.name}**, que está no nível **${student.level}** de **${instrumentName}** (${instrumentCategory}).
-Sua ÚNICA função é montar o plano de treino da semana no aplicativo, dividido em 5 dias, falando APENAS das metas que o professor cadastrou.
+Você é o professor particular de **${instrumentName}** do aluno **${student.name}** (nível: **${studentLevel}**).
+Sua missão é criar um plano de estudos de 5 dias, prático, motivador e 100% adequado para quem toca **${instrumentName}**.
+${instrumentWarning}${goalsWarning}
+---
+
+# 🎸 CONTEXTO DO INSTRUMENTO: ${instrumentName.toUpperCase()}
+
+${terminologyBlock}
+${forbiddenBlock}
+
+Tipo de aquecimento adequado para ${instrumentName}: ${instrContext.warmupDescription}
+Exemplos de focos técnicos: ${instrContext.technicalFocusExamples.join("; ")}
+Exemplos de desafios: ${instrContext.challengeExamples.join("; ")}
+
+**Instrução adicional:** ${instrContext.extraInstruction}
 
 ---
 
-# ⏱️ REGRA FUNDAMENTAL DE TEMPO DIÁRIO: ${totalMinutes} MINUTOS POR DIA
-- O professor definiu que o tempo de treino diário do aluno deve ser de exatamente **${totalMinutes} minutos por dia**.
-- Para CADA dia, divida o tempo entre os 3 blocos:
-  * "Aquecimento": aproximadamente **${warmMin} min**
-  * "Prática Principal": aproximadamente **${mainMin} min**
-  * "Teoria ou Desafio": aproximadamente **${challengeMin} min**
-- A SOMA das durações dos 3 exercícios de cada dia DEVE ser igual a **${totalMinutes} min**. Preencha o campo "duration" de cada exercício em texto (ex: "${warmMin} min", "${mainMin} min", "${challengeMin} min").
+# 🎯 NÍVEL DO ALUNO: ${studentLevel.toUpperCase()}
+
+${levelHint}
 
 ---
 
-# 🛑 REGRA Nº 1 — FALE SOMENTE SOBRE AS METAS (NADA FORA DELAS)
+# ⏱️ TEMPO DIÁRIO: ${totalMinutes} MINUTOS POR DIA
 
-As metas da semana cadastradas pelo professor são:
-"""
+Para cada um dos 5 dias, divida exatamente assim:
+- "Aquecimento": **${warmMin} min**
+- "Prática Principal": **${mainMin} min**
+- "Teoria ou Desafio": **${challengeMin} min**
+Total: ${totalMinutes} min. A soma DEVE ser exatamente ${totalMinutes} min em todos os dias.
+
+---
+
+# 📋 METAS DA SEMANA (Fio Condutor — Não saia delas)
+
 ${weeklyGoalsText}
-"""
 
-- CADA dia e CADA exercício deve ser sobre UMA das metas acima (ou sobre JUNTAR essas metas) e sobre NADA mais.
-- É SEVERAMENTE PROIBIDO criar tema novo. NÃO fale em: escalas, cordas soltas, palhetada, pestana, metrônomo, dedilhado, arpejo, posições pelo braço, exercícios de coordenação, notas soltas, ou qualquer conteúdo que não esteja na lista acima.
-- Se a meta é "praticar o acorde X", o exercício é sobre TOCAR o acorde X: montar os dedos devagar, tocar bem devagar, ouvir se cada corda soa limpa e trocar devagar para o próximo acorde da lista.
-
-# ✏️ REGRA Nº 2 — LINGUAGEM SIMPLES DE INICIANTE
-
-- Escreva como um professor falando com uma criança que está começando: frases curtas, palavras do dia a dia, em 1ª pessoa ("vamos", "coloque seus dedos", "eu quero que você...").
-- Seja CONCISO: 2 a 3 pontos curtos por exercício e frases com no máximo 10 palavras.
-- PROIBIDO usar termos técnicos: "traste", "strum", "compasso", "memória muscular", "abafamento", "pressão dos dedos", "escalas", "posição de Xª casa", "corda X" e letras de acorde em inglês (C, D, E, G, A).
-- Use SEMPRE o nome do acorde igual ao da meta: "Dó maior", "Mi maior", "Ré maior" — nunca "C", "E" ou "D".
-
-# 📅 REGRA Nº 3 — ESTRUTURA DOS 5 DIAS
-
-Monte os 5 dias usando SÓ as metas, na ordem em que aparecem, assim:
-- Dia 1: primeira meta.
-- Dia 2: segunda meta.
-- Dia 3: terceira meta.
-- Dia 4: trocar devagar entre as metas (ex.: Dó → Mi → Ré).
-- Dia 5: juntar todas as metas numa sequência simples e tocar do início ao fim.
-(Se houver menos de 3 metas, use o padrão: meta 1, meta 2 e depois juntar as duas.)
-
-# 🎯 REGRA Nº 4 — OS 3 BLOCOS DE CADA DIA (todos falam da meta do dia)
-
-- "Aquecimento": preparar os dedos no acorde do dia.
-- "Prática Principal": tocar o acorde do dia bem devagar, ouvindo cada corda; no dia de troca, trocar devagar entre os acordes das metas.
-- "Teoria ou Desafio": um desafio simples usando só as metas (ex.: trocar do acorde X para o Y em alguns segundos).
-
-# 🚫 REGRA Nº 5 — NADA DE METALINGUAGEM
-
-Não escreva "instrução técnica", "passo 1", "verifique". Escreva a orientação pronta, do jeito que você falaria com ${student.name} na aula.
+Distribuição sugerida dos 5 dias:
+- Dia 1: foco na 1ª meta
+- Dia 2: foco na 2ª meta (se houver), senão aprofunde a 1ª
+- Dia 3: foco na 3ª meta (se houver), senão combine as anteriores
+- Dia 4: integração/transição entre as metas
+- Dia 5: revisão de todas as metas numa sequência contínua
 
 ---
+${pedagogicalMemoryBlock}
+# 📚 HISTÓRICO RECENTE DO ALUNO
 
-# CONTEXTO DO ALUNO
-- Histórico de Aulas Concluídas:
+Últimas aulas concluídas:
 ${lessonsText}
-- Timeline de Conquistas:
+
+Timeline de conquistas:
 ${timelineText}
-- Metodologia do Professor: ${student.methodologyText || "Nenhuma cadastrada."}
+
+Metodologia do professor: ${student.methodologyText || "Nenhuma cadastrada."}
+${teacherNotesBlock}
+---
+
+# ⚠️ REGRAS ABSOLUTAS
+
+1. **Todos os exercícios devem ser exclusivamente para ${instrumentName}.** Nunca use exemplos de outros instrumentos.
+2. **Nunca use os termos proibidos listados acima.** Se um termo proibido aparecer, o plano será rejeitado.
+3. **Respeite o nível ${studentLevel}:** use a linguagem adequada conforme descrito acima.
+4. **Não crie conteúdo fora das metas.** Se não há metas, baseie-se no nível e instrumento.
+5. **Não use metalinguagem** ("instrução técnica", "passo 1", "verifique"). Escreva a orientação diretamente.
+6. **A soma de tempo de cada dia deve ser exatamente ${totalMinutes} min.**
 
 ---
 
-# FORMATO DE SAÍDA JSON
-Retorne APENAS o JSON válido, preenchendo os 5 dias na estrutura abaixo (um objeto por dia dentro de "days"), sem texto fora do JSON.
+# 📤 FORMATO DE SAÍDA
 
-Estrutura JSON:
+Retorne SOMENTE o JSON válido abaixo, com EXATAMENTE 5 objetos em "days" (um por dia), sem texto fora do JSON, sem Markdown.
+
 ${jsonSchemaFormat}`;
-      
+
+      // ── 9. CHAMADA À IA E PARSING DEFENSIVO ─────────────────────────────────
       try {
         const { callGemini } = await import("../utils/gemini");
         const { getSettingsByUserId } = await import("../db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, true, apiKey, model);
+        const apiKey = settingsData?.aiProvider === "groq" ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
+        const model = settingsData?.aiProvider === "groq" ? settingsData?.groqModel : settingsData?.geminiModel;
 
-        // Garante que a resposta é um JSON do plano (client renderiza via JSON.parse) antes de salvar.
+        if (!apiKey) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Chave de API da IA não configurada. Acesse Configurações > Inteligência Artificial.",
+          });
+        }
+
+        const responseText = await callGemini([{ role: "user", content: prompt }], undefined, true, apiKey, model);
+
+        // Parsing defensivo: tenta JSON direto, depois extrai bloco JSON por regex
         let parsedPlan: any;
+        let cleanedText = responseText.trim();
+        cleanedText = cleanedText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
         try {
-          parsedPlan = JSON.parse(responseText);
-        } catch (parseErr) {
-          throw new Error("A IA retornou um plano em formato inválido. Tente gerar novamente.");
+          parsedPlan = JSON.parse(cleanedText);
+        } catch {
+          const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              parsedPlan = JSON.parse(jsonMatch[0]);
+            } catch {
+              throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "A IA retornou um plano em formato inválido. Tente gerar novamente.",
+              });
+            }
+          } else {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "A IA retornou um plano em formato inválido. Tente gerar novamente.",
+            });
+          }
         }
+
         if (!parsedPlan || !Array.isArray(parsedPlan.days) || parsedPlan.days.length === 0) {
-          throw new Error("A IA não gerou os dias de treino corretamente. Tente gerar novamente.");
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "A IA não gerou os dias de treino corretamente. Tente gerar novamente.",
+          });
         }
 
-        // Salva novo plano no banco como rascunho (não inativa os antigos ainda)
-        const [inserted] = await db.insert(dailyStudyPlans).values({
-          organizationId: orgId,
-          studentId: input.studentId,
-          teacherId: ctx.user.id,
-          planText: responseText,
-          status: 'ativo', // status continua ativo, publishedStatus diz se aluno vê
-          publishedStatus: 'rascunho',
-          daysCompleted: JSON.stringify([false, false, false, false, false]),
-        }).returning({ id: dailyStudyPlans.id });
+        if (parsedPlan.days.length < 5) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `A IA gerou apenas ${parsedPlan.days.length} dia(s) de treino (esperado: 5). Tente gerar novamente.`,
+          });
+        }
 
-        return { plan: responseText, planId: inserted.id };
+        // Garante campos de rastreabilidade
+        parsedPlan.instrument = parsedPlan.instrument || instrumentName;
+        parsedPlan.level = parsedPlan.level || studentLevel;
+
+        // Aviso de instrumento não configurado no campo importantMessage
+        if (!student.instrumentId) {
+          parsedPlan.importantMessage =
+            (parsedPlan.importantMessage || "") +
+            " ⚠️ Professor: cadastre o instrumento deste aluno para planos mais precisos.";
+        }
+
+        const finalPlanText = JSON.stringify(parsedPlan);
+
+        // ── 10. PERSISTÊNCIA NO BANCO (como rascunho) ──────────────────────────
+        const [inserted] = await db
+          .insert(dailyStudyPlans)
+          .values({
+            organizationId: orgId,
+            studentId: input.studentId,
+            teacherId: ctx.user.id,
+            planText: finalPlanText,
+            status: "ativo",
+            publishedStatus: "rascunho",
+            daysCompleted: JSON.stringify([false, false, false, false, false]),
+          })
+          .returning({ id: dailyStudyPlans.id });
+
+        return { plan: finalPlanText, planId: inserted.id };
       } catch (e: any) {
-        throw new Error("Erro ao gerar plano de estudo com a IA: " + e.message);
+        if (e instanceof TRPCError) throw e;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Erro ao gerar plano de estudo com a IA: " + (e.message || "Erro desconhecido"),
+        });
       }
     }),
+
 
     getActiveStudyPlan: studentProcedure.query(async ({ ctx }) => {
       const db = await getDb();
