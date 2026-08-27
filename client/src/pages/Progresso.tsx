@@ -173,6 +173,7 @@ export default function Progresso() {
   const [selectedDay, setSelectedDay] = useState(0);
   const [targetDailyStudyMinutes, setTargetDailyStudyMinutes] = useState(30);
   const [selectedPlanMode, setSelectedPlanMode] = useState<"direto" | "didatico" | "desafio">("direto");
+  const [studyPlanMobileTab, setStudyPlanMobileTab] = useState<"controls" | "plan">("controls");
 
   const { data: planHistory = [], isLoading: historyLoading } = trpc.progress.getStudentPlanHistory.useQuery(
     { studentId: selectedStudentId! },
@@ -1470,15 +1471,50 @@ export default function Progresso() {
         </Dialog>
 
         {/* MODAL PLANO DE ESTUDO IA */}
-        <Dialog open={isStudyPlanModalOpen} onOpenChange={setIsStudyPlanModalOpen}>
-          <DialogContent className="w-[96vw] max-w-5xl sm:max-w-5xl lg:max-w-6xl bg-card p-0 overflow-hidden rounded-3xl border border-border/60 shadow-2xl flex flex-col md:flex-row h-[88vh] max-h-[850px]">
+        <Dialog open={isStudyPlanModalOpen} onOpenChange={(open) => { setIsStudyPlanModalOpen(open); if (!open) setStudyPlanMobileTab("controls"); }}>
+          <DialogContent className="w-[98vw] max-w-5xl sm:max-w-5xl lg:max-w-6xl bg-card p-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 shadow-2xl flex flex-col h-[94vh] max-h-[920px] md:h-[88vh] md:max-h-[850px] md:flex-row">
             
-            {/* Lado Esquerdo: Lista de Histórico & Controles de Geração */}
-            <div className="w-full md:w-[340px] lg:w-[360px] shrink-0 bg-muted/20 border-b md:border-b-0 md:border-r border-border/70 flex flex-col justify-between">
+            {/* === MOBILE: Tab Bar === */}
+            <div className="flex md:hidden shrink-0 bg-muted/40 border-b border-border/70">
+              <button
+                onClick={() => setStudyPlanMobileTab("controls")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-wide transition-all",
+                  studyPlanMobileTab === "controls"
+                    ? "text-orange-600 dark:text-orange-400 border-b-2 border-orange-500 bg-card"
+                    : "text-muted-foreground"
+                )}
+              >
+                <Sparkles size={14} />
+                Configurar
+              </button>
+              <button
+                onClick={() => setStudyPlanMobileTab("plan")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-wide transition-all relative",
+                  studyPlanMobileTab === "plan"
+                    ? "text-orange-600 dark:text-orange-400 border-b-2 border-orange-500 bg-card"
+                    : "text-muted-foreground"
+                )}
+              >
+                <Calendar size={14} />
+                Plano
+                {studyPlanContent && (
+                  <span className="absolute top-1.5 right-6 w-2 h-2 rounded-full bg-orange-500" />
+                )}
+              </button>
+            </div>
+
+            {/* === COLUNA ESQUERDA (desktop: lateral | mobile: aba "Configurar") === */}
+            <div className={cn(
+              "w-full md:w-[340px] lg:w-[360px] shrink-0 bg-muted/20 border-b md:border-b-0 md:border-r border-border/70 flex flex-col",
+              "md:flex",
+              studyPlanMobileTab === "controls" ? "flex" : "hidden"
+            )}>
               
-              {/* Topo: Histórico com rolagem independente */}
-              <div className="flex flex-col flex-1 min-h-0">
-                <div className="px-5 py-3.5 border-b border-border/60 bg-muted/40 flex justify-between items-center shrink-0">
+              {/* Histórico de Planos */}
+              <div className="flex flex-col min-h-0" style={{flex: "0 1 auto", maxHeight: "35%"}}>
+                <div className="px-5 py-3 border-b border-border/60 bg-muted/40 flex justify-between items-center shrink-0">
                   <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                     <Clock size={14} className="text-orange-500" />
                     Histórico de Planos
@@ -1489,14 +1525,13 @@ export default function Progresso() {
                     </span>
                   )}
                 </div>
-                
-                <div className="flex-1 overflow-y-auto p-3.5 space-y-2 subtle-scrollbar">
+                <div className="overflow-y-auto p-3 space-y-2 subtle-scrollbar flex-1">
                   {historyLoading ? (
-                    <div className="flex justify-center py-6"><Loader2 className="animate-spin text-orange-500/50" size={24} /></div>
+                    <div className="flex justify-center py-4"><Loader2 className="animate-spin text-orange-500/50" size={20} /></div>
                   ) : planHistory.length === 0 ? (
-                    <div className="text-center py-8 px-4">
+                    <div className="text-center py-5 px-4">
                       <p className="text-xs font-semibold text-muted-foreground">Nenhum plano gerado ainda.</p>
-                      <p className="text-[11px] text-muted-foreground/70 mt-1">Configure o estilo e clique em Gerar Plano.</p>
+                      <p className="text-[11px] text-muted-foreground/70 mt-1">Configure abaixo e clique em Gerar Plano.</p>
                     </div>
                   ) : (
                     planHistory.map((plan: any) => (
@@ -1506,9 +1541,10 @@ export default function Progresso() {
                           setStudyPlanContent(plan.planText);
                           setStudyPlanId(plan.id);
                           setStudyPlanStatus(plan.publishedStatus);
+                          setStudyPlanMobileTab("plan");
                         }}
                         className={cn(
-                          "w-full text-left p-3 rounded-2xl border text-xs transition-all cursor-pointer",
+                          "w-full text-left p-2.5 rounded-xl border text-xs transition-all cursor-pointer",
                           studyPlanId === plan.id 
                             ? "border-orange-500 bg-orange-500/10 text-foreground font-bold shadow-sm ring-1 ring-orange-500/30" 
                             : "border-border/60 bg-card hover:border-orange-300 hover:bg-muted/30 text-muted-foreground"
@@ -1532,67 +1568,49 @@ export default function Progresso() {
                   )}
                 </div>
               </div>
-              
+
               {/* Controles de Geração */}
-              <div className="p-4 border-t border-border/70 bg-card/95 space-y-3.5 shrink-0">
+              <div className="p-4 border-t border-border/70 bg-card/95 space-y-3 flex-1 overflow-y-auto subtle-scrollbar">
+                {/* Estilo */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Sparkles size={14} className="text-orange-500" />
-                      Estilo do Plano
-                    </span>
-                  </div>
+                  <span className="text-xs font-black text-foreground flex items-center gap-1.5 mb-2">
+                    <Sparkles size={13} className="text-orange-500" />
+                    Estilo do Plano
+                  </span>
                   <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlanMode("direto")}
-                      className={cn(
-                        "h-11 rounded-xl transition-all border cursor-pointer flex flex-col items-center justify-center p-1",
-                        selectedPlanMode === "direto"
-                          ? "bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/25"
-                          : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
-                      )}
-                    >
-                      <span className="flex items-center gap-1 text-[11px] font-black"><Zap size={12} /> Direto</span>
-                      <span className="text-[9px] opacity-80 font-normal leading-none mt-0.5">Checklist</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlanMode("didatico")}
-                      className={cn(
-                        "h-11 rounded-xl transition-all border cursor-pointer flex flex-col items-center justify-center p-1",
-                        selectedPlanMode === "didatico"
-                          ? "bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/25"
-                          : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
-                      )}
-                    >
-                      <span className="flex items-center gap-1 text-[11px] font-black"><BookOpen size={12} /> Didático</span>
-                      <span className="text-[9px] opacity-80 font-normal leading-none mt-0.5">Detalhado</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlanMode("desafio")}
-                      className={cn(
-                        "h-11 rounded-xl transition-all border cursor-pointer flex flex-col items-center justify-center p-1",
-                        selectedPlanMode === "desafio"
-                          ? "bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/25"
-                          : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
-                      )}
-                    >
-                      <span className="flex items-center gap-1 text-[11px] font-black"><Flame size={12} /> Ritmo</span>
-                      <span className="text-[9px] opacity-80 font-normal leading-none mt-0.5">Desafio</span>
-                    </button>
+                    {(["direto", "didatico", "desafio"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setSelectedPlanMode(mode)}
+                        className={cn(
+                          "h-12 rounded-xl transition-all border cursor-pointer flex flex-col items-center justify-center p-1",
+                          selectedPlanMode === mode
+                            ? "bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/25"
+                            : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                        )}
+                      >
+                        <span className="flex items-center gap-1 text-[11px] font-black">
+                          {mode === "direto" ? <Zap size={12} /> : mode === "didatico" ? <BookOpen size={12} /> : <Flame size={12} />}
+                          {mode === "direto" ? "Direto" : mode === "didatico" ? "Didático" : "Ritmo"}
+                        </span>
+                        <span className="text-[9px] opacity-80 font-normal leading-none mt-0.5">
+                          {mode === "direto" ? "Checklist" : mode === "didatico" ? "Detalhado" : "Desafio"}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
+                {/* Tempo */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Clock size={14} className="text-orange-500" />
-                      Tempo de Treino Diário
+                    <span className="text-xs font-black text-foreground flex items-center gap-1.5">
+                      <Clock size={13} className="text-orange-500" />
+                      Tempo Diário
                     </span>
                     <span className="text-[11px] font-black text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-lg border border-orange-500/20">
-                      {targetDailyStudyMinutes} min/dia
+                      {targetDailyStudyMinutes}min
                     </span>
                   </div>
                   <div className="grid grid-cols-6 gap-1.5">
@@ -1602,10 +1620,10 @@ export default function Progresso() {
                         type="button"
                         onClick={() => setTargetDailyStudyMinutes(mins)}
                         className={cn(
-                          "h-8 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center justify-center",
+                          "h-9 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center justify-center",
                           targetDailyStudyMinutes === mins
-                            ? "bg-orange-500 text-white border-orange-600 shadow-sm shadow-orange-500/20"
-                            : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                            ? "bg-orange-500 text-white border-orange-600 shadow-sm"
+                            : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60"
                         )}
                       >
                         {mins}m
@@ -1614,11 +1632,13 @@ export default function Progresso() {
                   </div>
                 </div>
 
+                {/* Botão Gerar */}
                 <Button 
                   onClick={() => {
                     setStudyPlanContent(null);
                     setStudyPlanId(null);
                     setStudyPlanStatus(null);
+                    setStudyPlanMobileTab("plan");
                     generateDailyStudyPlanMutation.mutate({
                       studentId: selectedStudentId!,
                       targetMinutes: targetDailyStudyMinutes,
@@ -1626,12 +1646,12 @@ export default function Progresso() {
                     });
                   }}
                   disabled={generateDailyStudyPlanMutation.isPending}
-                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-orange-500/25 transition-all hover:scale-[1.01]"
+                  className="w-full h-13 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-black uppercase tracking-wider shadow-lg shadow-orange-500/25 transition-all"
                 >
                   {generateDailyStudyPlanMutation.isPending ? (
                     <span className="flex items-center gap-2">
                       <Loader2 size={16} className="animate-spin" />
-                      Gerando Plano Diário...
+                      Gerando Plano...
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
@@ -1643,45 +1663,48 @@ export default function Progresso() {
               </div>
             </div>
 
-            {/* Lado Direito: Visualização e Ações do Plano */}
-            <div className="flex-1 min-w-0 flex flex-col bg-background h-full">
+            {/* === COLUNA DIREITA (desktop: lateral | mobile: aba "Plano") === */}
+            <div className={cn(
+              "flex-1 min-w-0 flex flex-col bg-background",
+              "md:flex",
+              studyPlanMobileTab === "plan" ? "flex" : "hidden"
+            )}>
               
               {/* Header Laranja */}
-              <div className="px-6 py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 relative shrink-0">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center text-white backdrop-blur-md shrink-0 border border-white/25 shadow-sm">
-                        <Calendar size={22} />
+              <div className="px-5 py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white backdrop-blur-md shrink-0 border border-white/25">
+                      <Calendar size={20} />
                     </div>
                     <div className="min-w-0">
-                      <DialogTitle className="text-xl font-black text-white uppercase tracking-tight truncate">
+                      <DialogTitle className="text-lg font-black text-white uppercase tracking-tight truncate">
                         Plano de Estudo Diário
                       </DialogTitle>
-                      <p className="text-[11px] font-bold text-white/85 uppercase tracking-widest mt-0.5 truncate">
-                        Sugerido pela Inteligência Artificial
+                      <p className="text-[10px] font-bold text-white/85 uppercase tracking-widest mt-0.5">
+                        Gerado pela IA
                       </p>
                     </div>
                   </div>
-                  
                   {studyPlanStatus === 'rascunho' && (
-                    <span className="bg-amber-950/40 text-amber-200 text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full border border-amber-300/40 shrink-0">
+                    <span className="bg-amber-950/40 text-amber-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-amber-300/40 shrink-0">
                       RASCUNHO
                     </span>
                   )}
                   {studyPlanStatus === 'publicado' && (
-                    <span className="bg-emerald-950/40 text-emerald-200 text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full border border-emerald-300/40 shrink-0">
+                    <span className="bg-emerald-950/40 text-emerald-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-emerald-300/40 shrink-0">
                       PUBLICADO
                     </span>
                   )}
                 </div>
               </div>
               
-              {/* Corpo do Plano */}
-              <div className="p-6 md:p-8 flex-1 overflow-y-auto subtle-scrollbar">
+              {/* Conteúdo do Plano (scrollável) */}
+              <div className="flex-1 overflow-y-auto p-5 md:p-7 subtle-scrollbar min-h-0">
                 {generateDailyStudyPlanMutation.isPending ? (
-                  <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                      <Loader2 size={44} className="animate-spin text-orange-500" />
-                      <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico musical e criando cronograma diário...</p>
+                  <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                    <Loader2 size={44} className="animate-spin text-orange-500" />
+                    <p className="text-sm font-bold text-muted-foreground animate-pulse text-center">Analisando histórico musical e criando cronograma...</p>
                   </div>
                 ) : studyPlanContent ? (
                    isEditingStudyPlan ? (
@@ -1693,75 +1716,86 @@ export default function Progresso() {
                      />
                    ) : (
                      <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
-                         {(() => {
-                             return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>;
-                         })()}
+                       {(() => {
+                         return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>;
+                       })()}
                      </div>
                    )
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
                     <div className="w-16 h-16 rounded-3xl bg-muted/50 flex items-center justify-center text-muted-foreground/40 mb-4 border border-border">
-                      <Calendar size={32} />
+                      <Calendar size={30} />
                     </div>
                     <p className="text-foreground font-bold text-sm">Nenhum plano selecionado</p>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-xs">Selecione um plano existente no histórico ao lado ou gere um novo agora.</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                      Configure na aba <strong>Configurar</strong> e clique em Gerar Plano.
+                    </p>
+                    {/* Botão de atalho mobile para ir à aba de controles */}
+                    <Button
+                      variant="outline"
+                      className="mt-4 md:hidden h-10 rounded-xl px-5 text-xs font-black gap-2 border-orange-500/40 text-orange-600 dark:text-orange-400"
+                      onClick={() => setStudyPlanMobileTab("controls")}
+                    >
+                      <Sparkles size={14} />
+                      Ir para Configurações
+                    </Button>
                   </div>
                 )}
               </div>
 
-              {/* Rodapé de Ações */}
+              {/* Rodapé de Ações — sempre visível, fora do scroll */}
               {studyPlanContent && !isEditingStudyPlan && (
-                 <div className="px-6 py-4 bg-muted/20 border-t border-border/70 flex flex-wrap gap-2.5 justify-between items-center shrink-0">
-                   <div className="flex flex-wrap items-center gap-2">
-                     {studyPlanStatus === 'rascunho' && (
-                       <Button 
-                         onClick={() => publishStudyPlanMutation.mutate({ planId: studyPlanId!, studentId: selectedStudentId! })}
-                         disabled={publishStudyPlanMutation.isPending}
-                         className="h-10 rounded-xl px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider shadow-md shadow-emerald-500/20"
-                       >
-                         {publishStudyPlanMutation.isPending ? <Loader2 size={15} className="animate-spin mr-2" /> : <CheckCircle2 size={15} className="mr-2" />}
-                         Liberar para o Aluno
+                <div className="px-4 py-3 bg-muted/20 border-t border-border/70 flex flex-wrap gap-2 justify-between items-center shrink-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {studyPlanStatus === 'rascunho' && (
+                      <Button 
+                        onClick={() => publishStudyPlanMutation.mutate({ planId: studyPlanId!, studentId: selectedStudentId! })}
+                        disabled={publishStudyPlanMutation.isPending}
+                        className="h-9 rounded-xl px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wide shadow-sm shadow-emerald-500/20"
+                      >
+                        {publishStudyPlanMutation.isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <CheckCircle2 size={14} className="mr-1.5" />}
+                        Liberar
+                      </Button>
+                    )}
+                    <Button 
+                      variant="destructive"
+                      onClick={() => deleteStudyPlanMutation.mutate({ planId: studyPlanId! })}
+                      disabled={deleteStudyPlanMutation.isPending}
+                      className="h-9 rounded-xl px-3 text-[11px] font-black uppercase tracking-wide"
+                    >
+                      {deleteStudyPlanMutation.isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Trash2 size={14} className="mr-1.5" />}
+                      Excluir
+                    </Button>
+                    <Button 
+                      variant="secondary"
+                      onClick={() => setIsEditingStudyPlan(true)}
+                      className="h-9 rounded-xl px-3 text-[11px] font-black uppercase tracking-wide"
+                    >
+                      <Edit2 size={14} className="mr-1.5" />
+                      Editar
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5">
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleSendManualWhatsApp(studyPlanContent, "diario")}
+                      className="h-9 rounded-xl px-3 text-[11px] font-bold gap-1.5"
+                      title="Enviar via WhatsApp Manual"
+                    >
+                      <ExternalLink size={14} />
+                      <span className="hidden sm:inline">WhatsApp</span>
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleSendBotWhatsApp(studyPlanContent, "diario")}
+                      disabled={isSendingViaBot}
+                      className="h-9 rounded-xl px-3 text-[11px] font-bold gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                      title="Enviar via WhatsApp Robô"
+                    >
+                      {isSendingViaBot ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />}
+                      <span className="hidden sm:inline">Robô</span>
                        </Button>
-                     )}
-                     <Button 
-                       variant="destructive"
-                       onClick={() => deleteStudyPlanMutation.mutate({ planId: studyPlanId! })}
-                       disabled={deleteStudyPlanMutation.isPending}
-                       className="h-10 rounded-xl px-3.5 text-xs font-black uppercase tracking-wider"
-                     >
-                       {deleteStudyPlanMutation.isPending ? <Loader2 size={15} className="animate-spin mr-2" /> : <Trash2 size={15} className="mr-2" />}
-                       Excluir
-                     </Button>
-                     <Button 
-                       variant="secondary"
-                       onClick={() => setIsEditingStudyPlan(true)}
-                       className="h-10 rounded-xl px-3.5 text-xs font-black uppercase tracking-wider"
-                     >
-                       <Edit2 size={15} className="mr-2" />
-                       Editar sem JSON
-                     </Button>
-                   </div>
-                   
-                   <div className="flex items-center gap-2">
-                     <Button 
-                       variant="outline"
-                       onClick={() => handleSendManualWhatsApp(studyPlanContent, "diario")}
-                       className="h-10 rounded-xl px-3.5 text-xs font-bold gap-1.5"
-                       title="Enviar via WhatsApp Manual"
-                     >
-                       <ExternalLink size={15} />
-                       <span>WhatsApp</span>
-                     </Button>
-                     <Button 
-                       variant="outline"
-                       onClick={() => handleSendBotWhatsApp(studyPlanContent, "diario")}
-                       disabled={isSendingViaBot}
-                       className="h-10 rounded-xl px-3.5 text-xs font-bold gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                       title="Enviar via WhatsApp Robô"
-                     >
-                       {isSendingViaBot ? <Loader2 className="animate-spin" size={15} /> : <Zap size={15} />}
-                       <span>Robô</span>
-                     </Button>
                    </div>
                  </div>
                )}
