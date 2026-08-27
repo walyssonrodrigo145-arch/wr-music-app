@@ -53,6 +53,7 @@ import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
 import { getInstrumentContext } from "../utils/instrumentContexts";
 import { resolveSpecialist, buildSpecialistPromptBlock, validatePlanText } from "../services/InstrumentSpecialistService";
+import { buildMusicTheoryPromptBlock, validateMusicTheoryConcepts } from "../services/MusicTheoryValidator";
 import { resolveAiCredentials } from "../utils/aiProvider";
 import { studentPedagogicalMemory } from "../../drizzle/schema";
 export const progressRouters = {
@@ -603,14 +604,18 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
         ? `\n# 📝 OBSERVAÇÃO ADICIONAL DO PROFESSOR SOBRE A META\n"${input.teacherNotes.substring(0, 500)}"\n`
         : "";
 
-      // ── 6. CÁLCULO DOS BLOCOS DE TEMPO ──────────────────────────────────────
-      const warmMin = totalMinutes <= 15
-        ? Math.max(2, Math.round(totalMinutes * 0.25))
-        : Math.max(5, Math.round(totalMinutes * 0.2));
-      const challengeMin = totalMinutes <= 15
-        ? Math.max(2, Math.round(totalMinutes * 0.25))
-        : Math.max(5, Math.round(totalMinutes * 0.2));
-      const mainMin = Math.max(5, totalMinutes - warmMin - challengeMin);
+      // ── 6. CÁLCULO DOS BLOCOS DE TEMPO (6 BLOCOS — PRD RF-013) ─────────────
+      // Progressão: Revisão → Aquecimento → Técnica → Conceito → Aplicação → Desafio
+      const revisaoMin  = Math.max(1, Math.round(totalMinutes * 0.10));
+      const warmMin     = Math.max(2, Math.round(totalMinutes * 0.15));
+      const tecnicaMin  = Math.max(3, Math.round(totalMinutes * 0.30));
+      const conceitoMin = Math.max(2, Math.round(totalMinutes * 0.15));
+      const aplicacaoMin = Math.max(2, Math.round(totalMinutes * 0.20));
+      const desafioMin  = Math.max(1, Math.round(totalMinutes * 0.10));
+      // Garante que a soma fecha exatamente em totalMinutes
+      const sumBlocks = revisaoMin + warmMin + tecnicaMin + conceitoMin + aplicacaoMin + desafioMin;
+      const adjustedTecnicaMin = tecnicaMin + (totalMinutes - sumBlocks); // absorve arredondamentos
+
 
       // ── 7. DEFINIÇÃO DO ESTILO POR MODO (3 MODOS) ──────────────────────────
       let modeInstruction = "";
@@ -647,50 +652,80 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
 - Desafio: 1 frase curta com meta mensurável (ex: "Toque 1 minuto sem errar nenhuma nota.").`;
       }
 
-      // ── 8. JSON SCHEMA DE SAÍDA ──────────────────────────────────────────────
+      // ── 8. JSON SCHEMA DE SAÍDA — 6 BLOCOS (PRD RF-013) ─────────────────────
       const jsonSchemaFormat = `{
   "instrument": "${instrumentName}",
   "level": "${studentLevel}",
   "planMode": "${planMode}",
-  "weeklyGoal": "Resumo musical objetivo da semana focado estritamente na(s) meta(s) de ${instrumentName}.",
+  "weeklyGoal": "Resumo musical objetivo da semana focado nas metas de ${instrumentName}.",
   "importantMessage": "Dica prática de execução para ${instrumentName} no nível ${studentLevel}.",
   "targetDailyMinutes": ${totalMinutes},
   "days": [
     {
       "dayName": "Dia 1",
       "focus": {
-        "title": "Título do foco do Dia 1 (ex: Memória Muscular e Ataque do Acorde de D)",
+        "title": "Título técnico do foco do Dia 1",
         "description": "Objetivo técnico em 1 frase curta."
       },
       "exercises": [
+        {
+          "title": "Revisão",
+          "subtitle": "Retomada do conteúdo anterior",
+          "duration": "${revisaoMin} min",
+          "points": [
+            "Retome brevemente o que foi praticado na última sessão.",
+            "Identifique o que melhorou e o que ainda precisa de atenção."
+          ],
+          "icon": "refresh"
+        },
         {
           "title": "Aquecimento",
           "subtitle": "Aquecimento específico de ${instrumentName}",
           "duration": "${warmMin} min",
           "points": [
-            "Ação 1 de aquecimento detalhando notas e dedos.",
-            "Ação 2 de postura e relaxamento."
+            "Exercício de aquecimento técnico adequado ao instrumento.",
+            "Foco em relaxamento e preparação muscular."
           ],
           "icon": "music"
         },
         {
-          "title": "Prática Principal",
-          "subtitle": "Execução da meta cadastrada",
-          "duration": "${mainMin} min",
+          "title": "Técnica",
+          "subtitle": "Desenvolvimento técnico do instrumento",
+          "duration": "${adjustedTecnicaMin} min",
           "points": [
-            "Ponto 1: posicionamento dos dedos e notas da meta.",
-            "Ponto 2: treino com metrônomo e repetições.",
-            "Ponto 3: aplicação prática da meta."
+            "Ponto técnico 1: descrição precisa com dedos, posição e BPM.",
+            "Ponto técnico 2: variação ou aprofundamento do exercício.",
+            "Ponto técnico 3: critério de acerto (ex: 10 repetições limpas)."
           ],
           "icon": "star"
         },
         {
-          "title": "Teoria ou Desafio",
-          "subtitle": "Desafio de consolidação da meta",
-          "duration": "${challengeMin} min",
+          "title": "Conceito Musical",
+          "subtitle": "Teoria ou conceito aplicado ao instrumento",
+          "duration": "${conceitoMin} min",
           "points": [
-            "Desafio prático e mensurável para testar a meta.",
-            "Critério objetivo de acerto."
+            "Conceito teórico relevante para a meta do aluno (ex: progressão harmônica, subdivisão rítmica).",
+            "Como aplicar este conceito na prática do instrumento."
+          ],
+          "icon": "book"
+        },
+        {
+          "title": "Aplicação",
+          "subtitle": "Execução musical contextualizada",
+          "duration": "${aplicacaoMin} min",
+          "points": [
+            "Aplicar a técnica e o conceito em um contexto musical real (música, trecho, groove).",
+            "Foco na musicalidade, não apenas na técnica mecânica."
+          ],
+          "icon": "headphones"
+        },
+        {
+          "title": "Desafio",
+          "subtitle": "Teste de consolidação da meta",
+          "duration": "${desafioMin} min",
+          "points": [
+            "Desafio prático e mensurável que teste a meta do dia.",
+            "Critério objetivo de acerto (tempo, velocidade, repetições)."
           ],
           "icon": "pen"
         }
@@ -699,7 +734,10 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
   ]
 }`;
 
-      // ── 9. CONSTRUÇÃO DO PROMPT — COM ESPECIALISTA (RF-001~004) ─────────────
+      // ── 9. BLOCO DE TEORIA MUSICAL (PRD RF-016 — Camada 2) ─────────────────
+      const musicTheoryBlock = buildMusicTheoryPromptBlock(specialist.id);
+
+      // ── 10. CONSTRUÇÃO DO PROMPT — COM ESPECIALISTA (RF-001~004) ─────────────
       const prompt = `# 🎼 MusicPro AI — Personal Trainer de ${instrumentName.toUpperCase()}
 
 Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**) — Especialista: ${specialist.displayName} (${specialist.id}).
@@ -709,6 +747,8 @@ ${instrumentWarning}${goalsWarning}
 ${modeInstruction}
 ---
 ${specialistPromptBlock}
+
+${musicTheoryBlock}
 
 # 🎯 METAS DA SEMANA (FIO CONDUTOR EXCLUSIVO E OBRIGATÓRIO)
 ${weeklyGoalsText}
@@ -721,16 +761,13 @@ ${forbiddenBlock}
 
 # 🧠 Dica de Nível (${studentLevel}): ${levelHint}
 
-### REGRAS ESPECÍFICAS DE INSTRUMENTO:
-- **Teclado / Piano:**
-  * Os acordes e tríades são formados na mão direita (ex: dedos 1-3-5 ou 1-2-4), enquanto a mão esquerda toca o baixo/fundamental (dedo 5 ou 1-5).
-  * **NUNCA** coloque um acorde isolado na mão direita e outro acorde isolado na mão esquerda em dias separados. Ambos os acordes devem ser treinados na mão de harmonia (direita) com seus respectivos baixos na mão esquerda.
-- **Violão / Guitarra:**
-  * Especifique cordas, casas e dedos (1-Indicador, 2-Médio, 3-Anelar, 4-Mínimo) e a levada da mão direita.
-- **Canto:**
-  * Respiração diafragmática, ressonância e vocalizes aplicados à melodia da meta.
-- **Bateria:**
-  * Rudimentos, contagem vocalizada e coordenação motora bumbo-caixa-chimbal.
+### REGRAS DE TÉCNICA POR INSTRUMENTO:
+- **Teclado:** voicings na mão direita (ex: Dm7=D-F-A-C), baixo na mão esquerda. NUNCA confundir "voz/voicing" com canto.
+- **Piano:** técnica pianística (Hanon/Czerny, passagem do polegar, pedais). NUNCA layer/split eletrônico.
+- **Violão/Guitarra:** especificar cordas, casas, dedos (1-Indicador, 2-Médio, 3-Anelar, 4-Mínimo) e levada.
+- **Contrabaixo:** T=polegar (slap), P=pop, i-m=alternância. Nunca rudimentos de bateria.
+- **Bateria:** APENAS ritmo (bumbo, caixa, chimbal, rudimentos). NUNCA notas harmônicas, acordes ou escalas.
+- **Canto:** respiração diafragmática, vocalises, tessitura. NUNCA termos de instrumentos físicos.
 
 ---
 
@@ -738,15 +775,18 @@ ${forbiddenBlock}
 - **Dia 1:** Mecânica & Memória Muscular (Elemento 1)
 - **Dia 2:** Mecânica & Memória Muscular (Elemento 2 ou aprofundamento)
 - **Dia 3:** Conexão & Troca Rápida sem Perder o Pulso
-- **Dia 4:** Levada & Ritmo Aplicado
+- **Dia 4:** Aplicação Musical em Contexto Real
 - **Dia 5:** Performance Contínua & Teste de Resistência
 
 ---
 
-# ⏱️ TEMPO DIÁRIO: ${totalMinutes} MINUTOS POR DIA
-- Aquecimento: **${warmMin} min**
-- Prática Principal: **${mainMin} min**
-- Desafio: **${challengeMin} min**
+# ⏱️ TEMPO DIÁRIO: ${totalMinutes} MINUTOS POR DIA (6 BLOCOS)
+- Revisão: **${revisaoMin} min** (10%)
+- Aquecimento: **${warmMin} min** (15%)
+- Técnica: **${adjustedTecnicaMin} min** (30%)
+- Conceito Musical: **${conceitoMin} min** (15%)
+- Aplicação: **${aplicacaoMin} min** (20%)
+- Desafio: **${desafioMin} min** (10%)
 A soma DEVE ser exatamente ${totalMinutes} min em todos os dias.
 
 ---
@@ -759,9 +799,10 @@ ${lessonsText}
 
 # ⚠️ REGRAS ABSOLUTAS:
 1. **NUNCA COLOQUE NOME DE ALUNO/PESSOA NO PLANO.** Use linguagem direta e impessoal.
-2. **NUNCA USE SUBTÍTULOS GENÉRICOS OU METALINGUAGEM.** Subtítulos como "Execução direta e detalhada da meta cadastrada" ou "Preparação dos músculos/dedos" são PROIBIDOS. Crie subtítulos musicais reais.
-3. **FOCO 100% FECHADO NAS METAS.** É proibido inventar matérias ou repertórios fora das metas cadastradas.
+2. **NUNCA USE SUBTÍTULOS GENÉRICOS OU METALINGUAGEM.** Crie subtítulos musicais técnicos reais.
+3. **FOCO 100% FECHADO NAS METAS.** Proibido inventar repertórios fora das metas cadastradas.
 4. **TODOS OS EXERCÍCIOS DEVEM SER ESPECÍFICOS PARA ${instrumentName.toUpperCase()}.**
+5. **OBRIGATÓRIO: 6 BLOCOS DE EXERCÍCIO POR DIA** (Revisão, Aquecimento, Técnica, Conceito Musical, Aplicação, Desafio).
 
 ---
 
@@ -852,16 +893,29 @@ ${jsonSchemaFormat}`;
             if (attempt === 0) continue; // retry com instrução reforçada
             throw new TRPCError({
               code: "PRECONDITION_FAILED",
-              message: `O plano gerado conteve termos de outro instrumento (${validation.found.slice(0, 3).join(", ")}). Tente reformular a meta (ex: para teclado use "condução de vozes" em vez de apenas "voz") ou gere novamente.`,
+              message: `O plano gerado conteve termos de outro instrumento (${validation.found.slice(0, 3).join(", ")}). Tente reformular a meta ou gere novamente.`,
             });
           }
 
-          // Sucesso: sem contaminação
+          // ── Segunda camada: validação de teoria musical (PRD RF-016) ────────
+          const theoryValidation = validateMusicTheoryConcepts(JSON.stringify(candidate), specialist.id);
+          if (!theoryValidation.passed) {
+            console.warn(`[MusicTheoryValidator] Teoria inválida (attempt ${attempt + 1}, ${specialist.id}):`, theoryValidation.warnings);
+            if (attempt === 0) {
+              lastValidation = { passed: false, found: theoryValidation.warnings };
+              continue;
+            }
+            // Na segunda tentativa, apenas loga — não bloqueia (pode ser falso positivo)
+            console.warn(`[MusicTheoryValidator] Aviso de teoria não bloqueante (attempt ${attempt + 1}):`, theoryValidation.warnings.slice(0, 3));
+          }
+
+          // Sucesso: passou nas duas camadas de validação
           if (attempt > 0) console.warn(`[InstrumentSpecialist] Retry bem-sucedido (${specialist.id}) na tentativa ${attempt + 1}`);
           else console.warn(`[InstrumentSpecialist] Validação passou (${specialist.id}) — termos proibidos: 0`);
           parsedPlan = candidate;
           break;
         }
+
 
         if (!parsedPlan) {
           throw new TRPCError({
