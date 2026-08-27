@@ -1472,7 +1472,7 @@ export default function Progresso() {
 
         {/* MODAL PLANO DE ESTUDO IA */}
         <Dialog open={isStudyPlanModalOpen} onOpenChange={(open) => { setIsStudyPlanModalOpen(open); if (!open) setStudyPlanMobileTab("controls"); }}>
-          <DialogContent className="w-[98vw] max-w-5xl sm:max-w-5xl lg:max-w-6xl bg-card p-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 shadow-2xl flex flex-col h-[94vh] max-h-[920px] md:h-[88vh] md:max-h-[850px] md:flex-row">
+          <DialogContent className="w-[96vw] max-w-5xl sm:max-w-5xl lg:max-w-6xl bg-card p-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 shadow-2xl flex flex-col h-[85dvh] max-h-[85dvh] md:h-[88vh] md:max-h-[850px] md:flex-row gap-0">
             
             {/* === MOBILE: Tab Bar === */}
             <div className="flex md:hidden shrink-0 bg-muted/40 border-b border-border/70">
@@ -1507,7 +1507,7 @@ export default function Progresso() {
 
             {/* === COLUNA ESQUERDA (desktop: lateral | mobile: aba "Configurar") === */}
             <div className={cn(
-              "w-full md:w-[340px] lg:w-[360px] shrink-0 bg-muted/20 border-b md:border-b-0 md:border-r border-border/70 flex flex-col",
+              "w-full md:w-[340px] lg:w-[360px] shrink-0 bg-muted/20 border-b md:border-b-0 md:border-r border-border/70 flex flex-col min-h-0 flex-1 md:flex-none",
               "md:flex",
               studyPlanMobileTab === "controls" ? "flex" : "hidden"
             )}>
@@ -1665,7 +1665,7 @@ export default function Progresso() {
 
             {/* === COLUNA DIREITA (desktop: lateral | mobile: aba "Plano") === */}
             <div className={cn(
-              "flex-1 min-w-0 flex flex-col bg-background",
+              "flex-1 min-w-0 flex flex-col bg-background h-full min-h-0",
               "md:flex",
               studyPlanMobileTab === "plan" ? "flex" : "hidden"
             )}>
