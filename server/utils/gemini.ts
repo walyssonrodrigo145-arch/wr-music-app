@@ -118,7 +118,14 @@ export async function callGemini(
     }
   }
 
-  const isGroq = apiKeyToUse.trim().startsWith("gsk_") || (customModel && (customModel.includes("llama") || customModel.includes("mixtral")));
+  const isGroq = apiKeyToUse.trim().startsWith("gsk_") || (customModel && (
+    customModel.includes("llama") ||
+    customModel.includes("mixtral") ||
+    customModel.includes("gemma") ||
+    customModel.includes("deepseek-r1") ||
+    customModel.includes("qwen") ||
+    customModel.startsWith("openai/gpt-oss")
+  ));
 
   if (isGroq) {
     try {
@@ -133,11 +140,10 @@ export async function callGemini(
           content: systemPrompt,
         });
       }
-      // Modelos ativamente disponíveis na conta Groq (verificado via API em 2026-08)
-      const LEGACY_MODELS = ["llama-3.3-70b-versatile", "llama-3.3-70b-specdec", "llama-3.1-8b-instant", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"];
-      // Perf fix: quando o modelo Groq é o padrão (não escolhido) ou legado, usar o
-      // GPT-OSS 20B ("Mais rápido"). O 120B gera o mesmo JSON mas leva ~5-10x mais tempo
-      // (o plano de estudo diário ficou lento após adotar a Groq com o 120B).
+      // Modelos DESCONTINUADOS pela Groq — NÃO usar, causam erro 400 model_decommissioned
+      const LEGACY_MODELS = ["llama3-70b-8192", "llama3-8b-8192", "llama-3.3-70b-specdec"];
+      // Apenas substitui modelos legados/descontinuados. Modelos válidos selecionados pelo usuário
+      // (ex: llama-3.3-70b-versatile, mixtral-8x7b-32768, deepseek-r1-distill-llama-70b) são usados diretamente.
       let safeModel = customModel || "openai/gpt-oss-20b";
       if (!safeModel || LEGACY_MODELS.includes(safeModel) || safeModel.includes("8192")) {
         safeModel = "openai/gpt-oss-20b";

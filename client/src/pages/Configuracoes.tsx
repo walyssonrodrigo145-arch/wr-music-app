@@ -2056,6 +2056,9 @@ export default function Configuracoes() {
                         <option value="openai/gpt-oss-120b">GPT-OSS 120B (Recomendado)</option>
                         <option value="openai/gpt-oss-20b">GPT-OSS 20B (Mais rápido)</option>
                         <option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option>
+                        <option value="llama-3.3-70b-versatile">⭐ Llama 3.3 70B Versatile (Mais inteligente)</option>
+                        <option value="mixtral-8x7b-32768">🧠 Mixtral 8x7B 32k (Contexto longo)</option>
+                        <option value="deepseek-r1-distill-llama-70b">💡 DeepSeek R1 Distill 70B (Raciocínio avançado)</option>
                       </select>
                     </Field>
                   </div>
