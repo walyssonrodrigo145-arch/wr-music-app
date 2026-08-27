@@ -20,7 +20,7 @@ import {
   Sun, Moon, Phone, Mail,
   CheckCircle2, Loader2, Smartphone, Wallet, Sparkles, HelpCircle,
   FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, Upload, Trash2, Image,
-  FileSignature
+  FileSignature, AlertTriangle, FlaskConical
 } from "lucide-react";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
@@ -168,12 +168,15 @@ export default function Configuracoes() {
   // ── IA state ──
   const [aiProvider, setAiProvider] = useState("gemini");
   const [geminiApiKey, setGeminiApiKey] = useState("");
-  const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash");
+  const [geminiModel, setGeminiModel] = useState("gemini-3.6-flash");
   const [groqApiKey, setGroqApiKey] = useState("");
   const [groqModel, setGroqModel] = useState("openai/gpt-oss-120b");
   const [opencodeApiKey, setOpencodeApiKey] = useState("");
   const [opencodeModel, setOpencodeModel] = useState("opencode/muse-spark-1.2-contributor-free");
   const [opencodeApiUrl, setOpencodeApiUrl] = useState("");
+  const [testStatus, setTestStatus] = useState<"idle"|"loading"|"success"|"error">("idle");
+  const [testMessage, setTestMessage] = useState("");
+  const [zenModels, setZenModels] = useState<Array<{id:string; displayName?:string; name?:string}>>([]);
   // Recepcionista Virtual (IA conversacional)
   const [conversationalMode, setConversationalMode] = useState(true);
   const [attendancePersonaName, setAttendancePersonaName] = useState("Júlia");
@@ -246,7 +249,7 @@ export default function Configuracoes() {
       setMpAccessToken(settings.mpAccessToken ?? "");
       setAiProvider(settings.aiProvider ?? "gemini");
       setGeminiApiKey(settings.geminiApiKey ?? "");
-      setGeminiModel(settings.geminiModel ?? "gemini-2.0-flash");
+      setGeminiModel(settings.geminiModel ?? "gemini-3.6-flash");
       setGroqApiKey(settings.groqApiKey ?? "");
       const LEGACY_GROQ = ["llama-3.3-70b-versatile", "llama-3.3-70b-specdec", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
       const savedModel = settings.groqModel ?? "openai/gpt-oss-120b";
@@ -366,6 +369,29 @@ export default function Configuracoes() {
       utils.settings.get.invalidate();
     },
     onError: (e) => toast.error("Erro ao salvar chave da IA: " + e.message),
+  });
+
+  const testAiMutation = (trpc as any).settings.testAiConnection.useMutation({
+    onMutate: () => { setTestStatus("loading"); setTestMessage("Testando..."); setZenModels([]); },
+    onSuccess: (res: any) => {
+      if (res?.valid) {
+        setTestStatus("success");
+        if (res.provider === "opencode" && Array.isArray(res.models)) {
+          setZenModels(res.models);
+          setTestMessage(`Chave válida — ${res.models.length} modelos Zen grátis encontrados`);
+          if (res.models.length > 0) toast.success(`Chave OpenCode válida — ${res.models.length} modelos Zen grátis`);
+          else toast(res.error || "Chave válida, mas nenhum Zen grátis encontrado");
+        } else {
+          setTestMessage(res.provider === "gemini" ? "Chave Gemini válida ✓" : res.provider === "groq" ? "Chave Groq válida ✓" : "Chave válida ✓");
+          toast.success("Chave válida!");
+        }
+      } else {
+        setTestStatus("error");
+        setTestMessage(res?.error || "Chave inválida");
+        toast.error(res?.error || "Chave inválida");
+      }
+    },
+    onError: (e: any) => { setTestStatus("error"); setTestMessage(e.message || "Erro ao testar"); toast.error(e.message || "Erro ao testar"); },
   });
 
   const updateTheme = trpc.settings.updateTheme.useMutation({
@@ -1946,7 +1972,7 @@ export default function Configuracoes() {
                 >
                   <select
                     value={aiProvider}
-                    onChange={(e: any) => setAiProvider(e.target.value)}
+                    onChange={(e: any) => { setAiProvider(e.target.value); setTestStatus("idle"); setTestMessage(""); setZenModels([]); }}
                     className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     <option value="gemini">Google Gemini</option>
@@ -1983,9 +2009,10 @@ export default function Configuracoes() {
                         onChange={(e: any) => setGeminiModel(e.target.value)}
                         className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
-                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado - Mais rápido e inteligente)</option>
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Padrão rápido)</option>
+                        <option value="gemini-3.6-flash">Gemini 3.6 Flash (Recomendado - Novo)</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Estável)</option>
                         <option value="gemini-1.5-pro">Gemini 1.5 Pro (Avançado)</option>
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Legado - será convertido para 3.6)</option>
                       </select>
                     </Field>
                   </div>
@@ -2076,6 +2103,58 @@ export default function Configuracoes() {
                   </div>
                 </>
               )}
+
+              {/* Teste de chave + lista Zen grátis (RF-002/RF-003) */}
+              <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-black">Testar chave API</h4>
+                    <p className="text-xs text-muted-foreground">Valide a chave antes de salvar e, se for OpenCode, veja os modelos Zen grátis.</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    disabled={
+                      (aiProvider==="gemini" && !geminiApiKey.trim()) ||
+                      (aiProvider==="groq" && !groqApiKey.trim()) ||
+                      (aiProvider==="opencode" && !opencodeApiKey.trim()) ||
+                      (testAiMutation as any).isPending
+                    }
+                    onClick={() => {
+                      const payload:any = { aiProvider };
+                      if (aiProvider==="gemini") { payload.apiKey = geminiApiKey; payload.model = geminiModel; }
+                      else if (aiProvider==="groq") { payload.apiKey = groqApiKey; payload.model = groqModel; }
+                      else { payload.apiKey = opencodeApiKey; payload.model = opencodeModel; payload.apiUrl = opencodeApiUrl; }
+                      (testAiMutation as any).mutate(payload);
+                    }}
+                    className="rounded-xl gap-2 shrink-0"
+                  >
+                    {(testAiMutation as any).isPending ? <Loader2 size={16} className="animate-spin" /> : <FlaskConical size={16} />}
+                    {(testAiMutation as any).isPending ? "Testando..." : `Testar chave ${aiProvider}`}
+                  </Button>
+                </div>
+                {testStatus !== "idle" && (
+                  <div className={cn("p-3 rounded-xl border text-sm font-medium flex items-center gap-2", testStatus==="success" ? "bg-green-50 border-green-200 text-green-800" : testStatus==="error" ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-800")}>
+                    {testStatus==="loading" ? <Loader2 size={16} className="animate-spin" /> : testStatus==="success" ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                    <span>{testMessage}</span>
+                  </div>
+                )}
+                {aiProvider==="opencode" && testStatus==="success" && zenModels.length > 0 && (
+                  <Field label={`Modelos OpenCode Zen grátis disponíveis (${zenModels.length})`} hint="Selecione um para preencher o Modelo OpenCode e depois clique em Salvar.">
+                    <select
+                      value={opencodeModel}
+                      onChange={(e:any)=>setOpencodeModel(e.target.value)}
+                      className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm"
+                    >
+                      {zenModels.map((m:any)=>(
+                        <option key={m.id} value={m.id}>{m.displayName || m.name || m.id} — {m.id}</option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+                {aiProvider==="opencode" && testStatus==="success" && zenModels.length===0 && testMessage.includes("Nenhum") && (
+                  <p className="text-xs text-muted-foreground">Nenhum Zen grátis encontrado. Você pode manter o modelo manual acima e salvar.</p>
+                )}
+              </div>
 
               <Button
                 onClick={handleSaveIA}

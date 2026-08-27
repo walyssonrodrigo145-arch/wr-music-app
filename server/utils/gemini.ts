@@ -228,69 +228,102 @@ export async function callGemini(
     }));
 
     // Sanitizar e mapear modelos válidos para a API do Google Generative AI
-    let safeModel = customModel?.trim() || "gemini-1.5-flash";
+    // Correção 404: gemini-2.0-flash descontinuado → mapear para gemini-3.6-flash (recomendação oficial)
+    let safeModel = customModel?.trim() || "gemini-3.6-flash";
+    // Normaliza modelos legados/descontinuados para 3.6-flash
     if (
       safeModel === "gemini-3.1-pro-preview" ||
       safeModel === "gemini-3.5-flash" ||
       safeModel.includes("3.1") ||
       safeModel.includes("3.5") ||
-      safeModel === "gemini-2.0-flash"
+      safeModel === "gemini-2.0-flash" ||
+      safeModel === "gemini-2.0-flash-exp" ||
+      safeModel.includes("2.0")
     ) {
-      safeModel = "gemini-2.0-flash";
-    } else if (safeModel === "gemini-2.5-pro" || safeModel === "gemini-1.5-pro") {
+      safeModel = "gemini-3.6-flash";
+    } else if (safeModel === "gemini-2.5-pro" || safeModel === "gemini-1.5-pro" || safeModel.includes("2.5")) {
       safeModel = "gemini-1.5-pro";
+    } else if (safeModel === "gemini-3.6-flash" || safeModel.includes("3.6")) {
+      safeModel = "gemini-3.6-flash";
     } else if (safeModel.includes("flash")) {
-      safeModel = "gemini-1.5-flash";
+      // mantém flash genérico como 3.6 se possível, fallback 1.5
+      safeModel = safeModel.includes("3.6") ? "gemini-3.6-flash" : "gemini-1.5-flash";
     }
 
-    // Gemini Handler
-    const localGenAI = new GoogleGenerativeAI(apiKeyToUse.trim());
-    const model = localGenAI.getGenerativeModel({
-      model: safeModel,
-      systemInstruction: systemPrompt,
-      generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
-    });
+    // Gemini Handler com retry para modelos descontinuados (404 is no longer available → fallback 1.5)
+    let lastGeminiError: any = null;
+    for (let geminiAttempt = 0; geminiAttempt < 2; geminiAttempt++) {
+      try {
+        const localGenAI = new GoogleGenerativeAI(apiKeyToUse.trim());
+        const model = localGenAI.getGenerativeModel({
+          model: safeModel,
+          systemInstruction: systemPrompt,
+          generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
+        });
 
-    const chat = model.startChat({
-      history: formattedMessages.slice(0, -1),
-    });
-    
-    const lastMessage = formattedMessages[formattedMessages.length - 1];
-    
-    // Timeout explícito de 60 segundos para chamadas à API do Gemini
-    const GEMINI_TIMEOUT_MS = 60_000;
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("[Gemini] Timeout: A API não respondeu em 60 segundos.")), GEMINI_TIMEOUT_MS)
-    );
-    
-    const result = await Promise.race([
-      chat.sendMessage(lastMessage.parts[0].text),
-      timeoutPromise,
-    ]);
-    return result.response.text();
-  } catch (error: any) {
-    console.error("[Gemini API Error]:", error);
-    
-    if (
-      error.status === 429 || 
-      error.message?.includes("429") || 
-      error.message?.toLowerCase().includes("quota") ||
-      error.message?.toLowerCase().includes("limit")
-    ) {
-      throw new Error(
-        "A chave da API do Gemini excedeu o limite de uso (Quota Exceeded / Limite Excedido). " +
-        "Verifique sua conta no Google AI Studio."
-      );
-    }
-    
-    if (error.status === 403 || error.status === 400 || error.message?.includes("API key") || error.message?.toLowerCase().includes("api_key_invalid")) {
-      throw new Error(
-        "A chave da API do Gemini está incorreta ou é inválida. " +
-        "Verifique a chave informada nas Configurações > Inteligência Artificial."
-      );
-    }
+        const chat = model.startChat({
+          history: formattedMessages.slice(0, -1),
+        });
+        
+        const lastMessage = formattedMessages[formattedMessages.length - 1];
+        
+        const GEMINI_TIMEOUT_MS = 60_000;
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("[Gemini] Timeout: A API não respondeu em 60 segundos.")), GEMINI_TIMEOUT_MS)
+        );
+        
+        const result = await Promise.race([
+          chat.sendMessage(lastMessage.parts[0].text),
+          timeoutPromise,
+        ]);
+        if (geminiAttempt > 0) console.warn(`[Gemini] Retry bem-sucedido com fallback ${safeModel}`);
+        return result.response.text();
+      } catch (error: any) {
+        lastGeminiError = error;
+        const msg = String(error?.message || "");
+        const lower = msg.toLowerCase();
+        const is404NoLongerAvailable = lower.includes("is no longer available") || lower.includes("no longer available") || (error?.status === 404 && lower.includes("not found"));
+        const isInteractionsApi = lower.includes("interactions api");
+        const canRetry = geminiAttempt === 0 && (is404NoLongerAvailable || isInteractionsApi) && safeModel !== "gemini-1.5-flash";
+        if (canRetry) {
+          console.warn(`[Gemini] Modelo ${safeModel} descontinuado (404), tentando fallback gemini-1.5-flash. Erro:`, msg.slice(0, 400));
+          safeModel = "gemini-1.5-flash";
+          continue;
+        }
+        // Não é retryable — propaga para handlers abaixo
+        if (
+          error.status === 429 || 
+          error.message?.includes("429") || 
+          error.message?.toLowerCase().includes("quota") ||
+          error.message?.toLowerCase().includes("limit")
+        ) {
+          throw new Error(
+            "A chave da API do Gemini excedeu o limite de uso (Quota Exceeded / Limite Excedido). " +
+            "Verifique sua conta no Google AI Studio."
+          );
+        }
+        
+        if (error.status === 403 || error.status === 400 || error.message?.includes("API key") || error.message?.toLowerCase().includes("api_key_invalid")) {
+          throw new Error(
+            "A chave da API do Gemini está incorreta ou é inválida. " +
+            "Verifique a chave informada nas Configurações > Inteligência Artificial."
+          );
+        }
 
-    throw new Error(`Erro no Gemini (${error.status || "Falha"}): ${error.message || "Falha ao comunicar com a inteligência artificial."}`);
+        // Mensagem orientativa para 404 descontinuado sem retry bem-sucedido
+        if (is404NoLongerAvailable || isInteractionsApi) {
+          throw new Error(
+            `Modelo Gemini descontinuado (${safeModel}). O Google recomenda gemini-3.6-flash. Atualize em Configurações > Inteligência Artificial para gemini-3.6-flash e tente novamente. Detalhe: ${msg.slice(0, 300)}`
+          );
+        }
+
+        throw new Error(`Erro no Gemini (${error.status || "Falha"}): ${error.message || "Falha ao comunicar com a inteligência artificial."}`);
+      }
+    }
+    throw new Error(`Erro no Gemini (${lastGeminiError?.status || "Falha"}): ${lastGeminiError?.message || "Falha ao comunicar com a inteligência artificial."}`);
+  } catch (outerErr: any) {
+    // Outer try fallback (should not happen, inner loop already handled)
+    throw outerErr;
   }
 }
 

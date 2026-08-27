@@ -189,6 +189,149 @@ export const plataformaRouters = {
       return { success: true };
     }),
 
+    testAiConnection: protectedProcedure.input(z.object({
+      aiProvider: z.enum(["gemini", "groq", "opencode"]),
+      apiKey: z.string().max(1000).optional(),
+      model: z.string().max(255).optional(),
+      apiUrl: z.string().max(500).optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId!;
+      // Resolve key: usa input.apiKey se informado, senão busca do DB (decrypt)
+      let apiKeyToTest = input.apiKey?.trim() || "";
+      let modelToTest = input.model?.trim() || "";
+      let apiUrlToTest = input.apiUrl?.trim() || "";
+      if (!apiKeyToTest) {
+        const s = await getSettingsByUserId(orgId, ctx.user.id);
+        if (s) {
+          if (input.aiProvider === "gemini") apiKeyToTest = (s.geminiApiKey as string) || "";
+          else if (input.aiProvider === "groq") apiKeyToTest = (s.groqApiKey as string) || "";
+          else if (input.aiProvider === "opencode") {
+            apiKeyToTest = (s as any).opencodeApiKey || "";
+            if (!modelToTest) modelToTest = (s as any).opencodeModel || "";
+            if (!apiUrlToTest) apiUrlToTest = (s as any).opencodeApiUrl || "";
+          }
+        }
+      }
+      if (!apiKeyToTest) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Informe a chave da API antes de testar." });
+      }
+      // Helper: fetch com timeout 10s sem vazar chave nos logs
+      const fetchWithTimeout = async (url: string, opts: any, ms = 10000) => {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), ms);
+        try {
+          // Valida URL
+          try { new URL(url); } catch { throw new TRPCError({ code: "BAD_REQUEST", message: "URL da API inválida." }); }
+          const res = await fetch(url, { ...opts, signal: controller.signal });
+          return res;
+        } finally { clearTimeout(t); }
+      };
+      const maskKey = (k: string) => k.length <= 8 ? "****" : k.slice(0,4) + "****" + k.slice(-4);
+      console.warn(`[testAiConnection] provider=${input.aiProvider} key=${maskKey(apiKeyToTest)} model=${modelToTest || "(auto)"} url=${apiUrlToTest || "(default)"}`);
+
+      if (input.aiProvider === "gemini") {
+        // Testa via list models endpoint
+        const modelParam = modelToTest || "gemini-3.6-flash";
+        // tenta 3.6, fallback 1.5 se 404
+        const testModel = modelParam.includes("2.0") ? "gemini-3.6-flash" : modelParam;
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKeyToTest)}`;
+          const res = await fetchWithTimeout(url, { method: "GET" });
+          if (res.status === 401 || res.status === 403) {
+            return { valid: false, provider: "gemini", error: "Chave Gemini inválida ou sem permissão (401/403). Verifique no Google AI Studio." } as const;
+          }
+          if (!res.ok) {
+            const txt = await res.text().catch(() => "");
+            if (txt.toLowerCase().includes("is no longer available") || txt.toLowerCase().includes("not found")) {
+              return { valid: false, provider: "gemini", error: `Modelo ${testModel} descontinuado. Use gemini-3.6-flash em Configurações > IA.` } as const;
+            }
+            return { valid: false, provider: "gemini", error: `Erro Gemini ${res.status}: ${txt.slice(0,300)}` } as const;
+          }
+          return { valid: true, provider: "gemini", modelUsed: testModel } as const;
+        } catch (e: any) {
+          if (e.name === "AbortError") return { valid: false, provider: "gemini", error: "Tempo esgotado (10s) ao validar Gemini. Tente novamente." } as const;
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: e.message || "Falha ao testar Gemini" });
+        }
+      }
+
+      if (input.aiProvider === "groq") {
+        try {
+          const url = "https://api.groq.com/openai/v1/models";
+          const res = await fetchWithTimeout(url, { method: "GET", headers: { Authorization: `Bearer ${apiKeyToTest}` } });
+          if (res.status === 401 || res.status === 403) {
+            return { valid: false, provider: "groq", error: "Chave Groq inválida (401). Gere em console.groq.com/keys" } as const;
+          }
+          if (!res.ok) {
+            const txt = await res.text().catch(() => "");
+            return { valid: false, provider: "groq", error: `Erro Groq ${res.status}: ${txt.slice(0,300)}` } as const;
+          }
+          return { valid: true, provider: "groq" } as const;
+        } catch (e: any) {
+          if (e.name === "AbortError") return { valid: false, provider: "groq", error: "Timeout 10s Groq" } as const;
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: e.message || "Falha Groq" });
+        }
+      }
+
+      // opencode — lista modelos e filtra Zen grátis
+      const primaryUrl = apiUrlToTest || (process.env.OPENCODE_API_URL as string) || "https://api.opencode.ai/v1/models";
+      const fallbackUrls = [
+        primaryUrl,
+        "https://api.opencode.ai/v1/models",
+        "https://opencode.ai/api/models",
+        "https://opencode.ai/api/zen/models",
+      ].filter((u, i, a) => a.indexOf(u) === i);
+      let lastError = "";
+      for (const url of fallbackUrls) {
+        try {
+          const res = await fetchWithTimeout(url, { method: "GET", headers: { Authorization: `Bearer ${apiKeyToTest}`, "Content-Type": "application/json" } });
+          if (res.status === 401 || res.status === 403) {
+            return { valid: false, provider: "opencode", error: "Chave OpenCode inválida ou expirada (401). Verifique em opencode.ai" } as const;
+          }
+          if (res.status === 404) {
+            lastError = `404 ${url}`;
+            continue; // tenta próximo fallback
+          }
+          if (!res.ok) {
+            const txt = await res.text().catch(() => "");
+            lastError = `Erro OpenCode ${res.status}: ${txt.slice(0,300)}`;
+            continue;
+          }
+          const data: any = await res.json().catch(() => null);
+          const rawList: any[] = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : Array.isArray(data) ? data : [];
+          const isFreeZen = (m: any) => {
+            const id = String(m.id || m.name || m.model || "").toLowerCase();
+            const pricing = m.pricing || m.cost || {};
+            const freeFlag = pricing.free === true || pricing.isFree === true || m.free === true || m.zen === true;
+            const zeroCost = (pricing.input === 0 && pricing.output === 0) || (pricing.prompt === 0 && pricing.completion === 0);
+            const zenInId = id.includes("zen") || id.includes("free");
+            return freeFlag || zeroCost || zenInId;
+          };
+          const filtered = rawList.filter(isFreeZen).map((m: any) => ({
+            id: String(m.id || m.name || m.model),
+            name: String(m.name || m.id || ""),
+            displayName: String(m.displayName || m.name || m.id || ""),
+            contextLength: m.contextLength || m.context_length || m.maxTokens || null,
+            pricing: m.pricing || null,
+          })).sort((a, b) => a.id.localeCompare(b.id));
+          // Se filtro zerou mas lista original tinha itens, retorna lista original com flag para UI decidir
+          if (rawList.length > 0 && filtered.length === 0) {
+            // Sem zen grátis explícito, mas chave válida — retorna lista completa limitada para UI mostrar aviso
+            return { valid: true, provider: "opencode", models: [], rawCount: rawList.length, error: "Chave válida, mas nenhum modelo Zen grátis encontrado para esta conta. Você pode usar modelos pagos ou informar o modelo manualmente.", modelsPreview: rawList.slice(0, 5).map((m:any)=> String(m.id||m.name)) } as any;
+          }
+          return { valid: true, provider: "opencode", models: filtered, count: filtered.length } as const;
+        } catch (e: any) {
+          if (e.name === "AbortError") {
+            lastError = "Timeout 10s OpenCode";
+            continue;
+          }
+          if (e instanceof TRPCError) throw e;
+          lastError = e.message || String(e);
+          continue;
+        }
+      }
+      return { valid: false, provider: "opencode", error: lastError || "Falha ao listar modelos OpenCode. Tente novamente ou informe o modelo manualmente." } as const;
+    }),
+
     updateTheme: protectedProcedure.input(z.object({
       theme: z.enum(['light', 'dark', 'midnight', 'purple']),
     })).mutation(async ({ ctx, input }) => {
