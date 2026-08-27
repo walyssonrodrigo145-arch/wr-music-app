@@ -52,6 +52,8 @@ import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
 import { getInstrumentContext } from "../utils/instrumentContexts";
+import { resolveSpecialist, buildSpecialistPromptBlock, validatePlanText } from "../services/InstrumentSpecialistService";
+import { resolveAiCredentials } from "../utils/aiProvider";
 import { studentPedagogicalMemory } from "../../drizzle/schema";
 export const progressRouters = {
   progress: router({
@@ -237,14 +239,26 @@ export const progressRouters = {
       const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId as number), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).limit(10).orderBy(desc(lessons.scheduledAt));
       const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
       
-      const prompt = `Analise o progresso musical do aluno ${student.name} (nível: ${student.level}). Últimas aulas: ${pastLessons.length} concluídas. Metas cadastradas: ${goals.length}. Dê um feedback motivador e com 2 pontos de foco para as próximas aulas em um único parágrafo pequeno.`;
+      // ── Especialista (RF-006) ──
+      let specialistBlock = "";
+      if (student.instrumentId) {
+        try {
+          const [instr] = await db.select({ name: instruments.name, category: instruments.category }).from(instruments).where(eq(instruments.id, student.instrumentId)).limit(1);
+          if (instr) {
+            const sp = resolveSpecialist(instr.name, instr.category || "geral");
+            specialistBlock = `\n[ESPECIALISTA: ${sp.displayName} (${sp.id}) — Terminologia: ${sp.terminology.slice(0,6).join(", ")} | PROIBIDO: ${sp.forbiddenTerms.slice(0,5).join(", ")}]\nGlossário: ${Object.entries(sp.glossary).map(([k,v])=>`${k}=${v.slice(0,80)}`).join(" | ")}\n`;
+          }
+        } catch {}
+      }
+      const prompt = `${specialistBlock}Analise o progresso musical do aluno ${student.name} (nível: ${student.level}). Últimas aulas: ${pastLessons.length} concluídas. Metas cadastradas: ${goals.length}. Dê um feedback motivador e com 2 pontos de foco para as próximas aulas em um único parágrafo pequeno. Respeite terminologia do instrumento do aluno e não use termos de outros instrumentos.`;
       
       try {
         const { callGemini } = await import("../utils/gemini");
         const { getSettingsByUserId } = await import("../db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const creds = resolveAiCredentials(settingsData);
+        const apiKey = creds.apiKey;
+        const model = creds.model;
         
         const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
         return { insight: responseText.trim() };
@@ -267,21 +281,32 @@ export const progressRouters = {
 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
-      const prompt = `Atue como um professor mentor. Analise o histórico do aluno ${student.name} (Nível: ${student.level}) e sugira qual deve ser o ASSUNTO PRINCIPAL da próxima aula.
+      let specialistBlock = "";
+      if (student.instrumentId) {
+        try {
+          const [instr] = await db.select({ name: instruments.name, category: instruments.category }).from(instruments).where(eq(instruments.id, student.instrumentId)).limit(1);
+          if (instr) {
+            const sp = resolveSpecialist(instr.name, instr.category || "geral");
+            specialistBlock = `\n[ESPECIALISTA: ${sp.displayName} (${sp.id}) — Respeite terminologia de ${sp.displayName}. PROIBIDO: ${sp.forbiddenTerms.slice(0,5).join(", ")}]\n`;
+          }
+        } catch {}
+      }
+      const prompt = `${specialistBlock}Atue como um professor mentor especialista no instrumento do aluno. Analise o histórico do aluno ${student.name} (Nível: ${student.level}) e sugira qual deve ser o ASSUNTO PRINCIPAL da próxima aula. Use apenas terminologia do instrumento do aluno.
 
 Histórico do Aluno:
 - Últimas ${pastLessons.length} aulas concluídas.
 - Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
 - Timeline recente de evolução: ${timelineText || "Nenhum registro"}
 
-Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual o melhor assunto/foco para a próxima aula e por que. Não use saudações, vá direto ao ponto.`;
+Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual o melhor assunto/foco para a próxima aula e por que. Não use saudações, vá direto ao ponto. Não use termos de outros instrumentos.`;
       
       try {
         const { callGemini } = await import("../utils/gemini");
         const { getSettingsByUserId } = await import("../db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const creds = resolveAiCredentials(settingsData);
+        const apiKey = creds.apiKey;
+        const model = creds.model;
         const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
         return { suggestion: responseText.trim() };
       } catch (e: any) {
@@ -345,7 +370,17 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
-      const prompt = `Você é um professor de música gerando um plano de aula particular para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}). Escreva obrigatoriamente em Português do Brasil (pt-BR) com um tom natural, humano e caloroso. A linguagem deve ser extremamente simples, didática e de fácil compreensão, focada em alunos iniciantes com dificuldade, sem jargões complexos nem tons robóticos.
+      let specialistBlock2 = "";
+      if (student.instrumentId) {
+        try {
+          const [instr2] = await db.select({ name: instruments.name, category: instruments.category }).from(instruments).where(eq(instruments.id, student.instrumentId)).limit(1);
+          if (instr2) {
+            const sp2 = resolveSpecialist(instr2.name, instr2.category || "geral");
+            specialistBlock2 = `\n[ESPECIALISTA: ${sp2.displayName} (${sp2.id})]\n${sp2.systemPrompt}\nGlossário: ${Object.entries(sp2.glossary).map(([k,v])=>`${k}=${v.slice(0,80)}`).join(" | ")}\nPROIBIDO: ${sp2.forbiddenTerms.slice(0,6).join(", ")}\nTerminologia correta: ${sp2.terminology.slice(0,8).join(", ")}\n`;
+          }
+        } catch {}
+      }
+      const prompt = `${specialistBlock2}Você é um professor de música gerando um plano de aula particular para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}). Escreva obrigatoriamente em Português do Brasil (pt-BR) com um tom natural, humano e caloroso. A linguagem deve ser extremamente simples, didática e de fácil compreensão, focada em alunos iniciantes com dificuldade, sem jargões complexos nem tons robóticos. Respeite terminologia exclusiva do instrumento do aluno e NUNCA use termos de outros instrumentos.
 ${student.methodologyText ? `\nMETODOLOGIA DE ENSINO DO PROFESSOR:\nBaseie seus exercícios rigorosamente nesta metodologia definida para este aluno:\n"""\n${student.methodologyText}\n"""\n` : ''}
 Histórico do Aluno:
 - Últimas ${pastLessons.length} aulas concluídas.
@@ -394,8 +429,9 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const { callGemini } = await import("../utils/gemini");
         const { getSettingsByUserId } = await import("../db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        const creds = resolveAiCredentials(settingsData);
+        const apiKey = creds.apiKey;
+        const model = creds.model;
         const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
         return { plan: responseText };
       } catch (e: any) {
@@ -438,13 +474,15 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         }
       }
 
-      // ── 3. CONTEXTO PEDAGÓGICO DO INSTRUMENTO ───────────────────────────────
-      const { context: instrContext } = getInstrumentContext(instrumentName, instrumentCategory);
+      // ── 3. CONTEXTO PEDAGÓGICO DO INSTRUMENTO — IA ESPECIALISTA (RF-001/RF-002/RF-003) ──
+      const specialist = resolveSpecialist(instrumentName, instrumentCategory);
+      const instrContext = specialist; // compat: specialist estende InstrumentContext
+      const specialistPromptBlock = buildSpecialistPromptBlock(specialist, planMode as any);
 
       const studentLevel = student.level || "iniciante";
-      const levelKey = (studentLevel === "avancado" || studentLevel === "avançado")
+      const levelKey = ((studentLevel as string) === "avancado" || (studentLevel as string) === "avançado")
         ? "avancado"
-        : (studentLevel === "intermediario" || studentLevel === "intermediário")
+        : ((studentLevel as string) === "intermediario" || (studentLevel as string) === "intermediário")
           ? "intermediario"
           : "iniciante";
 
@@ -661,15 +699,16 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
   ]
 }`;
 
-      // ── 9. CONSTRUÇÃO DO PROMPT ──────────────────────────────────────────────
+      // ── 9. CONSTRUÇÃO DO PROMPT — COM ESPECIALISTA (RF-001~004) ─────────────
       const prompt = `# 🎼 MusicPro AI — Personal Trainer de ${instrumentName.toUpperCase()}
 
-Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**).
+Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**) — Especialista: ${specialist.displayName} (${specialist.id}).
 Sua missão é criar uma rotina de treino diário de 5 dias focada **EXCLUSIVAMENTE nas METAS CADASTRADAS**.
 ${instrumentWarning}${goalsWarning}
 ---
 ${modeInstruction}
 ---
+${specialistPromptBlock}
 
 # 🎯 METAS DA SEMANA (FIO CONDUTOR EXCLUSIVO E OBRIGATÓRIO)
 ${weeklyGoalsText}
@@ -679,6 +718,8 @@ ${weeklyGoalsText}
 # 🎸 DIRETRIZES TÉCNICAS PARA: ${instrumentName.toUpperCase()}
 ${terminologyBlock}
 ${forbiddenBlock}
+
+# 🧠 Dica de Nível (${studentLevel}): ${levelHint}
 
 ### REGRAS ESPECÍFICAS DE INSTRUMENTO:
 - **Teclado / Piano:**
@@ -729,13 +770,14 @@ Retorne SOMENTE o JSON válido abaixo com EXATAMENTE 5 objetos em "days" (um por
 
 ${jsonSchemaFormat}`;
 
-      // ── 9. CHAMADA À IA E PARSING DEFENSIVO ─────────────────────────────────
+      // ── 9. CHAMADA À IA E PARSING DEFENSIVO (respeita aiProvider gemini|groq|opencode) ──
       try {
         const { callGemini } = await import("../utils/gemini");
         const { getSettingsByUserId } = await import("../db");
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const apiKey = settingsData?.aiProvider === "groq" ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-        const model = settingsData?.aiProvider === "groq" ? settingsData?.groqModel : settingsData?.geminiModel;
+        const creds = resolveAiCredentials(settingsData);
+        const apiKey = creds.apiKey;
+        const model = creds.model;
 
         if (!apiKey) {
           throw new TRPCError({
@@ -744,45 +786,87 @@ ${jsonSchemaFormat}`;
           });
         }
 
-        const responseText = await callGemini([{ role: "user", content: prompt }], undefined, true, apiKey, model);
+        // ── 9.1 GERAÇÃO COM VALIDAÇÃO E RETRY (RF-005) ───────────────────────
+        let parsedPlan: any = null;
+        let lastValidation: { passed: boolean; found: string[] } | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const promptForAttempt =
+            attempt === 0
+              ? prompt
+              : `${prompt}\n\n${specialist.retryInstruction}\nTermos proibidos detectados na tentativa anterior: ${(lastValidation?.found || []).join(", ")} — REMOVA-OS completamente e use apenas terminologia de ${specialist.displayName}.`;
 
-        // Parsing defensivo: tenta JSON direto, depois extrai bloco JSON por regex
-        let parsedPlan: any;
-        let cleanedText = responseText.trim();
-        cleanedText = cleanedText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+          const responseText = await callGemini([{ role: "user", content: promptForAttempt }], undefined, true, apiKey, model);
 
-        try {
-          parsedPlan = JSON.parse(cleanedText);
-        } catch {
-          const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            try {
-              parsedPlan = JSON.parse(jsonMatch[0]);
-            } catch {
+          // Parsing defensivo: tenta JSON direto, depois extrai bloco JSON por regex
+          let cleanedText = responseText.trim();
+          cleanedText = cleanedText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+          let candidate: any;
+          try {
+            candidate = JSON.parse(cleanedText);
+          } catch {
+            const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                candidate = JSON.parse(jsonMatch[0]);
+              } catch {
+                if (attempt === 0) continue; // tenta retry
+                throw new TRPCError({
+                  code: "INTERNAL_SERVER_ERROR",
+                  message: "A IA retornou um plano em formato inválido. Tente gerar novamente.",
+                });
+              }
+            } else {
+              if (attempt === 0) continue;
               throw new TRPCError({
                 code: "INTERNAL_SERVER_ERROR",
                 message: "A IA retornou um plano em formato inválido. Tente gerar novamente.",
               });
             }
-          } else {
+          }
+
+          if (!candidate || !Array.isArray(candidate.days) || candidate.days.length === 0) {
+            if (attempt === 0) continue;
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
-              message: "A IA retornou um plano em formato inválido. Tente gerar novamente.",
+              message: "A IA não gerou os dias de treino corretamente. Tente gerar novamente.",
             });
           }
+
+          if (candidate.days.length < 5) {
+            if (attempt === 0) {
+              console.warn(`[InstrumentSpecialist] Tentativa ${attempt + 1} gerou apenas ${candidate.days.length} dias (esperado 5) — retry`);
+              continue;
+            }
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: `A IA gerou apenas ${candidate.days.length} dia(s) de treino (esperado: 5). Tente gerar novamente.`,
+            });
+          }
+
+          // ── Validador pós-geração: detecta contaminação cruzada ──
+          const validation = validatePlanText(JSON.stringify(candidate), specialist.id);
+          if (!validation.passed) {
+            console.warn(`[InstrumentSpecialist] Validação falhou (attempt ${attempt + 1}, ${specialist.id}):`, validation.found, "instrumento=", instrumentName);
+            lastValidation = validation;
+            if (attempt === 0) continue; // retry com instrução reforçada
+            throw new TRPCError({
+              code: "PRECONDITION_FAILED",
+              message: `O plano gerado conteve termos de outro instrumento (${validation.found.slice(0, 3).join(", ")}). Tente reformular a meta (ex: para teclado use "condução de vozes" em vez de apenas "voz") ou gere novamente.`,
+            });
+          }
+
+          // Sucesso: sem contaminação
+          if (attempt > 0) console.warn(`[InstrumentSpecialist] Retry bem-sucedido (${specialist.id}) na tentativa ${attempt + 1}`);
+          else console.warn(`[InstrumentSpecialist] Validação passou (${specialist.id}) — termos proibidos: 0`);
+          parsedPlan = candidate;
+          break;
         }
 
-        if (!parsedPlan || !Array.isArray(parsedPlan.days) || parsedPlan.days.length === 0) {
+        if (!parsedPlan) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "A IA não gerou os dias de treino corretamente. Tente gerar novamente.",
-          });
-        }
-
-        if (parsedPlan.days.length < 5) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: `A IA gerou apenas ${parsedPlan.days.length} dia(s) de treino (esperado: 5). Tente gerar novamente.`,
+            message: "A IA não gerou um plano válido após validação. Tente gerar novamente.",
           });
         }
 
@@ -987,6 +1071,27 @@ ${jsonSchemaFormat}`;
         JSON.parse(input.planText);
       } catch (e) {
         throw new Error("O plano editado não é um JSON válido. Verifique se as aspas e chaves estão corretas.");
+      }
+
+      // ── Validação de especialista ao editar (RF-013) ──
+      try {
+        const [existingPlan] = await db.select({ studentId: dailyStudyPlans.studentId }).from(dailyStudyPlans).where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.organizationId, orgId))).limit(1);
+        if (existingPlan) {
+          const [stu] = await db.select({ instrumentId: students.instrumentId }).from(students).where(and(eq(students.id, existingPlan.studentId), eq(students.organizationId, orgId))).limit(1);
+          if (stu?.instrumentId) {
+            const [instr] = await db.select({ name: instruments.name, category: instruments.category }).from(instruments).where(eq(instruments.id, stu.instrumentId)).limit(1);
+            if (instr) {
+              const specialist = resolveSpecialist(instr.name, instr.category || "geral");
+              const validation = validatePlanText(input.planText, specialist.id);
+              if (!validation.passed) {
+                throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Seu plano contém termos de outro instrumento: ${validation.found.slice(0,3).join(", ")}. Corrija antes de salvar.` });
+              }
+            }
+          }
+        }
+      } catch (e: any) {
+        if (e instanceof TRPCError) throw e;
+        console.warn("[updateStudyPlan] falha na validação de especialista (não bloqueante):", e?.message);
       }
 
       await db.update(dailyStudyPlans)
@@ -1355,7 +1460,7 @@ ${jsonSchemaFormat}`;
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
-      const isSuperAdmin = ctx.user.role === 'superadmin' || ctx.user.openId === ENV.ownerOpenId;
+      const isSuperAdmin = (ctx.user.role as string) === 'superadmin' || ctx.user.openId === ENV.ownerOpenId;
 
       const [file] = await db.select({
         id: studentFiles.id,

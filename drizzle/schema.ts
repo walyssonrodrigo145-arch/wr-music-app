@@ -265,6 +265,9 @@ export const settings = pgTable("settings", {
   geminiModel: varchar("geminiModel", { length: 255 }),
   groqApiKey: varchar("groqApiKey", { length: 255 }),
   groqModel: varchar("groqModel", { length: 255 }),
+  opencodeApiKey: text("opencodeApiKey"),
+  opencodeModel: varchar("opencodeModel", { length: 255 }),
+  opencodeApiUrl: text("opencodeApiUrl"),
   // School Operating Hours
   schoolHours: text("schoolHours").default('{"monday":{"active":true,"start":"08:00","end":"18:00"},"tuesday":{"active":true,"start":"08:00","end":"18:00"},"wednesday":{"active":true,"start":"08:00","end":"18:00"},"thursday":{"active":true,"start":"08:00","end":"18:00"},"friday":{"active":true,"start":"08:00","end":"18:00"},"saturday":{"active":false,"start":"08:00","end":"12:00"},"sunday":{"active":false,"start":"08:00","end":"12:00"}}').notNull(),
   // Lesson Duration (minutos): 30, 45, 60, 90, 120
@@ -636,6 +639,18 @@ export const chatbotFlows = pgTable("chatbot_flows", {
   options: text("options"), // JSON string array of options: [{ id, order, digit, title, icon, actionType, systemAction, customReply, isActive }]
   isActive: integer("isActive").default(1).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const chatbotLogs = pgTable("chatbot_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId"),
+  phone: varchar("phone", { length: 30 }).notNull(),
+  userMessage: text("userMessage"),
+  actionUsed: varchar("actionUsed", { length: 80 }),
+  escalated: integer("escalated").default(0).notNull(),
+  durationMs: integer("durationMs").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

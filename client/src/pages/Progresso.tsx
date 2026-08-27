@@ -58,6 +58,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BibliotecaMusical } from "@/components/progresso/BibliotecaMusical";
 import { MetasMusicais } from "@/components/progresso/MetasMusicais";
 import { Observacoes } from "@/components/progresso/Observacoes";
+import { PlanEditor } from "@/components/progresso/PlanEditor";
 
 // --- Components ---
 
@@ -240,11 +241,12 @@ export default function Progresso() {
   });
 
   const updateStudyPlanMutation = trpc.progress.updateStudyPlan.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success("Plano atualizado com sucesso!");
       setIsEditingStudyPlan(false);
-      setStudyPlanContent(editStudyPlanText);
+      setStudyPlanContent(variables.planText);
       utils.progress.getStudentPlanHistory.invalidate({ studentId: selectedStudentId! });
+      utils.progress.getStudentPlanForTeacher.invalidate({ studentId: selectedStudentId! });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -1645,24 +1647,20 @@ export default function Progresso() {
                       <p className="text-sm font-bold text-muted-foreground animate-pulse">Analisando histórico e criando cronograma diário...</p>
                   </div>
                 ) : studyPlanContent ? (
-                  isEditingStudyPlan ? (
-                    <div className="flex flex-col h-full space-y-4">
-                      <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-xl border border-border">
-                        <strong>Atenção:</strong> Edite com cuidado. O formato deve ser um JSON válido. Não remova as aspas nem as chaves.
-                      </p>
-                      <Textarea 
-                        className="flex-1 min-h-[300px] font-mono text-xs resize-none bg-slate-900 text-slate-200 p-4 border-slate-700 rounded-xl" 
-                        value={editStudyPlanText}
-                        onChange={(e) => setEditStudyPlanText(e.target.value)}
-                      />
-                    </div>
-                  ) : (
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
-                        {(() => {
-                            return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>;
-                        })()}
-                    </div>
-                  )
+                   isEditingStudyPlan ? (
+                     <PlanEditor
+                       planText={studyPlanContent}
+                       isSaving={updateStudyPlanMutation.isPending}
+                       onCancel={() => setIsEditingStudyPlan(false)}
+                       onSave={(newText) => updateStudyPlanMutation.mutate({ planId: studyPlanId!, planText: newText })}
+                     />
+                   ) : (
+                     <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 whitespace-pre-wrap">
+                         {(() => {
+                             return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>;
+                         })()}
+                     </div>
+                   )
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
                     <Calendar size={48} className="text-muted-foreground/30 mb-4" />
@@ -1672,92 +1670,59 @@ export default function Progresso() {
                 )}
               </div>
 
-              {studyPlanContent && (
-                <DialogFooter className="p-4 bg-muted/30 border-t border-border flex flex-wrap gap-2 justify-between items-center">
-                  <div className="flex gap-2">
-                    {studyPlanStatus === 'rascunho' && !isEditingStudyPlan && (
-                      <Button 
-                        onClick={() => publishStudyPlanMutation.mutate({ planId: studyPlanId!, studentId: selectedStudentId! })}
-                        disabled={publishStudyPlanMutation.isPending}
-                        className="h-10 rounded-xl px-4 bg-green-500 hover:bg-green-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
-                      >
-                        {publishStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                        Liberar para o Aluno
-                      </Button>
-                    )}
-                    {!isEditingStudyPlan && (
-                      <Button 
-                        variant="destructive"
-                        onClick={() => deleteStudyPlanMutation.mutate({ planId: studyPlanId! })}
-                        disabled={deleteStudyPlanMutation.isPending}
-                        className="h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest"
-                      >
-                        {deleteStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
-                        Excluir
-                      </Button>
-                    )}
-                    {studyPlanContent && !isEditingStudyPlan && (
-                      <Button 
-                        variant="secondary"
-                        onClick={() => {
-                          try {
-                            const formattedJSON = JSON.stringify(JSON.parse(studyPlanContent), null, 2);
-                            setEditStudyPlanText(formattedJSON);
-                          } catch {
-                            setEditStudyPlanText(studyPlanContent);
-                          }
-                          setIsEditingStudyPlan(true);
-                        }}
-                        className="h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest"
-                      >
-                        <Edit2 size={16} className="mr-2" />
-                        Editar
-                      </Button>
-                    )}
-                    {isEditingStudyPlan && (
-                      <>
-                        <Button 
-                          variant="outline"
-                          onClick={() => setIsEditingStudyPlan(false)}
-                          className="h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest"
-                        >
-                          Cancelar
-                        </Button>
-                        <Button 
-                          onClick={() => updateStudyPlanMutation.mutate({ planId: studyPlanId!, planText: editStudyPlanText })}
-                          disabled={updateStudyPlanMutation.isPending}
-                          className="h-10 rounded-xl px-4 bg-blue-500 hover:bg-blue-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20"
-                        >
-                          {updateStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                          Salvar
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                  
-                  {!isEditingStudyPlan && (
-                    <div className="flex gap-2 ml-auto">
-                    <Button 
-                      variant="outline"
-                      onClick={() => handleSendManualWhatsApp(studyPlanContent, "diario")}
-                      className="h-10 rounded-xl px-3 text-xs font-black uppercase tracking-widest"
-                      title="Enviar via WhatsApp Manual"
-                    >
-                      <ExternalLink size={16} />
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      onClick={() => handleSendBotWhatsApp(studyPlanContent, "diario")}
-                      disabled={isSendingViaBot}
-                      className="h-10 rounded-xl px-3 text-xs font-black uppercase tracking-widest"
-                      title="Enviar via WhatsApp Robô"
-                    >
-                      {isSendingViaBot ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
-                    </Button>
-                    </div>
-                  )}
-                </DialogFooter>
-              )}
+              {studyPlanContent && !isEditingStudyPlan && (
+                 <DialogFooter className="p-4 bg-muted/30 border-t border-border flex flex-wrap gap-2 justify-between items-center">
+                   <div className="flex gap-2">
+                     {studyPlanStatus === 'rascunho' && (
+                       <Button 
+                         onClick={() => publishStudyPlanMutation.mutate({ planId: studyPlanId!, studentId: selectedStudentId! })}
+                         disabled={publishStudyPlanMutation.isPending}
+                         className="h-10 rounded-xl px-4 bg-green-500 hover:bg-green-600 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/20"
+                       >
+                         {publishStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
+                         Liberar para o Aluno
+                       </Button>
+                     )}
+                     <Button 
+                       variant="destructive"
+                       onClick={() => deleteStudyPlanMutation.mutate({ planId: studyPlanId! })}
+                       disabled={deleteStudyPlanMutation.isPending}
+                       className="h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest"
+                     >
+                       {deleteStudyPlanMutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
+                       Excluir
+                     </Button>
+                     <Button 
+                       variant="secondary"
+                       onClick={() => setIsEditingStudyPlan(true)}
+                       className="h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest"
+                     >
+                       <Edit2 size={16} className="mr-2" />
+                       Editar sem JSON
+                     </Button>
+                   </div>
+                   
+                   <div className="flex gap-2 ml-auto">
+                     <Button 
+                       variant="outline"
+                       onClick={() => handleSendManualWhatsApp(studyPlanContent, "diario")}
+                       className="h-10 rounded-xl px-3 text-xs font-black uppercase tracking-widest"
+                       title="Enviar via WhatsApp Manual"
+                     >
+                       <ExternalLink size={16} />
+                     </Button>
+                     <Button 
+                       variant="outline"
+                       onClick={() => handleSendBotWhatsApp(studyPlanContent, "diario")}
+                       disabled={isSendingViaBot}
+                       className="h-10 rounded-xl px-3 text-xs font-black uppercase tracking-widest"
+                       title="Enviar via WhatsApp Robô"
+                     >
+                       {isSendingViaBot ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
+                     </Button>
+                   </div>
+                 </DialogFooter>
+               )}
             </div>
           </DialogContent>
         </Dialog>

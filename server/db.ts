@@ -291,6 +291,10 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "showFeeBreakdown" integer DEFAULT 1 NOT NULL`, "settings showFeeBreakdown");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendanceCheckinMoment" varchar(20) DEFAULT 'inicio' NOT NULL`, "settings attendanceCheckinMoment");
     await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendanceToleranceMinutes" integer DEFAULT 30 NOT NULL`, "settings attendanceToleranceMinutes");
+    // OpenCode provider (IA especialista + assistente) — respeita aiProvider = gemini|groq|opencode (AGENTS: usuário pediu)
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "opencodeApiKey" text`, "settings opencodeApiKey");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "opencodeModel" varchar(255)`, "settings opencodeModel");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "opencodeApiUrl" text`, "settings opencodeApiUrl");
     await safeExecute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "studioRoomId" integer`, "lessons studioRoomId");
 
     // Tabela studio_rooms
@@ -1055,6 +1059,21 @@ async function ensureSchemaConsistency(db: any) {
       ON "whatsapp_rate_limits" ("organizationId")
     `, "whatsapp_rate_limits org index");
 
+    // Tabela chatbot_logs: auditoria dos turnos da recepcionista virtual (PRD Evolução do Atendimento)
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "chatbot_logs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "userId" integer,
+        "phone" varchar(30) NOT NULL,
+        "userMessage" text,
+        "actionUsed" varchar(80),
+        "escalated" integer DEFAULT 0 NOT NULL,
+        "durationMs" integer DEFAULT 0 NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create chatbot_logs table");
+
     _schemaInitialized = true;
     console.timeEnd("[DB] schema-consistency-check");
   }
@@ -1523,6 +1542,7 @@ export async function getSettingsByUserId(organizationId: number, userId: number
     if (row.mpAccessToken) row.mpAccessToken = decryptSecret(row.mpAccessToken);
     if (row.geminiApiKey) row.geminiApiKey = decryptSecret(row.geminiApiKey);
     if (row.groqApiKey) row.groqApiKey = decryptSecret(row.groqApiKey);
+    if ((row as any).opencodeApiKey) (row as any).opencodeApiKey = decryptSecret((row as any).opencodeApiKey);
     return row;
   }
 
@@ -1554,6 +1574,7 @@ export async function getSettingsByUserId(organizationId: number, userId: number
     if (row.mpAccessToken) row.mpAccessToken = decryptSecret(row.mpAccessToken);
     if (row.geminiApiKey) row.geminiApiKey = decryptSecret(row.geminiApiKey);
     if (row.groqApiKey) row.groqApiKey = decryptSecret(row.groqApiKey);
+    if ((row as any).opencodeApiKey) (row as any).opencodeApiKey = decryptSecret((row as any).opencodeApiKey);
     return row;
   }
   return null;
@@ -1596,6 +1617,9 @@ export async function upsertSettings(organizationId: number, userId: number, dat
   }
   if (sanitized.groqApiKey && !sanitized.groqApiKey.startsWith("v1:")) {
     sanitized.groqApiKey = encryptSecret(sanitized.groqApiKey.trim());
+  }
+  if ((sanitized as any).opencodeApiKey && !(sanitized as any).opencodeApiKey.startsWith("v1:")) {
+    (sanitized as any).opencodeApiKey = encryptSecret(((sanitized as any).opencodeApiKey as string).trim());
   }
 
   const existing = await db.select({ id: settings.id }).from(settings).where(and(eq(settings.organizationId, organizationId), eq(settings.userId, userId))).limit(1);

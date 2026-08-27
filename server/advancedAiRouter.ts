@@ -17,6 +17,7 @@ import {
 } from "../drizzle/schema";
 import { eq, and, desc, gte, inArray } from "drizzle-orm";
 import { callGemini } from "./utils/gemini";
+import { resolveAiCredentials } from "./utils/aiProvider";
 
 export const advancedAiRouter = router({
   // ─── OPÇÃO 4: MEMÓRIA PEDAGÓGICA CONTÍNUA DO ALUNO ────────────────────────
@@ -159,8 +160,9 @@ Retorne APENAS um JSON válido (sem texto fora do JSON e sem Markdown de código
 }`;
 
       const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-      const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-      const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+      const creds = resolveAiCredentials(settingsData);
+      const apiKey = creds.apiKey;
+      const model = creds.model;
 
       const aiRaw = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
 
@@ -296,8 +298,9 @@ FORMATO DE RESPOSTA EXCLUSIVO EM JSON ESTRITO:
 }`;
 
       const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-      const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-      const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+      const creds = resolveAiCredentials(settingsData);
+      const apiKey = creds.apiKey;
+      const model = creds.model;
 
       const aiRaw = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
 

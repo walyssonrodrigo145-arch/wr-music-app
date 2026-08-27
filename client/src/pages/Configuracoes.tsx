@@ -171,6 +171,9 @@ export default function Configuracoes() {
   const [geminiModel, setGeminiModel] = useState("gemini-2.0-flash");
   const [groqApiKey, setGroqApiKey] = useState("");
   const [groqModel, setGroqModel] = useState("openai/gpt-oss-120b");
+  const [opencodeApiKey, setOpencodeApiKey] = useState("");
+  const [opencodeModel, setOpencodeModel] = useState("opencode/muse-spark-1.2-contributor-free");
+  const [opencodeApiUrl, setOpencodeApiUrl] = useState("");
   // Recepcionista Virtual (IA conversacional)
   const [conversationalMode, setConversationalMode] = useState(true);
   const [attendancePersonaName, setAttendancePersonaName] = useState("Júlia");
@@ -248,6 +251,9 @@ export default function Configuracoes() {
       const LEGACY_GROQ = ["llama-3.3-70b-versatile", "llama-3.3-70b-specdec", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
       const savedModel = settings.groqModel ?? "openai/gpt-oss-120b";
       setGroqModel(LEGACY_GROQ.includes(savedModel) ? "openai/gpt-oss-120b" : savedModel);
+      setOpencodeApiKey((settings as any).opencodeApiKey ?? "");
+      setOpencodeModel((settings as any).opencodeModel ?? "opencode/muse-spark-1.2-contributor-free");
+      setOpencodeApiUrl((settings as any).opencodeApiUrl ?? "");
       setConversationalMode((settings as any).conversationalMode !== 0);
       setAttendancePersonaName((settings as any).attendancePersonaName || "Júlia");
       setAttendanceTone((settings as any).attendanceTone || "amigavel");
@@ -427,10 +433,13 @@ export default function Configuracoes() {
       geminiModel,
       groqApiKey,
       groqModel,
+      opencodeApiKey,
+      opencodeModel,
+      opencodeApiUrl,
       conversationalMode,
       attendancePersonaName: attendancePersonaName.trim() || "Júlia",
       attendanceTone: attendanceTone as "amigavel" | "formal" | "direto",
-    });
+    } as any);
   };
 
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) ?? "P";
@@ -1942,6 +1951,7 @@ export default function Configuracoes() {
                   >
                     <option value="gemini">Google Gemini</option>
                     <option value="groq">Groq (Llama 3)</option>
+                    <option value="opencode">OpenCode (Muse Spark / OpenAI-compatible)</option>
                   </select>
                 </Field>
               </div>
@@ -2013,6 +2023,55 @@ export default function Configuracoes() {
                         <option value="openai/gpt-oss-20b">GPT-OSS 20B (Mais rápido)</option>
                         <option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option>
                       </select>
+                    </Field>
+                  </div>
+                </>
+              )}
+
+              {aiProvider === "opencode" && (
+                <>
+                  <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                    <Field 
+                      label="Chave da API OpenCode"
+                      hint="Use a chave do seu provedor OpenAI-compatible (ex: Muse Spark). Se vazio, usa OPENCODE_API_KEY do servidor."
+                    >
+                      <DebouncedInput
+                        type="password"
+                        value={opencodeApiKey}
+                        onChange={(e: any) => setOpencodeApiKey(e.target.value)}
+                        placeholder="opencode-... ou sk-..."
+                        className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                    <Field 
+                      label="Modelo OpenCode"
+                      hint="Ex: opencode/muse-spark-1.2-contributor-free, gpt-4o, etc."
+                    >
+                      <DebouncedInput
+                        type="text"
+                        value={opencodeModel}
+                        onChange={(e: any) => setOpencodeModel(e.target.value)}
+                        placeholder="opencode/muse-spark-1.2-contributor-free"
+                        className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                    <Field 
+                      label="URL da API OpenCode (opcional)"
+                      hint="Deixe vazio para usar OPENCODE_API_URL do servidor ou padrão https://api.opencode.ai/v1/chat/completions"
+                    >
+                      <DebouncedInput
+                        type="text"
+                        value={opencodeApiUrl}
+                        onChange={(e: any) => setOpencodeApiUrl(e.target.value)}
+                        placeholder="https://api.opencode.ai/v1/chat/completions"
+                        className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                      />
                     </Field>
                   </div>
                 </>

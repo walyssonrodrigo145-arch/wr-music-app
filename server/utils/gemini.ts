@@ -39,6 +39,72 @@ export async function callGemini(
     throw new Error("Chave da API não configurada. Por favor, adicione sua chave nas Configurações.");
   }
 
+  // ── OpenCode provider (respeita settings.aiProvider = opencode) ──
+  // Detecta via model prefix "opencode/" ou apiKey prefix "opencode-" ou env OPENCODE_API_KEY
+  const isOpencode =
+    (customModel && customModel.trim().startsWith("opencode/")) ||
+    apiKeyToUse.trim().startsWith("opencode-") ||
+    apiKeyToUse.trim().startsWith("sk-opencode") ||
+    (process.env.OPENCODE_API_KEY && apiKeyToUse.trim() === process.env.OPENCODE_API_KEY.trim());
+
+  if (isOpencode) {
+    // OpenAI-compatible via fetch (Groq SDK não suporta modelos opencode)
+    const opencodeModel = customModel?.trim() || process.env.OPENCODE_MODEL || "opencode/muse-spark-1.2-contributor-free";
+    const opencodeUrl =
+      (process.env.OPENCODE_API_URL as string) ||
+      "https://api.opencode.ai/v1/chat/completions";
+    const ocMessages: any[] = [];
+    if (systemPrompt) ocMessages.push({ role: "system", content: systemPrompt });
+    for (const m of messages) {
+      ocMessages.push({ role: m.role === "assistant" || m.role === "model" ? "assistant" : "user", content: m.content });
+    }
+    const body: any = {
+      model: opencodeModel,
+      messages: ocMessages,
+      temperature: 0.3,
+    };
+    if (isJson) body.response_format = { type: "json_object" };
+    const OC_TIMEOUT_MS = 30000;
+    const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("[OpenCode] Timeout em 30s")), OC_TIMEOUT_MS));
+    try {
+      const res = (await Promise.race([
+        fetch(opencodeUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKeyToUse.trim()}`,
+          },
+          body: JSON.stringify(body),
+        }).then(async (r) => {
+          if (!r.ok) {
+            const txt = await r.text();
+            throw new Error(`[OpenCode] HTTP ${r.status}: ${txt.slice(0, 500)}`);
+          }
+          return r.json();
+        }),
+        timeoutPromise,
+      ])) as any;
+      const content = res.choices?.[0]?.message?.content || res.choices?.[0]?.text || "";
+      if (!content) throw new Error("[OpenCode] Resposta vazia");
+      if (isJson) {
+        const cleaned = extractJsonFromText(content);
+        try {
+          JSON.parse(cleaned);
+          return cleaned;
+        } catch {
+          return content;
+        }
+      }
+      return content;
+    } catch (e: any) {
+      console.error("[OpenCode API Error]:", e);
+      if (e.message?.toLowerCase().includes("unauthorized") || e.message?.includes("401") || e.message?.includes("403")) {
+        throw new Error("Chave OpenCode inválida. Verifique Configurações > Inteligência Artificial > OpenCode.");
+      }
+      throw new Error(`Erro no OpenCode: ${e.message || "Falha na comunicação"}`);
+    }
+  }
+
   const isGroq = apiKeyToUse.trim().startsWith("gsk_") || (customModel && (customModel.includes("llama") || customModel.includes("mixtral")));
 
   if (isGroq) {

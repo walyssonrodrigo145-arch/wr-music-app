@@ -166,6 +166,9 @@ export const plataformaRouters = {
       geminiModel: z.string().optional(),
       groqApiKey: z.string().optional(),
       groqModel: z.string().optional(),
+      opencodeApiKey: z.string().optional(),
+      opencodeModel: z.string().optional(),
+      opencodeApiUrl: z.string().optional(),
       conversationalMode: z.boolean().optional(),
       attendancePersonaName: z.string().max(60).optional(),
       attendanceTone: z.enum(["amigavel", "formal", "direto"]).optional(),
@@ -176,10 +179,13 @@ export const plataformaRouters = {
         geminiModel: input.geminiModel,
         groqApiKey: input.groqApiKey,
         groqModel: input.groqModel,
+        opencodeApiKey: (input as any).opencodeApiKey,
+        opencodeModel: (input as any).opencodeModel,
+        opencodeApiUrl: (input as any).opencodeApiUrl,
         conversationalMode: input.conversationalMode !== undefined ? (input.conversationalMode ? 1 : 0) : undefined,
         attendancePersonaName: input.attendancePersonaName,
         attendanceTone: input.attendanceTone,
-      });
+      } as any);
       return { success: true };
     }),
 

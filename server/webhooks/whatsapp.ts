@@ -2,9 +2,10 @@ import { debugLog } from "../_core/logger";
 import { Router } from "express";
 import crypto from "crypto";
 import { getDb } from "../db";
-import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows, schoolKnowledgeBase, instruments } from "../../drizzle/schema";
+import { students, chatbotSessions, lessons, settings, paymentDues, notifications, fcmTokens, chatbotFlows, schoolKnowledgeBase, instruments, chatbotLogs } from "../../drizzle/schema";
 import { eq, and, gte, ilike } from "drizzle-orm";
-import { sendWhatsAppMessage, isRecentBotMessage } from "../utils/whatsapp";
+import { sendWhatsAppMessage, isRecentBotMessage, canonicalizeWaPhone } from "../utils/whatsapp";
+import { parseToolActions, stripToolMarkers, executeChatbotTool, generateAvailableSlots, isSlotFree } from "../utils/chatbotTools";
 import { buildUserContext } from "../utils/aiContext";
 import { getSystemPrompt, getAttendancePrompt } from "../utils/aiPrompts";
 import { callGemini } from "../utils/gemini";
@@ -53,21 +54,28 @@ export function humanTakeoverActive(sessionData: any): boolean {
 /**
  * Pausa (ou renova a pausa de) a sessão do contato porque o professor respondeu
  * manualmente. Preserva activeProfessorId e demais metadados existentes.
+ * Adota sessão legada criada sob o JID antigo (sem 9º dígito), se existir.
  */
-async function pauseSessionForManualReply(db: any, phone: string, professorUserId: number): Promise<void> {
+async function pauseSessionForManualReply(db: any, phone: string, rawPhone: string, professorUserId: number): Promise<void> {
   const nowIso = new Date().toISOString();
   const [session] = await db.select().from(chatbotSessions).where(eq(chatbotSessions.phone, phone)).limit(1);
-  let sd: any = {};
-  if (session?.data) {
-    try { sd = JSON.parse(session.data); } catch (_) {}
+  let target = session;
+  if (!target && phone !== rawPhone) {
+    const [legacy] = await db.select().from(chatbotSessions).where(eq(chatbotSessions.phone, rawPhone)).limit(1);
+    if (legacy) {
+      await db.update(chatbotSessions).set({ phone }).where(eq(chatbotSessions.id, legacy.id));
+      legacy.phone = phone;
+      target = legacy;
+    }
   }
+  const sd: any = target?.data ? (() => { try { return JSON.parse(target.data); } catch (_) { return {}; } })() : {};
   const merged = { ...sd, activeProfessorId: professorUserId, pausedBy: "professor_manual", lastHumanReplyAt: nowIso };
-  if (session) {
+  if (target) {
     await db.update(chatbotSessions).set({
       state: "PAUSED_HUMAN",
       data: JSON.stringify(merged),
       updatedAt: new Date(),
-    }).where(eq(chatbotSessions.id, session.id));
+    }).where(eq(chatbotSessions.id, target.id));
   } else {
     await db.insert(chatbotSessions).values({
       phone,
@@ -100,78 +108,8 @@ function isOption(text: string, option: string): boolean {
   return text.trim() === option;
 }
 
-function generateAvailableSlots(schoolHoursStr: string) {
-  let schoolHours: any;
-  try {
-    schoolHours = JSON.parse(schoolHoursStr);
-  } catch (e) {
-    schoolHours = {
-      monday: { active: true, start: "08:00", end: "18:00" },
-      tuesday: { active: true, start: "08:00", end: "18:00" },
-      wednesday: { active: true, start: "08:00", end: "18:00" },
-      thursday: { active: true, start: "08:00", end: "18:00" },
-      friday: { active: true, start: "08:00", end: "18:00" },
-      saturday: { active: false },
-      sunday: { active: false },
-    };
-  }
-
-  const daysMap: Record<number, string> = {
-    0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday",
-    4: "thursday", 5: "friday", 6: "saturday"
-  };
-
-  const slots: { label: string; date: Date }[] = [];
-  let added = 0;
-  let offset = 1;
-
-  while (added < 9 && offset <= 14) {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    offset++;
-    
-    const dow = d.getDay();
-    const dayKey = daysMap[dow];
-    const dayConfig = schoolHours[dayKey];
-    
-    if (!dayConfig || !dayConfig.active) continue;
-
-    const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-    const diaNome = diasSemana[dow];
-    const diaMes = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-
-    const startHour = parseInt(String(dayConfig.start || "08:00").split(":")[0]);
-    const endHour = parseInt(String(dayConfig.end || "18:00").split(":")[0]);
-    
-    // Gera horários de hora em hora
-    for (let h = startHour; h < endHour; h++) {
-      if (added < 20) { // Limit total slots to process
-        const slot = new Date(d);
-        slot.setHours(h, 0, 0, 0);
-        slots.push({ label: `${diaNome} (${diaMes}) às ${String(h).padStart(2, '0')}h00`, date: slot });
-        added++;
-      }
-    }
-  }
-
-  return slots;
-}
-
-// ─── Helper para verificar sobreposição ──────────────────────────────────────
-// AUDIT-05 FIX: usa a duração de aula configurada pela escola (settings.lessonDuration)
-// em vez de 60 min fixo — evita aceitar agendamentos que se sobrepõem quando a
-// duração padrão é maior que 60 min.
-function isSlotFree(slotDate: Date, ocupadas: any[], schoolDefaultDurationMin: number = 60) {
-  const sStart = slotDate.getTime();
-  const sEnd = sStart + Math.max(1, schoolDefaultDurationMin) * 60 * 1000;
-  
-  return !ocupadas.some((l) => {
-    const lStart = l.scheduledAt.getTime();
-    const lEnd = lStart + (l.duration || schoolDefaultDurationMin) * 60 * 1000;
-    // Sobreposição: Slot inicia antes da aula ocupada terminar E Slot termina depois da aula ocupada iniciar
-    return (sStart < lEnd && sEnd > lStart);
-  });
-}
+// generateAvailableSlots e isSlotFree foram movidos para server/utils/chatbotTools.ts
+// (fonte única compartilhada com as ferramentas de consulta da IA).
 
 // ─── Menu Principal Dinâmico & Configurável ──────────────────────────────────
 
@@ -340,7 +278,10 @@ router.post("/", async (req, res) => {
       return res.status(200).json({ ok: true }); // ignora grupos e status/broadcast
     }
 
-    const phone = remoteJid.split("@")[0];
+    // RF-005 (PRD): chave canônica da sessão — o mesmo contato pode chegar por
+    // dois JIDs (com/sem 9º dígito). Sem isso, histórico e contexto se dividem.
+    const rawPhone = remoteJid.split("@")[0];
+    const phone = canonicalizeWaPhone(rawPhone);
     const textMsg = extractMessageText(messageData);
     const pushName = payload.data.pushName || "Aluno";
 
@@ -554,7 +495,7 @@ router.post("/", async (req, res) => {
       // Resposta manual do professor → silencia o robô nesta conversa
       debugLog(`[Chatbot] Resposta MANUAL do professor detectada para ${phone} — pausando atendimento automático.`);
       try {
-        await pauseSessionForManualReply(db, phone, professorUserId);
+        await pauseSessionForManualReply(db, phone, rawPhone, professorUserId);
       } catch (pauseErr) {
         console.error("[Chatbot] Erro ao pausar sessão após resposta manual:", pauseErr);
         return res.status(200).json({ ok: true });
@@ -587,6 +528,25 @@ router.post("/", async (req, res) => {
       .select()
       .from(chatbotSessions)
       .where(eq(chatbotSessions.phone, phone));
+
+    // Migração automática: sessão legada criada com o JID antigo (sem 9º dígito)
+    // é adotada e regravada sob a chave canônica — histórico preservado.
+    if (!session && phone !== rawPhone) {
+      try {
+        const [legacy] = await db
+          .select()
+          .from(chatbotSessions)
+          .where(eq(chatbotSessions.phone, rawPhone));
+        if (legacy) {
+          await db.update(chatbotSessions).set({ phone }).where(eq(chatbotSessions.id, legacy.id));
+          legacy.phone = phone;
+          session = legacy as typeof session;
+          debugLog(`[Chatbot] Sessão legada migrada ${rawPhone} → ${phone}`);
+        }
+      } catch (migErr) {
+        console.error("[Chatbot] Erro na migração de sessão legada:", migErr);
+      }
+    }
 
     let sessionData: any = {};
     if (session?.data) {
@@ -801,7 +761,45 @@ router.post("/", async (req, res) => {
           nowInfo,
         });
 
-        const aiRaw = await callGemini(historyObj, systemPrompt, false, aiKey, aiModel);
+        const aiStartTs = Date.now();
+        const toolCtx = {
+          organizationId: profSettings.organizationId || 1,
+          professorUserId,
+          contactStudentId: student?.id ?? null,
+          schoolHours: profSettings.schoolHours || "",
+          lessonDuration: profSettings.lessonDuration || 60,
+        };
+
+        // ── RF-001/RF-002 (PRD): loop de ferramentas — a IA pode emitir ACTIONs
+        // de consulta; o sistema executa com dados reais e devolve o resultado
+        // para a IA redigir a resposta final. Máx. 2 rodadas (latência/custo).
+        let aiRaw = await callGemini(historyObj, systemPrompt, false, aiKey, aiModel);
+        const usedActions = new Set<string>();
+        let escalated = false;
+        let toolRounds = 0;
+        while (aiRaw && aiRaw.trim() && toolRounds < 2) {
+          const tools = parseToolActions(aiRaw);
+          if (tools.some((t) => t.name === "ESCALATE_HUMAN")) escalated = true;
+          const queries = tools.filter((t) => t.name !== "ESCALATE_HUMAN");
+          if (queries.length === 0) break;
+          toolRounds++;
+
+          const results: string[] = [];
+          for (const t of queries.slice(0, 3)) {
+            usedActions.add(t.name);
+            try {
+              results.push(`[${t.name}]\n${await executeChatbotTool(db, toolCtx, t.name, t.args)}`);
+            } catch (toolErr) {
+              console.error(`[AI Atendimento] Falha na ferramenta ${t.name}:`, toolErr);
+              results.push(`[${t.name}]\nA consulta falhou no sistema. NÃO invente dados.`);
+            }
+          }
+
+          historyObj.push({ role: "assistant", content: aiRaw });
+          historyObj.push({ role: "user", content: `[RESULTADO DAS CONSULTAS NO SISTEMA — dados reais]\n${results.join("\n\n")}\n\nResponda agora à pessoa de forma natural usando EXCLUSIVAMENTE estes dados reais.` });
+          if (historyObj.length > 20) historyObj.splice(0, historyObj.length - 20);
+          aiRaw = await callGemini(historyObj, systemPrompt, false, aiKey, aiModel);
+        }
 
         if (aiRaw && aiRaw.trim()) {
           // ── Executar agendamentos solicitados via ACTION (com validação de slot) ──
@@ -839,11 +837,25 @@ router.post("/", async (req, res) => {
           }
 
           // ── Resposta visível (sem blocos técnicos) ──
-          let visible = aiRaw.replace(/<!--ACTION:[\s\S]*?-->/g, "").trim();
+          let visible = stripToolMarkers(aiRaw);
           for (const d of confirmedSlots) {
             const dataStr = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
             const horaStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
             visible += `\n\n📅 Aula agendada: *${dataStr}* às *${horaStr}*. Até lá! 🎵`;
+          }
+
+          // ── RF-003/RF-005 (PRD): escala humana automática com resumo ──
+          if (escalated) {
+            await updateState("PAUSED_HUMAN");
+            const summary = historyObj.slice(-8)
+              .map((m) => `${m.role === "user" ? "👤" : "🤖"}: ${String(m.content || "").replace(/<!--[\s\S]*?-->/g, "").trim().slice(0, 160)}`)
+              .join("\n")
+              .slice(-1200);
+            await notifyProfessor(
+              `🙋 *Encaminhado pela recepcionista virtual*\n\nContato *${student?.name || pushName}* (${phone}) precisa de atendimento humano — a IA não conseguiu resolver.\n\n*Últimas mensagens:*\n${summary}`,
+              "🙋 Atendimento encaminhado pela IA"
+            );
+            visible += "\n\nJá avisei o professor pra te atender por aqui em instantes! 👤";
           }
 
           // ── Humanização: simula tempo de digitação proporcional ──
@@ -851,7 +863,23 @@ router.post("/", async (req, res) => {
           await new Promise((r) => setTimeout(r, typingMs));
 
           historyObj.push({ role: "assistant", content: visible });
-          await updateState("AGUARDANDO_MENU", { aiHistory: historyObj });
+          await updateState(escalated ? "PAUSED_HUMAN" : "AGUARDANDO_MENU", { aiHistory: historyObj });
+
+          // RF-007 (PRD): log de auditoria best-effort do turno da IA
+          try {
+            await db.insert(chatbotLogs).values({
+              organizationId: profSettings.organizationId || 1,
+              userId: professorUserId,
+              phone,
+              userMessage: input.slice(0, 500),
+              actionUsed: usedActions.size ? Array.from(usedActions).join(",").slice(0, 80) : null,
+              escalated: escalated ? 1 : 0,
+              durationMs: Date.now() - aiStartTs,
+            });
+          } catch (logErr) {
+            console.error("[AI Atendimento] Falha ao gravar chatbot_logs:", logErr);
+          }
+
           await sendReply(visible);
           return res.status(200).json({ ok: true });
         }

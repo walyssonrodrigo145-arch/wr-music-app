@@ -54,6 +54,21 @@ export function normalizeWaPhone(phone: string): string {
 }
 
 /**
+ * Chave canônica de sessão por contato (RF-005 do PRD de Atendimento).
+ * O WhatsApp pode entregar o MESMO número em dois JIDs (com/sem 9º dígito:
+ * 5533999958830 vs 553399958830), o que criava sessões duplicadas com
+ * históricos divididos. Aqui padronizamos para 55 + DDD + número com 9.
+ */
+export function canonicalizeWaPhone(phone: string): string {
+  let digits = (phone || "").replace(/\D/g, "");
+  // BR antigo sem o 9º dígito: 55 + DDD(2) + 8 dígitos = 12 dígitos no total
+  if (digits.startsWith("55") && digits.length === 12) {
+    digits = "55" + digits.slice(2, 4) + "9" + digits.slice(4);
+  }
+  return digits;
+}
+
+/**
  * Registra um envio bem-sucedido do bot (chamado dentro de sendWhatsAppMessage).
  * @param sessionId nome da instância Evolution (ex.: "prof_1")
  * @param phone destinatário (qualquer formato; normalizado internamente)
