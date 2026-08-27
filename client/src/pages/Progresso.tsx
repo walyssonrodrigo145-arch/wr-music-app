@@ -1699,8 +1699,8 @@ export default function Progresso() {
                 </div>
               </div>
               
-              {/* Conteúdo do Plano (scrollável) */}
-              <div className="flex-1 overflow-y-auto p-5 md:p-7 subtle-scrollbar min-h-0">
+              {/* Conteúdo do Plano (scroll invisível suave) */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar min-h-0">
                 {generateDailyStudyPlanMutation.isPending ? (
                   <div className="flex flex-col items-center justify-center py-16 space-y-4">
                     <Loader2 size={44} className="animate-spin text-orange-500" />
@@ -1715,11 +1715,105 @@ export default function Progresso() {
                        onSave={(newText) => updateStudyPlanMutation.mutate({ planId: studyPlanId!, planText: newText })}
                      />
                    ) : (
-                     <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
-                       {(() => {
-                         return <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>;
-                       })()}
-                     </div>
+                     (() => {
+                       const parsed = parsePlanData(studyPlanContent);
+                       if (!parsed) {
+                         return (
+                           <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
+                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{formatPlanAsText(studyPlanContent)}</ReactMarkdown>
+                           </div>
+                         );
+                       }
+
+                       return (
+                         <div className="space-y-4">
+                           {/* Objetivo Semanal */}
+                           {parsed.weeklyGoal && (
+                             <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-2xl flex items-start gap-3">
+                               <Target size={18} className="text-orange-500 shrink-0 mt-0.5" />
+                               <div>
+                                 <p className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest mb-0.5">Objetivo da Semana</p>
+                                 <p className="text-xs sm:text-sm text-foreground font-semibold leading-relaxed">{parsed.weeklyGoal}</p>
+                               </div>
+                             </div>
+                           )}
+
+                           {/* Lista de Dias com Scroll Suave */}
+                           <div className="space-y-3.5">
+                             {parsed.days.map((d, dIdx) => (
+                               <div key={dIdx} className="bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+                                 <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                                   <div className="flex items-center gap-2">
+                                     <div className="w-7 h-7 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-black">
+                                       {dIdx + 1}
+                                     </div>
+                                     <div>
+                                       <h4 className="text-xs sm:text-sm font-black text-foreground">{d.dayName || `Dia ${dIdx + 1}`}</h4>
+                                       {d.focus?.title && (
+                                         <p className="text-[11px] font-bold text-orange-600 dark:text-orange-400 mt-0.5">{d.focus.title}</p>
+                                       )}
+                                     </div>
+                                   </div>
+                                   {d.focus?.description && (
+                                     <span className="hidden md:inline-block text-[10px] text-muted-foreground italic max-w-xs truncate text-right">
+                                       {d.focus.description}
+                                     </span>
+                                   )}
+                                 </div>
+
+                                 {d.focus?.description && (
+                                   <p className="md:hidden text-[11px] text-muted-foreground italic">
+                                     {d.focus.description}
+                                   </p>
+                                 )}
+
+                                 {/* Exercícios do Dia */}
+                                 <div className="space-y-2">
+                                   {(d.exercises || []).map((ex, exIdx) => (
+                                     <div key={exIdx} className="bg-muted/30 border border-border/50 rounded-xl p-3 space-y-1.5">
+                                       <div className="flex items-center justify-between gap-2">
+                                         <div className="flex items-center gap-2 min-w-0">
+                                           <div className="w-6 h-6 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 text-xs">
+                                             <ExerciseIcon icon={ex.icon} />
+                                           </div>
+                                           <span className="font-bold text-xs text-foreground truncate">{ex.title}</span>
+                                         </div>
+                                         {ex.duration && (
+                                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+                                             ⏱ {ex.duration}
+                                           </span>
+                                         )}
+                                       </div>
+                                       {ex.subtitle && !ex.subtitle.toLowerCase().includes("execução direta") && (
+                                         <p className="text-[11px] text-muted-foreground">{ex.subtitle}</p>
+                                       )}
+                                       {ex.points && ex.points.length > 0 && (
+                                         <ul className="space-y-0.5 text-[11px] text-foreground/80 pl-3">
+                                           {ex.points.map((pt, ptIdx) => (
+                                             <li key={ptIdx} className="list-disc leading-relaxed">{pt}</li>
+                                           ))}
+                                         </ul>
+                                       )}
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+
+                           {/* Mensagem Importante / Dica */}
+                           {parsed.importantMessage && (
+                             <div className="bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-2xl flex items-start gap-2.5">
+                               <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                               <div>
+                                 <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-0.5">Dica Prática</p>
+                                 <p className="text-xs text-foreground/90 leading-relaxed">{parsed.importantMessage}</p>
+                               </div>
+                             </div>
+                           )}
+                         </div>
+                       );
+                     })()
                    )
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -1745,7 +1839,7 @@ export default function Progresso() {
 
               {/* Rodapé de Ações — sempre visível, fora do scroll */}
               {studyPlanContent && !isEditingStudyPlan && (
-                <div className="px-4 py-3 bg-muted/20 border-t border-border/70 flex flex-wrap gap-2 justify-between items-center shrink-0">
+                <div className="px-4 py-3 bg-muted/30 border-t border-border/70 flex flex-wrap gap-2 justify-between items-center shrink-0">
                   <div className="flex flex-wrap items-center gap-1.5">
                     {studyPlanStatus === 'rascunho' && (
                       <Button 
@@ -1758,21 +1852,21 @@ export default function Progresso() {
                       </Button>
                     )}
                     <Button 
+                      variant="secondary"
+                      onClick={() => setIsEditingStudyPlan(true)}
+                      className="h-9 rounded-xl px-3 text-[11px] font-black uppercase tracking-wide gap-1.5"
+                    >
+                      <Edit2 size={14} />
+                      Editar
+                    </Button>
+                    <Button 
                       variant="destructive"
                       onClick={() => deleteStudyPlanMutation.mutate({ planId: studyPlanId! })}
                       disabled={deleteStudyPlanMutation.isPending}
-                      className="h-9 rounded-xl px-3 text-[11px] font-black uppercase tracking-wide"
+                      className="h-9 rounded-xl px-3 text-[11px] font-black uppercase tracking-wide gap-1.5"
                     >
-                      {deleteStudyPlanMutation.isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Trash2 size={14} className="mr-1.5" />}
+                      {deleteStudyPlanMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                       Excluir
-                    </Button>
-                    <Button 
-                      variant="secondary"
-                      onClick={() => setIsEditingStudyPlan(true)}
-                      className="h-9 rounded-xl px-3 text-[11px] font-black uppercase tracking-wide"
-                    >
-                      <Edit2 size={14} className="mr-1.5" />
-                      Editar
                     </Button>
                   </div>
                   
@@ -1791,14 +1885,14 @@ export default function Progresso() {
                       onClick={() => handleSendBotWhatsApp(studyPlanContent, "diario")}
                       disabled={isSendingViaBot}
                       className="h-9 rounded-xl px-3 text-[11px] font-bold gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                      title="Enviar via WhatsApp Robô"
+                      title="Enviar via WhatsApp Robô Automático"
                     >
                       {isSendingViaBot ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />}
-                      <span className="hidden sm:inline">Robô</span>
-                       </Button>
-                   </div>
-                 </div>
-               )}
+                      <span className="hidden sm:inline">Robô Auto</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
