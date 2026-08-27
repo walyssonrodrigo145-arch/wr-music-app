@@ -379,8 +379,15 @@ export default function Configuracoes() {
         if (res.provider === "opencode" && Array.isArray(res.models)) {
           setZenModels(res.models);
           setTestMessage(`Chave válida — ${res.models.length} modelos Zen grátis encontrados`);
-          if (res.models.length > 0) toast.success(`Chave OpenCode válida — ${res.models.length} modelos Zen grátis`);
-          else toast(res.error || "Chave válida, mas nenhum Zen grátis encontrado");
+          if (res.models.length > 0) {
+            toast.success(`Chave OpenCode válida — ${res.models.length} modelos Zen grátis`);
+            // Se o modelo atual estiver vazio ou com o placeholder genérico, já preenche com o primeiro da lista
+            if (!opencodeModel || opencodeModel.includes("muse-spark-1.2-contributor-free") || !res.models.some((m: any) => m.id === opencodeModel)) {
+              setOpencodeModel(res.models[0].id);
+            }
+          } else {
+            toast(res.error || "Chave válida, mas nenhum Zen grátis encontrado");
+          }
         } else {
           setTestMessage(res.provider === "gemini" ? "Chave Gemini válida ✓" : res.provider === "groq" ? "Chave Groq válida ✓" : "Chave válida ✓");
           toast.success("Chave válida!");

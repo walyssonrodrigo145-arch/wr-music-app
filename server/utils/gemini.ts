@@ -40,19 +40,32 @@ export async function callGemini(
   }
 
   // ── OpenCode provider (respeita settings.aiProvider = opencode) ──
-  // Detecta via model prefix "opencode/" ou apiKey prefix "opencode-" ou env OPENCODE_API_KEY
+  // Detecta via model prefix "opencode/", modelos zen free/conhecidos, prefixo de chave, ou chave informada
   const isOpencode =
-    (customModel && customModel.trim().startsWith("opencode/")) ||
+    (customModel && (
+      customModel.trim().startsWith("opencode/") ||
+      customModel.includes("-free") ||
+      customModel.includes("spark") ||
+      customModel.includes("deepseek") ||
+      customModel.includes("nemotron") ||
+      customModel.includes("mimo") ||
+      customModel.includes("hy3") ||
+      customModel.includes("laguna")
+    )) ||
     apiKeyToUse.trim().startsWith("opencode-") ||
     apiKeyToUse.trim().startsWith("sk-opencode") ||
     (process.env.OPENCODE_API_KEY && apiKeyToUse.trim() === process.env.OPENCODE_API_KEY.trim());
 
   if (isOpencode) {
     // OpenAI-compatible via fetch (Groq SDK não suporta modelos opencode)
-    const opencodeModel = customModel?.trim() || process.env.OPENCODE_MODEL || "opencode/muse-spark-1.2-contributor-free";
+    let opencodeModel = customModel?.trim() || process.env.OPENCODE_MODEL || "deepseek-v4-flash-free";
+    // Remove prefixo 'opencode/' se presente para envio à API Zen
+    if (opencodeModel.startsWith("opencode/")) {
+      opencodeModel = opencodeModel.replace("opencode/", "");
+    }
     const opencodeUrl =
       (process.env.OPENCODE_API_URL as string) ||
-      "https://api.opencode.ai/v1/chat/completions";
+      "https://opencode.ai/zen/v1/chat/completions";
     const ocMessages: any[] = [];
     if (systemPrompt) ocMessages.push({ role: "system", content: systemPrompt });
     for (const m of messages) {
