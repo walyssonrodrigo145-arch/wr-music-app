@@ -251,9 +251,9 @@ export default function Configuracoes() {
       setGeminiApiKey(settings.geminiApiKey ?? "");
       setGeminiModel(settings.geminiModel ?? "gemini-3.6-flash");
       setGroqApiKey(settings.groqApiKey ?? "");
-      const LEGACY_GROQ = ["llama-3.3-70b-versatile", "llama-3.3-70b-specdec", "llama-3.1-8b-instant", "mixtral-8x7b-32768"];
-      const savedModel = settings.groqModel ?? "openai/gpt-oss-120b";
-      setGroqModel(LEGACY_GROQ.includes(savedModel) ? "openai/gpt-oss-120b" : savedModel);
+      const LEGACY_GROQ = ["llama3-70b-8192", "llama3-8b-8192", "llama-3.3-70b-specdec"];
+      const savedModel = settings.groqModel ?? "llama-3.3-70b-versatile";
+      setGroqModel(LEGACY_GROQ.includes(savedModel) ? "llama-3.3-70b-versatile" : savedModel);
       setOpencodeApiKey((settings as any).opencodeApiKey ?? "");
       setOpencodeModel((settings as any).opencodeModel ?? "opencode/muse-spark-1.2-contributor-free");
       setOpencodeApiUrl((settings as any).opencodeApiUrl ?? "");
