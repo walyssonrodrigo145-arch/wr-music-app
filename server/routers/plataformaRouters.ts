@@ -273,12 +273,12 @@ export const plataformaRouters = {
       }
 
       // opencode — lista modelos e filtra Zen grátis
-      const primaryUrl = apiUrlToTest || (process.env.OPENCODE_API_URL as string) || "https://api.opencode.ai/v1/models";
+      const primaryUrl = apiUrlToTest || (process.env.OPENCODE_API_URL as string) || "https://opencode.ai/zen/v1/models";
       const fallbackUrls = [
         primaryUrl,
+        "https://opencode.ai/zen/v1/models",
         "https://api.opencode.ai/v1/models",
         "https://opencode.ai/api/models",
-        "https://opencode.ai/api/zen/models",
       ].filter((u, i, a) => a.indexOf(u) === i);
       let lastError = "";
       for (const url of fallbackUrls) {
