@@ -297,28 +297,65 @@ export const plataformaRouters = {
             continue;
           }
           const data: any = await res.json().catch(() => null);
-          const rawList: any[] = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : Array.isArray(data) ? data : [];
+          // Debug: log the raw response structure
+          console.warn(`[testAiConnection] OpenCode raw response keys:`, Object.keys(data || {}), `data keys:`, data?.data ? Object.keys(data.data[0] || {}) : 'none');
+          
+          // Try multiple common response formats
+          const rawList: any[] = Array.isArray(data?.data) ? data.data 
+            : Array.isArray(data?.models) ? data.models 
+            : Array.isArray(data) ? data 
+            : Array.isArray(data?.result) ? data.result
+            : Array.isArray(data?.items) ? data.items
+            : [];
+          
+          console.warn(`[testAiConnection] OpenCode rawList length:`, rawList.length, `first item:`, rawList[0] ? JSON.stringify(rawList[0]).slice(0, 500) : 'empty');
+          
+          // More permissive free/zen detection - check multiple fields
           const isFreeZen = (m: any) => {
-            const id = String(m.id || m.name || m.model || "").toLowerCase();
-            const pricing = m.pricing || m.cost || {};
-            const freeFlag = pricing.free === true || pricing.isFree === true || m.free === true || m.zen === true;
-            const zeroCost = (pricing.input === 0 && pricing.output === 0) || (pricing.prompt === 0 && pricing.completion === 0);
-            const zenInId = id.includes("zen") || id.includes("free");
-            return freeFlag || zeroCost || zenInId;
+            const id = String(m.id || m.name || m.model || m.slug || "").toLowerCase();
+            const pricing = m.pricing || m.cost || m.price || m.quota || {};
+            
+            // Check various free indicators
+            const freeFlag = pricing.free === true 
+              || pricing.isFree === true 
+              || m.free === true 
+              || m.zen === true
+              || m.isFree === true
+              || m.freeTier === true;
+            
+            // Zero cost indicators
+            const zeroCost = (pricing.input === 0 && pricing.output === 0) 
+              || (pricing.prompt === 0 && pricing.completion === 0)
+              || (pricing.inputTokens === 0 && pricing.outputTokens === 0)
+              || (pricing.cost === 0)
+              || (pricing.price === 0);
+            
+            // Zen/free in ID
+            const zenInId = id.includes("zen") || id.includes("free") || id.includes("trial");
+            
+            // Also check for "free" in name/description
+            const name = String(m.name || m.displayName || m.description || "").toLowerCase();
+            const freeInName = name.includes("free") || name.includes("zen") || name.includes("trial");
+            
+            return freeFlag || zeroCost || zenInId || freeInName;
           };
+          
           const filtered = rawList.filter(isFreeZen).map((m: any) => ({
-            id: String(m.id || m.name || m.model),
-            name: String(m.name || m.id || ""),
-            displayName: String(m.displayName || m.name || m.id || ""),
-            contextLength: m.contextLength || m.context_length || m.maxTokens || null,
-            pricing: m.pricing || null,
+            id: String(m.id || m.name || m.model || m.slug || ""),
+            name: String(m.name || m.id || m.model || m.slug || ""),
+            displayName: String(m.displayName || m.name || m.id || m.slug || ""),
+            contextLength: m.contextLength || m.context_length || m.maxTokens || m.max_tokens || m.maxContext || null,
+            pricing: m.pricing || m.cost || m.price || null,
           })).sort((a, b) => a.id.localeCompare(b.id));
+          
+          console.warn(`[testAiConnection] OpenCode filtered Zen free:`, filtered.length, `raw:`, rawList.length);
+          
           // Se filtro zerou mas lista original tinha itens, retorna lista original com flag para UI decidir
           if (rawList.length > 0 && filtered.length === 0) {
             // Sem zen grátis explícito, mas chave válida — retorna lista completa limitada para UI mostrar aviso
-            return { valid: true, provider: "opencode", models: [], rawCount: rawList.length, error: "Chave válida, mas nenhum modelo Zen grátis encontrado para esta conta. Você pode usar modelos pagos ou informar o modelo manualmente.", modelsPreview: rawList.slice(0, 5).map((m:any)=> String(m.id||m.name)) } as any;
+            return { valid: true, provider: "opencode", models: [], rawCount: rawList.length, error: "Chave válida, mas nenhum modelo Zen grátis encontrado para esta conta. Você pode usar modelos pagos ou informar o modelo manualmente.", modelsPreview: rawList.slice(0, 10).map((m:any)=> String(m.id||m.name||m.model)) } as any;
           }
-          return { valid: true, provider: "opencode", models: filtered, count: filtered.length } as const;
+          return { valid: true, provider: "opencode", models: filtered, count: filtered.length, allModels: rawList.map((m:any)=>({id:String(m.id||m.name||m.model), name:String(m.name||m.id||m.model)})).slice(0, 20) } as const;
         } catch (e: any) {
           if (e.name === "AbortError") {
             lastError = "Timeout 10s OpenCode";
