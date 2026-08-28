@@ -2044,19 +2044,20 @@ export default function Configuracoes() {
                   </div>
 
                   <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
-                    <Field 
+                    <Field
                       label="Modelo da IA (Groq)"
-                      hint="Llama 3 70B é recomendado para maior inteligência."
+                      hint="Llama 4 Scout é recomendado para o Plano Diário (30K TPM no plano gratuito — não estoura o limite de tokens)."
                     >
                       <select
                         value={groqModel}
                         onChange={(e: any) => setGroqModel(e.target.value)}
                         className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
-                        <option value="openai/gpt-oss-120b">GPT-OSS 120B (Recomendado)</option>
-                        <option value="openai/gpt-oss-20b">GPT-OSS 20B (Mais rápido)</option>
+                        <option value="meta-llama/llama-4-scout-17b-16e-instruct">⭐ Llama 4 Scout 17B (Recomendado — Plano Diário pesado)</option>
+                        <option value="openai/gpt-oss-120b">GPT-OSS 120B (Melhor qualidade, 8K TPM)</option>
+                        <option value="openai/gpt-oss-20b">GPT-OSS 20B (Rápido, 8K TPM)</option>
+                        <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Inteligente, 12K TPM)</option>
                         <option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option>
-                        <option value="llama-3.3-70b-versatile">⭐ Llama 3.3 70B Versatile (Mais inteligente)</option>
                         <option value="mixtral-8x7b-32768">🧠 Mixtral 8x7B 32k (Contexto longo)</option>
                         <option value="deepseek-r1-distill-llama-70b">💡 DeepSeek R1 Distill 70B (Raciocínio avançado)</option>
                       </select>
