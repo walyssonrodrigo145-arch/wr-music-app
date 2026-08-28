@@ -27,7 +27,7 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt } from "../utils/aiPrompts";
+import { getSystemPrompt, buildLessonPlanPrompt, buildProgressInsightPrompt, buildNextTopicPrompt, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
 import { callGemini, genAI } from "../utils/gemini";
 import { BillingEngine } from "../services/BillingEngine";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "../utils/whatsapp";
@@ -52,7 +52,7 @@ import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
 import { getInstrumentContext } from "../utils/instrumentContexts";
-import { resolveSpecialist, buildSpecialistPromptBlock, validatePlanText } from "../services/InstrumentSpecialistService";
+import { resolveSpecialist, buildSpecialistPromptBlock, validatePlanText, validatePlanTextForInstrument } from "../services/InstrumentSpecialistService";
 import { buildMusicTheoryPromptBlock, validateMusicTheoryConcepts } from "../services/MusicTheoryValidator";
 import { resolveAiCredentials } from "../utils/aiProvider";
 import { studentPedagogicalMemory } from "../../drizzle/schema";
@@ -240,18 +240,30 @@ export const progressRouters = {
       const pastLessons = await db.select().from(lessons).where(and(eq(lessons.studentId, input.studentId as number), eq(lessons.organizationId, orgId), eq(lessons.status, 'concluida'))).limit(10).orderBy(desc(lessons.scheduledAt));
       const goals = await db.select().from(studentGoals).where(and(eq(studentGoals.studentId, input.studentId), eq(studentGoals.organizationId, orgId)));
       
-      // ── Especialista (RF-006) ──
+      // ── Especialista (RF-006) — RF-001/RF-011 (PRD_PROMPTS_IA_CONSOLIDADOS) ──
       let specialistBlock = "";
+      let instrumentNameForValidation: string | null = null;
+      let instrumentCategoryForValidation: string = "geral";
       if (student.instrumentId) {
         try {
           const [instr] = await db.select({ name: instruments.name, category: instruments.category }).from(instruments).where(eq(instruments.id, student.instrumentId)).limit(1);
           if (instr) {
+            instrumentNameForValidation = instr.name;
+            instrumentCategoryForValidation = instr.category || "geral";
             const sp = resolveSpecialist(instr.name, instr.category || "geral");
             specialistBlock = `\n[ESPECIALISTA: ${sp.displayName} (${sp.id}) — Terminologia: ${sp.terminology.slice(0,6).join(", ")} | PROIBIDO: ${sp.forbiddenTerms.slice(0,5).join(", ")}]\nGlossário: ${Object.entries(sp.glossary).map(([k,v])=>`${k}=${v.slice(0,80)}`).join(" | ")}\n`;
           }
-        } catch {}
+        } catch (specErr: any) {
+          console.warn("[generateAIInsight] Falha não impeditiva ao montar bloco de especialista:", specErr?.message || specErr);
+        }
       }
-      const prompt = `${specialistBlock}Analise o progresso musical do aluno ${student.name} (nível: ${student.level}). Últimas aulas: ${pastLessons.length} concluídas. Metas cadastradas: ${goals.length}. Dê um feedback motivador e com 2 pontos de foco para as próximas aulas em um único parágrafo pequeno. Respeite terminologia do instrumento do aluno e não use termos de outros instrumentos.`;
+      const prompt = buildProgressInsightPrompt({
+        specialistBlock,
+        studentName: student.name,
+        studentLevel: student.level,
+        pastLessonsCount: pastLessons.length,
+        goalsCount: goals.length,
+      });
       
       try {
         const { callGemini } = await import("../utils/gemini");
@@ -261,11 +273,30 @@ export const progressRouters = {
         const apiKey = creds.apiKey;
         const model = creds.model;
         
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
-        return { insight: responseText.trim() };
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model, 0.5, {
+          organizationId: orgId,
+          userId: ctx.user.id,
+          feature: "insight_progresso",
+          promptVersion: AI_PROMPT_VERSIONS.insightProgresso,
+        });
+
+        // RF-006: validação de terminologia apenas como aviso (não bloqueante — texto livre)
+        if (instrumentNameForValidation) {
+          try {
+            const validation = validatePlanTextForInstrument(responseText, instrumentNameForValidation, instrumentCategoryForValidation);
+            if (!validation.passed) {
+              console.warn("[generateAIInsight] Aviso de terminologia (não bloqueante):", validation.found.slice(0, 3));
+            }
+          } catch (valErr: any) {
+            console.warn("[generateAIInsight] Falha não impeditiva na validação de terminologia:", valErr?.message || valErr);
+          }
+        }
+
+        return { insight: responseText.trim(), source: "ai" as const };
       } catch (e) {
         console.error("Erro ao gerar insight:", e);
-        return { insight: "O aluno tem se saído bem nas últimas aulas. Foco em melhorar a constância na prática diária e avançar nas metas de repertório." }; // Fallback
+        // RF-011: fallback honesto — o client indica que o texto NÃO veio da IA
+        return { insight: "O aluno tem se saído bem nas últimas aulas. Foco em melhorar a constância na prática diária e avançar nas metas de repertório.", source: "fallback" as const }; // Fallback
       }
     }),
     suggestNextLessonTopic: protectedProcedure.input(z.object({ studentId: z.number() })).mutation(async ({ ctx, input }) => {
@@ -283,23 +314,29 @@ export const progressRouters = {
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
       let specialistBlock = "";
+      let instrumentNameForValidation: string | null = null;
+      let instrumentCategoryForValidation: string = "geral";
       if (student.instrumentId) {
         try {
           const [instr] = await db.select({ name: instruments.name, category: instruments.category }).from(instruments).where(eq(instruments.id, student.instrumentId)).limit(1);
           if (instr) {
+            instrumentNameForValidation = instr.name;
+            instrumentCategoryForValidation = instr.category || "geral";
             const sp = resolveSpecialist(instr.name, instr.category || "geral");
             specialistBlock = `\n[ESPECIALISTA: ${sp.displayName} (${sp.id}) — Respeite terminologia de ${sp.displayName}. PROIBIDO: ${sp.forbiddenTerms.slice(0,5).join(", ")}]\n`;
           }
-        } catch {}
+        } catch (specErr: any) {
+          console.warn("[suggestNextLessonTopic] Falha não impeditiva ao montar bloco de especialista:", specErr?.message || specErr);
+        }
       }
-      const prompt = `${specialistBlock}Atue como um professor mentor especialista no instrumento do aluno. Analise o histórico do aluno ${student.name} (Nível: ${student.level}) e sugira qual deve ser o ASSUNTO PRINCIPAL da próxima aula. Use apenas terminologia do instrumento do aluno.
-
-Histórico do Aluno:
-- Últimas ${pastLessons.length} aulas concluídas.
-- Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
-- Timeline recente de evolução: ${timelineText || "Nenhum registro"}
-
-Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual o melhor assunto/foco para a próxima aula e por que. Não use saudações, vá direto ao ponto. Não use termos de outros instrumentos.`;
+      const prompt = buildNextTopicPrompt({
+        specialistBlock,
+        studentName: student.name,
+        studentLevel: student.level,
+        pastLessonsCount: pastLessons.length,
+        goalsTitles: goals.map(g => g.title),
+        timelineText,
+      });
       
       try {
         const { callGemini } = await import("../utils/gemini");
@@ -308,7 +345,25 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
         const creds = resolveAiCredentials(settingsData);
         const apiKey = creds.apiKey;
         const model = creds.model;
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
+        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model, 0.5, {
+          organizationId: orgId,
+          userId: ctx.user.id,
+          feature: "proximo_topico",
+          promptVersion: AI_PROMPT_VERSIONS.proximoTopico,
+        });
+
+        // RF-006: validação de terminologia apenas como aviso (não bloqueante)
+        if (instrumentNameForValidation) {
+          try {
+            const validation = validatePlanTextForInstrument(responseText, instrumentNameForValidation, instrumentCategoryForValidation);
+            if (!validation.passed) {
+              console.warn("[suggestNextLessonTopic] Aviso de terminologia (não bloqueante):", validation.found.slice(0, 3));
+            }
+          } catch (valErr: any) {
+            console.warn("[suggestNextLessonTopic] Falha não impeditiva na validação de terminologia:", valErr?.message || valErr);
+          }
+        }
+
         return { suggestion: responseText.trim() };
       } catch (e: any) {
         throw new Error("Erro ao sugerir tópico com a IA: " + e.message);
@@ -372,59 +427,33 @@ Forneça APENAS um parágrafo curto (máx 3 linhas) explicando diretamente qual 
       const timelineText = timeline.map(t => "[" + t.category + "] " + t.title + " - " + t.description).join(" | ");
 
       let specialistBlock2 = "";
+      let instrumentNameForValidation: string | null = null;
+      let instrumentCategoryForValidation: string = "geral";
       if (student.instrumentId) {
         try {
           const [instr2] = await db.select({ name: instruments.name, category: instruments.category }).from(instruments).where(eq(instruments.id, student.instrumentId)).limit(1);
           if (instr2) {
+            instrumentNameForValidation = instr2.name;
+            instrumentCategoryForValidation = instr2.category || "geral";
             const sp2 = resolveSpecialist(instr2.name, instr2.category || "geral");
             specialistBlock2 = `\n[ESPECIALISTA: ${sp2.displayName} (${sp2.id})]\n${sp2.systemPrompt}\nGlossário: ${Object.entries(sp2.glossary).map(([k,v])=>`${k}=${v.slice(0,80)}`).join(" | ")}\nPROIBIDO: ${sp2.forbiddenTerms.slice(0,6).join(", ")}\nTerminologia correta: ${sp2.terminology.slice(0,8).join(", ")}\n`;
           }
-        } catch {}
+        } catch (specErr: any) {
+          console.warn("[generateNextLessonPlan] Falha não impeditiva ao montar bloco de especialista:", specErr?.message || specErr);
+        }
       }
-      const prompt = `${specialistBlock2}Você é um professor de música gerando um plano de aula particular para a PRÓXIMA AULA do aluno ${student.name} (Nível: ${student.level}). Escreva obrigatoriamente em Português do Brasil (pt-BR) com um tom natural, humano e caloroso. A linguagem deve ser extremamente simples, didática e de fácil compreensão, focada em alunos iniciantes com dificuldade, sem jargões complexos nem tons robóticos. Respeite terminologia exclusiva do instrumento do aluno e NUNCA use termos de outros instrumentos.
-${student.methodologyText ? `\nMETODOLOGIA DE ENSINO DO PROFESSOR:\nBaseie seus exercícios rigorosamente nesta metodologia definida para este aluno:\n"""\n${student.methodologyText}\n"""\n` : ''}
-Histórico do Aluno:
-- Últimas ${pastLessons.length} aulas concluídas.
-- Metas pendentes/ativas: ${goals.map(g => g.title).join(", ") || "Nenhuma"}
-- Timeline recente de evolução: ${timelineText || "Nenhum registro"}
-
-${input.topic ? `O professor definiu que o TÓPICO PRINCIPAL DESTA AULA DEVE SER: "${input.topic}". Crie o plano focado neste assunto.` : 'Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.'}
-
-Sua resposta será exibida em uma interface de texto puro. Portanto, NÃO UTILIZE MARKDOWN (como asteriscos **, hashtags # ou traços ---).
-
-Siga EXATAMENTE o template abaixo, usando emojis como âncoras visuais, hífens para listas e pulando uma linha em branco entre cada bloco de conteúdo para garantir a legibilidade.
-${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios apropriados para o nível dele com base no histórico.' : ''}
-
-[INÍCIO DO TEMPLATE]
-
-🎸 PLANO DE AULA: [Título Curto e Direto]
-
-👤 Aluno: ${student.name} | 📊 Nível: ${student.level}
-
-🎯 OBJETIVO DA AULA
-[Escreva em 2 ou 3 linhas o objetivo principal da aula de forma clara e motivadora].
-
-⏱️ 1. AQUECIMENTO ([X] min)
-
-[Nome do Exercício]: [Instrução breve].
-
-[Foco]: [O que o aluno deve prestar atenção].
-
-🧠 2. TÉCNICA E TEORIA ([X] min)
-
-[Tópico 1]: [Explicação ou exercício prático].
-
-[Tópico 2]: [Explicação ou exercício prático].
-
-🎵 3. PRÁTICA MUSICAL ([X] min)
-
-[Música/Trecho]: [O que tocar e como aplicar o que foi aprendido].
-
-📝 TAREFA DE CASA
-
-[Resumo rápido do que o aluno deve praticar até a próxima aula].
-
-[FIM DO TEMPLATE]`;
+      // RF-005 (PRD): builder central corrige duplicação da instrução "Decida o próximo
+      // assunto" e injeta a data de hoje; demais seções em copy fiel.
+      const prompt = buildLessonPlanPrompt({
+        specialistBlock: specialistBlock2,
+        studentName: student.name,
+        studentLevel: student.level,
+        methodologyText: student.methodologyText,
+        pastLessonsCount: pastLessons.length,
+        goalsTitles: goals.map(g => g.title),
+        timelineText,
+        topic: input.topic,
+      });
       
       try {
         const { callGemini } = await import("../utils/gemini");
@@ -433,7 +462,37 @@ ${!input.topic ? 'Decida o próximo assunto a ser tratado e sugira exercícios a
         const creds = resolveAiCredentials(settingsData);
         const apiKey = creds.apiKey;
         const model = creds.model;
-        const responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model);
+        let responseText = await callGemini([{ role: 'user', content: prompt }], undefined, false, apiKey, model, 0.5, {
+          organizationId: orgId,
+          userId: ctx.user.id,
+          feature: "plano_aula",
+          promptVersion: AI_PROMPT_VERSIONS.planoAula,
+        });
+
+        // RF-006 (PRD): validação de contaminação de terminologia com 1 retry
+        if (instrumentNameForValidation) {
+          try {
+            const validation = validatePlanTextForInstrument(responseText, instrumentNameForValidation, instrumentCategoryForValidation);
+            if (!validation.passed) {
+              console.warn("[generateNextLessonPlan] Contaminação detectada, retry com instrução reforçada:", validation.found.slice(0, 3));
+              const retryPrompt = `${prompt}\n\nATENÇÃO: A tentativa anterior usou termos de OUTRO instrumento (${validation.found.slice(0,3).join(", ")}). Reescreva o plano completo usando APENAS terminologia de ${instrumentNameForValidation}.`;
+              responseText = await callGemini([{ role: 'user', content: retryPrompt }], undefined, false, apiKey, model, 0.5, {
+                organizationId: orgId,
+                userId: ctx.user.id,
+                feature: "plano_aula_retry",
+                promptVersion: AI_PROMPT_VERSIONS.planoAula,
+              });
+              const revalidation = validatePlanTextForInstrument(responseText, instrumentNameForValidation, instrumentCategoryForValidation);
+              if (!revalidation.passed) {
+                throw new Error(`O plano gerado conteve termos de outro instrumento (${revalidation.found.slice(0,3).join(", ")}). Gere novamente.`);
+              }
+            }
+          } catch (valErr: any) {
+            if (valErr instanceof Error && valErr.message.includes("termos de outro instrumento")) throw valErr;
+            console.warn("[generateNextLessonPlan] Falha não impeditiva na validação de terminologia:", valErr?.message || valErr);
+          }
+        }
+
         return { plan: responseText };
       } catch (e: any) {
         throw new Error("Erro ao gerar plano de aula com a IA: " + e.message);

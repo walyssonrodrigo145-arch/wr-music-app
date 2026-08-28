@@ -27,7 +27,8 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt } from "../utils/aiPrompts";
+import { getSystemPrompt, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
+import { resolveAiCredentials } from "../utils/aiProvider";
 import { callGemini, genAI } from "../utils/gemini";
 import { BillingEngine } from "../services/BillingEngine";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "../utils/whatsapp";
@@ -77,8 +78,8 @@ export const aiRouters = {
         const { getSettingsByUserId } = await import("../db");
         const orgId = ctx.user.organizationId!;
         const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
-        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
+        // RF-002 (PRD_PROMPTS_IA_CONSOLIDADOS): resolução unificada (suporta gemini|groq|opencode)
+        const creds = resolveAiCredentials(settingsData);
 
         const prompt = `Você é um excelente e prestativo assistente de escrita.
 Sua tarefa é reescrever o aviso abaixo, enviado por um professor de música para seus alunos/pais.
@@ -98,7 +99,12 @@ COMO DEVE SER:
 
 Texto original para reescrever:
 "${input.text}"`;
-        const result = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
+        const result = await callGemini([{ role: "user", content: prompt }], undefined, false, creds.apiKey, creds.model, 0.5, {
+          organizationId: orgId,
+          userId: ctx.user.id,
+          feature: "enhance_text",
+          promptVersion: AI_PROMPT_VERSIONS.enhanceText,
+        });
         return { text: result };
       }),
 
@@ -323,17 +329,22 @@ Texto original para reescrever:
         let systemPrompt = getSystemPrompt(userDataContext);
 
         // Fetch AI documents to use as context
+        // RF-008 (PRD): máx. 3 documentos (mais recentes) e 30.000 caracteres por documento
         const userDocs = await db.select({
           fileName: aiDocuments.fileName,
           extractedText: aiDocuments.extractedText
         }).from(aiDocuments)
-          .where(and(eq(aiDocuments.userId, ctx.user.id), eq(aiDocuments.organizationId, orgId)));
+          .where(and(eq(aiDocuments.userId, ctx.user.id), eq(aiDocuments.organizationId, orgId)))
+          .orderBy(desc(aiDocuments.createdAt))
+          .limit(3);
 
         if (userDocs.length > 0) {
           systemPrompt += `\n\n=== BASE DE CONHECIMENTO DO USUÁRIO (DOCUMENTOS) ===\n`;
           systemPrompt += `O usuário forneceu os seguintes documentos para você ler e usar como base para respostas. Nunca diga que você não tem acesso aos documentos, pois eles estão listados abaixo:\n`;
           for (const doc of userDocs) {
-            systemPrompt += `\n--- Arquivo: ${doc.fileName} ---\n${doc.extractedText}\n----------------------\n`;
+            let docText = doc.extractedText || "";
+            if (docText.length > 30000) docText = docText.slice(0, 30000) + "\n[documento truncado]";
+            systemPrompt += `\n--- Arquivo: ${doc.fileName} ---\n${docText}\n----------------------\n`;
           }
         }
 
@@ -347,9 +358,14 @@ Texto original para reescrever:
         const settingsData = await getSettingsByUserId(orgId, professorId);
 
         // Chama a IA
-        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
-        const aiResponseRaw = await callGemini(formattedHistory, systemPrompt, false, apiKey, model);
+        // RF-002 (PRD): resolução unificada (suporta gemini|groq|opencode)
+        const creds = resolveAiCredentials(settingsData);
+        const aiResponseRaw = await callGemini(formattedHistory, systemPrompt, false, creds.apiKey, creds.model, 0.4, {
+          organizationId: orgId,
+          userId: ctx.user.id,
+          feature: "assistente_gestao",
+          promptVersion: AI_PROMPT_VERSIONS.assistenteGestao,
+        });
 
         // ── PROCESSAR ACTIONS DE CADASTRO DE ALUNO (Múltiplos permitidos) ────────
         const ACTION_REGEX = /<!--ACTION:CREATE_STUDENT\s+(\{[\s\S]*?\})-->/g;

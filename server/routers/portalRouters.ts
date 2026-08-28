@@ -27,7 +27,8 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt } from "../utils/aiPrompts";
+import { getSystemPrompt, buildExerciseExplanationPrompt, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
+import { resolveAiCredentials } from "../utils/aiProvider";
 import { callGemini, genAI } from "../utils/gemini";
 import { BillingEngine } from "../services/BillingEngine";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "../utils/whatsapp";
@@ -1237,75 +1238,27 @@ Instruções de análise:
         const exerciseSubtitle = input.exerciseSubtitle || "Instruções do exercício";
         const exercisePoints = input.exercisePoints && input.exercisePoints.length > 0 ? input.exercisePoints.join(", ") : "Execução prática com atenção aos detalhes";
 
-        const prompt = `# Objetivo
-Você é o professor particular de música do ${firstName}.
-O aluno clicou em "Entender Melhor" no plano de estudos.
-Agora ele espera uma explicação exatamente como receberia pelo WhatsApp do próprio professor.
-
-Jamais escreva como IA.
-Jamais escreva como documentação.
-Jamais escreva como um artigo.
-Escreva como um professor conversando naturalmente.
-
----
-
-## Dados
-Aluno: ${firstName}
-Instrumento: ${instrument}
-Objetivo do dia: ${dayFocus}
-Exercício: ${input.exerciseTitle}
-Subtítulo: ${exerciseSubtitle}
-Pontos do exercício: ${exercisePoints}
-
----
-
-# Como responder
-Sempre siga esta sequência de forma fluida em uma mensagem contínua:
-
-1. Explique o objetivo: Mostre por que esse exercício existe, qual habilidade ele desenvolve e por que é importante.
-2. Ensine como fazer: Explique passo a passo como se o aluno nunca tivesse feito isso. Fale sobre postura, posição das mãos, ritmo, velocidade, respiração ou coordenação de acordo com o instrumento. Nunca pule etapas.
-3. Mostre o erro mais comum: Explique o erro que quase todo aluno comete e como evitar.
-4. Como saber se está certo: Explique os sinais visíveis/sonoros que mostram que ele está executando corretamente (ex: som limpo, ritmo constante, relaxamento, troca suave dos dedos).
-5. Dica de professor: Finalize sempre com uma dica prática que normalmente só um professor experiente daria durante uma aula.
-
----
-
-# Linguagem
-Converse naturalmente. Use frases curtas.
-Evite excesso de entusiasmo ou clichês vazios.
-NUNCA diga: "Parabéns", "Excelente", "Continue assim", "Você consegue".
-Prefira uma conversa natural de professor para aluno.
-
----
-
-# Adaptação por instrumento (${instrument})
-Sempre adapte a explicação estritamente para o ${instrument}:
-- Se for piano: fale sobre dedos, peso da mão, articulação, dinâmica, pedal.
-- Se for violão: fale sobre posição da mão, troca de acordes, batida, palhetada, pressão dos dedos.
-- Se for guitarra: fale sobre abafamento, bends, palhetada, precisão.
-- Se for bateria: fale sobre independência, dinâmica, tempo, postura.
-- Se for canto: fale sobre respiração, apoio, emissão, ressonância.
-Nunca misture técnicas de instrumentos diferentes.
-
----
-
-# Resultado esperado e Formatação
-A resposta deve parecer uma mensagem enviada pelo professor no WhatsApp logo após a aula.
-O aluno deve terminar a leitura pensando: "Agora entendi exatamente o que preciso fazer."
-
-REGRAS RÍGIDAS DE FORMATAÇÃO:
-- Não utilize Markdown (PROIBIDO o uso de **, #, *, _, etc).
-- Não utilize listas enormes.
-- Não utilize emojis em excesso.
-- Responda apenas com texto natural e quebras de linha normais.`;
+        const prompt = buildExerciseExplanationPrompt({
+          firstName,
+          instrument,
+          dayFocus,
+          exerciseTitle: input.exerciseTitle,
+          exerciseSubtitle,
+          exercisePoints,
+        });
 
         const { getSettingsByUserId } = await import("../db");
         const settingsData = await getSettingsByUserId(ctx.user.organizationId!, student?.professorId || ctx.user.id);
 
         const { callGemini } = await import("../utils/gemini");
-        const apiKey = settingsData?.aiProvider === 'groq' ? settingsData?.groqApiKey : settingsData?.geminiApiKey;
-        const model = settingsData?.aiProvider === 'groq' ? settingsData?.groqModel : settingsData?.geminiModel;
-        const explanation = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
+        // RF-002 (PRD): resolução unificada (suporta gemini|groq|opencode)
+        const creds = resolveAiCredentials(settingsData);
+        const explanation = await callGemini([{ role: "user", content: prompt }], undefined, false, creds.apiKey, creds.model, 0.4, {
+          organizationId: ctx.user.organizationId,
+          userId: ctx.user.id,
+          feature: "explicacao_exercicio",
+          promptVersion: AI_PROMPT_VERSIONS.explicacaoExercicio,
+        });
         return { explanation };
       } catch (e: any) {
         throw new Error("Não foi possível gerar a explicação: " + e.message);

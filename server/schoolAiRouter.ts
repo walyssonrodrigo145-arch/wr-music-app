@@ -4,6 +4,8 @@ import { getDb } from "./db";
 import { schoolKnowledgeBase, settings } from "../drizzle/schema";
 import { and, eq } from "drizzle-orm";
 import { callGemini } from "./utils/gemini";
+import { resolveAiCredentials } from "./utils/aiProvider";
+import { buildSchoolKnowledgePrompt, buildKnowledgeContext, AI_PROMPT_VERSIONS } from "./utils/aiPrompts";
 
 // ─── Tópicos Padrão Sugeridos para Escolas de Música ──────────────────────────
 export const DEFAULT_SUGGESTED_TOPICS = [
@@ -208,13 +210,17 @@ export const schoolAiRouter = router({
           geminiModel: settings.geminiModel,
           groqApiKey: settings.groqApiKey,
           groqModel: settings.groqModel,
+          opencodeApiKey: (settings as any).opencodeApiKey,
+          opencodeModel: (settings as any).opencodeModel,
+          attendanceTone: settings.attendanceTone,
+          attendancePersonaName: settings.attendancePersonaName,
           pixKey: settings.pixKey,
         })
         .from(settings)
         .where(eq(settings.userId, ctx.user.id))
         .limit(1);
 
-      if (!userSettings?.groqApiKey && !userSettings?.geminiApiKey) {
+      if (!userSettings?.groqApiKey && !userSettings?.geminiApiKey && !userSettings?.opencodeApiKey) {
         const [orgSettings] = await db
           .select({
             schoolName: settings.schoolName,
@@ -223,6 +229,10 @@ export const schoolAiRouter = router({
             geminiModel: settings.geminiModel,
             groqApiKey: settings.groqApiKey,
             groqModel: settings.groqModel,
+            opencodeApiKey: (settings as any).opencodeApiKey,
+            opencodeModel: (settings as any).opencodeModel,
+            attendanceTone: settings.attendanceTone,
+            attendancePersonaName: settings.attendancePersonaName,
             pixKey: settings.pixKey,
           })
           .from(settings)
@@ -236,6 +246,7 @@ export const schoolAiRouter = router({
       const schoolName = userSettings?.schoolName || "Nossa Escola de Música";
 
       // 2. Carrega tópicos ativos da Base de Conhecimento
+      // RF-008: caps (20 tópicos × 4.000 chars) via helper único
       const activeTopics = await db
         .select()
         .from(schoolKnowledgeBase)
@@ -246,40 +257,40 @@ export const schoolAiRouter = router({
           )
         );
 
-      let knowledgeContext = "";
-      for (const t of activeTopics) {
-        knowledgeContext += `\n--- [TÓPICO: ${t.title}] ---\n${t.content}\n`;
-      }
+      const knowledgeContext = buildKnowledgeContext(
+        activeTopics.map(t => ({ title: t.title, content: t.content })),
+        20,
+        4000
+      );
 
       const enrollmentLink = `https://wrmusicpro.com.br/matricula/${schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
 
-      const systemPrompt = `Você é a atendente virtual inteligente, carinhosa, acolhedora e altamente profissional da escola de música "${schoolName}" no WhatsApp.
+      // RF-004: fonte única da atendente (mesma personalidade/tom do atendimento real)
+      const systemPrompt = buildSchoolKnowledgePrompt({
+        schoolName,
+        personaName: userSettings?.attendancePersonaName,
+        tone: userSettings?.attendanceTone,
+        knowledgeContext,
+        enrollmentLink,
+      });
 
-SUA MISSÃO:
-Responder à dúvida do cliente de forma clara, simpática e natural em português do Brasil, utilizando EXCLUSIVAMENTE a Base de Conhecimento oficial da escola.
-
-BASE DE CONHECIMENTO OFICIAL DA ESCOLA:
-${knowledgeContext || "Nenhuma informação extra cadastrada. Responda cordialmente com base em boas práticas de escolas de música."}
-
-DIRETRIZES DE RESPOSTA NO WHATSAPP:
-1. Responda em formato de mensagem de WhatsApp (use emojis musicais 🎵🎸🎹, quebras de linha e negrito quando apropriado).
-2. Seja concisa, calorosa e objetiva (1 a 3 parágrafos curtos).
-3. NUNCA invente valores, regras ou horários que não estejam na base de conhecimento. Se não souber algo confidencial, convide educadamente para falar com a secretaria/professor.
-4. CALL TO ACTION (Fechamento): Ao final da resposta, convide sempre o lead/aluno para o próximo passo. Por exemplo:
-   - "Gostaria de agendar uma aula experimental para conhecer nosso espaço? É só me avisar por aqui ou acessar nosso link: ${enrollmentLink}"
-   - "Ou se preferir ver todos os detalhes e fazer sua matrícula online: 👉 ${enrollmentLink}"
-   - "Digite *MENU* a qualquer momento para ver as opções rápidas."`;
-
-      const apiKey = userSettings?.aiProvider === "groq" ? userSettings.groqApiKey : userSettings?.geminiApiKey;
-      const model = userSettings?.aiProvider === "groq" ? userSettings.groqModel : userSettings?.geminiModel;
+      // RF-002: resolução unificada (suporta gemini|groq|opencode)
+      const creds = resolveAiCredentials(userSettings);
 
       try {
         const response = await callGemini(
           [{ role: "user", content: input.question }],
           systemPrompt,
           false,
-          apiKey,
-          model
+          creds.apiKey,
+          creds.model,
+          0.4,
+          {
+            organizationId: orgId,
+            userId: ctx.user.id,
+            feature: "atendente_teste",
+            promptVersion: AI_PROMPT_VERSIONS.atendenteRAG,
+          }
         );
 
         return {

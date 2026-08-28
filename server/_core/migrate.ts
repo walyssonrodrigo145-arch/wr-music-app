@@ -319,6 +319,24 @@ export async function runAutoMigrations() {
       { table: 'students', sql: `CREATE INDEX IF NOT EXISTS "idx_students_org_professor" ON "students" ("organizationId", "professorId")` },
       { table: 'chat_messages', sql: `CREATE INDEX IF NOT EXISTS "idx_chat_messages_pair" ON "chat_messages" ("senderId", "receiverId", "createdAt")` },
       { table: 'notifications', sql: `CREATE INDEX IF NOT EXISTS "idx_notifications_user" ON "notifications" ("userId", "createdAt")` },
+      // ── PRD_PROMPTS_IA_CONSOLIDADOS — Telemetria de IA (RF-009) ────────────────
+      { table: 'ai_call_logs', sql: `CREATE TABLE IF NOT EXISTS "ai_call_logs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer,
+        "userId" integer,
+        "feature" varchar(60) NOT NULL,
+        "promptVersion" varchar(12),
+        "provider" varchar(20) NOT NULL,
+        "model" varchar(80) NOT NULL,
+        "durationMs" integer NOT NULL,
+        "success" boolean NOT NULL,
+        "errorCode" varchar(30),
+        "errorMessage" text,
+        "isJson" integer DEFAULT 0 NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'ai_call_logs', sql: `CREATE INDEX IF NOT EXISTS "idx_ai_call_logs_org_created" ON "ai_call_logs" ("organizationId", "createdAt")` },
+      { table: 'ai_call_logs', sql: `CREATE INDEX IF NOT EXISTS "idx_ai_call_logs_feature_created" ON "ai_call_logs" ("feature", "createdAt")` },
     ];
 
     for (const m of migrations) {

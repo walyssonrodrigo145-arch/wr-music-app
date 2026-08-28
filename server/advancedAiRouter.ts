@@ -16,8 +16,41 @@ import {
   instruments
 } from "../drizzle/schema";
 import { eq, and, desc, gte, inArray } from "drizzle-orm";
-import { callGemini } from "./utils/gemini";
 import { resolveAiCredentials } from "./utils/aiProvider";
+import { callAiJson } from "./utils/aiJson";
+import { buildPedagogicalMemoryPrompt, buildSmartSchedulePrompt, AI_PROMPT_VERSIONS } from "./utils/aiPrompts";
+
+// Schemas zod dos contratos JSON (RF-003 — PRD_PROMPTS_IA_CONSOLIDADOS)
+const pedagogicalMemorySchema = z.object({
+  summary: z.string().default(""),
+  strongPoints: z.array(z.string()).default([]),
+  weakPoints: z.array(z.string()).default([]),
+  repertoireMastered: z.array(z.string()).default([]),
+  repertoireLearning: z.array(z.string()).default([]),
+  nextLessonPlan: z.object({
+    title: z.string().default(""),
+    warmup: z.string().default(""),
+    technicalFocus: z.string().default(""),
+    repertoirePractice: z.string().default(""),
+    homework: z.string().default(""),
+  }).default({ title: "", warmup: "", technicalFocus: "", repertoirePractice: "", homework: "" }),
+  pedagogicalDirectives: z.string().default(""),
+});
+
+const smartScheduleSchema = z.object({
+  totalOptimized: z.number().default(0),
+  conflictsResolved: z.number().default(0),
+  recommendations: z.array(z.string()).default([]),
+  optimizedLessons: z.array(z.object({
+    lessonId: z.number(),
+    studentName: z.string().default(""),
+    originalScheduledAt: z.string().default(""),
+    proposedScheduledAt: z.string(),
+    proposedStudioRoomId: z.number().nullable().default(null),
+    proposedStudioRoomName: z.string().default(""),
+    reason: z.string().default(""),
+  })).default([]),
+});
 
 export const advancedAiRouter = router({
   // ─── OPÇÃO 4: MEMÓRIA PEDAGÓGICA CONTÍNUA DO ALUNO ────────────────────────
@@ -122,57 +155,30 @@ export const advancedAiRouter = router({
         .orderBy(desc(studentTimeline.achievedAt))
         .limit(10);
 
-      // 3. Montar Prompt contextualizado
-      const prompt = `Você é um mestre da pedagogia musical e consultor pedagógico do sistema MusicPro.
-Sua missão é analisar o histórico evolutivo acumulado nos últimos 6 meses do aluno e gerar a estratégia perfeita para a PRÓXIMA AULA.
-
-DADOS DO ALUNO:
-- Nome: ${student.name}
-- Nível: ${student.level}
-- Notas gerais do professor: ${student.notes || "Nenhuma"}
-- Foco adicional informado pelo professor hoje: ${input.focusNotes || "Geral / Seguir evolução natural"}
-
-HISTÓRICO DE AULAS RECENTES (Até 15 aulas):
-${recentLessons.map(l => `- [${l.scheduledAt?.toISOString().slice(0, 10)}] ${l.title} (Nota: ${l.rating || 'N/A'}) | Obs: ${l.notes || 'Sem anotação'}`).join("\n")}
-
-AVALIAÇÕES DE TÉCNICA E RITMO RECENTES:
-${recentEvolutions.map(e => `- Técnica: ${e.technical}/10 | Ritmo: ${e.rhythm}/10 | Harmonia: ${e.harmony}/10 | Leitura: ${e.reading}/10`).join("\n")}
-
-CONQUISTAS E REPERTÓRIO NA TIMELINE:
-${timelineItems.map(t => `- [${t.category}] ${t.title}: ${t.description || ''}`).join("\n")}
-
-INSTRUÇÕES DE RESPOSTA EM FORMATO JSON ESTRITO:
-Retorne APENAS um JSON válido (sem texto fora do JSON e sem Markdown de código) com o seguinte formato:
-{
-  "summary": "Resumo pedagógico do progresso recente do aluno em 2 frases",
-  "strongPoints": ["Ponto forte 1", "Ponto forte 2"],
-  "weakPoints": ["Dificuldade recorrente 1", "Dificuldade recorrente 2"],
-  "repertoireMastered": ["Música/Exercício dominado 1"],
-  "repertoireLearning": ["Música/Exercício em aprendizado 1"],
-  "nextLessonPlan": {
-    "title": "Título sugerido para a próxima aula",
-    "warmup": "Exercício de aquecimento (5-10 min)",
-    "technicalFocus": "Foco técnico principal da aula",
-    "repertoirePractice": "Trecho de repertório a trabalhar",
-    "homework": "Tarefa recomendada para casa"
-  },
-  "pedagogicalDirectives": "Diretriz pedagógica contínua recomendada ao professor para as próximas semanas."
-}`;
+      // 3. Montar Prompt contextualizado (RF-001: builder central, copy fiel)
+      const prompt = buildPedagogicalMemoryPrompt({
+        studentName: student.name,
+        studentLevel: student.level || "iniciante",
+        teacherNotes: student.notes,
+        focusNotes: input.focusNotes,
+        recentLessonsLines: recentLessons.map(l => `- [${l.scheduledAt?.toISOString().slice(0, 10)}] ${l.title} (Nota: ${l.rating || 'N/A'}) | Obs: ${l.notes || 'Sem anotação'}`).join("\n"),
+        recentEvolutionsLines: recentEvolutions.map(e => `- Técnica: ${e.technical}/10 | Ritmo: ${e.rhythm}/10 | Harmonia: ${e.harmony}/10 | Leitura: ${e.reading}/10`).join("\n"),
+        timelineLines: timelineItems.map(t => `- [${t.category}] ${t.title}: ${t.description || ''}`).join("\n"),
+      });
 
       const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
       const creds = resolveAiCredentials(settingsData);
-      const apiKey = creds.apiKey;
-      const model = creds.model;
 
-      const aiRaw = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
-
-      let parsed: any;
-      try {
-        const cleanJson = aiRaw.replace(/```json/g, "").replace(/```/g, "").trim();
-        parsed = JSON.parse(cleanJson);
-      } catch (err) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao processar resposta estruturada da IA. Tente novamente." });
-      }
+      // RF-003: contrato JSON padronizado (JSON mode + zod + retry com budget)
+      const parsed = await callAiJson({
+        prompt,
+        schema: pedagogicalMemorySchema,
+        credentials: creds,
+        feature: "memoria_pedagogica",
+        promptVersion: AI_PROMPT_VERSIONS.memoriaPedagogica,
+        organizationId: orgId,
+        userId: ctx.user.id,
+      });
 
       // 4. Salvar ou Atualizar na Memória Pedagógica Contínua
       const existingMem = await db
@@ -262,55 +268,34 @@ Retorne APENAS um JSON válido (sem texto fora do JSON e sem Markdown de código
         .from(lessons)
         .where(and(eq(lessons.organizationId, orgId), gte(lessons.scheduledAt, startDate), eq(lessons.status, "agendada")));
 
-      const prompt = `Você é o Algoritmo Otimizador de Agendas do MusicPro (Smart Scheduling Engine).
-Sua missão é reorganizar e otimizar a distribuição de aulas da escola para eliminar choque de horários e salas, otimizando o uso do estúdio.
+      // RF-008: cap de 300 aulas serializadas com aviso explícito
+      const MAX_SCHEDULE_LESSONS = 300;
+      const lessonsTruncated = existingLessons.length > MAX_SCHEDULE_LESSONS;
+      const lessonsJson = JSON.stringify(existingLessons.slice(0, MAX_SCHEDULE_LESSONS));
 
-DADOS DA ESCOLA:
-- Período: ${input.targetDate} (Duração: ${input.daysCount} dias)
-- Salas de Estúdio Disponíveis: ${JSON.stringify(rooms)}
-- Instrumentos: ${JSON.stringify(activeInstruments)}
-- Preferências / Restrições Especiais do Usuário: "${input.preferences || 'Nenhuma'}"
-- Aulas no Período para Reorganização/Distribuição (${existingLessons.length} aulas):
-${JSON.stringify(existingLessons)}
-
-REGRAS RÍGIDAS DE ALOCAÇÃO:
-1. Nunca colocar 2 aulas no mesmo horário na mesma Sala de Estúdio.
-2. Manter a duração original das aulas.
-3. Distribuir os horários entre 08:00 e 20:00.
-4. Caso haja conflito, ajuste o horário ou a sala e informe a justificativa no JSON.
-
-FORMATO DE RESPOSTA EXCLUSIVO EM JSON ESTRITO:
-{
-  "totalOptimized": ${existingLessons.length},
-  "conflictsResolved": 0,
-  "recommendations": ["Recomendação 1", "Recomendação 2"],
-  "optimizedLessons": [
-    {
-      "lessonId": 123,
-      "studentName": "Nome",
-      "originalScheduledAt": "2026-08-15T10:00:00Z",
-      "proposedScheduledAt": "2026-08-15T11:00:00Z",
-      "proposedStudioRoomId": 1,
-      "proposedStudioRoomName": "Sala 1 - Piano",
-      "reason": "Evitou choque com aula de bateria na Sala 1"
-    }
-  ]
-}`;
+      const prompt = buildSmartSchedulePrompt({
+        targetDate: input.targetDate,
+        daysCount: input.daysCount,
+        roomsJson: JSON.stringify(rooms),
+        instrumentsJson: JSON.stringify(activeInstruments),
+        preferences: input.preferences,
+        lessonsJson,
+        lessonsTruncated,
+      });
 
       const settingsData = await getSettingsByUserId(orgId, ctx.user.id);
       const creds = resolveAiCredentials(settingsData);
-      const apiKey = creds.apiKey;
-      const model = creds.model;
 
-      const aiRaw = await callGemini([{ role: "user", content: prompt }], undefined, false, apiKey, model);
-
-      let parsed: any;
-      try {
-        const cleanJson = aiRaw.replace(/```json/g, "").replace(/```/g, "").trim();
-        parsed = JSON.parse(cleanJson);
-      } catch (err) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao gerar otimização de grade. Tente novamente." });
-      }
+      // RF-003: contrato JSON padronizado (JSON mode + zod + retry com budget)
+      const parsed = await callAiJson({
+        prompt,
+        schema: smartScheduleSchema,
+        credentials: creds,
+        feature: "smart_schedule",
+        promptVersion: AI_PROMPT_VERSIONS.smartSchedule,
+        organizationId: orgId,
+        userId: ctx.user.id,
+      });
 
       // Registrar o log de otimização gerado no banco
       const [log] = await db

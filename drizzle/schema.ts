@@ -1771,3 +1771,27 @@ export const whatsappRateLimits = pgTable("whatsapp_rate_limits", {
 export type WhatsappRateLimit = typeof whatsappRateLimits.$inferSelect;
 export type InsertWhatsappRateLimit = typeof whatsappRateLimits.$inferInsert;
 
+// ─── Telemetria de IA (PRD_PROMPTS_IA_CONSOLIDADOS — RF-009) ─────────────────
+// Metadados de cada chamada de IA. RN-004: nunca grava chave, prompt ou PII.
+export const aiCallLogs = pgTable("ai_call_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId"),
+  feature: varchar("feature", { length: 60 }).notNull(),
+  promptVersion: varchar("promptVersion", { length: 12 }),
+  provider: varchar("provider", { length: 20 }).notNull(),
+  model: varchar("model", { length: 80 }).notNull(),
+  durationMs: integer("durationMs").notNull(),
+  success: boolean("success").notNull(),
+  errorCode: varchar("errorCode", { length: 30 }),
+  errorMessage: text("errorMessage"),
+  isJson: integer("isJson").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("idx_ai_call_logs_org_created").on(table.organizationId, table.createdAt),
+  index("idx_ai_call_logs_feature_created").on(table.feature, table.createdAt),
+]);
+
+export type AiCallLog = typeof aiCallLogs.$inferSelect;
+export type InsertAiCallLog = typeof aiCallLogs.$inferInsert;
+

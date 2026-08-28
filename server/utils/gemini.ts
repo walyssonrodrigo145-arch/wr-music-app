@@ -6,10 +6,12 @@ if (!defaultApiKey) {
   console.warn("GEMINI_API_KEY is not set globally. AI features will require per-user keys.");
 }
 
-// Deprecated: Avoid using this global instance directly. 
+// Deprecated: Avoid using this global instance directly.
 // Pass customApiKey to callGemini functions or instantiate locally.
 export const genAI = new GoogleGenerativeAI(defaultApiKey || "");
 import Groq from "groq-sdk";
+import type { AiCallMeta } from "./aiTelemetry";
+import { logAiCall, classifyAiErrorCode } from "./aiTelemetry";
 
 // Extrai o JSON de uma resposta de IA, mesmo com markdown, texto antes/depois ou truncamento.
 export function extractJsonFromText(text: string): string {
@@ -26,12 +28,19 @@ export function extractJsonFromText(text: string): string {
   return cleaned;
 }
 
-export async function callGemini(
+// Callback para telemetria: informa provider/model resolvidos pela implementação.
+type ResolvedCb = (provider: string, model: string) => void;
+
+// ── Implementação original (PRD_PROMPTS_IA_CONSOLIDADOS: body preservado; apenas
+//    temperature parametrizada e telemetria via onResolved) ──
+async function callGeminiImpl(
   messages: Array<{ role: string; content: string }>,
-  systemPrompt?: string,
-  isJson: boolean = false,
-  customApiKey?: string | null,
-  customModel?: string | null
+  systemPrompt: string | undefined,
+  isJson: boolean,
+  customApiKey: string | null | undefined,
+  customModel: string | null | undefined,
+  temperature: number,
+  onResolved: ResolvedCb
 ): Promise<string> {
   const apiKeyToUse = customApiKey || defaultApiKey;
 
@@ -63,6 +72,7 @@ export async function callGemini(
     if (opencodeModel.startsWith("opencode/")) {
       opencodeModel = opencodeModel.replace("opencode/", "");
     }
+    onResolved("opencode", opencodeModel);
     const opencodeUrl =
       (process.env.OPENCODE_API_URL as string) ||
       "https://opencode.ai/zen/v1/chat/completions";
@@ -74,7 +84,7 @@ export async function callGemini(
     const body: any = {
       model: opencodeModel,
       messages: ocMessages,
-      temperature: 0.3,
+      temperature,
     };
     if (isJson) body.response_format = { type: "json_object" };
     const OC_TIMEOUT_MS = 30000;
@@ -148,6 +158,7 @@ export async function callGemini(
       if (!safeModel || LEGACY_MODELS.includes(safeModel) || safeModel.includes("8192")) {
         safeModel = "openai/gpt-oss-20b";
       }
+      onResolved("groq", safeModel);
 
       // Perf fix: 60s por tentativa + até 4 tentativas = plano pode demorar minutos.
       // 25s é suficiente para o GPT-OSS-20B e falha rápido em caso de pendência.
@@ -161,7 +172,7 @@ export async function callGemini(
           groq.chat.completions.create({
             messages: groqMessages,
             model: safeModel,
-            temperature: 0.3,
+            temperature,
             max_tokens: maxTokens,
             response_format: jsonMode ? { type: "json_object" } : undefined,
           }),
@@ -268,6 +279,7 @@ export async function callGemini(
       // mantém flash genérico como 3.6 se possível, fallback 1.5
       safeModel = safeModel.includes("3.6") ? "gemini-3.6-flash" : "gemini-1.5-flash";
     }
+    onResolved("gemini", safeModel);
 
     // Gemini Handler com retry para modelos descontinuados (404 is no longer available → fallback 1.5)
     let lastGeminiError: any = null;
@@ -277,7 +289,7 @@ export async function callGemini(
         const model = localGenAI.getGenerativeModel({
           model: safeModel,
           systemInstruction: systemPrompt,
-          generationConfig: isJson ? { responseMimeType: "application/json" } : undefined,
+          generationConfig: { temperature, ...(isJson ? { responseMimeType: "application/json" as const } : {}) },
         });
 
         const chat = model.startChat({
@@ -307,6 +319,7 @@ export async function callGemini(
         if (canRetry) {
           console.warn(`[Gemini] Modelo ${safeModel} descontinuado (404), tentando fallback gemini-1.5-flash. Erro:`, msg.slice(0, 400));
           safeModel = "gemini-1.5-flash";
+          onResolved("gemini", safeModel);
           continue;
         }
         // Não é retryable — propaga para handlers abaixo
@@ -346,12 +359,54 @@ export async function callGemini(
   }
 }
 
-export async function callGeminiWithFiles(
+// ── Wrapper público com telemetria (PRD_PROMPTS_IA_CONSOLIDADOS — RF-009/RF-010) ──
+// Comportamento idêntico ao anterior (temperature default 0.3). A telemetria é
+// escrita de forma não-bloqueante (RN-002) e nunca contém segredos (RN-004).
+export async function callGemini(
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt?: string,
+  isJson: boolean = false,
+  customApiKey?: string | null,
+  customModel?: string | null,
+  temperature?: number,
+  meta?: AiCallMeta
+): Promise<string> {
+  const startedAt = Date.now();
+  let provider = "desconhecido";
+  let model = customModel?.trim() || "desconhecido";
+  const onResolved: ResolvedCb = (p, m) => {
+    provider = p;
+    model = m;
+  };
+  try {
+    const result = await callGeminiImpl(messages, systemPrompt, isJson, customApiKey, customModel, temperature ?? 0.3, onResolved);
+    void logAiCall(meta, {
+      success: true,
+      durationMs: Date.now() - startedAt,
+      provider,
+      model,
+    });
+    return result;
+  } catch (e: any) {
+    void logAiCall(meta, {
+      success: false,
+      durationMs: Date.now() - startedAt,
+      provider,
+      model,
+      errorCode: classifyAiErrorCode(e),
+      errorMessage: String(e?.message || "").slice(0, 500),
+    });
+    throw e;
+  }
+}
+
+async function callGeminiWithFilesImpl(
   messages: { role: string; content: string }[], 
   files: { uri: string; mimeType: string }[],
-  systemPrompt?: string,
-  customApiKey?: string | null,
-  customModel?: string | null
+  systemPrompt: string | undefined,
+  customApiKey: string | null | undefined,
+  customModel: string | null | undefined,
+  temperature: number
 ): Promise<string> {
   const apiKeyToUse = customApiKey || defaultApiKey;
 
@@ -364,6 +419,7 @@ export async function callGeminiWithFiles(
     const model = localGenAI.getGenerativeModel({
       model: customModel || "gemini-3.1-pro-preview", 
       systemInstruction: systemPrompt,
+      generationConfig: { temperature },
     });
 
     const formattedMessages = messages.map(msg => ({
@@ -402,6 +458,35 @@ export async function callGeminiWithFiles(
     }
 
     throw new Error("Falha ao comunicar com a inteligência artificial ao enviar arquivos. Tente novamente.");
+  }
+}
+
+// Wrapper público com telemetria (PRD RF-009) — assinatura compatível.
+export async function callGeminiWithFiles(
+  messages: { role: string; content: string }[],
+  files: { uri: string; mimeType: string }[],
+  systemPrompt?: string,
+  customApiKey?: string | null,
+  customModel?: string | null,
+  temperature?: number,
+  meta?: AiCallMeta
+): Promise<string> {
+  const startedAt = Date.now();
+  const modelUsed = customModel || "gemini-3.1-pro-preview";
+  try {
+    const result = await callGeminiWithFilesImpl(messages, files, systemPrompt, customApiKey, customModel, temperature ?? 0.3);
+    void logAiCall(meta, { success: true, durationMs: Date.now() - startedAt, provider: "gemini", model: modelUsed });
+    return result;
+  } catch (e: any) {
+    void logAiCall(meta, {
+      success: false,
+      durationMs: Date.now() - startedAt,
+      provider: "gemini",
+      model: modelUsed,
+      errorCode: classifyAiErrorCode(e),
+      errorMessage: String(e?.message || "").slice(0, 500),
+    });
+    throw e;
   }
 }
 

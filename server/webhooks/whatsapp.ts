@@ -7,7 +7,8 @@ import { eq, and, gte, ilike } from "drizzle-orm";
 import { sendWhatsAppMessage, isRecentBotMessage, canonicalizeWaPhone } from "../utils/whatsapp";
 import { parseToolActions, stripToolMarkers, executeChatbotTool, generateAvailableSlots, isSlotFree } from "../utils/chatbotTools";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt, getAttendancePrompt } from "../utils/aiPrompts";
+import { getSystemPrompt, getAttendancePrompt, buildSchoolKnowledgePrompt, buildKnowledgeContext, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
+import { resolveAiCredentials } from "../utils/aiProvider";
 import { callGemini } from "../utils/gemini";
 import { sendPushNotification } from "../firebaseAdmin";
 import { getDefaultFlow, ChatbotFlowData } from "../chatbotFlowRouter";
@@ -198,13 +199,14 @@ async function answerWithSchoolKnowledge(
   studentName?: string
 ): Promise<string | null> {
   try {
-    // Sem nenhuma chave de IA configurada → responde null imediatamente (fluxo tradicional)
-    const primaryIsGroq = profSettings?.aiProvider === "groq";
-    let apiKey = primaryIsGroq ? profSettings?.groqApiKey : profSettings?.geminiApiKey;
-    let model = primaryIsGroq ? profSettings?.groqModel : profSettings?.geminiModel;
+    // RF-002 (PRD): resolução unificada com fallback entre providers
+    const primaryCreds = resolveAiCredentials(profSettings);
+    let apiKey = primaryCreds.apiKey;
+    let model = primaryCreds.model;
     if (!apiKey) {
-      apiKey = primaryIsGroq ? profSettings?.geminiApiKey : profSettings?.groqApiKey;
-      model = primaryIsGroq ? profSettings?.geminiModel : profSettings?.groqModel;
+      const alt = resolveAiCredentials({ ...profSettings, aiProvider: profSettings?.aiProvider === "groq" ? "gemini" : "groq" });
+      apiKey = alt.apiKey;
+      model = alt.model;
     }
     if (!apiKey) return null;
 
@@ -215,25 +217,30 @@ async function answerWithSchoolKnowledge(
 
     if (activeTopics.length === 0) return null;
 
-    let knowledgeContext = "";
-    for (const t of activeTopics) {
-      knowledgeContext += `\n--- [TÓPICO: ${t.title}] ---\n${t.content}\n`;
-    }
+    // RF-008: caps (20 tópicos × 4.000 chars) via helper único
+    const knowledgeContext = buildKnowledgeContext(
+      activeTopics.map((t: any) => ({ title: t.title, content: t.content })),
+      20,
+      4000
+    );
 
     const enrollmentLink = `https://wrmusicpro.com.br/matricula/${schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
-    const primeiroNome = studentName ? studentName.split(" ")[0] : "amigo(a)";
 
-    const systemPrompt = `Você é a atendente virtual inteligente, simpática e acolhedora da escola de música "${schoolName}" no WhatsApp.
+    // RF-004: mesma personalidade/tom do atendimento completo (fonte única)
+    const systemPrompt = buildSchoolKnowledgePrompt({
+      schoolName,
+      personaName: profSettings?.attendancePersonaName,
+      tone: profSettings?.attendanceTone,
+      studentName,
+      knowledgeContext,
+      enrollmentLink,
+    });
 
-BASE DE CONHECIMENTO OFICIAL DA ESCOLA:
-${knowledgeContext}
-
-DIRETRIZES DE ATENDIMENTO:
-1. Responda à dúvida do cliente (${primeiroNome}) com empatia, naturalidade, emojis musicais adequados (🎵🎸🎹) e texto conciso (1 a 3 parágrafos).
-2. NUNCA invente valores, regras ou dados que não estejam na base de conhecimento.
-3. Finalize sempre com um convite educado para ação (ex: agendar uma aula experimental, fazer a matrícula online pelo link ${enrollmentLink} ou digitar *MENU* para ver as opções numéricas).`;
-
-    const reply = await callGemini([{ role: "user", content: userQuestion }], systemPrompt, false, apiKey, model);
+    const reply = await callGemini([{ role: "user", content: userQuestion }], systemPrompt, false, apiKey, model, 0.4, {
+      organizationId: orgId,
+      feature: "atendente_rag",
+      promptVersion: AI_PROMPT_VERSIONS.atendenteRAG,
+    });
     return reply && reply.trim() ? reply.trim() : null;
   } catch (err) {
     console.error("[Chatbot AI RAG] Erro ao consultar IA da escola:", err);
@@ -663,13 +670,15 @@ router.post("/", async (req, res) => {
       !!messageData.documentMessage ||
       /comprovante|paguei|pix|transferencia|transferência|pagamento|deposito|depósito/i.test(textMsg);
 
-    // Resolve chaves de IA: usa o provedor configurado; se vazio, tenta o outro (fallback)
-    const primaryIsGroq = profSettings.aiProvider === "groq";
-    let aiKey = primaryIsGroq ? profSettings.groqApiKey : profSettings.geminiApiKey;
-    let aiModel = primaryIsGroq ? profSettings.groqModel : profSettings.geminiModel;
+    // Resolve chaves de IA (RF-002): usa o provedor configurado (inclui opencode);
+    // se vazio, tenta o outro provider (fallback de compatibilidade)
+    const primaryCreds = resolveAiCredentials(profSettings);
+    let aiKey = primaryCreds.apiKey;
+    let aiModel = primaryCreds.model;
     if (!aiKey) {
-      aiKey = primaryIsGroq ? profSettings.geminiApiKey : profSettings.groqApiKey;
-      aiModel = primaryIsGroq ? profSettings.geminiModel : profSettings.groqModel;
+      const altCreds = resolveAiCredentials({ ...profSettings, aiProvider: profSettings.aiProvider === "groq" ? "gemini" : "groq" });
+      aiKey = altCreds.apiKey;
+      aiModel = altCreds.model;
     }
     const hasAIKey = !!aiKey;
 
@@ -724,16 +733,18 @@ router.post("/", async (req, res) => {
           }
         }
 
-        // ── Base de conhecimento da escola (FAQ) ──
+        // ── Base de conhecimento da escola (FAQ) — RF-008: caps via helper único ──
         let knowledgeContext = "";
         try {
           const topics = await db
             .select()
             .from(schoolKnowledgeBase)
             .where(and(eq(schoolKnowledgeBase.organizationId, profSettings.organizationId || 1), eq(schoolKnowledgeBase.isActive, 1)));
-          for (const t of topics.slice(0, 20)) {
-            knowledgeContext += `\n--- [TÓPICO: ${t.title}] ---\n${t.content}\n`;
-          }
+          knowledgeContext = buildKnowledgeContext(
+            topics.map(t => ({ title: t.title, content: t.content })),
+            20,
+            4000
+          );
         } catch (kbErr) {
           console.error("[AI Atendimento] Erro ao carregar base de conhecimento:", kbErr);
         }
@@ -773,7 +784,11 @@ router.post("/", async (req, res) => {
         // ── RF-001/RF-002 (PRD): loop de ferramentas — a IA pode emitir ACTIONs
         // de consulta; o sistema executa com dados reais e devolve o resultado
         // para a IA redigir a resposta final. Máx. 2 rodadas (latência/custo).
-        let aiRaw = await callGemini(historyObj, systemPrompt, false, aiKey, aiModel);
+        let aiRaw = await callGemini(historyObj, systemPrompt, false, aiKey, aiModel, 0.4, {
+          organizationId: profSettings.organizationId || null,
+          feature: "atendimento_completo",
+          promptVersion: AI_PROMPT_VERSIONS.atendimentoCompleto,
+        });
         const usedActions = new Set<string>();
         let escalated = false;
         let toolRounds = 0;
@@ -798,7 +813,11 @@ router.post("/", async (req, res) => {
           historyObj.push({ role: "assistant", content: aiRaw });
           historyObj.push({ role: "user", content: `[RESULTADO DAS CONSULTAS NO SISTEMA — dados reais]\n${results.join("\n\n")}\n\nResponda agora à pessoa de forma natural usando EXCLUSIVAMENTE estes dados reais.` });
           if (historyObj.length > 20) historyObj.splice(0, historyObj.length - 20);
-          aiRaw = await callGemini(historyObj, systemPrompt, false, aiKey, aiModel);
+          aiRaw = await callGemini(historyObj, systemPrompt, false, aiKey, aiModel, 0.4, {
+            organizationId: profSettings.organizationId || null,
+            feature: "atendimento_completo_rodada",
+            promptVersion: AI_PROMPT_VERSIONS.atendimentoCompleto,
+          });
         }
 
         if (aiRaw && aiRaw.trim()) {
@@ -936,12 +955,20 @@ router.post("/", async (req, res) => {
         }
 
         try {
+          const receiptCreds = resolveAiCredentials(profSettings);
           const aiAnalysis = await callGemini(
             [{ role: "user", content: `Mensagem com comprovante: "${textMsg}". O aluno tem mensalidade pendente de R$ ${targetDue.amount}.` }],
             "Você é um analisador financeiro. Determine se a mensagem indica um comprovante de pagamento de mensalidade. Responda APENAS em JSON: {\"isReceipt\": true, \"amount\": 150.00}",
             true,
-            profSettings.aiProvider === 'groq' ? profSettings.groqApiKey : profSettings.geminiApiKey,
-            profSettings.aiProvider === 'groq' ? profSettings.groqModel : profSettings.geminiModel
+            receiptCreds.apiKey,
+            receiptCreds.model,
+            0.2,
+            {
+              organizationId: profSettings.organizationId || null,
+              feature: "comprovante_analise",
+              promptVersion: AI_PROMPT_VERSIONS.comprovanteAnalise,
+              isJson: true,
+            }
           );
           const cleanJsonStr = aiAnalysis.replace(/```json/gi, "").replace(/```/g, "").trim();
           const parsed = JSON.parse(cleanJsonStr);
@@ -1000,15 +1027,22 @@ router.post("/", async (req, res) => {
         // Limita o histórico para não estourar tokens
         if (historyObj.length > 10) historyObj.splice(0, historyObj.length - 10);
 
-        const apiKey = profSettings.aiProvider === 'groq' ? profSettings.groqApiKey : profSettings.geminiApiKey;
-        const model = profSettings.aiProvider === 'groq' ? profSettings.groqModel : profSettings.geminiModel;
+        // RF-002: resolução unificada (suporta gemini|groq|opencode)
+        const professorChatCreds = resolveAiCredentials(profSettings);
 
         const aiResponseRaw = await callGemini(
           historyObj,
           systemPrompt,
           false,
-          apiKey,
-          model
+          professorChatCreds.apiKey,
+          professorChatCreds.model,
+          0.4,
+          {
+            organizationId: profSettings.organizationId || null,
+            userId: professorUserId,
+            feature: "chat_professor",
+            promptVersion: AI_PROMPT_VERSIONS.chatProfessor,
+          }
         );
 
         let finalResponseContent = aiResponseRaw;

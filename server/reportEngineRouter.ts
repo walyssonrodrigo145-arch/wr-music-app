@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { ReportGenerator } from './report_engine';
 import { getDb } from './db';
 import { callGemini } from './utils/gemini';
+import { resolveAiCredentials } from './utils/aiProvider';
+import { buildReportInsightsPrompt, AI_PROMPT_VERSIONS } from './utils/aiPrompts';
 
 export const reportEngineRouter = router({
   generate: protectedProcedure
@@ -25,18 +27,15 @@ export const reportEngineRouter = router({
         if (db) {
           const { getSettingsByUserId } = await import('./db');
           const settings = await getSettingsByUserId(ctx.user.organizationId!, ctx.user.id);
-          const apiKey = settings?.aiProvider === 'groq' ? settings?.groqApiKey : settings?.geminiApiKey;
-          const model = settings?.aiProvider === 'groq' ? settings?.groqModel : settings?.geminiModel;
+          // RF-002 (PRD): resolução unificada (suporta gemini|groq|opencode)
+          const creds = resolveAiCredentials(settings);
 
           const todayStr = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-          const systemPrompt = `Você é um Consultor de Negócios Sênior especialista em Escolas de Música.
-Sua tarefa é analisar os dados fornecidos e gerar um Resumo Executivo estratégico.
-DIRETRIZES ABSOLUTAS E OBRIGATÓRIAS (O NÃO CUMPRIMENTO RESULTARÁ EM FALHA):
-1. É ESTRITAMENTE PROIBIDO o uso de formatação Markdown. NÃO USE asteriscos (**), sustenidos (#), negrito ou itálico de forma alguma, pois este texto será exportado para o Excel. Use apenas texto plano.
-2. Divida sua análise em: 1. Diagnóstico Geral, 2. Pontos Críticos / Oportunidades, 3. Plano de Ação.
-3. ATENÇÃO SOBRE INADIMPLÊNCIA: Hoje é dia ${todayStr}. Se um registro estiver com status PENDENTE mas a data for IGUAL ou MAIOR que a data de hoje, ele está DENTRO DO PRAZO NORMAL. NÃO CHAME de atraso ou inadimplência. Só considere atrasado o que for menor que a data de hoje. 
-4. ATENÇÃO: As tabelas enviadas referem-se a DESPESAS (contas a pagar da escola, não alunos). Não confunda contas a pagar (despesas) com falta de pagamentos de alunos.
-Relatório: ${input.title} - Período: ${input.period || 'Geral'}`;
+          const systemPrompt = buildReportInsightsPrompt({
+            todayStr,
+            title: input.title,
+            period: input.period,
+          });
 
           const dataStr = JSON.stringify({
             columns: input.columns,
@@ -48,8 +47,15 @@ Relatório: ${input.title} - Período: ${input.period || 'Geral'}`;
               [{ role: 'user', content: `Analise estes dados: ${dataStr}` }],
               systemPrompt,
               false,
-              apiKey,
-              model
+              creds.apiKey,
+              creds.model,
+              0.2,
+              {
+                organizationId: ctx.user.organizationId,
+                userId: ctx.user.id,
+                feature: 'insights_relatorio',
+                promptVersion: AI_PROMPT_VERSIONS.insightsRelatorio,
+              }
             );
           } catch (error) {
             console.error("Falha ao gerar AI Insights para o relatório:", error);
