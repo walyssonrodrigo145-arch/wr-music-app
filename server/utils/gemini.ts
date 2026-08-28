@@ -10,7 +10,7 @@ if (!defaultApiKey) {
 // Pass customApiKey to callGemini functions or instantiate locally.
 export const genAI = new GoogleGenerativeAI(defaultApiKey || "");
 import Groq from "groq-sdk";
-import type { AiCallMeta } from "./aiTelemetry";
+import type { AiCallMeta, AiUsage } from "./aiTelemetry";
 import { logAiCall, classifyAiErrorCode } from "./aiTelemetry";
 
 // Extrai o JSON de uma resposta de IA, mesmo com markdown, texto antes/depois ou truncamento.
@@ -28,8 +28,8 @@ export function extractJsonFromText(text: string): string {
   return cleaned;
 }
 
-// Callback para telemetria: informa provider/model resolvidos pela implementação.
-type ResolvedCb = (provider: string, model: string) => void;
+// Callback para telemetria: informa provider/model resolvidos e uso de tokens.
+type ResolvedCb = (provider: string, model: string, usage?: AiUsage) => void;
 
 // ── Implementação original (PRD_PROMPTS_IA_CONSOLIDADOS: body preservado; apenas
 //    temperature parametrizada e telemetria via onResolved) ──
@@ -40,7 +40,8 @@ async function callGeminiImpl(
   customApiKey: string | null | undefined,
   customModel: string | null | undefined,
   temperature: number,
-  onResolved: ResolvedCb
+  onResolved: ResolvedCb,
+  meta?: AiCallMeta
 ): Promise<string> {
   const apiKeyToUse = customApiKey || defaultApiKey;
 
@@ -96,26 +97,47 @@ async function callGeminiImpl(
       temperature,
     };
     if (isJson) body.response_format = { type: "json_object" };
-    const OC_TIMEOUT_MS = 30000;
-    const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("[OpenCode] Timeout em 30s")), OC_TIMEOUT_MS));
+    // RF-007 (PRD_OTIMIZACAO_PLANO_DIARIO): reduz reasoning em chamadas JSON (GLM/gpt-oss)
+    if (isJson) body.reasoning_effort = "low";
+    // RF-008: timeout parametrizável por chamada (padrão 30s)
+    const OC_TIMEOUT_MS = meta?.timeoutMs ?? 30000;
+    const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("[OpenCode] Timeout em " + Math.round(OC_TIMEOUT_MS / 1000) + "s")), OC_TIMEOUT_MS));
+    const ocPost = (reqBody: any) => fetch(opencodeUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKeyToUse.trim()}`,
+      },
+      body: JSON.stringify(reqBody),
+    }).then(async (r) => {
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(`[OpenCode] HTTP ${r.status}: ${txt.slice(0, 500)}`);
+      }
+      return r.json();
+    });
     try {
-      const res = (await Promise.race([
-        fetch(opencodeUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKeyToUse.trim()}`,
-          },
-          body: JSON.stringify(body),
-        }).then(async (r) => {
-          if (!r.ok) {
-            const txt = await r.text();
-            throw new Error(`[OpenCode] HTTP ${r.status}: ${txt.slice(0, 500)}`);
-          }
-          return r.json();
-        }),
-        timeoutPromise,
-      ])) as any;
+      let res: any;
+      try {
+        res = await Promise.race([ocPost(body), timeoutPromise]);
+      } catch (firstErr: any) {
+        // Gateway pode rejeitar reasoning_effort — repete 1x sem o parâmetro (RF-007)
+        const msg = String(firstErr?.message || "");
+        if (isJson && msg.toLowerCase().includes("reasoning")) {
+          console.warn("[OpenCode] reasoning_effort rejeitado, repetindo sem o parâmetro");
+          const bodyNoReasoning: any = { ...body };
+          delete bodyNoReasoning.reasoning_effort;
+          res = await Promise.race([ocPost(bodyNoReasoning), timeoutPromise]);
+        } else {
+          throw firstErr;
+        }
+      }
+      const ocUsageRaw = res?.usage || {};
+      onResolved("opencode", opencodeModel, {
+        inputTokens: typeof ocUsageRaw.prompt_tokens === "number" ? ocUsageRaw.prompt_tokens : null,
+        outputTokens: typeof ocUsageRaw.completion_tokens === "number" ? ocUsageRaw.completion_tokens : null,
+        cachedTokens: typeof ocUsageRaw.prompt_tokens_details?.cached_tokens === "number" ? ocUsageRaw.prompt_tokens_details.cached_tokens : null,
+      });
       const content = res.choices?.[0]?.message?.content || res.choices?.[0]?.text || "";
       if (!content) throw new Error("[OpenCode] Resposta vazia");
       if (isJson) {
@@ -171,12 +193,14 @@ async function callGeminiImpl(
 
       // Perf fix: 60s por tentativa + até 4 tentativas = plano pode demorar minutos.
       // 25s é suficiente para o GPT-OSS-20B e falha rápido em caso de pendência.
-      const GROQ_TIMEOUT_MS = 25_000;
+      // RF-008 (PRD_OTIMIZACAO_PLANO_DIARIO): timeout parametrizável via meta.timeoutMs.
+      const GROQ_TIMEOUT_MS = meta?.timeoutMs ?? 25_000;
       const timeoutPromise = () => new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("[Groq] Timeout: A API não respondeu em 60 segundos.")), GROQ_TIMEOUT_MS)
+        setTimeout(() => reject(new Error("[Groq] Timeout: A API não respondeu em " + Math.round(GROQ_TIMEOUT_MS / 1000) + " segundos.")), GROQ_TIMEOUT_MS)
       );
 
-      const requestCompletion = async (jsonMode: boolean, maxTokens?: number) => {
+      let lastGroqUsage: AiUsage | undefined;
+      const requestCompletion = async (jsonMode: boolean, maxTokens?: number, useReasoning?: boolean) => {
         const completion = await Promise.race([
           groq.chat.completions.create({
             messages: groqMessages,
@@ -184,9 +208,17 @@ async function callGeminiImpl(
             temperature,
             max_tokens: maxTokens,
             response_format: jsonMode ? { type: "json_object" } : undefined,
+            // RF-007: reasoning reduzido em chamadas JSON (modelos gpt-oss)
+            ...(useReasoning ? { reasoning_effort: "low" as const } : {}),
           }),
           timeoutPromise(),
         ]) as any;
+        const u: any = completion?.usage;
+        lastGroqUsage = {
+          inputTokens: typeof u?.prompt_tokens === "number" ? u.prompt_tokens : null,
+          outputTokens: typeof u?.completion_tokens === "number" ? u.completion_tokens : null,
+          cachedTokens: typeof u?.prompt_tokens_details?.cached_tokens === "number" ? u.prompt_tokens_details.cached_tokens : null,
+        };
         return completion.choices[0]?.message?.content || "";
       };
 
@@ -200,27 +232,32 @@ async function callGeminiImpl(
 
       let needsJsonMode = isJson;
       let maxTokens = MAX_OUTPUT_TOKENS;
+      let reasoningLow = isJson;
       let attemptCount = 0;
 
       while (attemptCount < 4) {
         attemptCount++;
         try {
-          rawContent = await requestCompletion(needsJsonMode, maxTokens);
+          rawContent = await requestCompletion(needsJsonMode, maxTokens, reasoningLow);
           break;
         } catch (attemptError: any) {
           const msg = String(attemptError?.message || "");
           const lower = msg.toLowerCase();
           const jsonValidationFailed = needsJsonMode && (msg.includes("json_validate_failed") || msg.includes("Failed to validate JSON"));
           const maxTokensRejected = lower.includes("max_tokens");
+          const reasoningRejected = lower.includes("reasoning");
           const tpmLimit = attemptError?.status === 413 || lower.includes("tokens per minute") || lower.includes("rate_limit_exceeded") || lower.includes("request too large");
           const isTimeout = lower.includes("timeout") || lower.includes("não respondeu") || lower.includes("api não responde");
-          if ((!jsonValidationFailed && !maxTokensRejected && !tpmLimit && !isTimeout) || (isTimeout && attemptCount >= 2)) throw attemptError;
+          if ((!jsonValidationFailed && !maxTokensRejected && !tpmLimit && !isTimeout && !reasoningRejected) || (isTimeout && attemptCount >= 2)) throw attemptError;
           console.warn("[Groq] Tentativa falhou, ajustando requisição e tentando de novo:", msg);
           if (jsonValidationFailed) needsJsonMode = false;
           if (maxTokensRejected) maxTokens = undefined;
+          if (reasoningRejected) reasoningLow = false;
           if (tpmLimit) maxTokens = maxTokens === undefined || maxTokens === MAX_OUTPUT_TOKENS ? MAX_OUTPUT_TOKENS_BAIXO : Math.max(1024, Math.floor(maxTokens / 2));
         }
       }
+
+      onResolved("groq", safeModel, lastGroqUsage);
 
       if (!rawContent) {
         throw new Error("Limite de tokens do modelo Groq excedido. Tente novamente em instantes ou selecione um modelo maior (ex.: gpt-oss-120b) nas Configurações.");
@@ -307,9 +344,10 @@ async function callGeminiImpl(
         
         const lastMessage = formattedMessages[formattedMessages.length - 1];
         
-        const GEMINI_TIMEOUT_MS = 60_000;
+        // RF-008: timeout parametrizável por chamada (padrão 60s)
+        const GEMINI_TIMEOUT_MS = meta?.timeoutMs ?? 60_000;
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("[Gemini] Timeout: A API não respondeu em 60 segundos.")), GEMINI_TIMEOUT_MS)
+          setTimeout(() => reject(new Error("[Gemini] Timeout: A API não respondeu em " + Math.round(GEMINI_TIMEOUT_MS / 1000) + " segundos.")), GEMINI_TIMEOUT_MS)
         );
         
         const result = await Promise.race([
@@ -317,6 +355,12 @@ async function callGeminiImpl(
           timeoutPromise,
         ]);
         if (geminiAttempt > 0) console.warn(`[Gemini] Retry bem-sucedido com fallback ${safeModel}`);
+        const gmMeta: any = (result.response as any)?.usageMetadata;
+        onResolved("gemini", safeModel, {
+          inputTokens: typeof gmMeta?.promptTokenCount === "number" ? gmMeta.promptTokenCount : null,
+          outputTokens: typeof gmMeta?.candidatesTokenCount === "number" ? gmMeta.candidatesTokenCount : null,
+          cachedTokens: typeof gmMeta?.cachedContentTokenCount === "number" ? gmMeta.cachedContentTokenCount : null,
+        });
         return result.response.text();
       } catch (error: any) {
         lastGeminiError = error;
@@ -383,17 +427,22 @@ export async function callGemini(
   const startedAt = Date.now();
   let provider = "desconhecido";
   let model = customModel?.trim() || "desconhecido";
-  const onResolved: ResolvedCb = (p, m) => {
+  let usage: AiUsage | undefined;
+  const onResolved: ResolvedCb = (p, m, u) => {
     provider = p;
     model = m;
+    if (u) usage = u;
   };
   try {
-    const result = await callGeminiImpl(messages, systemPrompt, isJson, customApiKey, customModel, temperature ?? 0.3, onResolved);
+    const result = await callGeminiImpl(messages, systemPrompt, isJson, customApiKey, customModel, temperature ?? 0.3, onResolved, meta);
     void logAiCall(meta, {
       success: true,
       durationMs: Date.now() - startedAt,
       provider,
       model,
+      inputTokens: usage?.inputTokens ?? null,
+      outputTokens: usage?.outputTokens ?? null,
+      cachedTokens: usage?.cachedTokens ?? null,
     });
     return result;
   } catch (e: any) {
@@ -404,6 +453,9 @@ export async function callGemini(
       model,
       errorCode: classifyAiErrorCode(e),
       errorMessage: String(e?.message || "").slice(0, 500),
+      inputTokens: usage?.inputTokens ?? null,
+      outputTokens: usage?.outputTokens ?? null,
+      cachedTokens: usage?.cachedTokens ?? null,
     });
     throw e;
   }

@@ -302,8 +302,18 @@ export default function Progresso() {
     return [false, false, false, false, false];
   }
 
-  function ExerciseIcon({ icon }: { icon?: string }) {
-    switch (icon) {
+  function ExerciseIcon({ icon, title }: { icon?: string; title?: string }) {
+    // RF-002 (PRD_OTIMIZACAO_PLANO_DIARIO): deriva o ícone pelo título do bloco
+    // (planos novos não incluem "icon"); mantém o icon do JSON para planos antigos.
+    const t = (title || "").toLowerCase();
+    const derived = t.startsWith("revis") ? "refresh"
+      : t.startsWith("aquec") ? "music"
+      : t.startsWith("téc") || t.startsWith("tec") ? "star"
+      : t.startsWith("conceit") ? "book"
+      : t.startsWith("aplic") ? "headphones"
+      : t.startsWith("desaf") ? "pen"
+      : null;
+    switch (icon || derived) {
       case "play": return <Play size={20} className="text-indigo-600" />;
       case "pen": return <PenTool size={20} className="text-indigo-600" />;
       case "music": return <Music size={20} className="text-indigo-600" />;
@@ -975,7 +985,7 @@ export default function Progresso() {
                                                       {String(idx + 1).padStart(2, "0")}
                                                     </span>
                                                     <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg flex items-center justify-center shrink-0">
-                                                      <ExerciseIcon icon={exercise.icon} />
+                                                      <ExerciseIcon icon={exercise.icon} title={exercise.title} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                       <h4 className="font-bold text-foreground text-sm">{exercise.title}</h4>
@@ -1774,7 +1784,7 @@ export default function Progresso() {
                                        <div className="flex items-center justify-between gap-2">
                                          <div className="flex items-center gap-2 min-w-0">
                                            <div className="w-6 h-6 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 text-xs">
-                                             <ExerciseIcon icon={ex.icon} />
+                                             <ExerciseIcon icon={ex.icon} title={ex.title} />
                                            </div>
                                            <span className="font-bold text-xs text-foreground truncate">{ex.title}</span>
                                          </div>

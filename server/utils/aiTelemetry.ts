@@ -9,6 +9,8 @@ export interface AiCallMeta {
   feature: string;
   promptVersion?: string | null;
   isJson?: boolean;
+  /** Timeout em ms para esta chamada (RF-008: geração pesada usa 120s; padrão mantém por provedor). */
+  timeoutMs?: number;
 }
 
 export interface AiCallResult {
@@ -18,6 +20,16 @@ export interface AiCallResult {
   model: string;
   errorCode?: string | null;
   errorMessage?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  cachedTokens?: number | null;
+}
+
+/** Uso de tokens reportado pelo provedor (PRD_OTIMIZACAO_PLANO_DIARIO RF-009). */
+export interface AiUsage {
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  cachedTokens?: number | null;
 }
 
 export function classifyAiErrorCode(err: unknown): string {
@@ -48,6 +60,9 @@ export async function logAiCall(meta: AiCallMeta | undefined, result: AiCallResu
       errorCode: result.errorCode ?? null,
       errorMessage: result.errorMessage ? result.errorMessage.substring(0, 500) : null,
       isJson: meta?.isJson ? 1 : 0,
+      inputTokens: result.inputTokens ?? null,
+      outputTokens: result.outputTokens ?? null,
+      cachedTokens: result.cachedTokens ?? null,
     });
   } catch (err: any) {
     console.warn("[AiTelemetry] Falha ao gravar ai_call_logs (não bloqueante):", err?.message || err);

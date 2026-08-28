@@ -85,10 +85,19 @@ function parseDaysTimeSpent(raw: any): number[] {
   }
 }
 
-const ExerciseIcon = ({ icon }: { icon?: string }) => {
+const ExerciseIcon = ({ icon, title }: { icon?: string; title?: string }) => {
   const cls = "text-indigo-600";
   const sz = 22;
-  switch (icon) {
+  // RF-002 (PRD_OTIMIZACAO_PLANO_DIARIO): deriva o ícone pelo título do bloco
+  const t = (title || "").toLowerCase();
+  const derived = t.startsWith("revis") ? "revisao"
+    : t.startsWith("aquec") ? "music"
+    : t.startsWith("téc") || t.startsWith("tec") ? "star"
+    : t.startsWith("conceit") ? "conceito"
+    : t.startsWith("aplic") ? "play"
+    : t.startsWith("desaf") ? "pen"
+    : null;
+  switch (icon || derived) {
     case "metronome": return <Timer size={sz} className={cls} />;
     case "guitar":   return <Guitar size={sz} className={cls} />;
     case "pen":      return <PenTool size={sz} className={cls} />;
@@ -140,7 +149,7 @@ function ExerciseDetailModal({ exercise, dayFocus, onClose }: ExerciseDetailModa
           <DialogHeader>
             <div className="flex items-start gap-3 relative z-10">
               <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0 backdrop-blur-sm">
-                <ExerciseIcon icon={exercise.icon} />
+                <ExerciseIcon icon={exercise.icon} title={exercise.title} />
               </div>
               <div>
                 <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">
@@ -521,7 +530,7 @@ export default function StudentProgress() {
                     <div key={idx} className="bg-white border border-slate-100 rounded-3xl p-4 flex flex-col md:flex-row gap-4 shadow-sm items-start md:items-center">
                       <div className="flex gap-4 items-center flex-1">
                         <div className="w-12 h-12 bg-indigo-50 rounded-[1rem] flex items-center justify-center shrink-0">
-                          <ExerciseIcon icon={ex.icon} />
+                          <ExerciseIcon icon={ex.icon} title={ex.title} />
                         </div>
                         <div className="flex-1">
                           <h3 className="font-bold text-sm text-slate-800">{ex.title}</h3>

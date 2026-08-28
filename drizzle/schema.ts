@@ -1786,6 +1786,9 @@ export const aiCallLogs = pgTable("ai_call_logs", {
   errorCode: varchar("errorCode", { length: 30 }),
   errorMessage: text("errorMessage"),
   isJson: integer("isJson").default(0).notNull(),
+  inputTokens: integer("inputTokens"),
+  outputTokens: integer("outputTokens"),
+  cachedTokens: integer("cachedTokens"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [
   index("idx_ai_call_logs_org_created").on(table.organizationId, table.createdAt),

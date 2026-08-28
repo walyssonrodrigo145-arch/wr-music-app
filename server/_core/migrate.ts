@@ -337,6 +337,10 @@ export async function runAutoMigrations() {
       );` },
       { table: 'ai_call_logs', sql: `CREATE INDEX IF NOT EXISTS "idx_ai_call_logs_org_created" ON "ai_call_logs" ("organizationId", "createdAt")` },
       { table: 'ai_call_logs', sql: `CREATE INDEX IF NOT EXISTS "idx_ai_call_logs_feature_created" ON "ai_call_logs" ("feature", "createdAt")` },
+      // ── PRD_OTIMIZACAO_PLANO_DIARIO — telemetria de tokens (RF-009) ────────────
+      { table: 'ai_call_logs', sql: 'ALTER TABLE "ai_call_logs" ADD COLUMN IF NOT EXISTS "inputTokens" integer' },
+      { table: 'ai_call_logs', sql: 'ALTER TABLE "ai_call_logs" ADD COLUMN IF NOT EXISTS "outputTokens" integer' },
+      { table: 'ai_call_logs', sql: 'ALTER TABLE "ai_call_logs" ADD COLUMN IF NOT EXISTS "cachedTokens" integer' },
     ];
 
     for (const m of migrations) {

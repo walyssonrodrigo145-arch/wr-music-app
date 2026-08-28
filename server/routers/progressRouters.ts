@@ -27,7 +27,7 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt, buildLessonPlanPrompt, buildProgressInsightPrompt, buildNextTopicPrompt, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
+import { getSystemPrompt, buildLessonPlanPrompt, buildProgressInsightPrompt, buildNextTopicPrompt, buildPlanOutputSchema, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
 import { callGemini, genAI } from "../utils/gemini";
 import { BillingEngine } from "../services/BillingEngine";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "../utils/whatsapp";
@@ -569,7 +569,7 @@ export const progressRouters = {
             eq(lessons.status, "concluida")
           ))
           .orderBy(desc(lessons.scheduledAt))
-          .limit(10),
+          .limit(5), // RF-004 (PRD_OTIMIZACAO_PLANO_DIARIO): 10 → 5
 
         db.select()
           .from(studentGoals)
@@ -591,7 +591,7 @@ export const progressRouters = {
             eq(studentTimeline.organizationId, orgId)
           ))
           .orderBy(desc(studentTimeline.achievedAt))
-          .limit(10),
+          .limit(5), // RF-004: 10 → 5
 
         db.select()
           .from(studentPedagogicalMemory)
@@ -643,11 +643,12 @@ export const progressRouters = {
         }
 
         if (strongPoints.length > 0 || weakPoints.length > 0 || repertoireLearning.length > 0) {
+          // RF-004 (PRD_OTIMIZACAO_PLANO_DIARIO): listas truncadas a 5 itens
           pedagogicalMemoryBlock = `
 # 🧠 MEMÓRIA PEDAGÓGICA (Ajuste a dificuldade técnica da meta)
-- Pontos fortes: ${strongPoints.length > 0 ? strongPoints.join(", ") : "Não identificados"}
-- Dificuldades recorrentes: ${weakPoints.length > 0 ? weakPoints.join(", ") : "Não identificadas"}
-- Repertório em aprendizado: ${repertoireLearning.length > 0 ? repertoireLearning.join(", ") : "Nenhum registrado"}
+- Pontos fortes: ${strongPoints.slice(0, 5).length > 0 ? strongPoints.slice(0, 5).join(", ") : "Não identificados"}
+- Dificuldades recorrentes: ${weakPoints.slice(0, 5).length > 0 ? weakPoints.slice(0, 5).join(", ") : "Não identificadas"}
+- Repertório em aprendizado: ${repertoireLearning.slice(0, 5).length > 0 ? repertoireLearning.slice(0, 5).join(", ") : "Nenhum registrado"}
 ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectives}` : ""}
 `;
         }
@@ -711,115 +712,26 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
 - Desafio: 1 frase curta com meta mensurável (ex: "Toque 1 minuto sem errar nenhuma nota.").`;
       }
 
-      // ── 8. JSON SCHEMA DE SAÍDA — 6 BLOCOS (PRD RF-013) ─────────────────────
-      const jsonSchemaFormat = `{
-  "instrument": "${instrumentName}",
-  "level": "${studentLevel}",
-  "planMode": "${planMode}",
-  "weeklyGoal": "Resumo musical objetivo da semana focado nas metas de ${instrumentName}.",
-  "importantMessage": "Dica prática de execução para ${instrumentName} no nível ${studentLevel}.",
-  "targetDailyMinutes": ${totalMinutes},
-  "days": [
-    {
-      "dayName": "Dia 1",
-      "focus": {
-        "title": "Título técnico do foco do Dia 1",
-        "description": "Objetivo técnico em 1 frase curta."
-      },
-      "exercises": [
-        {
-          "title": "Revisão",
-          "subtitle": "Retomada do conteúdo anterior",
-          "duration": "${revisaoMin} min",
-          "points": [
-            "Retome brevemente o que foi praticado na última sessão.",
-            "Identifique o que melhorou e o que ainda precisa de atenção."
-          ],
-          "icon": "refresh"
+      // ── 8. JSON SCHEMA DE SAÍDA — COMPACTO (PRD_OTIMIZACAO_PLANO_DIARIO RF-003) ──
+      const jsonSchemaFormat = buildPlanOutputSchema({
+        totalMinutes,
+        durations: {
+          revisao: revisaoMin,
+          warm: warmMin,
+          tecnica: adjustedTecnicaMin,
+          conceito: conceitoMin,
+          aplicacao: aplicacaoMin,
+          desafio: desafioMin,
         },
-        {
-          "title": "Aquecimento",
-          "subtitle": "Aquecimento específico de ${instrumentName}",
-          "duration": "${warmMin} min",
-          "points": [
-            "Exercício de aquecimento técnico adequado ao instrumento.",
-            "Foco em relaxamento e preparação muscular."
-          ],
-          "icon": "music"
-        },
-        {
-          "title": "Técnica",
-          "subtitle": "Desenvolvimento técnico do instrumento",
-          "duration": "${adjustedTecnicaMin} min",
-          "points": [
-            "Ponto técnico 1: descrição precisa com dedos, posição e BPM.",
-            "Ponto técnico 2: variação ou aprofundamento do exercício.",
-            "Ponto técnico 3: critério de acerto (ex: 10 repetições limpas)."
-          ],
-          "icon": "star"
-        },
-        {
-          "title": "Conceito Musical",
-          "subtitle": "Teoria ou conceito aplicado ao instrumento",
-          "duration": "${conceitoMin} min",
-          "points": [
-            "Conceito teórico relevante para a meta do aluno (ex: progressão harmônica, subdivisão rítmica).",
-            "Como aplicar este conceito na prática do instrumento."
-          ],
-          "icon": "book"
-        },
-        {
-          "title": "Aplicação",
-          "subtitle": "Execução musical contextualizada",
-          "duration": "${aplicacaoMin} min",
-          "points": [
-            "Aplicar a técnica e o conceito em um contexto musical real (música, trecho, groove).",
-            "Foco na musicalidade, não apenas na técnica mecânica."
-          ],
-          "icon": "headphones"
-        },
-        {
-          "title": "Desafio",
-          "subtitle": "Teste de consolidação da meta",
-          "duration": "${desafioMin} min",
-          "points": [
-            "Desafio prático e mensurável que teste a meta do dia.",
-            "Critério objetivo de acerto (tempo, velocidade, repetições)."
-          ],
-          "icon": "pen"
-        }
-      ]
-    }
-  ]
-}`;
+      });
 
       // ── 9. BLOCO DE TEORIA MUSICAL (PRD RF-016 — Camada 2) ─────────────────
       const musicTheoryBlock = buildMusicTheoryPromptBlock(specialist.id);
 
-      // ── 10. CONSTRUÇÃO DO PROMPT — COM ESPECIALISTA (RF-001~004) ─────────────
-      const prompt = `# 🎼 MusicPro AI — Personal Trainer de ${instrumentName.toUpperCase()}
-
-Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**) — Especialista: ${specialist.displayName} (${specialist.id}).
-Sua missão é criar uma rotina de treino diário de 5 dias focada **EXCLUSIVAMENTE nas METAS CADASTRADAS**.
-${instrumentWarning}${goalsWarning}
----
-${modeInstruction}
----
-${specialistPromptBlock}
-
-${musicTheoryBlock}
-
-# 🎯 METAS DA SEMANA (FIO CONDUTOR EXCLUSIVO E OBRIGATÓRIO)
-${weeklyGoalsText}
-
----
-
-# 🎸 DIRETRIZES TÉCNICAS PARA: ${instrumentName.toUpperCase()}
-${terminologyBlock}
-${forbiddenBlock}
-
-# 🧠 Dica de Nível (${studentLevel}): ${levelHint}
-
+      // ── 10. CONSTRUÇÃO DO PROMPT — STATIC-FIRST (PRD_OTIMIZACAO_PLANO_DIARIO RF-006) ──
+      // Blocos estáticos primeiro (cacheáveis), dados dinâmicos do aluno por último.
+      // RF-005: bloco fixo de técnica só quando NÃO há especialista mapeado.
+      const techniqueRulesBlock = specialist.id === "geral" ? `
 ### REGRAS DE TÉCNICA POR INSTRUMENTO:
 - **Teclado:** voicings na mão direita (ex: Dm7=D-F-A-C), baixo na mão esquerda. NUNCA confundir "voz/voicing" com canto.
 - **Piano:** técnica pianística (Hanon/Czerny, passagem do polegar, pedais). NUNCA layer/split eletrônico.
@@ -827,8 +739,25 @@ ${forbiddenBlock}
 - **Contrabaixo:** T=polegar (slap), P=pop, i-m=alternância. Nunca rudimentos de bateria.
 - **Bateria:** APENAS ritmo (bumbo, caixa, chimbal, rudimentos). NUNCA notas harmônicas, acordes ou escalas.
 - **Canto:** respiração diafragmática, vocalises, tessitura. NUNCA termos de instrumentos físicos.
+` : "";
 
+      const prompt = `# 🎼 MusicPro AI — Personal Trainer de ${instrumentName.toUpperCase()}
+
+Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**) — Especialista: ${specialist.displayName} (${specialist.id}).
+Sua missão é criar uma rotina de treino diário de 5 dias focada **EXCLUSIVAMENTE nas METAS CADASTRADAS** (seção DADOS DO ALUNO no final).
 ---
+${modeInstruction}
+---
+${specialistPromptBlock}
+
+${musicTheoryBlock}
+
+# 🎸 DIRETRIZES TÉCNICAS PARA: ${instrumentName.toUpperCase()}
+${terminologyBlock}
+${forbiddenBlock}
+
+# 🧠 Dica de Nível (${studentLevel}): ${levelHint}
+${techniqueRulesBlock}---
 
 # 📈 PROGRESSÃO DOS 5 DIAS:
 - **Dia 1:** Mecânica & Memória Muscular (Elemento 1)
@@ -849,12 +778,6 @@ ${forbiddenBlock}
 A soma DEVE ser exatamente ${totalMinutes} min em todos os dias.
 
 ---
-${teacherNotesBlock}
-${pedagogicalMemoryBlock}
-# 📚 HISTÓRICO DE AULAS (Referência de nível)
-${lessonsText}
-
----
 
 # ⚠️ REGRAS ABSOLUTAS:
 1. **NUNCA COLOQUE NOME DE ALUNO/PESSOA NO PLANO.** Use linguagem direta e impessoal.
@@ -862,13 +785,19 @@ ${lessonsText}
 3. **FOCO 100% FECHADO NAS METAS.** Proibido inventar repertórios fora das metas cadastradas.
 4. **TODOS OS EXERCÍCIOS DEVEM SER ESPECÍFICOS PARA ${instrumentName.toUpperCase()}.**
 5. **OBRIGATÓRIO: 6 BLOCOS DE EXERCÍCIO POR DIA** (Revisão, Aquecimento, Técnica, Conceito Musical, Aplicação, Desafio).
+6. **RESPEITE OS LIMITES DE CONCISÃO** do formato de saída (subtitle até 8 palavras, points até 12 palavras).
 
 ---
 
-# 📤 FORMATO DE SAÍDA
-Retorne SOMENTE o JSON válido abaixo com EXATAMENTE 5 objetos em "days" (um por dia), sem texto antes ou depois, sem blocos markdown fora do JSON.
+${jsonSchemaFormat}
 
-${jsonSchemaFormat}`;
+---
+
+# 🎯 DADOS DO ALUNO (FIO CONDUTOR EXCLUSIVO E OBRIGATÓRIO)
+## METAS DA SEMANA:
+${weeklyGoalsText}
+${goalsWarning}${teacherNotesBlock}${pedagogicalMemoryBlock}# 📚 HISTÓRICO DE AULAS (Referência de nível)
+${lessonsText}`;
 
       // ── 9. CHAMADA À IA E PARSING DEFENSIVO (respeita aiProvider gemini|groq|opencode) ──
       try {
@@ -895,7 +824,15 @@ ${jsonSchemaFormat}`;
               ? prompt
               : `${prompt}\n\n${specialist.retryInstruction}\nTermos proibidos detectados na tentativa anterior: ${(lastValidation?.found || []).join(", ")} — REMOVA-OS completamente e use apenas terminologia de ${specialist.displayName}.`;
 
-          const responseText = await callGemini([{ role: "user", content: promptForAttempt }], undefined, true, apiKey, model);
+          // RF-008 (PRD_OTIMIZACAO_PLANO_DIARIO): 120s para geração pesada + telemetria de tokens
+          const responseText = await callGemini([{ role: "user", content: promptForAttempt }], undefined, true, apiKey, model, 0.2, {
+            organizationId: orgId,
+            userId: ctx.user.id,
+            feature: "plano_diario",
+            promptVersion: AI_PROMPT_VERSIONS.planoDiario,
+            isJson: true,
+            timeoutMs: 120_000,
+          });
 
           // Parsing defensivo: tenta JSON direto, depois extrai bloco JSON por regex
           let cleanedText = responseText.trim();
