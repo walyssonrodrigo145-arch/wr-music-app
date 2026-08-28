@@ -49,10 +49,11 @@ async function callGeminiImpl(
   }
 
   // ── OpenCode provider (respeita settings.aiProvider = opencode) ──
-  // Detecta via model prefix "opencode/", modelos zen free/conhecidos, prefixo de chave, ou chave informada
+  // Detecta via model prefix "opencode/" ou "opencode-go/", modelos zen free/conhecidos, prefixo de chave, ou chave informada
   const isOpencode =
     (customModel && (
       customModel.trim().startsWith("opencode/") ||
+      customModel.trim().startsWith("opencode-go/") ||
       customModel.includes("-free") ||
       customModel.includes("spark") ||
       customModel.includes("deepseek") ||
@@ -68,14 +69,22 @@ async function callGeminiImpl(
   if (isOpencode) {
     // OpenAI-compatible via fetch (Groq SDK não suporta modelos opencode)
     let opencodeModel = customModel?.trim() || process.env.OPENCODE_MODEL || "deepseek-v4-flash-free";
-    // Remove prefixo 'opencode/' se presente para envio à API Zen
+    // ── OpenCode Go (assinatura, ex.: opencode-go/glm-5.3-flash) vs Zen (pay-as-you-go) ──
+    const isOpencodeGo = opencodeModel.startsWith("opencode-go/");
+    // Remove prefixos 'opencode/' ou 'opencode-go/' para envio à API (formato bare model-id)
     if (opencodeModel.startsWith("opencode/")) {
       opencodeModel = opencodeModel.replace("opencode/", "");
     }
+    if (isOpencodeGo) {
+      opencodeModel = opencodeModel.replace("opencode-go/", "");
+    }
     onResolved("opencode", opencodeModel);
-    const opencodeUrl =
-      (process.env.OPENCODE_API_URL as string) ||
-      "https://opencode.ai/zen/v1/chat/completions";
+    // URL por gateway: modelos com prefixo opencode-go/ vão para /zen/go/v1;
+    // OPENCODE_API_URL ainda prevalece se apontar explicitamente para um gateway /go/.
+    const envOcUrl = (process.env.OPENCODE_API_URL as string) || "";
+    const opencodeUrl = isOpencodeGo
+      ? (envOcUrl.includes("/go/") ? envOcUrl : "https://opencode.ai/zen/go/v1/chat/completions")
+      : (envOcUrl || "https://opencode.ai/zen/v1/chat/completions");
     const ocMessages: any[] = [];
     if (systemPrompt) ocMessages.push({ role: "system", content: systemPrompt });
     for (const m of messages) {

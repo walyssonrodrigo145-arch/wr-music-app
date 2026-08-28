@@ -272,11 +272,12 @@ export const plataformaRouters = {
         }
       }
 
-      // opencode — lista modelos e filtra Zen grátis
+      // opencode — lista modelos (Zen pay-as-you-go + Go assinatura) e filtra
       const primaryUrl = apiUrlToTest || (process.env.OPENCODE_API_URL as string) || "https://opencode.ai/zen/v1/models";
       const fallbackUrls = [
         primaryUrl,
         "https://opencode.ai/zen/v1/models",
+        "https://opencode.ai/zen/go/v1/models",
         "https://api.opencode.ai/v1/models",
         "https://opencode.ai/api/models",
       ].filter((u, i, a) => a.indexOf(u) === i);
@@ -309,7 +310,31 @@ export const plataformaRouters = {
             : [];
           
           console.warn(`[testAiConnection] OpenCode rawList length:`, rawList.length, `first item:`, rawList[0] ? JSON.stringify(rawList[0]).slice(0, 500) : 'empty');
-          
+
+          // ── Gateway Go (assinatura): expõe SOMENTE os modelos baratos aprovados ──
+          if (url.includes("/go/")) {
+            const GO_APPROVED = ["glm-5.3-flash", "deepseek-v4-flash"];
+            const goModels = Array.from(new Set(
+              rawList
+                .map((m: any) => String(m.id || m.name || m.model || m.slug || ""))
+                .filter(Boolean)
+                .map((id: string) => id.replace(/^opencode(-go)?\//, ""))
+                .filter((bare: string) => GO_APPROVED.some(a => bare === a || bare.startsWith(a)))
+            )).sort().map((bare: string) => ({
+              id: `opencode-go/${bare}`,
+              name: bare,
+              displayName: bare,
+              contextLength: null as any,
+              pricing: null as any,
+            }));
+            console.warn(`[testAiConnection] OpenCode Go aprovados:`, goModels.length, `raw:`, rawList.length);
+            if (goModels.length > 0) {
+              return { valid: true, provider: "opencode", gateway: "go", models: goModels, count: goModels.length } as const;
+            }
+            lastError = `Gateway Go sem os modelos aprovados (${GO_APPROVED.join(", ")})`;
+            continue;
+          }
+
           // More permissive free/zen detection - check multiple fields
           const isFreeZen = (m: any) => {
             const id = String(m.id || m.name || m.model || m.slug || "").toLowerCase();
@@ -355,7 +380,7 @@ export const plataformaRouters = {
             // Sem zen grátis explícito, mas chave válida — retorna lista completa limitada para UI mostrar aviso
             return { valid: true, provider: "opencode", models: [], rawCount: rawList.length, error: "Chave válida, mas nenhum modelo Zen grátis encontrado para esta conta. Você pode usar modelos pagos ou informar o modelo manualmente.", modelsPreview: rawList.slice(0, 10).map((m:any)=> String(m.id||m.name||m.model)) } as any;
           }
-          return { valid: true, provider: "opencode", models: filtered, count: filtered.length, allModels: rawList.map((m:any)=>({id:String(m.id||m.name||m.model), name:String(m.name||m.id||m.model)})).slice(0, 20) } as const;
+          return { valid: true, provider: "opencode", gateway: "zen", models: filtered, count: filtered.length, allModels: rawList.map((m:any)=>({id:String(m.id||m.name||m.model), name:String(m.name||m.id||m.model)})).slice(0, 20) } as const;
         } catch (e: any) {
           if (e.name === "AbortError") {
             lastError = "Timeout 10s OpenCode";

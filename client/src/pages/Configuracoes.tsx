@@ -177,6 +177,7 @@ export default function Configuracoes() {
   const [testStatus, setTestStatus] = useState<"idle"|"loading"|"success"|"error">("idle");
   const [testMessage, setTestMessage] = useState("");
   const [zenModels, setZenModels] = useState<Array<{id:string; displayName?:string; name?:string}>>([]);
+  const [opencodeGateway, setOpencodeGateway] = useState<"zen" | "go" | null>(null);
   // Recepcionista Virtual (IA conversacional)
   const [conversationalMode, setConversationalMode] = useState(true);
   const [attendancePersonaName, setAttendancePersonaName] = useState("Júlia");
@@ -372,21 +373,26 @@ export default function Configuracoes() {
   });
 
   const testAiMutation = (trpc as any).settings.testAiConnection.useMutation({
-    onMutate: () => { setTestStatus("loading"); setTestMessage("Testando..."); setZenModels([]); },
+    onMutate: () => { setTestStatus("loading"); setTestMessage("Testando..."); setZenModels([]); setOpencodeGateway(null); },
     onSuccess: (res: any) => {
       if (res?.valid) {
         setTestStatus("success");
         if (res.provider === "opencode" && Array.isArray(res.models)) {
           setZenModels(res.models);
-          setTestMessage(`Chave válida — ${res.models.length} modelos Zen grátis encontrados`);
-          if (res.models.length > 0) {
+          setOpencodeGateway(res.gateway === "go" ? "go" : "zen");
+          if (res.gateway === "go") {
+            setTestMessage(`Chave válida — ${res.models.length} modelos Go baratos disponíveis`);
+            toast.success(`Chave OpenCode válida — ${res.models.length} modelos Go disponíveis`);
+            if (res.models.length > 0 && !opencodeModel.startsWith("opencode-go/")) {
+              setOpencodeModel(res.models[0].id);
+            }
+          } else {
+            setTestMessage(`Chave válida — ${res.models.length} modelos Zen grátis encontrados`);
             toast.success(`Chave OpenCode válida — ${res.models.length} modelos Zen grátis`);
             // Se o modelo atual estiver vazio ou com o placeholder genérico, já preenche com o primeiro da lista
             if (!opencodeModel || opencodeModel.includes("muse-spark-1.2-contributor-free") || !res.models.some((m: any) => m.id === opencodeModel)) {
               setOpencodeModel(res.models[0].id);
             }
-          } else {
-            toast(res.error || "Chave válida, mas nenhum Zen grátis encontrado");
           }
         } else {
           setTestMessage(res.provider === "gemini" ? "Chave Gemini válida ✓" : res.provider === "groq" ? "Chave Groq válida ✓" : "Chave válida ✓");
@@ -2084,9 +2090,26 @@ export default function Configuracoes() {
                   </div>
 
                   <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
-                    <Field 
+                    <Field
+                      label="OpenCode Go — modelos baratos (assinatura)"
+                      hint="GLM Flash e DeepSeek Flash via gateway Go. Selecionar preenche o campo Modelo OpenCode automaticamente (mesma chave OpenCode)."
+                    >
+                      <select
+                        value={opencodeModel.startsWith("opencode-go/") ? opencodeModel : ""}
+                        onChange={(e: any) => { if (e.target.value) setOpencodeModel(e.target.value); }}
+                        className="w-full h-12 bg-muted/50 border border-border/50 rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option value="">— não usar Go (usar campo abaixo) —</option>
+                        <option value="opencode-go/glm-5.3-flash">GLM 5.3 Flash (o mais barato)</option>
+                        <option value="opencode-go/deepseek-v4-flash">DeepSeek V4 Flash (rápido e barato)</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
+                    <Field
                       label="Modelo OpenCode"
-                      hint="Ex: opencode/muse-spark-1.2-contributor-free, gpt-4o, etc."
+                      hint="Modelo manual do gateway Zen (ex: opencode/muse-spark-1.2-contributor-free). Modelos Go têm prefixo opencode-go/."
                     >
                       <DebouncedInput
                         type="text"
@@ -2099,15 +2122,15 @@ export default function Configuracoes() {
                   </div>
 
                   <div className="bg-card p-6 rounded-3xl border border-border/50 shadow-sm space-y-6">
-                    <Field 
+                    <Field
                       label="URL da API OpenCode (opcional)"
-                      hint="Deixe vazio para usar OPENCODE_API_URL do servidor ou padrão https://api.opencode.ai/v1/chat/completions"
+                      hint="Deixe vazio: Zen usa https://opencode.ai/zen/v1 e modelos opencode-go/ vão automaticamente para https://opencode.ai/zen/go/v1."
                     >
                       <DebouncedInput
                         type="text"
                         value={opencodeApiUrl}
                         onChange={(e: any) => setOpencodeApiUrl(e.target.value)}
-                        placeholder="https://api.opencode.ai/v1/chat/completions"
+                        placeholder="https://opencode.ai/zen/v1/chat/completions"
                         className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
                       />
                     </Field>
@@ -2150,7 +2173,7 @@ export default function Configuracoes() {
                   </div>
                 )}
                 {aiProvider==="opencode" && testStatus==="success" && zenModels.length > 0 && (
-                  <Field label={`Modelos OpenCode Zen grátis disponíveis (${zenModels.length})`} hint="Selecione um para preencher o Modelo OpenCode e depois clique em Salvar.">
+                  <Field label={opencodeGateway==="go" ? `OpenCode Go — modelos baratos disponíveis (${zenModels.length})` : `Modelos OpenCode Zen grátis disponíveis (${zenModels.length})`} hint="Selecione um para preencher o Modelo OpenCode e depois clique em Salvar.">
                     <select
                       value={opencodeModel}
                       onChange={(e:any)=>setOpencodeModel(e.target.value)}
