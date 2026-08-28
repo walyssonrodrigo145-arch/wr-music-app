@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPlanOutputSchema, AI_PROMPT_VERSIONS } from "./utils/aiPrompts";
+import { buildPlanOutputSchema, buildGoalScopeRule, buildGoalScopeBlock, AI_PROMPT_VERSIONS } from "./utils/aiPrompts";
 
 const base = {
   totalMinutes: 30,
@@ -48,6 +48,34 @@ describe("RF-003 — buildPlanOutputSchema (schema compacto do plano diário)", 
   });
 
   it("versão do prompt diário registrada", () => {
-    expect(AI_PROMPT_VERSIONS.planoDiario).toBe("2.0.0");
+    expect(AI_PROMPT_VERSIONS.planoDiario).toBe("2.1.0");
+  });
+});
+
+describe("Escopo de conteúdo — 2 opções (Só Metas | Metas +)", () => {
+  it("opção 1 (Metas +): permite complementares na mesma linha, mantendo metas como núcleo", () => {
+    const rule = buildGoalScopeRule("metas_complementares");
+    expect(rule).toContain("NÚCLEO OBRIGATÓRIO");
+    expect(rule).toContain("PODE adicionar assuntos COMPLEMENTARES NA MESMA LINHA");
+    const block = buildGoalScopeBlock("metas_complementares");
+    expect(block).toContain("O coração de cada dia é a meta");
+    expect(block).toContain("CONTINUA PROIBIDO");
+    expect(block).toContain("desconectados das metas");
+  });
+
+  it("opção 2 (Só Metas): restrita exclusivamente ao que está cadastrado", () => {
+    const rule = buildGoalScopeRule("somente_metas");
+    expect(rule).toContain("FOCO 100% FECHADO NAS METAS");
+    expect(rule).toContain("Proibido inventar repertórios fora das metas");
+    const block = buildGoalScopeBlock("somente_metas");
+    expect(block).toContain("EXCLUSIVAMENTE o conteúdo das metas cadastradas");
+    expect(block).toContain("sem assuntos extras");
+  });
+
+  it("as duas opções proíbem nome de aluno em nenhuma hipótese (regra 1 é invariante)", () => {
+    // A regra 1 é estática no prompt; este assert documenta a invariante das regras de escopo
+    for (const scope of ["somente_metas", "metas_complementares"] as const) {
+      expect(buildGoalScopeRule(scope)).not.toContain("aluno");
+    }
   });
 });

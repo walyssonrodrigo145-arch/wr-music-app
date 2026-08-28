@@ -185,7 +185,7 @@ REAFIRMAÇÃO FINAL DE PERSONA (PRIORIDADE MÁXIMA): Você é ${persona}, assist
 // RN-001: builders com copy fiel do código original, exceto correções listadas.
 
 export const AI_PROMPT_VERSIONS = {
-  planoDiario: "2.0.0",
+  planoDiario: "2.1.0",
   planoAula: "1.1.0",
   insightProgresso: "1.1.0",
   proximoTopico: "1.1.0",
@@ -356,6 +356,34 @@ Dias 2 a 5 seguem a mesma estrutura. EXERCÍCIOS: exatamente 6 por dia, SEMPRE n
 Formato de cada exercício (CONCISÃO OBRIGATÓRIA):
 { "title": "título exato do bloco", "subtitle": "até 8 palavras", "duration": "X min", "points": ["até 12 palavras", "até 12 palavras"] }
 "Técnica" tem 3 points; os demais blocos têm exatamente 2. A soma das durações DEVE fechar exatamente ${input.totalMinutes} min. PROIBIDO o campo "icon" ou qualquer campo extra.`;
+}
+
+// ── Escopo de conteúdo do plano diário (2 opções solicitadas pelo professor) ──
+
+export type PlanGoalScope = "somente_metas" | "metas_complementares";
+
+/** Regra absoluta #3, variando conforme o escopo escolhido. */
+export function buildGoalScopeRule(scope: PlanGoalScope): string {
+  if (scope === "metas_complementares") {
+    return `3. **METAS SÃO O NÚCLEO OBRIGATÓRIO** — todos os 5 dias devem exercitar as metas cadastradas. Você PODE adicionar assuntos COMPLEMENTARES NA MESMA LINHA pedagógica (técnica preparatória, conceitos e exercícios que sustentam diretamente as metas).`;
+  }
+  return `3. **FOCO 100% FECHADO NAS METAS.** Proibido inventar repertórios fora das metas cadastradas.`;
+}
+
+/** Bloco de escopo inserido junto aos dados dinâmicos do aluno. */
+export function buildGoalScopeBlock(scope: PlanGoalScope): string {
+  if (scope === "metas_complementares") {
+    return `
+# 🧩 ESCOPO DO CONTEÚDO: METAS + COMPLEMENTOS RELACIONADOS
+- O coração de cada dia é a meta: todos os dias exercitam as metas cadastradas.
+- Você PODE complementar com assuntos NA MESMA LINHA: técnica preparatória, conceito harmônico/rítmico que a meta utiliza, aquecimento correlato.
+- CONTINUA PROIBIDO: músicas/repertórios aleatórios, assuntos desconectados das metas, temas de outros instrumentos.
+`;
+  }
+  return `
+# 🧩 ESCOPO DO CONTEÚDO: SOMENTE METAS
+- Use EXCLUSIVAMENTE o conteúdo das metas cadastradas. Nada fora delas: sem assuntos extras, sem repertório novo, sem temas paralelos.
+`;
 }
 
 // ── RF-001: Builders por feature (copy fiel + correções RF-005/RF-010) ───────

@@ -27,7 +27,7 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt, buildLessonPlanPrompt, buildProgressInsightPrompt, buildNextTopicPrompt, buildPlanOutputSchema, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
+import { getSystemPrompt, buildLessonPlanPrompt, buildProgressInsightPrompt, buildNextTopicPrompt, buildPlanOutputSchema, buildGoalScopeRule, buildGoalScopeBlock, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
 import { callGemini, genAI } from "../utils/gemini";
 import { BillingEngine } from "../services/BillingEngine";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "../utils/whatsapp";
@@ -504,12 +504,17 @@ export const progressRouters = {
       targetMinutes: z.number().min(10).max(120).optional().default(30),
       teacherNotes: z.string().max(500).optional(),
       planMode: z.enum(["direto", "didatico", "desafio"]).optional().default("direto"),
+      // 2 opções de escopo: "somente_metas" (estrito, padrão) | "metas_complementares" (metas + assuntos na mesma linha)
+      goalScope: z.enum(["somente_metas", "metas_complementares"]).optional().default("somente_metas"),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       const orgId = ctx.user.organizationId!;
       const totalMinutes = input.targetMinutes ?? 30;
       const planMode = input.planMode || "direto";
+      const goalScope = input.goalScope || "somente_metas";
+      const goalScopeRule = buildGoalScopeRule(goalScope);
+      const goalScopeBlock = buildGoalScopeBlock(goalScope);
 
       // ── 1. BUSCA DO ALUNO (com isolamento por organização) ──────────────────
       const [student] = await db
@@ -782,7 +787,7 @@ A soma DEVE ser exatamente ${totalMinutes} min em todos os dias.
 # ⚠️ REGRAS ABSOLUTAS:
 1. **NUNCA COLOQUE NOME DE ALUNO/PESSOA NO PLANO.** Use linguagem direta e impessoal.
 2. **NUNCA USE SUBTÍTULOS GENÉRICOS OU METALINGUAGEM.** Crie subtítulos musicais técnicos reais.
-3. **FOCO 100% FECHADO NAS METAS.** Proibido inventar repertórios fora das metas cadastradas.
+${goalScopeRule}
 4. **TODOS OS EXERCÍCIOS DEVEM SER ESPECÍFICOS PARA ${instrumentName.toUpperCase()}.**
 5. **OBRIGATÓRIO: 6 BLOCOS DE EXERCÍCIO POR DIA** (Revisão, Aquecimento, Técnica, Conceito Musical, Aplicação, Desafio).
 6. **RESPEITE OS LIMITES DE CONCISÃO** do formato de saída (subtitle até 8 palavras, points até 12 palavras).
@@ -794,7 +799,7 @@ ${jsonSchemaFormat}
 ---
 
 # 🎯 DADOS DO ALUNO (FIO CONDUTOR EXCLUSIVO E OBRIGATÓRIO)
-## METAS DA SEMANA:
+${goalScopeBlock}## METAS DA SEMANA:
 ${weeklyGoalsText}
 ${goalsWarning}${teacherNotesBlock}${pedagogicalMemoryBlock}# 📚 HISTÓRICO DE AULAS (Referência de nível)
 ${lessonsText}`;
@@ -924,6 +929,7 @@ ${lessonsText}`;
         parsedPlan.instrument = parsedPlan.instrument || instrumentName;
         parsedPlan.level = parsedPlan.level || studentLevel;
         parsedPlan.planMode = planMode;
+        parsedPlan.goalScope = goalScope;
 
         // Aviso de metas ou instrumento não configurados no campo importantMessage
         if (!hasGoals) {

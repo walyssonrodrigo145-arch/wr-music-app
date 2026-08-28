@@ -173,6 +173,7 @@ export default function Progresso() {
   const [selectedDay, setSelectedDay] = useState(0);
   const [targetDailyStudyMinutes, setTargetDailyStudyMinutes] = useState(30);
   const [selectedPlanMode, setSelectedPlanMode] = useState<"direto" | "didatico" | "desafio">("direto");
+  const [selectedGoalScope, setSelectedGoalScope] = useState<"somente_metas" | "metas_complementares">("somente_metas");
   const [studyPlanMobileTab, setStudyPlanMobileTab] = useState<"controls" | "plan">("controls");
 
   const { data: planHistory = [], isLoading: historyLoading } = trpc.progress.getStudentPlanHistory.useQuery(
@@ -1612,6 +1613,37 @@ export default function Progresso() {
                   </div>
                 </div>
 
+                {/* Escopo do Conteúdo (2 opções) */}
+                <div>
+                  <span className="text-xs font-black text-foreground flex items-center gap-1.5 mb-2">
+                    <BookOpen size={13} className="text-orange-500" />
+                    Escopo do Conteúdo
+                  </span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(["somente_metas", "metas_complementares"] as const).map((scope) => (
+                      <button
+                        key={scope}
+                        type="button"
+                        onClick={() => setSelectedGoalScope(scope)}
+                        className={cn(
+                          "h-14 rounded-xl transition-all border cursor-pointer flex flex-col items-center justify-center p-1",
+                          selectedGoalScope === scope
+                            ? "bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/25"
+                            : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                        )}
+                      >
+                        <span className="flex items-center gap-1 text-[11px] font-black">
+                          {scope === "somente_metas" ? <Zap size={12} /> : <Sparkles size={12} />}
+                          {scope === "somente_metas" ? "Só Metas" : "Metas +"}
+                        </span>
+                        <span className="text-[9px] opacity-80 font-normal leading-none mt-0.5">
+                          {scope === "somente_metas" ? "Exclusivo do cadastrado" : "Assuntos na mesma linha"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Tempo */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -1653,6 +1685,7 @@ export default function Progresso() {
                       studentId: selectedStudentId!,
                       targetMinutes: targetDailyStudyMinutes,
                       planMode: selectedPlanMode,
+                      goalScope: selectedGoalScope,
                     });
                   }}
                   disabled={generateDailyStudyPlanMutation.isPending}
