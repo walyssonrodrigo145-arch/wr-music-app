@@ -185,7 +185,7 @@ REAFIRMAÇÃO FINAL DE PERSONA (PRIORIDADE MÁXIMA): Você é ${persona}, assist
 // RN-001: builders com copy fiel do código original, exceto correções listadas.
 
 export const AI_PROMPT_VERSIONS = {
-  planoDiario: "2.1.0",
+  planoDiario: "2.2.0",
   planoAula: "1.1.0",
   insightProgresso: "1.1.0",
   proximoTopico: "1.1.0",
@@ -362,6 +362,32 @@ Formato de cada exercício (CONCISÃO OBRIGATÓRIA):
 
 export type PlanGoalScope = "somente_metas" | "metas_complementares";
 
+/**
+ * Regra dura de linguagem por nível do aluno.
+ * Iniciante: proibição explícita de jargão de harmonia avançada (voicing, comping etc.)
+ * + obrigação de seguir a meta À RISCA, com exemplos de linguagem simples.
+ */
+export function buildLevelLanguageRule(level: string): string {
+  const norm = String(level || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (norm === "iniciante" || norm === "beginner") {
+    return `
+# 🧒 REGRA DE LINGUAGEM PARA NÍVEL INICIANTE (OBRIGATÓRIA E INEGOCIÁVEL)
+- Escreva como se explicasse para alguém que NUNCA estudou teoria musical. Frases curtas e concretas.
+- PROIBIDO usar jargão de harmonia avançada, incluindo: voicing, shell voicing, close voicing, rootless, comping, voice leading, drop 2, drop 3, quartal, upper structure, reharmonização, substituição de acordes, tensões (9/11/13), modulação, submediante.
+- Em vez disso diga: "as notas do acorde", "toque o acorde com 3 notas", "as notas por baixo (baixo do acorde)", "acompanhe junto com a música".
+- Teoria permitida: APENAS o básico — nome do acorde, qual nota é a mais importante (fundamental), contagem de tempo e BPM.
+- **SIGA A META À RISCA.** Se a meta fala em "praticar as tríades Dó, Sol, Lá menor e Fá", o plano é formar e praticar EXATAMENTE esses acordes com dedilhação simples — NÃO introduza técnicas avançadas sobre eles, mesmo que sejam "do instrumento".
+`;
+  }
+  if (norm === "intermediario" || norm === "intermediário" || norm === "intermediate") {
+    return `
+# 📗 REGRA DE LINGUAGEM PARA NÍVEL INTERMEDIÁRIO
+- Termos técnicos básicos do instrumento são permitidos; evite jargão de especialista (voicings avançados, tensões complexas) sem explicar em 1 frase simples.
+`;
+  }
+  return "";
+}
+
 /** Regra absoluta #3, variando conforme o escopo escolhido. */
 export function buildGoalScopeRule(scope: PlanGoalScope): string {
   if (scope === "metas_complementares") {
@@ -376,13 +402,17 @@ export function buildGoalScopeBlock(scope: PlanGoalScope): string {
     return `
 # 🧩 ESCOPO DO CONTEÚDO: METAS + COMPLEMENTOS RELACIONADOS
 - O coração de cada dia é a meta: todos os dias exercitam as metas cadastradas.
-- Você PODE complementar com assuntos NA MESMA LINHA: técnica preparatória, conceito harmônico/rítmico que a meta utiliza, aquecimento correlato.
+- Interprete as metas LITERALMENTE e use os termos delas (ex.: meta "Praticar as Tríades Dó, Sol, Lá menor, Fá" → formar e praticar EXATAMENTE essas tríades).
+- Você PODE complementar com assuntos NA MESMA LINHA: técnica preparatória simples, conceito harmônico/rítmico que a meta utiliza, aquecimento correlato.
+- **Complementar NÃO É introduzir técnica nova avançada** (voicings, comping, arpejos complexos). É aprofundar a meta de outro ângulo acessível.
 - CONTINUA PROIBIDO: músicas/repertórios aleatórios, assuntos desconectados das metas, temas de outros instrumentos.
 `;
   }
   return `
 # 🧩 ESCOPO DO CONTEÚDO: SOMENTE METAS
 - Use EXCLUSIVAMENTE o conteúdo das metas cadastradas. Nada fora delas: sem assuntos extras, sem repertório novo, sem temas paralelos.
+- Interprete as metas LITERALMENTE e SIGA-AS À RISCA: os exercícios tratam exatamente do que a meta descreve, com as palavras da meta.
+- **Exemplo:** meta "Praticar as Tríades Dó, Sol, Lá menor, Fá" → os 5 dias formam e praticam essas tríades (formação, troca, ritmo). Se a meta não menciona voicing, comping, arpejos de outra tonalidade ou qualquer técnica avançada, ISSO NÃO PODE APARECER no plano — mesmo sendo técnica legítima do instrumento.
 `;
 }
 

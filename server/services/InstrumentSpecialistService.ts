@@ -523,3 +523,57 @@ export function validatePlanTextForInstrument(
   return { ...result, specialistId: specialist.id };
 }
 
+// ─── Validador de linguagem por nível (iniciante sem jargão avançado) ──────
+// Motivação: plano de aluno INICIANTE veio com "shell voicing", "close voicing",
+// "rootless voicing", "comping", "voice leading" — jargão de harmonia avançada
+// que o validador de contaminação entre instrumentos não pega (são termos
+// legítimos do teclado, mas ilegais para iniciante).
+
+export const BEGINNER_JARGON_TERMS: string[] = [
+  "shell voicing",
+  "close voicing",
+  "rootless voicing",
+  "rootless",
+  "voicing",
+  "comping",
+  "voice leading",
+  "drop 2",
+  "drop 3",
+  "quartal",
+  "upper structure",
+  "reharmonização",
+  "reharmonization",
+  "substituição de acordes",
+  "submediante",
+  "superdominante",
+  "poliritmia",
+  "polirritmia",
+];
+
+const BEGINNER_LEVEL_KEYS = new Set(["iniciante", "beginner"]);
+
+export function isBeginnerLevel(level: string | null | undefined): boolean {
+  return BEGINNER_LEVEL_KEYS.has(String(level || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+}
+
+/**
+ * Bloqueia jargão avançado em planos de nível INICIANTE.
+ * Retorna {passed, found} — puro e testável sem LLM.
+ */
+export function validateBeginnerLanguage(
+  planText: string,
+  level: string | null | undefined
+): { passed: boolean; found: string[] } {
+  if (!isBeginnerLevel(level)) {
+    return { passed: true, found: [] };
+  }
+  const norm = normalizeForMatch(planText);
+  const found: string[] = [];
+  for (const term of BEGINNER_JARGON_TERMS) {
+    if (termAppears(norm, term)) {
+      found.push(term);
+    }
+  }
+  return { passed: found.length === 0, found };
+}
+

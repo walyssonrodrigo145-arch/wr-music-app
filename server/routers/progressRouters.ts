@@ -27,7 +27,7 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt, buildLessonPlanPrompt, buildProgressInsightPrompt, buildNextTopicPrompt, buildPlanOutputSchema, buildGoalScopeRule, buildGoalScopeBlock, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
+import { getSystemPrompt, buildLessonPlanPrompt, buildProgressInsightPrompt, buildNextTopicPrompt, buildPlanOutputSchema, buildGoalScopeRule, buildGoalScopeBlock, buildLevelLanguageRule, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
 import { callGemini, genAI } from "../utils/gemini";
 import { BillingEngine } from "../services/BillingEngine";
 import { sendWhatsAppMessage, startWhatsAppSession, getWhatsAppSessionStatus, logoutWhatsAppSession } from "../utils/whatsapp";
@@ -52,7 +52,7 @@ import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
 import { getInstrumentContext } from "../utils/instrumentContexts";
-import { resolveSpecialist, buildSpecialistPromptBlock, validatePlanText, validatePlanTextForInstrument } from "../services/InstrumentSpecialistService";
+import { resolveSpecialist, buildSpecialistPromptBlock, validatePlanText, validatePlanTextForInstrument, validateBeginnerLanguage, BEGINNER_JARGON_TERMS } from "../services/InstrumentSpecialistService";
 import { buildMusicTheoryPromptBlock, validateMusicTheoryConcepts } from "../services/MusicTheoryValidator";
 import { resolveAiCredentials } from "../utils/aiProvider";
 import { studentPedagogicalMemory } from "../../drizzle/schema";
@@ -736,6 +736,7 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
       // ── 10. CONSTRUÇÃO DO PROMPT — STATIC-FIRST (PRD_OTIMIZACAO_PLANO_DIARIO RF-006) ──
       // Blocos estáticos primeiro (cacheáveis), dados dinâmicos do aluno por último.
       // RF-005: bloco fixo de técnica só quando NÃO há especialista mapeado.
+      const levelLanguageRule = buildLevelLanguageRule(studentLevel);
       const techniqueRulesBlock = specialist.id === "geral" ? `
 ### REGRAS DE TÉCNICA POR INSTRUMENTO:
 - **Teclado:** voicings na mão direita (ex: Dm7=D-F-A-C), baixo na mão esquerda. NUNCA confundir "voz/voicing" com canto.
@@ -762,7 +763,7 @@ ${terminologyBlock}
 ${forbiddenBlock}
 
 # 🧠 Dica de Nível (${studentLevel}): ${levelHint}
-${techniqueRulesBlock}---
+${levelLanguageRule}${techniqueRulesBlock}---
 
 # 📈 PROGRESSÃO DOS 5 DIAS:
 - **Dia 1:** Mecânica & Memória Muscular (Elemento 1)
@@ -827,7 +828,9 @@ ${lessonsText}`;
           const promptForAttempt =
             attempt === 0
               ? prompt
-              : `${prompt}\n\n${specialist.retryInstruction}\nTermos proibidos detectados na tentativa anterior: ${(lastValidation?.found || []).join(", ")} — REMOVA-OS completamente e use apenas terminologia de ${specialist.displayName}.`;
+              : `${prompt}\n\n${lastValidation?.found?.some(f => BEGINNER_JARGON_TERMS.includes(f))
+                  ? `⚠️ CORREÇÃO DE LINGUAGEM (ALUNO INICIANTE): A tentativa anterior usou jargão avançado (${(lastValidation?.found || []).slice(0, 5).join(", ")}). Reescreva TODO o plano em linguagem de iniciante — substitua por: "as notas do acorde", "as notas por baixo", "junto com a música", "toque o acorde com 3 notas". Siga a meta À RISCA.`
+                  : `${specialist.retryInstruction}\nTermos proibidos detectados na tentativa anterior: ${(lastValidation?.found || []).join(", ")} — REMOVA-OS completamente e use apenas terminologia de ${specialist.displayName}.`}`;
 
           // RF-008 (PRD_OTIMIZACAO_PLANO_DIARIO): 120s para geração pesada + telemetria de tokens
           const responseText = await callGemini([{ role: "user", content: promptForAttempt }], undefined, true, apiKey, model, 0.2, {
@@ -895,6 +898,18 @@ ${lessonsText}`;
             throw new TRPCError({
               code: "PRECONDITION_FAILED",
               message: `O plano gerado conteve termos de outro instrumento (${validation.found.slice(0, 3).join(", ")}). Tente reformular a meta ou gere novamente.`,
+            });
+          }
+
+          // ── Validador de linguagem por nível: INICIANTE sem jargão avançado ──
+          const langValidation = validateBeginnerLanguage(JSON.stringify(candidate), studentLevel);
+          if (!langValidation.passed) {
+            console.warn(`[BeginnerLanguage] Jargão avançado detectado (attempt ${attempt + 1}):`, langValidation.found.slice(0, 4));
+            lastValidation = { passed: false, found: langValidation.found };
+            if (attempt === 0) continue; // retry com instrução reforçada
+            throw new TRPCError({
+              code: "PRECONDITION_FAILED",
+              message: `O plano usou termos técnicos avançados para um aluno INICIANTE (${langValidation.found.slice(0, 3).join(", ")}). Tente gerar novamente.`,
             });
           }
 
