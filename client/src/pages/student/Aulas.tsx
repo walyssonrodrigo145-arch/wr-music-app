@@ -20,6 +20,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { RescheduleModal } from "@/components/RescheduleModal";
+import { ExtraLessonModal } from "@/components/student/ExtraLessonModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { EarlySlotBanner } from "@/components/student/EarlySlotBanner";
@@ -44,6 +45,7 @@ export default function StudentLessons() {
   const { data: profile } = trpc.studentPortal.getProfile.useQuery();
   const [activeTab, setActiveTab] = useState("proximas");
   const [selectedLesson, setSelectedLesson] = useState<{ id: number, title: string } | null>(null);
+  const [extraLessonOpen, setExtraLessonOpen] = useState(false);
   const [_, setLocation] = useLocation();
 
   if (isLoading) return (
@@ -205,7 +207,7 @@ export default function StudentLessons() {
                 </div>
                 <h3 className="text-2xl font-black text-foreground tracking-tight">Tudo em dia!</h3>
                 <p className="text-muted-foreground font-medium mt-2 max-w-sm mx-auto">Sua rotina está limpa. Você não tem aulas agendadas para os próximos dias.</p>
-                <button className="mt-8 px-6 py-3 bg-primary/10 text-primary font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-primary/20 transition-all">
+                <button onClick={() => setExtraLessonOpen(true)} className="mt-8 px-6 py-3 bg-primary/10 text-primary font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-primary/20 active:scale-95 transition-all">
                   Solicitar aula extra
                 </button>
               </div>
@@ -236,6 +238,9 @@ export default function StudentLessons() {
           lessonTitle={selectedLesson.title}
         />
       )}
+
+      {/* PRD_AULA_EXTRA: solicitação de aula extra (botão do empty state) */}
+      <ExtraLessonModal open={extraLessonOpen} onOpenChange={setExtraLessonOpen} />
     </div>
   );
 }

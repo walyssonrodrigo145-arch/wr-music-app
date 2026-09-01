@@ -73,6 +73,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   const { user } = useAuth();
   const { data: reminderCount = 0 } = trpc.reminders.pendingCount.useQuery();
   const { data: requestCount = 0 } = trpc.reschedule.pendingCount.useQuery();
+  const { data: extraRequestCount = 0 } = trpc.extraRequests.pendingCount.useQuery();
   const { data: settings } = trpc.settings.get.useQuery();
   const { data: mySub } = trpc.platform.mySubscription.useQuery();
   const { data: publicPlans = [] } = trpc.platform.getPublicPlans.useQuery();
@@ -141,7 +142,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
       groupIcon: FolderKanban,
       textColor: "text-purple-400",
       items: [
-        { label: "Solicitações", href: "/solicitacoes", icon: Inbox, badge: requestCount > 0 ? requestCount : undefined },
+        { label: "Solicitações", href: "/solicitacoes", icon: Inbox, badge: (requestCount + extraRequestCount) > 0 ? requestCount + extraRequestCount : undefined },
         { label: "Progresso", href: "/progresso", icon: Activity },
         { label: "Recepção QR", href: "/recepcao-qr", icon: LayoutDashboard },
       ],

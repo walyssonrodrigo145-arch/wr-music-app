@@ -100,6 +100,14 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "addressCity" varchar(120)`);
     await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "addressState" varchar(2)`);
 
+    // AUDIT-CONTRACTS: espelho dos Dados da Escola usado por settings.updateSchool —
+    // colunas ausentes faziam o UPDATE falhar com "column does not exist".
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "phone" varchar(30)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "email" varchar(255)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "address" text`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "city" varchar(120)`);
+    await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "cnpj" varchar(25)`);
+
     // students.studentUserId
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "studentUserId" integer`);
     
@@ -162,6 +170,19 @@ async function ensureSchemaConsistency(db: any) {
         "fileName" varchar(255) NOT NULL,
         "fileType" varchar(50) NOT NULL,
         "extractedText" text NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+
+    // extra_lesson_requests table (PRD_AULA_EXTRA) — varchar p/ status para não depender do enum físico
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "extra_lesson_requests" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer,
+        "studentId" integer NOT NULL,
+        "preferredDates" text NOT NULL,
+        "reason" text,
+        "status" varchar(20) DEFAULT 'pendente' NOT NULL,
         "createdAt" timestamp DEFAULT now() NOT NULL
       )
     `);

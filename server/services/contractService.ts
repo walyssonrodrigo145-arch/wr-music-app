@@ -354,8 +354,15 @@ export async function prepareContractRender(
     null;
 
   const [org] = await db.select().from(orgs).where(eq(orgs.id, orgId)).limit(1);
-  const [instrument] = student.instrumentId
-    ? await db.select().from(instruments).where(and(eq(instruments.id, student.instrumentId), eq(instruments.organizationId, orgId))).limit(1)
+
+  // AUDIT-CONTRACTS FIX: o CNPJ pode ter sido salvo em outra linha de settings
+  // (tabela é POR USUÁRIO — userId UNIQUE). Coleta de todas as linhas + espelho
+  // da organizations antes de renderizar "__________" no contrato.
+  const schoolCnpjResolved =
+    [orgSettings?.schoolCnpj, ...allOrgSettings.map((s: any) => s.schoolCnpj), (org as any)?.cnpj]
+      .find((c: any) => c && String(c).trim() !== "") || null;
+
+  const [instrument] = student.instrumentId    ? await db.select().from(instruments).where(and(eq(instruments.id, student.instrumentId), eq(instruments.organizationId, orgId))).limit(1)
     : [null];
 
   const monthlyFee = opts.monthlyFeeOverride ?? (student.monthlyFee as string | null) ?? null;
@@ -373,7 +380,7 @@ export async function prepareContractRender(
   // ─── Fallback triplo: orgSettings (admin settings) → org (espelho) → placeholder
   const variables = buildContractVariables({
     schoolName:       orgSettings?.schoolName    || (org as any)?.name     || null,
-    schoolCnpj:      orgSettings?.schoolCnpj    || (org as any)?.cnpj     || null,
+    schoolCnpj:       schoolCnpjResolved,
     schoolAddress:    orgSettings?.schoolAddress || (org as any)?.address  || null,
     schoolCity:      orgSettings?.schoolCity    || (org as any)?.city     || null,
     schoolPhone:     orgSettings?.schoolPhone   || (org as any)?.phone    || null,

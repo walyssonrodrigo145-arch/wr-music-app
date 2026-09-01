@@ -21,9 +21,11 @@ import {
   Play,
   ExternalLink,
   X,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import MediaLightbox from "@/components/student/MediaLightbox";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +71,8 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
   const [resolvedUrl, setResolvedUrl] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
   const [fileNotFound, setFileNotFound] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Upload Modal State
@@ -716,12 +720,29 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                  )}
 
                  {!urlLoading && !fileNotFound && previewFile?.category === 'video' && (
-                    <video 
-                      src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
-                      controls 
-                      className="max-h-full max-w-full z-10 rounded-xl"
-                      autoPlay
-                    />
+                    <div className="relative w-full h-full flex items-center justify-center">
+                       <video
+                         ref={videoRef}
+                         src={resolvedUrl || getFixedUrl(previewFile.fileUrl)}
+                         controls
+                         className="max-h-full max-w-full z-10 rounded-xl"
+                         autoPlay
+                       />
+                       {/* FULLSCREEN: ambiente WebView/mobile sem botão nativo no player */}
+                       {typeof document !== "undefined" && document.fullscreenEnabled && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                               const el = videoRef.current as any;
+                               (el?.requestFullscreen?.() ?? el?.webkitEnterFullscreen?.() ?? el?.webkitRequestFullscreen?.())?.catch?.(() => {});
+                            }}
+                            className="absolute top-3 right-3 z-20 w-10 h-10 rounded-xl bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all active:scale-95"
+                            title="Tela cheia"
+                          >
+                             <Maximize2 size={16} />
+                          </button>
+                       )}
+                    </div>
                  )}
                  {!urlLoading && !fileNotFound && previewFile?.category === 'audio' && (
                     <div className="flex flex-col items-center gap-6 z-10 w-full px-12 max-w-lg">
@@ -746,15 +767,35 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                     </div>
                  )}
                  {!urlLoading && !fileNotFound && previewFile?.category === 'imagem' && (
-                    <img 
-                      src={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
-                      alt={previewFile.fileName}
-                      className="max-h-full max-w-full object-contain z-10 shadow-2xl rounded-xl"
-                    />
+                    <div className="relative w-full h-full flex items-center justify-center p-3 md:p-6 overflow-hidden">
+                       <img
+                         src={resolvedUrl || getFixedUrl(previewFile.fileUrl)}
+                         alt={previewFile.fileName}
+                         onDoubleClick={() => setLightboxOpen(true)}
+                         className="max-h-full max-w-full object-contain z-10 shadow-2xl rounded-xl cursor-zoom-in"
+                       />
+                       {/* ZOOM FIX: imagens pequenas abrem em lightbox com zoom/pinça */}
+                       <button
+                         type="button"
+                         onClick={() => setLightboxOpen(true)}
+                         className="absolute bottom-3 right-3 z-20 flex items-center gap-2 h-10 px-4 rounded-xl bg-black/60 hover:bg-black/80 text-white text-[10px] font-black uppercase tracking-widest backdrop-blur-md border border-white/20 transition-all active:scale-95"
+                         title="Ampliar imagem"
+                       >
+                          <Maximize2 size={14} /> Ampliar
+                       </button>
+                    </div>
                  )}
               </div>
-           </DialogContent>
-        </Dialog>
-    </div>
-  );
+            </DialogContent>
+         </Dialog>
+
+         {/* ZOOM FIX: lightbox fullscreen com zoom/pan/pinça para imagens da biblioteca */}
+         <MediaLightbox
+            open={lightboxOpen}
+            src={resolvedUrl || getFixedUrl(previewFile?.fileUrl)}
+            alt={previewFile?.fileName}
+            onClose={() => setLightboxOpen(false)}
+         />
+     </div>
+   );
 }

@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, extraLessonRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -1775,6 +1775,92 @@ export const lessonsRouters = {
       if (!db) throw new Error("Database not available");
       const orgId = ctx.user.organizationId!;
       await db.delete(rescheduleRequests).where(and(eq(rescheduleRequests.id, input.id), eq(rescheduleRequests.organizationId, orgId)));
+      return { success: true };
+    }),
+  }),
+
+  /**
+   * PRD_AULA_EXTRA: solicitações de aula extra enviadas pelo portal do aluno.
+   * Mesmo isolamento do reschedule: o professor vê apenas solicitações dos
+   * SEUS alunos (students.professorId = ctx.user.id), sempre filtrando por org.
+   */
+  extraRequests: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      return db.select({
+        id: extraLessonRequests.id,
+        studentName: students.name,
+        preferredDates: extraLessonRequests.preferredDates,
+        reason: extraLessonRequests.reason,
+        status: extraLessonRequests.status,
+        createdAt: extraLessonRequests.createdAt,
+      })
+      .from(extraLessonRequests)
+      .leftJoin(students, eq(extraLessonRequests.studentId, students.id))
+      .where(and(eq(extraLessonRequests.organizationId, orgId), eq(students.professorId, ctx.user.id)))
+      .orderBy(desc(extraLessonRequests.createdAt));
+    }),
+    pendingCount: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      const [result] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+        .from(extraLessonRequests)
+        .leftJoin(students, eq(extraLessonRequests.studentId, students.id))
+        .where(and(eq(extraLessonRequests.organizationId, orgId), eq(students.professorId, ctx.user.id), eq(extraLessonRequests.status, 'pendente')));
+      return result?.count || 0;
+    }),
+    respond: protectedProcedure.input(z.object({ id: z.number(), status: z.enum(['aprovada', 'recusada']) })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      // RN-002: busca antes de atualizar para notificar o aluno (conta vinculada)
+      const [request] = await db.select({
+        id: extraLessonRequests.id,
+        studentId: extraLessonRequests.studentId,
+        organizationId: extraLessonRequests.organizationId,
+      }).from(extraLessonRequests)
+        .where(and(eq(extraLessonRequests.id, input.id), eq(extraLessonRequests.organizationId, orgId)))
+        .limit(1);
+      if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+
+      // CA-003: apenas o professor efetivo do aluno pode responder
+      const [student] = await db.select({ professorId: students.professorId, studentUserId: students.studentUserId, name: students.name })
+        .from(students)
+        .where(and(eq(students.id, request.studentId), eq(students.organizationId, orgId)))
+        .limit(1);
+      if (!student || student.professorId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para responder esta solicitação." });
+      }
+
+      await db.update(extraLessonRequests).set({ status: input.status }).where(and(eq(extraLessonRequests.id, input.id), eq(extraLessonRequests.organizationId, orgId)));
+
+      if (student.studentUserId) {
+        const title = input.status === 'aprovada' ? "Aula Extra Aprovada! 🎸" : "Solicitação de Aula Extra";
+        const message = input.status === 'aprovada'
+          ? `Boa, ${student.name}! Seu professor aprovou sua aula extra. Em breve ela aparecerá na sua agenda.`
+          : `Sua solicitação de aula extra foi recusada. Fale com seu professor para combinar o melhor horário.`;
+        await db.insert(notifications).values({
+          organizationId: orgId,
+          userId: student.studentUserId,
+          title,
+          message,
+          type: input.status === 'aprovada' ? "success" : "info",
+          actionUrl: "/aluno/aulas",
+        });
+        notifyUser(student.studentUserId, { title, content: message, url: "/aluno/aulas" }).catch(e => console.error("Falha ao enviar push de resposta de aula extra:", e));
+      }
+
+      return { success: true };
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+      await db.delete(extraLessonRequests).where(and(eq(extraLessonRequests.id, input.id), eq(extraLessonRequests.organizationId, orgId)));
       return { success: true };
     }),
   }),

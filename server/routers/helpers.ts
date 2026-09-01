@@ -2,7 +2,7 @@
 import { debugLog } from "../_core/logger";
 import crypto from "crypto";
 import { TRPCError } from "@trpc/server";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, isNotNull } from "drizzle-orm";
 import { organizations, students, contracts, schoolIntegrations } from "../../drizzle/schema";
 import { ENV } from "../_core/env";
 
@@ -256,14 +256,25 @@ export async function runCreateAssinafyContract(
     });
   }
 
-  // AUDIT-04 FIX: contrato sem CNPJ da escola é rejeitado pelo provedor de
-  // assinatura/fiscal — bloqueia cedo com mensagem clara.
+  // AUDIT-CONTRACTS FIX: a tabela settings é POR USUÁRIO (userId UNIQUE) — cada
+  // usuário da org que abre Configurações ganha uma linha própria (auto-criada
+  // vazia por getSettingsByUserId). O LIMIT 1 antigo podia pegar a linha de
+  // qualquer usuário SEM CNPJ e bloquear o contrato mesmo com o CNPJ salvo por
+  // outro admin. Agora: coleta o CNPJ de TODAS as linhas de settings da org e
+  // cai para organizations.cnpj (espelho do updateSchool) antes de falhar.
   const { settings: settingsTable } = await import("../../drizzle/schema");
-  const [orgSettings] = await db.select({ schoolCnpj: settingsTable.schoolCnpj })
+  const cnpjRows = await db.select({ schoolCnpj: settingsTable.schoolCnpj })
     .from(settingsTable)
-    .where(eq(settingsTable.organizationId, orgId))
+    .where(and(eq(settingsTable.organizationId, orgId), isNotNull(settingsTable.schoolCnpj)));
+  const [orgCnpjRow] = await db.select({ cnpj: organizations.cnpj })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
     .limit(1);
-  if (!isValidCNPJ(orgSettings?.schoolCnpj)) {
+  const cnpjCandidates: Array<string | null> = [
+    ...cnpjRows.map((r: { schoolCnpj: string | null }) => r.schoolCnpj),
+    orgCnpjRow?.cnpj ?? null,
+  ];
+  if (!cnpjCandidates.some(c => isValidCNPJ(c))) {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
       message: "Cadastre o CNPJ válido da escola em Configurações > Dados da Escola antes de emitir contratos.",

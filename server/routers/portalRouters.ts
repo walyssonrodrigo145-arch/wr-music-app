@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, extraLessonRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -983,6 +983,134 @@ export const portalRouters = {
           teacherPhone: teacherSettings?.schoolPhone || teacherSettings?.phone || '',
           lessonDuration: lesson.duration || 60
         };
+      }),
+
+    /**
+     * PRD_AULA_EXTRA (RF-002): horários livres do professor EFETIVO do aluno,
+     * sem depender de uma aula origem (ao contrário de getTeacherSchedule).
+     * Fallback quando a escola não tem horários configurados: hasConfiguredHours=false
+     * e o client oferece preferência em texto livre.
+     */
+    getExtraLessonSchedule: studentProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const orgId = ctx.user.organizationId!;
+
+      let studentId = ctx.user.studentId;
+      if (!studentId) {
+        const [found] = await db.select({ id: students.id }).from(students)
+          .where(and(eq(students.studentUserId, ctx.user.id), eq(students.organizationId, orgId)))
+          .limit(1);
+        if (found) studentId = found.id;
+      }
+      if (!studentId) throw new TRPCError({ code: "FORBIDDEN", message: "Perfil de aluno incompleto." });
+
+      const [student] = await db.select({ professorId: students.professorId }).from(students)
+        .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+        .limit(1);
+
+      const teacherId = student?.professorId ?? ctx.user.id;
+      const settingsSelect = { schoolHours: settings.schoolHours };
+      const [teacherSettings] = await db.select(settingsSelect).from(settings).where(eq(settings.userId, teacherId)).limit(1);
+
+      let parsedHours: Record<string, any> = {};
+      try { parsedHours = JSON.parse(teacherSettings?.schoolHours || '{}'); } catch(e) {}
+      const hasConfiguredHours = Object.values(parsedHours).some((d: any) => d?.active);
+
+      // Aulas agendadas futuras do professor (diretas ou de seus alunos)
+      const futureLessons = await db.select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
+        .from(lessons)
+        .leftJoin(students, eq(lessons.studentId, students.id))
+        .where(and(
+          eq(lessons.organizationId, orgId),
+          eq(lessons.status, 'agendada'),
+          or(eq(lessons.userId, teacherId), eq(students.professorId, teacherId)),
+          sql`${lessons.scheduledAt} > NOW()`,
+          sql`${lessons.scheduledAt} < NOW() + INTERVAL '30 days'`
+        ));
+
+      return {
+        schoolHours: parsedHours,
+        hasConfiguredHours,
+        bookedSlots: futureLessons.map(l => ({ scheduledAt: l.scheduledAt.toISOString(), duration: l.duration })),
+        lessonDuration: 60,
+      };
+    }),
+
+    /**
+     * PRD_AULA_EXTRA (RF-001): aluno solicita aula extra. RN-001: apenas 1 pendente
+     * por aluno. Notifica o professor efetivo (fallback: admins da organização).
+     */
+    requestExtraLesson: studentProcedure
+      .input(z.object({
+        preferredDates: z.string().min(3, "Informe suas preferências de data/horário.").max(300),
+        reason: z.string().max(1000).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const orgId = ctx.user.organizationId!;
+
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students)
+            .where(and(eq(students.studentUserId, ctx.user.id), eq(students.organizationId, orgId)))
+            .limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new TRPCError({ code: "FORBIDDEN", message: "Perfil de aluno incompleto." });
+
+        const [student] = await db.select({ id: students.id, name: students.name, professorId: students.professorId, studentUserId: students.studentUserId })
+          .from(students)
+          .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
+          .limit(1);
+        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado." });
+
+        // RN-001 (anti-spam): apenas 1 solicitação pendente por aluno
+        const [pending] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+          .from(extraLessonRequests)
+          .where(and(eq(extraLessonRequests.studentId, studentId), eq(extraLessonRequests.status, 'pendente')));
+        if (pending.count > 0) {
+          throw new TRPCError({ code: "CONFLICT", message: "Você já tem uma solicitação de aula extra pendente. Aguarde a resposta do professor." });
+        }
+
+        await db.insert(extraLessonRequests).values({
+          organizationId: orgId,
+          studentId,
+          preferredDates: input.preferredDates,
+          reason: input.reason ?? null,
+          status: 'pendente',
+        });
+
+        const studentName = student.name || "Seu aluno";
+        const title = "Solicitação de Aula Extra";
+        const message = `${studentName} solicitou uma aula extra. Preferências: ${input.preferredDates}`;
+
+        // RN-003: professor efetivo; sem vínculo → admins da organização
+        let recipients: number[] = [];
+        if (student.professorId) {
+          recipients = [student.professorId];
+        } else {
+          const admins = await db.select({ id: users.id }).from(users)
+            .where(and(eq(users.organizationId, orgId), eq(users.role, 'admin')))
+            .limit(5);
+          recipients = admins.map(a => a.id);
+        }
+
+        for (const recipientId of recipients) {
+          await db.insert(notifications).values({
+            organizationId: orgId,
+            userId: recipientId,
+            title,
+            message,
+            type: "warning",
+            actionUrl: "/solicitacoes",
+          });
+          // Push não bloqueia a criação em caso de falha
+          notifyUser(recipientId, { title, content: message, url: "/solicitacoes" }).catch(e => console.error("Falha ao enviar push de aula extra:", e));
+        }
+
+        return { success: true };
       }),
 
     autoReschedule: studentProcedure

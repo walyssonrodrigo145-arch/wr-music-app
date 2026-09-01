@@ -68,6 +68,14 @@ export const organizations = pgTable("organizations", {
   addressCity: varchar("addressCity", { length: 120 }),
   addressState: varchar("addressState", { length: 2 }),
 
+  // Espelho dos Dados da Escola (settings.updateSchool) — usado por contratos/fiscal
+  // AUDIT-CONTRACTS: colunas ausentes do schema quebravam o UPDATE com erro SQL.
+  phone: varchar("phone", { length: 30 }),
+  email: varchar("email", { length: 255 }),
+  address: text("address"),
+  city: varchar("city", { length: 120 }),
+  cnpj: varchar("cnpj", { length: 25 }),
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
@@ -579,6 +587,20 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
 export type InsertRescheduleRequest = typeof rescheduleRequests.$inferInsert;
+
+// PRD_AULA_EXTRA: solicitação de aula extra do portal do aluno (sem lessonId —
+// não há aula origem; o professor aprova/recusa e agenda manualmente).
+export const extraLessonRequests = pgTable("extra_lesson_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  studentId: integer("studentId").notNull(),
+  preferredDates: text("preferredDates").notNull(),
+  reason: text("reason"),
+  status: rescheduleStatusEnum("status").default("pendente").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ExtraLessonRequest = typeof extraLessonRequests.$inferSelect;
+export type InsertExtraLessonRequest = typeof extraLessonRequests.$inferInsert;
 
 export type DailyStudyPlan = typeof dailyStudyPlans.$inferSelect;
 export type InsertDailyStudyPlan = typeof dailyStudyPlans.$inferInsert;
