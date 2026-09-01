@@ -82,6 +82,56 @@ function countBy(rawRows: Array<{ studentId: number | null; cnt: number }>): Map
   return map;
 }
 
+/** Resolve a regra de participação (§12) e sincroniza ranking_participants. */
+export async function resolveParticipants(db: any, ranking: Ranking): Promise<number> {
+  const orgId = ranking.organizationId!;
+  let target: Array<{ id: number }> = [];
+
+  if (ranking.participantRule === 'manual') {
+    const ids = (ranking.participantStudentIds ?? []) as number[];
+    if (ids.length > 0) {
+      target = await db.select({ id: students.id }).from(students)
+        .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo'), inArray(students.id, ids)));
+    }
+  } else if (ranking.participantRule === 'instrumento') {
+    target = await db.select({ id: students.id }).from(students)
+      .where(and(
+        eq(students.organizationId, orgId),
+        eq(students.status, 'ativo'),
+        ranking.instrumentId ? eq(students.instrumentId, ranking.instrumentId) : undefined,
+      ));
+  } else if (ranking.participantRule === 'nivel') {
+    target = await db.select({ id: students.id }).from(students)
+      .where(and(
+        eq(students.organizationId, orgId),
+        eq(students.status, 'ativo'),
+        ranking.level ? sql`${students.level}::text = ${ranking.level}` : undefined,
+      ));
+  } else {
+    // 'todos': apenas alunos ativos (§58)
+    target = await db.select({ id: students.id }).from(students)
+      .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
+  }
+
+  const existing = await db.select({ studentId: rankingParticipants.studentId })
+    .from(rankingParticipants)
+    .where(eq(rankingParticipants.rankingId, ranking.id));
+  const existingIds = new Set(existing.map((e: any) => e.studentId));
+
+  const toInsert = target.filter((t) => !existingIds.has(t.id));
+  if (toInsert.length > 0) {
+    await db.insert(rankingParticipants).values(
+      toInsert.map((t) => ({
+        organizationId: orgId,
+        rankingId: ranking.id,
+        studentId: t.id,
+        joinedAt: new Date(),
+      }))
+    );
+  }
+  return existingIds.size + toInsert.length;
+}
+
 /**
  * Calcula a classificação completa de um ranking (derivada, sem estado).
  * Consultas agregadas por critério — performance ok para escolas de 50–1000
@@ -474,6 +524,25 @@ export async function runRankingsMaintenance(): Promise<void> {
         await closeRanking(ranking.id);
       } catch (e) {
         debugLog(`[Rankings] Erro ao encerrar ranking ${ranking.id}:`, e);
+      }
+    }
+
+    // 1.5 PROMOÇÃO AUTOMÁTICA: agendado → ativo quando o início chega.
+    // Sem isso, rankings criados com data futura ficavam presos em 'agendado'
+    // para sempre (sem participantes, invisíveis para o aluno).
+    const toActivate = await db.select().from(rankings)
+      .where(and(eq(rankings.status, 'agendado'), lte(rankings.startDate, new Date())));
+    for (const stale of toActivate) {
+      try {
+        await db.update(rankings).set({ status: 'ativo', updatedAt: new Date() }).where(eq(rankings.id, stale.id));
+        const [activated] = await db.select().from(rankings).where(eq(rankings.id, stale.id)).limit(1);
+        if (activated) {
+          await resolveParticipants(db, activated);
+          await notifyRankingStart(activated).catch(() => {});
+          debugLog(`[Rankings] Ranking ${stale.id} promovido de agendado para ativo.`);
+        }
+      } catch (e) {
+        debugLog(`[Rankings] Erro ao promover ranking agendado ${stale.id}:`, e);
       }
     }
 

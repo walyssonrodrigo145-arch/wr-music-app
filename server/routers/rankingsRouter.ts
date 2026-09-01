@@ -19,6 +19,7 @@ import {
   computeStandings,
   closeRanking,
   notifyRankingStart,
+  resolveParticipants,
 } from "../services/RankingEngine";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -47,56 +48,6 @@ async function getRankingForStaff(db: any, ctx: any, rankingId: number): Promise
     throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão sobre este ranking." });
   }
   return ranking;
-}
-
-/** Resolve a regra de participação (§12) e sincroniza ranking_participants. */
-async function resolveParticipants(db: any, ranking: Ranking): Promise<number> {
-  const orgId = ranking.organizationId!;
-  let target: Array<{ id: number }> = [];
-
-  if (ranking.participantRule === 'manual') {
-    const ids = (ranking.participantStudentIds ?? []) as number[];
-    if (ids.length > 0) {
-      target = await db.select({ id: students.id }).from(students)
-        .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo'), inArray(students.id, ids)));
-    }
-  } else if (ranking.participantRule === 'instrumento') {
-    target = await db.select({ id: students.id }).from(students)
-      .where(and(
-        eq(students.organizationId, orgId),
-        eq(students.status, 'ativo'),
-        ranking.instrumentId ? eq(students.instrumentId, ranking.instrumentId) : undefined,
-      ));
-  } else if (ranking.participantRule === 'nivel') {
-    target = await db.select({ id: students.id }).from(students)
-      .where(and(
-        eq(students.organizationId, orgId),
-        eq(students.status, 'ativo'),
-        ranking.level ? sql`${students.level}::text = ${ranking.level}` : undefined,
-      ));
-  } else {
-    // 'todos': apenas alunos ativos (§58)
-    target = await db.select({ id: students.id }).from(students)
-      .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
-  }
-
-  const existing = await db.select({ studentId: rankingParticipants.studentId })
-    .from(rankingParticipants)
-    .where(eq(rankingParticipants.rankingId, ranking.id));
-  const existingIds = new Set(existing.map((e: any) => e.studentId));
-
-  const toInsert = target.filter((t) => !existingIds.has(t.id));
-  if (toInsert.length > 0) {
-    await db.insert(rankingParticipants).values(
-      toInsert.map((t) => ({
-        organizationId: orgId,
-        rankingId: ranking.id,
-        studentId: t.id,
-        joinedAt: new Date(),
-      }))
-    );
-  }
-  return existingIds.size + toInsert.length;
 }
 
 const weightsSchema = z.object({
