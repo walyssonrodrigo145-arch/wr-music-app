@@ -172,7 +172,9 @@ export const portalRouters = {
         statsDoneRecent,
         payments,
         latestMessages,
-        pendingGoals
+        pendingGoals,
+        totalMaterials,
+        recentGoals
       ] = await Promise.all([
         db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, student.professorId)).limit(1).then(res => res[0]),
         
@@ -283,6 +285,23 @@ export const portalRouters = {
         }).from(studentGoals)
           .where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId), eq(studentGoals.status, 'pendente')))
           .orderBy(desc(studentGoals.createdAt))
+          .limit(5),
+
+        // Total de materiais (contagem real para o card de métricas)
+        db.select({ count: sql<number>`CAST(count(*) AS INT)` }).from(studentFiles)
+          .where(and(eq(studentFiles.studentId, studentId), eq(studentFiles.organizationId, orgId)))
+          .then(res => res[0]),
+
+        // Metas recentes (qualquer status) para "Exercícios recentes" / Missões concluídas
+        db.select({
+          id: studentGoals.id,
+          title: studentGoals.title,
+          status: studentGoals.status,
+          createdAt: studentGoals.createdAt,
+          completedAt: studentGoals.completedAt,
+        }).from(studentGoals)
+          .where(and(eq(studentGoals.studentId, studentId), eq(studentGoals.organizationId, orgId)))
+          .orderBy(desc(studentGoals.createdAt))
           .limit(5)
       ]);
 
@@ -298,6 +317,8 @@ export const portalRouters = {
         materials,
         payments,
         pendingGoals: pendingGoals,
+        materialsCount: totalMaterials.count,
+        recentGoals: recentGoals,
         teacherName: teacher?.name || 'Professor',
         teacherId: teacher?.id,
         messages: latestMessages,

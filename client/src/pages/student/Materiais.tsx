@@ -489,10 +489,11 @@ export default function StudentMaterials() {
       {/* PREVIEW DIALOG */}
       <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
          <DialogContent showCloseButton={false} className={cn("p-0 overflow-hidden bg-background border-none rounded-[1.5rem] md:rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[95vw] md:max-w-7xl" : "max-w-[95vw] md:max-w-5xl")}>
-            <DialogHeader className="p-4 md:p-8 bg-card/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-20">
-               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                     <div className="flex items-center gap-2 mb-2">
+             <DialogHeader className="p-4 md:p-6 bg-card/80 backdrop-blur-xl border-b border-border/50">
+                {/* LAYOUT FIX: ações com flex-wrap + título truncando — nunca estoura a largura do modal */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 min-w-0">
+                   <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-bold uppercase tracking-widest border border-primary/20">
                            {previewFile?.category}
                         </span>
@@ -500,15 +501,15 @@ export default function StudentMaterials() {
                            Visualização de Material • {previewFile?.category?.toUpperCase()}
                         </span>
                      </div>
-                     <DialogTitle className="text-lg md:text-2xl font-black text-foreground tracking-tight truncate leading-none">
+                     <DialogTitle className="text-base md:text-lg lg:text-xl font-black text-foreground tracking-tight truncate leading-tight">
                         {previewFile?.fileName}
                      </DialogTitle>
                   </div>
-                  <div className="flex items-center gap-2 md:gap-3 self-end md:self-auto">
+                  <div className="flex items-center gap-2 flex-wrap self-start lg:self-auto lg:justify-end shrink-0">
                     {previewFile?.category === 'imagem' && !urlLoading && !fileNotFound && (
                       <Button 
                         variant="outline"
-                        className="h-10 md:h-12 rounded-xl text-primary border-primary/20 bg-primary/5 text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-sm hover:scale-105 active:scale-95"
+                        className="h-11 rounded-xl text-primary border-primary/20 bg-primary/5 text-[10px] md:text-xs font-bold px-3 md:px-4 shadow-sm hover:scale-105 active:scale-95"
                         onClick={() => setLightboxOpen(true)}
                         title="Ampliar imagem"
                       >
@@ -518,7 +519,7 @@ export default function StudentMaterials() {
                     )}
                     <Button 
                       variant="outline"
-                      className="h-10 md:h-12 rounded-xl text-primary border-primary/20 bg-primary/5 text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-sm hover:scale-105 active:scale-95"
+                      className="h-11 rounded-xl text-primary border-primary/20 bg-primary/5 text-[10px] md:text-xs font-bold px-3 md:px-4 shadow-sm hover:scale-105 active:scale-95"
                       onClick={() => setShowComments(!showComments)}
                       title="Dúvidas e Comentários"
                     >
@@ -528,7 +529,7 @@ export default function StudentMaterials() {
                     <Button 
                        asChild
                        variant="outline"
-                       className="h-10 md:h-12 rounded-xl border-border/80 hover:bg-muted text-[10px] md:text-xs font-bold px-3 md:px-5 shadow-sm transition-all hidden sm:flex"
+                       className="h-11 rounded-xl border-border/80 hover:bg-muted text-[10px] md:text-xs font-bold px-3 md:px-4 shadow-sm transition-all hidden sm:flex"
                      >
                         <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer">
                            <ExternalLink size={16} className="md:mr-2" /> 
@@ -537,7 +538,7 @@ export default function StudentMaterials() {
                      </Button>
                     <Button 
                       asChild
-                      className="h-10 md:h-12 rounded-xl bg-primary hover:bg-primary/90 text-white text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95 hidden sm:flex"
+                      className="h-11 rounded-xl bg-primary hover:bg-primary/90 text-white text-[10px] md:text-xs font-bold px-3 md:px-4 shadow-xl shadow-primary/20 border-none transition-all hover:scale-105 active:scale-95 hidden sm:flex"
                     >
                        <a href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} target="_blank" rel="noopener noreferrer" download={previewFile?.fileName}>
                           <Download size={16} className="md:mr-2" /> 
@@ -643,14 +644,15 @@ export default function StudentMaterials() {
                        </div>
                     </div>
                  )}
-                 {!urlLoading && !fileNotFound && previewFile?.category === 'imagem' && (
-                    <div className="relative w-full h-full flex items-center justify-center">
-                       <img 
-                         src={resolvedUrl} 
-                         alt={previewFile.fileName}
-                         onDoubleClick={() => setLightboxOpen(true)}
-                         className="max-h-[90%] max-w-[100%] md:max-w-[95%] object-contain rounded-xl md:rounded-2xl shadow-2xl border border-border/50 cursor-zoom-in"
-                       />
+                  {!urlLoading && !fileNotFound && previewFile?.category === 'imagem' && (
+                     <div className="relative w-full h-full flex items-center justify-center p-4 md:p-8 overflow-hidden">
+                        <div aria-hidden className="absolute inset-0 pointer-events-none opacity-[0.45]" style={{ backgroundImage: "radial-gradient(var(--border) 1px, transparent 1px)", backgroundSize: "22px 22px" }} />
+                        <img
+                          src={resolvedUrl}
+                          alt={previewFile.fileName}
+                          onDoubleClick={() => setLightboxOpen(true)}
+                          className="relative max-h-full max-w-full object-contain rounded-xl md:rounded-2xl shadow-2xl border border-border/50 cursor-zoom-in"
+                        />
                        <button 
                          type="button"
                          onClick={() => setLightboxOpen(true)}

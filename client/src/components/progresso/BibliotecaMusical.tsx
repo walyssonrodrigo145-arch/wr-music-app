@@ -126,6 +126,13 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
     onError: (e) => toast.error("Erro ao excluir material: " + e.message)
   });
 
+  // MOBILE FIX: confirmação leve + caminho único de exclusão (acessível sem hover)
+  const handleDeleteFile = (id: number) => {
+    if (window.confirm("Excluir este material? Esta ação não pode ser desfeita.")) {
+      deleteMutation.mutate({ id });
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -212,13 +219,13 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
        {/* HEADER DA BIBLIOTECA */}
-       <div className="flex items-center justify-between">
+       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
              <h3 className="text-xl font-black text-foreground uppercase tracking-tighter">Biblioteca Musical</h3>
              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">Central de Mídia e Materiais de Apoio</p>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
              <div className="hidden lg:flex flex-col items-end mr-4">
                 <div className="flex items-center gap-2 mb-1">
                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Armazenamento</span>
@@ -238,7 +245,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
              <Button 
                onClick={() => fileInputRef.current?.click()}
                disabled={createMutation.isPending || uploadMutation.isPending}
-               className="h-11 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-xl shadow-indigo-500/10 border-none"
+               className="h-11 rounded-xl px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-xl shadow-indigo-500/10 border-none w-full sm:w-auto justify-center"
              >
                 {(createMutation.isPending || uploadMutation.isPending) ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Novo Material
              </Button>
@@ -377,18 +384,18 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                                    <p className="text-[10px] text-muted-foreground font-medium line-clamp-2 mt-2 leading-relaxed">{file.comments}</p>
                                  )}
                                  <div className="mt-auto pt-4 flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-muted-foreground/60">
-                                       {(file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.5")} MB
-                                    </span>
-                                    <Button 
-                                       variant="ghost" 
-                                       onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
-                                       disabled={deleteMutation.isPending}
-                                       className="h-8 w-8 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors p-0"
-                                    >
-                                       {deleteMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                                    </Button>
-                                 </div>
+                                     <span className="text-[10px] font-bold text-muted-foreground/60">
+                                        {(file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.5")} MB
+                                     </span>
+                                     <Button 
+                                        variant="ghost" 
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.id); }}
+                                        disabled={deleteMutation.isPending}
+                                        className="h-10 w-10 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors p-0 active:scale-95"
+                                     >
+                                        {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                     </Button>
+                                  </div>
                               </div>
                            </motion.div>
                          ))}
@@ -411,7 +418,8 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                   <motion.div 
                     key={file.id}
                     whileHover={{ y: -8 }}
-                    className="bg-card border border-border rounded-[2rem] md:rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col"
+                    onClick={() => handleOpenPreview(file)}
+                    className="bg-card border border-border rounded-[2rem] md:rounded-[2.5rem] overflow-hidden group shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col cursor-pointer"
                   >
                       <div className="aspect-[4/3] bg-muted/50 relative flex items-center justify-center group-hover:bg-indigo-500/10/50 transition-colors overflow-hidden">
                         {(file.category === 'imagem' || file.thumbnailUrl) ? (
@@ -470,14 +478,14 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                               >
                                  <Download size={14} />
                               </a>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: file.id }) }}
-                                disabled={deleteMutation.isPending}
-                                className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white/90 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
-                                title="Excluir Arquivo"
-                              >
-                                 {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                              </button>
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.id); }}
+                                 disabled={deleteMutation.isPending}
+                                 className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white/90 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                 title="Excluir Arquivo"
+                               >
+                                  {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                               </button>
                            </div>
                         </div>
                         
@@ -490,7 +498,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                         <div className="flex items-start justify-between gap-3 mb-2">
                            <div className="min-w-0 flex-1">
                               <h4 className="text-[11px] font-black text-foreground uppercase tracking-tight truncate">{file.fileName}</h4>
-                              <div className="flex items-center gap-2 mt-2">
+                              <div className="flex items-center gap-2 mt-2 flex-wrap">
                                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-muted/50 border border-slate-100">
                                     {file.category}
                                  </span>
@@ -502,16 +510,37 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                                  <span className="text-[9px] font-bold text-muted-foreground/40">
                                     {(file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.5")} MB
                                  </span>
-                                 {file.viewedAt && (
-                                   <span title="Visualizado pelo aluno" className="text-[9px] font-bold text-green-600 flex items-center gap-1 ml-auto">
-                                     👁️ {format(new Date(file.viewedAt), "dd/MM")}
-                                   </span>
-                                 )}
                               </div>
                            </div>
-                           <div className="shrink-0 h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground">
-                              <ExternalLink size={14} />
+                           {/* MOBILE FIX: ações sempre visíveis (touch não tem hover) */}
+                           <div className="shrink-0 flex items-center gap-1.5">
+                              <a 
+                                href={getFixedUrl(file.fileUrl)} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                download={file.fileName}
+                                onClick={(e) => e.stopPropagation()}
+                                title="Download"
+                                className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:bg-indigo-600 hover:text-white active:scale-95 transition-all"
+                              >
+                                 <Download size={15} />
+                              </a>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.id); }}
+                                disabled={deleteMutation.isPending}
+                                title="Excluir Arquivo"
+                                className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white active:scale-95 transition-all"
+                              >
+                                 {deleteMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                              </button>
                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                           {file.viewedAt && (
+                             <span title="Visualizado pelo aluno" className="text-[9px] font-bold text-green-600 flex items-center gap-1">
+                               👁️ Visualizado em {format(new Date(file.viewedAt), "dd/MM")}
+                             </span>
+                           )}
                         </div>
                         {file.comments && (
                           <div className="mt-4 p-3 bg-muted/30 rounded-xl border border-border/50 text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
@@ -629,7 +658,7 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
                        {previewFile?.category !== 'pdf' && previewFile?.category !== 'video' && previewFile?.category !== 'audio' && previewFile?.category !== 'imagem' && !previewFile?.fileName?.toLowerCase().endsWith('.pdf') && <File size={20} />}
                     </div>
                     <div className="min-w-0 flex-1">
-                       <DialogTitle className="text-sm sm:text-base font-black text-foreground uppercase tracking-tight truncate max-w-[200px] sm:max-w-md md:max-w-xl">
+                       <DialogTitle className="text-sm sm:text-base font-black text-foreground uppercase tracking-tight truncate max-w-[120px] sm:max-w-md md:max-w-xl">
                           {previewFile?.fileName}
                        </DialogTitle>
                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">

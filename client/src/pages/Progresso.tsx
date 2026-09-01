@@ -800,15 +800,15 @@ export default function Progresso() {
                     </div>
                   </div>
 
-                  {/* STATS CARDS - Scroll Horizontal on Mobile */}
-                  <div className="lg:w-2/3 flex md:grid overflow-x-auto md:overflow-visible md:grid-cols-4 gap-2.5 md:gap-3 pb-2 md:pb-0 subtle-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                  {/* STATS CARDS - Grid responsivo (2x2 no mobile, 4 colunas no desktop) */}
+                  <div className="lg:w-2/3 grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
                     {[
                       { label: "Média Geral", value: summary?.averageGrade ? Number(summary.averageGrade).toFixed(1) : "0.0", icon: Star, color: "text-amber-500", bg: "bg-amber-500/10" },
                       { label: "Aulas", value: summary?.completedCount || 0, icon: BookOpen, color: "text-indigo-500", bg: "bg-indigo-500/10" },
                       { label: "Última", value: summary?.lastLesson ? format(new Date(summary.lastLesson), "dd MMM", { locale: ptBR }) : "—", icon: Calendar, color: "text-rose-500", bg: "bg-rose-500/10" },
                       { label: "Tempo", value: summary?.totalTimeMinutes ? `${Math.floor(summary.totalTimeMinutes / 60)}h ${summary.totalTimeMinutes % 60}m` : "0h 0m", icon: Clock, color: "text-emerald-500", bg: "bg-emerald-500/10" },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-card p-3 md:p-4 rounded-2xl border border-border shadow-sm flex flex-col items-start justify-center min-w-[95px] md:min-w-0 h-[85px] sm:h-[140px] shrink-0 hover:border-indigo-500/30 transition-colors">
+                      <div key={i} className="bg-card p-3 md:p-4 rounded-2xl border border-border shadow-sm flex flex-col items-start justify-center h-[92px] sm:h-[140px] hover:border-indigo-500/30 transition-colors">
                         <div className={cn("w-7 h-7 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-2 sm:mb-4", stat.bg)}>
                            <stat.icon className={cn("w-3.5 h-3.5 sm:w-5 sm:h-5", stat.color)} strokeWidth={2.5} />
                         </div>
