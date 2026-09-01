@@ -36,6 +36,7 @@ import { ptBR } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { RescheduleModal } from "@/components/RescheduleModal";
+import { RankingCard } from "@/components/student/RankingCard";
 import { EarlySlotBanner } from "@/components/student/EarlySlotBanner";
 
 const container = {
@@ -109,6 +110,11 @@ export default function StudentDashboard() {
              </div>
           </div>
         </div>
+      </motion.div>
+
+      {/* 🏆 MEU RANKING (PRD_SISTEMA_RANKINGS §4) */}
+      <motion.div variants={item}>
+        <RankingCard />
       </motion.div>
 
       {/* Stats Cards Row - Modern & Refined */}

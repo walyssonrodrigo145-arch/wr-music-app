@@ -117,7 +117,10 @@ export async function getOrgPlanLimits(db: any, orgId: number) {
   
   return {
     maxStudents: plan?.maxStudents ?? 999999,
-    allowExtraStudents: plan?.allowExtraStudents ?? false,
+    // Consistência: plataformaRouters e superadmin tratam ausência como permitido
+    // (coluna é NOT NULL default true; só difere quando o plano não existe — e
+    // nesse caso maxStudents é ilimitado, tornando a flag irrelevante).
+    allowExtraStudents: plan?.allowExtraStudents ?? true,
     extraStudentPrice: Number(plan?.extraStudentPrice ?? 0),
     planId: org.planId,
     planName: plan?.name ?? org.planId,

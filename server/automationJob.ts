@@ -89,6 +89,25 @@ async function runAutomation() {
     const db = await getDb();
     if (!db) return;
 
+    // RANKINGS (PRD_SISTEMA_RANKINGS §48/§49): encerramento automático de rankings
+    // vencidos + persistência horária de posições. Independente da automação de
+    // WhatsApp — roda antes do early-return de settings.
+    try {
+      const { runRankingsMaintenance } = await import("./services/RankingEngine");
+      await runRankingsMaintenance();
+    } catch (e) {
+      debugLog("[Automation] Erro na manutenção de rankings:", e);
+    }
+
+    // DESPESAS FIXAS: geração automática no virar do mês — o usuário não precisa
+    // mais clicar em "Gerar despesas do mês". Idempotente (dedup por descrição).
+    try {
+      const { runRecurringExpensesMaintenance } = await import("./services/RecurringExpenseEngine");
+      await runRecurringExpensesMaintenance();
+    } catch (e) {
+      debugLog("[Automation] Erro na geração automática de despesas fixas:", e);
+    }
+
   const activeSettings = await db
     .select({
       id: settings.id,

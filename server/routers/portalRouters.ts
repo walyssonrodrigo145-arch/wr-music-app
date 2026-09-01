@@ -886,24 +886,72 @@ export const portalRouters = {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const orgId = ctx.user.organizationId!;
-        
+
         // Find lesson
         const [lesson] = await db.select().from(lessons).where(and(eq(lessons.id, input.lessonId), eq(lessons.organizationId, orgId))).limit(1);
         if (!lesson) throw new Error("Lesson not found");
 
-        // Find teacher settings
-        const [teacherSettings] = await db.select({ schoolHours: settings.schoolHours, schoolPhone: settings.schoolPhone, phone: settings.phone })
-          .from(settings).where(eq(settings.userId, lesson.userId)).limit(1);
-        
+        // AGENDA FIX: professor EFETIVO — aulas criadas pelo admin têm userId do
+        // admin; os horários de funcionamento e a agenda ocupada devem vir do
+        // professor real do aluno (students.professorId), não do criador.
+        let teacherId = lesson.userId;
+        if (lesson.studentId) {
+          const [st] = await db.select({ professorId: students.professorId }).from(students)
+            .where(eq(students.id, lesson.studentId)).limit(1);
+          if (st?.professorId) teacherId = st.professorId;
+        }
+
+        const settingsSelect = {
+          schoolHours: settings.schoolHours,
+          schoolPhone: settings.schoolPhone,
+          phone: settings.phone,
+        };
+        // Settings do professor efetivo — fallback para o criador da aula
+        let [teacherSettings] = await db.select(settingsSelect).from(settings).where(eq(settings.userId, teacherId)).limit(1);
+        if (!teacherSettings && teacherId !== lesson.userId) {
+          [teacherSettings] = await db.select(settingsSelect).from(settings).where(eq(settings.userId, lesson.userId)).limit(1);
+        }
+
         const schoolHoursRaw = teacherSettings?.schoolHours || '{}';
-        let parsedHours = {};
+        let parsedHours: Record<string, any> = {};
         try { parsedHours = JSON.parse(schoolHoursRaw); } catch(e) {}
 
-        // Get future booked slots for this teacher
+        // AGENDA FIX (§remarcação): escola sem "Horário de Funcionamento" salvo
+        // deixava o modal do aluno sem NENHUM dia disponível — remarcação morta.
+        // Fallback seguro: oferecer o horário atual da aula (a escola comprovadamente
+        // atende nesse slot) no mesmo dia da semana, nos próximos 14 dias.
+        const hasActiveDay = Object.values(parsedHours).some((d: any) => d?.active);
+        if (!hasActiveDay && lesson.scheduledAt) {
+          const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const lessonDate = new Date(lesson.scheduledAt);
+          // Horário da aula no fuso de Brasília (padrão do sistema)
+          const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+          const [hh, mm] = fmt.format(lessonDate).split(':');
+          const startMin = (Number(hh) * 60) + Number(mm);
+          const durationMin = lesson.duration || 60;
+          const endMin = Math.min(startMin + durationMin + 30, 23 * 60 + 30);
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const toHM = (m: number) => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
+          for (const day of DAY_NAMES) {
+            parsedHours[day] = {
+              active: day === DAY_NAMES[lessonDate.getDay()],
+              start: toHM(startMin),
+              end: toHM(endMin),
+            };
+          }
+        }
+
+        // Get future booked slots for the effective teacher — inclui aulas criadas
+        // por admin para alunos deste professor (antes: apenas lessons.userId).
+        // Exclui a própria aula em remarcação.
         const futureLessons = await db.select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
           .from(lessons)
+          .leftJoin(students, eq(lessons.studentId, students.id))
           .where(and(
-            eq(lessons.userId, lesson.userId),
+            eq(lessons.organizationId, orgId),
+            eq(lessons.status, 'agendada'),
+            ne(lessons.id, input.lessonId),
+            or(eq(lessons.userId, teacherId), eq(students.professorId, teacherId)),
             sql`${lessons.scheduledAt} > NOW()`,
             sql`${lessons.scheduledAt} < NOW() + INTERVAL '30 days'`
           ));
@@ -937,6 +985,63 @@ export const portalRouters = {
         if (!lesson) throw new Error("Aula não encontrada ou não pertence a você");
 
         const newDateObj = new Date(input.newDateIso);
+
+        // AGENDA FIX: o servidor passa a validar de verdade (o client só faz UX):
+        // 1) horário deve ser futuro; 2) sem conflito de professor efetivo ou sala.
+        if (isNaN(newDateObj.getTime())) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Data inválida para remarcação." });
+        }
+        if (newDateObj.getTime() <= Date.now()) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Escolha uma data e horário no futuro para remarcar sua aula." });
+        }
+
+        const duration = lesson.duration || 60;
+        const endsAt = new Date(newDateObj.getTime() + duration * 60000);
+        const startOfDay = new Date(newDateObj);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(newDateObj);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Professor efetivo: criador OU professor do aluno
+        let studentProfessorId: number | null = null;
+        if (lesson.studentId) {
+          const [st] = await db.select({ professorId: students.professorId }).from(students).where(eq(students.id, lesson.studentId)).limit(1);
+          studentProfessorId = st?.professorId ?? null;
+        }
+        const lessonTeacherIds = new Set<number>([lesson.userId, studentProfessorId].filter(Boolean) as number[]);
+
+        const existingLessons = await db.select({
+          id: lessons.id,
+          scheduledAt: lessons.scheduledAt,
+          duration: lessons.duration,
+          lessonType: lessons.lessonType,
+          userId: lessons.userId,
+          studioRoomId: lessons.studioRoomId,
+          studentProfessorId: students.professorId,
+        }).from(lessons)
+          .leftJoin(students, eq(lessons.studentId, students.id))
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            eq(lessons.status, 'agendada'),
+            ne(lessons.id, lesson.id),
+            gte(lessons.scheduledAt, startOfDay),
+            lte(lessons.scheduledAt, endOfDay)
+          ));
+
+        for (const existing of existingLessons) {
+          const exStart = new Date(existing.scheduledAt);
+          const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
+          if (exStart < endsAt && exEnd > newDateObj) {
+            const existingTeacherIds = new Set<number>([existing.userId, existing.studentProfessorId].filter(Boolean) as number[]);
+            const sharesTeacher = Array.from(lessonTeacherIds).some((t) => existingTeacherIds.has(t));
+            if (sharesTeacher && (lesson.lessonType === 'individual' || existing.lessonType === 'individual')) {
+              throw new TRPCError({ code: "CONFLICT", message: "Este horário acabou de ser ocupado por outra aula. Escolha um horário livre." });
+            }
+            if (lesson.studioRoomId && existing.studioRoomId === lesson.studioRoomId) {
+              throw new TRPCError({ code: "CONFLICT", message: "A sala já está ocupada neste horário. Escolha outro horário." });
+            }
+          }
+        }
 
         // LEMBRETE FIX: cancelar lembretes pendentes da data antiga — antes a
         // remarcação pelo portal deixava lembretes pendentes para o horário antigo

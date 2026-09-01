@@ -1197,7 +1197,11 @@ export const financeiroRouters = {
             for (const t of templates) {
               if (!existingSet.has(t.description.toLowerCase())) {
                 const oldDate = new Date(t.date + "T12:00:00");
-                const day = oldDate.getDate();
+                // BUG FIX: dia 29/30/31 em mês mais curto gerava data inválida
+                // (ex.: "2026-04-31" → rejeitada pelo Postgres). Clamp para o
+                // último dia do mês alvo.
+                const { clampDayToMonth } = await import("../services/RecurringExpenseEngine");
+                const day = clampDayToMonth(y, m, oldDate.getDate());
                 const newDateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
                 await db.insert(expenses).values({

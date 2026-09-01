@@ -35,6 +35,7 @@ import {
   Target,
   FileSignature,
   Receipt,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -102,6 +103,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         { label: "Aulas", href: "/aulas", icon: Calendar },
         { label: "Instrumentos", href: "/instrumentos", icon: Guitar },
         { label: "Salas de Estúdio", href: "/salas", icon: DoorOpen },
+        { label: "Rankings", href: "/rankings", icon: Trophy },
         { label: "Relatórios", href: "/relatorios", icon: BarChart3 },
       ],
     },

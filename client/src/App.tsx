@@ -22,6 +22,7 @@ const Lembretes = lazy(() => import("./pages/Lembretes"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const Login = lazy(() => import("./pages/Login"));
 const Progresso = lazy(() => import("./pages/Progresso"));
+const RankingsPage = lazy(() => import("./pages/Rankings"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
@@ -219,6 +220,7 @@ function Router() {
           <Route path="/configuracoes" component={Configuracoes} />
           <Route path="/assinatura" component={Assinatura} />
           <Route path="/progresso" component={Progresso} />
+          <Route path="/rankings" component={RankingsPage} />
           <Route path="/comunicados" component={Comunicados} />
           <Route path="/marketing" component={MarketingDashboard} />
           <Route path="/marketing/nova" component={CreateCampaign} />

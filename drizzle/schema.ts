@@ -1798,3 +1798,142 @@ export const aiCallLogs = pgTable("ai_call_logs", {
 export type AiCallLog = typeof aiCallLogs.$inferSelect;
 export type InsertAiCallLog = typeof aiCallLogs.$inferInsert;
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// RANKINGS & DESAFIOS (PRD_SISTEMA_RANKINGS) — gamificação educacional
+// Princípio: pontuação DERIVADA no backend a partir de sinais reais
+// (presença, atividades, prática validada, evolução). Nunca calculada no client.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const rankingStatusEnum = pgEnum('ranking_status', ["rascunho", "agendado", "ativo", "encerrado", "cancelado"]);
+export const rankingVisibilityEnum = pgEnum('ranking_visibility', ["publico", "privado"]);
+
+/** Configuração de privacidade definida pelo professor/admin (§32). O aluno não altera. */
+export interface RankingPrivacySettings {
+  showFullName: boolean;   // false = apenas primeiro nome
+  showAvatar: boolean;
+  showScores: boolean;     // pontuação dos outros
+  showEvolution: boolean;  // indicadores ↑↓—
+  showParticipants: boolean;
+  /** Em rankings privados, mostra faixa "Você está entre os N melhores" quando aplicável */
+  privateTopRange: number;
+}
+
+export const RANKING_DEFAULT_PRIVACY: RankingPrivacySettings = {
+  showFullName: false,
+  showAvatar: true,
+  showScores: true,
+  showEvolution: true,
+  showParticipants: true,
+  privateTopRange: 10,
+};
+
+/** Pesos por critério (em %, somados pelo admin). Internos — não exibidos ao aluno (§17). */
+export type RankingWeights = {
+  presenca: number;
+  atividades: number;
+  pratica: number;
+  evolucao: number;
+  desafios: number;
+};
+
+export const RANKING_DEFAULT_WEIGHTS: RankingWeights = {
+  presenca: 20,
+  atividades: 30,
+  pratica: 25,
+  evolucao: 15,
+  desafios: 10,
+};
+
+export const rankings = pgTable("rankings", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(), // criador (admin/professor)
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  image: text("image"),
+  status: rankingStatusEnum("status").default("rascunho").notNull(),
+  visibility: rankingVisibilityEnum("visibility").default("publico").notNull(),
+  privacySettings: jsonb("privacySettings").$type<RankingPrivacySettings>().default(RANKING_DEFAULT_PRIVACY).notNull(),
+  criteriaWeights: jsonb("criteriaWeights").$type<RankingWeights>().default(RANKING_DEFAULT_WEIGHTS).notNull(),
+  // Regra de participação (§12): todos | instrumento | nivel | manual
+  participantRule: varchar("participantRule", { length: 20 }).default("todos").notNull(),
+  instrumentId: integer("instrumentId"),
+  level: varchar("level", { length: 30 }),
+  participantStudentIds: jsonb("participantStudentIds").$type<number[]>().default([]).notNull(),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate").notNull(),
+  // Snapshot do resultado final gravado no encerramento (§48) — podium + estatísticas
+  history: jsonb("history").$type<{ podium: Array<{ position: number; studentId: number; name: string; avatar: string | null; score: number }>; totalParticipants: number; closedAt: string } | null>(),
+  closedAt: timestamp("closedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("idx_rankings_org_status").on(table.organizationId, table.status),
+  index("idx_rankings_org_end").on(table.organizationId, table.endDate),
+]);
+
+export type Ranking = typeof rankings.$inferSelect;
+export type InsertRanking = typeof rankings.$inferInsert;
+
+export const rankingParticipants = pgTable("ranking_participants", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  rankingId: integer("rankingId").notNull(),
+  studentId: integer("studentId").notNull(),
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+  status: varchar("status", { length: 20 }).default("ativo").notNull(),
+  // Posições persistidas pelo job (leitura do aluno não faz escrita — §49)
+  lastPosition: integer("lastPosition"),
+  previousPosition: integer("previousPosition"),
+  finalPosition: integer("finalPosition"),
+  finalScore: integer("finalScore"),
+}, (table) => [
+  index("idx_ranking_participants_ranking").on(table.rankingId, table.studentId),
+  index("idx_ranking_participants_student").on(table.studentId, table.organizationId),
+]);
+
+export type RankingParticipant = typeof rankingParticipants.$inferSelect;
+export type InsertRankingParticipant = typeof rankingParticipants.$inferInsert;
+
+/**
+ * Eventos de pontuação MANUAIS (bônus/ajustes) — trilha de auditoria (§45-47).
+ * Os critérios derivados (presença/atividades/prática/evolução) NÃO gravam aqui:
+ * são recalculados a partir das tabelas-fonte, garantindo consistência e
+ * impossibilidade de manipulação. Este registro é append-only.
+ */
+export const rankingScores = pgTable("ranking_scores", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  rankingId: integer("rankingId").notNull(),
+  studentId: integer("studentId").notNull(),
+  source: varchar("source", { length: 30 }).notNull(), // bonus | ajuste | desafio (fase 2)
+  sourceId: integer("sourceId"),
+  points: integer("points").notNull(), // pode ser negativo (ajuste/correção)
+  reason: text("reason"),
+  createdBy: integer("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("idx_ranking_scores_ranking_student").on(table.rankingId, table.studentId),
+]);
+
+export type RankingScore = typeof rankingScores.$inferSelect;
+export type InsertRankingScore = typeof rankingScores.$inferInsert;
+
+/** Medalhas e conquistas (§25) — concedidas SOMENTE pelo backend no encerramento. */
+export const studentAchievements = pgTable("student_achievements", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  studentId: integer("studentId").notNull(),
+  rankingId: integer("rankingId"),
+  challengeId: integer("challengeId"),
+  badge: varchar("badge", { length: 50 }).notNull(), // campeao | vice | top3 | constante | desafiante | evolucao | meta_atingida
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  awardedAt: timestamp("awardedAt").defaultNow().notNull(),
+}, (table) => [
+  index("idx_student_achievements_student").on(table.studentId, table.organizationId),
+]);
+
+export type StudentAchievement = typeof studentAchievements.$inferSelect;
+export type InsertStudentAchievement = typeof studentAchievements.$inferInsert;
+

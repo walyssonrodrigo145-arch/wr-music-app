@@ -25,6 +25,7 @@ import { comunicacaoRouters } from "./comunicacaoRouters";
 import { contratosRouters } from "./contratosRouters";
 import { reportsRouters } from "./reportsRouters";
 import { aiRouters } from "./aiRouters";
+import { rankingsRouter } from "./rankingsRouter";
 
 export const appRouter = router({
   superAdmin: superAdminRouter,
@@ -52,6 +53,7 @@ export const appRouter = router({
   crm: crmRouter,
   chatbotFlow: chatbotFlowRouter,
   schoolAi: schoolAiRouter,
+  rankings: rankingsRouter,
 });
 
 export type AppRouter = typeof appRouter;
