@@ -60,6 +60,7 @@ function makeFakeDb() {
     }),
     delete: vi.fn(() => makeChain([])),
     select: vi.fn(() => makeChain([], true)),
+    selectDistinct: vi.fn(() => makeChain([], true)),
     execute: vi.fn().mockResolvedValue({ rows: [] }),
   };
 }
@@ -201,6 +202,95 @@ describe("rankings — criação e permissões", () => {
       caller.rankings.ajuste({ rankingId: 1, studentId: 1, points: 9999, reason: "auto-promoção" } as any)
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
+
+  it("aluno NÃO pode conceder medalha (FORBIDDEN); staff concede com badge manual", async () => {
+    // Aluno bloqueado
+    const studentCaller = appRouter.createCaller(makeStudentContext());
+    await expect(
+      studentCaller.rankings.concederMedalha({ studentId: 2, title: "Auto-medalha" } as any)
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    // Staff concede (middleware de assinatura + busca do aluno)
+    const staffCaller = appRouter.createCaller(makeStaffContext());
+    enqueueSelectResult([{ subscriptionStatus: "active", trialEndsAt: null }]);
+    enqueueSelectResult([{ id: 2 }]);
+    const result = await staffCaller.rankings.concederMedalha({ studentId: 2, title: "Dedicação Exemplar", description: "Destaque do mês" } as any);
+    expect(result).toHaveProperty("success", true);
+    const medal = insertCalls.find((c) => c.table === achievementsTable);
+    expect(medal).toBeTruthy();
+    expect(medal!.values.badge).toBe("manual");
+    expect(medal!.values.title).toBe("Dedicação Exemplar");
+  });
+
+  it("generalStandings agrega pontos de vários rankings ativos (Ranking Geral)", async () => {
+    const ctx = makeStaffContext();
+    const caller = appRouter.createCaller(ctx);
+    // Fila: [org middleware], [turmas], [rankings ativos ×2], [r1: participantes+5], [r2: participantes+5], [alunos]
+    enqueueSelectResult([{ subscriptionStatus: "active", trialEndsAt: null }]);
+    enqueueSelectResult([]); // turmas
+    enqueueSelectResult([
+      makeRankingRow({ id: 1, name: "Ranking A" }),
+      makeRankingRow({ id: 2, name: "Ranking B" }),
+    ]);
+    // Ranking A: João 100 (1 aula), Maria 80
+    enqueueSelectResult([
+      { studentId: 1, joinedAt: new Date("2026-08-01"), name: "João", avatar: null },
+      { studentId: 2, joinedAt: new Date("2026-08-01"), name: "Maria", avatar: null },
+    ]);
+    enqueueSelectResult([{ studentId: 1, cnt: 1 }]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    // Ranking B: João +50
+    enqueueSelectResult([
+      { studentId: 1, joinedAt: new Date("2026-08-01"), name: "João", avatar: null },
+    ]);
+    enqueueSelectResult([{ studentId: 1, cnt: 1 }]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    // Dados dos alunos
+    enqueueSelectResult([
+      { id: 1, name: "João", avatar: null, instrumentId: null, level: "iniciante" },
+      { id: 2, name: "Maria", avatar: null, instrumentId: 9, level: "intermediario" },
+    ]);
+    const result = await caller.rankings.generalStandings({ period: "todos" } as any);
+    const rows = (result as any).rows;
+    expect(rows.length).toBe(2);
+    // João somou os dois rankings: 1 aula por ranking = 100pts × peso 20% = 20 → 40 total
+    expect(rows[0].studentId).toBe(1);
+    expect(rows[0].total).toBe(40);
+    expect(rows[0].position).toBe(1);
+    expect(rows[1].total).toBe(0);
+    expect(rows[1].position).toBe(2);
+  });
+
+  it("generalStandings filtra por instrumento", async () => {
+    const ctx = makeStaffContext();
+    const caller = appRouter.createCaller(ctx);
+    enqueueSelectResult([{ subscriptionStatus: "active", trialEndsAt: null }]);
+    enqueueSelectResult([]); // turmas
+    enqueueSelectResult([makeRankingRow({ id: 1, name: "Ranking A" })]);
+    enqueueSelectResult([
+      { studentId: 1, joinedAt: new Date("2026-08-01"), name: "João", avatar: null },
+      { studentId: 2, joinedAt: new Date("2026-08-01"), name: "Maria", avatar: null },
+    ]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    enqueueSelectResult([
+      { id: 1, name: "João", avatar: null, instrumentId: null, level: "iniciante" },
+      { id: 2, name: "Maria", avatar: null, instrumentId: 9, level: "intermediario" },
+    ]);
+    const result = await caller.rankings.generalStandings({ period: "todos", instrumentId: 9 } as any);
+    const rows = (result as any).rows;
+    expect(rows.length).toBe(1);
+    expect(rows[0].studentId).toBe(2);
+  });
 });
 
 describe("ranking engine — classificação derivada e desempate", () => {
@@ -264,7 +354,7 @@ describe("ranking engine — encerramento (§48)", () => {
     currentDb = makeFakeDb();
   });
 
-  it("encerra ranking: congela status, grava pódio, concede medalha de campeão e notifica", async () => {
+  it("encerra ranking: congela status, grava pódio, concede medalhas (posição+prática+evolução) e notifica", async () => {
     const { closeRanking } = await import("./services/RankingEngine");
     // 1. ranking atual
     enqueueSelectResult([makeRankingRow()]);
@@ -278,10 +368,17 @@ describe("ranking engine — encerramento (§48)", () => {
     enqueueSelectResult([]); // evolução
     enqueueSelectResult([]); // prática
     enqueueSelectResult([]); // ajustes
-    // 3. dedup de badges (2 participantes no pódio: 1º e 2º)
+    // 3. lastPositions (para medalha de Evolução): João estava 8º → subiu 7 → 🚀
+    enqueueSelectResult([{ lastPosition: 8 }]);
+    enqueueSelectResult([{ lastPosition: null }]);
+    // 4. planos diários no período (medalhas Constante/Meta): João fez 3 dias
+    enqueueSelectResult([{ studentId: 1, daysCompleted: "[true,true,true,false,false]", updatedAt: new Date() }]);
+    // 5. dedup de badges — João: campeao, constante, evolucao; Maria: vice
     enqueueSelectResult([]);
     enqueueSelectResult([]);
-    // 4. notificações: alunos com conta
+    enqueueSelectResult([]);
+    enqueueSelectResult([]);
+    // 6. notificações: alunos com conta
     enqueueSelectResult([{ studentId: 1, studentUserId: 11, name: "João Silva" }]);
     enqueueSelectResult([]);
 
@@ -294,9 +391,12 @@ describe("ranking engine — encerramento (§48)", () => {
     expect(historySet.history.podium.length).toBeGreaterThan(0);
     expect(historySet.history.podium[0].position).toBe(1);
 
-    const achievementInsert = insertCalls.find((c) => c.table === achievementsTable);
-    expect(achievementInsert).toBeTruthy();
-    expect(achievementInsert!.values.badge).toBe("campeao");
+    const badgeInserts = insertCalls.filter((c) => c.table === achievementsTable);
+    expect(badgeInserts.length).toBe(4); // campeao + constante + evolucao + vice
+    expect(badgeInserts[0].values.badge).toBe("campeao");
+    expect(badgeInserts.map((c) => c.values.badge)).toEqual(
+      expect.arrayContaining(["campeao", "constante", "evolucao", "vice"])
+    );
 
     const { notifyUser } = await import("./_core/notification");
     expect(notifyUser).toHaveBeenCalledWith(

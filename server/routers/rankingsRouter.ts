@@ -9,6 +9,7 @@ import {
   rankingScores,
   studentAchievements,
   students,
+  lessons,
 } from "../../drizzle/schema";
 import type { Ranking } from "../../drizzle/schema";
 import { RANKING_DEFAULT_PRIVACY, RANKING_DEFAULT_WEIGHTS } from "../../drizzle/schema";
@@ -363,7 +364,160 @@ export const rankingsRouter = router({
     const ajustes = await db.select().from(rankingScores)
       .where(and(eq(rankingScores.rankingId, input.rankingId), eq(rankingScores.studentId, input.studentId)))
       .orderBy(desc(rankingScores.createdAt));
-    return { studentId: input.studentId, breakdown: row.breakdown, adjustments: row.adjustments, total: row.total, position: row.position, ajustes };
+    // Medalhas virtuais do aluno (todas)
+    const medalhas = await db.select({
+      id: studentAchievements.id,
+      badge: studentAchievements.badge,
+      title: studentAchievements.title,
+      awardedAt: studentAchievements.awardedAt,
+    }).from(studentAchievements)
+      .where(and(eq(studentAchievements.studentId, input.studentId), eq(studentAchievements.organizationId, ctx.user.organizationId!)))
+      .orderBy(desc(studentAchievements.awardedAt))
+      .limit(12);
+    return { studentId: input.studentId, breakdown: row.breakdown, adjustments: row.adjustments, total: row.total, position: row.position, ajustes, medalhas };
+  }),
+
+  /** Concede medalha virtual manual (staff) — com trilha via createdBy. */
+  concederMedalha: protectedProcedure.input(z.object({
+    studentId: z.number(),
+    title: z.string().min(2, "Descreva a medalha").max(120),
+    description: z.string().max(300).optional(),
+    rankingId: z.number().nullable().optional(),
+  })).mutation(async ({ ctx, input }) => {
+    assertStaff(ctx);
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+    const orgId = ctx.user.organizationId!;
+    const [student] = await db.select({ id: students.id }).from(students)
+      .where(and(eq(students.id, input.studentId), eq(students.organizationId, orgId)))
+      .limit(1);
+    if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado." });
+    await db.insert(studentAchievements).values({
+      organizationId: orgId,
+      studentId: input.studentId,
+      rankingId: input.rankingId ?? null,
+      badge: "manual",
+      title: input.title,
+      description: input.description ?? null,
+      awardedAt: new Date(),
+    });
+    return { success: true };
+  }),
+
+  /**
+   * TOP 5 — RANKING GERAL: agrega pontos de TODOS os rankings ativos dentro do
+   * período selecionado, com filtros reais (turma/instrumento). A pontuação de
+   * cada ranking é recalculada com o período clampado à janela escolhida.
+   */
+  generalStandings: protectedProcedure.input(z.object({
+    period: z.enum(["mes", "trimestre", "semestre", "todos"]).default("todos"),
+    turma: z.string().optional(),
+    instrumentId: z.number().nullable().optional(),
+  })).query(async ({ ctx, input }) => {
+    assertStaff(ctx);
+    const db = await getDb();
+    if (!db) return { rows: [], turmas: [] };
+    const orgId = ctx.user.organizationId!;
+    const now = new Date();
+
+    // Janela do período (fuso de Brasília para consistência com o resto do sistema)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    let periodStart: Date | null = monthStart;
+    if (input.period === "trimestre") periodStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    if (input.period === "semestre") periodStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    if (input.period === "todos") periodStart = null;
+
+    // Turmas reais da organização (aulas do tipo 'turma')
+    const turmaRows = await db.selectDistinct({ title: lessons.title })
+      .from(lessons)
+      .where(and(eq(lessons.organizationId, orgId), eq(lessons.lessonType, "turma")));
+
+    // Filtro por turma: alunos que têm aula nessa turma
+    let turmaStudentIds: Set<number> | null = null;
+    if (input.turma) {
+      const members = await db.select({ studentId: lessons.studentId })
+        .from(lessons)
+        .where(and(eq(lessons.organizationId, orgId), eq(lessons.lessonType, "turma"), eq(lessons.title, input.turma)));
+      turmaStudentIds = new Set(members.map((m: any) => m.studentId).filter(Boolean));
+    }
+
+    const active = await db.select().from(rankings)
+      .where(and(eq(rankings.organizationId, orgId), eq(rankings.status, "ativo")));
+
+    // Agrega por aluno somando os critérios de cada ranking dentro da janela
+    interface Agg { total: number; presenca: number; atividades: number; pratica: number; evolucao: number; rankings: Set<string>; }
+    const agg = new Map<number, Agg>();
+    for (const ranking of active) {
+      const clampedStart = periodStart ? new Date(Math.max(new Date(ranking.startDate).getTime(), periodStart.getTime())) : new Date(ranking.startDate);
+      const clampedEnd = now < new Date(ranking.endDate) ? now : new Date(ranking.endDate);
+      if (clampedStart >= clampedEnd) continue;
+      const standings = await computeStandings({ ...ranking, startDate: clampedStart, endDate: clampedEnd });
+      for (const s of standings) {
+        const cur = agg.get(s.studentId) ?? { total: 0, presenca: 0, atividades: 0, pratica: 0, evolucao: 0, rankings: new Set<string>() };
+        cur.total += s.total;
+        cur.presenca += s.breakdown.presenca.raw;
+        cur.atividades += s.breakdown.atividades.raw;
+        cur.pratica += s.breakdown.pratica.raw;
+        cur.evolucao += s.breakdown.evolucao.raw;
+        cur.rankings.add(ranking.name);
+        agg.set(s.studentId, cur);
+      }
+    }
+
+    if (agg.size === 0) return { rows: [], turmas: turmaRows.map((t: any) => t.title) };
+
+    // Dados dos alunos (para filtros e exibição)
+    const ids = Array.from(agg.keys());
+    const studentRows = await db.select({
+      id: students.id,
+      name: students.name,
+      avatar: students.avatar,
+      instrumentId: students.instrumentId,
+      level: students.level,
+    }).from(students).where(inArray(students.id, ids));
+    const studentMap = new Map(studentRows.map((s: any) => [s.id, s]));
+
+    // Aplica filtros
+    let entries = Array.from(agg.entries());
+    if (turmaStudentIds) entries = entries.filter(([sid]) => turmaStudentIds!.has(sid));
+    if (input.instrumentId) {
+      entries = entries.filter(([sid]) => studentMap.get(sid)?.instrumentId === input.instrumentId);
+    }
+
+    // Ordena com a mesma cascata de desempate do motor
+    entries.sort(([, a], [, b]) =>
+      b.total - a.total ||
+      b.atividades - a.atividades ||
+      b.pratica - a.pratica ||
+      b.evolucao - a.evolucao ||
+      b.presenca - a.presenca
+    );
+
+    const rows = entries.map(([studentId, a], idx) => {
+      const st = studentMap.get(studentId);
+      const prev = entries[idx - 1]?.[1];
+      const tied = prev && prev.total === a.total && prev.atividades === a.atividades && prev.pratica === a.pratica && prev.evolucao === a.evolucao && prev.presenca === a.presenca;
+      return {
+        studentId,
+        position: tied ? -1 : 0, // preenchido abaixo
+        shared: !!tied,
+        total: a.total,
+        name: st?.name ?? "Aluno",
+        avatar: st?.avatar ?? null,
+        instrumentId: st?.instrumentId ?? null,
+        level: st?.level ?? null,
+        breakdown: { presenca: a.presenca, atividades: a.atividades, pratica: a.pratica, evolucao: a.evolucao },
+        rankings: Array.from(a.rankings),
+      };
+    });
+    // Posições com empate técnico
+    let lastPos = 0;
+    rows.forEach((r, idx) => {
+      if (r.shared && idx > 0) r.position = lastPos;
+      else { lastPos = idx + 1; r.position = lastPos; }
+    });
+
+    return { rows, turmas: turmaRows.map((t: any) => t.title) };
   }),
 
   /** Ajuste manual/bônus com trilha de auditoria (§47). */

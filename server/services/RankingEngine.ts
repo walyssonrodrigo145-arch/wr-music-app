@@ -270,7 +270,88 @@ const BADGE_DEFS: Record<string, { title: string; description: string }> = {
   campeao: { title: "🏆 Campeão", description: "Terminou em 1º lugar." },
   vice: { title: "🥈 Vice-campeão", description: "Terminou em 2º lugar." },
   top3: { title: "🥉 Top 3", description: "Terminou entre os três primeiros." },
+  constante: { title: "🔥 Constante", description: "Praticou regularmente durante o período (3+ dias de treino)." },
+  meta_atingida: { title: "💯 Meta Atingida", description: "Concluiu todos os dias do plano diário no período." },
+  evolucao: { title: "🚀 Evolução", description: "Subiu 3 ou mais posições durante a competição." },
 };
+
+/**
+ * Medalhas virtuais automáticas por aluno no encerramento (§25):
+ *  - 🔥 Constante: praticou em 3+ dias do plano diário dentro do período;
+ *  - 💯 Meta Atingida: completou os 5 dias do plano diário no período;
+ *  - 🚀 Evolução: subiu 3+ posições desde a última medição persistida.
+ */
+async function awardAutomaticBadges(
+  db: any,
+  ranking: Ranking,
+  standings: StandingRow[],
+  lastPositions: Map<number, number | null>
+): Promise<void> {
+  if (standings.length === 0) return;
+  const studentIds = standings.map((s) => s.studentId);
+  const start = new Date(ranking.startDate);
+  const end = new Date(ranking.endDate);
+  const orgId = ranking.organizationId!;
+
+  // Dias de treino concluídos no período (plano diário)
+  const planRows = await db.select({
+    studentId: dailyStudyPlans.studentId,
+    daysCompleted: dailyStudyPlans.daysCompleted,
+  }).from(dailyStudyPlans)
+    .where(and(
+      eq(dailyStudyPlans.organizationId, orgId),
+      gte(dailyStudyPlans.updatedAt, start),
+      lte(dailyStudyPlans.updatedAt, end),
+      inArray(dailyStudyPlans.studentId, studentIds),
+    ));
+
+  const completedDays = new Map<number, number>();
+  for (const plan of planRows as Array<{ studentId: number | null; daysCompleted: string | null }>) {
+    if (plan.studentId == null) continue;
+    let days = 0;
+    try {
+      const arr = JSON.parse(plan.daysCompleted || "[]");
+      if (Array.isArray(arr)) days = arr.filter(Boolean).length;
+    } catch { /* plano corrompido: ignora */ }
+    completedDays.set(plan.studentId, Math.max(completedDays.get(plan.studentId) ?? 0, days));
+  }
+
+  const badgeByPosition: Record<number, string> = { 1: 'campeao', 2: 'vice', 3: 'top3' };
+
+  for (const row of standings) {
+    const wanted: Array<{ key: string; rankingId: number | null }> = [];
+    const positional = badgeByPosition[row.position];
+    if (positional) wanted.push({ key: positional, rankingId: ranking.id });
+    if ((completedDays.get(row.studentId) ?? 0) >= 3) wanted.push({ key: 'constante', rankingId: ranking.id });
+    if ((completedDays.get(row.studentId) ?? 0) >= 5) wanted.push({ key: 'meta_atingida', rankingId: ranking.id });
+    const prev = lastPositions.get(row.studentId);
+    if (prev != null && prev - row.position >= 3) wanted.push({ key: 'evolucao', rankingId: ranking.id });
+
+    for (const w of wanted) {
+      const def = BADGE_DEFS[w.key];
+      if (!def) continue;
+      const existing = await db.select({ id: studentAchievements.id })
+        .from(studentAchievements)
+        .where(and(
+          eq(studentAchievements.studentId, row.studentId),
+          w.rankingId ? eq(studentAchievements.rankingId, w.rankingId) : eq(studentAchievements.badge, w.key),
+          eq(studentAchievements.badge, w.key),
+        ))
+        .limit(1);
+      if (existing.length === 0) {
+        await db.insert(studentAchievements).values({
+          organizationId: orgId,
+          studentId: row.studentId,
+          rankingId: w.rankingId,
+          badge: w.key,
+          title: def.title,
+          description: def.description,
+          awardedAt: new Date(),
+        });
+      }
+    }
+  }
+}
 
 /**
  * Encerra um ranking (§48): congela pontuação, grava posições finais, snapshot
@@ -284,6 +365,16 @@ export async function closeRanking(rankingId: number, opts?: { silent?: boolean 
   if (!ranking || ranking.status === 'encerrado' || ranking.status === 'cancelado') return;
 
   const standings = await computeStandings(ranking);
+
+  // Captura posições anteriores (para medalha de Evolução) ANTES de sobrescrever
+  const lastPositions = new Map<number, number | null>();
+  for (const row of standings) {
+    const [p] = await db.select({ lastPosition: rankingParticipants.lastPosition })
+      .from(rankingParticipants)
+      .where(and(eq(rankingParticipants.rankingId, rankingId), eq(rankingParticipants.studentId, row.studentId)))
+      .limit(1);
+    lastPositions.set(row.studentId, p?.lastPosition ?? null);
+  }
 
   for (const row of standings) {
     await db.update(rankingParticipants).set({
@@ -313,32 +404,8 @@ export async function closeRanking(rankingId: number, opts?: { silent?: boolean 
     updatedAt: new Date(),
   }).where(eq(rankings.id, rankingId));
 
-  // Medalhas básicas (§25) — com dedup (idempotente no reprocessamento)
-  const badgeByPosition: Record<number, string> = { 1: 'campeao', 2: 'vice', 3: 'top3' };
-  for (const row of standings) {
-    const badgeKey = badgeByPosition[row.position];
-    if (!badgeKey) continue;
-    const def = BADGE_DEFS[badgeKey];
-    const existing = await db.select({ id: studentAchievements.id })
-      .from(studentAchievements)
-      .where(and(
-        eq(studentAchievements.studentId, row.studentId),
-        eq(studentAchievements.rankingId, rankingId),
-        eq(studentAchievements.badge, badgeKey),
-      ))
-      .limit(1);
-    if (existing.length === 0) {
-      await db.insert(studentAchievements).values({
-        organizationId: ranking.organizationId,
-        studentId: row.studentId,
-        rankingId,
-        badge: badgeKey,
-        title: def.title,
-        description: def.description,
-        awardedAt: new Date(),
-      });
-    }
-  }
+  // Medalhas virtuais automáticas (§25): posição + prática + evolução
+  await awardAutomaticBadges(db, ranking, standings, lastPositions);
 
   // Notificações de encerramento (§30) — apenas alunos com conta vinculada
   if (!opts?.silent) {

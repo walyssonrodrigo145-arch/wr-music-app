@@ -15,7 +15,8 @@ import {
   Camera,
   LogOut,
   Info,
-  ChevronRight
+  ChevronRight,
+  Medal
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,6 +44,13 @@ export default function StudentProfile() {
   const { data: profile, isLoading } = trpc.studentPortal.getProfile.useQuery();
   const { logout } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const { data: badges = [] } = trpc.rankings.myBadges.useQuery();
+  const { data: myRankings = [] } = trpc.rankings.myRankings.useQuery();
+  const rankingStats = {
+    vitorias: (myRankings as any[]).filter((r) => (r.finalPosition ?? r.position) === 1).length,
+    podios: (myRankings as any[]).filter((r) => (r.finalPosition ?? r.position) != null && (r.finalPosition ?? r.position) <= 3).length,
+    participacoes: (myRankings as any[]).length,
+  };
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
   });
@@ -272,6 +280,45 @@ export default function StudentProfile() {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* 🏆 CONQUISTAS & MEDALHAS (PRD_SISTEMA_RANKINGS §25/§27) */}
+      <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl">
+        <CardContent className="p-6 md:p-8">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+            <h2 className="text-base md:text-lg font-black tracking-tight flex items-center gap-2">
+              <Trophy size={18} className="text-amber-500" /> Conquistas &amp; Medalhas
+            </h2>
+            <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <span>🏆 {rankingStats.vitorias} vitória{rankingStats.vitorias === 1 ? "" : "s"}</span>
+              <span>🥇 {rankingStats.podios} pódio{rankingStats.podios === 1 ? "" : "s"}</span>
+              <span>🎯 {rankingStats.participacoes} ranking{rankingStats.participacoes === 1 ? "" : "s"}</span>
+            </div>
+          </div>
+
+          {badges.length === 0 ? (
+            <div className="text-center py-8">
+              <Medal className="mx-auto text-muted-foreground/20 mb-3" size={36} />
+              <p className="text-sm font-bold text-muted-foreground">
+                Nenhuma medalha ainda — participe dos rankings e complete seus treinos para conquistar!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {badges.map((b: any) => (
+                <div key={b.id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 hover:-translate-y-0.5 hover:shadow-md transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-lg shrink-0">
+                    {b.title?.charAt(0) === "🏆" ? "🏆" : b.title?.charAt(0) === "🥈" ? "🥈" : b.title?.charAt(0) === "🥉" ? "🥉" : b.title?.charAt(0) === "🔥" ? "🔥" : b.title?.charAt(0) === "💯" ? "💯" : b.title?.charAt(0) === "🚀" ? "🚀" : "🏅"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-foreground truncate">{b.title}</p>
+                    <p className="text-[10px] font-medium text-muted-foreground truncate">{b.description || "Conquista desbloqueada"}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {profile && (
         <EditProfileModal 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -181,10 +181,14 @@ export default function Rankings() {
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [rewardsOpen, setRewardsOpen] = useState(false);
 
-  // Filtros do Top 5
-  const [selectedRankingId, setSelectedRankingId] = useState<number | null>(null);
+  // Filtros do Top 5 — todos funcionais (Período/Turma/Instrumento)
+  const [topMode, setTopMode] = useState<"geral" | number>("geral");
+  const [periodFilter, setPeriodFilter] = useState<"mes" | "trimestre" | "semestre" | "todos">("todos");
+  const [turmaFilter, setTurmaFilter] = useState("todas");
   const [instrumentFilter, setInstrumentFilter] = useState("todos");
-  const [appliedInstrument, setAppliedInstrument] = useState("todos");
+  const [applied, setApplied] = useState<{ period: "mes" | "trimestre" | "semestre" | "todos"; turma: string; instrumentId: string }>({ period: "todos", turma: "todas", instrumentId: "todos" });
+  const [medalTitle, setMedalTitle] = useState("");
+  const [medalDesc, setMedalDesc] = useState("");
 
   // Queries
   const { data: rankings = [], isLoading } = trpc.rankings.list.useQuery({ status: statusFilter as any });
@@ -194,32 +198,48 @@ export default function Rankings() {
   const { data: instrumentsList = [] } = trpc.instruments.list.useQuery();
   const { data: studentsList = [] } = trpc.rankings.listStudents.useQuery();
   const { data: historic = [] } = trpc.rankings.historic.useQuery();
+  const generalQuery = trpc.rankings.generalStandings.useQuery(
+    {
+      period: applied.period,
+      turma: applied.turma !== "todas" ? applied.turma : undefined,
+      instrumentId: applied.instrumentId !== "todos" ? Number(applied.instrumentId) : null,
+    },
+    { enabled: topMode === "geral" }
+  );
+  const singleQuery = trpc.rankings.standings.useQuery(
+    { id: topMode as number },
+    { enabled: typeof topMode === "number" }
+  );
   const { data: detail, isLoading: detailLoading } = trpc.rankings.standings.useQuery(
-    { id: selectedRankingId! },
-    { enabled: !!selectedRankingId }
+    { id: detailId! },
+    { enabled: !!detailId }
   );
   const { data: audit } = trpc.rankings.auditoria.useQuery(
     { rankingId: detailId!, studentId: auditStudentId! },
     { enabled: !!detailId && !!auditStudentId }
   );
 
-  // Seleção padrão do Top 5: primeiro ranking ativo
-  useEffect(() => {
-    if (!selectedRankingId && (activeRankings as any[]).length > 0) {
-      setSelectedRankingId((activeRankings as any[])[0].id);
-    }
-  }, [activeRankings, selectedRankingId]);
+  const turmas = (generalQuery.data?.turmas as string[]) || [];
 
   const top5Rows = useMemo(() => {
-    let rows = ((detail?.standings as any[]) || []).slice(0, 5);
-    if (appliedInstrument !== "todos") {
-      const instMap = new Map((studentsList as any[]).map((s) => [s.id, s.instrumentId]));
-      rows = rows.filter((r) => String(instMap.get(r.studentId) ?? "") === appliedInstrument);
-    }
-    return rows;
-  }, [detail, appliedInstrument, studentsList]);
+    if (topMode === "geral") return (generalQuery.data?.rows as any[]) || [];
+    return ((singleQuery.data?.standings as any[]) || []).slice(0, 5);
+  }, [topMode, generalQuery.data, singleQuery.data]);
+  const top5Loading = topMode === "geral" ? generalQuery.isLoading : singleQuery.isLoading;
 
   const maxScore = useMemo(() => Math.max(1, ...top5Rows.map((r) => r.total || 0)), [top5Rows]);
+
+  // Subtítulo da linha: "Instrumento • Nível" quando conhecido
+  const studentSubtitle = (row: any) => {
+    const st = (studentsList as any[]).find((s) => s.id === row.studentId);
+    const instName = st?.instrumentId ? ((instrumentsList as any[]).find((i) => i.id === st.instrumentId)?.name ?? null) : null;
+    const levelLabel = st?.level ? st.level.charAt(0).toUpperCase() + st.level.slice(1) : null;
+    if (instName || levelLabel) return [instName, levelLabel].filter(Boolean).join(" • ");
+    if (row.breakdown && typeof row.breakdown.presenca === "object") {
+      return `${row.breakdown.presenca.raw} aulas · ${row.breakdown.atividades.raw} metas · ${row.breakdown.pratica.raw}min`;
+    }
+    return `${row.breakdown?.presenca ?? 0} aulas · ${row.breakdown?.atividades ?? 0} metas · ${row.breakdown?.pratica ?? 0}min`;
+  };
 
   // Mutations
   const createMutation = trpc.rankings.create.useMutation({
@@ -242,10 +262,18 @@ export default function Rankings() {
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.rankings.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       toast.success("Ranking removido!");
+      // FIX TOP 5 ZERADO: invalida TODAS as queries dependentes (antes a
+      // classificação continuava exibindo dados em cache do ranking excluído)
       utils.rankings.list.invalidate();
       utils.rankings.stats.invalidate();
+      utils.rankings.standings.invalidate();
+      utils.rankings.generalStandings.invalidate();
+      utils.rankings.recentActivity.invalidate();
+      utils.rankings.historic.invalidate();
+      if (topMode === vars.id) setTopMode("geral");
+      if (detailId === vars.id) setDetailId(null);
       setDeleteId(null);
     },
     onError: (e) => toast.error(e.message),
@@ -266,9 +294,20 @@ export default function Rankings() {
     onSuccess: () => {
       toast.success("Ajuste registrado com trilha de auditoria!");
       utils.rankings.standings.invalidate();
+      utils.rankings.generalStandings.invalidate();
       utils.rankings.auditoria.invalidate();
       setAjustePoints("");
       setAjusteReason("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const medalMutation = trpc.rankings.concederMedalha.useMutation({
+    onSuccess: () => {
+      toast.success("Medalha virtual concedida! 🏅");
+      utils.rankings.auditoria.invalidate();
+      utils.rankings.recentActivity.invalidate();
+      setMedalTitle("");
+      setMedalDesc("");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -480,28 +519,30 @@ export default function Rankings() {
                       <Trophy size={16} className="text-amber-500" /> Top 5 — Ranking Geral
                     </h2>
                     <select
-                      value={selectedRankingId ?? ""}
-                      onChange={(e) => setSelectedRankingId(Number(e.target.value))}
-                      disabled={(activeRankings as any[]).length <= 1}
-                      className="h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 max-w-[180px]"
+                      value={String(topMode)}
+                      onChange={(e) => setTopMode(e.target.value === "geral" ? "geral" : Number(e.target.value))}
+                      className="h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 max-w-[200px] truncate"
                     >
-                      {(activeRankings as any[]).length === 0 && <option value="">Nenhum ativo</option>}
-                      {(activeRankings as any[]).length === 1 && <option value={(activeRankings as any[])[0].id}>Este mês</option>}
-                      {(activeRankings as any[]).length > 1 && (activeRankings as any[]).map((r) => (
+                      <option value="geral">🏆 Ranking Geral</option>
+                      {(activeRankings as any[]).map((r) => (
                         <option key={r.id} value={r.id}>{r.name}</option>
                       ))}
                     </select>
                   </div>
 
-                  {detailLoading || isLoadingActive ? (
-                    <div className="flex justify-center py-14"><Loader2 size={26} className="animate-spin text-primary" /></div>
+                  {top5Loading || isLoadingActive ? (
+                    <div className="space-y-2.5">
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <div key={i} className="h-[68px] rounded-2xl bg-muted/40 animate-pulse" />
+                      ))}
+                    </div>
                   ) : standings.length === 0 ? (
                     <div className="py-14 text-center">
                       <Trophy className="mx-auto text-muted-foreground/20 mb-3" size={40} />
                       <p className="text-sm font-bold text-muted-foreground px-4">
                         {(activeRankings as any[]).length === 0
                           ? "Nenhum ranking ativo. Crie uma competição para engajar seus alunos!"
-                          : "Nenhum aluno pontuou ainda neste ranking."}
+                          : "Nenhum aluno pontuou no período selecionado."}
                       </p>
                     </div>
                   ) : (
@@ -531,9 +572,12 @@ export default function Rankings() {
                               </div>
                             )}
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs sm:text-sm font-black text-foreground truncate leading-tight">{row.name}</p>
+                              <p className="text-xs sm:text-sm font-black text-foreground truncate leading-tight">
+                                {row.name}
+                                {row.shared && <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground align-middle">empate</span>}
+                              </p>
                               <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground truncate">
-                                {row.breakdown.presenca.raw} aulas · {row.breakdown.atividades.raw} metas · {row.breakdown.pratica.raw}min
+                                {studentSubtitle(row)}
                               </p>
                               <div className="h-1.5 rounded-full bg-muted/70 mt-2 overflow-hidden max-w-[220px]">
                                 <div className="h-full rounded-full bg-gradient-to-r from-primary to-purple-500 transition-all duration-700" style={{ width: `${pct}%` }} />
@@ -550,11 +594,11 @@ export default function Rankings() {
                     </div>
                   )}
 
-                  {selectedRankingId && standings.length > 0 && (
+                  {typeof topMode === "number" && standings.length > 0 && (
                     <div className="flex justify-center mt-5 md:mt-6">
                       <Button
                         variant="outline"
-                        onClick={() => setDetailId(selectedRankingId)}
+                        onClick={() => setDetailId(topMode as number)}
                         className="h-11 px-6 rounded-2xl border-primary/20 text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest"
                       >
                         Ver ranking completo <ArrowRight size={13} className="ml-2" />
@@ -578,22 +622,34 @@ export default function Rankings() {
                       <div className="flex items-center justify-between gap-3">
                         <Label className="text-xs font-bold text-muted-foreground shrink-0">Período</Label>
                         <select
-                          value={selectedRankingId ?? ""}
-                          onChange={(e) => setSelectedRankingId(Number(e.target.value))}
+                          value={periodFilter}
+                          onChange={(e) => {
+                            const v = e.target.value as any;
+                            setPeriodFilter(v);
+                            setTopMode("geral"); // período se aplica ao Ranking Geral
+                          }}
                           className="h-10 flex-1 min-w-0 rounded-xl border border-border bg-background px-3 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 max-w-[190px]"
                         >
-                          {(activeRankings as any[]).length === 0 && <option value="">Nenhum ativo</option>}
-                          {(activeRankings as any[]).map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {(activeRankings as any[]).length === 1 ? "Este mês" : r.name}
-                            </option>
-                          ))}
+                          <option value="mes">Este mês</option>
+                          <option value="trimestre">Últimos 3 meses</option>
+                          <option value="semestre">Últimos 6 meses</option>
+                          <option value="todos">Todo o período</option>
                         </select>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <Label className="text-xs font-bold text-muted-foreground shrink-0">Turma</Label>
-                        <select className="h-10 flex-1 min-w-0 rounded-xl border border-border bg-background px-3 text-xs font-bold outline-none max-w-[190px]" disabled>
-                          <option>Todas as turmas</option>
+                        <select
+                          value={turmaFilter}
+                          onChange={(e) => {
+                            setTurmaFilter(e.target.value);
+                            setTopMode("geral");
+                          }}
+                          className="h-10 flex-1 min-w-0 rounded-xl border border-border bg-background px-3 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 max-w-[190px]"
+                        >
+                          <option value="todas">Todas as turmas</option>
+                          {turmas.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
                         </select>
                       </div>
                       <div className="flex items-center justify-between gap-3">
@@ -612,8 +668,8 @@ export default function Rankings() {
                     </div>
                     <Button
                       onClick={() => {
-                        setAppliedInstrument(instrumentFilter);
-                        utils.rankings.standings.invalidate();
+                        setApplied({ period: periodFilter, turma: turmaFilter, instrumentId: instrumentFilter });
+                        setTopMode("geral");
                         toast.success("Filtros aplicados!");
                       }}
                       className="w-full h-12 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
@@ -1065,6 +1121,39 @@ export default function Rankings() {
                   ))}
                 </div>
               )}
+
+              {/* ── Medalhas virtuais do aluno ── */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Medalhas virtuais</p>
+                {((audit as any).medalhas || []).length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {((audit as any).medalhas as any[]).map((m) => (
+                      <span key={m.id} title={new Date(m.awardedAt).toLocaleDateString("pt-BR")} className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-700">
+                        {m.title}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs font-bold text-muted-foreground">Nenhuma medalha ainda.</p>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 pt-1">
+                  <Input placeholder="Nome da medalha (ex.: Dedicação)" value={medalTitle} onChange={(e) => setMedalTitle(e.target.value)} className="h-11 rounded-xl" />
+                  <Input placeholder="Motivo (opcional)" value={medalDesc} onChange={(e) => setMedalDesc(e.target.value)} className="h-11 rounded-xl" />
+                  <Button
+                    onClick={() => {
+                      if (medalTitle.trim().length < 2) { toast.error("Descreva o nome da medalha."); return; }
+                      medalMutation.mutate({ studentId: auditStudentId!, title: medalTitle.trim(), description: medalDesc.trim() || undefined });
+                    }}
+                    disabled={medalMutation.isPending}
+                    className="h-11 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+                  >
+                    <Medal size={13} className="mr-1.5" /> Conceder
+                  </Button>
+                </div>
+                <p className="text-[9px] text-muted-foreground font-medium">
+                  Automáticas: 🏆 Campeão · 🥈 Vice · 🥉 Top 3 · 🔥 Constante (3+ treinos) · 💯 Meta Atingida (5/5) · 🚀 Evolução (+3 posições).
+                </p>
+              </div>
 
               <div className="space-y-2 pt-2 border-t border-border/50">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Novo ajuste / bônus</Label>

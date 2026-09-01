@@ -87,26 +87,16 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const [step, setStep] = useState<"form" | "conflicts" | "ask_series">("form");
   const [batchItems, setBatchItems] = useState<any[]>([]);
 
-  // Dropdown customizado de alunos
+  // Picker de alunos (MOBILE FIX: substitui dropdown absoluto que quebrava no Drawer)
   const [studentSearch, setStudentSearch] = useState("");
-  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
-  const studentDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Fecha dropdown ao clicar fora
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (studentDropdownRef.current && !studentDropdownRef.current.contains(e.target as Node)) {
-        setShowStudentDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  const [studentPickerOpen, setStudentPickerOpen] = useState(false);
   const lastLoadedLessonId = useRef<string | number | null>(null);
 
   useEffect(() => {
     if (!open) {
       lastLoadedLessonId.current = null;
+      setStudentPickerOpen(false);
+      setStudentSearch("");
       return;
     }
 
@@ -452,6 +442,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   };
 
   return (
+    <>
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
@@ -607,105 +598,38 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
                      onChange={(e) => setFormData({ ...formData, experimentalName: e.target.value })}
                      className="w-full h-14 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-yellow-500/5 outline-none transition-all"
                    />
-                 ) : (
-                   /* Dropdown customizado com dark mode + pesquisa */
-                   <div ref={studentDropdownRef} className="relative">
-                     {/* Botão de abertura */}
-                     <button
-                       type="button"
-                       onClick={() => {
-                         setShowStudentDropdown(prev => !prev);
-                         setStudentSearch("");
-                       }}
-                       className="w-full h-14 bg-card border border-border rounded-2xl px-4 flex items-center justify-between text-sm font-bold transition-all hover:border-primary/40 focus:ring-4 focus:ring-primary/10 focus:outline-none"
-                     >
-                       <span className={formData.studentId ? "text-foreground" : "text-muted-foreground"}>
-                         {formData.studentId
-                           ? students?.find((s: any) => s.id.toString() === formData.studentId)?.name ?? "Selecione o aluno..."
-                           : "Selecione o aluno..."
-                         }
-                       </span>
-                       <div className="flex items-center gap-1">
-                         {formData.studentId && (
-                           <span
-                             role="button"
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               setFormData(prev => ({ ...prev, studentId: "" }));
-                             }}
-                             className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg"
-                           >
-                             <X size={12} />
-                           </span>
-                         )}
-                         <ChevronDown size={14} className={cn("text-muted-foreground transition-transform duration-200", showStudentDropdown && "rotate-180")} />
-                       </div>
-                     </button>
-
-                     {/* Painel do dropdown */}
-                     {showStudentDropdown && (
-                       <div className="absolute z-50 top-[calc(100%+6px)] left-0 right-0 bg-card border border-border rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
-                         {/* Campo de pesquisa */}
-                         <div className="p-2 border-b border-border">
-                           <div className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-2">
-                             <Search size={13} className="text-muted-foreground shrink-0" />
-                             <input
-                               type="text"
-                               autoFocus
-                               placeholder="Buscar aluno..."
-                               value={studentSearch}
-                               onChange={(e) => setStudentSearch(e.target.value)}
-                               className="flex-1 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground outline-none"
-                             />
-                             {studentSearch && (
-                               <button onClick={() => setStudentSearch("")} className="text-muted-foreground hover:text-foreground">
-                                 <X size={12} />
-                               </button>
-                             )}
-                           </div>
-                         </div>
-
-                         {/* Lista de alunos filtrada */}
-                         <div className="overflow-y-auto max-h-52">
-                           {(() => {
-                             const filtered = (students ?? []).filter((s: any) =>
-                               s.lessonType !== "turma" &&
-                               s.name.toLowerCase().includes(studentSearch.toLowerCase())
-                             );
-                             if (filtered.length === 0) return (
-                               <div className="py-6 text-center text-xs text-muted-foreground">Nenhum aluno encontrado</div>
-                             );
-                             return filtered.map((s: any) => (
-                               <button
-                                 key={s.id}
-                                 type="button"
-                                 onClick={() => {
-                                   setFormData(prev => ({
-                                     ...prev,
-                                     studentId: s.id.toString(),
-                                     instrumentId: prev.instrumentId || (s.instrumentId ? s.instrumentId.toString() : ""),
-                                     studioRoomId: prev.studioRoomId || (s.studioRoomId ? s.studioRoomId.toString() : ""),
-                                   }));
-                                   setShowStudentDropdown(false);
-                                   setStudentSearch("");
-                                 }}
-                                 className={cn(
-                                   "w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-left transition-colors hover:bg-primary/10",
-                                   formData.studentId === s.id.toString() && "bg-primary/15 text-primary"
-                                 )}
-                               >
-                                 <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                                   <User size={12} className="text-primary" />
-                                 </div>
-                                 <span className="truncate">{s.name}</span>
-                               </button>
-                             ));
-                           })()}
-                         </div>
-                       </div>
-                     )}
-                   </div>
-                 )}
+                  ) : (
+                    /* MOBILE FIX: dropdown absoluto dentro do Drawer + teclado causava
+                       "barreira branca" e lista comprimida. Agora abre um picker dedicado
+                       (Drawer no mobile / Dialog no desktop) com linhas grandes. */
+                    <button
+                      type="button"
+                      onClick={() => setStudentPickerOpen(true)}
+                      className="w-full h-14 bg-card border border-border rounded-2xl px-4 flex items-center justify-between text-sm font-bold transition-all hover:border-primary/40 focus:ring-4 focus:ring-primary/10 focus:outline-none"
+                    >
+                      <span className={cn("truncate", formData.studentId ? "text-foreground" : "text-muted-foreground")}>
+                        {formData.studentId
+                          ? students?.find((s: any) => s.id.toString() === formData.studentId)?.name ?? "Selecione o aluno..."
+                          : "Selecione o aluno..."
+                        }
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {formData.studentId && (
+                          <span
+                            role="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFormData(prev => ({ ...prev, studentId: "" }));
+                            }}
+                            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg"
+                          >
+                            <X size={12} />
+                          </span>
+                        )}
+                        <ChevronDown size={14} className="text-muted-foreground" />
+                      </div>
+                    </button>
+                  )}
               </div>
 
               {/* Instrumento */}
@@ -1212,6 +1136,79 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         </div>
       )}
     </ResponsiveDialog>
+
+    {/* ═══ PICKER DE ALUNOS (mobile-first: linhas grandes, sem conflito com teclado) ═══ */}
+    <ResponsiveDialog
+      open={studentPickerOpen}
+      onOpenChange={setStudentPickerOpen}
+      title="Selecione o aluno"
+      description="Toque em um aluno para selecionar"
+    >
+      <div className="space-y-3 pb-4">
+        <div className="flex items-center gap-2.5 bg-muted/30 border border-border rounded-2xl px-4 h-12">
+          <Search size={16} className="text-muted-foreground shrink-0" />
+          <input
+            type="text"
+            placeholder="Buscar aluno pelo nome..."
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            className="flex-1 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground outline-none"
+          />
+          {studentSearch && (
+            <button type="button" onClick={() => setStudentSearch("")} className="text-muted-foreground hover:text-foreground">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        <div className="overflow-y-auto max-h-[55vh] space-y-1.5 no-scrollbar pr-0.5">
+          {(() => {
+            const filtered = (students ?? []).filter((s: any) =>
+              s.lessonType !== "turma" &&
+              s.name.toLowerCase().includes(studentSearch.toLowerCase())
+            );
+            if (filtered.length === 0) return (
+              <div className="py-10 text-center">
+                <User size={28} className="mx-auto text-muted-foreground/30 mb-2" />
+                <p className="text-xs font-bold text-muted-foreground">Nenhum aluno encontrado</p>
+              </div>
+            );
+            return filtered.map((s: any) => {
+              const selected = formData.studentId === s.id.toString();
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      studentId: s.id.toString(),
+                      instrumentId: prev.instrumentId || (s.instrumentId ? s.instrumentId.toString() : ""),
+                      studioRoomId: prev.studioRoomId || (s.studioRoomId ? s.studioRoomId.toString() : ""),
+                    }));
+                    setStudentPickerOpen(false);
+                    setStudentSearch("");
+                  }}
+                  className={cn(
+                    "w-full h-14 px-4 rounded-2xl border flex items-center gap-3 text-left transition-all active:scale-[0.99]",
+                    selected
+                      ? "bg-primary/15 border-primary/40 text-primary"
+                      : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
+                  )}
+                >
+                  <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                    <User size={16} className="text-primary" />
+                  </div>
+                  <span className="flex-1 truncate text-sm font-bold">{s.name}</span>
+                  {selected && <CheckCircle2 size={16} className="text-primary shrink-0" />}
+                </button>
+              );
+            });
+          })()}
+        </div>
+      </div>
+    </ResponsiveDialog>
+    </>
   );
 }
 
