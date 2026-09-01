@@ -641,8 +641,8 @@ export function BibliotecaMusical({ studentId }: { studentId: number }) {
        </Dialog>
 
         {/* MODAL DE PREVIEW DE ARQUIVOS */}
-        <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
-           <DialogContent showCloseButton={false} className="w-[96vw] max-w-6xl h-[90vh] max-h-[92vh] p-0 flex flex-col overflow-hidden bg-card/95 backdrop-blur-2xl border border-border/80 rounded-[2rem] shadow-2xl shadow-black/40 z-50">
+         <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
+            <DialogContent showCloseButton={false} onPointerDownOutside={(e) => { if (lightboxOpen) e.preventDefault(); }} className="w-[96vw] max-w-6xl h-[90vh] max-h-[92vh] p-0 flex flex-col overflow-hidden bg-card/95 backdrop-blur-2xl border border-border/80 rounded-[2rem] shadow-2xl shadow-black/40 z-50">
               <div className="p-4 sm:p-5 bg-card/90 border-b border-border/60 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className={cn(

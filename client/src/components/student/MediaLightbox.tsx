@@ -132,6 +132,10 @@ export default function MediaLightbox({ open, src, alt, onClose }: MediaLightbox
     <div
       ref={containerRef}
       className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center touch-none select-none animate-in fade-in duration-150"
+      // RADIX FIX: Dialog modal aplica pointer-events:none no body — sem este
+      // pointer-events:auto explícito, TODA interação do lightbox (portal fora
+      // do DialogContent) fica morta (zoom, botões, pinça, fechar).
+      style={{ pointerEvents: "auto" }}
       onClick={onClose}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}

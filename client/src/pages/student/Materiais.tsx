@@ -487,8 +487,8 @@ export default function StudentMaterials() {
       </div>
 
       {/* PREVIEW DIALOG */}
-      <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
-         <DialogContent showCloseButton={false} className={cn("p-0 overflow-hidden bg-background border-none rounded-[1.5rem] md:rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[95vw] md:max-w-7xl" : "max-w-[95vw] md:max-w-5xl")}>
+       <Dialog open={!!previewFile} onOpenChange={handleClosePreview}>
+          <DialogContent showCloseButton={false} onPointerDownOutside={(e) => { if (lightboxOpen) e.preventDefault(); }} className={cn("p-0 overflow-hidden bg-background border-none rounded-[1.5rem] md:rounded-[3rem] shadow-2xl transition-all", showComments ? "max-w-[95vw] md:max-w-7xl" : "max-w-[95vw] md:max-w-5xl")}>
              <DialogHeader className="p-4 md:p-6 bg-card/80 backdrop-blur-xl border-b border-border/50">
                 {/* LAYOUT FIX: ações com flex-wrap + título truncando — nunca estoura a largura do modal */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 min-w-0">
