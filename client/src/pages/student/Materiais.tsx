@@ -18,7 +18,9 @@ import {
   Loader2,
   X,
   MessageCircle,
-  Send
+  Send,
+  Maximize2,
+  FileWarning
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,12 +31,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import MediaLightbox from "@/components/student/MediaLightbox";
 
 const container = {
   hidden: { opacity: 0 },
@@ -60,6 +63,12 @@ export default function StudentMaterials() {
   // URL resolvida (pode ser um token temporário para arquivos locais)
   const [resolvedUrl, setResolvedUrl] = useState<string>("");
   const [urlLoading, setUrlLoading] = useState(false);
+  // FILE-NOT-FOUND FIX: flag do server (arquivo físico ausente no disco) — antes era
+  // ignorada e o iframe recebia src="" (tela em branco sem explicação para o aluno).
+  const [fileNotFound, setFileNotFound] = useState(false);
+  // ZOOM FIX: lightbox para ampliar imagens (botão Ampliar / duplo clique)
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Comments UI state
   const [showComments, setShowComments] = useState(false);
@@ -84,12 +93,20 @@ export default function StudentMaterials() {
 
   const handlePreview = async (file: any) => {
     setPreviewFile(file);
+    setFileNotFound(false);
+    setLightboxOpen(false);
     setResolvedUrl(getFixedUrl(file.fileUrl)); // mostra de imediato; será substituído
     setUrlLoading(true);
     markViewedMutation.mutate({ fileId: file.id });
     try {
       const result = await getFileUrlMutation.mutateAsync({ fileId: file.id });
-      setResolvedUrl(result.url);
+      if ((result as any).fileNotFound) {
+        // Arquivo físico não existe no servidor (ex.: rebuild sem volume persistente)
+        setFileNotFound(true);
+        setResolvedUrl("");
+      } else {
+        setResolvedUrl((result as any).url || getFixedUrl(file.fileUrl));
+      }
     } catch {
       // fallback: usa a URL original (funciona quando o armazenamento é externo)
       setResolvedUrl(getFixedUrl(file.fileUrl));
@@ -101,6 +118,8 @@ export default function StudentMaterials() {
   const handleClosePreview = () => {
     setPreviewFile(null);
     setResolvedUrl("");
+    setFileNotFound(false);
+    setLightboxOpen(false);
     setShowComments(false);
   };
 
@@ -148,6 +167,14 @@ export default function StudentMaterials() {
       default: return 'Visualizar';
     }
   };
+
+  // PDF-like: categoria pdf/documento OU fallback por extensão .pdf no nome
+  // (coberta a inconsistência de uploads antigos categorizados como 'documento')
+  const isPdfLike = !!(previewFile && (
+    previewFile.category === 'pdf' ||
+    previewFile.category === 'documento' ||
+    (!previewFile.category && previewFile.fileName?.toLowerCase().endsWith('.pdf'))
+  ));
 
   if (isLoading) return (
     <div className="flex items-center justify-center min-h-[40vh]">
@@ -319,8 +346,10 @@ export default function StudentMaterials() {
                     )}>
                       <CardContent className="p-0 flex flex-col sm:flex-row h-full flex-1 w-full">
                         {/* Media Section */}
-                        <div className={cn(
-                          "relative overflow-hidden shrink-0",
+                        <div 
+                          onClick={() => handlePreview(item)}
+                          className={cn(
+                          "relative overflow-hidden shrink-0 cursor-pointer",
                           viewMode === "grid" ? "aspect-[16/10] w-full" : "w-full h-32 sm:w-40 sm:h-full border-b sm:border-b-0 sm:border-r border-border/30"
                         )}>
                           {/* Background Pattern/Color */}
@@ -476,6 +505,17 @@ export default function StudentMaterials() {
                      </DialogTitle>
                   </div>
                   <div className="flex items-center gap-2 md:gap-3 self-end md:self-auto">
+                    {previewFile?.category === 'imagem' && !urlLoading && !fileNotFound && (
+                      <Button 
+                        variant="outline"
+                        className="h-10 md:h-12 rounded-xl text-primary border-primary/20 bg-primary/5 text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-sm hover:scale-105 active:scale-95"
+                        onClick={() => setLightboxOpen(true)}
+                        title="Ampliar imagem"
+                      >
+                         <Maximize2 size={16} className="md:mr-2" /> 
+                         <span className="hidden md:inline">Ampliar</span>
+                      </Button>
+                    )}
                     <Button 
                       variant="outline"
                       className="h-10 md:h-12 rounded-xl text-primary border-primary/20 bg-primary/5 text-[10px] md:text-xs font-bold px-3 md:px-6 shadow-sm hover:scale-105 active:scale-95"
@@ -523,15 +563,41 @@ export default function StudentMaterials() {
                      <p className="text-sm font-semibold">Carregando arquivo...</p>
                    </div>
                  )}
-                 {!urlLoading && previewFile?.category === 'video' && (
-                    <video 
-                      src={resolvedUrl} 
-                      controls 
-                      className="max-h-[90%] max-w-[100%] md:max-w-[95%] rounded-xl md:rounded-2xl shadow-2xl bg-black"
-                      autoPlay
-                    />
+                 {/* FILE-NOT-FOUND: estado vazio explicativo — nunca renderizar iframe/src vazio */}
+                 {!urlLoading && fileNotFound && (
+                   <div className="flex flex-col items-center gap-5 text-center px-8 max-w-md">
+                     <div className="w-20 h-20 rounded-[1.5rem] bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                       <FileWarning size={36} />
+                     </div>
+                     <div className="space-y-2">
+                       <p className="text-base font-black text-foreground">Arquivo não encontrado no servidor</p>
+                       <p className="text-sm text-muted-foreground font-medium">Este material não está mais disponível no armazenamento. Solicite ao professor o reenvio do arquivo.</p>
+                     </div>
+                   </div>
                  )}
-                 {!urlLoading && previewFile?.category === 'audio' && (
+                 {!urlLoading && !fileNotFound && previewFile?.category === 'video' && (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                       <video 
+                         ref={videoRef}
+                         src={resolvedUrl} 
+                         controls 
+                         className="max-h-[90%] max-w-[100%] md:max-w-[95%] rounded-xl md:rounded-2xl shadow-2xl bg-black"
+                         autoPlay
+                       />
+                       {/* FULLSCREEN FIX: ampliar vídeo em ambientes sem botão nativo */}
+                       {typeof document !== "undefined" && document.fullscreenEnabled && (
+                         <button 
+                           type="button"
+                           onClick={() => { videoRef.current?.requestFullscreen?.().catch(() => {}); }}
+                           className="absolute top-3 right-3 md:top-4 md:right-4 w-10 h-10 rounded-xl bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all active:scale-95"
+                           title="Tela cheia"
+                         >
+                           <Maximize2 size={16} />
+                         </button>
+                       )}
+                    </div>
+                 )}
+                 {!urlLoading && !fileNotFound && previewFile?.category === 'audio' && (
                     <div className="flex flex-col items-center gap-6 md:gap-10 w-full max-w-2xl px-6 py-10 md:px-12 md:py-20 bg-card rounded-[2rem] md:rounded-[3rem] shadow-2xl border border-border/50">
                        <div className="w-24 h-24 md:w-40 md:h-40 rounded-[2rem] md:rounded-[3rem] bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-primary/30 relative">
                           <Music size={48} className="relative z-10 md:w-16 md:h-16" />
@@ -549,19 +615,70 @@ export default function StudentMaterials() {
                        />
                     </div>
                  )}
-                 {!urlLoading && previewFile?.category === 'pdf' && (
-                    <iframe 
-                      src={`${resolvedUrl}#toolbar=0`} 
-                      className="w-full h-full border-none"
-                      title={previewFile.fileName}
-                    />
+                 {!urlLoading && !fileNotFound && isPdfLike && (
+                    <div className="w-full h-full flex flex-col">
+                       <iframe 
+                         src={`${resolvedUrl}#toolbar=0`} 
+                         className="w-full flex-1 min-h-0 border-none"
+                         title={previewFile.fileName}
+                       />
+                       {/* PDF FALLBACK FIX: Android WebView/PWA não renderiza PDF em iframe —
+                           ações diretas sempre acessíveis no mobile */}
+                       <div className="flex sm:hidden items-center justify-center gap-3 p-3 border-t border-border/50 bg-card">
+                          <a 
+                            href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 h-11 px-5 rounded-xl border border-primary/20 bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest"
+                          >
+                             <ExternalLink size={14} /> Abrir em nova aba
+                          </a>
+                          <a 
+                            href={resolvedUrl || getFixedUrl(previewFile?.fileUrl)} 
+                            download={previewFile?.fileName}
+                            className="flex items-center gap-2 h-11 px-5 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
+                          >
+                             <Download size={14} /> Baixar PDF
+                          </a>
+                       </div>
+                    </div>
                  )}
-                 {!urlLoading && previewFile?.category === 'imagem' && (
-                    <img 
-                      src={resolvedUrl} 
-                      alt={previewFile.fileName}
-                      className="max-h-[90%] max-w-[100%] md:max-w-[95%] object-contain rounded-xl md:rounded-2xl shadow-2xl border border-border/50"
-                    />
+                 {!urlLoading && !fileNotFound && previewFile?.category === 'imagem' && (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                       <img 
+                         src={resolvedUrl} 
+                         alt={previewFile.fileName}
+                         onDoubleClick={() => setLightboxOpen(true)}
+                         className="max-h-[90%] max-w-[100%] md:max-w-[95%] object-contain rounded-xl md:rounded-2xl shadow-2xl border border-border/50 cursor-zoom-in"
+                       />
+                       <button 
+                         type="button"
+                         onClick={() => setLightboxOpen(true)}
+                         className="absolute bottom-3 right-3 md:bottom-4 md:right-4 flex items-center gap-2 h-10 px-4 rounded-xl bg-black/60 hover:bg-black/80 text-white text-[10px] font-black uppercase tracking-widest backdrop-blur-md border border-white/20 transition-all active:scale-95"
+                       >
+                         <Maximize2 size={14} /> Ampliar
+                       </button>
+                    </div>
+                 )}
+                 {/* Formato sem renderer (ex.: upload antigo com categoria inválida) */}
+                 {!urlLoading && !fileNotFound && previewFile && !isPdfLike && !['video','audio','imagem'].includes(previewFile.category) && (
+                   <div className="flex flex-col items-center gap-5 text-center px-8 max-w-md">
+                     <div className="w-20 h-20 rounded-[1.5rem] bg-muted border border-border flex items-center justify-center text-muted-foreground">
+                       <FileText size={36} />
+                     </div>
+                     <div className="space-y-2">
+                       <p className="text-base font-black text-foreground">Pré-visualização não disponível</p>
+                       <p className="text-sm text-muted-foreground font-medium">Este formato não pode ser exibido aqui. Use a opção abaixo para abrir ou baixar o arquivo.</p>
+                     </div>
+                     <a 
+                       href={resolvedUrl || getFixedUrl(previewFile.fileUrl)} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="flex items-center gap-2 h-11 px-6 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
+                     >
+                       <Download size={14} /> Abrir / Baixar
+                     </a>
+                   </div>
                  )}
                </div>
 
@@ -610,9 +727,17 @@ export default function StudentMaterials() {
                    </div>
                  </div>
                )}
-            </div>
-         </DialogContent>
-      </Dialog>
-    </div>
+             </div>
+          </DialogContent>
+       </Dialog>
+
+       {/* ZOOM FIX: lightbox fullscreen com zoom/pan para imagens */}
+       <MediaLightbox
+          open={lightboxOpen}
+          src={resolvedUrl || getFixedUrl(previewFile?.fileUrl)}
+          alt={previewFile?.fileName}
+          onClose={() => setLightboxOpen(false)}
+       />
+     </div>
   );
 }

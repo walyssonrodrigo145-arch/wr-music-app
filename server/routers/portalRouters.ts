@@ -938,6 +938,18 @@ export const portalRouters = {
 
         const newDateObj = new Date(input.newDateIso);
 
+        // LEMBRETE FIX: cancelar lembretes pendentes da data antiga — antes a
+        // remarcação pelo portal deixava lembretes pendentes para o horário antigo
+        // (o aluno continuava recebendo lembrete do horário errado).
+        if (new Date(lesson.scheduledAt).getTime() !== newDateObj.getTime()) {
+          await db.update(reminders)
+            .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
+            .where(and(
+              eq(reminders.lessonId, input.lessonId),
+              eq(reminders.status, 'pendente')
+            ));
+        }
+
         // Update the lesson date
         await db.update(lessons)
           .set({ scheduledAt: newDateObj, status: "agendada" })

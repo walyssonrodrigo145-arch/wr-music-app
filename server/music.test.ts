@@ -278,8 +278,31 @@ describe("lessons CRUD", () => {
   it("updates lesson status to concluida", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
+    // Fila: [aula encontrada pelo pre-check de permissão do updateStatus]
+    enqueueSelectResult([{ id: 1, userId: 1, studentId: 1, scheduledAt: new Date(), duration: 60, lessonType: "individual", recurringGroupId: null, studioRoomId: null, studentProfessorId: 1 }]);
     const result = await caller.lessons.updateStatus({ id: 1, status: "concluida", rating: 5 });
     expect(result).toHaveProperty("success", true);
+    expect(result).toHaveProperty("updated", true);
+  });
+
+  it("updateStatus REJEITA aula sem vínculo (FORBIDDEN) — fix da remarcação silenciosa", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    // Fila vazia: pre-check não encontra aula com vínculo → deve lançar FORBIDDEN
+    // (antes: UPDATE casava 0 linhas e retornava success silenciosamente)
+    await expect(
+      caller.lessons.updateStatus({ id: 99, status: "concluida" })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("professor efetivo consegue remarcar aula criada pelo admin (fix remarcação)", async () => {
+    const ctx = createAuthContext(); // user.id = 1, role admin aqui; simulamos vínculo via studentProfessorId
+    const caller = appRouter.createCaller(ctx);
+    // Fila: [aula criada pelo admin (userId=2) cujo aluno tem professorId=1 (o chamador)]
+    enqueueSelectResult([{ id: 7, userId: 2, studentId: 3, scheduledAt: new Date("2026-09-10T10:00:00"), duration: 60, lessonType: "individual", recurringGroupId: null, studioRoomId: null, studentProfessorId: 1 }]);
+    const result = await caller.lessons.updateStatus({ id: 7, status: "remarcada", scheduledAt: new Date("2026-09-11T11:00:00").toISOString() });
+    expect(result).toHaveProperty("success", true);
+    expect(result).toHaveProperty("updated", true);
   });
 
   it("deletes a lesson", async () => {

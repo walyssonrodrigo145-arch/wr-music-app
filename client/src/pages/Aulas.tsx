@@ -178,7 +178,14 @@ export default function Aulas() {
   }, [targetLessonForAction, lessons]);
 
   const updateStatusMutation = trpc.lessons.updateStatus.useMutation({
-    onSuccess: (_, vars) => {
+    onSuccess: (data, vars) => {
+      // FEEDBACK FIX: o server retorna `updated` (linhas afetadas). Antes qualquer
+      // resposta exibia toast de sucesso mesmo quando 0 linhas eram alteradas.
+      if (data && data.updated === false) {
+        toast.error('Não foi possível atualizar: você não tem permissão sobre esta aula.');
+        utils.lessons.list.invalidate();
+        return;
+      }
       const msg = vars.status === 'remarcada' ? 'Aula remarcada com sucesso!' : 'Status atualizado!';
       toast.success(msg);
       utils.lessons.list.invalidate();

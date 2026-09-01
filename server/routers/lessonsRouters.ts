@@ -698,6 +698,35 @@ export const lessonsRouters = {
         const orgId = ctx.user.organizationId!;
         const isUserAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
 
+        // PERMISSÃO FIX: validar existência e vínculo do usuário com a aula
+        // (criador OU professor efetivo do aluno) ANTES de qualquer alteração.
+        // Antes: o WHERE do UPDATE final filtrava apenas `lessons.userId`, então um
+        // professor remarcando aula criada pelo admin atualizava 0 linhas e recebia
+        // `{ success: true }` silenciosamente (toast de sucesso sem mudar o banco).
+        const [currentLesson] = await db.select({
+          id: lessons.id,
+          userId: lessons.userId,
+          studentId: lessons.studentId,
+          scheduledAt: lessons.scheduledAt,
+          duration: lessons.duration,
+          lessonType: lessons.lessonType,
+          recurringGroupId: lessons.recurringGroupId,
+          studioRoomId: lessons.studioRoomId,
+          studentProfessorId: students.professorId,
+        }).from(lessons)
+          .leftJoin(students, eq(lessons.studentId, students.id))
+          .where(and(
+            eq(lessons.id, input.id),
+            eq(lessons.organizationId, orgId),
+            isUserAdmin ? undefined : or(
+              eq(lessons.userId, ctx.user.id),
+              eq(students.professorId, ctx.user.id)
+            )
+          )).limit(1);
+        if (!currentLesson) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Aula não encontrada ou você não tem permissão." });
+        }
+
         const updateData: any = {
           status: input.status,
           rating: input.rating,
@@ -714,8 +743,7 @@ export const lessonsRouters = {
         // Se estiver remarcando com uma nova data, validar conflitos
         if (input.scheduledAt) {
           const newDate = new Date(input.scheduledAt);
-          const [current] = await db.select({ duration: lessons.duration, scheduledAt: lessons.scheduledAt, recurringGroupId: lessons.recurringGroupId, lessonType: lessons.lessonType }).from(lessons).where(and(eq(lessons.id, input.id), eq(lessons.organizationId, orgId))).limit(1);
-          const duration = current?.duration || 60;
+          const duration = currentLesson.duration || 60;
           const endsAt = new Date(newDate.getTime() + duration * 60000);
 
           const startOfDay = new Date(newDate);
@@ -723,27 +751,41 @@ export const lessonsRouters = {
           const endOfDay = new Date(newDate);
           endOfDay.setHours(23, 59, 59, 999);
 
+          // CONFLITO FIX: consulta org-wide + professor EFETIVO (criador OU professor
+          // do aluno), espelhando a lógica de `lessons.update` e `lessons.create`.
+          // Antes: filtrava apenas lessons.userId para não-admin, permitindo que um
+          // professor remarcar por cima de aula criada pelo admin sem ser avisado.
           const existingLessons = await db.select({
             id: lessons.id,
             scheduledAt: lessons.scheduledAt,
             duration: lessons.duration,
             lessonType: lessons.lessonType,
-          }).from(lessons).where(and(
-            eq(lessons.organizationId, orgId),
-            isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id),
-            eq(lessons.status, 'agendada'),
-            gte(lessons.scheduledAt, startOfDay),
-            lte(lessons.scheduledAt, endOfDay)
-          ));
+            userId: lessons.userId,
+            studentProfessorId: students.professorId,
+          }).from(lessons)
+            .leftJoin(students, eq(lessons.studentId, students.id))
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.status, 'agendada'),
+              gte(lessons.scheduledAt, startOfDay),
+              lte(lessons.scheduledAt, endOfDay)
+            ));
 
-          const curLessonType = current?.lessonType || 'individual';
+          const lessonTeacherIds = new Set<number>(
+            [currentLesson.userId, currentLesson.studentProfessorId].filter(Boolean) as number[]
+          );
+          const curLessonType = currentLesson.lessonType || 'individual';
           for (const existing of existingLessons) {
             if (existing.id === input.id) continue;
             const exStart = new Date(existing.scheduledAt);
             const exEnd = new Date(exStart.getTime() + (existing.duration || 60) * 60000);
             if (exStart < endsAt && exEnd > newDate) {
-              if (curLessonType === 'individual' || existing.lessonType === 'individual') {
-                throw new Error("Conflito: Já existe uma aula agendada para este novo horário.");
+              const existingTeacherIds = new Set<number>([existing.userId, existing.studentProfessorId].filter(Boolean) as number[]);
+              const sharesTeacher = Array.from(lessonTeacherIds).some((t) => existingTeacherIds.has(t));
+              if (sharesTeacher) {
+                if (curLessonType === 'individual' || existing.lessonType === 'individual') {
+                  throw new TRPCError({ code: "CONFLICT", message: "Conflito: Já existe uma aula agendada para este novo horário." });
+                }
               }
             }
           }
@@ -751,7 +793,7 @@ export const lessonsRouters = {
           updateData.scheduledAt = newDate;
 
           // Cancelar lembretes pendentes da aula pois a data/hora mudou
-          if (current && new Date(current.scheduledAt).getTime() !== newDate.getTime()) {
+          if (new Date(currentLesson.scheduledAt).getTime() !== newDate.getTime()) {
             await db.update(reminders)
               .set({ status: 'cancelado', cancelledAt: new Date(), updatedAt: new Date() })
               .where(and(
@@ -761,14 +803,14 @@ export const lessonsRouters = {
           }
 
           // Se for para atualizar a série toda
-          if (input.updateSeries && current?.recurringGroupId) {
-            const timeOffset = newDate.getTime() - new Date(current.scheduledAt).getTime();
+          if (input.updateSeries && currentLesson.recurringGroupId) {
+            const timeOffset = newDate.getTime() - new Date(currentLesson.scheduledAt).getTime();
             
             // Buscar aulas futuras da série
             const futureLessons = await db.select().from(lessons).where(and(
               eq(lessons.organizationId, orgId),
-              eq(lessons.recurringGroupId, current.recurringGroupId),
-              gte(lessons.scheduledAt, current.scheduledAt),
+              eq(lessons.recurringGroupId, currentLesson.recurringGroupId),
+              gte(lessons.scheduledAt, currentLesson.scheduledAt),
               sql`id != ${input.id}`
             ));
 
@@ -806,11 +848,15 @@ export const lessonsRouters = {
             ));
         }
 
-        await db.update(lessons).set(updateData).where(and(
+        // Permissão já validada no pre-check (FORBIDDEN) — o WHERE final precisa
+        // apenas filtrar organização. O filtro antigo `lessons.userId` para
+        // não-admin é o que impedia professores de remarcar aulas criadas por admin.
+        const updateResult = await db.update(lessons).set(updateData).where(and(
           eq(lessons.id, input.id), 
-          eq(lessons.organizationId, orgId), 
-          isUserAdmin ? undefined : eq(lessons.userId, ctx.user.id)
+          eq(lessons.organizationId, orgId)
         ));
+        // postgres-js RowList expõe `count` (linhas afetadas) para UPDATE sem RETURNING
+        const updated = ((updateResult as any)?.count ?? 1) > 0;
         
         // --- NOTIFICAÇÃO DE FALTA DE ALUNO ---
         if (input.status === 'falta') {
@@ -841,7 +887,7 @@ export const lessonsRouters = {
           }
         }
         
-        return { success: true };
+        return { success: true, updated };
       } catch (error) {
         return handleDbError(error, "atualizar o status da aula");
       }

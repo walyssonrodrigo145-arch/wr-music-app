@@ -30,8 +30,8 @@ import { eq, and, sql } from "drizzle-orm";
 import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whatsapp";
 import { notifyUser } from "./notification";
 import { sdk } from "./sdk";
-import { fileTokenStore, createFileToken } from "./fileTokens";
-export { fileTokenStore, createFileToken };
+import { createFileToken, verifyFileToken } from "./fileTokens";
+export { createFileToken, verifyFileToken };
 
 // ─── Notificação de eventos de contrato (assinado / recusado) ──────────────
 // Notifica os administradores da escola (push + notificação in-app) e o
@@ -808,9 +808,10 @@ async function startServer() {
   // ─── Tokens temporários para servir arquivos locais em iframes/players ────
   // Contexto: iframes, <video> e <audio> carregam URLs em contexto isolado
   // e não enviam o cookie de sessão → a rota /uploads retorna 401.
-  // Solução: o tRPC gera um token UUID (via createFileToken) válido por 30 min
-  // e retorna /uploads-token/{token}/{filename}. Esta rota pública valida o
-  // token e serve o arquivo sem exigir cookie.
+  // Solução: o tRPC gera um token HMAC stateless (via createFileToken) válido
+  // por 30 min e retorna /uploads-token/{token}/{filename}. Esta rota pública
+  // valida assinatura + expiração e serve o arquivo sem exigir cookie.
+  // (Antes: Map em memória — tokens morriam no restart/múltiplas instâncias → 403.)
   app.use("/uploads-token", async (req: express.Request, res: express.Response) => {
     const parts = req.path.split("/").filter(Boolean);
     const token = parts[0];
@@ -818,16 +819,12 @@ async function startServer() {
       return res.status(400).json({ error: "Missing token" });
     }
 
-    const entry = fileTokenStore.get(token);
-    if (!entry) {
+    const relKey = verifyFileToken(token);
+    if (!relKey) {
       return res.status(403).json({ error: "Invalid or expired token" });
     }
-    if (Date.now() > entry.expiresAt) {
-      fileTokenStore.delete(token);
-      return res.status(403).json({ error: "Token expired" });
-    }
 
-    const absPath = path.resolve(process.cwd(), "uploads", entry.relKey);
+    const absPath = path.resolve(process.cwd(), "uploads", relKey);
     if (!absPath.startsWith(path.resolve(process.cwd(), "uploads"))) {
       return res.status(403).json({ error: "Forbidden" });
     }
