@@ -90,7 +90,11 @@ export default function LessonDetailModal({
       setNewTime(format(d, "HH:mm"));
       setIsRescheduling(false);
     }
-  }, [open, lesson]);
+    // FIX: depender apenas do ID da aula — `lessons.list` tem refetchInterval de
+    // 10s e cada refetch cria uma NOVA referência do objeto `lesson`, o que
+    // resetava o painel "Alterar Data/Horário" poucos segundos após abrir
+    // (o usuário perdia a seleção antes de salvar).
+  }, [open, lesson?.id]);
 
   if (!lesson) return null;
 

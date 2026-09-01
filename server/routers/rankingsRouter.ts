@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { and, eq, desc, inArray, sql } from "drizzle-orm";
+import { and, eq, desc, gte, ne, inArray, sql } from "drizzle-orm";
 import { protectedProcedure, studentProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import {
@@ -607,4 +607,141 @@ export const rankingsRouter = router({
       .orderBy(desc(studentAchievements.awardedAt))
       .limit(50);
   }),
+
+  /** Métricas do hero da aba Rankings (admin/professor) — valores reais derivados. */
+  stats: protectedProcedure.query(async ({ ctx }) => {
+    assertStaff(ctx);
+    const db = await getDb();
+    if (!db) return { alunosParticipando: 0, alunosDelta: 0, pontosDistribuidos: 0, pontosDelta: 0, competicoesRealizadas: 0, competicoesDelta: 0, engajamento: 0, engajamentoDelta: 0 };
+    const orgId = ctx.user.organizationId!;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const active = await db.select().from(rankings)
+      .where(and(eq(rankings.organizationId, orgId), eq(rankings.status, 'ativo')));
+    const [{ count: encerradosCount }] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+      .from(rankings)
+      .where(and(eq(rankings.organizationId, orgId), eq(rankings.status, 'encerrado')));
+    const [{ count: criadasNoMes }] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+      .from(rankings)
+      .where(and(
+        eq(rankings.organizationId, orgId),
+        gte(rankings.createdAt, monthStart),
+        ne(rankings.status, 'rascunho'),
+      ));
+
+    let pontosDistribuidos = 0;
+    let pontosDelta = 0;
+    const participantIds = new Set<number>();
+
+    for (const ranking of active) {
+      const standings = await computeStandings(ranking);
+      for (const s of standings) {
+        participantIds.add(s.studentId);
+        pontosDistribuidos += s.total;
+      }
+      // Pontos acumulados no mês corrente (período clampado ao mês)
+      const clampedStart = new Date(Math.max(new Date(ranking.startDate).getTime(), monthStart.getTime()));
+      const clampedEnd = now < new Date(ranking.endDate) ? now : new Date(ranking.endDate);
+      if (clampedStart < clampedEnd) {
+        const monthStandings = await computeStandings({ ...ranking, startDate: clampedStart, endDate: clampedEnd });
+        pontosDelta += monthStandings.reduce((acc, s) => acc + s.total, 0);
+      }
+    }
+
+    let alunosDelta = 0;
+    if (active.length > 0) {
+      const novos = await db.select({ studentId: rankingParticipants.studentId })
+        .from(rankingParticipants)
+        .where(and(
+          inArray(rankingParticipants.rankingId, active.map((r) => r.id)),
+          gte(rankingParticipants.joinedAt, monthStart),
+        ));
+      alunosDelta = new Set(novos.map((n: any) => n.studentId)).size;
+    }
+
+    const [{ count: activeStudentsCount }] = await db.select({ count: sql<number>`CAST(count(*) AS INT)` })
+      .from(students)
+      .where(and(eq(students.organizationId, orgId), eq(students.status, 'ativo')));
+
+    const totalStudents = Number(activeStudentsCount ?? 0);
+    const engajamento = totalStudents > 0 ? Math.round((participantIds.size / totalStudents) * 100) : 0;
+    const engajamentoDelta = totalStudents > 0 ? Math.round((alunosDelta / totalStudents) * 100) : 0;
+
+    return {
+      alunosParticipando: participantIds.size,
+      alunosDelta,
+      pontosDistribuidos,
+      pontosDelta,
+      competicoesRealizadas: Number(encerradosCount ?? 0),
+      competicoesDelta: Number(criadasNoMes ?? 0),
+      engajamento,
+      engajamentoDelta,
+    };
+  }),
+
+  /** Feed de atividades recentes (ranking criado/encerrado + conquistas). */
+  recentActivity: protectedProcedure.query(async ({ ctx }) => {
+    assertStaff(ctx);
+    const db = await getDb();
+    if (!db) return [];
+    const orgId = ctx.user.organizationId!;
+
+    const rankingRows = await db.select({
+      id: rankings.id,
+      name: rankings.name,
+      status: rankings.status,
+      createdAt: rankings.createdAt,
+      closedAt: rankings.closedAt,
+      history: rankings.history,
+    }).from(rankings)
+      .where(eq(rankings.organizationId, orgId))
+      .orderBy(desc(rankings.createdAt))
+      .limit(15);
+
+    const badgeRows = await db.select({
+      id: studentAchievements.id,
+      badge: studentAchievements.badge,
+      title: studentAchievements.title,
+      studentName: students.name,
+      awardedAt: studentAchievements.awardedAt,
+    }).from(studentAchievements)
+      .leftJoin(students, eq(studentAchievements.studentId, students.id))
+      .where(eq(studentAchievements.organizationId, orgId))
+      .orderBy(desc(studentAchievements.awardedAt))
+      .limit(10);
+
+    const events: Array<{ type: string; title: string; description: string; at: string }> = [];
+    for (const r of rankingRows) {
+      if (r.status === 'encerrado') {
+        const winner = (r.history as any)?.podium?.[0];
+        events.push({
+          type: 'vencedor',
+          title: winner ? `${winner.name} conquistou o 1º lugar` : `Ranking encerrado`,
+          description: winner ? r.name : r.name,
+          at: (r.closedAt ?? r.createdAt).toISOString(),
+        });
+      } else if (r.status !== 'rascunho') {
+        events.push({
+          type: 'competicao',
+          title: `Nova competição criada`,
+          description: r.name,
+          at: new Date(r.createdAt).toISOString(),
+        });
+      }
+    }
+    for (const b of badgeRows) {
+      events.push({
+        type: 'conquista',
+        title: `${b.studentName ?? "Aluno"} — ${b.title}`,
+        description: 'Conquista desbloqueada',
+        at: new Date(b.awardedAt).toISOString(),
+      });
+    }
+
+    return events
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, 6);
+  }),
+
 });

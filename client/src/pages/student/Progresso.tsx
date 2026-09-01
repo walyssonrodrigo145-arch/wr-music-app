@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
   CheckCircle2, Award, Loader2, BookOpen,
   ChevronLeft, ChevronRight, CalendarDays, Music,
-  Timer, Guitar, PenTool, Star, Play,
+  Timer, Guitar, PenTool, Star, Play, Pause,
   Sparkles, Target
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -255,33 +255,123 @@ export default function StudentProgress() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const [isTraining, setIsTraining] = useState(false);
-  const [trainingSeconds, setTrainingSeconds] = useState(0);
+  const [sessionSeconds, setSessionSeconds] = useState(0);
+  const [runningAt, setRunningAt] = useState<number | null>(null);
+  const [, forceTick] = useState(0);
 
-  // Reset do dia e timer quando o plano muda
-  useEffect(() => { 
-    setSelectedDay(0); 
-    setIsTraining(false);
-    setTrainingSeconds(0);
-  }, [activePlan?.id]);
+  // ── CRONÔMETRO COM PAUSA/RETOMADA ──────────────────────────────────────────
+  // Antes: ao sair da plataforma o tempo era PERDIDO (estado em memória + interval
+  // morto no unmount). Agora: a sessão parcial é persistida em localStorage por
+  // plano+dia; ao sair (aba oculta/navegação) o treino é PAUSADO automaticamente
+  // e ao voltar o aluno retoma de onde parou, pausando/despausando à vontade.
+  const sessionKey = useCallback((planId: number, day: number) => `mp_training_${planId}_${day}`, []);
+  const totalSessionSeconds = sessionSeconds + (runningAt ? Math.floor((Date.now() - runningAt) / 1000) : 0);
 
-  // Reset do timer quando muda o dia
+  // Refs para acessar o tempo corrente em listeners/effects sem recriá-los
+  const totalRef = useRef(0);
+  totalRef.current = totalSessionSeconds;
+  const runningRef = useRef<number | null>(null);
+  runningRef.current = runningAt;
+  const planIdRef = useRef<number | null>(null);
+  planIdRef.current = activePlan?.id ?? null;
+  const dayRef = useRef(0);
+  dayRef.current = selectedDay;
+  const prevPlanIdRef = useRef<number | null>(null);
+
+  const persistSession = useCallback((planId: number | null, day: number, secs: number) => {
+    if (planId == null) return;
+    try {
+      if (secs > 0) localStorage.setItem(sessionKey(planId, day), String(secs));
+      else localStorage.removeItem(sessionKey(planId, day));
+    } catch { /* storage indisponível */ }
+  }, [sessionKey]);
+
+  // Carrega sessão salva ao abrir a página/trocar de dia; persiste a anterior na troca
   useEffect(() => {
-    setIsTraining(false);
-    setTrainingSeconds(0);
-  }, [selectedDay]);
+    const planId = activePlan?.id ?? null;
+    const day = selectedDay;
 
-  // Timer logic
-  useEffect(() => {
-    let interval: any;
-    if (isTraining) {
-      interval = setInterval(() => {
-        setTrainingSeconds(prev => prev + 1);
-      }, 1000);
-    } else {
-      clearInterval(interval);
+    // Plano trocou → volta para o dia 1 (comportamento original)
+    if (prevPlanIdRef.current !== null && prevPlanIdRef.current !== planId) {
+      setSelectedDay(0);
     }
+    prevPlanIdRef.current = planId;
+
+    setIsTraining(false);
+    setRunningAt(null);
+    let restored = 0;
+    if (planId != null) {
+      try {
+        const raw = localStorage.getItem(sessionKey(planId, day));
+        restored = raw ? Math.max(0, parseInt(raw, 10) || 0) : 0;
+      } catch { restored = 0; }
+    }
+    setSessionSeconds(restored);
+    // Dia já concluído: limpa resíduo de sessão
+    const completed = parseDaysCompleted(activePlan?.daysCompleted as string | undefined);
+    if (planId != null && completed[day] && restored > 0) {
+      try { localStorage.removeItem(sessionKey(planId, day)); } catch {}
+      setSessionSeconds(0);
+    }
+    // Cleanup (troca de dia/plano ou saída da página): persiste a sessão do
+    // plano/dia ANTERIOR usando os valores capturados no closure.
+    return () => {
+      if (planId != null && totalRef.current > 0) {
+        persistSession(planId, day, totalRef.current);
+      }
+    };
+  }, [activePlan?.id, selectedDay, sessionKey, persistSession]);
+
+  // Tick de render (1s) enquanto o treino está rodando
+  useEffect(() => {
+    if (!isTraining) return;
+    const interval = setInterval(() => forceTick((t) => t + 1), 1000);
     return () => clearInterval(interval);
   }, [isTraining]);
+
+  // Persistência periódica (5s) — protege contra crash/fechamento forçado do app
+  useEffect(() => {
+    if (!isTraining) return;
+    const interval = setInterval(() => {
+      const planId = planIdRef.current;
+      if (planId != null) persistSession(planId, dayRef.current, totalRef.current);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isTraining, persistSession]);
+
+  // PAUSA AUTOMÁTICA ao sair da plataforma (aba oculta / app em segundo plano)
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && runningRef.current != null) {
+        const total = totalRef.current;
+        setSessionSeconds(total);
+        setRunningAt(null);
+        setIsTraining(false);
+        persistSession(planIdRef.current, dayRef.current, total);
+      }
+    };
+    const onPageHide = () => {
+      if (planIdRef.current != null) persistSession(planIdRef.current, dayRef.current, totalRef.current);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [persistSession]);
+
+  const handlePauseTraining = () => {
+    setSessionSeconds(totalSessionSeconds);
+    setRunningAt(null);
+    setIsTraining(false);
+    persistSession(activePlan?.id ?? null, selectedDay, totalSessionSeconds);
+  };
+
+  const handleResumeTraining = () => {
+    setRunningAt(Date.now());
+    setIsTraining(true);
+  };
 
   const formatTime = (totalSeconds: number) => {
     const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -302,7 +392,7 @@ export default function StudentProgress() {
         const times = Array.isArray(parsedTime) ? parsedTime.map(Number) : [0, 0, 0, 0, 0];
 
         days[dayIndex] = true;
-        times[dayIndex] = trainingSeconds;
+        times[dayIndex] = totalRef.current;
 
         utils.progress.getActiveStudyPlan.setData(undefined, {
           ...prevData,
@@ -322,6 +412,10 @@ export default function StudentProgress() {
       utils.progress.getActiveStudyPlan.invalidate();
     },
     onSuccess: (data) => {
+      // Treino concluído: limpa a sessão parcial persistida
+      if (activePlan) persistSession(activePlan.id, selectedDay, 0);
+      setSessionSeconds(0);
+      setRunningAt(null);
       if (data.allCompleted) toast.success("Parabéns! Você gabaritou a semana! 🎉 Seu professor foi notificado!");
       else toast.success("Treino do dia atualizado!");
     },
@@ -353,13 +447,17 @@ export default function StudentProgress() {
 
   const handleStartTraining = () => {
     if (isPlanFinished || isCurrentDayCompleted) return;
-    setIsTraining(true);
+    // Continua de onde parou (sessão restaurada do localStorage) ou inicia do zero
+    handleResumeTraining();
   };
 
   const handleFinishTraining = () => {
     if (isPlanFinished || toggleDayMutation.isPending || !activePlan) return;
+    const total = totalSessionSeconds;
     setIsTraining(false);
-    toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: safeDayIndex, timeSpentSeconds: trainingSeconds });
+    setRunningAt(null);
+    setSessionSeconds(total);
+    toggleDayMutation.mutate({ planId: activePlan.id, dayIndex: safeDayIndex, timeSpentSeconds: total });
   };
 
   return (
@@ -493,33 +591,52 @@ export default function StudentProgress() {
                   </div>
                </div>
                
-               <Button 
-                  className={cn(
-                    "w-full h-12 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg",
-                    isCurrentDayCompleted
-                      ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
-                      : isTraining
-                        ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20"
-                        : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
-                  )}
-                  onClick={() => {
-                    if (isCurrentDayCompleted) return;
-                    if (isTraining) {
-                      handleFinishTraining();
-                    } else {
-                      handleStartTraining();
-                    }
-                  }}
-                  disabled={toggleDayMutation.isPending}
-               >
-                  {isCurrentDayCompleted ? (
+                {/* Cronômetro: rodando → PAUSAR + CONCLUIR; pausado com tempo → CONTINUAR + CONCLUIR */}
+                {isTraining ? (
+                  <div className="flex gap-2 w-full">
+                    <Button
+                      onClick={handlePauseTraining}
+                      title="Pausar treino"
+                      className="w-14 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black flex items-center justify-center shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+                    >
+                      <Pause size={16} />
+                    </Button>
+                    <Button 
+                      className="flex-1 h-12 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg bg-rose-500 hover:bg-rose-600 shadow-rose-500/20"
+                      onClick={handleFinishTraining}
+                      disabled={toggleDayMutation.isPending}
+                    >
+                      <Timer size={16} className="text-white" /> CONCLUIR TREINO ({formatTime(totalSessionSeconds)})
+                    </Button>
+                  </div>
+                ) : isCurrentDayCompleted ? (
+                  <Button 
+                     className="w-full h-12 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+                     disabled
+                  >
                     <><CheckCircle2 size={16} className="fill-emerald-100" /> TREINO CONCLUÍDO ({formatTime(daysTimeSpent[safeDayIndex])})</>
-                  ) : isTraining ? (
-                    <><Timer size={16} className="text-white" /> CONCLUIR TREINO ({formatTime(trainingSeconds)})</>
-                  ) : (
-                    <><Play size={16} className="fill-white" /> COMEÇAR TREINO</>
-                  )}
-               </Button>
+                  </Button>
+                ) : (
+                  <div className={cn("flex gap-2 w-full", totalSessionSeconds > 0 && "flex-col sm:flex-row")}>
+                    <Button 
+                       className="flex-1 h-12 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+                       onClick={handleStartTraining}
+                       disabled={toggleDayMutation.isPending}
+                    >
+                      <Play size={16} className="fill-white" /> {totalSessionSeconds > 0 ? `CONTINUAR TREINO (${formatTime(totalSessionSeconds)})` : "COMEÇAR TREINO"}
+                    </Button>
+                    {totalSessionSeconds > 0 && (
+                      <Button
+                        onClick={handleFinishTraining}
+                        disabled={toggleDayMutation.isPending}
+                        title="Concluir treino com o tempo acumulado"
+                        className="h-12 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                      >
+                        <CheckCircle2 size={15} /> CONCLUIR
+                      </Button>
+                    )}
+                  </div>
+                )}
             </div>
             
             {/* Exercícios List */}
