@@ -108,6 +108,19 @@ async function runAutomation() {
       debugLog("[Automation] Erro na geração automática de despesas fixas:", e);
     }
 
+    // PLANOS & BOLSAS (regra comercial): fatura de bolsa em atraso após o dia
+    // limite → aplica o VALOR CHEIO (ajuste direto na fatura, ou fatura
+    // complementar da diferença se já emitida em gateway). Idempotente.
+    try {
+      const { applyScholarshipLateFullValue } = await import("./services/BillingEngine");
+      const scholarship = await applyScholarshipLateFullValue();
+      if (scholarship.adjusted || scholarship.complements) {
+        debugLog(`[Automation] Valor cheio aplicado: ${scholarship.adjusted} fatura(s) ajustada(s), ${scholarship.complements} complemento(s).`);
+      }
+    } catch (e) {
+      debugLog("[Automation] Erro na regra de valor cheio das bolsas:", e);
+    }
+
   const activeSettings = await db
     .select({
       id: settings.id,

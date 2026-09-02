@@ -312,3 +312,135 @@ export class BillingEngine {
     cache.clear();
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLANOS & BOLSAS — regra comercial "atrasou → cobra valor cheio"
+//
+// Faturas em aberto de alunos com plano bolsista (isBolsa + valorCheio) que
+// cruzarem o dia limite do plano passam a valer o valor cheio:
+//  • Fatura SEM emissão em gateway (Asaas/MP) → o valor da própria fatura é
+//    ajustado para o valor cheio (originalAmount preserva o valor da bolsa);
+//  • Fatura JÁ EMITIDA em gateway → criada uma fatura COMPLEMENTAR da
+//    diferença (o link do gateway continua válido).
+// Idempotente: nada re-aplica enquanto `amount >= valorCheio` e o complemento
+// é dedup por (aluno, mês/ano, notes).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { and as _and, ne as _ne, inArray as _inArray, isNotNull as _isNotNull, sql as _sql, eq as _eq } from "drizzle-orm";
+import { schoolPlans, students as _students } from "../../drizzle/schema";
+
+export interface ScholarshipLateResult {
+  adjusted: number;
+  complements: number;
+}
+
+const SCHOLARSHIP_RUN_INTERVAL_MS = 10 * 60 * 1000; // guard: job roda a cada 1 min
+let _scholarshipLastRunAt = 0;
+
+export async function applyScholarshipLateFullValue(): Promise<ScholarshipLateResult> {
+  const result: ScholarshipLateResult = { adjusted: 0, complements: 0 };
+  const now = Date.now();
+  if (now - _scholarshipLastRunAt < SCHOLARSHIP_RUN_INTERVAL_MS) return result;
+  _scholarshipLastRunAt = now;
+
+  const db = await getDb();
+  if (!db) return result;
+
+  // 1. Planos bolsistas ativos com valor cheio definido
+  const plans = await db.select().from(schoolPlans)
+    .where(_and(_eq(schoolPlans.isBolsa, true), _eq(schoolPlans.ativo, true), _isNotNull(schoolPlans.valorCheio)));
+  const planById = new Map<number, (typeof plans)[number]>();
+  for (const p of plans) {
+    if (Number(p.valorCheio) > 0) planById.set(p.id, p);
+  }
+  const planIds = Array.from(planById.keys());
+  if (planIds.length === 0) return result;
+
+  // 2. Faturas em aberto de alunos vinculados a esses planos
+  const rows = await db.select({
+    id: paymentDues.id,
+    organizationId: paymentDues.organizationId,
+    userId: paymentDues.userId,
+    studentId: paymentDues.studentId,
+    amount: paymentDues.amount,
+    dueDate: paymentDues.dueDate,
+    month: paymentDues.month,
+    year: paymentDues.year,
+    notes: paymentDues.notes,
+    originalAmount: paymentDues.originalAmount,
+    asaasId: paymentDues.asaasId,
+    mpPaymentId: paymentDues.mpPaymentId,
+    schoolPlanId: _students.schoolPlanId,
+  }).from(paymentDues)
+    .innerJoin(_students, _eq(_students.id, paymentDues.studentId))
+    .where(_and(
+      _ne(paymentDues.status, 'pago'),
+      _isNotNull(paymentDues.organizationId),
+      _inArray(_students.schoolPlanId, planIds),
+    ));
+
+  // Hoje no fuso de Brasília (YYYY-MM-DD) — comparação de data como string
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
+  for (const row of rows) {
+    const plan = row.schoolPlanId != null ? planById.get(row.schoolPlanId) : undefined;
+    if (!plan || row.organizationId == null) continue;
+
+    const valorCheio = Number(plan.valorCheio);
+    const amountAtual = Number(row.amount);
+    if (!(valorCheio > amountAtual)) continue; // nada a aplicar (ou já aplicado)
+
+    // Dia limite aplicável: menor dia do plano >= dia de vencimento; senão o maior
+    const dueStr = String(row.dueDate).slice(0, 10);
+    const dueDay = parseInt(dueStr.slice(8, 10), 10);
+    const limites = (plan.diasLimite || "").split(",")
+      .map((d) => parseInt(d, 10))
+      .filter((d) => Number.isFinite(d) && d >= 1 && d <= 31);
+    if (limites.length === 0) continue;
+    const futuros = limites.filter((d) => d >= dueDay).sort((a, b) => a - b);
+    const limiteDia = futuros[0] ?? limites[limites.length - 1];
+    const limiteStr = `${dueStr.slice(0, 7)}-${String(limiteDia).padStart(2, "0")}`;
+
+    // Ainda no prazo → não aplica
+    if (todayStr <= limiteStr) continue;
+
+    if (row.asaasId || row.mpPaymentId) {
+      // ── Fatura já emitida em gateway: COMPLEMENTO da diferença (dedup) ──
+      const [dup] = await db.select({ id: paymentDues.id }).from(paymentDues)
+        .where(_and(
+          _eq(paymentDues.organizationId, row.organizationId),
+          _eq(paymentDues.studentId, row.studentId),
+          _eq(paymentDues.month, row.month),
+          _eq(paymentDues.year, row.year),
+          _sql`${paymentDues.notes} LIKE 'Complemento valor cheio%'`,
+        ))
+        .limit(1);
+      if (dup) continue;
+      await db.insert(paymentDues).values({
+        organizationId: row.organizationId,
+        userId: row.userId,
+        studentId: row.studentId,
+        amount: (valorCheio - amountAtual).toFixed(2),
+        dueDate: row.dueDate,
+        month: row.month,
+        year: row.year,
+        status: 'pendente' as const,
+        notes: `Complemento valor cheio — Plano ${plan.nome} (atraso após dia ${limiteDia})`,
+        billingPeriodicity: 'mensal',
+      });
+      result.complements++;
+    } else {
+      // ── Fatura apenas interna: ajusta o valor na própria fatura ──
+      if ((row.notes || "").includes("Valor cheio aplicado")) continue;
+      await db.update(paymentDues).set({
+        amount: valorCheio.toFixed(2),
+        originalAmount: row.originalAmount ?? amountAtual.toFixed(2),
+        notes: [row.notes, `Valor cheio aplicado (atraso após dia ${limiteDia})`].filter(Boolean).join(" • "),
+        updatedAt: new Date(),
+      }).where(_eq(paymentDues.id, row.id));
+      result.adjusted++;
+    }
+  }
+
+  return result;
+}
