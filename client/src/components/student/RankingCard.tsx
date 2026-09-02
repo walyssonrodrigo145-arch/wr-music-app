@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Trophy, TrendingUp, TrendingDown, Minus, Users, Loader2, Flame, X } from "lucide-react";
+import { ChallengesSection } from "@/components/student/ChallengesSection";
 
 // ─── Helpers visuais ───────────────────────────────────────────────────────────
 const MEDALS: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
@@ -54,6 +60,8 @@ export function RankingCard() {
 
   const featured = (myRankings || []).find((r: any) => r.status === "ativo")
     ?? (myRankings || []).find((r: any) => r.status === "encerrado");
+  const isActive = featured?.status === "ativo";
+  const ended = featured?.status === "encerrado";
 
   if (isLoading) {
     return (
@@ -61,14 +69,10 @@ export function RankingCard() {
     );
   }
 
-  // Estado: sem participação (PRD §4)
-  if (!featured) return null;
-
-  const isActive = featured.status === "ativo";
-  const ended = featured.status === "encerrado";
-
+  // Estado: sem participação no ranking — o card some, mas os DESAFIOS soltos continuam visíveis
   return (
     <>
+      {featured && (<>
       <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl rounded-[2rem] md:rounded-[2.5rem] overflow-hidden relative group">
         <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-amber-500/10 rounded-full blur-[70px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
         <CardContent className="p-6 md:p-8 relative z-10">
@@ -111,10 +115,14 @@ export function RankingCard() {
           </div>
         </CardContent>
       </Card>
+      </>)}
 
-      {modalRankingId && (
+      {featured && modalRankingId && (
         <RankingFullModal rankingId={modalRankingId} myRankings={myRankings || []} badges={badges as any[]} onClose={() => setModalRankingId(null)} />
       )}
+
+      {/* 🎯 DESAFIOS (PRD_RANKINGS §55): disponíveis mesmo sem ranking — seção autônoma */}
+      <ChallengesSection />
     </>
   );
 }
@@ -138,7 +146,7 @@ function RankingFullModal({ rankingId, myRankings, badges, onClose }: FullModalP
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto rounded-[2rem] md:rounded-[2.5rem] p-0 bg-background border-none shadow-2xl">
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto no-scrollbar rounded-[2rem] md:rounded-[2.5rem] p-0 bg-background border-none shadow-2xl">
         {/* Header (§5) */}
         <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/50 p-5 md:p-6 rounded-t-[2rem] md:rounded-t-[2.5rem]">
           <div className="flex items-start justify-between gap-3">

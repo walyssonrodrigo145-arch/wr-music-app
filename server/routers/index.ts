@@ -27,6 +27,7 @@ import { reportsRouters } from "./reportsRouters";
 import { aiRouters } from "./aiRouters";
 import { rankingsRouter } from "./rankingsRouter";
 import { schoolPlansRouter } from "./schoolPlansRouters";
+import { challengesRouter } from "./challengesRouters";
 
 export const appRouter = router({
   superAdmin: superAdminRouter,
@@ -56,6 +57,7 @@ export const appRouter = router({
   schoolAi: schoolAiRouter,
   rankings: rankingsRouter,
   schoolPlans: schoolPlansRouter,
+  challenges: challengesRouter,
 });
 
 export type AppRouter = typeof appRouter;

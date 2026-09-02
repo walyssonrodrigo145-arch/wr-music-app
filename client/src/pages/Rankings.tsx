@@ -42,6 +42,7 @@ import {
   TrendingUp,
   Sparkles,
 } from "lucide-react";
+import { ChallengesTab } from "@/components/rankings/ChallengesTab";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -180,6 +181,8 @@ export default function Rankings() {
   const [encerrarId, setEncerrarId] = useState<number | null>(null);
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [rewardsOpen, setRewardsOpen] = useState(false);
+  // Abas do módulo: Competições (rankings) | Desafios (§55)
+  const [moduleTab, setModuleTab] = useState<"competicoes" | "desafios">("competicoes");
 
   // Filtros do Top 5 — todos funcionais (Período/Turma/Instrumento)
   const [topMode, setTopMode] = useState<"geral" | number>("geral");
@@ -445,7 +448,28 @@ export default function Rankings() {
         </div>
       </div>
 
-      {showHistory ? (
+      {/* ═══ ABAS: Competições | Desafios (§55) ═══ */}
+      <div className="flex items-center gap-2 p-1.5 bg-card/60 backdrop-blur-md rounded-2xl border border-border/10 w-fit">
+        {[
+          { id: "competicoes", label: "Competições", icon: Trophy },
+          { id: "desafios", label: "Desafios", icon: Target },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setModuleTab(t.id as any)}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+              moduleTab === t.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <t.icon size={13} /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {moduleTab === "desafios" ? (
+        <ChallengesTab />
+      ) : showHistory ? (
         /* ═══ HISTÓRICO (§26) ═══ */
         <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-4">
           <motion.div variants={staggerItem} className="flex items-center justify-between px-1">

@@ -1530,6 +1530,50 @@ export const schoolPlans = pgTable("school_plans", {
 export type SchoolPlan = typeof schoolPlans.$inferSelect;
 export type InsertSchoolPlan = typeof schoolPlans.$inferInsert;
 
+// ── Desafios (PRD_RANKINGS §55 — critério "Desafios" do motor) ───────────────
+// Professor cria desafios para os alunos responderem; APROVAÇÃO OBRIGATÓRIA
+// para pontuar. Solto (rankingId null) aprovado → medalha no studentAchievements.
+// Vinculado a ranking aprovado → rankingScores (source 'desafio') → total do ranking.
+export const schoolChallenges = pgTable("school_challenges", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  userId: integer("userId").notNull(), // criador
+  titulo: varchar("titulo", { length: 160 }).notNull(),
+  descricao: text("descricao"),
+  tipo: varchar("tipo", { length: 20 }).notNull(), // performance | quiz | pratica | relampago | batalha | turma
+  pontos: integer("pontos").default(50).notNull(),
+  prazo: timestamp("prazo"), // null = sem prazo; relâmpago = janela curta
+  rankingId: integer("rankingId"), // null = desafio solto
+  turmaNome: varchar("turmaNome", { length: 120 }), // tipo turma
+  batalhaStudentA: integer("batalhaStudentA"), // tipo batalha
+  batalhaStudentB: integer("batalhaStudentB"),
+  quizQuestions: text("quizQuestions"), // JSON [{q, opts[], correct}]
+  praticaMinutos: integer("praticaMinutos"), // tipo pratica (meta informativa)
+  praticaDias: integer("praticaDias"),
+  status: varchar("status", { length: 20 }).default("ativa").notNull(), // ativa | encerrada
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+
+export const challengeResponses = pgTable("challenge_responses", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  challengeId: integer("challengeId").notNull(),
+  studentId: integer("studentId").notNull(),
+  respostaTexto: text("respostaTexto"),
+  fileUrl: text("fileUrl"), // mídia (performance) via storagePut
+  fileType: varchar("fileType", { length: 100 }),
+  respostasQuiz: text("respostasQuiz"), // JSON [{selecionou}] índice por pergunta
+  status: varchar("status", { length: 20 }).default("enviado").notNull(), // enviado | aprovado | reprovado
+  pontos: integer("pontos"),
+  feedback: text("feedback"),
+  avaliadoBy: integer("avaliadoBy"),
+  avaliadoAt: timestamp("avaliadoAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type SchoolChallenge = typeof schoolChallenges.$inferSelect;
+export type ChallengeResponse = typeof challengeResponses.$inferSelect;
+
 // ── Memória Pedagógica Contínua da IA (Opção 4) ──────────────────────────────
 export const studentPedagogicalMemory = pgTable("student_pedagogical_memory", {
   id: serial("id").primaryKey(),

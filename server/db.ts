@@ -207,6 +207,48 @@ async function ensureSchemaConsistency(db: any) {
       )
     `);
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "schoolPlanId" integer`);
+
+    // Desafios (PRD_RANKINGS §55)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "school_challenges" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer NOT NULL,
+        "userId" integer NOT NULL,
+        "titulo" varchar(160) NOT NULL,
+        "descricao" text,
+        "tipo" varchar(20) NOT NULL,
+        "pontos" integer DEFAULT 50 NOT NULL,
+        "prazo" timestamp,
+        "rankingId" integer,
+        "turmaNome" varchar(120),
+        "batalhaStudentA" integer,
+        "batalhaStudentB" integer,
+        "quizQuestions" text,
+        "praticaMinutos" integer,
+        "praticaDias" integer,
+        "status" varchar(20) DEFAULT 'ativa' NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "challenge_responses" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer NOT NULL,
+        "challengeId" integer NOT NULL,
+        "studentId" integer NOT NULL,
+        "respostaTexto" text,
+        "fileUrl" text,
+        "fileType" varchar(100),
+        "respostasQuiz" text,
+        "status" varchar(20) DEFAULT 'enviado' NOT NULL,
+        "pontos" integer,
+        "feedback" text,
+        "avaliadoBy" integer,
+        "avaliadoAt" timestamp,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
     
     // message_automation_rules table
     await db.execute(sql`
