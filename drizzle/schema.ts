@@ -154,6 +154,7 @@ export const students = pgTable("students", {
   monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }).default("0.00").notNull(),
   billingPeriodicity: varchar("billingPeriodicity", { length: 20 }).default("mensal").notNull(),
   dueDay: integer("dueDay").default(10).notNull(),
+  schoolPlanId: integer("schoolPlanId"), // Catálogo de Planos & Bolsas da escola
   lessonType: lessonTypeEnum("lessonType").default("individual").notNull(),
   onlineMeetingLink: text("onlineMeetingLink"),
   startDate: date("startDate"),
@@ -1505,6 +1506,29 @@ export const enrollmentLinks = pgTable("enrollment_links", {
   expiresAt: timestamp("expiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
+// ── Catálogo de Planos & Bolsas da Escola (comercial) ────────────────────────
+// Genérico e multi-tenant: cada escola configura suas próprias bolsas/planos
+// (ex.: 1ª Bolsa 12x R$ 180, taxa R$ 60, dias limite 10/20, valor cheio R$ 300).
+// A duração (duracaoMeses) define o prazo; isBolsa=false = plano valor cheio.
+export const schoolPlans = pgTable("school_plans", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  nome: varchar("nome", { length: 120 }).notNull(),
+  aulasPorSemana: integer("aulasPorSemana").default(1).notNull(),
+  duracaoMeses: integer("duracaoMeses").default(1).notNull(), // 12 | 6 | 3 | 1...
+  isBolsa: boolean("isBolsa").default(true).notNull(), // false = valor cheio
+  valorMensal: decimal("valorMensal", { precision: 10, scale: 2 }).notNull(),
+  valorCheio: decimal("valorCheio", { precision: 10, scale: 2 }), // regra de atraso (futuro)
+  taxaInscricao: decimal("taxaInscricao", { precision: 10, scale: 2 }).default("0").notNull(),
+  diasLimite: varchar("diasLimite", { length: 20 }).default("10,20").notNull(), // CSV
+  descricao: text("descricao"),
+  ativo: boolean("ativo").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+});
+export type SchoolPlan = typeof schoolPlans.$inferSelect;
+export type InsertSchoolPlan = typeof schoolPlans.$inferInsert;
 
 // ── Memória Pedagógica Contínua da IA (Opção 4) ──────────────────────────────
 export const studentPedagogicalMemory = pgTable("student_pedagogical_memory", {

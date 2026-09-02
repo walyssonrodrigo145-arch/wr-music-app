@@ -19,7 +19,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, schoolPlans, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -92,6 +92,7 @@ export const studentsRouters = {
         monthlyFee: students.monthlyFee,
         billingPeriodicity: students.billingPeriodicity,
         dueDay: students.dueDay,
+        schoolPlanId: students.schoolPlanId,
         lessonType: students.lessonType,
         notes: students.notes,
         startDate: students.startDate,
@@ -443,6 +444,7 @@ export const studentsRouters = {
       }).default(0),
       billingPeriodicity: z.enum(['mensal','bimestral','trimestral','semestral','anual']).default('mensal'),
       dueDay: z.number().default(15),
+      schoolPlanId: z.number().nullable().optional(),
       lessonType: z.enum(['individual','turma','online']).default('individual'),
       onlineMeetingLink: z.string().url().optional().nullable(),
       notes: z.string().optional(),
@@ -482,6 +484,13 @@ export const studentsRouters = {
 
         // 1. Criar o Aluno primeiro para ter o ID
         const newStudentId = await db.transaction(async (tx) => {
+          // PLANOS & BOLSAS: valida que o plano pertence à organização (integridade)
+          if (input.schoolPlanId != null) {
+            const [planExists] = await db.select({ id: schoolPlans.id }).from(schoolPlans)
+              .where(and(eq(schoolPlans.id, input.schoolPlanId), eq(schoolPlans.organizationId, orgId)))
+              .limit(1);
+            if (!planExists) throw new TRPCError({ code: "BAD_REQUEST", message: "Plano selecionado não existe nesta escola." });
+          }
           const [newStudent] = await tx.insert(students).values({
             organizationId: orgId,
             userId: ctx.user.id,
@@ -504,6 +513,7 @@ export const studentsRouters = {
             monthlyFee: String(input.monthlyFee),
             billingPeriodicity: input.billingPeriodicity || 'mensal',
             dueDay: input.dueDay,
+            schoolPlanId: input.schoolPlanId || null,
             lessonType: input.lessonType,
             onlineMeetingLink: input.onlineMeetingLink || undefined,
             startDate: input.startDate || new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
@@ -645,6 +655,7 @@ export const studentsRouters = {
       avatar: z.string().optional(),
       allowAutoReminders: z.boolean().optional(),
       studioRoomId: z.number().optional().nullable(),
+      schoolPlanId: z.number().nullable().optional(),
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();
@@ -673,6 +684,14 @@ export const studentsRouters = {
 
         const [existing] = await db.select().from(students).where(condition).limit(1);
         if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "Aluno não encontrado ou sem permissão" });
+
+        // PLANOS & BOLSAS: valida que o plano pertence à organização (integridade)
+        if (input.schoolPlanId != null) {
+          const [planExists] = await db.select({ id: schoolPlans.id }).from(schoolPlans)
+            .where(and(eq(schoolPlans.id, input.schoolPlanId), eq(schoolPlans.organizationId, orgId)))
+            .limit(1);
+          if (!planExists) throw new TRPCError({ code: "BAD_REQUEST", message: "Plano selecionado não existe nesta escola." });
+        }
 
         // --- Verificação de limite de plano na reativação ---
         if (updateData.status === 'ativo' && existing.status !== 'ativo') {

@@ -186,6 +186,27 @@ async function ensureSchemaConsistency(db: any) {
         "createdAt" timestamp DEFAULT now() NOT NULL
       )
     `);
+
+    // school_plans + students.schoolPlanId (Catálogo de Planos & Bolsas da Escola)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "school_plans" (
+        "id" serial PRIMARY KEY,
+        "organizationId" integer NOT NULL,
+        "nome" varchar(120) NOT NULL,
+        "aulasPorSemana" integer DEFAULT 1 NOT NULL,
+        "duracaoMeses" integer DEFAULT 1 NOT NULL,
+        "isBolsa" boolean DEFAULT true NOT NULL,
+        "valorMensal" numeric(10, 2) NOT NULL,
+        "valorCheio" numeric(10, 2),
+        "taxaInscricao" numeric(10, 2) DEFAULT 0 NOT NULL,
+        "diasLimite" varchar(20) DEFAULT '10,20' NOT NULL,
+        "descricao" text,
+        "ativo" boolean DEFAULT true NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+    await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "schoolPlanId" integer`);
     
     // message_automation_rules table
     await db.execute(sql`

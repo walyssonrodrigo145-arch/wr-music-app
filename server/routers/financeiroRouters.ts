@@ -607,6 +607,10 @@ export const financeiroRouters = {
         startYear: z.number(),
         monthsCount: z.number().min(1).max(12),
         notes: z.string().optional(),
+        // PLANOS & BOLSAS: valor extra (ex.: taxa de inscrição) somado SOMENTE à
+        // 1ª fatura (regra de negócio: taxa paga junto com a 1ª mensalidade).
+        firstMonthExtraAmount: z.number().min(0).optional(),
+        firstMonthExtraNotes: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -636,16 +640,23 @@ export const financeiroRouters = {
             )).limit(1);
           if (existing.length > 0) continue; // pular duplicados
 
+          const isFirstMonth = month === input.startMonth && y === input.startYear;
+          const extra = isFirstMonth && input.firstMonthExtraAmount ? input.firstMonthExtraAmount : 0;
+          const totalAmount = input.amount + extra;
+          const notes = isFirstMonth && extra > 0 && input.firstMonthExtraNotes
+            ? [input.notes, input.firstMonthExtraNotes].filter(Boolean).join(" • ")
+            : (input.notes ?? null);
+
           rows.push({
             organizationId: orgId,
             userId: ctx.user.id,
             studentId: input.studentId,
-            amount: input.amount.toFixed(2),
+            amount: totalAmount.toFixed(2),
             dueDate: d.dueDateISO,
             month,
             year: y,
             status: 'pendente' as const,
-            notes: input.notes ?? null,
+            notes,
             billingPeriodicity: periodicity,
           });
         }

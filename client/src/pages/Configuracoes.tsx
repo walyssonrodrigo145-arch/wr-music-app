@@ -20,7 +20,7 @@ import {
   Sun, Moon, Phone, Mail,
   CheckCircle2, Loader2, Smartphone, Wallet, Sparkles, HelpCircle,
   FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, Upload, Trash2, Image,
-  FileSignature, AlertTriangle, FlaskConical
+  FileSignature, AlertTriangle, FlaskConical, GraduationCap
 } from "lucide-react";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
@@ -36,14 +36,16 @@ import { DueDaysSelector } from "@/components/financeiro/DueDaysSelector";
 import { AssinafyIntegrationCard } from "@/components/integrations/AssinafyIntegrationCard";
 import { ModelosContratoTab } from "@/components/integrations/ModelosContratoTab";
 import { ConfigFiscalTab } from "@/components/fiscal/ConfigFiscalTab";
+import { PlanosBolsas } from "@/components/settings/PlanosBolsas";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
+type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
+  { id: "planos", label: "Planos & Bolsas", icon: GraduationCap },
   { id: "professores", label: "Professores", icon: Users },
   { id: "modelos_contrato", label: "Modelos de Contrato", icon: FileSignature },
   { id: "notificacoes", label: "Notificações", icon: Bell },
@@ -1076,6 +1078,12 @@ export default function Configuracoes() {
             )}
 
             {/* ── ABA: FINANCEIRO (JUROS E MULTAS) ── */}
+            {activeTab === "planos" && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <PlanosBolsas />
+              </div>
+            )}
+
             {activeTab === "financeiro" && (
               <div className="space-y-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

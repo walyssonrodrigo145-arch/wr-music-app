@@ -186,6 +186,7 @@ export default function NovoAluno() {
     allowAutoReminders: true,
     generateMonthly: false,
     monthsCount: 3,
+    schoolPlanId: null as number | null,
   });
 
   // Pre-populate form when editing
@@ -221,6 +222,7 @@ export default function NovoAluno() {
         allowAutoReminders: (studentData as any).allowAutoReminders ?? true,
         generateMonthly: false,
         monthsCount: 3,
+        schoolPlanId: (studentData as any).schoolPlanId ?? null,
       });
 
       const bd = (studentData as any).birthDate;
@@ -300,6 +302,10 @@ export default function NovoAluno() {
     }
   };
 
+  // ─── PLANOS & BOLSAS: catálogo da escola (preenche valores automaticamente) ──
+  const { data: schoolPlans = [] } = trpc.schoolPlans.list.useQuery({ somenteAtivos: true });
+  const selectedPlan = (schoolPlans as any[]).find((p) => p.id === form.schoolPlanId) ?? null;
+
   const generateMonthlyMutation = trpc.paymentDues.generateMonthly.useMutation({
     onSuccess: (data) => {
       utils.paymentDues.list.invalidate();
@@ -325,6 +331,11 @@ export default function NovoAluno() {
           startMonth: now.getMonth() + 1,
           startYear: now.getFullYear(),
           monthsCount: form.monthsCount,
+          // Taxa de inscrição do plano: paga junto com a 1ª mensalidade
+          ...(selectedPlan && Number(selectedPlan.taxaInscricao) > 0 ? {
+            firstMonthExtraAmount: Number(selectedPlan.taxaInscricao),
+            firstMonthExtraNotes: `Inclui Taxa de Inscrição — ${selectedPlan.nome}`,
+          } : {}),
         });
       }
       setLocation("/alunos");
@@ -502,6 +513,7 @@ export default function NovoAluno() {
           monthlyFee: parseBRL(form.monthlyFee),
           billingPeriodicity: form.billingPeriodicity as any,
           dueDay: form.dueDay ? Number(form.dueDay) : 10,
+          schoolPlanId: form.schoolPlanId ?? undefined,
           lessonType: form.lessonType as any,
           onlineMeetingLink: form.onlineMeetingLink || undefined,
           guardianName: form.guardianName.trim() || undefined,
@@ -741,6 +753,7 @@ export default function NovoAluno() {
       monthlyFee: parseBRL(form.monthlyFee),
       billingPeriodicity: form.billingPeriodicity as any,
       dueDay: Number(form.dueDay) || 10,
+      schoolPlanId: form.schoolPlanId ?? undefined,
       lessonType: form.lessonType as any,
       onlineMeetingLink: form.onlineMeetingLink?.trim() || undefined,
       startDate: form.startDate,
@@ -1583,6 +1596,67 @@ export default function NovoAluno() {
                     </div>
                   )}
                 </div>
+
+                {/* PLANOS & BOLSAS: catálogo da escola (somente no cadastro) */}
+                {!isEditMode && schoolPlans.length > 0 && (
+                  <div className="mt-6 p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 space-y-3">
+                    <div>
+                      <p className="text-sm font-bold text-foreground flex items-center gap-1.5"><GraduationCap size={15} className="text-emerald-600" /> Planos &amp; Bolsas</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Escolha um plano para preencher automaticamente mensalidade, duração e taxa de inscrição.</p>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, schoolPlanId: null }))}
+                        className={cn(
+                          "flex-none w-44 p-3.5 rounded-2xl border text-left transition-all active:scale-[0.98]",
+                          form.schoolPlanId == null ? "bg-primary/10 border-primary/40 shadow-lg" : "bg-card border-border hover:border-primary/30"
+                        )}
+                      >
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Sem plano</p>
+                        <p className="text-sm font-black text-foreground mt-1">Valor livre</p>
+                        <p className="text-[10px] font-bold text-muted-foreground mt-0.5">Preencher manualmente</p>
+                      </button>
+                      {(schoolPlans as any[]).map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setForm(prev => ({
+                            ...prev,
+                            schoolPlanId: p.id,
+                            monthlyFee: String(Number(p.valorMensal)),
+                            monthsCount: Math.min(12, p.duracaoMeses || 1),
+                            dueDay: String((p.diasLimite || "10,20").split(",")[0]),
+                          }))}
+                          className={cn(
+                            "flex-none w-52 p-3.5 rounded-2xl border text-left transition-all active:scale-[0.98] relative",
+                            form.schoolPlanId === p.id ? "bg-emerald-500/10 border-emerald-500/40 shadow-lg" : "bg-card border-border hover:border-emerald-500/30"
+                          )}
+                        >
+                          {form.schoolPlanId === p.id && (
+                            <Check size={14} className="absolute top-2.5 right-2.5 text-emerald-600" />
+                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest">
+                              {p.isBolsa ? "Bolsa" : "Valor cheio"} • {p.duracaoMeses > 1 ? `${p.duracaoMeses}x` : "mensal"}
+                            </span>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">{p.aulasPorSemana}x/semana</span>
+                          </div>
+                          <p className="text-sm font-black text-foreground truncate">{p.nome}</p>
+                          <p className="text-sm font-black text-primary mt-0.5">
+                            R$ {Number(p.valorMensal).toFixed(2).replace(".", ",")}
+                            {Number(p.taxaInscricao) > 0 && <span className="text-[10px] font-bold text-amber-600"> + R$ {Number(p.taxaInscricao).toFixed(2).replace(".", ",")} taxa</span>}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                    {selectedPlan && Number(selectedPlan.taxaInscricao) > 0 && form.generateMonthly && (
+                      <p className="text-[11px] font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+                        1ª fatura: R$ {parseBRL(form.monthlyFee).toFixed(2).replace(".", ",")} + R$ {Number(selectedPlan.taxaInscricao).toFixed(2).replace(".", ",")} (taxa de inscrição) = R$ {(parseBRL(form.monthlyFee) + Number(selectedPlan.taxaInscricao)).toFixed(2).replace(".", ",")}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Geração automática de mensalidades (somente no cadastro) */}
                 {!isEditMode && (
