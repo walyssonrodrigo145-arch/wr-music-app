@@ -1220,7 +1220,15 @@ export async function upsertUser(user: InsertUser, maxRetries = 3): Promise<void
         const [newOrg] = await db.insert(organizations).values({
           name: newOrgName,
           slug: `${slugBase}-${Date.now()}`,
-          subscriptionStatus: "active",
+          // FIX BILLING: escola auto-criada no login entra em TRIAL de 7 dias
+          // (não mais "active" de graça) — após o trial, o funil de assinatura
+          // da plataforma (checkout Asaas → webhook) faz a cobrança do MusicPro.
+          subscriptionStatus: "trialing",
+          trialEndsAt: (() => {
+            const t = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            t.setHours(23, 59, 59, 999);
+            return t;
+          })(),
           createdAt: new Date(),
         }).returning();
         targetOrgId = newOrg.id;

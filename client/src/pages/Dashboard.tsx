@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { PlanSelectionModal } from "@/components/PlanSelectionModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -218,6 +219,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
+      {/* 🚀 Escolha de planos para escolas em trial (ex.: contas criadas via login Google) */}
+      <PlanSelectionModal />
       
       {/* ── Metrics Grid ── */}
       <div id="tour-dashboard-stats" className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
