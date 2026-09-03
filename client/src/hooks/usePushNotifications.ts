@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { requestForToken, onMessageListener } from "../lib/firebaseConfig";
+import { requestForToken, onForegroundPush, isPushSupported } from "../lib/firebaseConfig";
 import { trpc } from "../lib/trpc";
 import { toast } from "sonner";
 
@@ -9,12 +9,12 @@ export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof Notification !== "undefined" ? Notification.permission : "default"
   );
-  
-  const registerToken = trpc.fcm.registerToken.useMutation();
-  const cleanAndRegisterToken = trpc.fcm.cleanAndRegisterToken.useMutation();
-  const isSupported = typeof Notification !== "undefined";
 
-  /** Solicita permissão ao usuário e cadastra o Token no backend FCM */
+  const registerToken = trpc.fcm.registerToken.useMutation();
+  // Suporte real: Notification + ServiceWorker + PushManager; iOS exige PWA instalada
+  const isSupported = isPushSupported();
+
+  /** Solicita permissão ao usuário e registra a subscrição Web Push (VAPID) no backend */
   const requestPermission = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
     if (!isSupported) {
@@ -45,13 +45,13 @@ export function usePushNotifications() {
         });
     });
     setPermission(result);
-    
+
     if (result === "granted") {
       let token: string | null = null;
       try {
         token = await requestForToken();
       } catch (err: any) {
-        console.error("Erro ao obter Token FCM:", err);
+        console.error("Erro ao obter subscrição Web Push:", err);
         const detail = err?.message || err?.code || String(err);
         if (!silent) {
           toast.error(`Falha ao registrar dispositivo: ${detail}`);
@@ -61,23 +61,23 @@ export function usePushNotifications() {
 
       if (token) {
         try {
-          console.log("Registrando token no backend...");
-          await cleanAndRegisterToken.mutateAsync({
+          console.log("Registrando subscrição no backend...");
+          await registerToken.mutateAsync({
             token,
             deviceInfo: navigator.userAgent
           });
           if (!silent) {
-            toast.success("Celular sincronizado para receber notificações!");
+            toast.success("Notificações ativadas neste dispositivo!");
           }
         } catch (err: any) {
-          console.error("Erro ao salvar token no backend:", err);
+          console.error("Erro ao salvar subscrição no backend:", err);
           if (!silent) {
             toast.error("Servidor indisponível ao salvar token: " + (err.message || "Erro de conexão"));
           }
         }
       } else {
         if (!silent) {
-          toast.error("Token FCM não gerado. Verifique se as notificações estão PERMITIDAS nas configurações do navegador e tente novamente.");
+          toast.error("Não foi possível gerar a subscrição. Verifique se as notificações estão PERMITIDAS nas configurações do navegador e tente novamente.");
         }
       }
     } else if (result === "denied") {
@@ -130,26 +130,16 @@ export function usePushNotifications() {
     }
   }, [isSupported]);
 
-  /** Escuta notificações FCM no Foreground (Aba aberta) */
-
+  /** Escuta pushes recebidos em Foreground (aba focada) — o SW repassa via postMessage */
   useEffect(() => {
-    let mounted = true;
-    const listenToMessages = async () => {
-      try {
-        const payload: any = await onMessageListener();
-        if (mounted && payload?.notification) {
-          toast(payload.notification.title, {
-            description: payload.notification.body,
-          });
-          listenToMessages(); // Escuta a próxima mensagem
-        }
-      } catch (err) {
-         console.error('Falha ao escutar mensagens do FCM:', err);
+    const off = onForegroundPush((payload: any) => {
+      if (payload?.notification?.title || payload?.title) {
+        toast(payload.notification?.title || payload.title, {
+          description: payload.notification?.body || payload.body,
+        });
       }
-    };
-    
-    listenToMessages();
-    return () => { mounted = false; };
+    });
+    return off;
   }, []);
 
   return { permission, isSupported, requestPermission, showNotification };

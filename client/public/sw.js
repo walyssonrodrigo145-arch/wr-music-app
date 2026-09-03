@@ -1,13 +1,14 @@
-// WR MusicPro Service Worker — v6 Forense (2026-08-05)
-// SW unificado com instrumentação forense completa para WebPush e FCM
+// WR MusicPro Service Worker — v7 Web Push VAPID (PRD_PUSH_VAPID_001, 2026-09-02)
+// Push nativo (RFC 8292) como caminho primário — sem SDK/config do Firebase.
+// Aba focada: suprime a notificação do SO e repassa o payload via postMessage (toast in-app).
 
 function logSWEvent(eventName, data, startTime = null) {
   const duration = startTime ? `${(performance.now() - startTime).toFixed(2)}ms` : 'N/A';
   const timestamp = new Date().toISOString();
-  console.log(`[SW-FORENSIC][${timestamp}][${eventName}][Duration: ${duration}]`, data || '');
+  console.log(`[SW][${timestamp}][${eventName}][Duration: ${duration}]`, data || '');
 }
 
-// ─── Eventos de Ciclo de Vida do SW (Etapa 4) ──────────────────────────────────
+// ─── Eventos de Ciclo de Vida do SW ──────────────────────────────────────────
 self.addEventListener('install', (event) => {
   const start = performance.now();
   logSWEvent('install', { scope: self.registration?.scope });
@@ -50,58 +51,8 @@ self.addEventListener('sync', (event) => {
   logSWEvent('sync', { tag: event.tag });
 });
 
-// ─── Firebase Messaging (FCM background push) ───────────────────────────────
-importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js');
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAe_q-DK_wvORnjtd5Fhfj2RhdQgHYFgqc",
-  authDomain: "music-novo.firebaseapp.com",
-  projectId: "music-novo",
-  storageBucket: "music-novo.firebasestorage.app",
-  messagingSenderId: "491750077201",
-  appId: "1:491750077201:web:5d5aa167a714330cf452b0"
-};
-
-let firebaseMessaging = null;
-
-try {
-  if (typeof firebase !== 'undefined') {
-    if (!firebase.apps.length) {
-      logSWEvent('firebase_initializeApp_start', firebaseConfig);
-      firebase.initializeApp(firebaseConfig);
-      logSWEvent('firebase_initializeApp_success', null);
-    }
-    if (firebase.messaging && firebase.messaging.isSupported()) {
-      firebaseMessaging = firebase.messaging();
-      logSWEvent('firebase_getMessaging_success', null);
-      firebaseMessaging.onBackgroundMessage((payload) => {
-        logSWEvent('fcm_background_message_received', payload);
-        const notificationTitle = payload.notification?.title || payload.data?.title || 'WR MusicPro';
-        const notificationBody = payload.notification?.body || payload.data?.body || 'Você tem um novo aviso.';
-        const notificationOptions = {
-          body: notificationBody,
-          icon: '/icon-192.png',
-          badge: '/icon-badge.png',
-          data: {
-            url: payload.fcmOptions?.link || payload.data?.url || '/',
-            ...payload.data
-          },
-          vibrate: [300, 100, 300, 100, 300],
-          requireInteraction: true,
-          renotify: true,
-          tag: 'wr-music-fcm-' + Date.now()
-        };
-        return self.registration.showNotification(notificationTitle, notificationOptions);
-      });
-    }
-  }
-} catch (err) {
-  logSWEvent('firebase_init_error', { error: err.message, stack: err.stack });
-}
-
 // ─── PWA Cache ───────────────────────────────────────────────────────────────
-const CACHE_NAME = 'wr-music-cache-v8';
+const CACHE_NAME = 'wr-music-cache-v9';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -118,12 +69,9 @@ self.addEventListener('fetch', (event) => {
     url.startsWith('chrome-extension') ||
     url.includes('googleapis.com') ||
     url.includes('gstatic.com') ||
-    url.includes('firebaseio.com') ||
-    url.includes('firebaseapp.com') ||
-    url.includes('firebase.com') ||
     url.includes('google.com')
   ) {
-    logSWEvent('fetch_bypassed_google_api', { url, method: event.request.method });
+    logSWEvent('fetch_bypassed_api', { url, method: event.request.method });
     return;
   }
 
@@ -139,37 +87,57 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ─── Push nativo (fallback/monitoramento forense) ────────────────────────────
+// ─── Push nativo (Web Push VAPID — caminho primário) ─────────────────────────
 self.addEventListener('push', (event) => {
   const start = performance.now();
   logSWEvent('push_raw_event_received', { hasData: !!event.data });
 
   if (!event.data) return;
+
+  let data = {};
   try {
-    const data = event.data.json();
+    data = event.data.json();
     logSWEvent('push_payload_parsed', data);
-    if (firebaseMessaging) {
-      logSWEvent('push_handled_by_firebase_compat', null);
-      return;
+  } catch (e) {
+    logSWEvent('push_event_error', { error: e.message, stack: e.stack }, start);
+    data = {};
+  }
+
+  event.waitUntil((async () => {
+    // Supressão em foreground (CA-003): aba visível não exibe notificação do SO;
+    // o payload é repassado à página via postMessage (toast in-app).
+    try {
+      const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const focused = clientList.find((c) => c.visibilityState === 'visible');
+      if (focused) {
+        logSWEvent('foreground_suppressed_postMessage', null, start);
+        focused.postMessage({ type: 'push-received', payload: data });
+        return;
+      }
+    } catch (e) {
+      logSWEvent('foreground_check_error', { error: e.message }, start);
     }
+
     const title = data.notification?.title || data.title || 'WR MusicPro 🎵';
     const options = {
       body: data.notification?.body || data.body || 'Você tem um novo aviso.',
-      icon: '/icon-192.png',
-      badge: '/icon-badge.png',
-      data: { url: data.fcmOptions?.link || data.url || '/', ...data },
+      icon: data.notification?.icon || '/icon-192.png',
+      badge: data.notification?.badge || '/icon-badge.png',
+      data: {
+        url: data.data?.url || data.fcmOptions?.link || data.url || '/',
+        ...data
+      },
       vibrate: [300, 100, 300],
       requireInteraction: true,
       tag: 'wr-music-push-' + Date.now()
     };
-    event.waitUntil(
-      self.registration.showNotification(title, options)
-        .then(() => logSWEvent('showNotification_success', null, start))
-        .catch((err) => logSWEvent('showNotification_error', { error: err.message, stack: err.stack }, start))
-    );
-  } catch (e) {
-    logSWEvent('push_event_error', { error: e.message, stack: e.stack }, start);
-  }
+    try {
+      await self.registration.showNotification(title, options);
+      logSWEvent('showNotification_success', null, start);
+    } catch (err) {
+      logSWEvent('showNotification_error', { error: err.message, stack: err.stack }, start);
+    }
+  })());
 });
 
 // ─── Eventos de Notificação ──────────────────────────────────────────────────
@@ -190,4 +158,3 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('notificationclose', (event) => {
   logSWEvent('notificationclose', { title: event.notification?.title, tag: event.notification?.tag });
 });
-

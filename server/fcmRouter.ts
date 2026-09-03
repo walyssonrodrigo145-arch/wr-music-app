@@ -3,8 +3,10 @@ import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
 import { fcmTokens } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, notLike } from "drizzle-orm";
 import { sendPushNotification, messaging as firebaseMessaging } from "./firebaseAdmin";
+import { isVapidSubscription, parseSubscription, isVapidConfigured } from "./pushService";
+import { ENV } from "./_core/env";
 
 export const fcmRouter = router({
   registerToken: protectedProcedure.input(z.object({
@@ -13,11 +15,24 @@ export const fcmRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
-    
+
+    // Subscrição VAPID deve ser um JSON válido {endpoint, keys}
+    if (isVapidSubscription(input.token) && !parseSubscription(input.token)) {
+      throw new Error("Subscrição de push inválida. Tente reativar as notificações.");
+    }
+
     const orgId = ctx.user.organizationId!;
-    
+    const isVapid = isVapidSubscription(input.token);
+
+    // RF-005 (dedup de migração): ao registrar uma subscrição VAPID deste usuário,
+    // remove tokens FCM legados (dispositivos migram no próximo acesso).
+    if (isVapid) {
+      await db.delete(fcmTokens)
+        .where(and(eq(fcmTokens.userId, ctx.user.id), notLike(fcmTokens.token, "{%")));
+    }
+
     const [existing] = await db.select().from(fcmTokens).where(eq(fcmTokens.token, input.token));
-    
+
     if (existing) {
       if (existing.userId !== ctx.user.id) {
          await db.update(fcmTokens)
@@ -26,53 +41,60 @@ export const fcmRouter = router({
       }
       return { success: true, message: "Dispositivo já cadastrado!" };
     }
-    
+
     await db.insert(fcmTokens).values({
       organizationId: orgId,
       userId: ctx.user.id,
       token: input.token,
-      deviceInfo: input.deviceInfo || "Navegador Web",
+      deviceInfo: input.deviceInfo || (isVapid ? "Navegador Web (VAPID)" : "Navegador Web"),
     });
-    
+
     return { success: true, message: "Novo dispositivo registrado com sucesso!" };
   }),
 
-  // Deleta todos os tokens antigos do usuário e grava/atualiza o atual com ON CONFLICT
+  // RF-004/RN-001: SEM delete-all — cada dispositivo mantém sua própria subscrição.
+  // Upsert idempotente do dispositivo atual com ON CONFLICT no token único.
   cleanAndRegisterToken: protectedProcedure.input(z.object({
     token: z.string(),
     deviceInfo: z.string().optional(),
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
-    
+
+    if (isVapidSubscription(input.token) && !parseSubscription(input.token)) {
+      throw new Error("Subscrição de push inválida. Tente reativar as notificações.");
+    }
+
     const orgId = ctx.user.organizationId!;
-    
-    // 1. Remove todos os tokens anteriores associados a este usuário
-    await db.delete(fcmTokens).where(eq(fcmTokens.userId, ctx.user.id));
-    
-    // 2. Insere/Atualiza com tratamento de conflito de token único
+    const isVapid = isVapidSubscription(input.token);
+
+    if (isVapid) {
+      await db.delete(fcmTokens)
+        .where(and(eq(fcmTokens.userId, ctx.user.id), notLike(fcmTokens.token, "{%")));
+    }
+
     await db.insert(fcmTokens)
       .values({
         organizationId: orgId,
         userId: ctx.user.id,
         token: input.token,
-        deviceInfo: input.deviceInfo || "Dispositivo Principal",
+        deviceInfo: input.deviceInfo || "Navegador Web",
       })
       .onConflictDoUpdate({
         target: fcmTokens.token,
         set: {
           userId: ctx.user.id,
-          deviceInfo: input.deviceInfo || "Dispositivo Principal",
+          deviceInfo: input.deviceInfo || "Navegador Web",
           updatedAt: new Date(),
         }
       });
-    
-    return { success: true, message: "Dispositivos limpos e este aparelho cadastrado como principal!" };
+
+    return { success: true, message: "Dispositivo registrado para receber notificações!" };
   }),
 
-  // Diagnóstico: verifica se o Firebase Admin está configurado corretamente
+  // Diagnóstico: status dos providers de push (VAPID + legado FCM)
   getFirebaseStatus: protectedProcedure.query(async () => {
-    const isConfigured = !!firebaseMessaging;
+    const isConfigured = isVapidConfigured() || !!firebaseMessaging;
     const hasProjectId = !!process.env.FIREBASE_PROJECT_ID;
     const hasClientEmail = !!process.env.FIREBASE_CLIENT_EMAIL;
     const hasPrivateKey = !!process.env.FIREBASE_PRIVATE_KEY;
@@ -82,9 +104,11 @@ export const fcmRouter = router({
       hasProjectId,
       hasClientEmail,
       hasPrivateKey,
+      provider: isVapidConfigured() ? "vapid" : (firebaseMessaging ? "fcm" : "none"),
+      vapidConfigured: isVapidConfigured(),
       message: isConfigured
-        ? "Firebase Admin configurado e pronto para enviar notificações."
-        : "Firebase Admin NÃO configurado. Verifique as variáveis de ambiente FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY na VPS.",
+        ? `Push configurado via ${isVapidConfigured() ? "Web Push VAPID" : "Firebase (legado)"}.`
+        : "Push NÃO configurado. Verifique VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY (ou as variáveis legadas do Firebase) na VPS.",
     };
   }),
 
@@ -92,11 +116,11 @@ export const fcmRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
-    // Verificação crítica: Firebase Admin configurado?
-    if (!firebaseMessaging) {
+    // Verificação crítica: algum provider de push configurado?
+    if (!isVapidConfigured() && !firebaseMessaging) {
       throw new Error(
         "Serviço de push não configurado no servidor. " +
-        "Certifique-se de que as variáveis FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY estão definidas na VPS."
+        "Defina VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY na VPS (ou as variáveis legadas FIREBASE_*)."
       );
     }
     
@@ -123,10 +147,12 @@ export const fcmRouter = router({
         console.warn(`[Push Test] ❌ Falha para device: ${device.deviceInfo} — erro: ${res.error}`);
         failedErrors.push(res.error || "UNKNOWN");
         if (
+          res.gone ||
           res.error === "messaging/registration-token-not-registered" ||
           res.error === "messaging/invalid-registration-token" ||
           res.error?.includes("registration-token-not-registered") ||
-          res.error?.includes("invalid-registration-token")
+          res.error?.includes("invalid-registration-token") ||
+          res.error?.startsWith("GONE_")
         ) {
           deadTokens.push(device.token);
         }

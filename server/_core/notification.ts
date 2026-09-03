@@ -140,6 +140,13 @@ export async function notifyUser(
             url: payload.url,
           });
           if (res.success) sentCount++;
+          // RN-004: subscrição/token morto (410/404 VAPID ou token não registrado FCM) → descartar
+          else if (res.gone) {
+            try {
+              await db.delete(fcmTokens).where(eq(fcmTokens.token, device.token));
+              debugLog(`[Push] Subscrição morta removida (device ${device.id}) do userId ${userId}`);
+            } catch { /* cleanup é best-effort */ }
+          }
         }
         debugLog(`[Push] Sent ${sentCount} notifications to userId ${userId}`);
       }

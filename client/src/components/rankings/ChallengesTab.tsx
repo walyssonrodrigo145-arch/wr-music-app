@@ -207,7 +207,7 @@ export function ChallengesTab() {
       {/* Modal de criação */}
       {form && (
         <Dialog open onOpenChange={(o) => !o && setForm(null)}>
-          <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-[2rem] bg-card border-none shadow-2xl p-5 sm:p-7">
+          <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto no-scrollbar rounded-[2rem] bg-card border-none shadow-2xl p-5 sm:p-7">
             <DialogHeader>
               <DialogTitle className="text-xl font-black tracking-tight">Novo Desafio</DialogTitle>
               <DialogDescription className="text-sm font-medium text-muted-foreground">Escolha o tipo e defina os pontos. Você avaliará cada resposta.</DialogDescription>

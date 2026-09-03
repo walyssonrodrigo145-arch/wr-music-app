@@ -1,56 +1,44 @@
-import { initializeApp } from "firebase/app";
-import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
-
-// AUD-002 FIX: Removido sistema forense que interceptava console.error/warn,
-// window.fetch e PushManager globalmente — expondo tokens e dados internos em
-// window.__PUSH_FORENSIC_LOGS__ acessível por qualquer script externo ou XSS.
+// ─── Web Push VAPID (PRD_PUSH_VAPID_001) ─────────────────────────────────────
+// Subscrição nativa via PushManager (RFC 8292) — sem SDK Firebase.
+// Mesma chave VAPID do servidor; a subscrição (JSON {endpoint, keys}) é enviada
+// ao backend e armazenada em fcm_tokens. Service worker: /sw.js (push nativo).
 //
-// Firebase config agora lida de variáveis de ambiente VITE_FIREBASE_*.
-// VAPID Key carregada de VITE_FIREBASE_VAPID_KEY.
-// AUD-009 FIX: Removida duplicação hardcoded do firebaseConfig.
+// AUD-002 FIX (histórico): sem interceptação de console/fetch; AUD-009: sem config hardcoded.
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
+let _vapidKey: string = (import.meta.env.VITE_VAPID_PUBLIC_KEY || import.meta.env.VITE_FIREBASE_VAPID_KEY || "") as string;
 
-export const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string;
+export const VAPID_KEY = _vapidKey;
 
-let app: ReturnType<typeof initializeApp>;
-try {
-  app = initializeApp(firebaseConfig);
-} catch (err: any) {
-  console.error("[Firebase] Falha ao inicializar:", err?.message || err);
-  throw err;
-}
-
-let _messaging: ReturnType<typeof getMessaging> | null = null;
-
-async function getMsg() {
-  if (_messaging) return _messaging;
-  try {
-    const ok = await isSupported();
-    if (!ok) return null;
-    _messaging = getMessaging(app);
-    return _messaging;
-  } catch {
-    return null;
-  }
-}
-
-export function urlBase64ToUint8Array(base64String: string): Uint8Array {
+export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
+  for (let i = 0; i < rawData.length; i++) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+/** iOS só entrega Web Push a partir do 16.4 E com a PWA instalada na tela de início. */
+export function isIosDevice(): boolean {
+  const ua = navigator.userAgent;
+  const iOSLike = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return iOSLike;
+}
+
+export function isIosStandalone(): boolean {
+  if (!isIosDevice()) return true;
+  const nav = navigator as any;
+  return window.matchMedia?.("(display-mode: standalone)").matches || nav.standalone === true;
+}
+
+/** Suporte real a Web Push no dispositivo atual. */
+export function isPushSupported(): boolean {
+  if (typeof Notification === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+  if (!VAPID_KEY) return false;
+  if (!isIosStandalone()) return false;
+  return true;
 }
 
 export const requestForToken = async (forceRefresh = false): Promise<string | null> => {
@@ -58,8 +46,16 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
     throw new Error("Permissão de notificação não concedida.");
   }
 
-  if (!("serviceWorker" in navigator)) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     throw new Error("Push não suportado neste navegador.");
+  }
+
+  if (!isIosStandalone()) {
+    throw new Error("No iPhone/iPad, adicione o app à Tela de Início (PWA) para receber notificações.");
+  }
+
+  if (!VAPID_KEY) {
+    throw new Error("Chave de notificações ausente no app. Contate o suporte.");
   }
 
   let swReg: ServiceWorkerRegistration;
@@ -86,67 +82,79 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
     }
   }
 
-  const msg = await getMsg();
-  if (!msg) {
-    throw new Error("Firebase Messaging não é suportado neste navegador.");
-  }
+  const subscribe = async (reg: ServiceWorkerRegistration) => {
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
+    });
+    // JSON.stringify serializa via toJSON(): {endpoint, expirationTime?, keys{p256dh, auth}}
+    return JSON.stringify(sub);
+  };
 
   try {
-    const token = await getToken(msg, {
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: swReg,
-    });
-
-    if (token && token.length > 10) {
-      return token;
-    }
-    throw new Error("Token retornado pelo Firebase veio vazio.");
-  } catch (fcmErr: any) {
-    const detail = fcmErr?.message || String(fcmErr);
+    const subscriptionJson = await subscribe(swReg);
+    return subscriptionJson;
+  } catch (err: any) {
+    const detail = err?.message || String(err);
     const isPushServiceError =
       detail.includes("push service error") ||
       detail.includes("AbortError") ||
-      detail.includes("Registration failed");
+      detail.includes("Registration failed") ||
+      err?.name === "InvalidStateError" ||
+      err?.name === "NotAllowedError";
 
     if (isPushServiceError) {
-      // Auto-recovery: reset SW e retry
+      // Auto-recovery: reset SW e retry uma única vez
       try {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map((r) => r.unregister()));
-
         await new Promise((res) => setTimeout(res, 1500));
-
         const freshReg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         await navigator.serviceWorker.ready;
-
-        _messaging = null;
-        const freshMsg = await getMsg();
-        if (!freshMsg) throw new Error("Firebase Messaging não disponível após reset.");
-
-        const retryToken = await getToken(freshMsg, {
-          vapidKey: VAPID_KEY,
-          serviceWorkerRegistration: freshReg,
-        });
-
-        if (retryToken && retryToken.length > 10) return retryToken;
-        throw new Error("Token vazio após retry.");
+        const retryJson = await subscribe(freshReg);
+        return retryJson;
       } catch {
         throw new Error(
-          "Seu navegador não conseguiu conectar ao serviço de Push do Google. " +
-            "Tente: 1) Conectar ao WiFi; 2) Limpar dados do Chrome; 3) Reiniciar o celular."
+          "Seu navegador não conseguiu conectar ao serviço de Push. " +
+          "Tente: 1) Conectar ao WiFi; 2) Limpar dados do navegador; 3) Reiniciar o celular."
         );
       }
     }
 
-    throw new Error(`Falha no SDK Firebase: ${detail}`);
+    throw new Error(`Falha ao ativar notificações: ${detail}`);
   }
 };
 
-export const onMessageListener = async () => {
-  const msg = await getMsg();
-  if (!msg) return new Promise((r) => r(null));
+// ─── Foreground (aba focada): o SW suprime a notificação do SO e repassa via postMessage ──
+type PushHandler = (payload: any) => void;
+const foregroundHandlers = new Set<PushHandler>();
+let swBridgeBound = false;
+
+function bindSwMessageBridge() {
+  if (swBridgeBound || !("serviceWorker" in navigator)) return;
+  swBridgeBound = true;
+  navigator.serviceWorker.addEventListener("message", (event: MessageEvent) => {
+    if (event.data?.type === "push-received") {
+      foregroundHandlers.forEach((h) => {
+        try { h(event.data.payload); } catch { /* handler isolado */ }
+      });
+    }
+  });
+}
+
+/** Assina recebimentos em foreground. Retorna função de cleanup. */
+export function onForegroundPush(handler: PushHandler): () => void {
+  bindSwMessageBridge();
+  foregroundHandlers.add(handler);
+  return () => foregroundHandlers.delete(handler);
+}
+
+/** Compat: resolve no próximo push recebido em foreground. */
+export const onMessageListener = (): Promise<any> => {
   return new Promise((resolve) => {
-    onMessage(msg, (payload) => {
+    if (!("serviceWorker" in navigator)) { resolve(null); return; }
+    const off = onForegroundPush((payload) => {
+      off();
       resolve(payload);
     });
   });

@@ -77,6 +77,14 @@ export const ENV = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.SECRET_GOOGLE || "",
   appUrl: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.NODE_ENV === "production" ? "https://wrmusicpro.com.br" : "http://localhost:3000"),
 
+  // ── Web Push VAPID (PRD_PUSH_VAPID_001) ──
+  // Sem fallback: se ausentes, o envio VAPID degrada para NOT_CONFIGURED (sino in-app segue funcional).
+  vapidPublicKey: (process.env.VAPID_PUBLIC_KEY || "").trim(),
+  vapidPrivateKey: (process.env.VAPID_PRIVATE_KEY || "").trim(),
+  vapidSubject: (process.env.VAPID_SUBJECT || "mailto:suporte@wrmusicpro.com.br").trim(),
+  // Provider preferencial para tokens legados FCM: "vapid" (padrão) | "fcm" (coexistência)
+  pushProvider: (process.env.PUSH_PROVIDER || "vapid").toLowerCase(),
+
   // ─── Segurança: sem fallback hardcoded. Em dev, usa string vazia (cadastro bloqueado). ──
   registrationToken: registrationTokenRaw,
 

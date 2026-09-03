@@ -2,6 +2,7 @@ import { debugLog } from "./_core/logger";
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import * as dotenv from 'dotenv';
+import { isVapidSubscription, sendVapidNotification } from './pushService';
 dotenv.config();
 
 const privateKey = process.env.FIREBASE_PRIVATE_KEY
@@ -25,33 +26,34 @@ if (!getApps().length) {
 
 export const messaging = getApps().length ? getMessaging() : null;
 
+export type PushSendResult = { success: boolean; error?: string; gone?: boolean };
+
+/**
+ * Dispatcher de push (PRD_PUSH_VAPID_001):
+ * - JSON de subscrição WebPush → VAPID (web-push, RF-002);
+ * - token legado FCM → caminho Firebase (coexistência, RF-005).
+ * Push é best-effort (RN-003): nunca lança; `gone` sinaliza subscrição/token morto
+ * para o chamador remover da tabela (RN-004).
+ */
 export async function sendPushNotification(
   token: string,
   title: string,
   body: string,
   data?: Record<string, string>,
   opts?: { icon?: string; badge?: string; url?: string }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<PushSendResult> {
+  // 1) Subscrição VAPID (JSON {endpoint, keys}) — caminho primário
+  if (isVapidSubscription(token)) {
+    return sendVapidNotification(token, title, body, data, opts);
+  }
+
+  // 2) Token legado FCM — coexistência até o dispositivo migrar
   if (!messaging) {
-    debugLog('Firebase messaging não está configurado.');
+    debugLog('Firebase messaging não está configurado (legado).');
     return { success: false, error: 'NOT_CONFIGURED' };
   }
 
-  // Tratamento de Resgate Mão de Ferro: Se o token for um JSON de WebPush Endpoint,
-  // extrair a chave FCM nativa do final da URL de endpoint fcm/send/<TOKEN>
-  let targetToken = token.trim();
-  if (targetToken.startsWith('{') && targetToken.includes('endpoint')) {
-    try {
-      const parsed = JSON.parse(targetToken);
-      const endpoint = parsed.endpoint || '';
-      if (endpoint.includes('/fcm/send/')) {
-        targetToken = endpoint.split('/fcm/send/')[1];
-        debugLog('[Push Fix] Token extraído do Endpoint WebPush com sucesso:', targetToken.substring(0, 30));
-      }
-    } catch (e) {
-      console.warn('[Push Fix] Falha ao parsear JSON de endpoint token:', e);
-    }
-  }
+  const targetToken = token.trim();
 
   try {
     const response = await messaging.send({
@@ -113,6 +115,9 @@ export async function sendPushNotification(
   } catch (error: any) {
     const errCode = error?.code || error?.message || 'UNKNOWN_ERROR';
     console.error('Erro ao enviar notificação push:', errCode);
-    return { success: false, error: errCode };
+    const isDeadToken =
+      errCode.includes('registration-token-not-registered') ||
+      errCode.includes('invalid-registration-token');
+    return { success: false, error: errCode, gone: isDeadToken };
   }
 }

@@ -1036,15 +1036,15 @@ export default function Automacoes() {
             <Button size="sm" variant="outline" disabled={isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black uppercase tracking-widest text-[9px] px-3.5 hover:bg-emerald-500/20" onClick={handleSyncNotifications}>
               {isSyncing ? <Loader2 size={14} className="animate-spin mr-1.5" /> : null}Sincronizar
             </Button>
-            <Button size="sm" variant="outline" disabled={cleanPush.isPending || isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-amber-500/40 text-amber-700 dark:text-amber-300 font-black uppercase tracking-widest text-[9px] px-3.5 hover:bg-amber-500/20" onClick={async () => {
+            <Button size="sm" variant="outline" disabled={cleanPush.isPending || isSyncing} className="flex-1 sm:flex-none h-9 rounded-xl border-amber-500/40 text-amber-700 dark:text-amber-300 font-black uppercase tracking-widest text-[9px] px-3.5 hover:bg-amber-500/20"             onClick={async () => {
               try {
-                // forceRefresh=true: apaga token antigo (possivelmente inválido) e gera novo FCM real
+                // forceRefresh=true: apaga a subscrição antiga (possivelmente inválida) e gera nova via VAPID
                 const token = await requestForToken(true);
                 if (token) {
                   const res = await cleanPush.mutateAsync({ token, deviceInfo: navigator.userAgent });
                   toast.success(res.message);
                 } else {
-                  toast.error("Não foi possível capturar o token FCM. Verifique se as notificações estão permitidas no navegador.");
+                  toast.error("Não foi possível capturar a subscrição de push. Verifique se as notificações estão permitidas no navegador.");
                 }
               } catch (e: any) {
                 toast.error("Erro ao resetar: " + (e.message || String(e)));

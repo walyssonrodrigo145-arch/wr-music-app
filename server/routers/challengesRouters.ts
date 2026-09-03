@@ -429,16 +429,20 @@ export const challengesRouter = router({
       createdAt: new Date(),
     });
 
-    // Notifica o professor criador
+    // Notifica o professor criador (com o nome do aluno)
+    const [responder] = await db.select({ name: students.name }).from(students)
+      .where(eq(students.id, studentId)).limit(1);
+    const studentFirstName = (responder?.name || "Um aluno").trim().split(/\s+/)[0];
+
     await db.insert(notifications).values({
       organizationId: orgId,
       userId: challenge.userId,
       title: "📥 Nova Resposta de Desafio",
-      message: `Um aluno respondeu o desafio "${challenge.titulo}". Avalie para pontuar!`,
+      message: `${studentFirstName} respondeu o desafio "${challenge.titulo}". Avalie para pontuar!`,
       type: "info",
       actionUrl: "/rankings",
     });
-    notifyUser(challenge.userId, { title: "📥 Nova Resposta de Desafio", content: `Desafio "${challenge.titulo}" tem resposta esperando avaliação.`, url: "/rankings" }).catch(() => {});
+    notifyUser(challenge.userId, { title: "📥 Nova Resposta de Desafio", content: `${studentFirstName} respondeu o desafio "${challenge.titulo}" — avalie para pontuar.`, url: "/rankings" }).catch(() => {});
 
     return { success: true };
   }),
