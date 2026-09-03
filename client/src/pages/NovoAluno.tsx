@@ -1280,9 +1280,7 @@ export default function NovoAluno() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {isScheduleBatch && (
-                      <>
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
                         <Select
                           value={String(scheduleRecurrenceDuration)}
                           onValueChange={(v) => updateSchedule(p => (p.interval === "semanal" ? { ...p, weeksCount: Number(v) } : { ...p, recurrenceCount: Number(v) }))}
@@ -1313,8 +1311,6 @@ export default function NovoAluno() {
                         {scheduleForm.interval === "mensal_fixo" && (
                           <p className="text-xs text-muted-foreground font-medium ml-1">No modo mensal (dia fixo), a série usa a data inicial selecionada — os dias da semana não se aplicam.</p>
                         )}
-                      </>
-                    )}
                   </div>
                 </div>
 
