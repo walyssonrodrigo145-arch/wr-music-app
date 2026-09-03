@@ -1168,24 +1168,7 @@ export default function NovoAluno() {
                           />
                           <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                         </div>
-                        {/* Chips rápidos de horários */}
-                        <div className="flex flex-wrap gap-1 pt-0.5">
-                          {["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"].map((t) => (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => updateSchedule(p => ({ ...p, time: t }))}
-                              className={cn(
-                                "px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer",
-                                scheduleForm.time === t
-                                  ? "bg-primary text-white border-primary shadow-sm"
-                                  : "bg-muted/20 text-muted-foreground hover:bg-muted/40 border-border/40"
-                              )}
-                            >
-                              {t}
-                            </button>
-                          ))}
-                        </div>
+                        
                       </div>
                     )}
                     {!scheduleMultiSlot && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
@@ -1280,7 +1263,11 @@ export default function NovoAluno() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
                         <Select
                           value={String(scheduleRecurrenceDuration)}
                           onValueChange={(v) => updateSchedule(p => (p.interval === "semanal" ? { ...p, weeksCount: Number(v) } : { ...p, recurrenceCount: Number(v) }))}
@@ -1311,7 +1298,6 @@ export default function NovoAluno() {
                         {scheduleForm.interval === "mensal_fixo" && (
                           <p className="text-xs text-muted-foreground font-medium ml-1">No modo mensal (dia fixo), a série usa a data inicial selecionada — os dias da semana não se aplicam.</p>
                         )}
-                  </div>
                 </div>
 
                 {/* Aulas na Mesma Semana */}
