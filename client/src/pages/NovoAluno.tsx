@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { generateOccurrences, RECURRENCE_INTERVALS, RECURRENCE_DURATIONS, MAX_OCCURRENCES, type RecurrenceInterval } from "@shared/recurrence";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { validateCPF } from "@/lib/cpf";
@@ -45,7 +46,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { differenceInYears, parseISO, isValid } from "date-fns";
+import { differenceInYears, parseISO, isValid, format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { CreateContractModal } from "@/components/modals/StudentContractsSection";
@@ -140,6 +141,8 @@ export default function NovoAluno() {
     studioRoomId: "",
     notes: "",
     weeksCount: 1,
+    interval: "semanal" as RecurrenceInterval,
+    recurrenceCount: 4,
     lessonsPerWeek: 1,
     weeklySlots: [
       { dayOfWeek: 1, time: getSmartNovoAlunoTime(), studioRoomId: "" }
@@ -155,6 +158,20 @@ export default function NovoAluno() {
     setScheduleForm(updater);
     setScheduleTouched(true);
   };
+
+  const scheduleRecurrenceDuration = scheduleForm.interval === "semanal" ? scheduleForm.weeksCount : scheduleForm.recurrenceCount;
+  const isScheduleBatch = scheduleRecurrenceDuration > 1;
+  const scheduleOccurrences = useMemo(() => {
+    if (!isScheduleBatch) return [];
+    const [y, M, d] = scheduleForm.date.split("-").map(Number);
+    const base = new Date(y, M - 1, d);
+    const slots = (scheduleForm.interval !== "mensal_fixo" && scheduleForm.lessonsPerWeek > 1 && scheduleForm.weeklySlots.length > 0)
+      ? scheduleForm.weeklySlots.map((s) => ({ dayOfWeek: s.dayOfWeek, time: s.time }))
+      : [];
+    return generateOccurrences(scheduleForm.interval, scheduleRecurrenceDuration, base, slots, scheduleForm.time);
+  }, [isScheduleBatch, scheduleForm.interval, scheduleRecurrenceDuration, scheduleForm.date, scheduleForm.lessonsPerWeek, scheduleForm.weeklySlots, scheduleForm.time]);
+  const scheduleExceedsLimit = scheduleOccurrences.length > MAX_OCCURRENCES;
+  const scheduleMultiSlot = scheduleForm.lessonsPerWeek > 1 && scheduleForm.interval !== "mensal_fixo";
 
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
@@ -425,6 +442,8 @@ export default function NovoAluno() {
         title: "",
         notes: "",
         weeksCount: 1,
+        interval: "semanal",
+        recurrenceCount: 4,
       }));
       setScheduleStep("form");
       setBatchItems([]);
@@ -445,6 +464,8 @@ export default function NovoAluno() {
         title: "",
         notes: "",
         weeksCount: 1,
+        interval: "semanal",
+        recurrenceCount: 4,
       }));
       setScheduleStep("form");
       setBatchItems([]);
@@ -543,7 +564,7 @@ export default function NovoAluno() {
     const submissionTitle = scheduleForm.title.trim() || (instrument ? `Aula de ${instrument.name} - ${defaultTitleName}` : `Aula de Música - ${defaultTitleName}`);
     const scheduledDate = buildScheduledAt();
 
-    if (scheduleForm.weeksCount <= 1) {
+    if (!isScheduleBatch) {
       // Aula avulsa
       createLessonMutation.mutate({
         studentId: targetStudentId,
@@ -561,32 +582,23 @@ export default function NovoAluno() {
         // BUG #1/#2/#8 FIX: calcular allItems e passar para checkConflictsMutation (agora mutation)
         // Antes: checkConflicts.refetch() usava input estático inválido → slots nunca verificados
         // Agora: passamos os slots calculados diretamente via mutateAsync
-        const [startY, startM, startD] = scheduleForm.date.split("-").map(Number);
-        const slotsToUse = (scheduleForm.lessonsPerWeek > 1 && scheduleForm.weeklySlots && scheduleForm.weeklySlots.length > 0)
-          ? scheduleForm.weeklySlots
-          : [{ dayOfWeek: new Date(startY, startM - 1, startD).getDay(), time: scheduleForm.time, studioRoomId: "" }];
-
-        const allItems: Array<{ scheduledAt: string }> = [];
-        for (let w = 0; w < scheduleForm.weeksCount; w++) {
-          for (const slot of slotsToUse) {
-            const baseDate = new Date(startY, startM - 1, startD);
-            const baseDay = baseDate.getDay();
-            let dayDiff = slot.dayOfWeek - baseDay;
-            if (dayDiff < 0) dayDiff += 7;
-
-            const targetDate = new Date(baseDate);
-            targetDate.setDate(baseDate.getDate() + (w * 7) + dayDiff);
-            const [sh, sm] = slot.time.split(":").map(Number);
-            targetDate.setHours(sh, sm, 0, 0);
-
-            allItems.push({ scheduledAt: targetDate.toISOString() });
-          }
-        }
+        const [y, M, d] = scheduleForm.date.split("-").map(Number);
+        const base = new Date(y, M - 1, d);
+        const slots = (scheduleForm.interval !== "mensal_fixo" && scheduleForm.lessonsPerWeek > 1 && scheduleForm.weeklySlots.length > 0)
+          ? scheduleForm.weeklySlots.map((s) => ({ dayOfWeek: s.dayOfWeek, time: s.time }))
+          : [];
+        const occurrences = generateOccurrences(scheduleForm.interval, scheduleRecurrenceDuration, base, slots, scheduleForm.time);
+        const allItems: Array<{ scheduledAt: string }> = occurrences.map((o) => ({ scheduledAt: o.date.toISOString() }));
 
         // Verificar conflitos passando os slots calculados dinamicamente
+        if (allItems.length > MAX_OCCURRENCES) {
+          toast.error(`Limite de ${MAX_OCCURRENCES} aulas por geração. Reduza a duração ou os dias por semana.`);
+          return;
+        }
+
         const conflictsData = await checkConflictsMutation.mutateAsync({
           duration: scheduleForm.duration,
-          weeksCount: scheduleForm.weeksCount,
+          weeksCount: Math.min(scheduleRecurrenceDuration, 104),
           studioRoomId: scheduleForm.studioRoomId ? Number(scheduleForm.studioRoomId) : undefined,
           slots: allItems.map(item => ({ scheduledAt: item.scheduledAt })),
         });
@@ -1135,9 +1147,9 @@ export default function NovoAluno() {
                   
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">
-                      {scheduleForm.lessonsPerWeek > 1 ? "Horário das Aulas" : "Horário *"}
+                      {scheduleMultiSlot ? "Horário das Aulas" : "Horário *"}
                     </label>
-                    {scheduleForm.lessonsPerWeek > 1 ? (
+                    {scheduleMultiSlot ? (
                       <div className="h-12 rounded-xl border border-violet-500/20 bg-violet-500/10 px-3.5 flex items-center justify-between text-xs font-bold text-violet-700">
                         <span className="flex items-center gap-2">
                           <Clock size={14} className="text-violet-600 shrink-0" />
@@ -1176,7 +1188,7 @@ export default function NovoAluno() {
                         </div>
                       </div>
                     )}
-                    {scheduleForm.lessonsPerWeek === 1 && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
+                    {!scheduleMultiSlot && scheduleErrors.time && <p className="text-xs text-red-500 ml-1">{scheduleErrors.time}</p>}
                   </div>
                 </div>
 
@@ -1246,36 +1258,68 @@ export default function NovoAluno() {
 
                 {/* Recorrência Semanal */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Recorrência Semanal</label>
-                  <Select
-                    value={String(scheduleForm.weeksCount)}
-                    onValueChange={v => updateSchedule(p => ({ ...p, weeksCount: Number(v) }))}
-                  >
-                    <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
-                      <div className="flex items-center gap-2">
-                        <RefreshCw size={14} className="text-muted-foreground" />
-                        <SelectValue />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 vez (aula avulsa)</SelectItem>
-                      <SelectItem value="4">4 semanas (~1 mês)</SelectItem>
-                      <SelectItem value="8">8 semanas (~2 meses)</SelectItem>
-                      <SelectItem value="12">12 semanas (~3 meses)</SelectItem>
-                      <SelectItem value="26">26 semanas (~6 meses)</SelectItem>
-                      <SelectItem value="52">52 semanas (~1 ano)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {scheduleForm.weeksCount > 1 && (
-                    <p className="text-xs text-violet-600 font-medium ml-1 flex items-center gap-1">
-                      <CalendarRange size={12} />
-                      {scheduleForm.weeksCount * scheduleForm.lessonsPerWeek} aula(s) serão agendadas ao longo das {scheduleForm.weeksCount} semanas.
-                    </p>
-                  )}
-                </div>
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Repetir</label>
+                    <Select
+                      value={scheduleForm.interval}
+                      onValueChange={(v) => {
+                        const nextInterval = v as RecurrenceInterval;
+                        const opts = RECURRENCE_DURATIONS[nextInterval];
+                        const validCount = opts.some((o) => o.value === scheduleForm.recurrenceCount) ? scheduleForm.recurrenceCount : opts[0].value;
+                        updateSchedule(p => ({ ...p, interval: nextInterval, recurrenceCount: validCount }));
+                      }}
+                    >
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                        <div className="flex items-center gap-2">
+                          <RefreshCw size={14} className="text-muted-foreground" />
+                          <SelectValue />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RECURRENCE_INTERVALS.map((i) => (
+                          <SelectItem key={i.id} value={i.id}>{i.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isScheduleBatch && (
+                      <>
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1 pt-1">Gerar por</label>
+                        <Select
+                          value={String(scheduleRecurrenceDuration)}
+                          onValueChange={(v) => updateSchedule(p => (p.interval === "semanal" ? { ...p, weeksCount: Number(v) } : { ...p, recurrenceCount: Number(v) }))}
+                        >
+                          <SelectTrigger className="h-12 rounded-xl border-border bg-muted/30 text-sm font-semibold px-4">
+                            <div className="flex items-center gap-2">
+                              <CalendarRange size={14} className="text-muted-foreground" />
+                              <SelectValue />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(scheduleForm.interval === "semanal"
+                              ? [{ value: 1, label: "1 vez (aula avulsa)" }, ...RECURRENCE_DURATIONS.semanal]
+                              : RECURRENCE_DURATIONS[scheduleForm.interval]
+                            ).map((o) => (
+                              <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {scheduleOccurrences.length > 0 && (
+                          <p className={cn("text-xs font-bold ml-1 flex items-center gap-1", scheduleExceedsLimit ? "text-rose-600" : "text-violet-600")}>
+                            <CalendarRange size={12} />
+                            {scheduleExceedsLimit
+                              ? `Limite de ${MAX_OCCURRENCES} aulas excedido (${scheduleOccurrences.length}). Reduza a duração ou os dias por semana.`
+                              : `${scheduleOccurrences.length} aula(s) serão criadas · de ${format(scheduleOccurrences[0].date, "dd/MM/yyyy")} até ${format(scheduleOccurrences[scheduleOccurrences.length - 1].date, "dd/MM/yyyy")}.`}
+                          </p>
+                        )}
+                        {scheduleForm.interval === "mensal_fixo" && (
+                          <p className="text-xs text-muted-foreground font-medium ml-1">No modo mensal (dia fixo), a série usa a data inicial selecionada — os dias da semana não se aplicam.</p>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Aulas na Mesma Semana */}
+{scheduleForm.interval !== "mensal_fixo" && (
                 <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">
@@ -1360,7 +1404,8 @@ export default function NovoAluno() {
                   )}
                 </div>
 
-                {/* Observações da Aula */}
+)}
+                                {/* Observações da Aula */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Observações da Aula</label>
                   <Textarea
