@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { 
   User, 
   Clock, 
@@ -25,6 +25,13 @@ import { safeFormat } from "@/lib/dates";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn, formatFriendlyError } from "@/lib/utils";
+import {
+  generateOccurrences,
+  RECURRENCE_INTERVALS,
+  RECURRENCE_DURATIONS,
+  MAX_OCCURRENCES,
+  type RecurrenceInterval,
+} from "@shared/recurrence";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 
 interface AgendarModalProps {
@@ -70,6 +77,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     instrumentId: "",
     studioRoomId: "",
     weeksCount: 1,
+    interval: "semanal" as RecurrenceInterval,
+    recurrenceCount: 4,
     updateSeries: false,
     date: format(new Date(), "yyyy-MM-dd"),
     isExperimental: false,
@@ -86,6 +95,22 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "conflicts" | "ask_series">("form");
   const [batchItems, setBatchItems] = useState<any[]>([]);
+
+  // ── Recorrência (PRD_AGENDA_RECORRENCIA_002) ────────────────────────────────
+  const recurrenceDuration = formData.interval === "semanal" ? formData.weeksCount : formData.recurrenceCount;
+  const isBatchMode = !editingLesson && !formData.isExperimental && formData.lessonType !== "turma" && recurrenceDuration > 1;
+
+  const buildOccurrences = () => {
+    const [y, M, d] = formData.date.split("-").map(Number);
+    const base = new Date(y, M - 1, d);
+    const slotsToUse = (formData.interval !== "mensal_fixo" && formData.lessonsPerWeek > 1 && formData.weeklySlots && formData.weeklySlots.length > 0)
+      ? formData.weeklySlots
+      : [];
+    return generateOccurrences(formData.interval, recurrenceDuration, base, slotsToUse, formData.time);
+  };
+
+  const previewOccurrences = useMemo(() => (isBatchMode ? buildOccurrences() : []), [isBatchMode, formData.interval, recurrenceDuration, formData.date, formData.lessonsPerWeek, formData.weeklySlots, formData.time]);
+  const exceedsLimit = previewOccurrences.length > MAX_OCCURRENCES;
 
   // Picker de alunos (MOBILE FIX: substitui dropdown absoluto que quebrava no Drawer)
   const [studentSearch, setStudentSearch] = useState("");
@@ -117,6 +142,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           instrumentId: source.instrumentId?.toString() || "",
           studioRoomId: source.studioRoomId != null ? source.studioRoomId.toString() : "",
           weeksCount: 1,
+          interval: "semanal",
+          recurrenceCount: 4,
           updateSeries: false,
           isExperimental: !!source.isExperimental,
           experimentalName: source.experimentalName || "",
@@ -143,6 +170,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
         instrumentId: "",
         studioRoomId: "",
         weeksCount: 1,
+        interval: "semanal",
+        recurrenceCount: 4,
         updateSeries: false,
         isExperimental: false,
         experimentalName: "",
@@ -203,6 +232,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       instrumentId: "",
       studioRoomId: "",
       weeksCount: 1,
+      interval: "semanal",
+      recurrenceCount: 4,
       updateSeries: false,
       isExperimental: false,
       experimentalName: "",
@@ -346,39 +377,23 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       return;
     }
 
-    if (formData.weeksCount > 1 && !formData.isExperimental) {
+    if (isBatchMode) {
       try {
-        // Gerar todas as datas dos múltiplos dias por semana
-        const allItems: Array<{ scheduledAt: string; studioRoomId?: number | null }> = [];
-        const [startY, startM, startD] = formData.date.split("-").map(Number);
+        // Gerar todas as datas conforme o intervalo escolhido (semanal/quinzenal/mensal)
+        const occurrences = buildOccurrences();
+        const allItems: Array<{ scheduledAt: string; studioRoomId?: number | null }> = occurrences.map((o) => ({
+          scheduledAt: o.date.toISOString(),
+          studioRoomId: o.slot?.studioRoomId ? Number(o.slot.studioRoomId) : (formData.studioRoomId ? Number(formData.studioRoomId) : null),
+        }));
 
-        // Se tiver slots adicionais configurados
-        const slotsToUse = (formData.lessonsPerWeek > 1 && formData.weeklySlots && formData.weeklySlots.length > 0)
-          ? formData.weeklySlots
-          : [{ dayOfWeek: new Date(startY, startM - 1, startD).getDay(), time: formData.time, studioRoomId: formData.studioRoomId }];
-
-        for (let w = 0; w < formData.weeksCount; w++) {
-          for (const slot of slotsToUse) {
-            const baseDate = new Date(startY, startM - 1, startD);
-            const baseDay = baseDate.getDay();
-            let dayDiff = slot.dayOfWeek - baseDay;
-            if (dayDiff < 0) dayDiff += 7;
-
-            const targetDate = new Date(baseDate);
-            targetDate.setDate(baseDate.getDate() + (w * 7) + dayDiff);
-            const [sh, sm] = (slot.time || formData.time).split(":").map(Number);
-            targetDate.setHours(sh, sm, 0, 0);
-
-            allItems.push({
-              scheduledAt: targetDate.toISOString(),
-              studioRoomId: slot.studioRoomId ? Number(slot.studioRoomId) : (formData.studioRoomId ? Number(formData.studioRoomId) : null)
-            });
-          }
+        if (allItems.length > MAX_OCCURRENCES) {
+          toast.error(`Limite de ${MAX_OCCURRENCES} aulas por geração. Reduza a duração da série.`);
+          return;
         }
 
         const conflictInput = {
           duration: formData.duration,
-          weeksCount: formData.weeksCount,
+          weeksCount: Math.min(recurrenceDuration, 104),
           studioRoomId: formData.studioRoomId ? parseInt(formData.studioRoomId) : undefined,
           slots: allItems.map(item => ({
             scheduledAt: item.scheduledAt,
@@ -446,8 +461,8 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={editingLesson ? "Editar Aula" : (formData.weeksCount > 1 ? "Agendamento Recorrente" : "Novo Agendamento")}
-      description={editingLesson ? `Ajuste os detalhes da aula` : (formData.weeksCount > 1 ? "Aulas semanais automáticas para este horário." : "Agende uma nova aula para o seu aluno.")}
+      title={editingLesson ? "Editar Aula" : (isBatchMode ? "Agendamento Recorrente" : "Novo Agendamento")}
+      description={editingLesson ? `Ajuste os detalhes da aula` : (isBatchMode ? "Série de aulas automáticas para este horário." : "Agende uma nova aula para o seu aluno.")}
     >
       {step === "form" ? (
         <form onSubmit={handleProcessSubmission} className="space-y-6 pt-2 pb-10 md:pb-0">
@@ -791,24 +806,60 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
               {!editingLesson ? (
                 <>
                   <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2">
-                    <CalendarRange size={12} className="text-primary/40" /> Repetir por
+                    <CalendarRange size={12} className="text-primary/40" /> Repetir
+                  </label>
+                  {formData.lessonType !== "turma" && (
+                    <select
+                      value={formData.interval}
+                      onChange={(e) => {
+                        const nextInterval = e.target.value as RecurrenceInterval;
+                        const opts = RECURRENCE_DURATIONS[nextInterval];
+                        const validCount = opts.some((o) => o.value === formData.recurrenceCount) ? formData.recurrenceCount : opts[0].value;
+                        setFormData({ ...formData, interval: nextInterval, recurrenceCount: validCount });
+                      }}
+                      className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      {RECURRENCE_INTERVALS.map((i) => (
+                        <option key={i.id} value={i.id}>{i.label}</option>
+                      ))}
+                    </select>
+                  )}
+                  <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 px-2 pt-1">
+                    <CalendarRange size={12} className="text-primary/40" /> Gerar por
                   </label>
                   <select
-                    value={formData.weeksCount}
-                    onChange={(e) => setFormData({...formData, weeksCount: Number(e.target.value)})}
+                    value={recurrenceDuration}
+                    onChange={(e) => setFormData((formData.interval === "semanal" || formData.lessonType === "turma")
+                      ? { ...formData, weeksCount: Number(e.target.value) }
+                      : { ...formData, recurrenceCount: Number(e.target.value) })}
                     className="w-full h-14 bg-muted/10 border border-border/20 rounded-2xl px-4 text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all appearance-none cursor-pointer"
                   >
-                    <option value={1}>Apenas hoje</option>
-                    <option value={2}>2 semanas</option>
-                    <option value={4}>4 semanas (~1 mês)</option>
-                    <option value={8}>8 semanas (~2 meses)</option>
-                    <option value={12}>12 semanas (~3 meses)</option>
-                    <option value={13}>13 semanas (~3 meses)</option>
-                    <option value={26}>26 semanas (~6 meses)</option>
-                    <option value={52}>52 semanas (~1 ano)</option>
-                    <option value={104}>104 semanas (~2 anos)</option>
+                    {((formData.interval === "semanal" || formData.lessonType === "turma")
+                      ? [{ value: 1, label: "Apenas hoje" }, ...RECURRENCE_DURATIONS.semanal]
+                      : RECURRENCE_DURATIONS[formData.interval]
+                    ).map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
-                </>
+                  {formData.interval === "mensal_fixo" && formData.lessonType !== "turma" && (
+                    <p className="text-[10px] font-bold text-muted-foreground px-2 leading-relaxed">
+                      No modo mensal (dia fixo), a série usa a data base selecionada — os dias da semana não se aplicam.
+                    </p>
+                  )}
+                  {previewOccurrences.length > 0 && (
+                    <div className={cn(
+                      "flex items-center gap-2 px-4 py-3 rounded-2xl border text-xs font-bold",
+                      exceedsLimit
+                        ? "bg-rose-500/10 border-rose-500/30 text-rose-600"
+                        : "bg-primary/5 border-primary/20 text-foreground"
+                    )}>
+                      <CalendarDays size={14} className={exceedsLimit ? "text-rose-500" : "text-primary"} />
+                      {exceedsLimit
+                        ? <>Limite de {MAX_OCCURRENCES} aulas excedido ({previewOccurrences.length}). Reduza a duração ou os dias por semana.</>
+                        : <>📅 <b>{previewOccurrences.length} aulas</b> serão criadas · de {format(previewOccurrences[0].date, "dd/MM/yyyy")} até {format(previewOccurrences[previewOccurrences.length - 1].date, "dd/MM/yyyy")}</>}
+                    </div>
+                  )}
+                 </>
               ) : (
                 null
               )}
@@ -816,7 +867,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
           </div>
 
           {/* Configuração de Múltiplos Dias por Semana */}
-          {!editingLesson && (
+          {!editingLesson && formData.interval !== "mensal_fixo" && (
             <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <label className="text-[11px] font-black uppercase tracking-wider text-primary flex items-center gap-2">

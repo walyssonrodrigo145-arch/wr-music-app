@@ -22,7 +22,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { toast } from "sonner";
 import { EditProfileModal } from "@/components/EditProfileModal";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,8 +43,50 @@ const item = {
 
 export default function StudentProfile() {
   const { data: profile, isLoading } = trpc.studentPortal.getProfile.useQuery();
+  const utils = trpc.useUtils();
   const { logout } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const updateAvatarMutation = trpc.studentPortal.updateMyAvatar.useMutation({
+    onSuccess: () => {
+      toast.success("Foto de perfil atualizada!");
+      utils.studentPortal.getProfile.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao salvar foto: " + e.message),
+  });
+
+  const handleAvatarFile = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem."); return; }
+    if (file.size > 8 * 1024 * 1024) { toast.error("Imagem muito grande (máx. 8MB)."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const size = 512;
+          const scale = Math.min(1, size / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { toast.error("Falha ao processar a imagem."); return; }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          setAvatarUrl(dataUrl);
+          updateAvatarMutation.mutate({ avatar: dataUrl });
+        } catch {
+          toast.error("Falha ao processar a imagem.");
+        }
+      };
+      img.onerror = () => toast.error("Falha ao ler a imagem.");
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => toast.error("Falha ao ler o arquivo.");
+    reader.readAsDataURL(file);
+  };
+
   const { data: badges = [] } = trpc.rankings.myBadges.useQuery();
   const { data: myRankings = [] } = trpc.rankings.myRankings.useQuery();
   const rankingStats = {
@@ -105,13 +148,30 @@ export default function StudentProfile() {
             <CardContent className="px-8 pb-8 -mt-16 text-center relative z-10">
               <div className="relative inline-block group">
                 <Avatar className="w-32 h-32 mx-auto border-4 border-card shadow-2xl mb-4 group-hover:scale-105 transition-transform duration-300">
-                  <AvatarImage src="" />
+                  <AvatarImage src={avatarUrl ?? (profile as any)?.avatar ?? ""} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white text-3xl font-black">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <button className="absolute bottom-6 right-2 w-8 h-8 rounded-full bg-primary text-white border-2 border-card flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Camera size={14} />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => { handleAvatarFile(e.target.files?.[0] ?? null); e.target.value = ""; }}
+                />
+                <button
+                  type="button"
+                  title="Alterar foto de perfil"
+                  disabled={updateAvatarMutation.isPending}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-6 right-2 w-8 h-8 rounded-full bg-primary text-white border-2 border-card flex items-center justify-center shadow-lg opacity-100 group-hover:scale-110 transition-transform disabled:opacity-50"
+                >
+                  {updateAvatarMutation.isPending ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Camera size={14} />
+                  )}
                 </button>
               </div>
               

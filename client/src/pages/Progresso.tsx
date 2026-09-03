@@ -172,6 +172,7 @@ export default function Progresso() {
   const [studyPlanStatus, setStudyPlanStatus] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [targetDailyStudyMinutes, setTargetDailyStudyMinutes] = useState(30);
+  const [planDaysCount, setPlanDaysCount] = useState<5 | 10 | 15>(5);
   const [selectedPlanMode, setSelectedPlanMode] = useState<"direto" | "didatico" | "desafio">("direto");
   const [selectedGoalScope, setSelectedGoalScope] = useState<"somente_metas" | "metas_complementares">("somente_metas");
   const [studyPlanMobileTab, setStudyPlanMobileTab] = useState<"controls" | "plan">("controls");
@@ -294,10 +295,7 @@ export default function Progresso() {
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (Array.isArray(parsed)) {
-        const arr = parsed.map(Boolean);
-        while (arr.length < 5) arr.push(false);
-        if (arr.length > 5) arr.length = 5;
-        return arr;
+        return parsed.map(Boolean);
       }
     } catch { /* noop */ }
     return [false, false, false, false, false];
@@ -1675,6 +1673,35 @@ export default function Progresso() {
                 </div>
 
                 {/* Botão Gerar */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black text-foreground flex items-center gap-1.5">
+                      <CalendarDays size={13} className="text-orange-500" />
+                      Duração do Plano
+                    </span>
+                    <span className="text-[11px] font-black text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-lg border border-orange-500/20">
+                      {planDaysCount} dias
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[5, 10, 15].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setPlanDaysCount(d as 5 | 10 | 15)}
+                        className={cn(
+                          "h-9 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center justify-center",
+                          planDaysCount === d
+                            ? "bg-orange-500 text-white border-orange-600 shadow-sm"
+                            : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60"
+                        )}
+                      >
+                        {d} dias
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <Button 
                   onClick={() => {
                     setStudyPlanContent(null);
@@ -1684,6 +1711,7 @@ export default function Progresso() {
                     generateDailyStudyPlanMutation.mutate({
                       studentId: selectedStudentId!,
                       targetMinutes: targetDailyStudyMinutes,
+                      daysCount: planDaysCount,
                       planMode: selectedPlanMode,
                       goalScope: selectedGoalScope,
                     });

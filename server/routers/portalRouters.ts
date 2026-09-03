@@ -641,6 +641,7 @@ export const portalRouters = {
         guardianPhone: students.guardianPhone,
         permissions: students.permissions,
         organizationId: students.organizationId,
+        avatar: students.avatar,
       }).from(students).where(eq(students.id, studentId)).limit(1) : [null];
 
       if (!student) {
@@ -659,6 +660,7 @@ export const portalRouters = {
           guardianPhone: students.guardianPhone,
           permissions: students.permissions,
           organizationId: students.organizationId,
+          avatar: students.avatar,
         }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
       }
       
@@ -901,6 +903,28 @@ export const portalRouters = {
 
         return { success: true };
       }),
+
+    // Upload de avatar pelo PRÓPRIO aluno (foto de perfil do portal)
+    updateMyAvatar: studentProcedure
+      .input(z.object({
+        avatar: z.string().min(10).max(3_000_000), // data URL (JPEG comprimido no client)
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        let studentId = ctx.user.studentId;
+        if (!studentId) {
+          const [found] = await db.select({ id: students.id }).from(students).where(eq(students.studentUserId, ctx.user.id)).limit(1);
+          if (found) studentId = found.id;
+        }
+        if (!studentId) throw new Error("Acesso não autorizado");
+
+        await db.update(students).set({ avatar: input.avatar, updatedAt: new Date() }).where(eq(students.id, studentId));
+
+        return { success: true };
+      }),
+
     getTeacherSchedule: studentProcedure
       .input(z.object({ lessonId: z.number() }))
       .query(async ({ ctx, input }) => {

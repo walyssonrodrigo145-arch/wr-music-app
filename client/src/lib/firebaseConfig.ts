@@ -96,12 +96,20 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
     return subscriptionJson;
   } catch (err: any) {
     const detail = err?.message || String(err);
+    const errName = err?.name || "Erro";
+
+    // Chave VAPID malformada/rejeitada — problema do app, não do dispositivo
+    if (errName === "InvalidAccessError" || /applicationServerKey/i.test(detail)) {
+      throw new Error("Chave de notificações inválida no app. Contate o suporte. [" + errName + "]");
+    }
+
     const isPushServiceError =
       detail.includes("push service error") ||
       detail.includes("AbortError") ||
       detail.includes("Registration failed") ||
-      err?.name === "InvalidStateError" ||
-      err?.name === "NotAllowedError";
+      errName === "AbortError" ||
+      errName === "InvalidStateError" ||
+      errName === "NotAllowedError";
 
     if (isPushServiceError) {
       // Auto-recovery: reset SW e retry uma única vez
@@ -113,15 +121,17 @@ export const requestForToken = async (forceRefresh = false): Promise<string | nu
         await navigator.serviceWorker.ready;
         const retryJson = await subscribe(freshReg);
         return retryJson;
-      } catch {
+      } catch (retryErr: any) {
+        // Diagnóstico real: mostra o tipo do erro para identificar bloqueio de rede/DNS
+        const retryDetail = (retryErr?.message || String(retryErr)).slice(0, 140);
         throw new Error(
-          "Seu navegador não conseguiu conectar ao serviço de Push. " +
-          "Tente: 1) Conectar ao WiFi; 2) Limpar dados do navegador; 3) Reiniciar o celular."
+          "Não foi possível conectar ao serviço de Push do navegador (" + (retryErr?.name || errName) + ": " + retryDetail + "). " +
+          "Causas comuns: DNS com bloqueio (AdGuard/NextDNS), VPN/bloqueador de anúncios ou economia de dados ativos."
         );
       }
     }
 
-    throw new Error(`Falha ao ativar notificações: ${detail}`);
+    throw new Error(`Falha ao ativar notificações [${errName}]: ${detail.slice(0, 140)}`);
   }
 };
 

@@ -69,10 +69,7 @@ function parseDaysCompleted(raw: any): boolean[] {
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (Array.isArray(parsed)) {
-      const arr = parsed.map(Boolean);
-      while (arr.length < 5) arr.push(false);
-      if (arr.length > 5) arr.length = 5;
-      return arr;
+      return parsed.map(Boolean);
     }
   } catch { /* plano corrompido */ }
   return [false, false, false, false, false];
@@ -149,8 +146,10 @@ export default function StudentDashboard() {
   const planDayList = useMemo(() => parsePlan((activePlan as any)?.planText), [(activePlan as any)?.planText]);
   const planPercent = planDayList
     ? Math.round((planDays.filter(Boolean).length / planDayList.length) * 100)
-    : Math.round((planDays.filter(Boolean).length / 5) * 100);
-  const currentDayIdx = planDays.findIndex((d) => !d) >= 0 ? planDays.findIndex((d) => !d) : 4;
+    : Math.round((planDays.filter(Boolean).length / Math.max(1, planDays.length)) * 100);
+  const currentDayIdx = planDays.findIndex((d) => !d) >= 0
+    ? planDays.findIndex((d) => !d)
+    : Math.max(0, (planDayList?.length || planDays.length || 5) - 1);
   const currentPlanDay = planDayList?.[currentDayIdx];
   const dayExerciseCount = currentPlanDay?.exercises?.length ?? 0;
   const estimatedMinutes = useMemo(() => {

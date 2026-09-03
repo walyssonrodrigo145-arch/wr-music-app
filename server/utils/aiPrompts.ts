@@ -335,12 +335,13 @@ export interface PlanOutputSchemaInput {
   };
 }
 
-export function buildPlanOutputSchema(input: PlanOutputSchemaInput): string {
+export function buildPlanOutputSchema(input: PlanOutputSchemaInput & { daysCount?: number }): string {
   const d = input.durations;
+  const daysCount = input.daysCount ?? 5;
   return `# 📤 FORMATO DE SAÍDA
-Retorne SOMENTE o JSON válido abaixo (sem texto fora dele, sem markdown), com EXATAMENTE 5 objetos em "days":
+Retorne SOMENTE o JSON válido abaixo (sem texto fora dele, sem markdown), com EXATAMENTE ${daysCount} objetos em "days":
 {
-  "weeklyGoal": "resumo objetivo da semana focado nas metas",
+  "weeklyGoal": "resumo objetivo da série focado nas metas",
   "importantMessage": "dica prática de execução",
   "targetDailyMinutes": ${input.totalMinutes},
   "days": [
@@ -351,7 +352,7 @@ Retorne SOMENTE o JSON válido abaixo (sem texto fora dele, sem markdown), com E
     }
   ]
 }
-Dias 2 a 5 seguem a mesma estrutura. EXERCÍCIOS: exatamente 6 por dia, SEMPRE nesta ordem, com estes títulos exatos e durações:
+Dias 2 a ${daysCount} seguem a mesma estrutura. EXERCÍCIOS: exatamente 6 por dia, SEMPRE nesta ordem, com estes títulos exatos e durações:
 1. "Revisão" (${d.revisao} min) · 2. "Aquecimento" (${d.warm} min) · 3. "Técnica" (${d.tecnica} min) · 4. "Conceito Musical" (${d.conceito} min) · 5. "Aplicação" (${d.aplicacao} min) · 6. "Desafio" (${d.desafio} min)
 Formato de cada exercício (CONCISÃO OBRIGATÓRIA):
 { "title": "título exato do bloco", "subtitle": "até 8 palavras", "duration": "X min", "points": ["até 12 palavras", "até 12 palavras"] }
@@ -391,7 +392,7 @@ export function buildLevelLanguageRule(level: string): string {
 /** Regra absoluta #3, variando conforme o escopo escolhido. */
 export function buildGoalScopeRule(scope: PlanGoalScope): string {
   if (scope === "metas_complementares") {
-    return `3. **METAS SÃO O NÚCLEO OBRIGATÓRIO** — todos os 5 dias devem exercitar as metas cadastradas. Você PODE adicionar assuntos COMPLEMENTARES NA MESMA LINHA pedagógica (técnica preparatória, conceitos e exercícios que sustentam diretamente as metas).`;
+    return `3. **METAS SÃO O NÚCLEO OBRIGATÓRIO** — todos os dias da série devem exercitar as metas cadastradas. Você PODE adicionar assuntos COMPLEMENTARES NA MESMA LINHA pedagógica (técnica preparatória, conceitos e exercícios que sustentam diretamente as metas).`;
   }
   return `3. **FOCO 100% FECHADO NAS METAS.** Proibido inventar repertórios fora das metas cadastradas.`;
 }
@@ -412,7 +413,7 @@ export function buildGoalScopeBlock(scope: PlanGoalScope): string {
 # 🧩 ESCOPO DO CONTEÚDO: SOMENTE METAS
 - Use EXCLUSIVAMENTE o conteúdo das metas cadastradas. Nada fora delas: sem assuntos extras, sem repertório novo, sem temas paralelos.
 - Interprete as metas LITERALMENTE e SIGA-AS À RISCA: os exercícios tratam exatamente do que a meta descreve, com as palavras da meta.
-- **Exemplo:** meta "Praticar as Tríades Dó, Sol, Lá menor, Fá" → os 5 dias formam e praticam essas tríades (formação, troca, ritmo). Se a meta não menciona voicing, comping, arpejos de outra tonalidade ou qualquer técnica avançada, ISSO NÃO PODE APARECER no plano — mesmo sendo técnica legítima do instrumento.
+- **Exemplo:** meta "Praticar as Tríades Dó, Sol, Lá menor, Fá" → os dias da série formam e praticam essas tríades (formação, troca, ritmo). Se a meta não menciona voicing, comping, arpejos de outra tonalidade ou qualquer técnica avançada, ISSO NÃO PODE APARECER no plano — mesmo sendo técnica legítima do instrumento.
 `;
 }
 

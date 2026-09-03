@@ -1189,7 +1189,7 @@ export const lessonsRouters = {
       items: z.array(z.object({
         scheduledAt: z.string(),
         force: z.boolean().default(false)
-      })).min(1)
+      })).min(1).max(200, "Limite de 200 aulas por geração em lote")
     })).mutation(async ({ ctx, input }) => {
       try {
         const db = await getDb();

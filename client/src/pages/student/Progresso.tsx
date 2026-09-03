@@ -59,10 +59,7 @@ function parseDaysCompleted(raw: any): boolean[] {
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (Array.isArray(parsed)) {
-      const arr = parsed.map(Boolean);
-      while (arr.length < 5) arr.push(false);
-      if (arr.length > 5) arr.length = 5;
-      return arr;
+      return parsed.map(Boolean);
     }
   } catch (e) {
     return [false, false, false, false, false];
@@ -386,10 +383,12 @@ export default function StudentProgress() {
       
       if (prevData) {
         const parsedDays = JSON.parse((prevData.daysCompleted as string) || "[]");
-        const days = Array.isArray(parsedDays) ? parsedDays.map(Boolean) : [false, false, false, false, false];
-        
+        const days = Array.isArray(parsedDays) ? parsedDays.map(Boolean) : [];
+        while (days.length <= dayIndex) days.push(false);
+
         const parsedTime = JSON.parse((prevData.daysTimeSpent as string) || "[]");
-        const times = Array.isArray(parsedTime) ? parsedTime.map(Number) : [0, 0, 0, 0, 0];
+        const times = Array.isArray(parsedTime) ? parsedTime.map(Number) : [];
+        while (times.length <= dayIndex) times.push(0);
 
         days[dayIndex] = true;
         times[dayIndex] = totalRef.current;

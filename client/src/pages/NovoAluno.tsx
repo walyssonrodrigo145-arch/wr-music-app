@@ -1104,7 +1104,7 @@ export default function NovoAluno() {
                 </div>
               </div>
 
-              <div className="space-y-5 relative z-10">
+              <div className="space-y-4 relative z-10">
                 {/* Título da Aula */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Título da Aula *</label>
@@ -1223,9 +1223,10 @@ export default function NovoAluno() {
                 </div>
 
                 {/* BUG #7 FIX: Sala de Aula adicionada ao formulário de agendamento */}
+                <div className={cn("grid gap-4", studioRooms.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
                 {studioRooms.length > 0 && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula (opcional)</label>
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] ml-1">Sala de Aula</label>
                     <Select
                       value={scheduleForm.studioRoomId || "none"}
                       onValueChange={v => updateSchedule(p => ({ ...p, studioRoomId: v === "none" ? "" : v }))}
@@ -1271,6 +1272,7 @@ export default function NovoAluno() {
                       {scheduleForm.weeksCount * scheduleForm.lessonsPerWeek} aula(s) serão agendadas ao longo das {scheduleForm.weeksCount} semanas.
                     </p>
                   )}
+                </div>
                 </div>
 
                 {/* Aulas na Mesma Semana */}

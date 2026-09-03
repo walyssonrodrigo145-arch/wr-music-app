@@ -504,6 +504,8 @@ export const progressRouters = {
       targetMinutes: z.number().min(10).max(120).optional().default(30),
       teacherNotes: z.string().max(500).optional(),
       planMode: z.enum(["direto", "didatico", "desafio"]).optional().default("direto"),
+      // Duração da série em dias (PRD: 5, 10 ou 15)
+      daysCount: z.union([z.literal(5), z.literal(10), z.literal(15)]).optional().default(5),
       // 2 opções de escopo: "somente_metas" (estrito, padrão) | "metas_complementares" (metas + assuntos na mesma linha)
       goalScope: z.enum(["somente_metas", "metas_complementares"]).optional().default("somente_metas"),
     })).mutation(async ({ ctx, input }) => {
@@ -513,6 +515,7 @@ export const progressRouters = {
       const totalMinutes = input.targetMinutes ?? 30;
       const planMode = input.planMode || "direto";
       const goalScope = input.goalScope || "somente_metas";
+      const daysCount = input.daysCount ?? 5;
       const goalScopeRule = buildGoalScopeRule(goalScope);
       const goalScopeBlock = buildGoalScopeBlock(goalScope);
 
@@ -720,6 +723,7 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
       // ── 8. JSON SCHEMA DE SAÍDA — COMPACTO (PRD_OTIMIZACAO_PLANO_DIARIO RF-003) ──
       const jsonSchemaFormat = buildPlanOutputSchema({
         totalMinutes,
+        daysCount,
         durations: {
           revisao: revisaoMin,
           warm: warmMin,
@@ -750,7 +754,7 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
       const prompt = `# 🎼 MusicPro AI — Personal Trainer de ${instrumentName.toUpperCase()}
 
 Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**) — Especialista: ${specialist.displayName} (${specialist.id}).
-Sua missão é criar uma rotina de treino diário de 5 dias focada **EXCLUSIVAMENTE nas METAS CADASTRADAS** (seção DADOS DO ALUNO no final).
+Sua missão é criar uma rotina de treino diário de ${daysCount} dias focada **EXCLUSIVAMENTE nas METAS CADASTRADAS** (seção DADOS DO ALUNO no final).
 ---
 ${modeInstruction}
 ---
@@ -765,12 +769,13 @@ ${forbiddenBlock}
 # 🧠 Dica de Nível (${studentLevel}): ${levelHint}
 ${levelLanguageRule}${techniqueRulesBlock}---
 
-# 📈 PROGRESSÃO DOS 5 DIAS:
+# 📈 PROGRESSÃO DOS ${daysCount} DIAS:
 - **Dia 1:** Mecânica & Memória Muscular (Elemento 1)
 - **Dia 2:** Mecânica & Memória Muscular (Elemento 2 ou aprofundamento)
 - **Dia 3:** Conexão & Troca Rápida sem Perder o Pulso
 - **Dia 4:** Aplicação Musical em Contexto Real
 - **Dia 5:** Performance Contínua & Teste de Resistência
+- **Dias 6 a ${daysCount}:** repita o ciclo de 5 fases acima do início, aprofundando a cada ciclo: aumente BPM/metrônomo, reduza pausas e eleve a exigência de precisão. Reaproveite as metas cadastradas.
 
 ---
 
@@ -878,14 +883,14 @@ ${lessonsText}`;
             });
           }
 
-          if (candidate.days.length < 5) {
+          if (candidate.days.length < daysCount) {
             if (attempt === 0) {
-              console.warn(`[InstrumentSpecialist] Tentativa ${attempt + 1} gerou apenas ${candidate.days.length} dias (esperado 5) — retry`);
+              console.warn(`[InstrumentSpecialist] Tentativa ${attempt + 1} gerou apenas ${candidate.days.length} dias (esperado ${daysCount}) — retry`);
               continue;
             }
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
-              message: `A IA gerou apenas ${candidate.days.length} dia(s) de treino (esperado: 5). Tente gerar novamente.`,
+              message: `A IA gerou apenas ${candidate.days.length} dia(s) de treino (esperado: ${daysCount}). Tente gerar novamente.`,
             });
           }
 
@@ -970,7 +975,7 @@ ${lessonsText}`;
             planText: finalPlanText,
             status: "ativo",
             publishedStatus: "rascunho",
-            daysCompleted: JSON.stringify([false, false, false, false, false]),
+            daysCompleted: JSON.stringify(Array(daysCount).fill(false)),
           })
           .returning({ id: dailyStudyPlans.id });
 
@@ -1000,27 +1005,33 @@ ${lessonsText}`;
       return plan || null;
     }),
 
-    toggleStudyPlanDay: studentProcedure.input(z.object({ planId: z.number(), dayIndex: z.number().min(0).max(4), timeSpentSeconds: z.number().optional() })).mutation(async ({ ctx, input }) => {
+    toggleStudyPlanDay: studentProcedure.input(z.object({ planId: z.number(), dayIndex: z.number().min(0).max(14), timeSpentSeconds: z.number().optional() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
       const [plan] = await db.select().from(dailyStudyPlans).where(and(eq(dailyStudyPlans.id, input.planId), eq(dailyStudyPlans.studentId, ctx.user.studentId!)));
       if (!plan) throw new Error("Plano não encontrado");
 
+      let planDays = 5;
+      try {
+        const pt = JSON.parse((plan.planText as string) || "{}");
+        if (Array.isArray(pt.days) && pt.days.length > 0) planDays = pt.days.length;
+      } catch { /* mantém 5 */ }
+
       const parsedDays = JSON.parse((plan.daysCompleted as string) || "[]");
-      const daysCompleted = Array.isArray(parsedDays) ? parsedDays.map(Boolean) : [false, false, false, false, false];
+      const daysCompleted = Array.isArray(parsedDays) ? parsedDays.map(Boolean) : [];
       
       const parsedTime = JSON.parse((plan.daysTimeSpent as string) || "[]");
-      const daysTimeSpent = Array.isArray(parsedTime) ? parsedTime.map(Number) : [0, 0, 0, 0, 0];
+      const daysTimeSpent = Array.isArray(parsedTime) ? parsedTime.map(Number) : [];
       
       // Ensure it always has exactly 5 days
-      while (daysCompleted.length < 5) daysCompleted.push(false);
-      if (daysCompleted.length > 5) daysCompleted.length = 5;
+      while (daysCompleted.length < planDays) daysCompleted.push(false);
+      if (daysCompleted.length > planDays) daysCompleted.length = planDays;
 
-      while (daysTimeSpent.length < 5) daysTimeSpent.push(0);
-      if (daysTimeSpent.length > 5) daysTimeSpent.length = 5;
+      while (daysTimeSpent.length < planDays) daysTimeSpent.push(0);
+      if (daysTimeSpent.length > planDays) daysTimeSpent.length = planDays;
 
-      if (input.dayIndex >= 0 && input.dayIndex < 5) {
+      if (input.dayIndex >= 0 && input.dayIndex < planDays) {
         daysCompleted[input.dayIndex] = !daysCompleted[input.dayIndex];
         if (daysCompleted[input.dayIndex] && input.timeSpentSeconds) {
           daysTimeSpent[input.dayIndex] = input.timeSpentSeconds;
