@@ -60,8 +60,13 @@ export function buildDueDateSeries(
     // Ajusta o dia para o último dia válido do mês (ex: dia 31 em fevereiro -> 28/29)
     const lastDay = new Date(y, m + 1, 0).getDate();
     const day = Math.min(dueDay as number, lastDay);
-    const dueDate = new Date(y, m, day);
-    out.push({ year: y, month: m + 1, dueDateISO: dueDate.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) });
+    // BUG FIX (TZ): montar a ISO diretamente dos componentes. Antes era
+    // new Date(y, m, day).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) —
+    // em servidor com TZ=UTC isso deslocava -1 dia (meia-noite UTC = 21:00 do dia
+    // anterior em Brasília), gerando cobranças com vencimento 1 dia a menos.
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const dueDateISO = `${y}-${pad(m + 1)}-${pad(day)}`;
+    out.push({ year: y, month: m + 1, dueDateISO });
   }
   return out;
 }
