@@ -41,8 +41,8 @@ conn.on('ready', () => {
         echo "🔐 Garantindo INFINITEPAY_WEBHOOK_TOKEN no .env (webhook InfinitePay)..."
         if ! grep -q "^INFINITEPAY_WEBHOOK_TOKEN=" .env 2>/dev/null; then
           IP_TOKEN=$(openssl rand -hex 24)
-          echo "INFINITEPAY_WEBHOOK_TOKEN=${IP_TOKEN}" >> .env
-          echo "INFINITEPAY_WEBHOOK_TOKEN gerado (${IP_TOKEN:0:6}...) e adicionado ao .env"
+          echo "INFINITEPAY_WEBHOOK_TOKEN=\${IP_TOKEN}" >> .env
+          echo "INFINITEPAY_WEBHOOK_TOKEN gerado (\${IP_TOKEN:0:6}...) e adicionado ao .env"
         else
           echo "INFINITEPAY_WEBHOOK_TOKEN já configurado no .env"
         fi
