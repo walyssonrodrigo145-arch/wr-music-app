@@ -6,6 +6,8 @@ import { eq, and, gte, lte, desc, isNotNull, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasChargeStatus } from "./utils/asaas";
 import { createMPPreference, verifyMPPayment } from "./utils/mercadopago";
+import { createInfinitePayLink, checkInfinitePayPayment, brlToCents, resolveInfinitePayApiKey } from "./utils/infinitepay";
+import { resolveActivePaymentGateway } from "./routers/helpers";
 import { ENV } from "./_core/env";
 
 export const enrollmentRouter = router({
@@ -139,20 +141,8 @@ export const enrollmentRouter = router({
 
       const allInstruments = await db.select().from(instruments).where(eq(instruments.organizationId, orgId));
 
-      const paymentGateway = schoolSet?.paymentGateway || "asaas";
-      const hasAsaas = !!(schoolSet?.asaasApiKey && (schoolSet?.asaasEnabled === 1 || (schoolSet?.asaasEnabled as any) === true));
-      const hasMercadoPago = !!schoolSet?.mpAccessToken;
-
-      let activeGateway: "asaas" | "mercadopago" | "none" = "none";
-      if (paymentGateway === "mercadopago" && hasMercadoPago) {
-        activeGateway = "mercadopago";
-      } else if (paymentGateway === "asaas" && hasAsaas) {
-        activeGateway = "asaas";
-      } else if (hasAsaas) {
-        activeGateway = "asaas";
-      } else if (hasMercadoPago) {
-        activeGateway = "mercadopago";
-      }
+      // RN-001: gateway selecionado e configurado; fallback asaas > mercadopago > infinitepay
+      const activeGateway: "asaas" | "mercadopago" | "infinitepay" | "none" = resolveActivePaymentGateway(schoolSet);
 
       // Retorna schoolHours para o frontend poder cinzar dias fechados
       let parsedSchoolHours: Record<string, { active: boolean; start: string; end: string }> = {};
@@ -371,13 +361,41 @@ export const enrollmentRouter = router({
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       const courseName = inst?.name || "Música";
 
-      // Qual gateway a escola usa?
-      const gateway = schoolSet?.paymentGateway || "asaas";
-      const hasAsaas = !!(schoolSet?.asaasApiKey && (schoolSet?.asaasEnabled === 1 || (schoolSet?.asaasEnabled as any) === true));
-      const hasMercadoPago = !!schoolSet?.mpAccessToken;
+      // Qual gateway a escola usa? (RN-001: fonte única de resolução)
+      const activeGateway = resolveActivePaymentGateway(schoolSet);
+
+      // INFINITEPAY (checkout hospedado — Pix taxa zero / Cartão 12x)
+      if (activeGateway === "infinitepay") {
+        const ipLink = await createInfinitePayLink({
+          handle: schoolSet!.infinitepayHandle!,
+          orderNsu: `enrollment_${link.code}`,
+          items: [{
+            quantity: 1,
+            price: brlToCents(monthlyFee),
+            description: `Matrícula - Curso de ${courseName}`,
+          }],
+          redirectUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/matricula/${link.code}?status=pending`,
+          webhookUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/api/webhooks/infinitepay/student?enrollmentCode=${encodeURIComponent(link.code)}&token=${encodeURIComponent(ENV.infinitepayWebhookToken)}`,
+          apiKey: resolveInfinitePayApiKey(schoolSet.infinitepayApiKey ?? null),
+          customer: {
+            name: input.studentName,
+            email: input.studentEmail || undefined,
+            phone: input.studentPhone,
+          },
+        });
+
+        return {
+          skipPayment: false,
+          gateway: "infinitepay",
+          invoiceUrl: ipLink.url,
+          slug: ipLink.slug,
+          value: monthlyFee,
+          billingType: input.billingType,
+        };
+      }
 
       // MERCADO PAGO
-      if ((gateway === "mercadopago" && hasMercadoPago) || (!hasAsaas && hasMercadoPago)) {
+      if (activeGateway === "mercadopago") {
         const mpResult = await createMPPreference(
           {
             items: [
@@ -408,7 +426,7 @@ export const enrollmentRouter = router({
       }
 
       // ASAAS
-      if (hasAsaas) {
+      if (activeGateway === "asaas") {
         const asaasCustomerId = await createAsaasCustomer(
           {
             name: input.studentName,
@@ -474,6 +492,7 @@ export const enrollmentRouter = router({
         dateStr: z.string(),
         timeStr: z.string(),
         asaasChargeId: z.string().optional(),
+        infinitepaySlug: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -519,7 +538,7 @@ export const enrollmentRouter = router({
       }
 
       // Busca o settings mais completo para pegar lessonDuration correto
-      const allSettings3 = await db.select({ lessonDuration: settings.lessonDuration, schoolName: settings.schoolName, asaasApiKey: settings.asaasApiKey, asaasEnabled: settings.asaasEnabled, mpAccessToken: settings.mpAccessToken, paymentGateway: settings.paymentGateway }).from(settings).where(eq(settings.organizationId, orgId));
+      const allSettings3 = await db.select({ lessonDuration: settings.lessonDuration, schoolName: settings.schoolName, asaasApiKey: settings.asaasApiKey, asaasEnabled: settings.asaasEnabled, mpAccessToken: settings.mpAccessToken, paymentGateway: settings.paymentGateway, infinitepayHandle: settings.infinitepayHandle, infinitepayApiKey: settings.infinitepayApiKey, infinitepayEnabled: settings.infinitepayEnabled }).from(settings).where(eq(settings.organizationId, orgId));
       const bestSettings3 = allSettings3.find(s => s.schoolName && s.schoolName.trim() !== '')
         || allSettings3.find(s => s.asaasApiKey || s.mpAccessToken)
         || allSettings3[0];
@@ -532,7 +551,9 @@ export const enrollmentRouter = router({
       const gateway = (schoolSet as any)?.paymentGateway || "asaas";
       const hasAsaas = !!(schoolSet?.asaasApiKey && (schoolSet?.asaasEnabled === 1 || (schoolSet?.asaasEnabled as any) === true));
       const hasMercadoPago = !!schoolSet?.mpAccessToken;
-      const requiresPayment = hasAsaas || ((gateway === "mercadopago") && hasMercadoPago);
+      const hasInfinitePay = !!(schoolSet?.infinitepayHandle && (schoolSet?.infinitepayEnabled as any) === 1);
+      const infinitepayActive = hasInfinitePay && (gateway === "infinitepay" || (!hasAsaas && !hasMercadoPago));
+      const requiresPayment = hasAsaas || infinitepayActive || ((gateway === "mercadopago") && hasMercadoPago);
 
       if (requiresPayment) {
         let paymentVerified = false;
@@ -546,6 +567,21 @@ export const enrollmentRouter = router({
             paymentVerified = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH", "DETERMINED"].includes(String(chargeStatus).toUpperCase());
           } catch (e) {
             console.error("[Enrollment] Falha ao verificar cobrança Asaas:", e);
+            paymentVerified = false;
+          }
+        } else if (infinitepayActive) {
+          // InfinitePay: revalidação server-to-server via payment_check
+          // (o corpo/redirect da InfinitePay não é prova de pagamento)
+          try {
+            const check = await checkInfinitePayPayment({
+              handle: schoolSet!.infinitepayHandle!,
+              orderNsu: `enrollment_${link.code}`,
+              slug: input.infinitepaySlug || undefined,
+              apiKey: resolveInfinitePayApiKey((schoolSet as any).infinitepayApiKey ?? null),
+            });
+            paymentVerified = check.paid === true;
+          } catch (e) {
+            console.error("[Enrollment] Falha ao verificar pagamento InfinitePay:", e);
             paymentVerified = false;
           }
         } else {
@@ -722,6 +758,50 @@ export const enrollmentRouter = router({
         verified,
         status,
         paymentId: String(latestPayment.id),
+      };
+    }),
+
+  // 8. Verifica pagamento InfinitePay da matrícula (server-to-server via payment_check)
+  verifyInfinitePayPayment: publicProcedure
+    .input(
+      z.object({
+        code: z.string(),            // código do link de matrícula
+        slug: z.string().optional(), // invoice_slug recebido na criação da cobrança (se disponível)
+      })
+    )
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      const [link] = await db
+        .select()
+        .from(enrollmentLinks)
+        .where(eq(enrollmentLinks.code, input.code))
+        .limit(1);
+
+      if (!link) throw new Error("Link não encontrado");
+
+      const allSettings = await db.select().from(settings).where(eq(settings.organizationId, link.organizationId));
+      const schoolSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '')
+        || allSettings.find(s => s.asaasApiKey || s.mpAccessToken || s.infinitepayHandle)
+        || allSettings[0];
+
+      if (!schoolSet?.infinitepayHandle || (schoolSet.infinitepayEnabled as any) !== 1) {
+        throw new Error("Escola sem InfinitePay configurado.");
+      }
+
+      const check = await checkInfinitePayPayment({
+        handle: schoolSet.infinitepayHandle,
+        orderNsu: `enrollment_${input.code}`,
+        slug: input.slug || undefined,
+        apiKey: resolveInfinitePayApiKey(schoolSet.infinitepayApiKey ?? null),
+      });
+
+      return {
+        verified: check.paid === true,
+        paid: check.paid === true,
+        paidAmount: check.paidAmount ?? null,
+        captureMethod: check.captureMethod ?? null,
       };
     }),
 });

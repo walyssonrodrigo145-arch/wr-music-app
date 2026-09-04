@@ -289,7 +289,10 @@ export const comunicacaoRouters = {
         paymentGateway: settings.paymentGateway, 
         asaasEnabled: settings.asaasEnabled,
         asaasApiKey: settings.asaasApiKey,
-        mpAccessToken: settings.mpAccessToken
+        mpAccessToken: settings.mpAccessToken,
+        infinitepayHandle: settings.infinitepayHandle,
+        infinitepayApiKey: settings.infinitepayApiKey,
+        infinitepayEnabled: settings.infinitepayEnabled,
       })
         .from(settings)
         .where(eq(settings.userId, ctx.user.id))
@@ -313,6 +316,7 @@ export const comunicacaoRouters = {
         instrumentName: instruments.name,
         asaasPaymentLink: paymentDues.asaasPaymentLink,
         mpPaymentLink: paymentDues.mpPaymentLink,
+        infinitepayPaymentLink: paymentDues.infinitepayPaymentLink,
       })
         .from(paymentDues)
         .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
@@ -414,10 +418,38 @@ export const comunicacaoRouters = {
         // Adiciona link de pagamento do gateway ativo, gerando se não existir
         let paymentLink = paymentGateway === "mercadopago"
           ? (due.mpPaymentLink ?? null)
-          : (due.asaasPaymentLink ?? null);
+          : paymentGateway === "infinitepay"
+            ? (due.infinitepayPaymentLink ?? null)
+            : (due.asaasPaymentLink ?? null);
 
         if (!paymentLink) {
-          if (paymentGateway === "mercadopago" && userSettings.mpAccessToken) {
+          if (paymentGateway === "infinitepay" && userSettings.infinitepayHandle && (userSettings.infinitepayEnabled === 1 || userSettings.infinitepayEnabled === undefined || userSettings.infinitepayEnabled === null)) {
+            try {
+              const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import('../utils/infinitepay');
+              const ipLink = await createInfinitePayLink({
+                handle: userSettings.infinitepayHandle,
+                orderNsu: String(due.id),
+                items: [{
+                  quantity: 1,
+                  price: brlToCents(due.amount),
+                  description: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
+                }],
+                redirectUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/painel/mensalidades`,
+                webhookUrl: buildInfinitePayWebhookUrl(due.id),
+                apiKey: resolveInfinitePayApiKey(userSettings.infinitepayApiKey),
+                customer: {
+                  name: due.studentName || 'Aluno',
+                  email: due.studentEmail || undefined,
+                  phone: due.studentPhone || undefined,
+                },
+              });
+
+              await db.update(paymentDues).set({ infinitepayPaymentLink: ipLink.url, infinitepaySlug: ipLink.slug }).where(eq(paymentDues.id, due.id));
+              paymentLink = ipLink.url;
+            } catch (err) {
+              console.error("[InfinitePay Auto-Generate Error]", err);
+            }
+          } else if (paymentGateway === "mercadopago" && userSettings.mpAccessToken) {
             try {
               const { createMPPreference } = await import('../utils/mercadopago');
               const pref = await createMPPreference({
@@ -491,7 +523,7 @@ export const comunicacaoRouters = {
             .replace(/\{link\}/g, replacement)
             .replace(/\{payment_link\}/g, replacement);
         } else if (paymentLink) {
-          const gatewayName = paymentGateway === "mercadopago" ? "Mercado Pago" : "Asaas";
+          const gatewayName = paymentGateway === "mercadopago" ? "Mercado Pago" : paymentGateway === "infinitepay" ? "InfinitePay" : "Asaas";
           message += `\n\n💳 *Pague agora via ${gatewayName}:*\n${paymentLink}`;
         } else if (pixKey) {
           message += `\n\n💳 *Pagamento via PIX:*\n🔑 Chave: ${pixKey}`;

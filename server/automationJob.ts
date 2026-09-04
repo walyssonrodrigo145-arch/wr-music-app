@@ -675,6 +675,9 @@ async function runAutomation() {
           asaasApiKey: settings.asaasApiKey,
           asaasEnabled: settings.asaasEnabled,
           mpAccessToken: settings.mpAccessToken,
+          infinitepayHandle: settings.infinitepayHandle,
+          infinitepayApiKey: settings.infinitepayApiKey,
+          infinitepayEnabled: settings.infinitepayEnabled,
           notifyWeeklyReport: settings.notifyWeeklyReport,
         })
         .from(settings)
@@ -732,6 +735,7 @@ async function runAutomation() {
                   instrumentName: instruments.name,
                   asaasPaymentLink: paymentDues.asaasPaymentLink,
                   mpPaymentLink: paymentDues.mpPaymentLink,
+                  infinitepayPaymentLink: paymentDues.infinitepayPaymentLink,
                 })
                 .from(paymentDues)
                 .leftJoin(students, and(eq(paymentDues.studentId, students.id), eq(students.organizationId, orgId)))
@@ -789,10 +793,43 @@ async function runAutomation() {
 
                 // Tenta recuperar ou gerar link de pagamento caso não exista
                 const pGateway = userSet.paymentGateway ?? "asaas";
-                let paymentLink = pGateway === "mercadopago" ? (due.mpPaymentLink ?? null) : (due.asaasPaymentLink ?? null);
+                let paymentLink = pGateway === "mercadopago"
+                  ? (due.mpPaymentLink ?? null)
+                  : pGateway === "infinitepay"
+                    ? (due.infinitepayPaymentLink ?? null)
+                    : (due.asaasPaymentLink ?? null);
 
                 if (!paymentLink) {
-                  if (pGateway === "asaas" && userSet.asaasApiKey && (userSet.asaasEnabled === 1 || userSet.asaasEnabled === undefined || userSet.asaasEnabled === null)) {
+                  if (pGateway === "infinitepay" && userSet.infinitepayHandle && (userSet.infinitepayEnabled === 1 || userSet.infinitepayEnabled === undefined || userSet.infinitepayEnabled === null)) {
+                    // ── INFINITEPAY: gera link de pagamento on-the-fly ──────────
+                    try {
+                      const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import("./utils/infinitepay");
+                      const ipLink = await createInfinitePayLink({
+                        handle: userSet.infinitepayHandle,
+                        orderNsu: String(due.id),
+                        items: [{
+                          quantity: 1,
+                          price: brlToCents(due.amount),
+                          description: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
+                        }],
+                        redirectUrl: `https://wrmusicpro.com.br/painel/mensalidades`,
+                        webhookUrl: buildInfinitePayWebhookUrl(due.id),
+                        apiKey: resolveInfinitePayApiKey(userSet.infinitepayApiKey),
+                        customer: {
+                          name: due.studentName || "Aluno",
+                          email: due.studentEmail || undefined,
+                          phone: due.studentPhone || undefined,
+                        },
+                      });
+
+                      await db.update(paymentDues)
+                        .set({ infinitepayPaymentLink: ipLink.url, infinitepaySlug: ipLink.slug })
+                        .where(eq(paymentDues.id, due.id));
+                      paymentLink = ipLink.url;
+                    } catch (err) {
+                      console.error("[AutomationJob] Erro ao gerar cobrança InfinitePay on-the-fly:", err);
+                    }
+                  } else if (pGateway === "asaas" && userSet.asaasApiKey && (userSet.asaasEnabled === 1 || userSet.asaasEnabled === undefined || userSet.asaasEnabled === null)) {
                     try {
                       const { createAsaasCustomer, createAsaasCharge } = await import("./utils/asaas");
                       const { asaasCustomers } = await import("../drizzle/schema");
@@ -896,7 +933,7 @@ async function runAutomation() {
                     .replace(/\{link\}/g, pixReplacement)
                     .replace(/\{payment_link\}/g, pixReplacement);
                 } else if (paymentLink) {
-                  const gatewayName = pGateway === "mercadopago" ? "Mercado Pago" : "Asaas";
+                  const gatewayName = pGateway === "mercadopago" ? "Mercado Pago" : pGateway === "infinitepay" ? "InfinitePay" : "Asaas";
                   message += `\n\n💳 *Link de pagamento (${gatewayName}):*\n${paymentLink}`;
                 } else if (userSet.pixKey) {
                   message += `\n\n💳 *PIX:* ${userSet.pixKey}`;

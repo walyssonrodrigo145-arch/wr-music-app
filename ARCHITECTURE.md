@@ -8,7 +8,7 @@
 - **Frontend**: React 19 + Vite + wouter (rotas) + Tailwind + shadcn/ui + tRPC client
 - **Backend**: Node + Express + tRPC (`@trpc/server` v11) + Drizzle ORM (Postgres)
 - **Compartilhado**: `shared/` (constantes e tipos exportados pelo schema)
-- **Pagamentos**: Asaas (assinaturas/boletos/PIX) + Mercado Pago; **NFS-e** via FocusNFe/fiscal
+- **Pagamentos**: Asaas (assinaturas/boletos/PIX) + Mercado Pago + InfinitePay (checkout hospedado, Pix taxa zero/Cartão 12x — `utils/infinitepay.ts`, webhook revalida via `payment_check` pois a API não assina o webhook); **NFS-e** via FocusNFe/fiscal
 - **WhatsApp**: API WhatsApp multi-sessão (Baileys) em `server/utils/whatsapp.ts`
 - **Infra**: VPS (deploy em `vps-script/`), Firebase (push), Capacitor Android
 
@@ -35,7 +35,7 @@ server/
 ├── routers.ts              # BARREL: re-exporta appRouter (mantém contrato com o client)
 ├── routers/                # Routers por domínio (split do monólito — Fase 4)
 │   ├── index.ts            # composição do appRouter (mesmas chaves do antigo monólito)
-│   ├── helpers.ts          # regras financeiras compartilhadas: assinatura/excedentes (getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges), contratos (runCreateAssinafyContract), vencimentos (buildDueDateSeries), atrasado (markOverdueRows/getTodayBR/toISODate), segurança (safeEqualStr, isReservedSuperAdminEmail) + loginAttempts
+│   ├── helpers.ts          # regras financeiras compartilhadas: assinatura/excedentes (getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges), contratos (runCreateAssinafyContract), vencimentos (buildDueDateSeries), atrasado (markOverdueRows/getTodayBR/toISODate), gateway ativo (resolveActivePaymentGateway), idempotência de webhooks (registerWebhookEventOnce), segurança (safeEqualStr, isReservedSuperAdminEmail) + loginAttempts
 │   ├── authRouters.ts      # publicData + system + auth
 │   ├── progressRouters.ts  # progress + musicLibrary
 │   ├── dashboardRouters.ts # dashboard
@@ -57,7 +57,7 @@ server/
 │   ├── contractService.ts  # contratos
 │   ├── signature/          # Assinafy etc.
 │   └── fiscal/             # FiscalService (NFS-e)
-├── utils/                  # asaas, whatsapp, gemini, aiContext, aiPrompts, error_handler, fileSecurity
+├── utils/                  # asaas, mercadopago, infinitepay, whatsapp, gemini, aiContext, aiPrompts, error_handler, fileSecurity
 ├── webhooks/               # whatsapp, botStatus, focusnfe
 ├── report_engine/          # exportadores Excel/CSV
 └── automationJob.ts        # automações + agendamento

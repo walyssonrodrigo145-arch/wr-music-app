@@ -120,6 +120,11 @@ export const ENV = {
   // Obtenha em: Dashboard MP → Suas integrações → Webhooks → Chave secreta
   mpWebhookSecret: (process.env.MP_WEBHOOK_SECRET || "").trim(),
 
+  // ─── InfinitePay: token de validação do webhook de mensalidades ───────────
+  // A InfinitePay não envia assinatura HMAC; o token é embutido na webhook_url
+  // (?token=...) e validado server-side. Sem ele em produção, o webhook recusa (401).
+  infinitepayWebhookToken: (process.env.INFINITEPAY_WEBHOOK_TOKEN || "").trim(),
+
   // ─── Assinafy: token opcional para validar o webhook de contratos ─────────
   // As API Keys das escolas ficam no banco (criptografadas) — nunca no .env.
   assinafyWebhookSecret: (process.env.ASSINAFY_WEBHOOK_SECRET || "").trim(),

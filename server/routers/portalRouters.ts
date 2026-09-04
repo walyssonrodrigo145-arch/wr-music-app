@@ -685,7 +685,7 @@ export const portalRouters = {
           : Promise.resolve([{ name: null }]),
           
         resolvedOrgId
-          ? db.select({ pixKey: settings.pixKey, schoolPhone: settings.schoolPhone, paymentGateway: settings.paymentGateway })
+          ? db.select({ pixKey: settings.pixKey, schoolPhone: settings.schoolPhone, paymentGateway: settings.paymentGateway, infinitepayHandle: settings.infinitepayHandle, infinitepayEnabled: settings.infinitepayEnabled })
               .from(settings)
               .innerJoin(users, eq(users.id, settings.userId))
               .where(
@@ -696,7 +696,7 @@ export const portalRouters = {
               )
               .orderBy(desc(settings.updatedAt))
               .limit(1)
-          : Promise.resolve([{ pixKey: null, schoolPhone: null, paymentGateway: "asaas" }]),
+          : Promise.resolve([{ pixKey: null, schoolPhone: null, paymentGateway: "asaas", infinitepayHandle: null, infinitepayEnabled: 0 }]),
           
         db.select({ title: studentGoals.title })
           .from(studentGoals)
@@ -747,12 +747,13 @@ export const portalRouters = {
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
         const orgId = ctx.user.organizationId!;
-        
-        const { createMPPreference } = await import('../utils/mercadopago');
-        
-        const [settingsData] = await db.select({ 
+
+        const [settingsData] = await db.select({
           mpAccessToken: settings.mpAccessToken,
-          paymentGateway: settings.paymentGateway
+          paymentGateway: settings.paymentGateway,
+          infinitepayHandle: settings.infinitepayHandle,
+          infinitepayApiKey: settings.infinitepayApiKey,
+          infinitepayEnabled: settings.infinitepayEnabled,
         })
         .from(settings)
         .innerJoin(users, eq(users.id, settings.userId))
@@ -765,11 +766,9 @@ export const portalRouters = {
         .orderBy(desc(settings.updatedAt))
         .limit(1);
 
-        if (!settingsData || settingsData.paymentGateway !== 'mercadopago' || !settingsData.mpAccessToken) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Mercado Pago não está configurada." });
+        if (!settingsData) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Geração de link de pagamento não está configurada." });
         }
-
-        const accessToken = settingsData.mpAccessToken;
 
         // Validar permissão do aluno para essa mensalidade
         let studentId = ctx.user.studentId;
@@ -784,7 +783,6 @@ export const portalRouters = {
           .limit(1);
 
         if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
-        if (due.mpPaymentLink) return { paymentLink: due.mpPaymentLink }; // Já existe
 
         const [student] = await db.select().from(students)
           .where(and(eq(students.id, studentId), eq(students.organizationId, orgId)))
@@ -792,6 +790,53 @@ export const portalRouters = {
 
         if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
 
+        // ── InfinitePay: link de checkout hospedado on-the-fly ──
+        if (settingsData.paymentGateway === 'infinitepay') {
+          if (settingsData.infinitepayEnabled !== 1 || !settingsData.infinitepayHandle) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Geração via InfinitePay não está configurada." });
+          }
+          if (due.infinitepayPaymentLink) return { paymentLink: due.infinitepayPaymentLink }; // Já existe
+
+          const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import('../utils/infinitepay');
+          const link = await createInfinitePayLink({
+            handle: settingsData.infinitepayHandle,
+            orderNsu: String(due.id),
+            items: [{
+              quantity: 1,
+              price: brlToCents(due.amount),
+              description: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
+            }],
+            redirectUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/painel/mensalidades`,
+            webhookUrl: buildInfinitePayWebhookUrl(due.id),
+            apiKey: resolveInfinitePayApiKey(settingsData.infinitepayApiKey),
+            customer: {
+              name: student.name,
+              email: student.email || undefined,
+              phone: student.phone || undefined,
+            },
+          });
+
+          await db.update(paymentDues)
+            .set({
+              infinitepayPaymentLink: link.url,
+              infinitepaySlug: link.slug,
+              updatedAt: new Date(),
+            })
+            .where(eq(paymentDues.id, input.paymentDueId));
+
+          return { paymentLink: link.url };
+        }
+
+        // ── Mercado Pago (padrão) ──
+        if (settingsData.paymentGateway !== 'mercadopago' || !settingsData.mpAccessToken) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Mercado Pago não está configurada." });
+        }
+
+        const accessToken = settingsData.mpAccessToken;
+
+        if (due.mpPaymentLink) return { paymentLink: due.mpPaymentLink }; // Já existe
+
+        const { createMPPreference } = await import('../utils/mercadopago');
         const pref = await createMPPreference({
           items: [{
             title: `Mensalidade ${due.month}/${due.year} - ${student.name}`,

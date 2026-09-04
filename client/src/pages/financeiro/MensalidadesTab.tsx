@@ -40,6 +40,9 @@ type PaymentRow = {
   asaasId?: string | null;
   asaasPaymentLink?: string | null;
   asaasBillingType?: string | null;
+  mpPaymentId?: string | null;
+  mpPaymentLink?: string | null;
+  infinitepayPaymentLink?: string | null;
   receiptUrl?: string | null;
   studentStatus?: string | null;
 };
@@ -59,12 +62,12 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// ─── Modal: Gerar Cobrança Asaas ──────────────────────────────────────────────
+// ─── Modal: Gerar Cobrança (Asaas / Mercado Pago / InfinitePay) ───────────────
 function GatewayChargeModal({ open, onClose, payment, gateway }: {
   open: boolean;
   onClose: () => void;
   payment: PaymentRow | null;
-  gateway: "asaas" | "mercadopago";
+  gateway: "asaas" | "mercadopago" | "infinitepay";
 }) {
   const utils = trpc.useUtils();
   const [billingType, setBillingType] = useState<"PIX" | "CREDIT_CARD">("PIX");
@@ -92,10 +95,21 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
     onError: (e) => toast.error(formatFriendlyError(e, "Erro ao gerar link no Mercado Pago")),
   });
 
+  const generateInfinitePayMutation = trpc.paymentDues.generateInfinitePayCharge.useMutation({
+    onSuccess: (data) => {
+      setResult({ paymentLink: data.paymentLink, billingType: "IP" });
+      utils.paymentDues.invalidate();
+      toast.success("Link gerado no InfinitePay!");
+    },
+    onError: (e) => toast.error(formatFriendlyError(e, "Erro ao gerar link no InfinitePay")),
+  });
+
   const handleGenerate = () => {
     if (!payment) return;
     if (gateway === "mercadopago") {
       generateMPMutation.mutate({ paymentDueId: payment.id });
+    } else if (gateway === "infinitepay") {
+      generateInfinitePayMutation.mutate({ paymentDueId: payment.id });
     } else {
       generateAsaasMutation.mutate({ paymentDueId: payment.id, billingType });
     }
@@ -113,7 +127,9 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
 
   if (!open || !payment) return null;
 
-  const isPending = generateAsaasMutation.isPending || generateMPMutation.isPending;
+  const isPending = generateAsaasMutation.isPending || generateMPMutation.isPending || generateInfinitePayMutation.isPending;
+
+  const gatewayLabel = gateway === "mercadopago" ? "Mercado Pago" : gateway === "infinitepay" ? "InfinitePay" : "Asaas";
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -130,7 +146,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
               {gateway === "mercadopago" ? <Wallet size={20} className="text-blue-500" /> : <Zap size={20} />}
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground">Gerar Cobrança {gateway === "mercadopago" ? "Mercado Pago" : "Asaas"}</h3>
+              <h3 className="text-sm font-bold text-foreground">Gerar Cobrança {gatewayLabel}</h3>
               <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{payment.studentName}</p>
             </div>
           </div>
@@ -148,7 +164,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
 
           {!result ? (
             <>
-              {/* Seleção de Método - Only for Asaas as MP handles it via preference URL */}
+              {/* Seleção de Método - Only for Asaas; MP e InfinitePay decidem no checkout hospedado */}
               {gateway === "asaas" && (
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Método de pagamento</p>
@@ -183,10 +199,19 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
                 </div>
               )}
 
+              {gateway === "infinitepay" && (
+                <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-center">
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">O link gerado permitirá que o aluno pague via Pix (taxa zero) ou Cartão de Crédito em até 12x no checkout seguro da InfinitePay.</p>
+                </div>
+              )}
+
               <Button
                 onClick={handleGenerate}
                 disabled={isPending}
-                className={cn("w-full h-12 rounded-xl text-white font-bold text-xs gap-2 shadow-lg", gateway === "mercadopago" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20")}
+                className={cn("w-full h-12 rounded-xl text-white font-bold text-xs gap-2 shadow-lg",
+                  gateway === "mercadopago" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+                  : gateway === "infinitepay" ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20"
+                  : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20")}
               >
                 {isPending ? <Loader2 size={16} className="animate-spin" /> : (gateway === "mercadopago" ? <Wallet size={16} /> : <Zap size={16} />)}
                 Gerar Link
@@ -567,8 +592,12 @@ function NovaModal({ open, onClose, students, dueDays }: {
 export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoading }: { viewMonth: number, viewYear: number, payments: any[], isLoading: boolean }) {
   const { user } = useAuth();
   const { data: settings } = trpc.settings.get.useQuery();
-  const paymentGateway = (settings?.paymentGateway as "asaas" | "mercadopago") || "asaas";
-  const isGatewayEnabled = paymentGateway === "mercadopago" ? !!settings?.mpAccessToken : settings?.asaasEnabled === 1;
+  const paymentGateway = (settings?.paymentGateway as "asaas" | "mercadopago" | "infinitepay") || "asaas";
+  const isGatewayEnabled = paymentGateway === "mercadopago"
+    ? !!settings?.mpAccessToken
+    : paymentGateway === "infinitepay"
+      ? (settings?.infinitepayEnabled === 1 && !!settings?.infinitepayHandle)
+      : settings?.asaasEnabled === 1;
   const isWhatsAppEnabled = settings?.whatsappBotUrl && settings?.whatsappBotToken;
 
   // Dias de vencimento configurados no perfil da escola (usados no cadastro de nova mensalidade)
@@ -647,6 +676,14 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
   const cancelAsaasMutation = trpc.paymentDues.cancelAsaasCharge.useMutation({
     onSuccess: () => {
       toast.success("Cobrança Asaas cancelada!");
+      utils.paymentDues.invalidate();
+    },
+    onError: (e: any) => toast.error("Erro: " + e.message),
+  });
+
+  const cancelInfinitePayMutation = trpc.paymentDues.cancelInfinitePayCharge.useMutation({
+    onSuccess: () => {
+      toast.success("Cobrança InfinitePay cancelada!");
       utils.paymentDues.invalidate();
     },
     onError: (e: any) => toast.error("Erro: " + e.message),
@@ -987,16 +1024,21 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                              <p className="text-[9px] text-muted-foreground font-medium uppercase mt-1">Dia {payment.dueDate.toString().split('-')[2]}</p>
                           </div>
                         </td>
-                        <td className="px-8 py-4">
-                           <div className="flex items-center justify-center gap-2">
-                              <StatusBadge status={payment.status} />
-                              {payment.asaasId && (
-                                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
-                                  <Zap size={9} /> Asaas
-                                </span>
-                              )}
-                           </div>
-                        </td>
+                         <td className="px-8 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                               <StatusBadge status={payment.status} />
+                               {payment.asaasId && (
+                                 <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
+                                   <Zap size={9} /> Asaas
+                                 </span>
+                               )}
+                               {!payment.asaasId && payment.infinitepayPaymentLink && (
+                                 <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-600">
+                                   <Zap size={9} /> InfinitePay
+                                 </span>
+                               )}
+                            </div>
+                         </td>
                         <td className="px-8 py-4 text-right" onClick={e => e.stopPropagation()}>
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -1043,29 +1085,44 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                                     <span className="text-xs font-bold text-muted-foreground">Emitir NFS-e</span>
                                  </DropdownMenuItem>
                                  <DropdownMenuSeparator className="bg-muted" />
-                                  {!payment.asaasId && !payment.mpPaymentId ? (
-                                    isGatewayEnabled && (
-                                     <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setAsaasPayment(payment)}>
+                                  {!payment.asaasId && !payment.mpPaymentId && !payment.infinitepayPaymentLink ? (
+                                     isGatewayEnabled && (
+                                      <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => setAsaasPayment(payment)}>
                                         <Zap className="w-4 h-4 text-violet-500" />
                                         <span className="text-xs font-bold text-muted-foreground">Gerar Cobrança</span>
-                                     </DropdownMenuItem>
-                                   )
-                                 ) : (
-                                   <>
-                                     <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
-                                       if (payment.asaasPaymentLink) navigator.clipboard.writeText(payment.asaasPaymentLink).then(() => toast.success("Link copiado!"));
-                                     }}>
+                                      </DropdownMenuItem>
+                                    )
+                                  ) : payment.infinitepayPaymentLink ? (
+                                    <>
+                                      <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
+                                        navigator.clipboard.writeText(payment.infinitepayPaymentLink!).then(() => toast.success("Link copiado!"));
+                                      }}>
+                                        <Copy className="w-4 h-4 text-indigo-500" />
+                                        <span className="text-xs font-bold text-muted-foreground">Copiar Link InfinitePay</span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
+                                        if (confirm("Cancelar a cobrança no InfinitePay?")) cancelInfinitePayMutation.mutate({ paymentDueId: payment.id });
+                                      }}>
+                                        <Ban className="w-4 h-4" />
+                                        <span className="text-xs font-bold">Cancelar no InfinitePay</span>
+                                      </DropdownMenuItem>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <DropdownMenuItem className="gap-2 rounded-lg" onClick={() => {
+                                        if (payment.asaasPaymentLink) navigator.clipboard.writeText(payment.asaasPaymentLink).then(() => toast.success("Link copiado!"));
+                                      }}>
                                         <Copy className="w-4 h-4 text-violet-500" />
                                         <span className="text-xs font-bold text-muted-foreground">Copiar Link Asaas</span>
-                                     </DropdownMenuItem>
-                                     <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
-                                       if (confirm("Cancelar a cobrança no Asaas?")) cancelAsaasMutation.mutate({ paymentDueId: payment.id });
-                                     }}>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
+                                        if (confirm("Cancelar a cobrança no Asaas?")) cancelAsaasMutation.mutate({ paymentDueId: payment.id });
+                                      }}>
                                         <Ban className="w-4 h-4" />
                                         <span className="text-xs font-bold">Cancelar no Asaas</span>
-                                     </DropdownMenuItem>
-                                   </>
-                                 )}
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                  <DropdownMenuSeparator className="bg-muted" />
                                  <DropdownMenuItem className="gap-2 rounded-lg text-rose-500" onClick={() => {
                                    if(confirm("Deseja excluir esta mensalidade?")) {
@@ -1122,6 +1179,11 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                         {payment.asaasId && (
                           <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
                             <Zap size={9} /> Asaas
+                          </span>
+                        )}
+                        {!payment.asaasId && payment.infinitepayPaymentLink && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-600">
+                            <Zap size={9} /> InfinitePay
                           </span>
                         )}
                       </div>
@@ -1182,13 +1244,21 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                         <FileText size={12} className="mr-1" /> Obs
                       </Button>
 
-                      {!payment.asaasId ? (
+                      {!payment.asaasId && !payment.infinitepayPaymentLink ? (
                          <Button
                            variant="outline" size="sm"
                            className="h-8 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600 hover:bg-violet-500/10"
                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAsaasPayment(payment); }}
                          >
                            <Zap size={12} /> Gerar Link
+                         </Button>
+                       ) : payment.infinitepayPaymentLink ? (
+                         <Button
+                           variant="outline" size="sm"
+                           className="h-8 px-3 rounded-lg border-indigo-200 text-[10px] font-black uppercase gap-1.5 text-indigo-600 hover:bg-indigo-500/10"
+                           onClick={() => payment.infinitepayPaymentLink && navigator.clipboard.writeText(payment.infinitepayPaymentLink).then(() => toast.success("Link copiado!"))}
+                         >
+                           <Copy size={12} /> Copiar Link
                          </Button>
                        ) : (
                          <Button
@@ -1294,7 +1364,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
         open={!!asaasPayment}
         onClose={() => setAsaasPayment(null)}
         payment={asaasPayment}
-        gateway={(settings?.paymentGateway as "asaas" | "mercadopago") || "asaas"}
+        gateway={(settings?.paymentGateway as "asaas" | "mercadopago" | "infinitepay") || "asaas"}
       />
     </div>
   );

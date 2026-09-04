@@ -31,6 +31,7 @@ import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whats
 import { notifyUser } from "./notification";
 import { sdk } from "./sdk";
 import { createFileToken, verifyFileToken } from "./fileTokens";
+import { evaluateInfinitePayPayment, brlToCents } from "../utils/infinitepay";
 export { createFileToken, verifyFileToken };
 
 // ─── Notificação de eventos de contrato (assinado / recusado) ──────────────
@@ -284,6 +285,209 @@ async function startServer() {
       return res.status(500).send("Internal error");
     }
   });
+
+  // ─── InfinitePay Webhook (Alunos — mensalidades) ────────────────────────────
+  // SEGURANÇA (limitação do provedor): a InfinitePay NÃO envia assinatura HMAC.
+  // Mitigação em 2 camadas (PRD RF-003/RN-003):
+  //   1. Token secreto embutido na webhook_url (?token=) — validado aqui;
+  //   2. O corpo do POST NUNCA é considerado prova de pagamento: a baixa só
+  //      acontece após revalidação server-to-server via `payment_check`.
+  // A webhook_url é dinâmica por link (não há configuração fixa no painel).
+  app.post("/api/webhooks/infinitepay/student", async (req, res) => {
+    try {
+      // ── Camada 1: validação do token embutido na webhook_url ──
+      const webhookToken = (ENV.infinitepayWebhookToken || "").trim();
+      const requestToken = (
+        (req.query.token as string) ||
+        (req.headers["x-webhook-token"] as string) ||
+        ""
+      ).trim();
+
+      if (!webhookToken) {
+        if (ENV.isProduction) {
+          console.error("[InfinitePay Webhook] INFINITEPAY_WEBHOOK_TOKEN não configurado em produção. Requisição bloqueada.");
+          return res.status(401).json({ error: "Webhook token not configured" });
+        }
+        console.warn("[InfinitePay Webhook] INFINITEPAY_WEBHOOK_TOKEN não configurado (ambiente dev — aceito sem validação).");
+      } else if (!requestToken || requestToken !== webhookToken) {
+        console.warn("[InfinitePay Webhook] Token de autenticação inválido ou ausente. Requisição bloqueada.");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const body = req.body || {};
+      const transactionNsu: string | undefined = body.transaction_nsu ? String(body.transaction_nsu) : undefined;
+      const invoiceSlug: string | undefined = body.invoice_slug ? String(body.invoice_slug) : undefined;
+      const orderNsu: string | undefined = body.order_nsu ? String(body.order_nsu) : undefined;
+      const receiptUrl: string | undefined = typeof body.receipt_url === "string" ? body.receipt_url : undefined;
+
+      // Cobranças de matrícula pública não viram payment_dues — a confirmação
+      // delas é feita por polling (enrollment.verifyInfinitePayPayment). Apenas ACK.
+      if (req.query.enrollmentCode) {
+        debugLog(`[InfinitePay Webhook] Evento de matrícula recebido (ACK): ${req.query.enrollmentCode}`);
+        return res.status(200).json({ ok: true });
+      }
+
+      const dueIdRaw = req.query.dueId as string;
+      // Fallback: extrai o dueId do order_nsu ("{dueId}" ou "{dueId}-{sufixo}")
+      const dueIdFromOrder = orderNsu ? orderNsu.split("-")[0] : "";
+      const dueId = dueIdRaw || dueIdFromOrder;
+      if (!dueId || !/^\d+$/.test(dueId)) {
+        console.warn("[InfinitePay Webhook] dueId ausente/inválido — evento ignorado.");
+        return res.status(200).json({ ok: true });
+      }
+
+      const db = await getDb();
+      if (!db) return res.status(500).json({ error: "DB unavailable" });
+
+      const [due] = await db.select().from(paymentDues).where(eq(paymentDues.id, parseInt(dueId, 10))).limit(1);
+      if (!due) {
+        console.warn(`[InfinitePay Webhook] Mensalidade não encontrada: ${dueId} — evento ignorado (200).`);
+        return res.status(200).json({ ok: true });
+      }
+
+      // ── Idempotência: dedup por transaction_nsu (padrão registerWebhookEventOnce) ──
+      const gatewayEventId = transactionNsu || `${invoiceSlug || "noslug"}_${orderNsu || "nonsu"}`;
+      const { registerWebhookEventOnce } = await import("../routers/helpers");
+      const dedup = await registerWebhookEventOnce(db, "infinitepay", gatewayEventId, "payment.paid", due.organizationId ?? undefined, {
+        transaction_nsu: transactionNsu,
+        invoice_slug: invoiceSlug,
+        order_nsu: orderNsu,
+        receipt_url: receiptUrl,
+      });
+      if (dedup.isDuplicate) {
+        debugLog(`[InfinitePay Webhook] Evento duplicado ignorado: ${gatewayEventId}`);
+        return res.status(200).json({ ok: true });
+      }
+
+      // ── Camada 2: revalidação server-to-server (payment_check) ──
+      const [profSettings] = await db
+        .select({ infinitepayHandle: settings.infinitepayHandle, infinitepayApiKey: settings.infinitepayApiKey })
+        .from(settings)
+        .where(eq(settings.userId, due.userId))
+        .limit(1);
+
+      if (!profSettings?.infinitepayHandle) {
+        console.warn(`[InfinitePay Webhook] Escola sem InfiniteTag configurada (due ${dueId}).`);
+        return res.status(200).json({ ok: true });
+      }
+
+      const { checkInfinitePayPayment, evaluateInfinitePayPayment, brlToCents, resolveInfinitePayApiKey } = await import("../utils/infinitepay");
+      const check = await checkInfinitePayPayment({
+        handle: profSettings.infinitepayHandle,
+        orderNsu: orderNsu || String(due.id),
+        transactionNsu,
+        slug: invoiceSlug || due.infinitepaySlug || undefined,
+        apiKey: resolveInfinitePayApiKey(profSettings.infinitepayApiKey),
+      });
+
+      const decision = evaluateInfinitePayPayment(brlToCents(due.amount), check);
+
+      if (decision === "mismatch") {
+        // RN-003: valor pago MENOR que o esperado — não baixa; notifica professor p/ revisão
+        await notifyUser(due.userId, {
+          title: "⚠️ Pagamento com valor divergente",
+          content: `Pagamento InfinitePay recebido com valor inferior ao esperado na mensalidade #${due.id}. Verifique o Financeiro — a baixa NÃO foi automática.`,
+        });
+        debugLog(`[InfinitePay Webhook] Valor divergente (due ${dueId}): esperado ${due.amount}, pago ${check.paidAmount ?? "?"} — sem baixa.`);
+        return res.status(200).json({ ok: true, decision });
+      }
+
+      if (decision !== "paid") {
+        // Não confirmado via payment_check — retry via 400 (InfinitePay reenvia)
+        debugLog(`[InfinitePay Webhook] Pagamento não confirmado via payment_check (due ${dueId}) — solicitando retry.`);
+        return res.status(400).json({ ok: false, decision });
+      }
+
+      if (due.status === "pago") {
+        // RN-005: fatura já baixada manualmente e o link órfão foi pago depois
+        // (não há cancelamento remoto na InfinitePay). Notifica duplicidade.
+        await notifyUser(due.userId, {
+          title: "⚠️ Possível pagamento duplicado",
+          content: `A mensalidade #${due.id} já estava paga e um novo pagamento InfinitePay foi confirmado (${check.paidAmount ? `R$ ${(check.paidAmount / 100).toFixed(2)}` : "valor não informado"}). Verifique se houve pagamento em duplicidade.`,
+        });
+        debugLog(`[InfinitePay Webhook] Pagamento duplicado detectado (due ${dueId}) — fatura permanece paga.`);
+        return res.status(200).json({ ok: true, decision: "duplicate" });
+      }
+
+      // ── Baixa idempotente (tenant safety: organizationId no WHERE) ──
+      await db
+        .update(paymentDues)
+        .set({
+          status: "pago",
+          paidAt: new Date(),
+          infinitepayPaymentId: transactionNsu || null,
+          infinitepaySlug: invoiceSlug || due.infinitepaySlug || null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(paymentDues.id, due.id), eq(paymentDues.organizationId, due.organizationId!)));
+      debugLog(`[InfinitePay Webhook] Mensalidade marcada como PAGA (due ${dueId}) — org ${due.organizationId}`);
+
+      // ── Notificações (paridade webhook Asaas) ──
+      const [paymentDetails] = await db
+        .select({
+          amount: paymentDues.amount,
+          studentName: students.name,
+          studentPhone: students.phone,
+        })
+        .from(paymentDues)
+        .leftJoin(students, eq(paymentDues.studentId, students.id))
+        .where(eq(paymentDues.id, due.id))
+        .limit(1);
+
+      const valor = Number(paymentDetails?.amount ?? due.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      const contentStr = `O aluno ${paymentDetails?.studentName || "Aluno"} pagou a mensalidade no valor de ${valor}.`;
+
+      await notifyUser(due.userId, {
+        title: "Pagamento Confirmado",
+        content: contentStr,
+      });
+
+      const { broadcastSSE } = await import("../webhooks/botStatus");
+      broadcastSSE("PAYMENT_CONFIRMED", {
+        studentName: paymentDetails?.studentName,
+        amount: valor,
+        message: contentStr,
+      });
+
+      const [profWhats] = await db
+        .select({
+          whatsappBotUrl: settings.whatsappBotUrl,
+          whatsappBotToken: settings.whatsappBotToken,
+          phone: settings.phone,
+        })
+        .from(settings)
+        .where(eq(settings.userId, due.userId))
+        .limit(1);
+
+      if (profWhats) {
+        const { sendWhatsAppMessage } = await import("../utils/whatsapp");
+        if (profWhats.phone) {
+          await sendWhatsAppMessage({
+            url: profWhats.whatsappBotUrl || undefined,
+            token: profWhats.whatsappBotToken || undefined,
+            phone: profWhats.phone,
+            message: `🤖 *Aviso do Robô:*\n\nO aluno *${paymentDetails?.studentName || "Aluno"}* acabou de pagar a mensalidade no valor de *${valor}* via InfinitePay!`,
+            sessionId: `prof_${due.userId}`,
+          });
+        }
+        if (paymentDetails?.studentPhone) {
+          await sendWhatsAppMessage({
+            url: profWhats.whatsappBotUrl || undefined,
+            token: profWhats.whatsappBotToken || undefined,
+            phone: paymentDetails.studentPhone,
+            message: `🤖 *Aviso do Robô:*\n\nSeu pagamento da mensalidade no valor de *${valor}* foi confirmado com sucesso. Muito obrigado! 🎉`,
+            sessionId: `prof_${due.userId}`,
+          });
+        }
+      }
+
+      return res.status(200).json({ ok: true, decision });
+    } catch (e) {
+      console.error("[InfinitePay Webhook] Erro ao processar:", (e as Error)?.message ?? e);
+      return res.status(400).json({ error: "Retry requested" });
+    }
+  });
+
 
   // ─── Asaas Webhook ───────────────────────────────────────────────────────
   // Recebe notificações do Asaas e atualiza o status das mensalidades automaticamente.

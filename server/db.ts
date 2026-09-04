@@ -86,6 +86,16 @@ async function ensureSchemaConsistency(db: any) {
     // payment_dues Mercado Pago Integration
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "mpPaymentId" varchar(100)`);
     await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "mpPaymentLink" text`);
+
+    // settings InfinitePay Integration (Checkout Integrado)
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "infinitepayHandle" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "infinitepayApiKey" text`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "infinitepayEnabled" integer DEFAULT 0 NOT NULL`);
+
+    // payment_dues InfinitePay Integration
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "infinitepayPaymentId" varchar(100)`);
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "infinitepayPaymentLink" text`);
+    await db.execute(sql`ALTER TABLE "payment_dues" ADD COLUMN IF NOT EXISTS "infinitepaySlug" text`);
     
     // organizations Subscription Fields
     await db.execute(sql`ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "subscriptionStatus" varchar(50) DEFAULT 'trialing' NOT NULL`);
@@ -458,6 +468,9 @@ async function ensureSchemaConsistency(db: any) {
 
     // payment_dues.asaasId: usado no processamento de webhooks Asaas (lookup muito frequente)
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_payment_dues_asaas_id" ON "payment_dues" ("asaasId") WHERE "asaasId" IS NOT NULL`, "idx_payment_dues_asaas_id");
+
+    // payment_dues.infinitepayPaymentId: usado no processamento de webhooks InfinitePay
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_payment_dues_infinitepay_id" ON "payment_dues" ("infinitepayPaymentId") WHERE "infinitepayPaymentId" IS NOT NULL`, "idx_payment_dues_infinitepay_id");
 
     // students por org + status + professor: query mais comum em toda a aplicação
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_status" ON "students" ("organizationId", "status")`, "idx_students_org_status");
@@ -1632,6 +1645,7 @@ export async function getSettingsByUserId(organizationId: number, userId: number
     if (!row.whatsappBotToken) row.whatsappBotToken = process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
     if (row.asaasApiKey) row.asaasApiKey = decryptSecret(row.asaasApiKey);
     if (row.mpAccessToken) row.mpAccessToken = decryptSecret(row.mpAccessToken);
+    if ((row as any).infinitepayApiKey) (row as any).infinitepayApiKey = decryptSecret((row as any).infinitepayApiKey);
     if (row.geminiApiKey) row.geminiApiKey = decryptSecret(row.geminiApiKey);
     if (row.groqApiKey) row.groqApiKey = decryptSecret(row.groqApiKey);
     if ((row as any).opencodeApiKey) (row as any).opencodeApiKey = decryptSecret((row as any).opencodeApiKey);
@@ -1664,6 +1678,7 @@ export async function getSettingsByUserId(organizationId: number, userId: number
     if (!row.whatsappBotToken) row.whatsappBotToken = process.env.EVOLUTION_API_KEY || "minha_chave_secreta_123";
     if (row.asaasApiKey) row.asaasApiKey = decryptSecret(row.asaasApiKey);
     if (row.mpAccessToken) row.mpAccessToken = decryptSecret(row.mpAccessToken);
+    if ((row as any).infinitepayApiKey) (row as any).infinitepayApiKey = decryptSecret((row as any).infinitepayApiKey);
     if (row.geminiApiKey) row.geminiApiKey = decryptSecret(row.geminiApiKey);
     if (row.groqApiKey) row.groqApiKey = decryptSecret(row.groqApiKey);
     if ((row as any).opencodeApiKey) (row as any).opencodeApiKey = decryptSecret((row as any).opencodeApiKey);
@@ -1703,6 +1718,9 @@ export async function upsertSettings(organizationId: number, userId: number, dat
   }
   if (sanitized.mpAccessToken && !sanitized.mpAccessToken.startsWith("v1:")) {
     sanitized.mpAccessToken = encryptSecret(sanitized.mpAccessToken.trim());
+  }
+  if ((sanitized as any).infinitepayApiKey && !(sanitized as any).infinitepayApiKey.startsWith("v1:")) {
+    (sanitized as any).infinitepayApiKey = encryptSecret(((sanitized as any).infinitepayApiKey as string).trim());
   }
   if (sanitized.geminiApiKey && !sanitized.geminiApiKey.startsWith("v1:")) {
     sanitized.geminiApiKey = encryptSecret(sanitized.geminiApiKey.trim());

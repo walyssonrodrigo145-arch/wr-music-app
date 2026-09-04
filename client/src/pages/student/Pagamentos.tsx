@@ -236,6 +236,22 @@ export default function StudentPayments() {
                                     }
                                   });
                                 }
+                              } else if (gateway === "infinitepay") {
+                                if (payment.infinitepayPaymentLink) {
+                                  window.location.href = payment.infinitepayPaymentLink;
+                                } else {
+                                  toast.loading("Gerando link de pagamento...", { id: `ip-${payment.id}` });
+                                  generateMPMutation.mutate({ paymentDueId: payment.id }, {
+                                    onSuccess: (data) => {
+                                      toast.success("Link gerado com sucesso!", { id: `ip-${payment.id}` });
+                                      window.location.href = data.paymentLink;
+                                      utils.studentPortal.getPayments.invalidate();
+                                    },
+                                    onError: (err) => {
+                                      toast.error(err.message || "Erro ao gerar link de pagamento.", { id: `ip-${payment.id}` });
+                                    }
+                                  });
+                                }
                               } else if (gateway === "asaas") {
                                 if (payment.asaasBillingType === "PIX" && payment.asaasPaymentLink) {
                                   setPixCopiaECola(payment.asaasPaymentLink);
@@ -329,6 +345,22 @@ export default function StudentPayments() {
                              },
                              onError: (err) => {
                                toast.error(err.message || "Erro ao gerar link de pagamento.", { id: `mp2-${nextPayment.id}` });
+                             }
+                           });
+                         }
+                       } else if (gateway === "infinitepay") {
+                         if (nextPayment?.infinitepayPaymentLink) {
+                           window.location.href = nextPayment.infinitepayPaymentLink;
+                         } else {
+                           toast.loading("Gerando link de pagamento...", { id: `ip2-${nextPayment.id}` });
+                           generateMPMutation.mutate({ paymentDueId: nextPayment.id }, {
+                             onSuccess: (data) => {
+                               toast.success("Link gerado com sucesso!", { id: `ip2-${nextPayment.id}` });
+                               window.location.href = data.paymentLink;
+                               utils.studentPortal.getPayments.invalidate();
+                             },
+                             onError: (err) => {
+                               toast.error(err.message || "Erro ao gerar link de pagamento.", { id: `ip2-${nextPayment.id}` });
                              }
                            });
                          }

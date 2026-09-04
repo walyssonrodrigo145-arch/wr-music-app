@@ -267,6 +267,10 @@ export const settings = pgTable("settings", {
   asaasEnabled: integer("asaasEnabled").default(0).notNull(),
   // Mercado Pago Integration
   mpAccessToken: text("mpAccessToken"),
+  // InfinitePay Integration (Checkout Integrado — Pix taxa zero / Cartão 12x)
+  infinitepayHandle: varchar("infinitepayHandle", { length: 100 }), // InfiniteTag sem o "$"
+  infinitepayApiKey: text("infinitepayApiKey"), // chave BYOK — criptografada em repouso (AES-256-GCM)
+  infinitepayEnabled: integer("infinitepayEnabled").default(0).notNull(),
   paymentGateway: varchar("paymentGateway", { length: 20 }).default("asaas").notNull(),
   // AI Integration
   aiProvider: varchar("aiProvider", { length: 50 }).default("gemini"),
@@ -370,6 +374,10 @@ export const paymentDues = pgTable("payment_dues", {
   // Mercado Pago integration
   mpPaymentId: text("mpPaymentId"),
   mpPaymentLink: text("mpPaymentLink"),
+  // InfinitePay integration (Checkout Integrado)
+  infinitepayPaymentId: text("infinitepayPaymentId"), // transaction_nsu da transação paga
+  infinitepayPaymentLink: text("infinitepayPaymentLink"), // URL do checkout hospedado
+  infinitepaySlug: text("infinitepaySlug"), // invoice_slug (necessário no payment_check)
   receiptUrl: text("receiptUrl"),
   // Billing Engine cache/informative fields
   originalAmount: decimal("originalAmount", { precision: 10, scale: 2 }),
@@ -384,6 +392,7 @@ export const paymentDues = pgTable("payment_dues", {
   index("payment_dues_status_idx").on(table.status),
   index("payment_dues_due_date_idx").on(table.dueDate),
   index("payment_dues_asaas_id_idx").on(table.asaasId),
+  index("payment_dues_infinitepay_id_idx").on(table.infinitepayPaymentId),
 ]);
 
 export const billingAuditLogs = pgTable("billing_audit_logs", {
@@ -1828,7 +1837,7 @@ export type InsertFiscalLog = typeof fiscalLogs.$inferInsert;
 
 export const webhookEvents = pgTable("webhook_events", {
   id: serial("id").primaryKey(),
-  gateway: varchar("gateway", { length: 50 }).notNull(), // asaas, mercadopago, assinafy, focusnfe
+  gateway: varchar("gateway", { length: 50 }).notNull(), // asaas, mercadopago, infinitepay, assinafy, focusnfe
   gatewayEventId: varchar("gatewayEventId", { length: 255 }).notNull().unique(),
   eventType: varchar("eventType", { length: 100 }).notNull(),
   organizationId: integer("organizationId"),

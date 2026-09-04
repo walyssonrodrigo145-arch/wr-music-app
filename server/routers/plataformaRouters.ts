@@ -452,14 +452,32 @@ export const plataformaRouters = {
     updateAsaasIntegration: protectedProcedure.input(z.object({
       asaasApiKey: z.string().optional(),
       asaasEnabled: z.boolean().optional(),
-      paymentGateway: z.enum(["asaas", "mercadopago"]).optional(),
+      paymentGateway: z.enum(["asaas", "mercadopago", "infinitepay"]).optional(),
       mpAccessToken: z.string().optional(),
+      infinitepayHandle: z.string().optional(),
+      infinitepayApiKey: z.string().optional(),
+      infinitepayEnabled: z.boolean().optional(),
     })).mutation(async ({ ctx, input }) => {
+      // RN-006: InfiniteTag chega às vezes com "$" — normaliza (sem $, minúsculas)
+      let normalizedHandle: string | null | undefined;
+      if (input.infinitepayHandle !== undefined) {
+        const { normalizeInfinitePayHandle } = await import("../utils/infinitepay");
+        normalizedHandle = normalizeInfinitePayHandle(input.infinitepayHandle);
+        if (input.infinitepayHandle.trim() && !normalizedHandle) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "InfiniteTag inválida. Use apenas letras, números, ponto, hífen ou underline (sem o símbolo $).",
+          });
+        }
+      }
       await upsertSettings(ctx.user.organizationId!, ctx.user.id, {
         asaasApiKey: input.asaasApiKey ?? null,
         asaasEnabled: input.asaasEnabled !== undefined ? (input.asaasEnabled ? 1 : 0) : undefined,
         paymentGateway: input.paymentGateway,
         mpAccessToken: input.mpAccessToken ?? null,
+        infinitepayHandle: normalizedHandle,
+        infinitepayApiKey: input.infinitepayApiKey ?? null, // upsertSettings criptografa (BYOK)
+        infinitepayEnabled: input.infinitepayEnabled !== undefined ? (input.infinitepayEnabled ? 1 : 0) : undefined,
       });
       return { success: true };
     }),

@@ -145,8 +145,11 @@ export default function Configuracoes() {
   // 💱 Pagamentos state 💱
   const [asaasApiKey, setAsaasApiKey] = useState("");
   const [asaasEnabled, setAsaasEnabled] = useState(false);
-  const [paymentGateway, setPaymentGateway] = useState<"asaas" | "mercadopago">("asaas");
+  const [paymentGateway, setPaymentGateway] = useState<"asaas" | "mercadopago" | "infinitepay">("asaas");
   const [mpAccessToken, setMpAccessToken] = useState("");
+  const [infinitepayHandle, setInfinitepayHandle] = useState("");
+  const [infinitepayApiKey, setInfinitepayApiKey] = useState("");
+  const [infinitepayEnabled, setInfinitepayEnabled] = useState(false);
 
   // ── Financeiro (Juros, Multas e Descontos - Billing Engine) state ──
   const [lateFeeEnabled, setLateFeeEnabled] = useState(true);
@@ -248,8 +251,11 @@ export default function Configuracoes() {
       setAutoAdvanceSlotsEnabled((settings as any).autoAdvanceSlotsEnabled === 1);
       setAsaasApiKey(settings.asaasApiKey ?? "");
       setAsaasEnabled(settings.asaasEnabled === 1);
-      setPaymentGateway((settings.paymentGateway as "asaas" | "mercadopago") || "asaas");
+      setPaymentGateway((settings.paymentGateway as "asaas" | "mercadopago" | "infinitepay") || "asaas");
       setMpAccessToken(settings.mpAccessToken ?? "");
+      setInfinitepayHandle((settings as any).infinitepayHandle ?? "");
+      setInfinitepayApiKey((settings as any).infinitepayApiKey ?? "");
+      setInfinitepayEnabled((settings as any).infinitepayEnabled === 1);
       setAiProvider(settings.aiProvider ?? "gemini");
       setGeminiApiKey(settings.geminiApiKey ?? "");
       setGeminiModel(settings.geminiModel ?? "gemini-3.6-flash");
@@ -360,10 +366,10 @@ export default function Configuracoes() {
 
   const updateAsaasMutation = trpc.settings.updateAsaasIntegration.useMutation({
     onSuccess: () => {
-      toast.success("Integração Asaas atualizada");
+      toast.success("Integração de pagamentos atualizada");
       utils.settings.get.invalidate();
     },
-    onError: (e) => toast.error("Erro ao atualizar Asaas: " + e.message),
+    onError: (e) => toast.error("Erro ao atualizar integração: " + e.message),
   });
 
   const updateIAMutation = trpc.settings.updateIA.useMutation({
@@ -464,6 +470,9 @@ export default function Configuracoes() {
       asaasEnabled,
       paymentGateway,
       mpAccessToken,
+      infinitepayHandle,
+      infinitepayApiKey,
+      infinitepayEnabled,
     });
   };
 
@@ -1893,11 +1902,12 @@ export default function Configuracoes() {
                   <Field label="Provedor de Pagamento" hint="Escolha qual gateway processará os pagamentos dos seus alunos.">
                     <select
                       value={paymentGateway}
-                      onChange={(e) => setPaymentGateway(e.target.value as "asaas" | "mercadopago")}
+                      onChange={(e) => setPaymentGateway(e.target.value as "asaas" | "mercadopago" | "infinitepay")}
                       className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 text-sm font-medium focus:ring-primary w-full"
                     >
                       <option value="asaas">Asaas (Boleto/Pix)</option>
                       <option value="mercadopago">Mercado Pago (Cartão/Pix)</option>
+                      <option value="infinitepay">InfinitePay (Pix grátis/Cartão 12x)</option>
                     </select>
                   </Field>
 
@@ -1925,6 +1935,51 @@ export default function Configuracoes() {
                           className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
                         />
                       </Field>
+                    </div>
+                  ) : paymentGateway === "infinitepay" ? (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      <div className="flex items-center justify-between p-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-bold text-indigo-600 dark:text-indigo-400">Ativar Integração InfinitePay</h4>
+                          <p className="text-xs text-indigo-600/70 dark:text-indigo-400/70 font-medium max-w-sm leading-relaxed">
+                            Checkout seguro da InfinitePay com PIX (taxa zero) ou Cartão de Crédito em até 12x. O valor cai direto na sua conta InfinitePay.
+                          </p>
+                        </div>
+                        <Toggle checked={infinitepayEnabled} onChange={setInfinitepayEnabled} />
+                      </div>
+
+                      <Field 
+                        label="InfiniteTag (handle)"
+                        hint="Seu usuário na InfinitePay, sem o símbolo $. Ex.: se seu link é infinitepay.io/l/minhaescola, informe apenas minhaescola."
+                      >
+                        <DebouncedInput
+                          type="text"
+                          value={infinitepayHandle}
+                          onChange={(e: any) => setInfinitepayHandle(e.target.value)}
+                          placeholder="minhaescola"
+                          className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                        />
+                      </Field>
+
+                      <Field 
+                        label="Chave da API InfinitePay (opcional)"
+                        hint="A API de checkout atual identifica sua conta apenas pela InfiniteTag — a maioria das contas não tem chave. Se a InfinitePay fornecer uma chave/token para sua conta no futuro, cole aqui (fica criptografada e é enviada junto às chamadas)."
+                      >
+                        <DebouncedInput
+                          type="password"
+                          value={infinitepayApiKey}
+                          onChange={(e: any) => setInfinitepayApiKey(e.target.value)}
+                          placeholder="Deixe vazio se não tiver chave"
+                          className="h-12 bg-muted/50 border-border/50 rounded-xl px-4 font-mono text-sm"
+                        />
+                      </Field>
+
+                      <div className="p-4 rounded-2xl border border-border bg-muted/30">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Requisito no app InfinitePay</p>
+                        <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                          No app InfinitePay: <span className="font-bold">Vendas &gt; Checkout &gt; Configurações &gt; Habilitar Checkout Integrado</span> (ou na web: <span className="font-mono">app.infinitepay.io/external-checkout#configuracoes</span>). Não é preciso criar checkout manual com itens — o MusicPro gera os links via API.
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-6 animate-in fade-in duration-300">

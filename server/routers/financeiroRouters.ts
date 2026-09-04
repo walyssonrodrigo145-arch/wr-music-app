@@ -97,6 +97,7 @@ export const financeiroRouters = {
           asaasBillingType: paymentDues.asaasBillingType,
           mpPaymentId: paymentDues.mpPaymentId,
           mpPaymentLink: paymentDues.mpPaymentLink,
+          infinitepayPaymentLink: paymentDues.infinitepayPaymentLink,
           receiptUrl: paymentDues.receiptUrl,
           studentName: students.name,
           studentPhone: students.phone,
@@ -301,6 +302,15 @@ export const financeiroRouters = {
               .where(eq(paymentDues.id, input.id));
           }
 
+          // ── InfinitePay: não há endpoint de cancelamento remoto do link —
+          // limpar as refs locais (o webhook tardio é tratado como duplicidade, RN-005)
+          if (due?.infinitepayPaymentLink || due?.infinitepaySlug || due?.infinitepayPaymentId) {
+            await db.update(paymentDues)
+              .set({ infinitepayPaymentLink: null, infinitepaySlug: null, infinitepayPaymentId: null })
+              .where(eq(paymentDues.id, input.id));
+            debugLog(`[MarkPaid] Referências InfinitePay limpas — pagamento manual registrado`);
+          }
+
           // BUG#3 FIX: Admin bypass — admin pode dar baixa em mensalidades de qualquer professor
           const isAdminMarkPaid = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
           const markPaidWhere = isAdminMarkPaid
@@ -446,6 +456,14 @@ export const financeiroRouters = {
                   // Não bloqueia a atualização se o cancelamento Asaas falhar
                   console.error(`[UpdateFutureDues] Falha ao cancelar cobrança Asaas ${pay.asaasId}:`, e);
                 }
+              }
+
+              // InfinitePay: limpar refs locais da cobrança pendente (link fica desatualizado)
+              if (pay.status !== 'pago' && (pay.infinitepayPaymentLink || pay.infinitepaySlug || pay.infinitepayPaymentId)) {
+                await db.update(paymentDues)
+                  .set({ infinitepayPaymentLink: null, infinitepaySlug: null, infinitepayPaymentId: null, updatedAt: new Date() })
+                  .where(and(eq(paymentDues.id, pay.id), eq(paymentDues.organizationId, orgId)));
+                debugLog(`[UpdateFutureDues] Referências InfinitePay limpas (${pay.id}) — data atualizada para ${formattedDate}`);
               }
             }
           }
@@ -1004,6 +1022,99 @@ export const financeiroRouters = {
 
         await db.update(paymentDues)
           .set({ mpPaymentId: null, mpPaymentLink: null, updatedAt: new Date() })
+          .where(eq(paymentDues.id, input.paymentDueId));
+
+        return { success: true };
+      }),
+
+    generateInfinitePayCharge: protectedProcedure
+      .input(z.object({
+        paymentDueId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const orgId = ctx.user.organizationId!;
+        const professorId = ctx.user.id;
+
+        const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import('../utils/infinitepay');
+        const [settingsData] = await db.select({
+          infinitepayHandle: settings.infinitepayHandle,
+          infinitepayApiKey: settings.infinitepayApiKey,
+          infinitepayEnabled: settings.infinitepayEnabled,
+          paymentGateway: settings.paymentGateway,
+        }).from(settings).where(eq(settings.userId, professorId)).limit(1);
+
+        if (!settingsData || settingsData.paymentGateway !== 'infinitepay' || settingsData.infinitepayEnabled !== 1 || !settingsData.infinitepayHandle) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Geração via InfinitePay não está configurada para esta conta. Configure a InfiniteTag nas integrações." });
+        }
+        const handle = settingsData.infinitepayHandle;
+        const apiKey = resolveInfinitePayApiKey(settingsData.infinitepayApiKey);
+
+        const [due] = await db.select().from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, professorId)))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (due.status === "pago") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já está paga" });
+        if (due.infinitepayPaymentLink) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade já possui uma cobrança gerada no InfinitePay" });
+
+        const [student] = await db.select().from(students)
+          .where(and(eq(students.id, due.studentId), eq(students.organizationId, orgId)))
+          .limit(1);
+
+        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+
+        const link = await createInfinitePayLink({
+          handle,
+          orderNsu: String(due.id),
+          items: [{
+            quantity: 1,
+            price: brlToCents(due.amount), // RN-002: sempre centavos inteiros
+            description: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
+          }],
+          redirectUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/painel/mensalidades`,
+          webhookUrl: buildInfinitePayWebhookUrl(due.id),
+          apiKey,
+          customer: {
+            name: student.name,
+            email: student.email || undefined,
+            phone: student.phone || undefined,
+          },
+        });
+
+        await db.update(paymentDues)
+          .set({
+            infinitepayPaymentLink: link.url,
+            infinitepaySlug: link.slug,
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentDues.id, input.paymentDueId));
+
+        return {
+          paymentLink: link.url,
+          slug: link.slug,
+        };
+      }),
+
+    cancelInfinitePayCharge: protectedProcedure
+      .input(z.object({ paymentDueId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+        const [due] = await db.select().from(paymentDues)
+          .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "Mensalidade não encontrada" });
+        if (!due.infinitepayPaymentLink) throw new TRPCError({ code: "BAD_REQUEST", message: "Esta mensalidade não possui cobrança no InfinitePay" });
+
+        // A API da InfinitePay não expõe cancelamento do link — limpeza local
+        // (webhook tardio é tratado como duplicidade, RN-005)
+        await db.update(paymentDues)
+          .set({ infinitepayPaymentLink: null, infinitepaySlug: null, infinitepayPaymentId: null, updatedAt: new Date() })
           .where(eq(paymentDues.id, input.paymentDueId));
 
         return { success: true };

@@ -481,3 +481,39 @@ export async function registerWebhookEventOnce(
     return { isDuplicate: false };
   }
 }
+
+// ─── Resolução do gateway de pagamento ativo da escola (RN-001 do PRD InfinitePay) ──
+// Fonte única da regra "qual gateway está ativo": selecionado E configurado.
+// Fallback (selecionado sem credencial): asaas > mercadopago > infinitepay (paridade
+// do comportamento anterior do enrollmentRouter, com InfinitePay por último).
+export type PaymentGatewayName = "asaas" | "mercadopago" | "infinitepay";
+export function resolveActivePaymentGateway(
+  s:
+    | {
+        paymentGateway?: string | null;
+        asaasApiKey?: string | null;
+        asaasEnabled?: number | boolean | null;
+        mpAccessToken?: string | null;
+        infinitepayHandle?: string | null;
+        infinitepayEnabled?: number | boolean | null;
+      }
+    | null
+    | undefined
+): PaymentGatewayName | "none" {
+  const hasAsaas = !!(s?.asaasApiKey && (s?.asaasEnabled === 1 || (s?.asaasEnabled as unknown) === true));
+  const hasMercadoPago = !!s?.mpAccessToken;
+  const hasInfinitePay = !!(
+    s?.infinitepayHandle &&
+    (s?.infinitepayEnabled === 1 || (s?.infinitepayEnabled as unknown) === true)
+  );
+
+  const selected = (s?.paymentGateway || "asaas") as PaymentGatewayName;
+  if (selected === "mercadopago" && hasMercadoPago) return "mercadopago";
+  if (selected === "infinitepay" && hasInfinitePay) return "infinitepay";
+  if (selected === "asaas" && hasAsaas) return "asaas";
+
+  if (hasAsaas) return "asaas";
+  if (hasMercadoPago) return "mercadopago";
+  if (hasInfinitePay) return "infinitepay";
+  return "none";
+}

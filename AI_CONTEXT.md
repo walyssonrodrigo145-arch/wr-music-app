@@ -31,7 +31,8 @@
 | Datas | `client/src/lib/dates.ts` | duplicar formatDate/formatTime |
 | Status de aula | `client/src/lib/status.ts` + `components/aulas/LessonCardDesktop.tsx` (LESSON_STATUS_CONFIG) | duplicar config |
 | Erros de API | `shared/_core/errors.ts` (HttpError) | — |
-| Webhooks de pagamento | `server/_core/index.ts` (registro) + routes de webhook | — |
+| Webhooks de pagamento | `server/_core/index.ts` (registro: asaas×2, mercadopago/student, infinitepay/student) | — |
+| InfinitePay (mensalidades) | `server/utils/infinitepay.ts` + `financeiroRouters.ts` (generateInfinitePayCharge) + webhook `_core/index.ts` (token + revalidação `payment_check` — corpo do webhook NÃO é prova de pagamento). Chave BYOK `settings.infinitepayApiKey` criptografada (AES-256-GCM) e enviada como Bearer | confiar no corpo do webhook; recriar baixa fora da idempotência; ler a chave sem `resolveInfinitePayApiKey` (select cru vem cifrado) |
 
 ## Regras anti-duplicação (violar = bug financeiro)
 

@@ -41,9 +41,13 @@ export default function PublicEnrollment() {
 
   // ── Estado de verificação de pagamento MP ────────────────────────────────────
   const [mpVerifying, setMpVerifying] = useState(false);
-  // URL do checkout MP (quando aberto em nova aba)
+  // URL do checkout (MP ou InfinitePay) aberto em nova aba
   const [mpCheckoutUrl, setMpCheckoutUrl] = useState<string | null>(null);
   const [mpPaymentValue, setMpPaymentValue] = useState<number>(0);
+  // Provedor do checkout em aberto (para textos e verificação correta)
+  const [checkoutProvider, setCheckoutProvider] = useState<"mercadopago" | "infinitepay">("mercadopago");
+  // Slug do checkout InfinitePay (usado na verificação via payment_check)
+  const [checkoutSlug, setCheckoutSlug] = useState<string | null>(null);
 
   // Verifica pagamento MP via API do backend (não confia apenas na URL)
   const verifyMPMutation = trpc.enrollment.verifyMPPayment.useQuery(
@@ -130,6 +134,20 @@ export default function PublicEnrollment() {
       if (data.skipPayment) {
         // Sem gateway: vai direto para seleção de horário
         setStep("schedule");
+      } else if ((data as any).gateway === "infinitepay" && (data as any).invoiceUrl) {
+        // Salva estado no localStorage ANTES de abrir o checkout InfinitePay
+        try {
+          localStorage.setItem(`mp_enrollment_${window.location.pathname}`, JSON.stringify({
+            instrumentId: selectedInstrument,
+            form,
+          }));
+        } catch (_) {}
+        // InfinitePay: abre em nova aba e mostra tela de aguardo com botão de verificação
+        window.open((data as any).invoiceUrl, "_blank");
+        setCheckoutProvider("infinitepay");
+        setCheckoutSlug((data as any).slug ?? null);
+        setMpCheckoutUrl((data as any).invoiceUrl);
+        setMpPaymentValue((data as any).value || 0);
       } else if ((data as any).gateway === "mercadopago" && (data as any).invoiceUrl) {
         // Salva estado no localStorage ANTES de abrir o checkout MP
         try {
@@ -140,6 +158,7 @@ export default function PublicEnrollment() {
         } catch (_) {}
         // Mercado Pago: abre em nova aba e mostra tela de aguardo com botão de verificação
         window.open((data as any).invoiceUrl, "_blank");
+        setCheckoutProvider("mercadopago");
         setMpCheckoutUrl((data as any).invoiceUrl);
         setMpPaymentValue((data as any).value || 0);
       } else {
@@ -188,10 +207,29 @@ export default function PublicEnrollment() {
     setStep("schedule");
   };
 
-  // Verifica manualmente o pagamento MP (sem depender do redirect automático)
+  // Verifica manualmente o pagamento (MP via external_reference ou InfinitePay via payment_check)
   const handleVerifyMPPayment = async () => {
     setMpVerifying(true);
     try {
+      if (checkoutProvider === "infinitepay") {
+        // InfinitePay: revalidação server-to-server (payment_check) no backend
+        const res = await fetch(
+          `/api/trpc/enrollment.verifyInfinitePayPayment?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code, slug: checkoutSlug ?? undefined } } }))}`
+        );
+        const resJson: any = await res.json();
+        const result = resJson?.[0]?.result?.data?.json;
+        const errMsg = resJson?.[0]?.error?.message;
+        if (errMsg) throw new Error(errMsg);
+        if (result?.verified) {
+          setMpCheckoutUrl(null);
+          setStep("schedule");
+          toast.success("Pagamento confirmado! Agora escolha seu horário.");
+        } else {
+          toast.error("Pagamento ainda não confirmado. Conclua o pagamento (PIX ou cartão) e tente novamente em alguns segundos.");
+        }
+        return;
+      }
+
       // Tenta buscar o payment_id mais recente via API do backend (external_reference = enrollment_${code})
       const res = await fetch(
         `/api/trpc/enrollment.verifyMPByReference?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code } } }))}`
@@ -256,7 +294,7 @@ export default function PublicEnrollment() {
           <div className="space-y-2">
             <h2 className="text-xl font-black text-foreground">Conclua o pagamento</h2>
             <p className="text-xs text-muted-foreground">
-              O checkout do Mercado Pago foi aberto em uma nova aba. Realize o pagamento e depois clique no botão abaixo para confirmar.
+              O checkout do {checkoutProvider === "infinitepay" ? "InfinitePay" : "Mercado Pago"} foi aberto em uma nova aba. Realize o pagamento e depois clique no botão abaixo para confirmar.
             </p>
             {mpPaymentValue > 0 && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black">
@@ -268,9 +306,10 @@ export default function PublicEnrollment() {
           <div className="space-y-3">
             <Button
               onClick={handleVerifyMPPayment}
+              disabled={mpVerifying}
               className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20"
             >
-              <BadgeCheck size={18} className="mr-2" />
+              {mpVerifying ? <Loader2 size={18} className="mr-2 animate-spin" /> : <BadgeCheck size={18} className="mr-2" />}
               Já paguei — Verificar Pagamento
             </Button>
 
@@ -281,7 +320,7 @@ export default function PublicEnrollment() {
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
             >
               <ExternalLink size={14} />
-              Reabrir checkout do Mercado Pago
+              Reabrir checkout do {checkoutProvider === "infinitepay" ? "InfinitePay" : "Mercado Pago"}
             </a>
 
             <button
@@ -498,6 +537,12 @@ export default function PublicEnrollment() {
                     {details.paymentGateway === "mercadopago" && (
                       <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 font-bold flex items-center gap-2">
                         <span>💳 Pagamento seguro via Mercado Pago (PIX / Cartão)</span>
+                      </div>
+                    )}
+
+                    {details.paymentGateway === "infinitepay" && (
+                      <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-400 font-bold flex items-center gap-2">
+                        <span>💳 Pagamento seguro via InfinitePay (PIX taxa zero / Cartão 12x)</span>
                       </div>
                     )}
                   </div>
@@ -725,6 +770,7 @@ export default function PublicEnrollment() {
                     dateStr: selectedDate,
                     timeStr: selectedTime,
                     asaasChargeId: paymentData?.chargeId,
+                    infinitepaySlug: checkoutSlug || undefined,
                   });
                 }}
                 className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-40"
