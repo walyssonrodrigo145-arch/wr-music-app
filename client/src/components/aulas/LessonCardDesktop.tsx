@@ -22,13 +22,27 @@ export const AULA_STATUS_CONFIG = {
   falta: { label: "Falta", badgeBg: "bg-amber-600 text-white", text: "text-amber-700 dark:text-amber-300", cardBg: "bg-amber-50/90 dark:bg-amber-950/40", border: "border-amber-300/80 dark:border-amber-800/60 border-l-amber-600" },
 };
 
-// Destaque visual para aulas que NÃO são semanais (quinzenal/mensal) — facilita ver
-// de relance quem intercala e onde há folga na agenda. A cor da borda lateral
-// sobrepõe a do status (o status continua indicado pelo texto/badge).
-export const RECURRENCE_CARD_CONFIG: Record<string, { label: string; borderL: string; chip: string }> = {
-  quinzenal: { label: "15/15", borderL: "border-l-violet-600", chip: "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30" },
-  mensal30: { label: "MENSAL", borderL: "border-l-fuchsia-600", chip: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30" },
-  mensal_fixo: { label: "MENSAL", borderL: "border-l-fuchsia-600", chip: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30" },
+// Destaque visual TOTAL para aulas que NÃO são semanais (quinzenal/mensal).
+// Cores customizadas (hex) que NÃO existem em nenhum outro lugar do sistema:
+// - Quinzenal: LARANJA (bg + borda + selo) — nada usa laranja (falta usa âmbar #d97706, tom diferente)
+// - Mensal: ROSA-MAGENTA — nada usa rosa (cancelada usa rose #e11d48, tom diferente)
+// O card inteiro é pintado (padrão dos cards de turma); o status continua indicado pelo texto/badge.
+export const RECURRENCE_CARD_CONFIG: Record<string, { label: string; cardStyle: string; chip: string }> = {
+  quinzenal: {
+    label: "15/15",
+    cardStyle: "bg-[#fff3ea] dark:bg-[#2b1608] border-[#ffd1b0] dark:border-[#5a2e12] border-l-[#ff7a33]",
+    chip: "bg-[#ff7a33] text-white",
+  },
+  mensal30: {
+    label: "MENSAL",
+    cardStyle: "bg-[#fdeef7] dark:bg-[#2b0a24] border-[#f7c2e4] dark:border-[#5a1247] border-l-[#e83e9c]",
+    chip: "bg-[#e83e9c] text-white",
+  },
+  mensal_fixo: {
+    label: "MENSAL",
+    cardStyle: "bg-[#fdeef7] dark:bg-[#2b0a24] border-[#f7c2e4] dark:border-[#5a1247] border-l-[#e83e9c]",
+    chip: "bg-[#e83e9c] text-white",
+  },
 };
 
 export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: React.MouseEvent) => void }) => {
@@ -51,7 +65,7 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
         ? "bg-amber-50/90 dark:bg-amber-950/40 border-amber-300/80 dark:border-amber-800/60 border-l-amber-600"
         : "bg-purple-50/90 dark:bg-purple-950/40 border-purple-300/80 dark:border-purple-800/60 border-l-purple-600"
       : recurrenceConfig
-      ? `${config.cardBg} ${config.border.split("border-l-")[0]} ${recurrenceConfig.borderL}`
+      ? recurrenceConfig.cardStyle
       : `${config.cardBg} ${config.border}`;
 
     const badgeStyle = isTurma
@@ -93,7 +107,7 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
             </span>
           )}
           {recurrenceConfig && (
-            <span className={cn("text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full border w-fit", recurrenceConfig.chip)}>
+            <span className={cn("text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shadow-xs w-fit", recurrenceConfig.chip)}>
               {recurrenceConfig.label}
             </span>
           )}
