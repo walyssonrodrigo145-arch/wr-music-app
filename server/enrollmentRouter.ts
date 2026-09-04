@@ -7,6 +7,7 @@ import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasChargeStatus } from "./utils/asaas";
 import { createMPPreference, verifyMPPayment } from "./utils/mercadopago";
 import { createInfinitePayLink, checkInfinitePayPayment, brlToCents, resolveInfinitePayApiKey } from "./utils/infinitepay";
+import { createPaymentShortLink } from "./utils/shortlinks";
 import { resolveActivePaymentGateway } from "./routers/helpers";
 import { ENV } from "./_core/env";
 
@@ -384,10 +385,16 @@ export const enrollmentRouter = router({
           },
         });
 
+        const shareUrl = await createPaymentShortLink(db, {
+          targetUrl: ipLink.url,
+          organizationId: orgId,
+          enrollmentCode: link.code,
+        });
+
         return {
           skipPayment: false,
           gateway: "infinitepay",
-          invoiceUrl: ipLink.url,
+          invoiceUrl: shareUrl,
           slug: ipLink.slug,
           value: monthlyFee,
           billingType: input.billingType,

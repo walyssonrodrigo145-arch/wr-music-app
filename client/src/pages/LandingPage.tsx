@@ -1159,6 +1159,51 @@ const LandingPage = () => {
                 </ul>
               </div>
             </motion.div>
+
+            {/* InfinitePay */}
+            <motion.div
+              {...fadeIn}
+              transition={{ delay: 0.3 }}
+              className="group relative md:col-span-2 p-8 bg-card/40 backdrop-blur-xl border border-border/50 rounded-[32px] hover:border-primary/30 shadow-2xl shadow-primary/5 hover:shadow-primary/20 transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-lime-500/5 via-transparent to-transparent rounded-[32px] pointer-events-none" />
+              <div className="relative z-10 md:flex md:items-center md:gap-8">
+                <div className="md:flex-1">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 rounded-2xl bg-lime-500/10 border border-lime-500/20 flex items-center justify-center shadow-lg">
+                      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-9 h-9">
+                        <rect width="40" height="40" rx="10" fill="#0E0E10"/>
+                        <circle cx="15" cy="20" r="6" stroke="#C8F169" strokeWidth="2.5"/>
+                        <circle cx="25" cy="20" r="6" stroke="#C8F169" strokeWidth="2.5"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-extrabold text-foreground">InfinitePay</h4>
+                      <span className="text-xs font-bold text-lime-600 bg-lime-500/10 px-2 py-0.5 rounded-full">Integração Oficial</span>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground font-medium leading-relaxed mb-6">
+                    Checkout seguro da InfinitePay com Pix (taxa zero) ou cartão de crédito em até 12x. O MusicPro gera o link e confirma o pagamento automaticamente — sem mensalidade e sem custo de integração.
+                  </p>
+                  <ul className="space-y-2">
+                    {['PIX com taxa zero — você recebe 100%', 'Cartão em até 12x', 'Links curtos prontos para o WhatsApp', 'Confirmação automática em tempo real'].map((item) => (
+                      <li key={item} className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <span className="w-5 h-5 rounded-full bg-lime-500/10 text-lime-600 flex items-center justify-center flex-shrink-0">
+                          <Check size={11} strokeWidth={3} />
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="hidden md:block w-px h-40 bg-border/60" />
+                <div className="hidden md:flex flex-col items-center text-center gap-2 px-6">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Você recebe</span>
+                  <span className="text-3xl font-outfit font-black text-lime-600">100%</span>
+                  <span className="text-[10px] font-medium text-muted-foreground max-w-[140px]">do valor de cada PIX — taxa zero na conta InfinitePay</span>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
           {/* Bottom trust strip */}
@@ -1275,7 +1320,7 @@ const LandingPage = () => {
               },
               {
                 q: "Como funciona a emissão de cobranças?",
-                a: "Nós integramos com o Asaas e Mercado Pago. Você pode gerar boletos, PIX e cartões diretamente pelo sistema. A baixa no pagamento é automática."
+                a: "Integramos com Asaas, Mercado Pago e InfinitePay. Você pode gerar boletos, PIX e cartões diretamente pelo sistema — com o InfinitePay o PIX tem taxa zero e você recebe 100%. A baixa no pagamento é automática."
               },
               {
                 q: "Os lembretes do WhatsApp têm custo extra?",

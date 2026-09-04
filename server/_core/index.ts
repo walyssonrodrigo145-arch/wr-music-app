@@ -24,7 +24,7 @@ import { createRateLimiter, logSecurityEvent, detectAttackCategory } from "./rat
 import { runAutoMigrations } from "./migrate";
 import { runTenantMigrations } from "./migrate_tenants";
 import { getDb } from "../db";
-import { settings, paymentDues, organizations, students } from "../../drizzle/schema";
+import { settings, paymentDues, organizations, students, shortLinks } from "../../drizzle/schema";
 import { ENV } from './env';
 import { eq, and, sql } from "drizzle-orm";
 import { setupEvolutionWebhook, setupAllEvolutionWebhooks } from "../utils/whatsapp";
@@ -488,6 +488,33 @@ async function startServer() {
     }
   });
 
+
+  // ─── Encurtador de links de pagamento (/p/{code}) ─────────────────────────
+  // 302 (não 301) para permitir revogação futura. Códigos só existem se criados
+  // server-side nos fluxos de cobrança — não há criação pública (anti open-redirect).
+  app.get("/p/:code", async (req, res) => {
+    try {
+      const code = (req.params.code || "").toString();
+      if (!code || code.length > 16 || !/^[A-Za-z0-9_-]+$/.test(code)) {
+        return res.redirect(302, "/");
+      }
+      const db = await getDb();
+      if (!db) return res.redirect(302, "/");
+      const [link] = await db.select().from(shortLinks).where(eq(shortLinks.code, code)).limit(1);
+      if (!link?.targetUrl) return res.redirect(302, "/");
+      // Contador de cliques — fire-and-forget, nunca bloqueia o redirect
+      try {
+        db.update(shortLinks)
+          .set({ clicks: (link.clicks ?? 0) + 1 })
+          .where(eq(shortLinks.id, link.id))
+          .catch(() => {});
+      } catch (_) { /* ignore */ }
+      return res.redirect(302, link.targetUrl);
+    } catch (e) {
+      console.error("[ShortLinks] Erro no redirect:", (e as Error)?.message ?? e);
+      return res.redirect(302, "/");
+    }
+  });
 
   // ─── Asaas Webhook ───────────────────────────────────────────────────────
   // Recebe notificações do Asaas e atualiza o status das mensalidades automaticamente.

@@ -804,6 +804,7 @@ async function runAutomation() {
                     // ── INFINITEPAY: gera link de pagamento on-the-fly ──────────
                     try {
                       const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import("./utils/infinitepay");
+                      const { createPaymentShortLink } = await import("./utils/shortlinks");
                       const ipLink = await createInfinitePayLink({
                         handle: userSet.infinitepayHandle,
                         orderNsu: String(due.id),
@@ -822,10 +823,17 @@ async function runAutomation() {
                         },
                       });
 
+                      const shareUrl = await createPaymentShortLink(db, {
+                        targetUrl: ipLink.url,
+                        organizationId: orgId,
+                        userId: userId,
+                        paymentDueId: due.id,
+                      });
+
                       await db.update(paymentDues)
-                        .set({ infinitepayPaymentLink: ipLink.url, infinitepaySlug: ipLink.slug })
+                        .set({ infinitepayPaymentLink: shareUrl, infinitepaySlug: ipLink.slug })
                         .where(eq(paymentDues.id, due.id));
-                      paymentLink = ipLink.url;
+                      paymentLink = shareUrl;
                     } catch (err) {
                       console.error("[AutomationJob] Erro ao gerar cobrança InfinitePay on-the-fly:", err);
                     }

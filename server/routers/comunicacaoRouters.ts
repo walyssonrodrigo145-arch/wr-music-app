@@ -426,6 +426,7 @@ export const comunicacaoRouters = {
           if (paymentGateway === "infinitepay" && userSettings.infinitepayHandle && (userSettings.infinitepayEnabled === 1 || userSettings.infinitepayEnabled === undefined || userSettings.infinitepayEnabled === null)) {
             try {
               const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import('../utils/infinitepay');
+              const { createPaymentShortLink } = await import('../utils/shortlinks');
               const ipLink = await createInfinitePayLink({
                 handle: userSettings.infinitepayHandle,
                 orderNsu: String(due.id),
@@ -444,8 +445,15 @@ export const comunicacaoRouters = {
                 },
               });
 
-              await db.update(paymentDues).set({ infinitepayPaymentLink: ipLink.url, infinitepaySlug: ipLink.slug }).where(eq(paymentDues.id, due.id));
-              paymentLink = ipLink.url;
+              const shareUrl = await createPaymentShortLink(db, {
+                targetUrl: ipLink.url,
+                organizationId: orgId,
+                userId: ctx.user.id,
+                paymentDueId: due.id,
+              });
+
+              await db.update(paymentDues).set({ infinitepayPaymentLink: shareUrl, infinitepaySlug: ipLink.slug }).where(eq(paymentDues.id, due.id));
+              paymentLink = shareUrl;
             } catch (err) {
               console.error("[InfinitePay Auto-Generate Error]", err);
             }

@@ -33,6 +33,7 @@
 | Erros de API | `shared/_core/errors.ts` (HttpError) | — |
 | Webhooks de pagamento | `server/_core/index.ts` (registro: asaas×2, mercadopago/student, infinitepay/student) | — |
 | InfinitePay (mensalidades) | `server/utils/infinitepay.ts` + `financeiroRouters.ts` (generateInfinitePayCharge) + webhook `_core/index.ts` (token + revalidação `payment_check` — corpo do webhook NÃO é prova de pagamento). Chave BYOK `settings.infinitepayApiKey` criptografada (AES-256-GCM) e enviada como Bearer | confiar no corpo do webhook; recriar baixa fora da idempotência; ler a chave sem `resolveInfinitePayApiKey` (select cru vem cifrado) |
+| Encurtador de links (`/p/{code}`) | `server/utils/shortlinks.ts` (createPaymentShortLink — fallback para URL original) + rota pública `GET /p/:code` em `_core/index.ts` (302 + contador). Tabela `short_links`. Criado server-side APENAS nos fluxos de cobrança (sem endpoint público de criação) | endpoint público de criação (open redirect); bloquear cobrança se o encurtar falhar |
 
 ## Regras anti-duplicação (violar = bug financeiro)
 

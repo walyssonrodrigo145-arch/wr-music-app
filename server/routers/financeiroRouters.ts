@@ -1039,6 +1039,7 @@ export const financeiroRouters = {
         const professorId = ctx.user.id;
 
         const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import('../utils/infinitepay');
+        const { createPaymentShortLink } = await import('../utils/shortlinks');
         const [settingsData] = await db.select({
           infinitepayHandle: settings.infinitepayHandle,
           infinitepayApiKey: settings.infinitepayApiKey,
@@ -1084,16 +1085,24 @@ export const financeiroRouters = {
           },
         });
 
+        // Link curto compartilhável (/p/{code}) — fallback transparente para a URL original
+        const shareUrl = await createPaymentShortLink(db, {
+          targetUrl: link.url,
+          organizationId: orgId,
+          userId: professorId,
+          paymentDueId: due.id,
+        });
+
         await db.update(paymentDues)
           .set({
-            infinitepayPaymentLink: link.url,
+            infinitepayPaymentLink: shareUrl,
             infinitepaySlug: link.slug,
             updatedAt: new Date(),
           })
           .where(eq(paymentDues.id, input.paymentDueId));
 
         return {
-          paymentLink: link.url,
+          paymentLink: shareUrl,
           slug: link.slug,
         };
       }),

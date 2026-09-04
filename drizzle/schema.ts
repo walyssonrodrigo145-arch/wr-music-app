@@ -1835,6 +1835,29 @@ export const fiscalLogs = pgTable("fiscal_logs", {
 export type FiscalLog = typeof fiscalLogs.$inferSelect;
 export type InsertFiscalLog = typeof fiscalLogs.$inferInsert;
 
+// ─── SHORT LINKS (encurtador de links de pagamento — /p/{code}) ──────────────
+// Códigos aleatórios (não enumeráveis) criados server-side apenas nos fluxos de
+// cobrança. A rota pública GET /p/:code (server/_core/index.ts) faz 302 para
+// targetUrl. A conciliação InfinitePay não depende da URL (payment_check usa
+// handle/order_nsu/slug), então encurtar é seguro.
+export const shortLinks = pgTable("short_links", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId"),
+  code: varchar("code", { length: 16 }).notNull().unique(),
+  targetUrl: text("targetUrl").notNull(),
+  paymentDueId: integer("paymentDueId"),
+  enrollmentCode: varchar("enrollmentCode", { length: 100 }),
+  clicks: integer("clicks").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("short_links_payment_due_idx").on(table.paymentDueId),
+  index("short_links_enrollment_code_idx").on(table.enrollmentCode),
+]);
+
+export type ShortLink = typeof shortLinks.$inferSelect;
+export type InsertShortLink = typeof shortLinks.$inferInsert;
+
 export const webhookEvents = pgTable("webhook_events", {
   id: serial("id").primaryKey(),
   gateway: varchar("gateway", { length: 50 }).notNull(), // asaas, mercadopago, infinitepay, assinafy, focusnfe

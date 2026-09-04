@@ -472,6 +472,23 @@ async function ensureSchemaConsistency(db: any) {
     // payment_dues.infinitepayPaymentId: usado no processamento de webhooks InfinitePay
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_payment_dues_infinitepay_id" ON "payment_dues" ("infinitepayPaymentId") WHERE "infinitepayPaymentId" IS NOT NULL`, "idx_payment_dues_infinitepay_id");
 
+    // short_links: encurtador de links de pagamento (/p/{code}) — InfinitePay e futuros gateways
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "short_links" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer,
+        "userId" integer,
+        "code" varchar(16) NOT NULL UNIQUE,
+        "targetUrl" text NOT NULL,
+        "paymentDueId" integer,
+        "enrollmentCode" varchar(100),
+        "clicks" integer DEFAULT 0 NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create short_links table");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_short_links_payment_due" ON "short_links" ("paymentDueId")`, "idx_short_links_payment_due");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_short_links_enrollment_code" ON "short_links" ("enrollmentCode")`, "idx_short_links_enrollment_code");
+
     // students por org + status + professor: query mais comum em toda a aplicação
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_status" ON "students" ("organizationId", "status")`, "idx_students_org_status");
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_professor" ON "students" ("organizationId", "professorId")`, "idx_students_org_professor");

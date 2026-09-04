@@ -798,7 +798,8 @@ export const portalRouters = {
           if (due.infinitepayPaymentLink) return { paymentLink: due.infinitepayPaymentLink }; // Já existe
 
           const { createInfinitePayLink, buildInfinitePayWebhookUrl, brlToCents, resolveInfinitePayApiKey } = await import('../utils/infinitepay');
-          const link = await createInfinitePayLink({
+          const { createPaymentShortLink } = await import('../utils/shortlinks');
+          const ipLink = await createInfinitePayLink({
             handle: settingsData.infinitepayHandle,
             orderNsu: String(due.id),
             items: [{
@@ -816,15 +817,21 @@ export const portalRouters = {
             },
           });
 
+          const shareUrl = await createPaymentShortLink(db, {
+            targetUrl: ipLink.url,
+            organizationId: orgId,
+            paymentDueId: due.id,
+          });
+
           await db.update(paymentDues)
             .set({
-              infinitepayPaymentLink: link.url,
-              infinitepaySlug: link.slug,
+              infinitepayPaymentLink: shareUrl,
+              infinitepaySlug: ipLink.slug,
               updatedAt: new Date(),
             })
             .where(eq(paymentDues.id, input.paymentDueId));
 
-          return { paymentLink: link.url };
+          return { paymentLink: shareUrl };
         }
 
         // ── Mercado Pago (padrão) ──
