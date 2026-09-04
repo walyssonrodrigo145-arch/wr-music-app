@@ -40,7 +40,7 @@ import DayLessonsModal from "@/components/modals/DayLessonsModal";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { Button } from "@/components/ui/button";
-import { DAYS_SHORT, STATUS_CHIP_MAP, AULA_STATUS_CONFIG, LessonCardDesktop } from "@/components/aulas/LessonCardDesktop";
+import { DAYS_SHORT, STATUS_CHIP_MAP, AULA_STATUS_CONFIG, RECURRENCE_CARD_CONFIG, LessonCardDesktop } from "@/components/aulas/LessonCardDesktop";
 
 type CalendarView = "mes" | "semana" | "dia" | "eventos";
 
@@ -1108,37 +1108,59 @@ export default function Aulas() {
               filteredLessons.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()).map(lesson => {
                 const isTurma = lesson.lessonType === 'turma';
                 const config = AULA_STATUS_CONFIG[lesson.status as keyof typeof AULA_STATUS_CONFIG] || AULA_STATUS_CONFIG.agendada;
+                // Destaque de recorrência (mesmo modelo do desktop): pintura completa do card
+                const recurrenceConfig = !isTurma && lesson.recurrence ? RECURRENCE_CARD_CONFIG[lesson.recurrence as string] : undefined;
                 const titleText = isTurma ? (lesson.title || "Turma") : (lesson.studentName || lesson.experimentalName || "Aula");
 
+                // Pintura completa do card (mesmas cores do desktop — AULA_STATUS_CONFIG)
+                const cardStyle = isTurma
+                  ? (lesson.status === 'concluida'
+                      ? "bg-emerald-50 dark:bg-emerald-950 border-emerald-300/80 dark:border-emerald-800/60 border-l-emerald-600"
+                      : lesson.status === 'falta'
+                      ? "bg-amber-50 dark:bg-amber-950 border-amber-300/80 dark:border-amber-800/60 border-l-amber-600"
+                      : "bg-purple-50 dark:bg-purple-950 border-purple-300/80 dark:border-purple-800/60 border-l-purple-600")
+                  : recurrenceConfig
+                  ? recurrenceConfig.cardStyle
+                  : `${config.cardBg} ${config.border}`;
+
                 return (
-                  <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className="group bg-card rounded-[2.5rem] p-6 lg:p-8 border border-border shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[180px] min-w-0 overflow-hidden" onClick={() => setDetailLessonId(lesson.id)}>
-                    <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+                  <motion.div key={lesson.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} whileHover={{ scale: 1.01 }} className={cn("group rounded-2xl p-3.5 border border-l-4 shadow-sm transition-all cursor-pointer flex flex-col justify-between min-h-[180px] min-w-0 overflow-hidden", cardStyle)} onClick={() => setDetailLessonId(lesson.id)}>
+                    <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("w-1.5 h-6 rounded-full", isTurma ? "bg-purple-600" : config.badgeBg.split(" ")[0])} />
+                        <div className={cn("w-1.5 h-6 rounded-full shrink-0", isTurma ? "bg-purple-600" : config.badgeBg.split(" ")[0])} />
                         <span className="text-lg font-black text-foreground tracking-tighter">{safeFormat(lesson.scheduledAt, "HH:mm")}</span>
                       </div>
-                      <span className={cn(
-                        "inline-flex items-center gap-1 min-w-0 max-w-full rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border shadow-sm",
-                        isTurma
-                          ? lesson.status === 'concluida'
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                            : lesson.status === 'falta'
-                            ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                            : "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                          : cn(config.badgeBg, config.border)
-                      )}>
-                        {isTurma ? (
-                          <span className="truncate">
-                            {lesson.status === 'concluida'
-                              ? `✓ Concluída`
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={cn(
+                          "inline-flex items-center gap-1 min-w-0 max-w-full rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border shadow-sm",
+                          isTurma
+                            ? lesson.status === 'concluida'
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                               : lesson.status === 'falta'
-                              ? `Turma • Falta`
-                              : `Turma (${lesson.studentCount || 1} Alunos)`}
+                              ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                              : "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                            : recurrenceConfig
+                            ? recurrenceConfig.chip
+                            : config.badgeBg
+                        )}>
+                          {isTurma ? (
+                            <span className="truncate">
+                              {lesson.status === 'concluida'
+                                ? `✓ Concluída`
+                                : lesson.status === 'falta'
+                                ? `Turma • Falta`
+                                : `Turma (${lesson.studentCount || 1} Alunos)`}
+                            </span>
+                          ) : (
+                            config.label
+                          )}
+                        </span>
+                        {recurrenceConfig && (
+                          <span className={cn("inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase shadow-xs", recurrenceConfig.chip)}>
+                            {recurrenceConfig.label}
                           </span>
-                        ) : (
-                          config.label
                         )}
-                      </span>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <h4 className="text-sm font-black text-foreground leading-tight group-hover:text-blue-600 transition-colors">{titleText}</h4>
@@ -1154,7 +1176,7 @@ export default function Aulas() {
                          )}
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-black/5 dark:border-white/5">
                        <button className="text-[11px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1.5">Chamada / Detalhes <ChevronRight size={14} /></button>
                        <button className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors"><MoreVertical size={20} /></button>
                     </div>
