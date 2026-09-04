@@ -27,8 +27,8 @@ export const AULA_STATUS_CONFIG = {
 // sobrepõe a do status (o status continua indicado pelo texto/badge).
 export const RECURRENCE_CARD_CONFIG: Record<string, { label: string; borderL: string; chip: string }> = {
   quinzenal: { label: "15/15", borderL: "border-l-violet-600", chip: "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30" },
-  mensal30: { label: "MENSAL", borderL: "border-l-teal-600", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30" },
-  mensal_fixo: { label: "MENSAL", borderL: "border-l-teal-600", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30" },
+  mensal30: { label: "MENSAL", borderL: "border-l-fuchsia-600", chip: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30" },
+  mensal_fixo: { label: "MENSAL", borderL: "border-l-fuchsia-600", chip: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30" },
 };
 
 export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (e: React.MouseEvent) => void }) => {
