@@ -1630,6 +1630,9 @@ export async function getRecentLessons(
     studentId: students.id,
     lessonType: lessons.lessonType,
     recurringGroupId: lessons.recurringGroupId,
+    // CAÇA-BUG: a agenda (lessons.list sem input) usa getRecentLessons — sem
+    // recurrence aqui, o card nunca recebia o destaque quinzenal/mensal.
+    recurrence: lessons.recurrence,
     studioRoomId: lessons.studioRoomId,
     studioRoomName: studioRooms.name,
     studioRoomColor: studioRooms.color,
