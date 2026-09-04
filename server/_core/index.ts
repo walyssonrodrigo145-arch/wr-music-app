@@ -244,8 +244,10 @@ async function startServer() {
         return res.status(400).send("Mercado Pago not configured for this user");
       }
 
+      // BUG FIX: o select cru traz o token CIFRADO (v1:...) — decifrar antes de chamar o MP
+      const { decryptSecret } = await import("../utils/integrationCrypto");
       const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-        headers: { "Authorization": `Bearer ${profSettings.mpAccessToken}` }
+        headers: { "Authorization": `Bearer ${decryptSecret(profSettings.mpAccessToken)}` }
       });
       if (!response.ok) return res.status(400).send("Failed to validate payment");
       

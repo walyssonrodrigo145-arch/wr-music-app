@@ -25,6 +25,7 @@ import { handleDbError } from "../utils/error_handler";
 import { TRPCError } from "@trpc/server";
 
 import crypto from "crypto";
+import { decryptSecret } from "../utils/integrationCrypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
 import { getSystemPrompt, buildExerciseExplanationPrompt, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
@@ -839,7 +840,8 @@ export const portalRouters = {
           throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Mercado Pago não está configurada." });
         }
 
-        const accessToken = settingsData.mpAccessToken;
+        // BUG FIX: decifrar o token (select cru traz v1:...) antes de usar na API do MP
+        const accessToken = decryptSecret(settingsData.mpAccessToken);
 
         if (due.mpPaymentLink) return { paymentLink: due.mpPaymentLink }; // Já existe
 

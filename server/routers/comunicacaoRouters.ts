@@ -23,6 +23,7 @@ import { organizations, users, students, lessons, instruments, reminders, remind
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
+import { decryptSecret } from "../utils/integrationCrypto";
 import { TRPCError } from "@trpc/server";
 
 import crypto from "crypto";
@@ -473,7 +474,7 @@ export const comunicacaoRouters = {
                 },
                 external_reference: due.id.toString(),
                 successUrl: `https://wrmusicpro.com.br/painel/mensalidades`
-              }, userSettings.mpAccessToken);
+              }, decryptSecret(userSettings.mpAccessToken));
               
               await db.update(paymentDues).set({ mpPaymentId: pref.id, mpPaymentLink: pref.init_point }).where(eq(paymentDues.id, due.id));
               paymentLink = pref.init_point;
@@ -497,7 +498,7 @@ export const comunicacaoRouters = {
                   email: due.studentEmail ?? undefined,
                   phone: due.studentPhone ?? undefined,
                   cpfCnpj: due.studentCpf ?? undefined,
-                }, userSettings.asaasApiKey);
+                }, decryptSecret(userSettings.asaasApiKey));
                 
                 if (asaasCustomerId) {
                   await db.insert(asaasCustomers).values({ organizationId: orgId, studentId: due.studentId, asaasCustomerId });
@@ -511,7 +512,7 @@ export const comunicacaoRouters = {
                   value: Number(due.amount),
                   dueDate: String(due.dueDate).slice(0, 10),
                   description: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
-                }, userSettings.asaasApiKey);
+                }, decryptSecret(userSettings.asaasApiKey));
 
                 await db.update(paymentDues).set({ asaasId: charge.id, asaasPaymentLink: charge.invoiceUrl, asaasBillingType: charge.billingType }).where(eq(paymentDues.id, due.id));
                 paymentLink = charge.invoiceUrl;

@@ -11,6 +11,7 @@ import { getDb } from "./db";
 import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users, notifications } from "../drizzle/schema";
 import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession } from "./utils/whatsapp";
 import { sendSmartWhatsAppNotification } from "./utils/whatsappRouting";
+import { decryptSecret } from "./utils/integrationCrypto";
 import { BillingEngine } from "./services/BillingEngine";
 
 // Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
@@ -854,7 +855,7 @@ async function runAutomation() {
                           email: due.studentEmail ?? undefined,
                           phone: due.studentPhone ?? undefined,
                           cpfCnpj: due.studentCpf ?? undefined,
-                        }, userSet.asaasApiKey);
+                        }, decryptSecret(userSet.asaasApiKey));
                         if (asaasCustomerId) {
                           await db.insert(asaasCustomers).values({ organizationId: orgId, studentId: due.studentId, asaasCustomerId });
                         }
@@ -867,7 +868,7 @@ async function runAutomation() {
                           value: Number(due.amount),
                           dueDate: String(due.dueDate).slice(0, 10),
                           description: `Mensalidade ${due.month}/${due.year} - ${due.studentName}`,
-                        }, userSet.asaasApiKey);
+                        }, decryptSecret(userSet.asaasApiKey));
 
                         await db.update(paymentDues).set({
                           asaasId: charge.id,
@@ -896,7 +897,7 @@ async function runAutomation() {
                         },
                         external_reference: due.id.toString(),
                         successUrl: `https://wrmusicpro.com.br/painel/mensalidades`,
-                      }, userSet.mpAccessToken);
+                      }, decryptSecret(userSet.mpAccessToken));
 
                       await db.update(paymentDues)
                         .set({ mpPaymentId: pref.id, mpPaymentLink: pref.init_point })

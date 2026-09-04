@@ -36,6 +36,7 @@ import { nanoid } from "nanoid";
 import { sdk } from "../_core/sdk";
 import { sendVerificationEmail, sendSimpleEmail } from "../_core/email";
 import { ENV } from "../_core/env";
+import { decryptSecret } from "../utils/integrationCrypto";
 import { storagePut } from "../storage";
 import { superAdminRouter } from "../superAdminRouter";
 import { pairingActiveSessions } from "../automationJob";
@@ -857,7 +858,8 @@ export const studentsRouters = {
           if (asaasCust) {
             const [settingsData] = await db.select({ asaasApiKey: settings.asaasApiKey })
               .from(settings).where(eq(settings.userId, student.professorId ?? ctx.user.id)).limit(1);
-            const apiKey = settingsData?.asaasApiKey || ENV.asaasApiKey;
+            // BUG FIX: chave BYOK vem cifrada (v1:...) no select cru — decifrar antes de usar na API
+            const apiKey = (settingsData?.asaasApiKey ? decryptSecret(settingsData.asaasApiKey) : null) || ENV.asaasApiKey;
             if (apiKey) {
               await fetch(`${ENV.asaasBaseUrl}/customers/${asaasCust.asaasCustomerId}`, {
                 method: "DELETE",

@@ -27,6 +27,7 @@ import { handleDbError } from "../utils/error_handler";
 import { TRPCError } from "@trpc/server";
 
 import crypto from "crypto";
+import { decryptSecret } from "../utils/integrationCrypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
 import { getSystemPrompt } from "../utils/aiPrompts";
@@ -192,7 +193,8 @@ export const financeiroRouters = {
           const [settingsData] = await db.select({ asaasEnabled: settings.asaasEnabled, asaasApiKey: settings.asaasApiKey }).from(settings).where(eq(settings.userId, ctx.user.id)).limit(1);
           
           if (settingsData && settingsData.asaasEnabled === 1 && settingsData.asaasApiKey) {
-            const apiKey = settingsData.asaasApiKey;
+            // BUG FIX: o select cru traz a chave CIFRADA (v1:...) — decifrar antes de usar na API
+            const apiKey = decryptSecret(settingsData.asaasApiKey);
             // Get or create Asaas customer
             let asaasCustomerId: string | null = null;
             const [existingCustomer] = await db.select().from(asaasCustomers)
@@ -290,7 +292,7 @@ export const financeiroRouters = {
                 .where(eq(settings.userId, ctx.user.id))
                 .limit(1);
               const { deleteAsaasCharge } = await import('../utils/asaas');
-              await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ?? undefined);
+              await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ? decryptSecret(settingsData.asaasApiKey) : undefined);
               debugLog(`[MarkPaid] Cobrança Asaas cancelada (${due.asaasId}) — pagamento manual registrado`);
             } catch (e) {
               // Não bloqueia a baixa manual se o cancelamento falhar
@@ -446,7 +448,7 @@ export const financeiroRouters = {
               if (pay.asaasId && pay.status !== 'pago' && profSettings?.asaasEnabled === 1 && profSettings.asaasApiKey) {
                 try {
                   const { deleteAsaasCharge } = await import('../utils/asaas');
-                  await deleteAsaasCharge(pay.asaasId, profSettings.asaasApiKey);
+                  await deleteAsaasCharge(pay.asaasId, decryptSecret(profSettings.asaasApiKey));
                   // Limpar referências Asaas no banco — nova cobrança com data correta será gerada quando necessário
                   await db.update(paymentDues)
                     .set({ asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })
@@ -548,7 +550,7 @@ export const financeiroRouters = {
                 .where(eq(settings.userId, due.userId ?? ctx.user.id))
                 .limit(1);
               const { deleteAsaasCharge } = await import('../utils/asaas');
-              await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ?? undefined);
+              await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ? decryptSecret(settingsData.asaasApiKey) : undefined);
               debugLog(`[DeletePayment] Cobrança Asaas cancelada (${due.asaasId}) antes da exclusão`);
             } catch (e) {
               console.error(`[DeletePayment] Falha ao cancelar cobrança Asaas ${due?.asaasId}:`, e);
@@ -831,7 +833,8 @@ export const financeiroRouters = {
         if (!settingsData || settingsData.asaasEnabled !== 1 || !settingsData.asaasApiKey) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Asaas não está disponível para esta conta. Configure a Chave da API." });
         }
-        const apiKey = settingsData.asaasApiKey;
+        // BUG FIX: decifrar a chave (select cru traz v1:...) antes de usar na API do Asaas
+        const apiKey = decryptSecret(settingsData.asaasApiKey);
 
         // Fetch payment due
         const [due] = await db.select().from(paymentDues)
@@ -936,8 +939,11 @@ export const financeiroRouters = {
         if (!settingsData || settingsData.paymentGateway !== 'mercadopago' || !settingsData.mpAccessToken) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Geração via Mercado Pago não está configurada para esta conta." });
         }
-        
-        const accessToken = settingsData.mpAccessToken;
+
+        // BUG FIX ("sessão expirada" do MP): o select cru traz o token CIFRADO (v1:...)
+        // e ele era enviado cru como Bearer — o MP rejeita com 403 PolicyAgent.
+        // Decifrar antes de usar (decryptSecret é idempotente para texto puro legado).
+        const accessToken = decryptSecret(settingsData.mpAccessToken);
 
         const [due] = await db.select().from(paymentDues)
           .where(and(eq(paymentDues.id, input.paymentDueId), eq(paymentDues.userId, professorId)))
@@ -999,7 +1005,7 @@ export const financeiroRouters = {
           .from(settings)
           .where(eq(settings.userId, ctx.user.id))
           .limit(1);
-        await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ?? undefined);
+        await deleteAsaasCharge(due.asaasId, settingsData?.asaasApiKey ? decryptSecret(settingsData.asaasApiKey) : undefined);
 
         await db.update(paymentDues)
           .set({ asaasId: null, asaasPaymentLink: null, asaasBillingType: null, updatedAt: new Date() })

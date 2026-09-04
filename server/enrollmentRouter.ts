@@ -8,6 +8,7 @@ import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasChar
 import { createMPPreference, verifyMPPayment } from "./utils/mercadopago";
 import { createInfinitePayLink, checkInfinitePayPayment, brlToCents, resolveInfinitePayApiKey } from "./utils/infinitepay";
 import { createPaymentShortLink } from "./utils/shortlinks";
+import { decryptSecret } from "./utils/integrationCrypto";
 import { resolveActivePaymentGateway } from "./routers/helpers";
 import { ENV } from "./_core/env";
 
@@ -420,7 +421,7 @@ export const enrollmentRouter = router({
             external_reference: `enrollment_${link.code}`,
             successUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/matricula/${link.code}?status=success`,
           },
-          schoolSet!.mpAccessToken!
+          decryptSecret(schoolSet!.mpAccessToken!)
         );
 
         return {
@@ -434,6 +435,7 @@ export const enrollmentRouter = router({
 
       // ASAAS
       if (activeGateway === "asaas") {
+        const asaasKey = decryptSecret(schoolSet.asaasApiKey!);
         const asaasCustomerId = await createAsaasCustomer(
           {
             name: input.studentName,
@@ -441,7 +443,7 @@ export const enrollmentRouter = router({
             phone: input.studentPhone,
             cpfCnpj: input.studentCpf,
           },
-          schoolSet.asaasApiKey!
+          asaasKey
         );
 
         const dueDate = new Date();
@@ -456,14 +458,14 @@ export const enrollmentRouter = router({
             dueDate: dueDateStr,
             description: `Matrícula - Aula de ${courseName} em ${schoolSet.schoolName || "Escola de Música"}`,
           },
-          schoolSet.asaasApiKey!
+          asaasKey
         );
 
         let pixQrCode = null;
         let pixCopiaECola = null;
         if (input.billingType === "PIX" && charge.id) {
           try {
-            const pix = await getAsaasPixQrCode(charge.id, schoolSet.asaasApiKey!);
+            const pix = await getAsaasPixQrCode(charge.id, asaasKey);
             pixQrCode = pix.encodedImage;
             pixCopiaECola = pix.payload;
           } catch (_) {}
@@ -570,7 +572,7 @@ export const enrollmentRouter = router({
             throw new Error("Pagamento da matrícula é obrigatório. Gere a cobrança e conclua o pagamento antes de confirmar.");
           }
           try {
-            const chargeStatus = await getAsaasChargeStatus(input.asaasChargeId, schoolSet!.asaasApiKey!);
+            const chargeStatus = await getAsaasChargeStatus(input.asaasChargeId, decryptSecret(schoolSet!.asaasApiKey!));
             paymentVerified = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH", "DETERMINED"].includes(String(chargeStatus).toUpperCase());
           } catch (e) {
             console.error("[Enrollment] Falha ao verificar cobrança Asaas:", e);
@@ -596,7 +598,7 @@ export const enrollmentRouter = router({
           try {
             const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=enrollment_${link.code}&sort=date_created&criteria=desc`;
             const mpResp = await fetch(searchUrl, {
-              headers: { Authorization: `Bearer ${schoolSet!.mpAccessToken!}` },
+              headers: { Authorization: `Bearer ${decryptSecret(schoolSet!.mpAccessToken!)}` },
             });
             if (mpResp.ok) {
               const mpData: any = await mpResp.json();
@@ -704,7 +706,7 @@ export const enrollmentRouter = router({
       }
 
       // Consulta a API do MP com o payment_id real
-      const result = await verifyMPPayment(input.paymentId, schoolSet.mpAccessToken);
+      const result = await verifyMPPayment(input.paymentId, decryptSecret(schoolSet.mpAccessToken));
 
       return {
         verified: result.verified,
@@ -744,7 +746,7 @@ export const enrollmentRouter = router({
       // Busca na API do Mercado Pago por pagamentos referentes a essa matrícula
       const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=enrollment_${input.code}&sort=date_created&criteria=desc`;
       const response = await fetch(searchUrl, {
-        headers: { Authorization: `Bearer ${schoolSet.mpAccessToken}` },
+        headers: { Authorization: `Bearer ${decryptSecret(schoolSet.mpAccessToken)}` },
       });
 
       if (!response.ok) {

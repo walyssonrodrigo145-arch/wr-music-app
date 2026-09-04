@@ -576,7 +576,9 @@ const analyticsQueryRouter = router({
       }
       for (const s of activeSettings) {
         if (s.asaasApiKey && s.asaasApiKey.trim().length > 5) {
-          apiKeys.add(s.asaasApiKey.trim());
+          // BUG FIX: chave BYOK vem cifrada (v1:...) no select cru — decifrar antes de consultar a API
+          const { decryptSecret } = await import("./utils/integrationCrypto");
+          apiKeys.add(decryptSecret(s.asaasApiKey).trim());
         }
       }
 
