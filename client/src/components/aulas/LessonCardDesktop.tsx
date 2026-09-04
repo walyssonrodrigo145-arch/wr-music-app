@@ -23,25 +23,33 @@ export const AULA_STATUS_CONFIG = {
 };
 
 // Destaque visual TOTAL para aulas que NÃO são semanais (quinzenal/mensal).
-// Cores customizadas (hex) que NÃO existem em nenhum outro lugar do sistema:
-// - Quinzenal: LARANJA (bg + borda + selo) — nada usa laranja (falta usa âmbar #d97706, tom diferente)
-// - Mensal: ROSA-MAGENTA — nada usa rosa (cancelada usa rose #e11d48, tom diferente)
-// O card inteiro é pintado (padrão dos cards de turma); o status continua indicado pelo texto/badge.
-export const RECURRENCE_CARD_CONFIG: Record<string, { label: string; cardStyle: string; chip: string }> = {
+// Cores customizadas que NÃO existem em nenhum outro estado do sistema:
+// - Quinzenal (15/15): TEAL/verde-azulado (modelo do dono: fundo liso sólido,
+//   borda teal completa, selo 16:00 + 15/15 sólidos, card mais esticado).
+// - Mensal: rosa-magenta, mesmo modelo estrutural.
+export const RECURRENCE_CARD_CONFIG: Record<string, {
+  label: string; cardStyle: string; chip: string; hourBadge: string; statusText: string;
+}> = {
   quinzenal: {
     label: "15/15",
-    cardStyle: "bg-[#fff3ea] dark:bg-[#2b1608] border-[#ffd1b0] dark:border-[#5a2e12] border-l-[#ff7a33]",
-    chip: "bg-[#ff7a33] text-white",
+    cardStyle: "bg-[#f0fdfa] dark:bg-[#042f2e] border-2 border-[#5eead4] dark:border-[#0f766e] border-l-4 border-l-[#0d9488] rounded-2xl p-3.5 backdrop-blur-none",
+    chip: "bg-[#0d9488] text-white",
+    hourBadge: "bg-[#0d9488] text-white",
+    statusText: "text-[#0f766e] dark:text-[#5eead4]",
   },
   mensal30: {
     label: "MENSAL",
-    cardStyle: "bg-[#fdeef7] dark:bg-[#2b0a24] border-[#f7c2e4] dark:border-[#5a1247] border-l-[#e83e9c]",
-    chip: "bg-[#e83e9c] text-white",
+    cardStyle: "bg-[#fdf2f9] dark:bg-[#2b0a24] border-2 border-[#f9a8d4] dark:border-[#9d174d] border-l-4 border-l-[#be185d] rounded-2xl p-3.5 backdrop-blur-none",
+    chip: "bg-[#be185d] text-white",
+    hourBadge: "bg-[#be185d] text-white",
+    statusText: "text-[#be185d] dark:text-[#f9a8d4]",
   },
   mensal_fixo: {
     label: "MENSAL",
-    cardStyle: "bg-[#fdeef7] dark:bg-[#2b0a24] border-[#f7c2e4] dark:border-[#5a1247] border-l-[#e83e9c]",
-    chip: "bg-[#e83e9c] text-white",
+    cardStyle: "bg-[#fdf2f9] dark:bg-[#2b0a24] border-2 border-[#f9a8d4] dark:border-[#9d174d] border-l-4 border-l-[#be185d] rounded-2xl p-3.5 backdrop-blur-none",
+    chip: "bg-[#be185d] text-white",
+    hourBadge: "bg-[#be185d] text-white",
+    statusText: "text-[#be185d] dark:text-[#f9a8d4]",
   },
 };
 
@@ -74,7 +82,7 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
         : isFalta
         ? "bg-amber-600 text-white"
         : "bg-purple-600 text-white"
-      : config.badgeBg;
+      : recurrenceConfig?.hourBadge ?? config.badgeBg;
 
     const turmaTagStyle = isConcluida
       ? "text-emerald-700 dark:text-emerald-300 bg-emerald-200/60 dark:bg-emerald-900/60"
@@ -93,7 +101,7 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
         )}
       >
         {/* Linha 1: Horário + Tag status — empilhados verticalmente para não quebrar */}
-        <div className="flex flex-col gap-0.5 mb-1 min-w-0">
+        <div className={cn("flex flex-col gap-0.5 min-w-0", recurrenceConfig ? "mb-2 gap-1.5" : "mb-1")}>
           <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider uppercase shadow-xs w-fit shrink-0", badgeStyle)}>
             {safeFormat(lesson.scheduledAt, "HH:mm")}
           </span>
@@ -102,7 +110,7 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
               {isConcluida ? "✓ CONCLUÍDA" : isFalta ? "FALTA" : "TURMA"}
             </span>
           ) : (
-            <span className={cn("text-[9px] font-bold uppercase truncate", config.text)}>
+            <span className={cn("text-[9px] font-bold uppercase truncate", recurrenceConfig?.statusText ?? config.text)}>
               {config.label}
             </span>
           )}
@@ -114,12 +122,12 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
         </div>
 
         {/* Linha 2: Título */}
-        <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate leading-snug">
+        <p className={cn("text-xs font-black text-slate-900 dark:text-slate-100 truncate leading-snug", recurrenceConfig && "mt-1")}>
           {titleText}
         </p>
 
         {/* Linha 3: Instrumento e Professor — em coluna para não quebrar */}
-        <div className="flex flex-col gap-0.5 mt-1 pt-1 border-t border-black/5 dark:border-white/5 text-[9px] min-w-0">
+        <div className={cn("flex flex-col gap-0.5 border-t border-black/5 dark:border-white/5 text-[9px] min-w-0", recurrenceConfig ? "mt-2.5 pt-2" : "mt-1 pt-1")}>
           <div className="flex items-center gap-1 min-w-0 font-bold text-slate-600 dark:text-slate-300">
             <Music size={9} className="shrink-0 text-blue-600 dark:text-blue-400" />
             <span className="truncate uppercase">{lesson.instrumentName || "Geral"}</span>
@@ -134,7 +142,7 @@ export const LessonCardDesktop = ({ lesson, onClick }: { lesson: any, onClick: (
 
         {/* Sala (opcional) */}
         {lesson.studioRoomName && (
-          <div className="flex items-center gap-1 mt-1 pt-1 border-t border-black/5 dark:border-white/5 font-black text-indigo-700 dark:text-indigo-300 text-[9px] min-w-0">
+          <div className={cn("flex items-center gap-1 font-black text-indigo-700 dark:text-indigo-300 text-[9px] min-w-0", recurrenceConfig ? "mt-2 pt-2" : "mt-1 pt-1", "border-t border-black/5 dark:border-white/5")}>
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: lesson.studioRoomColor || '#6366f1' }} />
             <LayoutList size={9} className="shrink-0 text-indigo-500" />
             <span className="truncate uppercase font-extrabold">{lesson.studioRoomName}</span>
