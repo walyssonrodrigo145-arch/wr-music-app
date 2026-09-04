@@ -200,6 +200,9 @@ export const lessons = pgTable("lessons", {
   instrumentId: integer("instrumentId"),
   studioRoomId: integer("studioRoomId"),
   recurringGroupId: varchar("recurringGroupId", { length: 100 }),
+  // Tipo de recorrência da série (AgendarModal): "semanal" | "quinzenal" | "mensal30" | "mensal_fixo".
+  // null = aula avulsa/única. Usado para destacar na agenda aulas que NÃO são semanais.
+  recurrence: varchar("recurrence", { length: 20 }),
   alertSent1h: boolean("alertSent1h").default(false).notNull(),
   alertSent30m: boolean("alertSent30m").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

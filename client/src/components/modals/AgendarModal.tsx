@@ -414,6 +414,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
               notes: formData.notes,
               instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
               studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
+              recurrence: formData.interval,
               items: allItems.map((c: any) => ({ scheduledAt: c.scheduledAt, force: false }))
             });
           }
@@ -449,6 +450,7 @@ export default function AgendarModal({ open, onOpenChange, initialDate, editingL
       notes: formData.notes,
       instrumentId: formData.instrumentId ? Number(formData.instrumentId) : null,
       studioRoomId: formData.studioRoomId ? Number(formData.studioRoomId) : null,
+      recurrence: formData.interval,
       items: batchItems.map(item => ({
         scheduledAt: item.scheduledAt,
         force: item.force

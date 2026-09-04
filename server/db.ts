@@ -130,6 +130,9 @@ async function ensureSchemaConsistency(db: any) {
     // lessonType column
     await db.execute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "lessonType" text DEFAULT 'individual'`);
     await db.execute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "lessonType" text DEFAULT 'individual'`);
+
+    // lessons.recurrence: tipo da série (semanal/quinzenal/mensal30/mensal_fixo) — destaque visual na agenda
+    await db.execute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "recurrence" varchar(20)`);
     
     // alertSent1h and alertSent30m columns
     await db.execute(sql`ALTER TABLE "lessons" ADD COLUMN IF NOT EXISTS "alertSent1h" boolean DEFAULT false NOT NULL`);
