@@ -489,6 +489,32 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_short_links_payment_due" ON "short_links" ("paymentDueId")`, "idx_short_links_payment_due");
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_short_links_enrollment_code" ON "short_links" ("enrollmentCode")`, "idx_short_links_enrollment_code");
 
+    // BUG FIX: em produção a tabela file_comments foi criada com colunas snake_case
+    // (organization_id, file_id, user_id) mas o schema drizzle espera camelCase —
+    // qualquer DELETE/INSERT/SELECT quebrava (ex.: superAdmin.deleteOrganization).
+    // Renomeia para o padrão do schema; no-op se já estiver em camelCase.
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        ALTER TABLE "file_comments" RENAME COLUMN "organization_id" TO "organizationId";
+      EXCEPTION WHEN undefined_column THEN NULL;
+      END $$;
+    `);
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        ALTER TABLE "file_comments" RENAME COLUMN "file_id" TO "fileId";
+      EXCEPTION WHEN undefined_column THEN NULL;
+      END $$;
+    `);
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        ALTER TABLE "file_comments" RENAME COLUMN "user_id" TO "userId";
+      EXCEPTION WHEN undefined_column THEN NULL;
+      END $$;
+    `);
+
     // students por org + status + professor: query mais comum em toda a aplicação
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_status" ON "students" ("organizationId", "status")`, "idx_students_org_status");
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "idx_students_org_professor" ON "students" ("organizationId", "professorId")`, "idx_students_org_professor");
