@@ -1222,7 +1222,10 @@ export default function Progresso() {
                          animate={{ opacity: 1, scale: 1 }}
                          exit={{ opacity: 0, scale: 0.98 }}
                        >
-                          <RepertoireTab studentId={selectedStudentId} />
+                          <RepertoireTab
+                            studentId={selectedStudentId}
+                            studentName={students.find((s: any) => s.id === selectedStudentId)?.name}
+                          />
                        </motion.div>
                      )}
 

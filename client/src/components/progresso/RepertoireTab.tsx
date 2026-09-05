@@ -14,9 +14,10 @@ import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
  * PRD Repertório — Aba do professor no Progresso.
  * Cadastro/edição/exclusão/reordenação de músicas do YouTube por aluno.
  */
-export function RepertoireTab({ studentId }: { studentId: number }) {
+export function RepertoireTab({ studentId, studentName }: { studentId: number; studentName?: string }) {
   const utils = trpc.useUtils();
-  const { data: items = [], isLoading } = trpc.repertoire.list.useQuery({ studentId });
+  // Caça-Bug: erro visível em vez de estado vazio enganoso (ex: FORBIDDEN de professor não-dono)
+  const { data: items = [], isLoading, error } = trpc.repertoire.list.useQuery({ studentId });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -117,7 +118,9 @@ export function RepertoireTab({ studentId }: { studentId: number }) {
         <div className="flex items-center gap-3">
           <div className="w-2 h-6 bg-pink-500 rounded-full shrink-0" />
           <div>
-            <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tighter leading-tight">Repertório do Aluno</h3>
+            <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tighter leading-tight">
+              Repertório{studentName ? ` de ${studentName}` : " do Aluno"}
+            </h3>
             <p className="text-[10px] sm:text-xs text-muted-foreground font-bold mt-0.5">
               Músicas do YouTube que o aluno executa dentro do MusicPro (aba Materiais)
             </p>
@@ -132,7 +135,12 @@ export function RepertoireTab({ studentId }: { studentId: number }) {
       </div>
 
       {/* Lista */}
-      {isLoading ? (
+      {error ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-amber-500/30 bg-amber-500/5">
+          <p className="text-sm font-black text-foreground">Não foi possível carregar o repertório</p>
+          <p className="text-xs text-muted-foreground mt-1.5 max-w-[380px]">{error.message}</p>
+        </div>
+      ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-2xl border border-white/10 bg-card/40 overflow-hidden animate-pulse">

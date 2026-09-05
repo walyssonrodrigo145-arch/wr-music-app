@@ -1,4 +1,4 @@
-import { Calendar, DollarSign, Clock, Loader2, Edit3, Trash2, CheckCircle2, Activity, Mail, Phone, Users, MapPin } from "lucide-react";
+import { Calendar, DollarSign, Clock, Loader2, Edit3, Trash2, CheckCircle2, Activity, Mail, Phone, Users, MapPin, Music, Eye, Award } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -15,6 +15,56 @@ interface StudentDetailsModalProps {
   studentId: number | null;
   onEdit: () => void;
   onDelete: () => void;
+}
+
+/** PRD Repertório — resumo das músicas do aluno no perfil (leitura; gestão na aba Repertório do Progresso). */
+function RepertoireSummarySection({ studentId }: { studentId: number }) {
+  const { data: items = [], isLoading, error } = trpc.repertoire.list.useQuery(
+    { studentId },
+    { enabled: !!studentId, retry: false }
+  );
+  // Professor não-dono do aluno → erro FORBIDDEN → seção discreta (não é erro de tela)
+  if (error || isLoading) {
+    if (error) return null;
+    return (
+      <div className="rounded-2xl border border-border/30 bg-muted/20 p-3.5 flex items-center gap-2 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+        <Loader2 size={13} className="animate-spin text-pink-500" /> Carregando repertório...
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-pink-500/20 bg-pink-500/5 p-3.5 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+          <Music size={12} className="text-pink-500" /> Repertório ({items.length})
+        </p>
+        <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">Gerenciar em Progresso → Repertório</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground font-medium">Nenhuma música ainda — adicione na aba Repertório do Progresso.</p>
+      ) : (
+        <div className="space-y-1">
+          {(items as any[]).slice(0, 5).map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-2 rounded-xl bg-background/70 border border-border/30 px-2.5 py-1.5">
+              <span className="text-[11px] font-bold text-foreground truncate">{r.title}</span>
+              <div className="flex items-center gap-1 shrink-0">
+                {r.learnedAt ? (
+                  <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5"><Award size={8} /> Aprendida</span>
+                ) : r.viewedAt ? (
+                  <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center gap-0.5"><Eye size={8} /> Ouvida</span>
+                ) : (
+                  <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-pink-500/15 text-pink-600 dark:text-pink-400">Nova</span>
+                )}
+              </div>
+            </div>
+          ))}
+          {items.length > 5 && (
+            <p className="text-[9px] text-muted-foreground font-bold text-center pt-0.5">+ {items.length - 5} música(s) — veja todas na aba Repertório</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Mini-card de métrica — densidade alta, hierarquia label pequeno + valor forte
@@ -199,6 +249,9 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                   <InfoRow icon={MapPin} label="Sala de aula" value={student.studioRoomName} />
                 )}
               </div>
+
+              {/* PRD Repertório — músicas do aluno visíveis no perfil */}
+              <RepertoireSummarySection studentId={student.id} />
 
               {/* Contratos digitais */}
               <StudentContractsSection studentId={student.id} student={student} />
