@@ -509,6 +509,32 @@ export async function runAutoMigrations() {
         "createdAt" timestamp DEFAULT now() NOT NULL
       );` },
       { table: 'ai_prompt_versions', sql: `CREATE INDEX IF NOT EXISTS "ai_prompt_versions_prompt_idx" ON "ai_prompt_versions" ("promptId")` },
+
+      // ═══ REPERTÓRIO DO ALUNO (músicas do YouTube — PRD Repertório) ═══
+      { table: 'student_repertoire', sql: `CREATE TABLE IF NOT EXISTS "student_repertoire" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "studentId" integer NOT NULL,
+        "createdByUserId" integer NOT NULL,
+        "title" varchar(255) NOT NULL,
+        "youtubeUrl" text NOT NULL,
+        "videoId" varchar(20),
+        "playlistId" varchar(60),
+        "description" text,
+        "position" integer DEFAULT 0 NOT NULL,
+        "active" boolean DEFAULT true NOT NULL,
+        "viewedAt" timestamp,
+        "learnedAt" timestamp,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'student_repertoire', sql: `CREATE INDEX IF NOT EXISTS "student_repertoire_org_student_idx" ON "student_repertoire" ("organizationId", "studentId", "position")` },
+      { table: 'student_repertoire', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "student_repertoire_student_video_unique" ON "student_repertoire" ("studentId", "videoId")` },
+      { table: 'student_repertoire', sql: `ALTER TABLE "student_repertoire" ADD COLUMN IF NOT EXISTS "chordSheet" text` },
+      { table: 'student_repertoire', sql: `ALTER TABLE "student_repertoire" ADD COLUMN IF NOT EXISTS "chordKey" varchar(4)` },
+      { table: 'student_repertoire', sql: `ALTER TABLE "student_repertoire" ADD COLUMN IF NOT EXISTS "chordDiagrams" jsonb` },
+      { table: 'student_repertoire', sql: `ALTER TABLE "student_repertoire" ADD COLUMN IF NOT EXISTS "cifraclubUrl" text` },
+      { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "cifraClubImportEnabled" integer DEFAULT 1 NOT NULL` },
     ];
 
     for (const m of migrations) {

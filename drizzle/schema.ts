@@ -309,6 +309,8 @@ export const settings = pgTable("settings", {
   // Antecipação Inteligente de Vagas por Falta (Desativado por padrão)
   autoAdvanceSlotsEnabled: integer("autoAdvanceSlotsEnabled").default(0).notNull(),
   autoAdvanceWhatsAppTemplate: text("autoAdvanceWhatsAppTemplate"),
+  // Repertório: importação de cifra (só acordes, sem letra — RN-007). OFF = professores colam manualmente.
+  cifraClubImportEnabled: integer("cifraClubImportEnabled").default(1).notNull(),
   // Presença Digital / QR Code de Recepção (Check-in momento e tolerância)
   attendanceCheckinMoment: varchar("attendanceCheckinMoment", { length: 20 }).default("inicio").notNull(), // 'inicio' | 'fim' | 'livre'
   attendanceToleranceMinutes: integer("attendanceToleranceMinutes").default(30).notNull(),
@@ -2231,4 +2233,53 @@ export const aiPromptVersions = pgTable("ai_prompt_versions", {
 
 export type AiPromptVersion = typeof aiPromptVersions.$inferSelect;
 export type InsertAiPromptVersion = typeof aiPromptVersions.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REPERTÓRIO DO ALUNO (PRD Repertório) — músicas do YouTube indicadas pelo professor
+// O aluno executa com player embutido (youtube-nocookie) no portal, sem sair do app.
+// videoId é extraído/validado server-side; iframe NUNCA recebe URL livre do usuário.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Diagrama de acorde (extraído do Cifra Club ou manual). */
+export interface ChordDiagram {
+  name: string;   // ex: "Am7"
+  mount: string;  // ex: "X 0 2 0 1 0" (6 cordas; X = abafada)
+  tuning: string; // ex: "E A D G B E"
+}
+
+export const studentRepertoire = pgTable("student_repertoire", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  studentId: integer("studentId").notNull(),
+  // Professor/admin autor do cadastro
+  createdByUserId: integer("createdByUserId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  // URL original informada (rastreabilidade)
+  youtubeUrl: text("youtubeUrl").notNull(),
+  // Extraído server-side (null = playlist sem vídeo específico)
+  videoId: varchar("videoId", { length: 20 }),
+  playlistId: varchar("playlistId", { length: 60 }),
+  description: text("description"),
+  position: integer("position").default(0).notNull(),
+  active: boolean("active").default(true).notNull(),
+  // 1º acesso do aluno no player (idempotente)
+  viewedAt: timestamp("viewedAt"),
+  // Badge "Aprendida" — NÃO bloqueia reescuta (toggle)
+  learnedAt: timestamp("learnedAt"),
+  // ── Cifra (PRD Cifra: RN-007 — SÓ acordes/estrutura, NUNCA letra) ──
+  chordSheet: text("chordSheet"), // texto plano; máx 50.000 chars
+  chordKey: varchar("chordKey", { length: 4 }), // tom declarado (ex: "Em")
+  chordDiagrams: jsonb("chordDiagrams").$type<ChordDiagram[]>(),
+  // Fonte da cifra no Cifra Club (atribuição + link "ver letra")
+  cifraclubUrl: text("cifraclubUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("student_repertoire_org_student_idx").on(table.organizationId, table.studentId, table.position),
+  // videoId null (playlist) fica fora do unique — NULLs são distintos no Postgres
+  uniqueIndex("student_repertoire_student_video_unique").on(table.studentId, table.videoId),
+]);
+
+export type StudentRepertoire = typeof studentRepertoire.$inferSelect;
+export type InsertStudentRepertoire = typeof studentRepertoire.$inferInsert;
 

@@ -928,6 +928,9 @@ export const studentsRouters = {
             await tx.delete(repositionEvents).where(inArray(repositionEvents.repositionId, repRows.map((r) => r.id)));
             await tx.delete(lessonRepositions).where(and(eq(lessonRepositions.organizationId, orgId), eq(lessonRepositions.studentId, input.id)));
           }
+          // PRD Repertório: limpar músicas do repertório do aluno
+          const { studentRepertoire } = await import("../../drizzle/schema");
+          await tx.delete(studentRepertoire).where(and(eq(studentRepertoire.organizationId, orgId), eq(studentRepertoire.studentId, input.id)));
           // BUG-009: Também limpar contracts e announcements específicos do aluno
           await tx.delete(contracts).where(and(eq(contracts.studentId, input.id), eq(contracts.organizationId, orgId)));
           await tx.delete(announcements).where(and(eq(announcements.targetStudentId, input.id), eq(announcements.organizationId, orgId)));

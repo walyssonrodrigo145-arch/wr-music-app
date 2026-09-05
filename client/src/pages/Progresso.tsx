@@ -58,6 +58,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { BibliotecaMusical } from "@/components/progresso/BibliotecaMusical";
 import { MetasMusicais } from "@/components/progresso/MetasMusicais";
+import { RepertoireTab } from "@/components/progresso/RepertoireTab";
 import { Observacoes } from "@/components/progresso/Observacoes";
 import { PlanEditor } from "@/components/progresso/PlanEditor";
 
@@ -69,7 +70,7 @@ export default function Progresso() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"jornada" | "biblioteca" | "observacoes" | "metas" | "desempenho">("jornada");
+  const [activeTab, setActiveTab] = useState<"jornada" | "biblioteca" | "observacoes" | "metas" | "desempenho" | "repertorio">("jornada");
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -832,6 +833,7 @@ export default function Progresso() {
                     {[
                       { id: "jornada", label: "Jornada", icon: Activity },
                       { id: "biblioteca", label: "Biblioteca", icon: Folder },
+                      { id: "repertorio", label: "Repertório", icon: Music },
                       { id: "observacoes", label: "Notas", icon: BookOpen },
                       { id: "metas", label: "Metas", icon: Target },
                     ].map((tab) => {
@@ -1202,18 +1204,29 @@ export default function Progresso() {
                       </motion.div>
                     )}
 
-                    {activeTab === "biblioteca" && (
-                      <motion.div 
-                        key="biblioteca"
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.98 }}
-                      >
-                         <BibliotecaMusical studentId={selectedStudentId!} />
-                      </motion.div>
-                    )}
+                     {activeTab === "biblioteca" && (
+                       <motion.div 
+                         key="biblioteca"
+                         initial={{ opacity: 0, scale: 0.98 }}
+                         animate={{ opacity: 1, scale: 1 }}
+                         exit={{ opacity: 0, scale: 0.98 }}
+                       >
+                          <BibliotecaMusical studentId={selectedStudentId!} />
+                       </motion.div>
+                     )}
 
-                    {activeTab === "metas" && (
+                     {activeTab === "repertorio" && selectedStudentId != null && (
+                       <motion.div
+                         key="repertorio"
+                         initial={{ opacity: 0, scale: 0.98 }}
+                         animate={{ opacity: 1, scale: 1 }}
+                         exit={{ opacity: 0, scale: 0.98 }}
+                       >
+                          <RepertoireTab studentId={selectedStudentId} />
+                       </motion.div>
+                     )}
+
+                     {activeTab === "metas" && (
                       <motion.div 
                         key="metas"
                         initial={{ opacity: 0, scale: 0.98 }}

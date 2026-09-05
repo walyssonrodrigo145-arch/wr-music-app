@@ -30,6 +30,7 @@ import { schoolPlansRouter } from "./schoolPlansRouters";
 import { challengesRouter } from "./challengesRouters";
 import { repositionsRouters } from "./repositionsRouters";
 import { aiSpecialistsRouters } from "./aiPromptsRouters";
+import { repertoireRouters } from "./repertoireRouters";
 
 export const appRouter = router({
   superAdmin: superAdminRouter,
@@ -63,6 +64,7 @@ export const appRouter = router({
   // ── PRD Reposição de Aulas + IA Especialistas/Prompts (novas chaves no fim — não reordenar as existentes) ──
   ...repositionsRouters,
   ...aiSpecialistsRouters,
+  ...repertoireRouters,
 });
 
 export type AppRouter = typeof appRouter;

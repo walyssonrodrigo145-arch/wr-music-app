@@ -96,6 +96,22 @@ const filesToUpload = [
   'client/src/pages/Progresso.tsx',
   'client/src/pages/student/Dashboard.tsx',
   'client/src/pages/student/Progresso.tsx',
+  // ── PRD Repertório (músicas do YouTube) ──
+  'server/routers/repertoireRouters.ts',
+  'server/utils/youtubeUrl.ts',
+  'server/_core/migrate.ts',
+  'drizzle/schema.ts',
+  'server/routers/studentsRouters.ts',
+  'client/src/components/progresso/RepertoireTab.tsx',
+  'client/src/components/student/RepertoireSection.tsx',
+  'client/src/pages/Progresso.tsx',
+  'client/src/pages/student/Materiais.tsx',
+  // ── PRD Cifra (Repertório: import Cifra Club + transposição) ──
+  'server/services/ChordTransposer.ts',
+  'server/services/CifraClubImporter.ts',
+  'server/routers/repertoireRouters.ts',
+  'drizzle/schema.ts',
+  'server/_core/migrate.ts',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');

@@ -38,6 +38,7 @@ import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import MediaLightbox from "@/components/student/MediaLightbox";
+import { RepertoireSection } from "@/components/student/RepertoireSection";
 
 const container = {
   hidden: { opacity: 0 },
@@ -251,6 +252,9 @@ export default function StudentMaterials() {
           ))}
         </div>
       </div>
+
+      {/* PRD Repertório — músicas do YouTube indicadas pelo professor (player embutido) */}
+      <RepertoireSection />
 
       {/* Materials Display Grouped by Folder */}
       {category === 'video' ? (
