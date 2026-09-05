@@ -407,6 +407,108 @@ export async function runAutoMigrations() {
         "awardedAt" timestamp DEFAULT now() NOT NULL
       );` },
       { table: 'student_achievements', sql: `CREATE INDEX IF NOT EXISTS "idx_student_achievements_student" ON "student_achievements" ("studentId", "organizationId")` },
+
+      // ═══ REPOSIÇÃO DE AULAS (PRD 01) — tabelas + enum ═══
+      { table: 'enum', sql: `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'reposition_status') THEN CREATE TYPE reposition_status AS ENUM ('aguardando_liberacao', 'disponivel', 'agendada', 'realizada', 'expirada', 'cancelada'); END IF; END $$;` },
+      { table: 'enum', sql: `ALTER TYPE lesson_status ADD VALUE IF NOT EXISTS 'a_repor'` },
+      { table: 'reposition_policies', sql: `CREATE TABLE IF NOT EXISTS "reposition_policies" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "expirationDays" integer DEFAULT 30 NOT NULL,
+        "expirationUnit" varchar(10) DEFAULT 'dias' NOT NULL,
+        "creditRelease" varchar(20) DEFAULT 'imediata' NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'reposition_policies', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "reposition_policies_org_unique" ON "reposition_policies" ("organizationId")` },
+      { table: 'reposition_reasons', sql: `CREATE TABLE IF NOT EXISTS "reposition_reasons" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "name" varchar(120) NOT NULL,
+        "description" text,
+        "active" boolean DEFAULT true NOT NULL,
+        "generatesCredit" boolean DEFAULT true NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'reposition_reasons', sql: `CREATE INDEX IF NOT EXISTS "reposition_reasons_org_idx" ON "reposition_reasons" ("organizationId")` },
+      { table: 'lesson_repositions', sql: `CREATE TABLE IF NOT EXISTS "lesson_repositions" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "lessonId" integer NOT NULL,
+        "studentId" integer NOT NULL,
+        "professorId" integer,
+        "reasonId" integer,
+        "notes" text,
+        "status" reposition_status DEFAULT 'aguardando_liberacao' NOT NULL,
+        "releasedAt" timestamp,
+        "expiresAt" timestamp,
+        "scheduledLessonId" integer,
+        "scheduledAt" timestamp,
+        "completedAt" timestamp,
+        "completedByUserId" integer,
+        "completionNotes" text,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'lesson_repositions', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "lesson_repositions_lesson_unique" ON "lesson_repositions" ("lessonId")` },
+      { table: 'lesson_repositions', sql: `CREATE INDEX IF NOT EXISTS "lesson_repositions_org_idx" ON "lesson_repositions" ("organizationId")` },
+      { table: 'lesson_repositions', sql: `CREATE INDEX IF NOT EXISTS "lesson_repositions_student_idx" ON "lesson_repositions" ("studentId")` },
+      { table: 'lesson_repositions', sql: `CREATE INDEX IF NOT EXISTS "lesson_repositions_status_idx" ON "lesson_repositions" ("status")` },
+      { table: 'reposition_events', sql: `CREATE TABLE IF NOT EXISTS "reposition_events" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "repositionId" integer,
+        "type" varchar(40) NOT NULL,
+        "message" text,
+        "userId" integer,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'reposition_events', sql: `CREATE INDEX IF NOT EXISTS "reposition_events_reposition_idx" ON "reposition_events" ("repositionId")` },
+
+      // ═══ IA — ESPECIALISTAS PERSONALIZADOS + GESTÃO DE PROMPTS (PRD 02) ═══
+      { table: 'ai_specialists', sql: `CREATE TABLE IF NOT EXISTS "ai_specialists" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "name" varchar(120) NOT NULL,
+        "area" varchar(120),
+        "icon" varchar(50),
+        "description" text,
+        "systemPrompt" text,
+        "pedagogicalInstructions" text,
+        "technicalKnowledge" text,
+        "aiModel" varchar(120),
+        "active" boolean DEFAULT true NOT NULL,
+        "createdByUserId" integer,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'ai_specialists', sql: `CREATE INDEX IF NOT EXISTS "ai_specialists_org_idx" ON "ai_specialists" ("organizationId")` },
+      { table: 'ai_prompts', sql: `CREATE TABLE IF NOT EXISTS "ai_prompts" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "name" varchar(120) NOT NULL,
+        "type" varchar(30) DEFAULT 'especialista' NOT NULL,
+        "specialistKey" varchar(60),
+        "specialistId" integer,
+        "content" text NOT NULL,
+        "active" boolean DEFAULT true NOT NULL,
+        "version" integer DEFAULT 1 NOT NULL,
+        "createdByUserId" integer,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'ai_prompts', sql: `CREATE INDEX IF NOT EXISTS "ai_prompts_org_idx" ON "ai_prompts" ("organizationId")` },
+      { table: 'ai_prompt_versions', sql: `CREATE TABLE IF NOT EXISTS "ai_prompt_versions" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "promptId" integer NOT NULL,
+        "version" integer NOT NULL,
+        "content" text NOT NULL,
+        "createdByUserId" integer,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      );` },
+      { table: 'ai_prompt_versions', sql: `CREATE INDEX IF NOT EXISTS "ai_prompt_versions_prompt_idx" ON "ai_prompt_versions" ("promptId")` },
     ];
 
     for (const m of migrations) {

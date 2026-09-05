@@ -17,7 +17,9 @@ import {
 export const roleEnum = pgEnum('role', ["admin", "professor", "aluno"]);
 export const levelEnum = pgEnum('level', ["iniciante", "intermediario", "avancado"]);
 export const statusEnum = pgEnum('status', ["ativo", "inativo", "pausado"]);
-export const lessonStatusEnum = pgEnum('lesson_status', ["agendada", "concluida", "cancelada", "remarcada", "falta"]);
+// "a_repor" = Aula a Repor (PRD Reposição) — o crédito é gerado na tabela lesson_repositions
+export const lessonStatusEnum = pgEnum('lesson_status', ["agendada", "concluida", "cancelada", "remarcada", "falta", "a_repor"]);
+export const repositionStatusEnum = pgEnum('reposition_status', ["aguardando_liberacao", "disponivel", "agendada", "realizada", "expirada", "cancelada"]);
 export const reminderTypeEnum = pgEnum('reminder_type', ["aula", "cobranca", "inadimplencia", "manual"]);
 export const reminderStatusEnum = pgEnum('reminder_status', ["pendente", "enviado", "cancelado"]);
 export const paymentDueStatusEnum = pgEnum('payment_due_status', ["pendente", "pago", "atrasado"]);
@@ -2061,4 +2063,172 @@ export const studentAchievements = pgTable("student_achievements", {
 
 export type StudentAchievement = typeof studentAchievements.$inferSelect;
 export type InsertStudentAchievement = typeof studentAchievements.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REPOSIÇÃO DE AULAS (PRD 01) — créditos rastreáveis por escola
+// Regras: 1 aula elegível = 1 crédito (unique em lessonId); crédito usado não volta;
+// expiração = liberação + prazo configurado; liberação pode ser imediata ou no fim do contrato.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Política de reposição — 1 linha por escola (upsert por organizationId). */
+export const repositionPolicies = pgTable("reposition_policies", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  // Prazo para realizar a reposição a partir da liberação do crédito
+  expirationDays: integer("expirationDays").default(30).notNull(),
+  // Unidade do prazo: "dias" | "semanas" | "meses"
+  expirationUnit: varchar("expirationUnit", { length: 10 }).default("dias").notNull(),
+  // Quando liberar o crédito: "imediata" | "fim_contrato"
+  creditRelease: varchar("creditRelease", { length: 20 }).default("imediata").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  uniqueIndex("reposition_policies_org_unique").on(table.organizationId),
+]);
+
+export type RepositionPolicy = typeof repositionPolicies.$inferSelect;
+export type InsertRepositionPolicy = typeof repositionPolicies.$inferInsert;
+
+/** Motivos de reposição cadastrados pela escola. */
+export const repositionReasons = pgTable("reposition_reasons", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  description: text("description"),
+  active: boolean("active").default(true).notNull(),
+  // Gera direito à reposição? (ex: "Falta não justificada" = false)
+  generatesCredit: boolean("generatesCredit").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("reposition_reasons_org_idx").on(table.organizationId),
+]);
+
+export type RepositionReason = typeof repositionReasons.$inferSelect;
+export type InsertRepositionReason = typeof repositionReasons.$inferInsert;
+
+/**
+ * Crédito de reposição — 1 por aula marcada como "Aula a Repor" (unique em lessonId
+ * impede crédito duplicado). A reposição agendada cria uma nova lesson (scheduledLessonId).
+ */
+export const lessonRepositions = pgTable("lesson_repositions", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  // Aula original que gerou o crédito (unique = nunca 2 créditos para a mesma aula)
+  lessonId: integer("lessonId").notNull(),
+  studentId: integer("studentId").notNull(),
+  // Professor efetivo do aluno (students.professorId) no momento da geração
+  professorId: integer("professorId"),
+  reasonId: integer("reasonId"),
+  notes: text("notes"),
+  status: repositionStatusEnum("status").default("aguardando_liberacao").notNull(),
+  // Liberação do crédito (imediata ou no encerramento do contrato)
+  releasedAt: timestamp("releasedAt"),
+  // Validade do crédito (liberação + prazo da política)
+  expiresAt: timestamp("expiresAt"),
+  // Aula de reposição criada na agenda
+  scheduledLessonId: integer("scheduledLessonId"),
+  scheduledAt: timestamp("scheduledAt"),
+  // Conclusão da reposição (consome o crédito)
+  completedAt: timestamp("completedAt"),
+  completedByUserId: integer("completedByUserId"),
+  completionNotes: text("completionNotes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  uniqueIndex("lesson_repositions_lesson_unique").on(table.lessonId),
+  index("lesson_repositions_org_idx").on(table.organizationId),
+  index("lesson_repositions_student_idx").on(table.studentId),
+  index("lesson_repositions_status_idx").on(table.status),
+]);
+
+export type LessonReposition = typeof lessonRepositions.$inferSelect;
+export type InsertLessonReposition = typeof lessonRepositions.$inferInsert;
+
+/** Histórico/auditoria das reposições (criação, liberação, expiração, agendamento, realização...). */
+export const repositionEvents = pgTable("reposition_events", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  // null para eventos globais (ex: politica_alterada)
+  repositionId: integer("repositionId"),
+  type: varchar("type", { length: 40 }).notNull(), // criado | liberado | expirado | agendado | realizado | cancelado | politica_alterada
+  message: text("message"),
+  userId: integer("userId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("reposition_events_reposition_idx").on(table.repositionId),
+]);
+
+export type RepositionEvent = typeof repositionEvents.$inferSelect;
+export type InsertRepositionEvent = typeof repositionEvents.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// IA — ESPECIALISTAS PERSONALIZADOS & GESTÃO DE PROMPTS VERSIONADA (PRD 02)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Especialistas de IA criados pela escola (os padrão vivem em InstrumentSpecialistService). */
+export const aiSpecialists = pgTable("ai_specialists", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  // Instrumento/área (ex: Flauta, Saxofone, Musicalização Infantil)
+  area: varchar("area", { length: 120 }),
+  icon: varchar("icon", { length: 50 }),
+  description: text("description"),
+  // Prompt do sistema do especialista
+  systemPrompt: text("systemPrompt"),
+  pedagogicalInstructions: text("pedagogicalInstructions"),
+  technicalKnowledge: text("technicalKnowledge"),
+  // Modelo de IA opcional (preparado para multi-modelo; null = usa o padrão da escola)
+  aiModel: varchar("aiModel", { length: 120 }),
+  active: boolean("active").default(true).notNull(),
+  createdByUserId: integer("createdByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("ai_specialists_org_idx").on(table.organizationId),
+]);
+
+export type AiSpecialist = typeof aiSpecialists.$inferSelect;
+export type InsertAiSpecialist = typeof aiSpecialists.$inferInsert;
+
+/** Prompt gerenciado — conteúdo editável com versionamento (ai_prompt_versions). */
+export const aiPrompts = pgTable("ai_prompts", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  // "especialista" (sobrescreve bloco do especialista na geração do plano) | "geral"
+  type: varchar("type", { length: 30 }).default("especialista").notNull(),
+  // Especialista padrão alvo (chave do INSTRUMENT_SPECIALISTS, ex: "teclado")
+  specialistKey: varchar("specialistKey", { length: 60 }),
+  // Especialista personalizado alvo (ai_specialists.id)
+  specialistId: integer("specialistId"),
+  content: text("content").notNull(),
+  active: boolean("active").default(true).notNull(),
+  version: integer("version").default(1).notNull(),
+  createdByUserId: integer("createdByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("ai_prompts_org_idx").on(table.organizationId),
+]);
+
+export type AiPrompt = typeof aiPrompts.$inferSelect;
+export type InsertAiPrompt = typeof aiPrompts.$inferInsert;
+
+/** Histórico imutável de versões — restaurar versão cria uma nova versão (nunca apaga). */
+export const aiPromptVersions = pgTable("ai_prompt_versions", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  promptId: integer("promptId").notNull(),
+  version: integer("version").notNull(),
+  content: text("content").notNull(),
+  createdByUserId: integer("createdByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("ai_prompt_versions_prompt_idx").on(table.promptId),
+]);
+
+export type AiPromptVersion = typeof aiPromptVersions.$inferSelect;
+export type InsertAiPromptVersion = typeof aiPromptVersions.$inferInsert;
 

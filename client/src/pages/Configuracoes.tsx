@@ -20,8 +20,10 @@ import {
   Sun, Moon, Phone, Mail,
   CheckCircle2, Loader2, Smartphone, Wallet, Sparkles, HelpCircle,
   FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, Upload, Trash2, Image,
-  FileSignature, AlertTriangle, FlaskConical, GraduationCap
+  FileSignature, AlertTriangle, FlaskConical, GraduationCap, Repeat, FileCode2
 } from "lucide-react";
+import { RepositionsSettings } from "@/components/settings/RepositionsSettings";
+import { AiPromptsSettings } from "@/components/settings/AiPromptsSettings";
 import { useTour } from "@/components/tour/TourProvider";
 import { ProfessoresTab } from "./ProfessoresTab";
 import { SalasEstudioTab } from "./SalasEstudioTab";
@@ -39,7 +41,7 @@ import { ConfigFiscalTab } from "@/components/fiscal/ConfigFiscalTab";
 import { PlanosBolsas } from "@/components/settings/PlanosBolsas";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "seguranca" | "ajuda";
+type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "prompts" | "reposicoes" | "seguranca" | "ajuda";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: User },
@@ -48,6 +50,8 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "planos", label: "Planos & Bolsas", icon: GraduationCap },
   { id: "professores", label: "Professores", icon: Users },
   { id: "modelos_contrato", label: "Modelos de Contrato", icon: FileSignature },
+  { id: "reposicoes", label: "Reposições", icon: Repeat },
+  { id: "prompts", label: "Prompts IA", icon: FileCode2 },
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "aparencia", label: "Aparência", icon: Palette },
   { id: "whatsapp", label: "Meu WhatsApp", icon: Smartphone },
@@ -2327,6 +2331,16 @@ export default function Configuracoes() {
             {/* ── ABA: MODELOS DE CONTRATO ── */}
             {activeTab === "modelos_contrato" && (
               <ModelosContratoTab />
+            )}
+
+            {/* ── ABA: REPOSIÇÕES (PRD 01 — Políticas + Motivos) ── */}
+            {activeTab === "reposicoes" && (
+              <RepositionsSettings />
+            )}
+
+            {/* ── ABA: PROMPTS IA (PRD 02 — Especialistas + Prompts versionados) ── */}
+            {activeTab === "prompts" && (
+              <AiPromptsSettings />
             )}
 
             {/* ── ABA: AJUDA ── */}

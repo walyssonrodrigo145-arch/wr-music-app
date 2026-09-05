@@ -1,8 +1,8 @@
 // Mapas de status e emojis de instrumentos — AUDIT FIX (elimina statusConfig duplicado entre LessonCard e LessonDetailModal)
 import type { LucideIcon } from "lucide-react";
-import { Clock, CheckCircle2, XCircle, CalendarDays, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, CalendarDays, AlertCircle, Repeat } from "lucide-react";
 
-export type LessonStatus = "agendada" | "concluida" | "cancelada" | "remarcada" | "falta";
+export type LessonStatus = "agendada" | "concluida" | "cancelada" | "remarcada" | "falta" | "a_repor";
 
 export interface LessonStatusConfig {
   icon: LucideIcon;
@@ -19,6 +19,7 @@ export const LESSON_STATUS_CONFIG: Record<LessonStatus, LessonStatusConfig> = {
   cancelada: { icon: XCircle, color: "text-rose-500", bg: "bg-rose-500/10", label: "Cancelada", border: "border-rose-500/20" },
   remarcada: { icon: CalendarDays, color: "text-yellow-500", bg: "bg-yellow-500/10", label: "Remarcada", border: "border-yellow-500/20" },
   falta: { icon: AlertCircle, color: "text-orange-500", bg: "bg-orange-500/10", label: "Falta", border: "border-orange-500/20" },
+  a_repor: { icon: Repeat, color: "text-violet-500", bg: "bg-violet-500/10", label: "Aula a Repor", border: "border-violet-500/20" },
 };
 
 /** Emoji por instrumento musical (usado em mensagens de WhatsApp). */

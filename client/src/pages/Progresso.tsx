@@ -33,6 +33,7 @@ import {
   PenTool,
   Flame,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,6 +175,8 @@ export default function Progresso() {
   const [targetDailyStudyMinutes, setTargetDailyStudyMinutes] = useState(30);
   const [planDaysCount, setPlanDaysCount] = useState<5 | 10 | 15>(5);
   const [selectedPlanMode, setSelectedPlanMode] = useState<"direto" | "didatico" | "desafio">("direto");
+  // PRD 02 — especialista escolhido na etapa de seleção ("builtin:teclado" | "custom:12" | null = automático)
+  const [selectedSpecialistRef, setSelectedSpecialistRef] = useState<string | null>(null);
   const [selectedGoalScope, setSelectedGoalScope] = useState<"somente_metas" | "metas_complementares">("somente_metas");
   const [studyPlanMobileTab, setStudyPlanMobileTab] = useState<"controls" | "plan">("controls");
 
@@ -181,6 +184,11 @@ export default function Progresso() {
     { studentId: selectedStudentId! },
     { enabled: isStudyPlanModalOpen && !!selectedStudentId }
   );
+
+  // PRD 02 — especialistas disponíveis (padrões + personalizados da escola)
+  const { data: specialists = [] } = trpc.aiSpecialists.listMerged.useQuery(undefined, {
+    enabled: isStudyPlanModalOpen,
+  });
 
   const { data: currentTeacherPlan, isLoading: currentPlanLoading } = trpc.progress.getStudentPlanForTeacher.useQuery(
     { studentId: selectedStudentId! },
@@ -1480,7 +1488,7 @@ export default function Progresso() {
         </Dialog>
 
         {/* MODAL PLANO DE ESTUDO IA */}
-        <Dialog open={isStudyPlanModalOpen} onOpenChange={(open) => { setIsStudyPlanModalOpen(open); if (!open) setStudyPlanMobileTab("controls"); }}>
+        <Dialog open={isStudyPlanModalOpen} onOpenChange={(open) => { setIsStudyPlanModalOpen(open); if (!open) { setStudyPlanMobileTab("controls"); setSelectedSpecialistRef(null); } }}>
           <DialogContent className="w-[96vw] max-w-5xl sm:max-w-5xl lg:max-w-6xl bg-card p-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 shadow-2xl flex flex-col h-[85dvh] max-h-[85dvh] md:h-[88vh] md:max-h-[850px] md:flex-row gap-0">
             
             {/* === MOBILE: Tab Bar === */}
@@ -1580,6 +1588,55 @@ export default function Progresso() {
 
               {/* Controles de Geração */}
               <div className="p-4 border-t border-border/70 bg-card/95 space-y-3 flex-1 overflow-y-auto subtle-scrollbar">
+                {/* PRD 02 §23 — Etapa de seleção: "Qual especialista deve criar este plano?" */}
+                <div>
+                  <span className="text-xs font-black text-foreground flex items-center gap-1.5 mb-2">
+                    <Users size={13} className="text-orange-500" />
+                    Especialista
+                  </span>
+                  <div className="grid grid-cols-2 gap-1.5 max-h-[150px] overflow-y-auto subtle-scrollbar pr-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSpecialistRef(null)}
+                      className={cn(
+                        "rounded-xl transition-all border cursor-pointer flex flex-col items-center justify-center p-2 gap-0.5 text-center",
+                        selectedSpecialistRef === null
+                          ? "bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/25"
+                          : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                      )}
+                    >
+                      <span className="text-base leading-none">🎯</span>
+                      <span className="text-[10px] font-black leading-tight">Automático</span>
+                      <span className="text-[8px] opacity-80 leading-tight">Pelo instrumento</span>
+                    </button>
+                    {specialists.filter((s: any) => s.active !== false).map((s: any) => (
+                      <button
+                        key={s.ref}
+                        type="button"
+                        onClick={() => setSelectedSpecialistRef(s.ref)}
+                        title={s.description}
+                        className={cn(
+                          "rounded-xl transition-all border cursor-pointer flex flex-col items-center justify-center p-2 gap-0.5 text-center",
+                          selectedSpecialistRef === s.ref
+                            ? "bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/25"
+                            : "bg-muted/50 hover:bg-muted text-muted-foreground border-border/60 hover:text-foreground"
+                        )}
+                      >
+                        <span className="text-base leading-none">{s.icon}</span>
+                        <span className="text-[10px] font-black leading-tight truncate w-full">{s.name}</span>
+                        {s.source === "personalizado" && (
+                          <span className={cn("text-[7px] font-black uppercase px-1 rounded", selectedSpecialistRef === s.ref ? "bg-white/20" : "bg-violet-500/15 text-violet-600 dark:text-violet-400")}>
+                            Personalizado
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[9px] text-muted-foreground mt-1.5 leading-snug">
+                    Crie especialistas personalizados em Configurações → Prompts IA.
+                  </p>
+                </div>
+
                 {/* Estilo */}
                 <div>
                   <span className="text-xs font-black text-foreground flex items-center gap-1.5 mb-2">
@@ -1714,6 +1771,7 @@ export default function Progresso() {
                       daysCount: planDaysCount,
                       planMode: selectedPlanMode,
                       goalScope: selectedGoalScope,
+                      specialistRef: selectedSpecialistRef || undefined,
                     });
                   }}
                   disabled={generateDailyStudyPlanMutation.isPending}

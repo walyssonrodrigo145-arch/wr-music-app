@@ -33,6 +33,7 @@ import { motion } from "framer-motion";
 import { RescheduleModal } from "@/components/RescheduleModal";
 import { RankingCard } from "@/components/student/RankingCard";
 import { EarlySlotBanner } from "@/components/student/EarlySlotBanner";
+import { RepositionCreditsCard } from "@/components/student/RepositionCreditsCard";
 
 const container = {
   hidden: { opacity: 0 },
@@ -422,6 +423,10 @@ export default function StudentDashboard() {
 
         {/* ── Coluna 2: Acervo musical + Exercícios recentes ── */}
         <div className="space-y-6 md:space-y-8">
+          <motion.div variants={item} className="h-full">
+            <RepositionCreditsCard />
+          </motion.div>
+
           <motion.div variants={item} className="h-full">
             <SectionCard
               icon={<BookOpen size={16} />}

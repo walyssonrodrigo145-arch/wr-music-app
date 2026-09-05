@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, extraLessonRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, extraLessonRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, lessonRepositions, repositionEvents } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -716,6 +716,7 @@ export const lessonsRouters = {
           lessonType: lessons.lessonType,
           recurringGroupId: lessons.recurringGroupId,
           studioRoomId: lessons.studioRoomId,
+          status: lessons.status,
           studentProfessorId: students.professorId,
         }).from(lessons)
           .leftJoin(students, eq(lessons.studentId, students.id))
@@ -861,6 +862,46 @@ export const lessonsRouters = {
         ));
         // postgres-js RowList expõe `count` (linhas afetadas) para UPDATE sem RETURNING
         const updated = ((updateResult as any)?.count ?? 1) > 0;
+
+        // ── PRD Reposição (Caça-Bug): crédito órfão ──
+        // Se a aula estava marcada como 'a_repor' e o professor mudou diretamente
+        // para um status terminal (Concluída/Cancelada/Falta), o crédito de reposição
+        // deve ser CANCELADO (com sua aula de reposição agendada, se houver) —
+        // nunca pode existir crédito disponível sem a aula "a repor" original.
+        if (currentLesson.status === "a_repor" && ["concluida", "cancelada", "falta"].includes(input.status)) {
+          try {
+            const [repRow] = await db
+              .select({ id: lessonRepositions.id, scheduledLessonId: lessonRepositions.scheduledLessonId })
+              .from(lessonRepositions)
+              .where(and(eq(lessonRepositions.lessonId, input.id), eq(lessonRepositions.organizationId, orgId)))
+              .limit(1);
+            if (repRow) {
+              await db
+                .update(lessonRepositions)
+                .set({ status: "cancelada", scheduledLessonId: null, scheduledAt: null, updatedAt: new Date() })
+                .where(and(eq(lessonRepositions.id, repRow.id), eq(lessonRepositions.organizationId, orgId)));
+              if (repRow.scheduledLessonId) {
+                await db
+                  .update(lessons)
+                  .set({ status: "cancelada", updatedAt: new Date() })
+                  .where(and(eq(lessons.id, repRow.scheduledLessonId), eq(lessons.organizationId, orgId)));
+                await db
+                  .update(reminders)
+                  .set({ status: "cancelado", cancelledAt: new Date(), updatedAt: new Date() })
+                  .where(and(eq(reminders.lessonId, repRow.scheduledLessonId), eq(reminders.status, "pendente")));
+              }
+              await db.insert(repositionEvents).values({
+                organizationId: orgId,
+                repositionId: repRow.id,
+                type: "cancelado",
+                message: `Crédito cancelado automaticamente: aula original alterada para "${input.status}" na agenda.`,
+                userId: ctx.user.id,
+              });
+            }
+          } catch (repErr) {
+            console.error("Erro ao cancelar crédito de reposição (não impeditivo):", repErr);
+          }
+        }
         
         // --- NOTIFICAÇÃO DE FALTA DE ALUNO ---
         if (input.status === 'falta') {

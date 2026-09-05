@@ -27,6 +27,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LESSON_STATUS_CONFIG, type LessonStatus } from "@/lib/status";
+import RepositionModal from "@/components/aulas/RepositionModal";
 
 interface LessonDetailModalProps {
   lesson: any;
@@ -48,6 +49,7 @@ export default function LessonDetailModal({
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
+  const [isRepositionOpen, setIsRepositionOpen] = useState(false);
 
   const isTurma = lesson?.lessonType === 'turma';
   const utils = trpc.useUtils();
@@ -121,12 +123,19 @@ export default function LessonDetailModal({
     updateTurmaAttendanceMutation.mutate({ attendances });
   };
   return (
-    <ResponsiveDialog 
-      open={open} 
+    <ResponsiveDialog
+      open={open}
       onOpenChange={onOpenChange}
       title={isTurma ? `Turma: ${lesson.title}` : "Detalhes da Aula"}
       description={isTurma ? "Gestão e chamada de alunos da turma" : `Visualizando aula de ${lesson.studentName || lesson.experimentalName || 'Aluno'}`}
     >
+      {/* PRD 01 — modal de "Aula a Repor" (motivo obrigatório + crédito) */}
+      <RepositionModal
+        lesson={lesson}
+        open={isRepositionOpen}
+        onOpenChange={setIsRepositionOpen}
+        onCreated={() => onOpenChange(false)}
+      />
       <div className="space-y-4 pt-1">
         {/* Status Badge & Tipo de Aula Banner */}
         <div className="flex items-center justify-between p-3.5 rounded-2xl bg-primary/5 border border-primary/15">
@@ -389,29 +398,39 @@ export default function LessonDetailModal({
         {/* Botões de Ação */}
         <div className="space-y-2 pt-1">
           {!isTurma && (!isRescheduling ? (
-            <div className="grid grid-cols-4 gap-2">
-              <button 
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <button
                 onClick={() => { onStatusChange(lesson.id, "concluida"); onOpenChange(false); }}
                 className="flex flex-col items-center justify-center gap-1 h-12 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border border-emerald-500/20 active:scale-95"
               >
                 <CheckCircle2 size={15} />
                 Concluída
               </button>
-              <button 
+              <button
                 onClick={() => { onStatusChange(lesson.id, "falta"); onOpenChange(false); }}
                 className="flex flex-col items-center justify-center gap-1 h-12 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border border-orange-500/20 active:scale-95"
               >
                 <AlertCircle size={15} />
                 Falta
               </button>
-              <button 
+              {/* PRD 01: "A Repor" só para aulas com aluno e ainda não marcadas */}
+              {lesson.studentId && !lesson.isExperimental && lesson.status !== "a_repor" && (
+                <button
+                  onClick={() => setIsRepositionOpen(true)}
+                  className="flex flex-col items-center justify-center gap-1 h-12 bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border border-violet-500/20 active:scale-95"
+                >
+                  <LayoutList size={15} />
+                  A Repor
+                </button>
+              )}
+              <button
                 onClick={() => setIsRescheduling(true)}
                 className="flex flex-col items-center justify-center gap-1 h-12 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-600 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border border-yellow-500/20 active:scale-95"
               >
                 <CalendarDays size={15} />
                 Remarcar
               </button>
-              <button 
+              <button
                 onClick={() => { onStatusChange(lesson.id, "cancelada"); onOpenChange(false); }}
                 className="flex flex-col items-center justify-center gap-1 h-12 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border border-rose-500/20 active:scale-95"
               >

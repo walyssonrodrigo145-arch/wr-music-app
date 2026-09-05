@@ -185,7 +185,7 @@ REAFIRMAÇÃO FINAL DE PERSONA (PRIORIDADE MÁXIMA): Você é ${persona}, assist
 // RN-001: builders com copy fiel do código original, exceto correções listadas.
 
 export const AI_PROMPT_VERSIONS = {
-  planoDiario: "2.2.0",
+  planoDiario: "2.3.0",
   planoAula: "1.1.0",
   insightProgresso: "1.1.0",
   proximoTopico: "1.1.0",
@@ -356,7 +356,7 @@ Dias 2 a ${daysCount} seguem a mesma estrutura. EXERCÍCIOS: exatamente 6 por di
 1. "Revisão" (${d.revisao} min) · 2. "Aquecimento" (${d.warm} min) · 3. "Técnica" (${d.tecnica} min) · 4. "Conceito Musical" (${d.conceito} min) · 5. "Aplicação" (${d.aplicacao} min) · 6. "Desafio" (${d.desafio} min)
 Formato de cada exercício (CONCISÃO OBRIGATÓRIA):
 { "title": "título exato do bloco", "subtitle": "até 8 palavras", "duration": "X min", "points": ["até 12 palavras", "até 12 palavras"] }
-"Técnica" tem 3 points; os demais blocos têm exatamente 2. A soma das durações DEVE fechar exatamente ${input.totalMinutes} min. PROIBIDO o campo "icon" ou qualquer campo extra.`;
+"Técnica" tem 3 points; os demais blocos têm exatamente 2. A soma das durações DEVE fechar exatamente ${input.totalMinutes} min. PROIBIDO o campo "icon". O ÚNICO campo extra permitido é "bpm" (número inteiro de 40 a 200): inclua "bpm" APENAS nos blocos "Técnica", "Aplicação" e "Desafio" sempre que o exercício usar metrônomo, com o BPM recomendado para o nível do aluno (iniciante: 50-70, intermediário: 70-100, avançado: 100-160). O metrônomo do app usará esse valor automaticamente.`;
 }
 
 // ── Escopo de conteúdo do plano diário (2 opções solicitadas pelo professor) ──

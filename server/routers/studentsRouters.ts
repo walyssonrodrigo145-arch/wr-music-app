@@ -918,6 +918,16 @@ export const studentsRouters = {
           await tx.delete(studentGoals).where(and(eq(studentGoals.studentId, input.id), eq(studentGoals.organizationId, orgId)));
           await tx.delete(studentTimeline).where(and(eq(studentTimeline.studentId, input.id), eq(studentTimeline.organizationId, orgId)));
           await tx.delete(studentFiles).where(and(eq(studentFiles.studentId, input.id), eq(studentFiles.organizationId, orgId)));
+          // PRD Reposição (Caça-Bug): limpar créditos/eventos de reposição do aluno
+          const { lessonRepositions, repositionEvents } = await import("../../drizzle/schema");
+          const repRows = await tx
+            .select({ id: lessonRepositions.id })
+            .from(lessonRepositions)
+            .where(and(eq(lessonRepositions.organizationId, orgId), eq(lessonRepositions.studentId, input.id)));
+          if (repRows.length > 0) {
+            await tx.delete(repositionEvents).where(inArray(repositionEvents.repositionId, repRows.map((r) => r.id)));
+            await tx.delete(lessonRepositions).where(and(eq(lessonRepositions.organizationId, orgId), eq(lessonRepositions.studentId, input.id)));
+          }
           // BUG-009: Também limpar contracts e announcements específicos do aluno
           await tx.delete(contracts).where(and(eq(contracts.studentId, input.id), eq(contracts.organizationId, orgId)));
           await tx.delete(announcements).where(and(eq(announcements.targetStudentId, input.id), eq(announcements.organizationId, orgId)));

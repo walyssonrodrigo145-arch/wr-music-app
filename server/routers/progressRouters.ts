@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, aiPrompts, aiSpecialists } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -52,7 +52,9 @@ import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
 import { getInstrumentContext } from "../utils/instrumentContexts";
-import { resolveSpecialist, buildSpecialistPromptBlock, validatePlanText, validatePlanTextForInstrument, validateBeginnerLanguage, BEGINNER_JARGON_TERMS } from "../services/InstrumentSpecialistService";
+import { resolveSpecialist, buildSpecialistPromptBlock, validatePlanText, validatePlanTextForInstrument, validateBeginnerLanguage, BEGINNER_JARGON_TERMS, getSpecialistById } from "../services/InstrumentSpecialistService";
+import { buildCustomSpecialistPromptBlock } from "../services/CustomSpecialistService";
+import { renderPromptVariables, defaultPromptVariables } from "../services/PromptVariables";
 import { buildMusicTheoryPromptBlock, validateMusicTheoryConcepts } from "../services/MusicTheoryValidator";
 import { resolveAiCredentials } from "../utils/aiProvider";
 import { studentPedagogicalMemory } from "../../drizzle/schema";
@@ -508,6 +510,9 @@ export const progressRouters = {
       daysCount: z.union([z.literal(5), z.literal(10), z.literal(15)]).optional().default(5),
       // 2 opções de escopo: "somente_metas" (estrito, padrão) | "metas_complementares" (metas + assuntos na mesma linha)
       goalScope: z.enum(["somente_metas", "metas_complementares"]).optional().default("somente_metas"),
+      // PRD 02 — especialista escolhido pelo professor na etapa de seleção.
+      // Formato: "builtin:<chave>" (especialista padrão) | "custom:<id>" (personalizado da escola) | ausente (auto por instrumento)
+      specialistRef: z.string().max(80).optional(),
     })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
@@ -543,9 +548,67 @@ export const progressRouters = {
       }
 
       // ── 3. CONTEXTO PEDAGÓGICO DO INSTRUMENTO — IA ESPECIALISTA (RF-001/RF-002/RF-003) ──
-      const specialist = resolveSpecialist(instrumentName, instrumentCategory);
+      // PRD 02 §23: o professor escolhe o especialista responsável pelo plano.
+      // Token control (§27): APENAS o especialista selecionado entra no prompt.
+      let specialist = resolveSpecialist(instrumentName, instrumentCategory);
+      let customSpecialistRow: typeof aiSpecialists.$inferSelect | null = null;
+      if (input.specialistRef?.startsWith("custom:")) {
+        const customId = Number(input.specialistRef.slice("custom:".length));
+        if (Number.isInteger(customId) && customId > 0) {
+          const [row] = await db
+            .select()
+            .from(aiSpecialists)
+            .where(and(eq(aiSpecialists.id, customId), eq(aiSpecialists.organizationId, orgId)))
+            .limit(1);
+          if (row) {
+            if (row.active === false) {
+              throw new TRPCError({ code: "BAD_REQUEST", message: "Este especialista personalizado está inativo." });
+            }
+            customSpecialistRow = row;
+            // Base "geral": sem termos proibidos cruzados (o especialista personalizado define o seu escopo)
+            specialist = { ...getSpecialistById("geral"), id: "geral" as const, displayName: row.name };
+          }
+        }
+      } else if (input.specialistRef?.startsWith("builtin:")) {
+        const builtinKey = input.specialistRef.slice("builtin:".length);
+        specialist = getSpecialistById(builtinKey as Parameters<typeof getSpecialistById>[0]);
+      }
       const instrContext = specialist; // compat: specialist estende InstrumentContext
-      const specialistPromptBlock = buildSpecialistPromptBlock(specialist, planMode as any);
+      let specialistPromptBlock = customSpecialistRow
+        ? buildCustomSpecialistPromptBlock(customSpecialistRow)
+        : buildSpecialistPromptBlock(specialist, planMode as any);
+
+      // PRD 02 §28/§33 — Prompt gerenciado (versionado) da escola sobrescreve o bloco do especialista
+      try {
+        const [managedPrompt] = await db
+          .select()
+          .from(aiPrompts)
+          .where(
+            and(
+              eq(aiPrompts.organizationId, orgId),
+              eq(aiPrompts.active, true),
+              eq(aiPrompts.type, "especialista"),
+              customSpecialistRow
+                ? eq(aiPrompts.specialistId, customSpecialistRow.id)
+                : eq(aiPrompts.specialistKey, specialist.id)
+            )
+          )
+          .limit(1);
+        if (managedPrompt) {
+          const settingsForVars = await getSettingsByUserId(orgId, ctx.user.id);
+          specialistPromptBlock = renderPromptVariables(
+            managedPrompt.content,
+            defaultPromptVariables({
+              alunoInstrumento: instrumentName,
+              alunoNivel: (student.level as string) || "iniciante",
+              professorNome: ctx.user.name || undefined,
+              escolaNome: (settingsForVars as any)?.schoolName || undefined,
+            })
+          );
+        }
+      } catch (managedErr) {
+        console.warn("[generateDailyStudyPlan] Falha não impeditiva ao carregar prompt gerenciado:", managedErr);
+      }
 
       const studentLevel = student.level || "iniciante";
       const levelKey = ((studentLevel as string) === "avancado" || (studentLevel as string) === "avançado")

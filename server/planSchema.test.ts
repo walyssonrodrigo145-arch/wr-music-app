@@ -49,7 +49,13 @@ describe("RF-003 — buildPlanOutputSchema (schema compacto do plano diário)", 
   });
 
   it("versão do prompt diário registrada", () => {
-    expect(AI_PROMPT_VERSIONS.planoDiario).toBe("2.2.0");
+    expect(AI_PROMPT_VERSIONS.planoDiario).toBe("2.3.0");
+  });
+
+  it("permite o campo opcional bpm para o metrônomo (PRD 03)", () => {
+    const s = buildPlanOutputSchema(base);
+    expect(s).toContain('"bpm"');
+    expect(s).toContain("40 a 200");
   });
 });
 

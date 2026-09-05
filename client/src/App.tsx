@@ -34,6 +34,7 @@ const CreateCampaign = lazy(() => import("@/pages/marketing/CreateCampaign"));
 const CampaignDetails = lazy(() => import("@/pages/marketing/CampaignDetails"));
 
 const Solicitacoes = lazy(() => import("./pages/Solicitacoes"));
+const Reposicoes = lazy(() => import("./pages/Reposicoes"));
 const IAAssistente = lazy(() => import("./pages/IAAssistente"));
 const ProfessorExtract = lazy(() => import("./pages/ProfessorExtract"));
 const RecepcaoQRCode = lazy(() => import("./pages/RecepcaoQRCode"));
@@ -213,6 +214,7 @@ function Router() {
           <Route path="/alunos/novo" component={NovoAluno} />
           <Route path="/alunos/:id/editar" component={NovoAluno} />
           <Route path="/aulas" component={Aulas} />
+          <Route path="/reposicoes" component={Reposicoes} />
           <Route path="/instrumentos" component={Instrumentos} />
           <Route path="/relatorios" component={Relatorios} />
           <Route path="/lembretes" component={Lembretes} />

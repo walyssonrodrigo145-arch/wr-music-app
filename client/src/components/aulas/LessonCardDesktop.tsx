@@ -20,6 +20,7 @@ export const AULA_STATUS_CONFIG = {
   cancelada: { label: "Cancelada", badgeBg: "bg-rose-600 text-white", text: "text-rose-700 dark:text-rose-300", cardBg: "bg-rose-50 dark:bg-rose-950", border: "border-rose-300/80 dark:border-rose-800/60 border-l-rose-600" },
   remarcada: { label: "Remarcada", badgeBg: "bg-purple-600 text-white", text: "text-purple-700 dark:text-purple-300", cardBg: "bg-purple-50 dark:bg-purple-950", border: "border-purple-300/80 dark:border-purple-800/60 border-l-purple-600" },
   falta: { label: "Falta", badgeBg: "bg-amber-600 text-white", text: "text-amber-700 dark:text-amber-300", cardBg: "bg-amber-50 dark:bg-amber-950", border: "border-amber-300/80 dark:border-amber-800/60 border-l-amber-600" },
+  a_repor: { label: "Aula a Repor", badgeBg: "bg-violet-600 text-white", text: "text-violet-700 dark:text-violet-300", cardBg: "bg-violet-50 dark:bg-violet-950", border: "border-violet-300/80 dark:border-violet-800/60 border-l-violet-600" },
 };
 
 // Destaque visual TOTAL para aulas que NÃO são semanais (quinzenal/mensal).

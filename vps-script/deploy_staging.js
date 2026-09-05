@@ -65,6 +65,37 @@ const filesToUpload = [
   'client/src/components/AppHeader.tsx',
   'client/src/pages/SalasEstudio.tsx',
   'server/studioRoomsRouter.ts',
+  // ── PRD Reposição de Aulas + IA Especialistas/Prompts + Metrônomo ──
+  'server/_core/migrate.ts',
+  'server/routers/index.ts',
+  'server/routers/repositionsRouters.ts',
+  'server/routers/aiPromptsRouters.ts',
+  'server/routers/lessonsRouters.ts',
+  'server/routers/progressRouters.ts',
+  'server/routers/studentsRouters.ts',
+  'server/utils/aiPrompts.ts',
+  'server/services/RepositionService.ts',
+  'server/services/PromptVariables.ts',
+  'server/services/CustomSpecialistService.ts',
+  'shared/promptVariables.ts',
+  'drizzle/schema.ts',
+  'client/src/App.tsx',
+  'client/src/lib/status.ts',
+  'client/src/lib/metronomeEngine.ts',
+  'client/src/components/AppSidebar.tsx',
+  'client/src/components/aulas/LessonCardDesktop.tsx',
+  'client/src/components/aulas/RepositionModal.tsx',
+  'client/src/components/metronome/Metronome.tsx',
+  'client/src/components/modals/LessonDetailModal.tsx',
+  'client/src/components/settings/RepositionsSettings.tsx',
+  'client/src/components/settings/AiPromptsSettings.tsx',
+  'client/src/components/student/RepositionCreditsCard.tsx',
+  'client/src/pages/Reposicoes.tsx',
+  'client/src/pages/Aulas.tsx',
+  'client/src/pages/Configuracoes.tsx',
+  'client/src/pages/Progresso.tsx',
+  'client/src/pages/student/Dashboard.tsx',
+  'client/src/pages/student/Progresso.tsx',
 ];
 
 console.log('🚀 Iniciando deploy no Ambiente de Testes (STAGING)...');
@@ -89,7 +120,7 @@ conn.on('ready', () => {
       conn.sftp((err, sftp) => {
         if (err) throw err;
         
-        const mkdirCmd = `mkdir -p ${repoPath}/client/src/pages/analytics ${repoPath}/client/src/pages/leads ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals`;
+        const mkdirCmd = `mkdir -p ${repoPath}/client/src/pages/analytics ${repoPath}/client/src/pages/leads ${repoPath}/server/services ${repoPath}/server/services/signature ${repoPath}/client/src/lib ${repoPath}/client/src/components/integrations ${repoPath}/client/src/components/modals ${repoPath}/client/src/components/aulas ${repoPath}/client/src/components/metronome ${repoPath}/client/src/components/settings ${repoPath}/client/src/components/student ${repoPath}/shared`;
         conn.exec(mkdirCmd, () => {
           let uploads = 0;
           const finalize = () => {

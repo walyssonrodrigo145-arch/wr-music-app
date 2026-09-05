@@ -36,6 +36,7 @@ import {
   FileSignature,
   Receipt,
   Trophy,
+  Repeat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,6 +75,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   const { data: reminderCount = 0 } = trpc.reminders.pendingCount.useQuery();
   const { data: requestCount = 0 } = trpc.reschedule.pendingCount.useQuery();
   const { data: extraRequestCount = 0 } = trpc.extraRequests.pendingCount.useQuery();
+  const { data: repositionCount = 0 } = trpc.repositions.pendingCount.useQuery();
   const { data: settings } = trpc.settings.get.useQuery();
   const { data: mySub } = trpc.platform.mySubscription.useQuery();
   const { data: publicPlans = [] } = trpc.platform.getPublicPlans.useQuery();
@@ -102,6 +104,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Alunos", href: "/alunos", icon: Users },
         { label: "Aulas", href: "/aulas", icon: Calendar },
+        { label: "Reposições", href: "/reposicoes", icon: Repeat, badge: repositionCount > 0 ? repositionCount : undefined },
         { label: "Instrumentos", href: "/instrumentos", icon: Guitar },
         { label: "Salas de Estúdio", href: "/salas", icon: DoorOpen },
         { label: "Rankings", href: "/rankings", icon: Trophy },
