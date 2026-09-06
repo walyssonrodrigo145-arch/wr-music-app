@@ -44,8 +44,9 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
   });
 
   const createMutation = trpc.repertoire.create.useMutation({
-    onSuccess: () => {
-      toast.success("Música adicionada ao repertório!");
+    onSuccess: (data) => {
+      // Caça-Bug: o toast DIZ para quem a música foi — elimina a dúvida clássica
+      toast.success(`Música adicionada ao repertório de ${data?.studentName || "aluno"}!`);
       invalidate();
       setFormOpen(false);
     },

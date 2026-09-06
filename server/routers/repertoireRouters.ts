@@ -5,11 +5,11 @@
 // viewedAt/learnedAt do próprio repertório; iframe usa apenas IDs validados.
 
 import { z } from "zod";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { professorProcedure, protectedProcedure, studentProcedure, router } from "../_core/trpc";
-import { studentRepertoire, students, notifications, type ChordDiagram } from "../../drizzle/schema";
+import { studentRepertoire, students, notifications, users, type ChordDiagram } from "../../drizzle/schema";
 import { handleDbError } from "../utils/error_handler";
 import { extractYoutubeRef } from "../utils/youtubeUrl";
 import { transposeChordSheet, transposeChordName, extractChordNames } from "../services/ChordTransposer";
@@ -111,6 +111,7 @@ export const repertoireRouters = {
           )
           .orderBy(asc(studentRepertoire.position), asc(studentRepertoire.id))
           .limit(100);
+        console.log(`[Repertoire] list: user=${ctx.user.id}(${ctx.user.role}) org=${orgId} studentId=${input.studentId} rows=${rows.length}`);
         // RN-002: professor só lista repertório de alunos sob sua responsabilidade
         if (isAdmin) return rows;
         const [student] = await db
@@ -195,19 +196,30 @@ export const repertoireRouters = {
             })
             .returning({ id: studentRepertoire.id });
 
+          // Caça-Bug: students.studentUserId pode ser ÓRFÃO (user deletado).
+          // Resolve o user REAL do aluno via users.studentId (fonte da verdade).
+          let notifyUserId: number | null = student.studentUserId ?? null;
+          const [realStudentUser] = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(and(eq(users.studentId, input.studentId), eq(users.role, "aluno")))
+            .orderBy(desc(users.lastSignedIn))
+            .limit(1);
+          if (realStudentUser) notifyUserId = realStudentUser.id;
+
           // Notificação best-effort (padrão RN-003 do projeto)
-          if (student.studentUserId) {
+          if (notifyUserId) {
             try {
               await db.insert(notifications).values({
                 organizationId: orgId,
-                userId: student.studentUserId,
+                userId: notifyUserId,
                 title: "🎵 Nova música no seu repertório",
                 message: `${input.title?.trim() || "Uma nova música"} foi adicionada pelo seu professor. Veja na aba Materiais.`,
                 type: "info",
                 actionUrl: "/aluno/materiais",
               });
               const { notifyUser } = await import("../_core/notification");
-              await notifyUser(student.studentUserId, {
+              await notifyUser(notifyUserId, {
                 title: "🎵 Nova música no seu repertório",
                 content: "Seu professor adicionou uma nova música. Ouça na aba Materiais!",
                 url: "/aluno/materiais",
@@ -217,7 +229,18 @@ export const repertoireRouters = {
             }
           }
 
-          return { success: true, id: created.id };
+          // Autor do cadastro também recebe confirmação com o DESTINO da música (anti-ambiguidade)
+          try {
+            await db.insert(notifications).values({
+              organizationId: orgId,
+              userId: ctx.user.id,
+              title: "🎵 Música adicionada",
+              message: `"${input.title?.trim() || "Música"}" entrou no repertório de ${student.name}.`,
+              type: "success",
+            });
+          } catch { /* best-effort */ }
+
+          return { success: true, id: created.id, studentName: student.name };
         } catch (error) {
           return handleDbError(error, "adicionar a música ao repertório");
         }
@@ -354,6 +377,7 @@ export const repertoireRouters = {
         )
         .orderBy(asc(studentRepertoire.position), asc(studentRepertoire.id))
         .limit(50);
+      console.log(`[Repertoire] my: user=${ctx.user.id} org=${orgId} studentId=${ctx.user.studentId} rows=${rows.length}`);
       return rows;
     }),
 
