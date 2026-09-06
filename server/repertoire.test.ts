@@ -201,6 +201,64 @@ describe("repertoire.create", () => {
   });
 });
 
+describe("repertoire.moveToStudent — correção de destino", () => {
+  it("professor não-dono do aluno DESTINO não move (permissão nos dois lados)", async () => {
+    const { db, updates } = makeFakeDb(
+      new Map([
+        [studentRepertoire, [{ id: 9, organizationId: 1, studentId: 100, videoId: "dQw4w9WgXcQ", position: 0, viewedAt: new Date(), learnedAt: new Date() }]],
+        [students, [{ id: 200, name: "Bruno", professorId: 77 }]], // destino de OUTRO professor
+      ])
+    );
+    h.state.db = db;
+    const caller = appRouter.createCaller(createCtx({ role: "professor", id: 5 }));
+    await expect(
+      caller.repertoire.moveToStudent({ id: 9, targetStudentId: 200 })
+    ).rejects.toThrow("permissão sobre o aluno de destino");
+    expect(updates.filter((u) => u.table === studentRepertoire)).toHaveLength(0);
+  });
+
+  it("bloqueia mover quando o vídeo já existe no repertório do destino (RN-003)", async () => {
+    const { db, updates } = makeFakeDb(
+      new Map([
+        [studentRepertoire, [
+          { id: 9, organizationId: 1, studentId: 100, videoId: "dQw4w9WgXcQ", position: 0, viewedAt: null, learnedAt: null },
+          { id: 10, organizationId: 1, studentId: 200, videoId: "dQw4w9WgXcQ", position: 0, viewedAt: null, learnedAt: null },
+        ]],
+        [students, [{ id: 200, name: "Bruno", professorId: 5 }]],
+      ])
+    );
+    h.state.db = db;
+    const caller = appRouter.createCaller(createCtx());
+    await expect(
+      caller.repertoire.moveToStudent({ id: 9, targetStudentId: 200 })
+    ).rejects.toThrow("já está no repertório de Bruno");
+    expect(updates.filter((u) => u.table === studentRepertoire)).toHaveLength(0);
+  });
+
+  it("move com sucesso: troca studentId, vai para o fim da fila e reinicia status", async () => {
+    const { db, updates } = makeFakeDb(
+      new Map([
+        // Fake db ignora WHERE: row sem videoId pula o anti-dup (cubierto no teste anterior)
+        [studentRepertoire, [
+          { id: 9, organizationId: 1, studentId: 100, videoId: null, playlistId: "PLxyz", position: 2, viewedAt: new Date(), learnedAt: new Date() },
+        ]],
+        // A única row de students serve ao join da origem e ao select do destino
+        [students, [{ id: 200, name: "Bruno", professorId: 5 }]],
+        [notifications, []],
+      ])
+    );
+    h.state.db = db;
+    const caller = appRouter.createCaller(createCtx());
+    const result = await caller.repertoire.moveToStudent({ id: 9, targetStudentId: 200 });
+    expect(result.moved).toBe(true);
+    expect(result.targetName).toBe("Bruno");
+    const upd = updates.find((u) => u.table === studentRepertoire);
+    expect(upd.values.studentId).toBe(200);
+    expect(upd.values.viewedAt).toBeNull();
+    expect(upd.values.learnedAt).toBeNull();
+  });
+});
+
 describe("repertoire.my / toggleLearned (aluno)", () => {
   it("aluno marca/desmarca Aprendida e pode reescutar (decisão do produto)", async () => {
     const { db, updates } = makeFakeDb(

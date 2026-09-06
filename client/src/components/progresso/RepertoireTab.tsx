@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Music, Plus, Pencil, Trash2, Loader2, ChevronUp, ChevronDown,
-  Eye, Award, Youtube, ExternalLink, FileText, Download,
+  Eye, Award, Youtube, ExternalLink, FileText, Download, Play, ArrowRightLeft,
 } from "lucide-react";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 
@@ -70,6 +70,28 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
   const moveMutation = trpc.repertoire.move.useMutation({
     onSuccess: () => invalidate(),
     onError: (e) => toast.error(e.message || "Erro ao reordenar."),
+  });
+
+  // Caça-Bug: o professor não tinha como ABRIR a música — player embutido no painel
+  const [playing, setPlaying] = useState<any>(null);
+  const playSrc = (item: any) => item.videoId
+    ? `https://www.youtube-nocookie.com/embed/${item.videoId}?rel=0${item.playlistId ? `&list=${item.playlistId}` : ""}`
+    : item.playlistId
+      ? `https://www.youtube-nocookie.com/embed/videoseries?list=${item.playlistId}&rel=0`
+      : null;
+
+  // Mover para outro aluno (correção de destino)
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveTarget, setMoveTarget] = useState<any>(null);
+  const { data: allStudents = [] } = trpc.students.list.useQuery();
+  const moveStudentMutation = trpc.repertoire.moveToStudent.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Música movida para o repertório de ${data?.targetName || "aluno"}!`);
+      invalidate();
+      setMoveOpen(false);
+      setEditing(null);
+    },
+    onError: (e) => toast.error(e.message || "Erro ao mover a música."),
   });
 
   const openCreate = () => {
@@ -173,21 +195,29 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
               transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.3) }}
               className="rounded-2xl border border-white/10 bg-card/40 backdrop-blur-md overflow-hidden shadow-2xl shadow-primary/5 hover:border-pink-500/40 hover:shadow-pink-500/10 hover:-translate-y-1 transition-all duration-500 group"
             >
-              {/* Thumbnail */}
+              {/* Thumbnail + play (fallback sempre atrás da imagem) */}
               <div className="aspect-video bg-muted/50 relative overflow-hidden">
-                {item.videoId ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-pink-500/20 to-rose-600/20">
+                  <Youtube size={36} className="text-pink-500/60" />
+                </div>
+                {item.videoId && (
                   <img
                     src={`https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`}
                     alt={item.title}
                     loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500/20 to-rose-600/20">
-                    <Youtube size={36} className="text-pink-500/60" />
-                  </div>
                 )}
+                <button
+                  onClick={() => { const src = playSrc(item); if (src) setPlaying({ ...item, src, studentName }); else toast.error("Link sem vídeo/playlist válido."); }}
+                  title="Assistir (player embutido)"
+                  className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center cursor-pointer"
+                >
+                  <span className="w-11 h-11 rounded-full bg-white/95 text-pink-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl translate-y-1 group-hover:translate-y-0">
+                    <Play size={18} className="fill-current translate-x-0.5" />
+                  </span>
+                </button>
                 <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
                   {(item.chordSheet || item.cifraclubUrl) && (
                     <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-600/90 text-white flex items-center gap-1">
@@ -240,6 +270,21 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
                   <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">{item.description}</p>
                 )}
                 <div className="flex items-center gap-1.5 pt-1">
+                  <button
+                    onClick={() => { const src = playSrc(item); if (src) setPlaying({ ...item, src, studentName }); else toast.error("Link sem vídeo/playlist válido."); }}
+                    className="flex-1 h-9 rounded-lg bg-pink-600 hover:bg-pink-700 text-white text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Play size={12} className="fill-current" /> Assistir
+                  </button>
+                  <a
+                    href={item.youtubeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Abrir no YouTube"
+                    className="h-9 w-9 rounded-lg bg-muted/40 hover:bg-muted text-muted-foreground flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                  >
+                    <ExternalLink size={12} />
+                  </a>
                   <button
                     onClick={() => openEdit(item)}
                     className="flex-1 h-9 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
@@ -363,6 +408,47 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
             </p>
           </div>
 
+          {/* ── Mover para outro aluno (correção de destino) ── */}
+          {editing && (
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3.5 space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <ArrowRightLeft size={12} className="text-amber-500" /> Mover esta música para outro aluno
+              </label>
+              <div className="flex gap-1.5">
+                <select
+                  value={moveTarget?.id ? String(moveTarget.id) : ""}
+                  onChange={(e) => setMoveTarget(allStudents.find((s: any) => String(s.id) === e.target.value) || null)}
+                  className="flex-1 h-10 rounded-xl border border-border/60 bg-background px-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500/20"
+                >
+                  <option value="">Selecione o aluno de destino...</option>
+                  {allStudents
+                    .filter((s: any) => s.id !== editing.studentId)
+                    .map((s: any) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!moveTarget) { toast.error("Selecione o aluno de destino."); return; }
+                    if (confirm(`Mover "${editing.title}" para o repertório de ${moveTarget.name}?`)) {
+                      moveStudentMutation.mutate({ id: editing.id, targetStudentId: moveTarget.id });
+                    }
+                  }}
+                  disabled={moveStudentMutation.isPending || !moveTarget}
+                  className={cn(
+                    "h-10 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0",
+                    (moveStudentMutation.isPending || !moveTarget) && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {moveStudentMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <ArrowRightLeft size={12} />}
+                  Mover
+                </button>
+              </div>
+              <p className="text-[9px] text-muted-foreground">A música sai do repertório atual (o status Nova/Ouvida/Aprendida é reiniciado no destino).</p>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={() => setFormOpen(false)}
@@ -382,6 +468,40 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
               {editing ? "Salvar Alterações" : "Adicionar"}
             </button>
           </div>
+        </div>
+      </ResponsiveDialog>
+
+      {/* Player embutido do professor (Caça-Bug: antes não havia como abrir a música) */}
+      <ResponsiveDialog
+        open={!!playing}
+        onOpenChange={(o) => { if (!o) setPlaying(null); }}
+        title={playing?.title || "Música"}
+        description={playing?.studentName ? `Repertório de ${playing.studentName}` : "Executando pelo MusicPro"}
+      >
+        <div className="pt-1">
+          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black">
+            {playing?.src ? (
+              <iframe
+                src={playing.src}
+                title={playing?.title || "Player de música"}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">Link sem vídeo válido.</div>
+            )}
+          </div>
+          {playing?.youtubeUrl && (
+            <a
+              href={playing.youtubeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors mt-3"
+            >
+              <ExternalLink size={11} /> Abrir no YouTube →
+            </a>
+          )}
         </div>
       </ResponsiveDialog>
     </div>

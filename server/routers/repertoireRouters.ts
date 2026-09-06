@@ -439,6 +439,88 @@ export const repertoireRouters = {
       return { success: true, learned };
     }),
 
+    /**
+     * Move a música para o repertório de OUTRO aluno (correção de destino).
+     * Professor precisa ser dono do aluno de origem E do destino (admin: ambos).
+     * Anti-duplicação: o mesmo vídeo não pode existir 2x no repertório do destino.
+     */
+    moveToStudent: professorProcedure
+      .input(z.object({ id: z.number(), targetStudentId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+          const orgId = ctx.user.organizationId!;
+          const isAdmin = isUserAdmin(ctx.user);
+
+          const row = await getOwnedRepertoireRow(db, orgId, input.id, ctx.user);
+          if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Música não encontrada ou sem permissão." });
+          if (row.studentId === input.targetStudentId) {
+            return { success: true, moved: false };
+          }
+
+          // Dono do aluno DESTINO (admin bypass)
+          const [target] = await db
+            .select({ id: students.id, name: students.name, professorId: students.professorId })
+            .from(students)
+            .where(and(eq(students.id, input.targetStudentId), eq(students.organizationId, orgId)))
+            .limit(1);
+          if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno de destino não encontrado." });
+          if (!isAdmin && target.professorId !== ctx.user.id) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão sobre o aluno de destino." });
+          }
+
+          // Anti-duplicação no destino (RN-003)
+          if (row.videoId) {
+            const [dup] = await db
+              .select({ id: studentRepertoire.id })
+              .from(studentRepertoire)
+              .where(and(eq(studentRepertoire.studentId, input.targetStudentId), eq(studentRepertoire.videoId, row.videoId)))
+              .limit(1);
+            if (dup) {
+              throw new TRPCError({ code: "CONFLICT", message: `Este vídeo já está no repertório de ${target.name}.` });
+            }
+          }
+
+          const [posRow] = await db
+            .select({ maxPos: sql<number | null>`max(${studentRepertoire.position})` })
+            .from(studentRepertoire)
+            .where(and(eq(studentRepertoire.organizationId, orgId), eq(studentRepertoire.studentId, input.targetStudentId)));
+          const position = (posRow?.maxPos ?? -1) + 1;
+
+          await db
+            .update(studentRepertoire)
+            .set({ studentId: input.targetStudentId, position, viewedAt: null, learnedAt: null, updatedAt: new Date() })
+            .where(and(eq(studentRepertoire.id, row.id), eq(studentRepertoire.organizationId, orgId)));
+
+          // Notifica o novo aluno (user real via users.studentId — fonte da verdade)
+          try {
+            const [realUser] = await db
+              .select({ id: users.id })
+              .from(users)
+              .where(and(eq(users.studentId, input.targetStudentId), eq(users.role, "aluno")))
+              .orderBy(desc(users.lastSignedIn))
+              .limit(1);
+            if (realUser) {
+              await db.insert(notifications).values({
+                organizationId: orgId,
+                userId: realUser.id,
+                title: "🎵 Nova música no seu repertório",
+                message: `${row.title} foi adicionada pelo seu professor. Veja na aba Materiais.`,
+                type: "info",
+                actionUrl: "/aluno/materiais",
+              });
+            }
+          } catch (e) {
+            console.error("[Repertoire] Falha não impeditiva ao notificar destino:", e);
+          }
+
+          return { success: true, moved: true, targetName: target.name };
+        } catch (error) {
+          return handleDbError(error, "mover a música para outro aluno");
+        }
+      }),
+
     /** src do iframe para o client — construído a partir dos IDs validados. */
     embed: protectedProcedure
       .input(z.object({ id: z.number() }))
