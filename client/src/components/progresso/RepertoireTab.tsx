@@ -9,6 +9,7 @@ import {
   Eye, Award, Youtube, ExternalLink, FileText, Download, Play, ArrowRightLeft,
 } from "lucide-react";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import { youtubeEmbedSrc } from "@/lib/youtubeEmbed";
 
 /**
  * PRD Repertório — Aba do professor no Progresso.
@@ -73,12 +74,10 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
   });
 
   // Caça-Bug: o professor não tinha como ABRIR a música — player embutido no painel
+  // (Erro 153: host padrão youtube.com; alternativo nocookie via toggle no modal)
   const [playing, setPlaying] = useState<any>(null);
-  const playSrc = (item: any) => item.videoId
-    ? `https://www.youtube-nocookie.com/embed/${item.videoId}?rel=0${item.playlistId ? `&list=${item.playlistId}` : ""}`
-    : item.playlistId
-      ? `https://www.youtube-nocookie.com/embed/videoseries?list=${item.playlistId}&rel=0`
-      : null;
+  const [altHost, setAltHost] = useState(false);
+  const playSrc = (item: any, alt = false) => youtubeEmbedSrc(item.videoId, item.playlistId, alt);
 
   // Mover para outro aluno (correção de destino)
   const [moveOpen, setMoveOpen] = useState(false);
@@ -482,6 +481,7 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
           <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black">
             {playing?.src ? (
               <iframe
+                key={playing.src}
                 src={playing.src}
                 title={playing?.title || "Player de música"}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -492,16 +492,26 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
               <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">Link sem vídeo válido.</div>
             )}
           </div>
-          {playing?.youtubeUrl && (
-            <a
-              href={playing.youtubeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors mt-3"
+          <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
+            {playing?.youtubeUrl && (
+              <a
+                href={playing.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ExternalLink size={11} /> Abrir no YouTube →
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => setPlaying((p: any) => ({ ...p, src: youtubeEmbedSrc(p.videoId, p.playlistId, true) }))}
+              className="text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors ml-auto"
+              title="Se o vídeo não abrir, troque o host do player"
             >
-              <ExternalLink size={11} /> Abrir no YouTube →
-            </a>
-          )}
+              Não abriu? Usar player alternativo
+            </button>
+          </div>
         </div>
       </ResponsiveDialog>
     </div>

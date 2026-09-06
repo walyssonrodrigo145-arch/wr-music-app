@@ -549,10 +549,11 @@ export const repertoireRouters = {
           row.studentUserId === ctx.user.id;
         if (!isOwner) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão sobre este aluno." });
         // src montada APENAS a partir dos IDs persistidos (RN-005 — nunca da URL crua)
+        // Host padrão youtube.com — nocookie disparava "Erro 153" no player
         const src = row.videoId
-          ? `https://www.youtube-nocookie.com/embed/${row.videoId}?rel=0${row.playlistId ? `&list=${row.playlistId}` : ""}`
+          ? `https://www.youtube.com/embed/${row.videoId}?rel=0&playsinline=1${row.playlistId ? `&list=${row.playlistId}` : ""}`
           : row.playlistId
-            ? `https://www.youtube-nocookie.com/embed/videoseries?list=${row.playlistId}&rel=0`
+            ? `https://www.youtube.com/embed/videoseries?list=${row.playlistId}&rel=0&playsinline=1`
             : null;
         if (!src) throw new TRPCError({ code: "BAD_REQUEST", message: "Link sem vídeo/playlist válido." });
         return { src };

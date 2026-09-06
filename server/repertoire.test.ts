@@ -120,9 +120,9 @@ describe("extractYoutubeRef — parser de URL (RN-005)", () => {
 });
 
 describe("buildEmbedSrc / thumbnail", () => {
-  it("monta src nocookie com playlist opcional", () => {
+  it("monta src no host PADRÃO do YouTube (Caça-Bug: nocookie causava Erro 153)", () => {
     expect(buildEmbedSrc({ videoId: "abc12345678", playlistId: null })).toBe(
-      "https://www.youtube-nocookie.com/embed/abc12345678?rel=0"
+      "https://www.youtube.com/embed/abc12345678?rel=0&playsinline=1"
     );
     expect(buildEmbedSrc({ videoId: "abc12345678", playlistId: "PL1" })).toContain("&list=PL1");
     expect(buildEmbedSrc({ videoId: null, playlistId: "PL1" })).toContain("videoseries?list=PL1");

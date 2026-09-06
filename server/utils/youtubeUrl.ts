@@ -53,14 +53,14 @@ export function extractYoutubeRef(raw: string): YoutubeRef | null {
   return { videoId, playlistId };
 }
 
-/** src segura para o iframe (youtube-nocookie — sem cookies de tracking). */
+/** src do player (Caça-Bug: youtube-nocookie disparava Erro 153 — host padrão é o compatível). */
 export function buildEmbedSrc(ref: YoutubeRef): string | null {
   if (ref.videoId) {
-    const base = `https://www.youtube-nocookie.com/embed/${ref.videoId}?rel=0`;
+    const base = `https://www.youtube.com/embed/${ref.videoId}?rel=0&playsinline=1`;
     return ref.playlistId ? `${base}&list=${ref.playlistId}` : base;
   }
   if (ref.playlistId) {
-    return `https://www.youtube-nocookie.com/embed/videoseries?list=${ref.playlistId}&rel=0`;
+    return `https://www.youtube.com/embed/videoseries?list=${ref.playlistId}&rel=0&playsinline=1`;
   }
   return null;
 }

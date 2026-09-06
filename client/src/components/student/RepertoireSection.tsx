@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Music, Award, Eye, Loader2, Youtube, FileText, Pause, Play, ZoomIn, ZoomOut, ExternalLink, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import { youtubeEmbedSrc } from "@/lib/youtubeEmbed";
 
 /**
  * PRD Repertório — Seção no portal do aluno (aba Materiais).
@@ -213,6 +214,8 @@ export function RepertoireSection() {
   const [playing, setPlaying] = useState<any>(null);
   const [embedSrc, setEmbedSrc] = useState<string>("");
   const [showChord, setShowChord] = useState(false);
+  // Caça-Bug (Erro 153): alterna entre hosts do YouTube quando um falha
+  const [altHost, setAltHost] = useState(false);
 
   const markViewedMutation = trpc.repertoire.markViewed.useMutation();
   const toggleLearnedMutation = trpc.repertoire.toggleLearned.useMutation({
@@ -233,20 +236,24 @@ export function RepertoireSection() {
   const openPlayer = (item: any) => {
     setPlaying(item);
     setShowChord(false);
+    setAltHost(false); // reset: o host padrão é o compatível (Erro 153 era do nocookie)
     markViewedMutation.mutate({ id: item.id });
     // src montada SOMENTE a partir dos IDs persistidos (videoId validado pelo
     // parser server-side — nunca da URL crua). RN-005 do PRD.
-    const src = item.videoId
-      ? `https://www.youtube-nocookie.com/embed/${item.videoId}?rel=0${item.playlistId ? `&list=${item.playlistId}` : ""}`
-      : item.playlistId
-        ? `https://www.youtube-nocookie.com/embed/videoseries?list=${item.playlistId}&rel=0`
-        : null;
+    const src = youtubeEmbedSrc(item.videoId, item.playlistId);
     if (src) {
       setEmbedSrc(src);
     } else {
       setEmbedSrc("");
       toast.error("Este item não tem vídeo/playlist válido — avise seu professor.");
     }
+  };
+
+  // Caça-Bug (Erro 153): fallback self-service — troca o host do player em 1 clique
+  const reloadAlt = (item: any) => {
+    setAltHost(true);
+    const src = youtubeEmbedSrc(item.videoId, item.playlistId, true);
+    if (src) setEmbedSrc(src);
   };
 
   const learnedCount = items.filter((i: any) => i.learnedAt).length;
@@ -397,6 +404,7 @@ export function RepertoireSection() {
                   </div>
                 ) : (
                   <iframe
+                    key={embedSrc}
                     src={embedSrc}
                     title={playingItem?.title || "Player de música"}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -416,29 +424,41 @@ export function RepertoireSection() {
           </div>
 
           {playingItem && !showChord && (
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="text-[10px] text-muted-foreground font-bold">
-                {playingItem.learnedAt ? (
-                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                    <Award size={12} /> Marcada como aprendida — pode ouvir quantas vezes quiser!
-                  </span>
-                ) : (
-                  "Ouça com atenção e marque quando dominar."
-                )}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="text-[10px] text-muted-foreground font-bold">
+                  {playingItem.learnedAt ? (
+                    <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                      <Award size={12} /> Marcada como aprendida — pode ouvir quantas vezes quiser!
+                    </span>
+                  ) : (
+                    "Ouça com atenção e marque quando dominar."
+                  )}
+                </div>
+                <button
+                  onClick={() => toggleLearnedMutation.mutate({ id: playingItem.id })}
+                  disabled={toggleLearnedMutation.isPending}
+                  className={cn(
+                    "h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 cursor-pointer",
+                    playingItem.learnedAt
+                      ? "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                  )}
+                >
+                  {toggleLearnedMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Award size={13} />}
+                  {playingItem.learnedAt ? "Remover marcação" : "Marcar como aprendida"}
+                </button>
               </div>
-              <button
-                onClick={() => toggleLearnedMutation.mutate({ id: playingItem.id })}
-                disabled={toggleLearnedMutation.isPending}
-                className={cn(
-                  "h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 cursor-pointer",
-                  playingItem.learnedAt
-                    ? "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
-                )}
-              >
-                {toggleLearnedMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Award size={13} />}
-                {playing.learnedAt ? "Remover marcação" : "Marcar como aprendida"}
-              </button>
+              {!altHost && (
+                <button
+                  type="button"
+                  onClick={() => reloadAlt(playingItem)}
+                  className="text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors"
+                  title="Se o vídeo mostrar erro (ex: 153), troque o host do player"
+                >
+                  Erro no vídeo? Usar player alternativo
+                </button>
+              )}
             </div>
           )}
         </div>
