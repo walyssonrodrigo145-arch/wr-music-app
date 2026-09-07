@@ -69,6 +69,8 @@ export function VideoFacade({
           key={embedSrc}
           src={embedSrc}
           title={title || "Player de música"}
+          // Erro 153: o YouTube exige receber o Referer do site que embute.
+          referrerPolicy="strict-origin-when-cross-origin"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           className="absolute inset-0 w-full h-full"

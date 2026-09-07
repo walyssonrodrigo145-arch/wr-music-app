@@ -1122,6 +1122,12 @@ async function startServer() {
       },
     } : false, // desabilitado em dev para compatibilidade com Vite
     crossOriginEmbedderPolicy: false,
+    // YouTube Erro 153 (exigência 2025): o player embutido do YouTube EXIGE
+    // identificação via header HTTP Referer. O default do helmet v8 é
+    // "no-referrer", que suprime o referer e quebra TODOS os embeds com
+    // "Error 153: Video player configuration error". Enviamos a política
+    // recomendada oficialmente pelo YouTube.
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   }));
   const allowedOrigins = [
     process.env.APP_URL,
