@@ -2283,3 +2283,33 @@ export const studentRepertoire = pgTable("student_repertoire", {
 export type StudentRepertoire = typeof studentRepertoire.$inferSelect;
 export type InsertStudentRepertoire = typeof studentRepertoire.$inferInsert;
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// TUTORIAIS DO SISTEMA (PRD Tutoriais) — vídeos do YouTube que explicam as
+// funcionalidades do MusicPro. Gestão EXCLUSIVA do Superadmin (master panel);
+// visualização para admin/professor (aba "Tutoriais" no menu).
+// Mesmo mecanismo do Repertório: videoId/playlistId extraídos server-side
+// (RN-005 — iframe NUNCA recebe URL crua); player via VideoFacade/VideoThumb.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const systemTutorials = pgTable("system_tutorials", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  // URL original informada (rastreabilidade)
+  youtubeUrl: text("youtubeUrl").notNull(),
+  // Extraído server-side (null = playlist sem vídeo específico)
+  videoId: varchar("videoId", { length: 20 }),
+  playlistId: varchar("playlistId", { length: 60 }),
+  description: text("description"),
+  category: varchar("category", { length: 60 }).default("Geral").notNull(),
+  position: integer("position").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdByUserId: integer("createdByUserId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("system_tutorials_active_pos_idx").on(table.isActive, table.position),
+]);
+
+export type SystemTutorial = typeof systemTutorials.$inferSelect;
+export type InsertSystemTutorial = typeof systemTutorials.$inferInsert;
+

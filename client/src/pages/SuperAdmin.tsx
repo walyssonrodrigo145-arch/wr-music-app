@@ -5,7 +5,7 @@ import {
   Loader2, Plus, Edit, Check, X, Tag, ListFilter, Users, Building,
   ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
   Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search,
-  CheckCircle2, Eye,
+  CheckCircle2, Eye, GraduationCap, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SLIDE_THEMES, getSlideTheme } from "@/lib/slideThemes";
@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { VideoThumb } from "@/components/ui/VideoThumb";
 
 // ─── REGRA DE ACESSO ──────────────────────────────────────────────────────────
 // SOMENTE Super Admins autorizados podem acessar este painel.
@@ -55,7 +56,7 @@ export default function SuperAdmin() {
 // ─── Painel principal (renderizado apenas para o Super Admin autenticado) ─────
 function SuperAdminPanel() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "tutoriais">("dashboard");
 
   // ── Estado dos modais ──────────────────────────────────────────────────────
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
@@ -253,6 +254,7 @@ function SuperAdminPanel() {
           { id: "coupons", label: "Cupons", icon: <Tag size={16} /> },
           { id: "clientes", label: "Clientes (Landing)", icon: <Users size={16} /> },
           { id: "slides", label: "Slides do Sistema", icon: <ImageIcon size={16} /> },
+          { id: "tutoriais", label: "Tutoriais", icon: <GraduationCap size={16} /> },
         ].map(tab => (
           <button
             key={tab.id}
@@ -937,6 +939,11 @@ function SuperAdminPanel() {
       {/* ── TAB: Slides de Funcionalidades (Hero Slider) ───────────────────── */}
       {activeTab === "slides" && (
         <HeroSlidesManager />
+      )}
+
+      {/* ── TAB: Tutoriais do Sistema ──────────────────────────────────────── */}
+      {activeTab === "tutoriais" && (
+        <TutorialsManager />
       )}
     </div>
   );
@@ -1738,12 +1745,237 @@ function LandingClientsManager() {
               <Building size={40} className="mx-auto text-muted-foreground/40 mb-3" />
               <p className="text-base font-bold text-foreground">Nenhum cliente cadastrado ainda</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                Clique no botão acima para adicionar a logo e o nome das escolas parceiras para serem exibidas na Landing Page.
+                Clique no botǜo acima para adicionar a logo e o nome das escolas parceiras para serem exibidas na Landing Page.
               </p>
             </div>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Gestão de Tutoriais do Sistema (PRD Tutoriais) ───────────────────────────
+// Superadmin cadastra vídeos do YouTube (link) que aparecem na aba "Tutoriais"
+// do menu do professor/admin. Mesmo mecanismo do Repertório: videoId extraído
+// server-side; capa via VideoThumb (cascata maxres/hq/mq); player no portal.
+function TutorialsManager() {
+  const utils = trpc.useUtils();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState<{
+    youtubeUrl: string; title: string; category: string; description: string; isActive: boolean;
+  }>({ youtubeUrl: "", title: "", category: "Geral", description: "", isActive: true });
+
+  const { data: tutorials = [], isLoading } = trpc.tutorials.listAll.useQuery();
+
+  const invalidate = () => {
+    utils.tutorials.listAll.invalidate();
+    utils.tutorials.list.invalidate();
+  };
+
+  const createMutation = trpc.tutorials.create.useMutation({
+    onSuccess: () => { toast.success("Tutorial criado com sucesso!"); invalidate(); setModalOpen(false); resetForm(); },
+    onError: (e) => toast.error(e.message || "Erro ao criar o tutorial."),
+  });
+  const updateMutation = trpc.tutorials.update.useMutation({
+    onSuccess: () => { toast.success("Tutorial atualizado!"); invalidate(); setModalOpen(false); resetForm(); },
+    onError: (e) => toast.error(e.message || "Erro ao atualizar o tutorial."),
+  });
+  const deleteMutation = trpc.tutorials.delete.useMutation({
+    onSuccess: () => { toast.success("Tutorial removido."); invalidate(); },
+    onError: (e) => toast.error(e.message || "Erro ao remover o tutorial."),
+  });
+  const moveMutation = trpc.tutorials.move.useMutation({
+    onSuccess: () => invalidate(),
+    onError: (e) => toast.error(e.message || "Erro ao reordenar."),
+  });
+
+  const resetForm = () => {
+    setEditing(null);
+    setForm({ youtubeUrl: "", title: "", category: "Geral", description: "", isActive: true });
+  };
+
+  const openCreate = () => { resetForm(); setModalOpen(true); };
+  const openEdit = (t: any) => {
+    setEditing(t);
+    setForm({
+      youtubeUrl: t.youtubeUrl || "",
+      title: t.title || "",
+      category: t.category || "Geral",
+      description: t.description || "",
+      isActive: t.isActive,
+    });
+    setModalOpen(true);
+  };
+
+  const submit = () => {
+    if (!form.youtubeUrl.trim()) { toast.error("Cole o link do YouTube."); return; }
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, ...form });
+    } else {
+      createMutation.mutate(form);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base sm:text-lg font-black text-foreground uppercase tracking-tighter leading-tight">
+            Tutoriais do Sistema
+          </h3>
+          <p className="text-[10px] sm:text-xs text-muted-foreground font-bold mt-0.5">
+            Vídeos do YouTube que aparecem na aba "Tutoriais" do menu (professor/admin)
+          </p>
+        </div>
+        <Button onClick={openCreate} className="w-fit">
+          <Plus size={15} /> Adicionar Tutorial
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-2xl border border-white/10 bg-card/40 overflow-hidden animate-pulse">
+              <div className="aspect-video bg-muted/50" />
+              <div className="p-3 space-y-2"><div className="h-3 w-2/3 bg-muted rounded" /></div>
+            </div>
+          ))}
+        </div>
+      ) : tutorials.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-14 text-center bg-card/30 rounded-2xl border border-dashed border-border/50">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-3">
+            <GraduationCap size={26} />
+          </div>
+          <p className="text-sm font-black text-foreground">Nenhum tutorial cadastrado</p>
+          <p className="text-xs text-muted-foreground mt-1.5 max-w-[320px]">
+            Adicione o link do YouTube do primeiro tutorial — ele aparecerá para todos os professores e admins.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {tutorials.map((t: any) => (
+            <div key={t.id} className="rounded-2xl border border-white/10 bg-card/40 overflow-hidden shadow-lg shadow-primary/5 hover:border-indigo-500/40 transition-all duration-300">
+              <div className="aspect-video bg-muted/50 relative overflow-hidden">
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-500/20 to-purple-600/20">
+                  <GraduationCap size={32} className="text-indigo-500/60" />
+                </div>
+                {t.videoId && (
+                  <VideoThumb videoId={t.videoId} alt={t.title} className="absolute inset-0 w-full h-full object-cover" />
+                )}
+                <span className={cn(
+                  "absolute top-2 left-2 text-[8px] font-black uppercase px-1.5 py-0.5 rounded",
+                  t.isActive ? "bg-emerald-600/90 text-white" : "bg-zinc-600/90 text-white"
+                )}>
+                  {t.isActive ? "Ativo" : "Inativo"}
+                </span>
+              </div>
+              <div className="p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-black text-foreground truncate">{t.title}</h4>
+                    <p className="text-[9px] text-muted-foreground font-bold mt-0.5">{t.category || "Geral"}</p>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button title="Subir" onClick={() => moveMutation.mutate({ id: t.id, direction: "up" })}
+                      className="w-8 h-8 rounded-lg bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer">
+                      <ChevronUp size={13} />
+                    </button>
+                    <button title="Descer" onClick={() => moveMutation.mutate({ id: t.id, direction: "down" })}
+                      className="w-8 h-8 rounded-lg bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer">
+                      <ChevronDown size={13} />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 pt-1">
+                  <label className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-muted-foreground cursor-pointer">
+                    <Switch
+                      checked={t.isActive}
+                      onCheckedChange={(v) => updateMutation.mutate({ id: t.id, isActive: v })}
+                    />
+                    Ativo
+                  </label>
+                  <button onClick={() => openEdit(t)}
+                    className="flex-1 h-9 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+                    <Edit size={11} /> Editar
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`Remover o tutorial "${t.title}"? Esta ação é definitiva.`)) deleteMutation.mutate({ id: t.id }); }}
+                    className="h-9 w-9 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 flex items-center justify-center transition-all cursor-pointer"
+                    title="Remover definitivamente"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar Tutorial" : "Adicionar Tutorial"}</DialogTitle>
+            <DialogDescription>
+              Cole o link do YouTube — o vídeo aparece na aba "Tutoriais" do professor/admin.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Link do YouTube *</Label>
+              <Input
+                value={form.youtubeUrl}
+                onChange={(e) => setForm({ ...form, youtubeUrl: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Título</Label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="Ex: Como cadastrar um aluno"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Categoria</Label>
+                <Input
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  placeholder="Geral"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ativo</Label>
+                <div className="flex items-center gap-2 pt-1">
+                  <Switch checked={form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} />
+                  <span className="text-xs font-bold">{form.isActive ? "Visível" : "Oculto"}</span>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Descrição</Label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows={3}
+                placeholder="Breve descrição do que o tutorial ensina"
+                className="w-full rounded-xl border border-border/60 bg-background p-3 text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button onClick={submit} disabled={createMutation.isPending || updateMutation.isPending}>
+              {(createMutation.isPending || updateMutation.isPending) ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {editing ? "Salvar Alterações" : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

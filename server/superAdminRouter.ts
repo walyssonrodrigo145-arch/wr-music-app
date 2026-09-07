@@ -60,7 +60,7 @@ import { ENV } from "./_core/env";
 // REGRA: Somente usuários configurados em SUPER_ADMIN_EMAIL / SUPER_ADMIN_EMAILS
 // (variáveis de ambiente) OU via OWNER_OPEN_ID têm acesso.
 // AUDIT-P0 FIX: e-mails hardcoded removidos — a lista vem exclusivamente de env.
-const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
+export const isSuperAdmin = protectedProcedure.use(async ({ ctx, next }) => {
   const userEmail = ctx.user.email?.toLowerCase().trim();
 
   const isMaster =

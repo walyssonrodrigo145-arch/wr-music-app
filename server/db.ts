@@ -53,6 +53,26 @@ async function ensureSchemaConsistency(db: any) {
           "createdAt" timestamp DEFAULT now() NOT NULL
         )
       `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "system_tutorials" (
+          "id" serial PRIMARY KEY,
+          "title" varchar(255) NOT NULL,
+          "youtubeUrl" text NOT NULL,
+          "videoId" varchar(20),
+          "playlistId" varchar(60),
+          "description" text,
+          "category" varchar(60) DEFAULT 'Geral' NOT NULL,
+          "position" integer DEFAULT 0 NOT NULL,
+          "isActive" boolean DEFAULT true NOT NULL,
+          "createdByUserId" integer NOT NULL,
+          "createdAt" timestamp DEFAULT now() NOT NULL,
+          "updatedAt" timestamp DEFAULT now() NOT NULL
+        )
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS "system_tutorials_active_pos_idx"
+        ON "system_tutorials" ("isActive", "position")
+      `);
     } catch (e) {
       debugLog("[Database] Failed to execute create system tables:", e);
     }

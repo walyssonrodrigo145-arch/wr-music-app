@@ -37,6 +37,7 @@ import {
   Receipt,
   Trophy,
   Repeat,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -148,6 +149,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         { label: "Solicitações", href: "/solicitacoes", icon: Inbox, badge: (requestCount + extraRequestCount) > 0 ? requestCount + extraRequestCount : undefined },
         { label: "Progresso", href: "/progresso", icon: Activity },
         { label: "Recepção QR", href: "/recepcao-qr", icon: LayoutDashboard },
+        { label: "Tutoriais", href: "/tutoriais", icon: GraduationCap },
       ],
     },
   ];

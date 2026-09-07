@@ -31,6 +31,7 @@ import { challengesRouter } from "./challengesRouters";
 import { repositionsRouters } from "./repositionsRouters";
 import { aiSpecialistsRouters } from "./aiPromptsRouters";
 import { repertoireRouters } from "./repertoireRouters";
+import { tutorialsRouters } from "./tutorialsRouters";
 
 export const appRouter = router({
   superAdmin: superAdminRouter,
@@ -65,6 +66,7 @@ export const appRouter = router({
   ...repositionsRouters,
   ...aiSpecialistsRouters,
   ...repertoireRouters,
+  ...tutorialsRouters,
 });
 
 export type AppRouter = typeof appRouter;

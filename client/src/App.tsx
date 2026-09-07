@@ -50,6 +50,7 @@ const ChatbotFlowBuilder = lazy(() => import("./pages/ChatbotFlowBuilder"));
 const BaseConhecimentoIA = lazy(() => import("./pages/BaseConhecimentoIA"));
 const Contratos = lazy(() => import("./pages/Contratos"));
 const NotasFiscais = lazy(() => import("./pages/NotasFiscais"));
+const Tutoriais = lazy(() => import("./pages/Tutoriais"));
 
 // Student Portal Pages
 const StudentDashboard = lazy(() => import("./pages/student/Dashboard"));
@@ -242,6 +243,7 @@ function Router() {
           <Route path="/comercial" component={LeadsApp} />
           <Route path="/leads" component={LeadsApp} />
           <Route path="/contratos" component={Contratos} />
+          <Route path="/tutoriais" component={Tutoriais} />
           <Route path="/salas" component={SalasEstudio} />
           <Route path="/salas-estudio" component={SalasEstudio} />
           <Route path="/checkout" component={Checkout} />
