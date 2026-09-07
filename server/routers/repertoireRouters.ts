@@ -356,6 +356,9 @@ export const repertoireRouters = {
         .select({
           id: studentRepertoire.id,
           title: studentRepertoire.title,
+          // Link público da própria música — alimenta o fallback "Abrir no YouTube"
+          // do portal quando o embed falha (ex: Erro 153 / embed desabilitado).
+          youtubeUrl: studentRepertoire.youtubeUrl,
           videoId: studentRepertoire.videoId,
           playlistId: studentRepertoire.playlistId,
           description: studentRepertoire.description,

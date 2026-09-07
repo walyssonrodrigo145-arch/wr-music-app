@@ -22,3 +22,9 @@ export function youtubeEmbedSrc(
   }
   return `${host}/videoseries?list=${playlistId}&rel=0&playsinline=1`;
 }
+
+/** URL da capa (thumbnail) oficial na CDN do YouTube. maxres não existe em
+ * todos os vídeos — o VideoFacade faz fallback em cascata para hqdefault. */
+export function youtubeThumbUrl(videoId: string, maxres = false): string {
+  return `https://i.ytimg.com/vi/${videoId}/${maxres ? "maxresdefault" : "hqdefault"}.jpg`;
+}

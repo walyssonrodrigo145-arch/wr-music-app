@@ -9,6 +9,7 @@ import {
   Eye, Award, Youtube, ExternalLink, FileText, Download, Play, ArrowRightLeft,
 } from "lucide-react";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import { VideoFacade } from "@/components/ui/VideoFacade";
 import { youtubeEmbedSrc } from "@/lib/youtubeEmbed";
 
 /**
@@ -478,20 +479,13 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
         description={playing?.studentName ? `Repertório de ${playing.studentName}` : "Executando pelo MusicPro"}
       >
         <div className="pt-1">
-          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black">
-            {playing?.src ? (
-              <iframe
-                key={playing.src}
-                src={playing.src}
-                title={playing?.title || "Player de música"}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="absolute inset-0 w-full h-full"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">Link sem vídeo válido.</div>
-            )}
-          </div>
+          {/* Capa antes do iframe (Erro 153/fundo branco) — iframe só após o play */}
+          <VideoFacade
+            key={playing?.id ?? "player"}
+            videoId={playing?.videoId ?? null}
+            title={playing?.title || "Player de música"}
+            embedSrc={playing?.src ?? null}
+          />
           <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
             {playing?.youtubeUrl && (
               <a

@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Music, Award, Eye, Loader2, Youtube, FileText, Pause, Play, ZoomIn, ZoomOut, ExternalLink, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
-import { youtubeEmbedSrc } from "@/lib/youtubeEmbed";
+import { VideoFacade } from "@/components/ui/VideoFacade";
+import { youtubeEmbedSrc, youtubeThumbUrl } from "@/lib/youtubeEmbed";
 
 /**
  * PRD Repertório — Seção no portal do aluno (aba Materiais).
@@ -316,7 +317,7 @@ export function RepertoireSection() {
               <div className="aspect-video bg-muted/50 relative overflow-hidden">
                 {item.videoId ? (
                   <img
-                    src={`https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`}
+                    src={youtubeThumbUrl(item.videoId)}
                     alt={item.title}
                     loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -395,24 +396,14 @@ export function RepertoireSection() {
           )}
 
           <div className={cn("gap-3", showChord && playingItem ? "grid lg:grid-cols-2" : "")}>
-            {/* Player */}
+            {/* Player (capa antes do iframe — evita fundo branco/Erro 153 na abertura) */}
             <div className={cn(showChord && playingItem ? "hidden lg:block" : "")}>
-              <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black">
-                {!embedSrc ? (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 size={26} className="animate-spin text-pink-400" />
-                  </div>
-                ) : (
-                  <iframe
-                    key={embedSrc}
-                    src={embedSrc}
-                    title={playingItem?.title || "Player de música"}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="absolute inset-0 w-full h-full"
-                  />
-                )}
-              </div>
+              <VideoFacade
+                key={playingItem?.id ?? "player"}
+                videoId={playingItem?.videoId ?? null}
+                title={playingItem?.title || "Player de música"}
+                embedSrc={embedSrc || null}
+              />
             </div>
 
             {/* Cifra (só desktop mostra junto; mobile = tab) */}
@@ -449,16 +440,28 @@ export function RepertoireSection() {
                   {playingItem.learnedAt ? "Remover marcação" : "Marcar como aprendida"}
                 </button>
               </div>
-              {!altHost && (
-                <button
-                  type="button"
-                  onClick={() => reloadAlt(playingItem)}
-                  className="text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors"
-                  title="Se o vídeo mostrar erro (ex: 153), troque o host do player"
-                >
-                  Erro no vídeo? Usar player alternativo
-                </button>
-              )}
+              <div className="flex items-center gap-4 flex-wrap">
+                {!altHost && (
+                  <button
+                    type="button"
+                    onClick={() => reloadAlt(playingItem)}
+                    className="text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors"
+                    title="Se o vídeo mostrar erro (ex: 153), troque o host do player"
+                  >
+                    Erro no vídeo? Usar player alternativo
+                  </button>
+                )}
+                {playingItem?.youtubeUrl && (
+                  <a
+                    href={playingItem.youtubeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <ExternalLink size={11} /> Abrir no YouTube →
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>
