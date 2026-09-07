@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { Music, Award, Eye, Loader2, Youtube, FileText, Pause, Play, ZoomIn, ZoomOut, ExternalLink, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { VideoFacade } from "@/components/ui/VideoFacade";
-import { youtubeEmbedSrc, youtubeThumbUrl } from "@/lib/youtubeEmbed";
+import { VideoThumb } from "@/components/ui/VideoThumb";
+import { youtubeEmbedSrc } from "@/lib/youtubeEmbed";
 
 /**
  * PRD Repertório — Seção no portal do aluno (aba Materiais).
@@ -316,12 +317,10 @@ export function RepertoireSection() {
             >
               <div className="aspect-video bg-muted/50 relative overflow-hidden">
                 {item.videoId ? (
-                  <img
-                    src={youtubeThumbUrl(item.videoId)}
+                  <VideoThumb
+                    videoId={item.videoId}
                     alt={item.title}
-                    loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500/20 to-rose-600/20">

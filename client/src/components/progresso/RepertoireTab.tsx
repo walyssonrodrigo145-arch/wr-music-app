@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { VideoFacade } from "@/components/ui/VideoFacade";
+import { VideoThumb } from "@/components/ui/VideoThumb";
 import { youtubeEmbedSrc } from "@/lib/youtubeEmbed";
 
 /**
@@ -201,12 +202,10 @@ export function RepertoireTab({ studentId, studentName }: { studentId: number; s
                   <Youtube size={36} className="text-pink-500/60" />
                 </div>
                 {item.videoId && (
-                  <img
-                    src={`https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`}
+                  <VideoThumb
+                    videoId={item.videoId}
                     alt={item.title}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                 )}
                 <button

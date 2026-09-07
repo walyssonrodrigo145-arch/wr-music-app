@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Play, Youtube } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { youtubeThumbUrl } from "@/lib/youtubeEmbed";
+import { VideoThumb } from "@/components/ui/VideoThumb";
 
 /**
  * Player de YouTube com CAPA antes do iframe (thumbnail facade — Erro 153).
- * Mostra a capa oficial do vídeo (maxres → hqdefault → placeholder) com botão
- * play e SÓ monta o iframe após o clique. Benefícios:
+ * Mostra a capa oficial do vídeo (cascata maxres → hqdefault → mqdefault via
+ * VideoThumb, com gradiente sempre renderizado atrás) com botão play e SÓ
+ * monta o iframe após o clique. Benefícios:
  * 1. Nunca fica fundo branco/vazio — antes do play sempre há capa ou placeholder;
  * 2. O iframe carrega sob gesto do usuário, atenuando erros de embed (Erro 153)
  *    e evitando pré-carga em massa de players;
@@ -27,26 +28,21 @@ export function VideoFacade({
   className?: string;
 }) {
   const [started, setStarted] = useState(false);
-  const [maxresFailed, setMaxresFailed] = useState(false);
 
   return (
     <div className={cn("relative w-full aspect-video rounded-2xl overflow-hidden bg-black", className)}>
       {!started ? (
         embedSrc ? (
           <>
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-pink-500/25 to-rose-600/25">
+              <Youtube size={36} className="text-pink-500/60" />
+            </div>
             {videoId && (
-              <img
-                src={youtubeThumbUrl(videoId, !maxresFailed)}
+              <VideoThumb
+                videoId={videoId}
                 alt={title}
-                loading="lazy"
-                onError={() => setMaxresFailed(true)}
                 className="absolute inset-0 w-full h-full object-cover"
               />
-            )}
-            {!videoId && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-pink-500/25 to-rose-600/25">
-                <Youtube size={36} className="text-pink-500/60" />
-              </div>
             )}
             <button
               type="button"

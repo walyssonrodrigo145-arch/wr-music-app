@@ -69,7 +69,10 @@ self.addEventListener('fetch', (event) => {
     url.startsWith('chrome-extension') ||
     url.includes('googleapis.com') ||
     url.includes('gstatic.com') ||
-    url.includes('google.com')
+    url.includes('google.com') ||
+    // Thumbnails do YouTube: nunca interceptar (evita falha de capa se o SW
+    // responder errado e mantém o carregamento direto da CDN oficial)
+    url.includes('ytimg.com')
   ) {
     logSWEvent('fetch_bypassed_api', { url, method: event.request.method });
     return;
