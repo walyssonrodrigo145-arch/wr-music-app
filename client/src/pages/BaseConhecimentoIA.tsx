@@ -295,7 +295,11 @@ export default function BaseConhecimentoIA() {
                         )}
 
                         <button
-                          onClick={() => deleteMutation.mutate({ id: topic.id })}
+                          onClick={() => {
+                            if (confirm(`Excluir o tópico "${topic.title}"? Esta ação é definitiva.`)) {
+                              deleteMutation.mutate({ id: topic.id });
+                            }
+                          }}
                           className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all"
                           title="Excluir tópico"
                         >

@@ -33,7 +33,9 @@ export async function buildUserContext(db: any, userId: number, orgId: number, i
     );
 
     // 3. Busca aulas agendadas para os próximos 7 dias a partir do início de hoje
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    // Início do dia no fuso de Brasília (o servidor roda em UTC — usar o fuso
+    // local distorcia "aulas de hoje" para ~9h antes do dia começar no Brasil).
+    const startOfDay = new Date(`${todayStr}T00:00:00-03:00`);
     const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const upcomingLessons = await db.select({
       title: lessons.title,

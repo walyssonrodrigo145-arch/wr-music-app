@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, aiPrompts, schoolKnowledgeBase, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -27,7 +27,7 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, deleteAsaasCharge, getAsaasPixQrCode } from "../utils/asaas";
 import { buildUserContext } from "../utils/aiContext";
-import { getSystemPrompt, AI_PROMPT_VERSIONS } from "../utils/aiPrompts";
+import { getSystemPrompt, AI_PROMPT_VERSIONS, buildKnowledgeContext } from "../utils/aiPrompts";
 import { resolveAiCredentials } from "../utils/aiProvider";
 import { callGemini, genAI } from "../utils/gemini";
 import { BillingEngine } from "../services/BillingEngine";
@@ -348,6 +348,39 @@ Texto original para reescrever:
           }
         }
 
+        // ── BASE DE CONHECIMENTO DA ESCOLA (aba "Cérebro da IA") ────────────────
+        // A MESMA fonte usada pela atendente do WhatsApp. ANTES o assistente de
+        // gestão NUNCA recebia esta base — perguntas sobre valores, regras,
+        // horários e políticas da escola eram respondidas como "não sei".
+        const kbTopics = await db
+          .select({ title: schoolKnowledgeBase.title, content: schoolKnowledgeBase.content })
+          .from(schoolKnowledgeBase)
+          .where(and(eq(schoolKnowledgeBase.organizationId, orgId), eq(schoolKnowledgeBase.isActive, 1)))
+          .limit(20);
+        if (kbTopics.length > 0) {
+          systemPrompt += `\n\n=== BASE DE CONHECIMENTO DA ESCOLA (CÉREBRO DA IA) ===\n`;
+          systemPrompt += `Informações oficiais da escola cadastradas pelo administrador (valores, regras, horários, políticas). Use como fonte da verdade para responder dúvidas sobre a escola:\n`;
+          systemPrompt += buildKnowledgeContext(
+            kbTopics.map((t) => ({ title: t.title, content: t.content })),
+            20,
+            4000
+          );
+        }
+
+        // ── PROMPTS GERAIS PERSONALIZADOS (ai_prompts type="geral") ─────────────
+        // Diretrizes da escola que valem para TODAS as conversas do assistente.
+        const generalPrompts = await db
+          .select({ name: aiPrompts.name, content: aiPrompts.content })
+          .from(aiPrompts)
+          .where(and(eq(aiPrompts.organizationId, orgId), eq(aiPrompts.active, true), eq(aiPrompts.type, "geral")))
+          .limit(5);
+        if (generalPrompts.length > 0) {
+          systemPrompt += `\n\n=== DIRETRIZES PERSONALIZADAS DA ESCOLA (PROMPTS GERAIS) ===\n`;
+          systemPrompt += generalPrompts
+            .map((p) => `\n--- [${p.name}] ---\n${p.content}`)
+            .join("\n");
+        }
+
         // Fetch professor's API key
         let professorId = ctx.user.id;
         if (ctx.user.role === "aluno") {
@@ -359,7 +392,21 @@ Texto original para reescrever:
 
         // Chama a IA
         // RF-002 (PRD): resolução unificada (suporta gemini|groq|opencode)
-        const creds = resolveAiCredentials(settingsData);
+        let creds = resolveAiCredentials(settingsData);
+        // Fallback: professor/admin sem chave própria usa a chave do DONO da escola
+        // (antes o chat quebrava para qualquer usuário sem settings com chave).
+        if (!creds.apiKey) {
+          const [orgOwner] = await db
+            .select({ ownerId: organizations.ownerId })
+            .from(organizations)
+            .where(eq(organizations.id, orgId))
+            .limit(1);
+          if (orgOwner?.ownerId && orgOwner.ownerId !== professorId) {
+            const ownerSettings = await getSettingsByUserId(orgId, orgOwner.ownerId);
+            const ownerCreds = resolveAiCredentials(ownerSettings);
+            if (ownerCreds.apiKey) creds = ownerCreds;
+          }
+        }
         const aiResponseRaw = await callGemini(formattedHistory, systemPrompt, false, creds.apiKey, creds.model, 0.4, {
           organizationId: orgId,
           userId: ctx.user.id,

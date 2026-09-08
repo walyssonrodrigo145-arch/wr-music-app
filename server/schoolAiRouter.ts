@@ -263,7 +263,7 @@ export const schoolAiRouter = router({
         4000
       );
 
-      const enrollmentLink = `https://wrmusicpro.com.br/matricula/${schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+      const enrollmentLink = `${process.env.APP_URL || "https://wrmusicpro.com.br"}/matricula/${schoolName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
 
       // RF-004: fonte única da atendente (mesma personalidade/tom do atendimento real)
       const systemPrompt = buildSchoolKnowledgePrompt({
