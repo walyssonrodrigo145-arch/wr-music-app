@@ -25,7 +25,6 @@ import {
 import { RepositionsSettings } from "@/components/settings/RepositionsSettings";
 import { AiPromptsSettings } from "@/components/settings/AiPromptsSettings";
 import { useTour } from "@/components/tour/TourProvider";
-import { ProfessoresTab } from "./ProfessoresTab";
 import { SalasEstudioTab } from "./SalasEstudioTab";
 import { LogoUploadZone } from "@/components/logo/LogoUploadZone";
 import { LogoEditorModal, type LogoEditParams } from "@/components/logo/LogoEditorModal";
@@ -43,12 +42,12 @@ import { PlanosBolsas } from "@/components/settings/PlanosBolsas";
 // ─── Tab types ───────────────────────────────────────────────────────────────
 type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "prompts" | "reposicoes" | "seguranca" | "ajuda";
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+const TABS: { id: Tab; label: string; icon: React.ElementType; href?: string }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
   { id: "planos", label: "Planos & Bolsas", icon: GraduationCap },
-  { id: "professores", label: "Professores", icon: Users },
+  { id: "professores", label: "Professores", icon: Users, href: "/professores" },
   { id: "modelos_contrato", label: "Modelos de Contrato", icon: FileSignature },
   { id: "reposicoes", label: "Reposições", icon: Repeat },
   { id: "prompts", label: "Prompts IA", icon: FileCode2 },
@@ -535,7 +534,7 @@ export default function Configuracoes() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => (tab as any).href ? (window.location.href = (tab as any).href) : setActiveTab(tab.id)}
                     className={cn(
                       "flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black transition-all lg:w-full text-left uppercase tracking-widest",
                       activeTab === tab.id
@@ -2318,10 +2317,7 @@ export default function Configuracoes() {
               </div>
             )}
 
-            {/* ── ABA: PROFESSORES ── */}
-            {activeTab === "professores" && (
-              <ProfessoresTab />
-            )}
+            {/* ── ABA: PROFESSORES (movida para o menu lateral /professores) ── */}
 
             {/* ── ABA: SALAS DE ESTÚDIO ── */}
             {activeTab === "salas" && (

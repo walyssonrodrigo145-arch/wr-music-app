@@ -347,6 +347,121 @@ export const reportsRouters = {
       }));
     }),
 
+    /**
+     * Dashboard de professores — ADMIN/OWNER apenas (professor NÃO acessa).
+     * KPIs + métricas por professor: alunos ativos, aulas do mês, folha do mês,
+     * último acesso, telefone e permissões (para a nova página /professores).
+     */
+    overview: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin" && ctx.user.openId !== ENV.ownerOpenId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem acessar a gestão de professores." });
+      }
+      const db = await getDb();
+      if (!db) return { kpis: { totalProfessores: 0, alunosAtivos: 0, aulasMes: 0, custoMes: 0 }, professores: [] };
+      const orgId = ctx.user.organizationId!;
+
+      // Mês/ano corrente no fuso de Brasília
+      const [year, month] = getTodayBR().split("-").map(Number);
+
+      const rows = await db
+        .select({
+          professor: professores,
+          userName: users.name,
+          userEmail: users.email,
+          lastSignedIn: users.lastSignedIn,
+        })
+        .from(professores)
+        .innerJoin(users, eq(users.id, professores.userId))
+        .where(eq(professores.organizationId, orgId));
+
+      const profUserIds = rows.map((p) => p.professor.userId);
+
+      // Alunos ATIVOS por professor (students.professorId = professores.userId)
+      const alunosMap = new Map<number, number>();
+      if (profUserIds.length > 0) {
+        const rows = await db
+          .select({ professorId: students.professorId, total: sql<number>`CAST(count(*) AS INT)` })
+          .from(students)
+          .where(and(
+            eq(students.organizationId, orgId),
+            eq(students.status, "ativo"),
+            inArray(students.professorId, profUserIds)
+          ))
+          .groupBy(students.professorId);
+        for (const r of rows) alunosMap.set(r.professorId, Number(r.total));
+      }
+
+      // Aulas do MÊS por professor (lessons.userId = professores.userId), sem canceladas
+      const aulasMap = new Map<number, number>();
+      if (profUserIds.length > 0) {
+        const rows = await db
+          .select({ userId: lessons.userId, total: sql<number>`CAST(count(*) AS INT)` })
+          .from(lessons)
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            inArray(lessons.userId, profUserIds),
+            ne(lessons.status, "cancelada"),
+            sql`EXTRACT(MONTH FROM ${lessons.scheduledAt}) = ${month}`,
+            sql`EXTRACT(YEAR FROM ${lessons.scheduledAt}) = ${year}`
+          ))
+          .groupBy(lessons.userId);
+        for (const r of rows) aulasMap.set(r.userId, Number(r.total));
+      }
+
+      // Folha do MÊS por professor (professorPayments.professorId = professores.id)
+      const pagMap = new Map<number, { totalClasses: number; totalAmount: number; status: string }>();
+      if (rows.length > 0) {
+        const payRows = await db
+          .select({
+            professorId: professorPayments.professorId,
+            totalClasses: professorPayments.totalClasses,
+            totalAmount: professorPayments.totalAmount,
+            status: professorPayments.status,
+          })
+          .from(professorPayments)
+          .where(and(
+            eq(professorPayments.organizationId, orgId),
+            eq(professorPayments.month, month),
+            eq(professorPayments.year, year)
+          ));
+        for (const r of payRows) {
+          pagMap.set(r.professorId, {
+            totalClasses: Number(r.totalClasses),
+            totalAmount: Number(r.totalAmount),
+            status: r.status,
+          });
+        }
+      }
+
+      const professoresOut = rows.map((p) => ({
+        id: p.professor.id,
+        userId: p.professor.userId,
+        name: p.userName,
+        email: p.userEmail,
+        telefone: p.professor.telefone,
+        foto: p.professor.foto,
+        especialidade: p.professor.especialidade,
+        permissions: p.professor.permissions,
+        paymentType: p.professor.paymentType,
+        hourlyRate: p.professor.hourlyRate,
+        paymentPercentage: p.professor.paymentPercentage,
+        lastSignedIn: p.lastSignedIn,
+        alunosAtivos: alunosMap.get(p.professor.userId) ?? 0,
+        aulasMes: aulasMap.get(p.professor.userId) ?? 0,
+        pagamentoMes: pagMap.get(p.professor.id) ?? null,
+      }));
+
+      return {
+        kpis: {
+          totalProfessores: rows.length,
+          alunosAtivos: Array.from(alunosMap.values()).reduce((a, b) => a + b, 0),
+          aulasMes: Array.from(aulasMap.values()).reduce((a, b) => a + b, 0),
+          custoMes: Array.from(pagMap.values()).reduce((a, p) => a + p.totalAmount, 0),
+        },
+        professores: professoresOut,
+      };
+    }),
+
     create: protectedProcedure
       .input(z.object({
         name: z.string(),
