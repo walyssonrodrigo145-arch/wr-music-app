@@ -580,12 +580,14 @@ function ProfessoresPanel() {
         </div>
       )}
 
-      {/* Regras de Cobrança (PRD) */}
-      <PaymentRulesDialog
-        professor={rulesProf}
-        open={!!rulesProf}
-        onOpenChange={(o) => { if (!o) setRulesProf(null); }}
-      />
+      {/* Regras de Cobrança (PRD) — render condicional: professor é null ao carregar */}
+      {rulesProf && (
+        <PaymentRulesDialog
+          professor={rulesProf}
+          open
+          onOpenChange={(o) => { if (!o) setRulesProf(null); }}
+        />
+      )}
     </div>
   );
 }
