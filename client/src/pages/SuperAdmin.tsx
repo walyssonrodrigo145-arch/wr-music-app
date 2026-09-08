@@ -6,6 +6,7 @@ import {
   ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
   Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search,
   CheckCircle2, Eye, GraduationCap, ChevronUp, ChevronDown,
+  Copy, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SLIDE_THEMES, getSlideTheme } from "@/lib/slideThemes";
@@ -57,6 +58,25 @@ export default function SuperAdmin() {
 function SuperAdminPanel() {
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "tutoriais">("dashboard");
+
+  // Copiar telefone da escola (navegador moderno + fallback antigo)
+  const copyPhone = async (phone: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(phone);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = phone;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      toast.success(`Telefone copiado: ${phone}`);
+    } catch {
+      toast.error("Não foi possível copiar o telefone.");
+    }
+  };
 
   // ── Estado dos modais ──────────────────────────────────────────────────────
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
@@ -331,6 +351,7 @@ function SuperAdminPanel() {
                   <tr>
                     <th className="px-4 py-3">ID</th>
                     <th className="px-4 py-3">Nome da Escola</th>
+                    <th className="px-4 py-3">Contato</th>
                     <th className="px-4 py-3">Professores</th>
                     <th className="px-4 py-3">Alunos</th>
                     <th className="px-4 py-3">Status</th>
@@ -342,6 +363,31 @@ function SuperAdminPanel() {
                     <tr key={org.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3 font-medium text-muted-foreground">{org.id}</td>
                       <td className="px-4 py-3 font-bold">{org.name}</td>
+                      <td className="px-4 py-3">
+                        {org.schoolPhone ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold tabular-nums whitespace-nowrap">{org.schoolPhone}</span>
+                            <button
+                              onClick={() => copyPhone(org.schoolPhone)}
+                              title="Copiar telefone"
+                              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                            >
+                              <Copy size={13} />
+                            </button>
+                            <a
+                              href={`https://wa.me/55${org.schoolPhone.replace(/\D/g, "")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Abrir conversa no WhatsApp"
+                              className="p-1.5 rounded-md hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transition-colors"
+                            >
+                              <MessageCircle size={13} />
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">{org.totalUsers}</td>
                       <td className="px-4 py-3">{org.totalStudents}</td>
                       <td className="px-4 py-3">

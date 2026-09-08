@@ -137,6 +137,26 @@ export const superAdminRouter = router({
       total: sql<number>`CAST(count(*) AS INT)`,
     }).from(professores).groupBy(professores.organizationId);
 
+    // ── Contato das escolas (settings.schoolPhone — fonte única do telefone) ──
+    const orgIds = orgsList.map((o) => o.id);
+    const phoneMap = new Map<number, string | null>();
+    const schoolNameMap = new Map<number, string | null>();
+    if (orgIds.length > 0) {
+      const settingsRows = await db
+        .select({
+          organizationId: settings.organizationId,
+          schoolPhone: settings.schoolPhone,
+          schoolName: settings.schoolName,
+        })
+        .from(settings)
+        .where(inArray(settings.organizationId, orgIds));
+      for (const s of settingsRows) {
+        if (s.organizationId == null) continue;
+        if (!phoneMap.has(s.organizationId)) phoneMap.set(s.organizationId, s.schoolPhone || null);
+        if (!schoolNameMap.has(s.organizationId)) schoolNameMap.set(s.organizationId, s.schoolName || null);
+      }
+    }
+
     // Busca a quantidade real de alunos ATIVOS cadastrados por escola
     const studentCounts = await db.select({
       organizationId: students.organizationId,
@@ -185,6 +205,9 @@ export const superAdminRouter = router({
       lastSignedIn: lastAccessMap.get(org.id) ?? null,
       totalUsers: profCountMap.get(org.id) ?? 0,
       totalStudents: studentCountMap.get(org.id) ?? 0,
+      // Contato da escola (para o super admin entrar em contato direto)
+      schoolPhone: phoneMap.get(org.id) ?? null,
+      schoolNameConfigured: schoolNameMap.get(org.id) ?? null,
     }));
   }),
 
