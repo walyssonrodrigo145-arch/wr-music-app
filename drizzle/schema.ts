@@ -830,11 +830,97 @@ export const professorPayments = pgTable("professor_payments", {
   paidAt: timestamp("paidAt"),
   notes: text("notes"),
   adjustments: text("adjustments"), // JSON array of manual adjustments: [{desc: string, value: number}]
+  // ── PRD Regras de Cobrança: snapshot da regra usada + memória do cálculo ──
+  ruleSnapshot: jsonb("ruleSnapshot"),
+  calculationMemory: jsonb("calculationMemory"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
 });
 
 export type ProfessorPayment = typeof professorPayments.$inferSelect;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REGRAS DE COBRANÇA DE PROFESSORES (PRD Regras de Cobrança)
+// Motor de remuneração versionado: cada save cria uma NOVA versão (startDate)
+// e fecha a anterior (endDate). A folha usa a regra VIGENTE no período e guarda
+// snapshot + memória de cálculo no professor_payments (folhas fechadas imutáveis).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const teacherPaymentRules = pgTable("teacher_payment_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  // NULL = regra PADRÃO da escola (isSchoolDefault = true)
+  teacherId: integer("teacherId"),
+  name: varchar("name", { length: 120 }).notNull(),
+  // por_aula | percentual | fixo_mensal | hibrido
+  ruleType: varchar("ruleType", { length: 20 }).notNull(),
+  fixedAmount: decimal("fixedAmount", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  amountPerClass: decimal("amountPerClass", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  percentage: decimal("percentage", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  // bruto | recebido | liquido | manual
+  calculationBase: varchar("calculationBase", { length: 20 }).default("bruto").notNull(),
+  manualBaseAmount: decimal("manualBaseAmount", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  // semanal | quinzenal | mensal
+  closingPeriod: varchar("closingPeriod", { length: 20 }).default("mensal").notNull(),
+  closingDay: integer("closingDay").default(30).notNull(),
+  paymentDay: integer("paymentDay").default(5).notNull(),
+  paymentDaysAfter: integer("paymentDaysAfter").default(0).notNull(),
+  isSchoolDefault: boolean("isSchoolDefault").default(false).notNull(),
+  active: boolean("active").default(true).notNull(),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate"),
+  createdByUserId: integer("createdByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("teacher_payment_rules_teacher_idx").on(table.teacherId, table.startDate),
+]);
+
+export type TeacherPaymentRule = typeof teacherPaymentRules.$inferSelect;
+export type InsertTeacherPaymentRule = typeof teacherPaymentRules.$inferInsert;
+
+/** Condições por tipo de aula/falta/cancelamento (uma linha por condição da regra). */
+export const teacherPaymentRuleConditions = pgTable("teacher_payment_rule_conditions", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("ruleId").notNull(),
+  // aula_realizada|aula_reposicao|aula_experimental|aula_gratuita|aula_extra|aula_avulsa|
+  // falta_aluno|falta_professor|cancelamento_aluno|cancelamento_escola
+  conditionType: varchar("conditionType", { length: 40 }).notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  // remunerar|nao_remunerar|parcial|descontar|exigir_reposicao|valor_diferente|gerar_reposicao
+  action: varchar("action", { length: 30 }).default("remunerar").notNull(),
+  percentage: decimal("percentage", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  fixedAmount: decimal("fixedAmount", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  // antecedência mínima em horas (cancelamento_aluno)
+  minHours: integer("minHours"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("teacher_payment_rule_conditions_rule_idx").on(table.ruleId),
+]);
+
+export type TeacherPaymentRuleCondition = typeof teacherPaymentRuleConditions.$inferSelect;
+export type InsertTeacherPaymentRuleCondition = typeof teacherPaymentRuleConditions.$inferInsert;
+
+/** Regras específicas por INSTRUMENTO (cursos são mapeados para instrumentos).
+ * Prioridade: regra do instrumento > regra geral da professora. */
+export const teacherPaymentRuleCourses = pgTable("teacher_payment_rule_courses", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("ruleId").notNull(),
+  instrumentId: integer("instrumentId").notNull(),
+  ruleType: varchar("ruleType", { length: 20 }).notNull(), // por_aula|percentual|fixo_mensal|hibrido
+  amountPerClass: decimal("amountPerClass", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  percentage: decimal("percentage", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  fixedAmount: decimal("fixedAmount", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("teacher_payment_rule_courses_rule_idx").on(table.ruleId),
+]);
+
+export type TeacherPaymentRuleCourse = typeof teacherPaymentRuleCourses.$inferSelect;
+export type InsertTeacherPaymentRuleCourse = typeof teacherPaymentRuleCourses.$inferInsert;
 export type InsertProfessorPayment = typeof professorPayments.$inferInsert;
 
 // ─── ATTENDANCE TOKENS (QR Code Presence) ─────────────────────

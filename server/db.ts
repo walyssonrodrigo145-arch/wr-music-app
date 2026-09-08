@@ -73,6 +73,73 @@ async function ensureSchemaConsistency(db: any) {
         CREATE INDEX IF NOT EXISTS "system_tutorials_active_pos_idx"
         ON "system_tutorials" ("isActive", "position")
       `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "teacher_payment_rules" (
+          "id" serial PRIMARY KEY,
+          "organizationId" integer NOT NULL,
+          "teacherId" integer,
+          "name" varchar(120) NOT NULL,
+          "ruleType" varchar(20) NOT NULL,
+          "fixedAmount" numeric(10,2) DEFAULT '0.00' NOT NULL,
+          "amountPerClass" numeric(10,2) DEFAULT '0.00' NOT NULL,
+          "percentage" numeric(5,2) DEFAULT '0.00' NOT NULL,
+          "calculationBase" varchar(20) DEFAULT 'bruto' NOT NULL,
+          "manualBaseAmount" numeric(10,2) DEFAULT '0.00' NOT NULL,
+          "closingPeriod" varchar(20) DEFAULT 'mensal' NOT NULL,
+          "closingDay" integer DEFAULT 30 NOT NULL,
+          "paymentDay" integer DEFAULT 5 NOT NULL,
+          "paymentDaysAfter" integer DEFAULT 0 NOT NULL,
+          "isSchoolDefault" boolean DEFAULT false NOT NULL,
+          "active" boolean DEFAULT true NOT NULL,
+          "startDate" timestamp NOT NULL,
+          "endDate" timestamp,
+          "createdByUserId" integer,
+          "createdAt" timestamp DEFAULT now() NOT NULL,
+          "updatedAt" timestamp DEFAULT now() NOT NULL
+        )
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS "teacher_payment_rules_teacher_idx"
+        ON "teacher_payment_rules" ("teacherId", "startDate")
+      `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "teacher_payment_rule_conditions" (
+          "id" serial PRIMARY KEY,
+          "ruleId" integer NOT NULL,
+          "conditionType" varchar(40) NOT NULL,
+          "enabled" boolean DEFAULT true NOT NULL,
+          "action" varchar(30) DEFAULT 'remunerar' NOT NULL,
+          "percentage" numeric(5,2) DEFAULT '0.00' NOT NULL,
+          "fixedAmount" numeric(10,2) DEFAULT '0.00' NOT NULL,
+          "minHours" integer,
+          "createdAt" timestamp DEFAULT now() NOT NULL,
+          "updatedAt" timestamp DEFAULT now() NOT NULL
+        )
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS "teacher_payment_rule_conditions_rule_idx"
+        ON "teacher_payment_rule_conditions" ("ruleId")
+      `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "teacher_payment_rule_courses" (
+          "id" serial PRIMARY KEY,
+          "ruleId" integer NOT NULL,
+          "instrumentId" integer NOT NULL,
+          "ruleType" varchar(20) NOT NULL,
+          "amountPerClass" numeric(10,2) DEFAULT '0.00' NOT NULL,
+          "percentage" numeric(5,2) DEFAULT '0.00' NOT NULL,
+          "fixedAmount" numeric(10,2) DEFAULT '0.00' NOT NULL,
+          "startDate" timestamp NOT NULL,
+          "endDate" timestamp,
+          "createdAt" timestamp DEFAULT now() NOT NULL
+        )
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS "teacher_payment_rule_courses_rule_idx"
+        ON "teacher_payment_rule_courses" ("ruleId")
+      `);
+      await db.execute(sql`ALTER TABLE "professor_payments" ADD COLUMN IF NOT EXISTS "ruleSnapshot" jsonb`);
+      await db.execute(sql`ALTER TABLE "professor_payments" ADD COLUMN IF NOT EXISTS "calculationMemory" jsonb`);
     } catch (e) {
       debugLog("[Database] Failed to execute create system tables:", e);
     }

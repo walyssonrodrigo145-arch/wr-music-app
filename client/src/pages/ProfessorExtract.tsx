@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,17 @@ export default function ProfessorExtract() {
     year: viewYear,
   });
 
+  // ── AUTO-CÁLCULO (PRD): gera a folha automaticamente ao abrir, sem clique ──
+  const autoCalcRef = useRef<string>("");
+  useEffect(() => {
+    const key = `${viewMonth}/${viewYear}`;
+    if (autoCalcRef.current === key) return;
+    if (!isLoading && payments && payments.length === 0) {
+      autoCalcRef.current = key;
+      calculateMutation.mutate({ month: viewMonth, year: viewYear });
+    }
+  }, [isLoading, payments, viewMonth, viewYear]);
+
   const { data: historyData } = trpc.professorPayments.getHistory.useQuery({
     year: viewYear,
   });
@@ -98,6 +109,10 @@ export default function ProfessorExtract() {
       toast.success("Pagamentos calculados com sucesso!", {
         description: `Processados registros para ${data.count} professores.`,
       });
+      const semRegra = (data?.results || []).filter((r: any) => r.warnings?.length);
+      if (semRegra.length > 0) {
+        toast.warning(`${semRegra.length} professora(s) sem regra de remuneração configurada — configure em Professores → Regras de Cobrança.`);
+      }
       refetch();
     },
     onError: (err) => toast.error(err.message || "Erro ao calcular pagamentos"),
@@ -1109,6 +1124,23 @@ export default function ProfessorExtract() {
                       </div>
                     </div>
                   )}
+                  {(() => {
+                    const pay = displayPayments.find(p => p.id === detailsPaymentId);
+                    let mem: any = null;
+                    try { mem = typeof pay?.calculationMemory === "string" ? JSON.parse(pay.calculationMemory) : pay?.calculationMemory; } catch { mem = null; }
+                    if (!mem) return null;
+                    return (
+                      <div className="pt-2 border-t border-border space-y-1">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Memória do cálculo</p>
+                        {mem.composition?.map((line: string, i: number) => (
+                          <p key={i} className="text-[11px] text-muted-foreground">{line}</p>
+                        ))}
+                        {mem.warnings?.map((w: string, i: number) => (
+                          <p key={`w${i}`} className="text-[10px] text-amber-600">{w}</p>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

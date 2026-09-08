@@ -318,6 +318,31 @@ export const financeiroRouters = {
           const markPaidWhere = isAdminMarkPaid
             ? and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId))
             : and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId), eq(paymentDues.userId, ctx.user.id));
+
+          // ── DESCONTO PRECISA SER PERSISTIDO (PRD Regras de Cobrança / fix mensalidade) ──
+          // O BillingEngine calcula (juros/multa/desconto antecipado) mas NÃO gravava o
+          // valor final — o registro pago ficava com o valor CHEIO. Ao dar baixa, aplica
+          // o cálculo do dia e persiste o valor real (com desconto) em amount.
+          try {
+            const { BillingEngine } = await import("../services/BillingEngine");
+            const calc = await BillingEngine.calculateInvoice(input.id, { targetDate: new Date() });
+            const valorReal = Math.round(calc.updatedAmount * 100) / 100;
+            const valorAtual = Number(due?.amount || 0);
+            if (valorReal !== valorAtual) {
+              await db.update(paymentDues)
+                .set({
+                  amount: valorReal.toFixed(2),
+                  originalAmount: due?.originalAmount ?? (due?.amount ? Number(due.amount).toFixed(2) : null),
+                  updatedAmountCache: valorReal.toFixed(2),
+                  lastCalculation: new Date(),
+                })
+                .where(and(eq(paymentDues.id, input.id), eq(paymentDues.organizationId, orgId)));
+              debugLog(`[MarkPaid] Desconto/juros aplicado na baixa: ${valorAtual.toFixed(2)} → ${valorReal.toFixed(2)} (due ${input.id})`);
+            }
+          } catch (billingErr) {
+            console.warn(`[MarkPaid] Não foi possível recalcular valor da baixa (due ${input.id}):`, billingErr);
+          }
+
           await db.update(paymentDues)
             .set({ status: "pago", paidAt: new Date(), updatedAt: new Date() })
             .where(markPaidWhere);
@@ -328,7 +353,12 @@ export const financeiroRouters = {
             .where(and(eq(reminders.paymentDueId, input.id), eq(reminders.organizationId, orgId), eq(reminders.userId, ctx.user.id), eq(reminders.status, "pendente")));
           
           if (paymentDetails) {
-            const valor = Number(paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            const [freshDue] = await db
+              .select({ amount: paymentDues.amount })
+              .from(paymentDues)
+              .where(eq(paymentDues.id, input.id))
+              .limit(1);
+            const valor = Number(freshDue?.amount ?? paymentDetails.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
             await notifyUser(ctx.user.id, {
               title: "Pagamento Confirmado",
               content: `O aluno ${paymentDetails.studentName || "Aluno"} teve o pagamento confirmado no valor de ${valor}.`,
@@ -1567,11 +1597,11 @@ export const financeiroRouters = {
             .from(professores)
             .where(eq(professores.organizationId, orgId));
 
-          const results: Array<{ professorId: number; totalClasses: number; totalMinutes: number; totalCredits: number; totalAmount: number }> = [];
+          const results: Array<{ professorId: number; totalClasses: number; totalMinutes: number; totalCredits: number; totalAmount: number; warnings: string[] }> = [];
 
           for (const prof of allProfessors) {
             const result = await calculateAndSaveProfessorPayment(db, orgId, prof, input.month, input.year);
-            results.push({ professorId: result.professorId, totalClasses: result.totalClasses, totalMinutes: result.totalMinutes, totalCredits: result.totalCredits, totalAmount: result.totalAmount });
+            results.push({ professorId: result.professorId, totalClasses: result.totalClasses, totalMinutes: result.totalMinutes, totalCredits: result.totalCredits, totalAmount: result.totalAmount, warnings: result.warnings });
           }
 
           return { success: true, count: results.length, results };

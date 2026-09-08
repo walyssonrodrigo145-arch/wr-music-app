@@ -32,6 +32,7 @@ import { repositionsRouters } from "./repositionsRouters";
 import { aiSpecialistsRouters } from "./aiPromptsRouters";
 import { repertoireRouters } from "./repertoireRouters";
 import { tutorialsRouters } from "./tutorialsRouters";
+import { teacherPaymentRulesRouters } from "./teacherPaymentRulesRouters";
 
 export const appRouter = router({
   superAdmin: superAdminRouter,
@@ -67,6 +68,7 @@ export const appRouter = router({
   ...aiSpecialistsRouters,
   ...repertoireRouters,
   ...tutorialsRouters,
+  ...teacherPaymentRulesRouters,
 });
 
 export type AppRouter = typeof appRouter;

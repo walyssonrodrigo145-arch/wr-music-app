@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { PaymentRulesDialog } from "@/components/professores/PaymentRulesDialog";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -107,6 +108,7 @@ function ProfessoresPanel() {
 
   const [search, setSearch] = useState("");
   const [filterEsp, setFilterEsp] = useState("all");
+  const [rulesProf, setRulesProf] = useState<any>(null);
 
   // ── Form / Modal ──
   const [isOpen, setIsOpen] = useState(false);
@@ -556,6 +558,9 @@ function ProfessoresPanel() {
                       <a href="/folha" title="Ver Folha de Pagamento" className="h-9 w-9 flex items-center justify-center rounded-lg bg-muted/40 hover:bg-muted text-muted-foreground transition-all active:scale-95">
                         <FileText size={14} />
                       </a>
+                      <button onClick={() => setRulesProf(prof)} title="Regras de Cobrança" className="h-9 w-9 flex items-center justify-center rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all active:scale-95 cursor-pointer">
+                        <DollarSign size={14} />
+                      </button>
                       <button onClick={() => handleOpenEdit(prof)} title="Editar" className="h-9 w-9 flex items-center justify-center rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95 cursor-pointer">
                         <Edit2 size={14} />
                       </button>
@@ -574,6 +579,13 @@ function ProfessoresPanel() {
           })}
         </div>
       )}
+
+      {/* Regras de Cobrança (PRD) */}
+      <PaymentRulesDialog
+        professor={rulesProf}
+        open={!!rulesProf}
+        onOpenChange={(o) => { if (!o) setRulesProf(null); }}
+      />
     </div>
   );
 }
