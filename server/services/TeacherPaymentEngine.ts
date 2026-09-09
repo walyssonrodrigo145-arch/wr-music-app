@@ -49,6 +49,7 @@ export interface LessonLike {
   studentId: number | null;
   title?: string | null;
   instrumentId?: number | null;
+  updatedAt?: string | Date | null;
 }
 
 export interface TeacherPaymentInput {
@@ -115,7 +116,7 @@ export function classifyLesson(l: LessonLike, now: Date): { type: string; remune
   }
   if (l.status === "falta") return { type: "falta_aluno", remuneravel: false };
   if (l.status === "falta_professor") return { type: "falta_professor", remuneravel: false };
-  if (l.status === "a_repor") return { type: "aula_reposicao", remuneravel: false };
+  if (l.status === "a_repor") return { type: "agendada", remuneravel: false }; // aula a repor não conta até a reposição ser concluída
   if (l.status === "cancelada") return { type: "cancelamento_aluno", remuneravel: false };
   if (l.status === "agendada" || l.status === "remarcada") return { type: "agendada", remuneravel: false };
   return { type: "aula_realizada", remuneravel: true };
@@ -125,8 +126,9 @@ export function classifyLesson(l: LessonLike, now: Date): { type: string; remune
 function conditionFor(conditions: ConditionLike[], type: string): ConditionLike | null {
   const found = conditions.find((c) => c.conditionType === type);
   if (found) return found.enabled ? found : null;
-  // Defaults: aulas entram; faltas/cancelamentos não remuneram
-  if (type === "aula_realizada" || type === "aula_reposicao" || type === "aula_experimental" || type === "aula_extra" || type === "aula_avulsa" || type === "aula_gratuita") {
+  // Defaults alinhados ao dialog: aulas regulares/reposição/extra/avulsa entram;
+  // experimental/gratuita e faltas/cancelamentos NÃO remuneram por padrão.
+  if (type === "aula_realizada" || type === "aula_reposicao" || type === "aula_extra" || type === "aula_avulsa") {
     return { conditionType: type, enabled: true, action: "remunerar", percentage: 0, fixedAmount: 0, minHours: null };
   }
   return { conditionType: type, enabled: true, action: "nao_remunerar", percentage: 0, fixedAmount: 0, minHours: null };
@@ -167,7 +169,7 @@ export function computeTeacherPayment(
   // ── 2. Aplicação das condições → aulas remuneradas/descontos ──
   let remuneradas = 0;
   let naoRemuneradas = 0;
-  let descontoParcialTotal = 0;
+  let unidadesDesconto = 0;
   let adicionalValorDiferente = 0;
   let somaPorAula = 0;
   const valorPorAulaBase = num(rule.amountPerClass);
@@ -200,7 +202,7 @@ export function computeTeacherPayment(
       remunera = false;
       naoRemuneradas += 1;
       // desconto calculado depois com valorPorAula (base geral ou instrumento)
-      descontoParcialTotal += 1; // marca 1 unidade de desconto
+      unidadesDesconto += 1; // marca 1 unidade de desconto
       continue;
     } else if (cond.action === "exigir_reposicao") {
       remunera = false;
@@ -208,11 +210,14 @@ export function computeTeacherPayment(
       remunera = false;
     }
 
-    // Cancelamento: antecedência mínima — se cancelou COM antecedência → não remunera;
+    // Cancelamento: antecedência mínima — se cancelou COM antecedência (>= minHours) → não remunera;
     // sem antecedência (menos que minHours) → remunera normalmente (regra do PRD).
     if (type === "cancelamento_aluno" && cond && cond.minHours) {
-      const antecHoras = (new Date(item.lesson.scheduledAt).getTime() - now.getTime()) / 3_600_000;
-      remunera = antecHoras < cond.minHours; // < 24h = sem antecedência = remunera
+      // canceledAt = momento da baixa (updatedAt é atualizado no cancelamento);
+      // sem canceledAt (ex.: simulador) usa `now` (aula já cancelada no passado → remunera).
+      const canceledAt = item.lesson.updatedAt ? new Date(item.lesson.updatedAt) : now;
+      const antecHoras = (new Date(item.lesson.scheduledAt).getTime() - canceledAt.getTime()) / 3_600_000;
+      remunera = antecHoras < cond.minHours; // < minHours = sem antecedência = remunera
     }
 
     if (remunera) {
@@ -232,9 +237,6 @@ export function computeTeacherPayment(
         adicionalValorDiferente += valorEspecial;
       } else {
         somaPorAula += valorItem * fator;
-      }
-      if (fator < 1) {
-        descontoParcialTotal += (1 - fator);
       }
     } else {
       naoRemuneradas += 1;
@@ -275,8 +277,8 @@ export function computeTeacherPayment(
 
   // Adicionais (aulas com valor diferente — ex: reposição R$ 30 específico)
   const adicionais = adicionalValorDiferente;
-  // Descontos (parciais + faltas da professora descontadas a valorPorAula)
-  const descontos = (descontoParcialTotal * valorPorAula) + (counted.filter((c) => c.condition && c.condition.action === "descontar").length * valorPorAula);
+  // Descontos (faltas da professora descontadas a valorPorAula)
+  const descontos = unidadesDesconto * valorPorAula;
 
   if (descontos > 0) composition.push(`Descontos: R$ ${descontos.toFixed(2)}`);
   if (adicionais > 0) composition.push(`Adicionais: R$ ${adicionais.toFixed(2)}`);

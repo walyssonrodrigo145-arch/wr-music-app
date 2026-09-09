@@ -179,7 +179,13 @@ export function PaymentRulesDialog({ professor, open, onOpenChange }: { professo
       paymentDay: Number(form.paymentDay) || 5,
       paymentDaysAfter: Number(form.paymentDaysAfter) || 0,
       conditions: CONDITION_TYPES.map((ct) => ({ conditionType: ct.id, ...conditions[ct.id] })).filter((c) => c.enabled),
-      courseRules,
+      courseRules: courseRules.map((cr) => ({
+        instrumentId: Number(cr.instrumentId) || 0,
+        ruleType: cr.ruleType,
+        amountPerClass: Number(cr.amountPerClass) || 0,
+        percentage: Number(cr.percentage) || 0,
+        fixedAmount: Number(cr.fixedAmount) || 0,
+      })),
     };
     saveMutation.mutate(payload);
   };
@@ -199,7 +205,13 @@ export function PaymentRulesDialog({ professor, open, onOpenChange }: { professo
         paymentDay: Number(form.paymentDay) || 5,
         paymentDaysAfter: Number(form.paymentDaysAfter) || 0,
         conditions: CONDITION_TYPES.map((ct) => ({ conditionType: ct.id, ...conditions[ct.id] })).filter((c) => c.enabled),
-        courseRules,
+        courseRules: courseRules.map((cr) => ({
+          instrumentId: Number(cr.instrumentId) || 0,
+          ruleType: cr.ruleType,
+          amountPerClass: Number(cr.amountPerClass) || 0,
+          percentage: Number(cr.percentage) || 0,
+          fixedAmount: Number(cr.fixedAmount) || 0,
+        })),
       },
       aulasRealizadas: Number(sim.aulasRealizadas) || 0,
       reposicoes: Number(sim.reposicoes) || 0,

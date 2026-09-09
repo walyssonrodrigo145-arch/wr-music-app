@@ -78,6 +78,7 @@ export async function calculateAndSaveProfessorPayment(
       scheduledAt: lessons.scheduledAt,
       studentId: lessons.studentId,
       title: lessons.title,
+      updatedAt: lessons.updatedAt,
     })
     .from(lessons)
     .where(and(
