@@ -1544,6 +1544,16 @@ export const comunicacaoRouters = {
           messageTemplate: "🎵 Olá {nome_aluno}! Hora de praticar {instrumento}!\nSeu professor {nome_professor} da {nome_escola} está torcendo por você.\nMesmo 15 minutinhos por dia fazem uma grande diferença. Vamos lá! 💪",
           channel: "whatsapp",
         },
+        {
+          name: "Fim de Contrato (aviso de encerramento)",
+          description: "Avisa o aluno quando o contrato está próximo do fim. Configure a unidade (meses ou aulas) e o valor na aba de configurações.",
+          trigger: "contract_expiring",
+          offsetDays: 1,
+          offsetHours: 0,
+          triggerUnit: "meses",
+          messageTemplate: "Olá {nome_aluno}! 📄 Seu contrato de {curso} está chegando ao fim. Se quiser continuar suas aulas, fale com a {nome_escola} para renovar. Qualquer dúvida, estamos à disposição!",
+          channel: "whatsapp",
+        },
       ];
 
       for (const rule of systemRules) {

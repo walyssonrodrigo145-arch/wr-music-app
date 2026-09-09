@@ -536,6 +536,16 @@ export async function runAutoMigrations() {
       { table: 'student_repertoire', sql: `ALTER TABLE "student_repertoire" ADD COLUMN IF NOT EXISTS "cifraclubUrl" text` },
       { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "cifraClubImportEnabled" integer DEFAULT 1 NOT NULL` },
       { table: 'message_automation_rules', sql: `ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "triggerUnit" varchar(10) DEFAULT 'meses' NOT NULL` },
+      { table: 'message_automation_rules', sql: `
+        INSERT INTO "message_automation_rules" ("organizationId", "userId", name, description, "isSystem", "isActive", trigger, "offsetDays", "offsetHours", "triggerUnit", "messageTemplate", channel)
+        SELECT DISTINCT mar."organizationId", mar."userId", 'Fim de Contrato (aviso de encerramento)', 'Avisa o aluno quando o contrato está próximo do fim. Configure a unidade (meses ou aulas) e o valor na aba de configurações.', 1, 1, 'contract_expiring', 1, 0, 'meses', 'Olá {nome_aluno}! 📄 Seu contrato de {curso} está chegando ao fim. Se quiser continuar suas aulas, fale com a {nome_escola} para renovar. Qualquer dúvida, estamos à disposição!', 'whatsapp'
+        FROM "message_automation_rules" mar
+        WHERE mar."isSystem" = 1
+          AND NOT EXISTS (
+            SELECT 1 FROM "message_automation_rules" m2
+            WHERE m2."organizationId" = mar."organizationId" AND m2."userId" = mar."userId" AND m2.trigger = 'contract_expiring'
+          )
+      ` },
     ];
 
     for (const m of migrations) {
