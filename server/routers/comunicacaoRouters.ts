@@ -1166,6 +1166,7 @@ export const comunicacaoRouters = {
           trigger: z.string().min(1),
           offsetDays: z.number().default(0),
           offsetHours: z.number().default(0),
+          triggerUnit: z.enum(["meses", "aulas"]).default("meses"),
           conditions: z.string().optional(),
           actions: z.string().optional(),
           messageTemplate: z.string().min(1),
@@ -1184,6 +1185,11 @@ export const comunicacaoRouters = {
 
         debugLog("[automations.create] RECEIVED REQUEST:", { userId, orgId, name: input.name, trigger: input.trigger });
 
+        // RN: contratos exigem valor > 0 (meses/aulas) — não agenda "quando faltar 0"
+        if (input.trigger === "contract_expiring" && input.offsetDays <= 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Informe o valor (meses/aulas) maior que zero para o fim de contrato." });
+        }
+
         try {
           // Use Drizzle's .insert().values().returning() for safe superjson serialization
           // (db.execute with RETURNING returns postgres.Row[] which is not a plain JS array
@@ -1200,6 +1206,7 @@ export const comunicacaoRouters = {
               trigger: input.trigger,
               offsetDays: input.offsetDays,
               offsetHours: input.offsetHours,
+              triggerUnit: input.triggerUnit,
               conditions: input.conditions ?? null,
               messageTemplate: input.messageTemplate,
               channel: input.channel,
@@ -1228,6 +1235,7 @@ export const comunicacaoRouters = {
           trigger: z.string().optional(), // BUG#4 FIX: permite atualizar o trigger
           offsetDays: z.number().optional(),
           offsetHours: z.number().optional(),
+          triggerUnit: z.enum(["meses", "aulas"]).optional(),
           conditions: z.string().optional().nullable(), // BUG#3 FIX: persistir daysOfWeek+sendTime do daily_study
           actions: z.string().optional(),
           messageTemplate: z.string().optional(),
@@ -1251,6 +1259,7 @@ export const comunicacaoRouters = {
         if (fields.trigger !== undefined) updateData.trigger = fields.trigger;
         if (fields.offsetDays !== undefined) updateData.offsetDays = fields.offsetDays;
         if (fields.offsetHours !== undefined) updateData.offsetHours = fields.offsetHours;
+        if (fields.triggerUnit !== undefined) updateData.triggerUnit = fields.triggerUnit;
         // BUG#3+#4 FIX: conditions agora é persistido corretamente (null limpa, string salva)
         if (fields.conditions !== undefined) updateData.conditions = fields.conditions ?? null;
         if (fields.actions !== undefined) updateData.actions = fields.actions;
@@ -1260,6 +1269,11 @@ export const comunicacaoRouters = {
         if (fields.sendToStudent !== undefined) updateData.sendToStudent = fields.sendToStudent ? 1 : 0;
         if (fields.sendToGuardian !== undefined) updateData.sendToGuardian = fields.sendToGuardian ? 1 : 0;
         updateData.updatedAt = new Date();
+
+        // RN: contratos exigem valor > 0 (meses/aulas) — não agenda "quando faltar 0"
+        if ((fields.trigger ?? "" ) === "contract_expiring" && (fields.offsetDays ?? 0) <= 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Informe o valor (meses/aulas) maior que zero para o fim de contrato." });
+        }
 
         await db
           .update(messageAutomationRules)

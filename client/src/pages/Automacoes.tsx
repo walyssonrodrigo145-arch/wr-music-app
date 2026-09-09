@@ -29,6 +29,7 @@ type AutomationRule = {
   trigger: string;
   offsetDays: number;
   offsetHours: number;
+  triggerUnit?: string;
   conditions: string | null;
   actions: string | null;
   messageTemplate: string;
@@ -42,7 +43,7 @@ type AutomationRule = {
 };
 
 // ─── Trigger config ───────────────────────────────────────────────────────────
-const TRIGGERS: { value: string; label: string; icon: React.ElementType; color: string; unit: "days" | "hours" | "time" }[] = [
+const TRIGGERS: { value: string; label: string; icon: React.ElementType; color: string; unit: "days" | "hours" | "time" | "contract" }[] = [
   { value: "new_student",       label: "Novo aluno matriculado",           icon: Users,        color: "text-emerald-500", unit: "days"  },
   { value: "lesson_scheduled",  label: "Aula agendada",                    icon: Calendar,     color: "text-blue-500",    unit: "hours" },
   { value: "payment_due",       label: "Mensalidade próxima do vencimento",icon: DollarSign,   color: "text-amber-500",   unit: "days"  },
@@ -50,6 +51,7 @@ const TRIGGERS: { value: string; label: string; icon: React.ElementType; color: 
   { value: "payment_confirmed", label: "Pagamento confirmado",             icon: CheckCircle2, color: "text-teal-500",    unit: "days"  },
   { value: "birthday",          label: "Aniversário do aluno",             icon: Gift,         color: "text-pink-500",    unit: "days"  },
   { value: "student_inactive",  label: "Aluno inativo (sem aulas)",        icon: UserX,        color: "text-violet-500",  unit: "days"  },
+  { value: "contract_expiring", label: "Fim de contrato (aviso de encerramento)", icon: Calendar, color: "text-orange-500", unit: "contract" },
   { value: "daily_study",       label: "Lembrete de estudo diário",        icon: BookOpen,     color: "text-green-500",   unit: "time"  },
   { value: "daily_report",      label: "Relatório diário de treinos",      icon: BarChart2,    color: "text-blue-500",    unit: "time"  },
   { value: "slot_advance",      label: "Antecipação inteligente de horário por falta", icon: Zap, color: "text-amber-500", unit: "hours" },
@@ -81,6 +83,9 @@ const VARIABLES = [
   { label: "{link_pagamento}",    desc: "Link de pagamento automático" },
   { label: "{dias_sem_estudo}",   desc: "Dias sem estudo"         },
   { label: "{resumo_treinos}",    desc: "Lista de status de treinos de hoje" },
+  { label: "{data_fim_contrato}", desc: "Data de término do contrato" },
+  { label: "{meses_restantes}",   desc: "Meses restantes do contrato" },
+  { label: "{aulas_restantes}",   desc: "Aulas restantes do contrato" },
 ];
 
 function getTriggerInfo(trigger: string) {
@@ -112,6 +117,10 @@ function getTimingLabel(rule: AutomationRule): string {
     if (h === 0) return "No momento da aula";
     if (h < 0)  return `${Math.abs(h)}h antes da aula`;
     return `${h}h após a aula`;
+  }
+  if (info.unit === "contract") {
+    const u = (rule as any).triggerUnit === "aulas" ? "aula(s)" : "mês(es)";
+    return `faltando ${Math.max(1, Math.abs(rule.offsetDays ?? 1))} ${u} para encerrar`;
   }
   const d = rule.offsetDays ?? 0;
   if (d === 0) return "No dia do evento";
@@ -235,6 +244,7 @@ function RuleEditorModal({ rule, onClose, onSave }: {
   const [trigger, setTrigger] = useState(rule?.trigger ?? "payment_due");
   const [offsetDays, setOffsetDays] = useState(rule?.offsetDays ?? -3);
   const [offsetHours, setOffsetHours] = useState(rule?.offsetHours ?? 0);
+  const [triggerUnit, setTriggerUnit] = useState((rule as any)?.triggerUnit ?? "meses");
   const [messageTemplate, setMessageTemplate] = useState(rule?.messageTemplate ?? "");
   const [isActive, setIsActive] = useState((rule?.isActive ?? 1) === 1);
   const [sendToStudent, setSendToStudent] = useState((rule as any)?.sendToStudent === 1 || (rule as any)?.sendToStudent === undefined);
@@ -254,6 +264,9 @@ function RuleEditorModal({ rule, onClose, onSave }: {
       if (offsetHours === 0) return "será enviada no momento da aula";
       if (offsetHours < 0) return `será enviada ${Math.abs(offsetHours)} hora(s) antes da aula`;
       return `será enviada ${offsetHours} hora(s) após a aula`;
+    }
+    if (unit === "contract") {
+      return `faltando ${Math.max(1, Math.abs(offsetDays || 1))} ${triggerUnit === "aulas" ? "aula(s)" : "mês(es)"} para o contrato terminar`;
     }
     if (offsetDays === 0) return "será enviada no dia do evento";
     if (offsetDays < 0) return `será enviada ${Math.abs(offsetDays)} dia(s) antes do evento`;
@@ -282,8 +295,9 @@ function RuleEditorModal({ rule, onClose, onSave }: {
       name: name.trim(),
       description: description.trim() || undefined,
       trigger,
-      offsetDays: unit === "days" ? (isNaN(offsetDays) ? 0 : offsetDays) : 0,
+      offsetDays: unit === "contract" ? (Math.max(1, Math.abs(isNaN(offsetDays) ? 1 : offsetDays))) : (unit === "days" ? (isNaN(offsetDays) ? 0 : offsetDays) : 0),
       offsetHours: unit === "hours" ? (isNaN(offsetHours) ? 0 : offsetHours) : 0,
+      triggerUnit: unit === "contract" ? triggerUnit : "meses",
       conditions: unit === "time" ? JSON.stringify({ daysOfWeek, sendTime }) : undefined,
       messageTemplate: messageTemplate.trim(),
       channel: "whatsapp",
@@ -369,7 +383,7 @@ function RuleEditorModal({ rule, onClose, onSave }: {
                     const TIcon = t.icon;
                     const selected = trigger === t.value;
                     return (
-                      <button key={t.value} onClick={() => setTrigger(t.value)}
+                      <button key={t.value} onClick={() => { setTrigger(t.value); if (t.value === "contract_expiring") { setOffsetDays(1); setTriggerUnit("meses"); } }}
                         className={cn("flex items-center gap-3 px-4 py-3 rounded-xl text-left text-sm font-semibold border transition-all",
                           selected ? "bg-indigo-500/10 border-indigo-500/30 text-foreground" : "border-border/50 text-muted-foreground hover:bg-muted"
                         )}
@@ -444,7 +458,29 @@ function RuleEditorModal({ rule, onClose, onSave }: {
                     <p className="text-sm font-black text-foreground">Quando enviar?</p>
                   </div>
 
-                  {unit === "hours" ? (
+                  {unit === "contract" ? (
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Enviar quando faltar</label>
+                        <Input type="number" value={Math.max(1, Math.abs(offsetDays || 1))}
+                          onChange={e => setOffsetDays(Math.abs(parseInt(e.target.value) || 1))}
+                          min={1} className="w-24 h-11 rounded-xl text-center font-black text-lg border-border bg-card"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Unidade</label>
+                        <div className="flex gap-2">
+                          {([{ u: "meses", label: "meses" }, { u: "aulas", label: "aulas" }] as { u: "meses" | "aulas"; label: string }[]).map(opt => (
+                            <button key={opt.u} onClick={() => setTriggerUnit(opt.u)}
+                              className={cn("px-3 py-2 rounded-xl text-xs font-black border transition-all",
+                                triggerUnit === opt.u ? "bg-indigo-500 text-white border-transparent" : "border-border text-muted-foreground hover:bg-muted"
+                              )}
+                            >{opt.label}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : unit === "hours" ? (
                     <div className="flex items-center gap-4 flex-wrap">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Quantas horas</label>
@@ -828,6 +864,7 @@ export default function Automacoes() {
         conditions: (data as any).conditions ?? undefined,
         offsetDays: data.offsetDays,
         offsetHours: data.offsetHours,
+        triggerUnit: (data as any).triggerUnit ?? "meses",
         messageTemplate: data.messageTemplate,
         channel: data.channel,
         isActive: data.isActive,
@@ -844,6 +881,7 @@ export default function Automacoes() {
         trigger: data.trigger!,
         offsetDays: data.offsetDays ?? 0,
         offsetHours: data.offsetHours ?? 0,
+        triggerUnit: (data as any).triggerUnit ?? "meses",
         conditions: (data as any).conditions ?? undefined,
         messageTemplate: data.messageTemplate!,
         channel: data.channel ?? "whatsapp",

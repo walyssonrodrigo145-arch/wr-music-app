@@ -5,14 +5,15 @@
  */
 
 import { debugLog } from "./_core/logger";
-import { eq, and, gte, lte, lt, desc, sql, or, like } from "drizzle-orm";
+import { eq, and, gte, lte, lt, desc, sql, or, like, inArray, isNotNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "./_core/notification";
 import { getDb } from "./db";
-import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users, notifications } from "../drizzle/schema";
+import { settings, lessons, students, instruments, reminders, reminderTemplates, paymentDues, users, notifications, contracts, schoolPlans } from "../drizzle/schema";
 import { sendWhatsAppMessage, getWhatsAppSessionStatus, reconnectWhatsAppSession } from "./utils/whatsapp";
 import { sendSmartWhatsAppNotification } from "./utils/whatsappRouting";
 import { decryptSecret } from "./utils/integrationCrypto";
 import { BillingEngine } from "./services/BillingEngine";
+import { computeDaysRemaining, computeMonthsRemaining, computeTotalLessons, computeLessonsRemaining, isContractExpiryTriggered } from "./services/ContractExpiryEngine";
 
 // Guard de concorrência: impede que duas execuções do robô rodem ao mesmo tempo
 let isAutomationRunning = false;
@@ -1566,6 +1567,154 @@ async function runAutomation() {
                       }
                     }
                   }
+                }
+              }
+            } else if (rule.trigger === "contract_expiring") {
+              // ── FIM DE CONTRATO ───────────────────────────────────────────────
+              // Avisa o aluno quando o contrato está próximo do fim, em 2 modos:
+              // 'meses' (faltando X meses) ou 'aulas' (faltando X aulas), definidos
+              // na regra via triggerUnit. Segue o mesmo padrão das outras automações
+              // (insert reminder com dedup refId + WhatsApp + alerta no dashboard).
+              const triggerUnit = (((rule as any).triggerUnit) || "meses") as "meses" | "aulas";
+              const triggerValue = Math.max(1, Number(rule.offsetDays) || 1);
+
+              const orgContracts = await db
+                .select({
+                  id: contracts.id,
+                  studentId: contracts.studentId,
+                  status: contracts.status,
+                  startDate: contracts.startDate,
+                  endDate: contracts.endDate,
+                  title: contracts.title,
+                })
+                .from(contracts)
+                .where(and(
+                  eq(contracts.organizationId, orgId),
+                  inArray(contracts.status, ["assinado", "aguardando_assinatura"] as const),
+                  isNotNull(contracts.endDate),
+                ))
+                .orderBy(desc(contracts.endDate));
+
+              for (const contract of orgContracts) {
+                try {
+                  if (!contract.endDate) continue;
+                  const daysRemaining = computeDaysRemaining(contract.endDate, now2);
+                  const monthsRemaining = computeMonthsRemaining(contract.endDate, now2);
+                  if (daysRemaining <= 0) continue; // já encerrado
+
+                  const [student] = await db
+                    .select({
+                      id: students.id,
+                      name: students.name,
+                      phone: students.phone,
+                      guardianPhone: students.guardianPhone,
+                      birthDate: students.birthDate,
+                      schoolPlanId: students.schoolPlanId,
+                      studentUserId: students.studentUserId,
+                      status: students.status,
+                      allowAutoReminders: students.allowAutoReminders,
+                      instrumentName: instruments.name,
+                    })
+                    .from(students)
+                    .leftJoin(instruments, and(eq(students.instrumentId, instruments.id), eq(instruments.organizationId, orgId)))
+                    .where(and(eq(students.id, contract.studentId), eq(students.organizationId, orgId)))
+                    .limit(1);
+                  if (!student) continue;
+                  if (student.allowAutoReminders === false) continue;
+                  if (student.status !== "ativo") continue;
+
+                  // Cálculo do critério
+                  let lessonsRemaining = 0;
+                  if (triggerUnit === "aulas") {
+                    const [plan] = await db
+                      .select({ aulasPorSemana: schoolPlans.aulasPorSemana, duracaoMeses: schoolPlans.duracaoMeses })
+                      .from(schoolPlans)
+                      .where(and(eq(schoolPlans.id, student.schoolPlanId ?? -1), eq(schoolPlans.organizationId, orgId)))
+                      .limit(1);
+                    const aulasPorSemana = plan?.aulasPorSemana ?? null;
+                    const duracaoMeses = plan?.duracaoMeses ?? null;
+                    if (!aulasPorSemana || !duracaoMeses) {
+                      debugLog(`[Automation] Contract ${contract.id}: aluno sem plano (schoolPlanId=${student.schoolPlanId}) — pulando modo aulas.`);
+                      continue;
+                    }
+                    const total = computeTotalLessons(aulasPorSemana, duracaoMeses);
+                    const [countRow] = await db
+                      .select({ c: sql<number>`CAST(count(*) AS INT)` })
+                      .from(lessons)
+                      .where(and(
+                        eq(lessons.organizationId, orgId),
+                        eq(lessons.studentId, contract.studentId),
+                        eq(lessons.status, "concluida"),
+                        contract.startDate ? gte(lessons.scheduledAt, new Date(`${String(contract.startDate).slice(0, 10)}T00:00:00`)) : undefined,
+                        contract.endDate ? lt(lessons.scheduledAt, new Date(`${String(contract.endDate).slice(0, 10)}T23:59:59`)) : undefined,
+                      ));
+                    lessonsRemaining = computeLessonsRemaining(total, Number(countRow?.c ?? 0));
+                  }
+
+                  const met = isContractExpiryTriggered(triggerUnit, triggerValue, daysRemaining, monthsRemaining, lessonsRemaining);
+                  if (!met) continue;
+
+                  // Dedup por contrato + regra (uma notificação por contrato por regra)
+                  const refId = `auto-rule-${rule.id}-contract-${contract.id}`;
+                  const existing = await db.select({ id: reminders.id }).from(reminders)
+                    .where(and(eq(reminders.organizationId, orgId), eq(reminders.refId, refId))).limit(1);
+                  if (existing.length > 0) continue;
+
+                  const dataFim = new Date(`${String(contract.endDate).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
+                  let message = (rule.messageTemplate ?? "")
+                    .replace(/\{nome_aluno\}/g, student.name ?? "Aluno")
+                    .replace(/\{nome_professor\}/g, professorName)
+                    .replace(/\{nome_escola\}/g, schoolName)
+                    .replace(/\{curso\}/g, student.instrumentName ?? "música")
+                    .replace(/\{instrumento\}/g, student.instrumentName ?? "música")
+                    .replace(/\{data_fim_contrato\}/g, dataFim)
+                    .replace(/\{meses_restantes\}/g, String(Math.max(0, monthsRemaining)))
+                    .replace(/\{aulas_restantes\}/g, String(lessonsRemaining))
+                    .replace(/\{[^}]+\}/g, '');
+
+                  // INSERT PRIMEIRO — garante registro no banco antes do envio
+                  await db.insert(reminders).values({
+                    organizationId: orgId, userId, studentId: contract.studentId,
+                    type: "manual", message, scheduledAt: now2, status: "pendente", autoGenerated: 1, refId,
+                  });
+
+                  // Alerta no dashboard do aluno (notifications → userId do login do aluno)
+                  if (student.studentUserId) {
+                    await db.insert(notifications).values({
+                      organizationId: orgId,
+                      userId: student.studentUserId,
+                      title: "📄 Contrato próximo do fim",
+                      message,
+                      type: "warning",
+                      actionUrl: "/aluno/contratos",
+                    });
+                    debugLog(`[Automation] Contrato ${contract.id}: alerta no dashboard do aluno (userId=${student.studentUserId}).`);
+                  }
+
+                  // Envia WhatsApp imediatamente (se habilitado) e marca como enviado
+                  if (userSet.whatsappAutoSend === 1 && userSet.whatsappBotUrl && await canSendWhatsApp(userId, orgId)) {
+                    const routingRes = await sendSmartWhatsAppNotification({
+                      sendToStudent: (rule as any).sendToStudent === 1 || (rule as any).sendToStudent === undefined,
+                      sendToGuardian: (rule as any).sendToGuardian === 1,
+                      student: { phone: student.phone, guardianPhone: student.guardianPhone, birthDate: student.birthDate },
+                      message,
+                      sessionId: `prof_${userId}`,
+                      whatsappConfig: { url: userSet.whatsappBotUrl, token: userSet.whatsappBotToken }
+                    });
+
+                    const [newRem] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.refId, refId)).limit(1);
+                    if (newRem) {
+                      if (routingRes.success) {
+                        await db.update(reminders).set({ status: "enviado", sentAt: new Date(), errorMessage: null, updatedAt: new Date() }).where(eq(reminders.id, newRem.id));
+                      } else if (routingRes.errors?.[0] === "Nenhum telefone válido encontrado para envio.") {
+                        await db.update(reminders).set({ status: "cancelado", errorMessage: "Sem telefone válido para envio.", updatedAt: new Date() }).where(eq(reminders.id, newRem.id));
+                      } else {
+                        await db.update(reminders).set({ errorMessage: routingRes.errors?.join(", ") ?? "Erro ao enviar mensagem.", updatedAt: new Date() }).where(eq(reminders.id, newRem.id));
+                      }
+                    }
+                  }
+                } catch (contractErr) {
+                  console.error(`[Automation] Erro processando contrato ${contract.id} (regra ${rule.id}):`, contractErr);
                 }
               }
             }

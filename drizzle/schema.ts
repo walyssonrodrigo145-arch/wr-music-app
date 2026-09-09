@@ -956,9 +956,11 @@ export const messageAutomationRules = pgTable("message_automation_rules", {
   description: text("description"),
   isSystem: integer("isSystem").default(0).notNull(),    // 1 = native rule, 0 = custom
   isActive: integer("isActive").default(1).notNull(),
-  trigger: varchar("trigger", { length: 100 }).notNull(), // payment_due | payment_overdue | lesson_scheduled | birthday | student_inactive | payment_confirmed | new_student
+  trigger: varchar("trigger", { length: 100 }).notNull(), // payment_due | payment_overdue | lesson_scheduled | birthday | student_inactive | payment_confirmed | new_student | contract_expiring
   offsetDays: integer("offsetDays").default(0).notNull(), // negative = before, positive = after
   offsetHours: integer("offsetHours").default(0).notNull(),
+  // Unidade do valor para contratos (contract_expiring): 'meses' | 'aulas'
+  triggerUnit: varchar("triggerUnit", { length: 10 }).default("meses").notNull(),
   conditions: text("conditions"),                         // JSON: [{field, operator, value}]
   actions: text("actions"),                               // JSON: [{type: 'whatsapp'|'notification'|'task'}]
   messageTemplate: text("messageTemplate").notNull(),

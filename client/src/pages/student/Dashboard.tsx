@@ -135,6 +135,61 @@ function ProgressRing({ percent, label, sub }: { percent: number; label: string;
   );
 }
 
+// ─── Alerta de Contrato próximo do fim (dashboard do aluno) ──────────────────
+function ContractAlertBanner() {
+  const [dismissed, setDismissed] = useState<Set<number>>(() => new Set());
+  const [, navigate] = useLocation();
+  const { data: notifications = [] } = trpc.system.getNotifications.useQuery();
+
+  const contractAlerts = notifications.filter(
+    (n: any) => !n.read && !dismissed.has(n.id) && n.actionUrl === "/aluno/contratos"
+  );
+  if (contractAlerts.length === 0) return null;
+  const latest = contractAlerts[0];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -15, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className="mb-6 relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-rose-500/15 border-2 border-orange-500/40 p-5 sm:p-6 shadow-lg shadow-orange-500/5 backdrop-blur-md"
+    >
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="flex items-start sm:items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/30">
+            <FileText size={24} />
+          </div>
+          <div className="space-y-1">
+            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-orange-500 text-white">
+              <Bell size={11} /> Contrato próximo do fim
+            </span>
+            <h3 className="text-base sm:text-lg font-black text-foreground tracking-tight">
+              {latest.title ?? "Seu contrato está próximo do fim"}
+            </h3>
+            <p className="text-xs text-muted-foreground font-medium max-w-xl">{latest.message}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
+          <button
+            type="button"
+            onClick={() => setDismissed(prev => { const s = new Set(prev); s.add(latest.id); return s; })}
+            className="px-4 py-2.5 rounded-xl border border-border/60 hover:bg-muted/50 text-xs font-bold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+          >
+            Dispensar
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/aluno/contratos")}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+          >
+            Ver meu contrato
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function StudentDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -212,6 +267,9 @@ export default function StudentDashboard() {
     >
       {/* Banner de Antecipação Inteligente de Horário por Falta */}
       <EarlySlotBanner />
+
+      {/* Alerta de Contrato próximo do fim (dashboard do aluno) */}
+      <ContractAlertBanner />
 
       {/* Welcome Section - Hero Banner (card de boas-vindas atual, no topo) */}
       <motion.div variants={item} className="relative overflow-hidden rounded-[2.5rem] md:rounded-[3rem] bg-card text-card-foreground border border-border shadow-sm p-8 md:p-12 mb-2">

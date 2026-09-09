@@ -535,6 +535,7 @@ export async function runAutoMigrations() {
       { table: 'student_repertoire', sql: `ALTER TABLE "student_repertoire" ADD COLUMN IF NOT EXISTS "chordDiagrams" jsonb` },
       { table: 'student_repertoire', sql: `ALTER TABLE "student_repertoire" ADD COLUMN IF NOT EXISTS "cifraclubUrl" text` },
       { table: 'settings', sql: `ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "cifraClubImportEnabled" integer DEFAULT 1 NOT NULL` },
+      { table: 'message_automation_rules', sql: `ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "triggerUnit" varchar(10) DEFAULT 'meses' NOT NULL` },
     ];
 
     for (const m of migrations) {
