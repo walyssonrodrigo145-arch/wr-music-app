@@ -996,13 +996,15 @@ export function DespesasTab({ viewMonth, viewYear, expenses, isLoading }: { view
             <div className="py-10 text-center text-xs text-muted-foreground font-medium italic">Nenhuma despesa encontrada.</div>
           ) : (
             paginated.map((expense: any) => (
-              <div key={expense.id} onClick={() => setEditExpense(expense)} className="bg-muted/30 rounded-2xl p-4 border border-border shadow-xs space-y-3 active:scale-[0.98] transition-all cursor-pointer">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+              <div key={expense.id} onClick={() => setEditExpense(expense)} className="bg-muted/30 rounded-2xl p-4 border border-border shadow-xs space-y-3 active:scale-[0.98] transition-all cursor-pointer min-w-0">
+                <div className="flex items-start justify-between gap-3 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-foreground truncate">{expense.description}</p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-0.5">{expense.supplier || expense.category}</p>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-0.5 truncate">{expense.supplier || expense.category}</p>
                   </div>
-                  <StatusBadge status={expense.status} />
+                  <div className="shrink-0">
+                    <StatusBadge status={expense.status} />
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">

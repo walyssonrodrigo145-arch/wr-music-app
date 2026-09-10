@@ -1152,29 +1152,29 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                 paginated.map((payment) => (
                   <div 
                     key={payment.id} 
-                    className="bg-card rounded-2xl p-4 border border-border shadow-sm active:scale-[0.98] transition-all"
+                    className="bg-card rounded-2xl p-4 border border-border shadow-sm active:scale-[0.98] transition-all min-w-0"
                     onClick={() => setDetailsPaymentId(payment.id)}
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
+                    <div className="card-head mb-4">
+                      <div className="card-head-main">
                         <Avatar className="w-9 h-9 border-2 border-background shadow-sm shrink-0">
                           <AvatarFallback className="bg-blue-500/10 text-blue-600 text-[10px] font-black uppercase">
                             {payment.studentName?.substring(0, 2) || "?"}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <p className="text-sm font-bold text-foreground truncate">{payment.studentName}</p>
                             {payment.notes && (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/20" title={payment.notes}>
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0" title={payment.notes}>
                                 <FileText size={10} /> Obs
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{MONTHS_PT[payment.month-1]} {payment.year}</p>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">{MONTHS_PT[payment.month-1]} {payment.year}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="card-head-fixed flex items-center gap-2">
                         <StatusBadge status={payment.status} />
                         {payment.asaasId && (
                           <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-600">
@@ -1216,21 +1216,21 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-4 gap-2">
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
                        {payment.receiptUrl ? (
-                         <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10" asChild>
+                         <Button variant="ghost" size="sm" className="h-9 px-2 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 shrink-0" asChild>
                            <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" download onClick={(e) => e.stopPropagation()}>
                              <FileCheck size={12} className="mr-1" /> Ver
                            </a>
                          </Button>
                        ) : (
-                         <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10"
+                         <Button variant="ghost" size="sm" className="h-9 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10 shrink-0"
                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setUploadingFor(payment.id); setTimeout(() => fileInputRef.current?.click(), 100); }}>
                            <FileUp size={12} className="mr-1" /> Anexar
                          </Button>
                        )}
 
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-rose-500 hover:bg-rose-500/10 shrink-0"
+                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-lg text-rose-500 hover:bg-rose-500/10 shrink-0"
                         onClick={(e) => { 
                           e.preventDefault();
                           e.stopPropagation(); 
@@ -1239,7 +1239,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                         <Trash2 size={14} />
                       </Button>
 
-                      <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10"
+                      <Button variant="ghost" size="sm" className="h-9 px-2 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10 shrink-0"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setNotesPayment(payment); }}>
                         <FileText size={12} className="mr-1" /> Obs
                       </Button>
@@ -1247,7 +1247,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                       {!payment.asaasId && !payment.infinitepayPaymentLink ? (
                          <Button
                            variant="outline" size="sm"
-                           className="h-8 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600 hover:bg-violet-500/10"
+                           className="h-9 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600 hover:bg-violet-500/10 shrink-0"
                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAsaasPayment(payment); }}
                          >
                            <Zap size={12} /> Gerar Link
@@ -1255,7 +1255,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                        ) : payment.infinitepayPaymentLink ? (
                          <Button
                            variant="outline" size="sm"
-                           className="h-8 px-3 rounded-lg border-indigo-200 text-[10px] font-black uppercase gap-1.5 text-indigo-600 hover:bg-indigo-500/10"
+                           className="h-9 px-3 rounded-lg border-indigo-200 text-[10px] font-black uppercase gap-1.5 text-indigo-600 hover:bg-indigo-500/10 shrink-0"
                            onClick={() => payment.infinitepayPaymentLink && navigator.clipboard.writeText(payment.infinitepayPaymentLink).then(() => toast.success("Link copiado!"))}
                          >
                            <Copy size={12} /> Copiar Link
@@ -1263,7 +1263,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                        ) : (
                          <Button
                            variant="outline" size="sm"
-                           className="h-8 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600"
+                           className="h-9 px-3 rounded-lg border-violet-200 text-[10px] font-black uppercase gap-1.5 text-violet-600 shrink-0"
                            onClick={() => payment.asaasPaymentLink && navigator.clipboard.writeText(payment.asaasPaymentLink).then(() => toast.success("Link copiado!"))}
                          >
                            <Copy size={12} /> Copiar Link
@@ -1272,7 +1272,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                         {payment.status !== "pago" && (
                           <Button
                             variant="ghost" size="sm"
-                            className="h-8 px-3 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
+                            className="h-9 px-3 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 shrink-0"
                             disabled={updateMutation.isPending || updateMutation.variables?.id === payment.id}
                             onClick={() => updateMutation.mutate({ id: payment.id, status: "pago" })}
                           >

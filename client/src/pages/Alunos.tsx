@@ -495,29 +495,31 @@ export default function Alunos() {
                     className="bg-card rounded-2xl p-4 border border-border shadow-sm active:scale-[0.98] transition-all"
                     onClick={() => setDetailsStudentId(student.id)}
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
+                    <div className="card-head mb-4">
+                      <div className="card-head-main">
                         <Avatar className="w-10 h-10 border-2 border-background shadow-sm shrink-0">
                           <AvatarFallback className="bg-blue-500/10 text-blue-600 text-xs font-bold uppercase">
                             {student.name.substring(0, 2)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-foreground truncate">{student.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <div className="w-2 h-2 rounded-full" style={{ background: student.instrumentColor || "#6366f1" }} />
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase">{student.instrumentName}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: student.instrumentColor || "#6366f1" }} />
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase truncate">{student.instrumentName}</span>
                             {student.lessonType === 'turma' && (
-                              <Badge className="h-4 px-1 text-[8px] bg-purple-500/10 text-purple-600 border-none uppercase font-black">Turma</Badge>
+                              <Badge className="h-4 px-1 text-[8px] bg-purple-500/10 text-purple-600 border-none uppercase font-black shrink-0">Turma</Badge>
                             )}
                           </div>
                         </div>
                       </div>
-                      <StatusBadge
-                        status={student.status}
-                        id={student.id}
-                        onUpdate={(id, s, deletePendingData) => updateStatusMutation.mutate({ id, status: s as any, deletePendingData })}
-                      />
+                      <div className="card-head-fixed">
+                        <StatusBadge
+                          status={student.status}
+                          id={student.id}
+                          onUpdate={(id, s, deletePendingData) => updateStatusMutation.mutate({ id, status: s as any, deletePendingData })}
+                        />
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 py-3 border-y border-border">
@@ -535,10 +537,10 @@ export default function Alunos() {
                       </div>
                     </div>
 
-                      <div className="flex items-center justify-between mt-4">
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Vencimento: Dia {student.dueDay || 10}</p>
+                      <div className="flex items-center justify-between gap-2 mt-4 min-w-0">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase truncate">Vencimento: Dia {student.dueDay || 10}</p>
                         {canEdit && (
-                          <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-muted-foreground" onClick={() => setLocation(`/alunos/${student.id}/editar`)}>
                               <Pencil size={14} />
                             </Button>

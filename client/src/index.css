@@ -413,6 +413,36 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  /* ── Contrato anti-overflow para cards (mobile-first) ──────────────────
+     Motivo: itens de flex/grid têm `min-width: auto`; um texto longo sem
+     `min-width: 0` expande a coluna além da viewport (o overflow-x:hidden só
+     corta, deixando o card "vazando"). Use nestas linhas de card:
+       <div class="card-head">        → linha externa (flex, min-width:0)
+         <div class="card-head-main"> → grupo de texto (min-width:0, flex:1)
+           <p class="truncate">Nome</p>
+         </div>
+         <div class="card-head-fixed">→ avatar/badge/botão (não encolhe)</div>
+       </div>
+     Regra: todo `truncate` precisa de um ancestral com min-width:0. */
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .card-head-main {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    flex: 1 1 0%;
+  }
+  .card-head-fixed {
+    flex-shrink: 0;
+    min-width: 0;
+  }
 }
 
 @layer utilities {

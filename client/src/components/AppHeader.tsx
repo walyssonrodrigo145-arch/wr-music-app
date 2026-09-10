@@ -20,6 +20,22 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/instrumentos": { title: "Instrumentos", subtitle: "Instrumentos ensinados" },
   "/relatorios": { title: "Relatórios", subtitle: "Análises e estatísticas" },
   "/configuracoes": { title: "Configurações", subtitle: "Preferências do sistema" },
+  "/financeiro": { title: "Financeiro", subtitle: "Mensalidades, despesas e fluxo de caixa" },
+  "/professores": { title: "Professores", subtitle: "Gestão da equipe e remuneração" },
+  "/lembretes": { title: "Lembretes", subtitle: "Comunicação automática" },
+  "/progresso": { title: "Progresso", subtitle: "Evolução dos alunos" },
+  "/rankings": { title: "Rankings", subtitle: "Competições e desempenho" },
+  "/comunicados": { title: "Comunicados", subtitle: "Avisos e mensagens" },
+  "/marketing": { title: "Marketing", subtitle: "Campanhas e automações" },
+  "/automacoes": { title: "Automações", subtitle: "Mensagens automáticas" },
+  "/solicitacoes": { title: "Solicitações", subtitle: "Pedidos e aprovações" },
+  "/folha": { title: "Folha", subtitle: "Pagamento de professores" },
+  "/reposicoes": { title: "Reposições", subtitle: "Aulas de reposição" },
+  "/assinatura": { title: "Assinatura", subtitle: "Plano e cobrança" },
+  "/contratos": { title: "Contratos", subtitle: "Contratos dos alunos" },
+  "/tutoriais": { title: "Tutoriais", subtitle: "Aprenda a usar o sistema" },
+  "/salas": { title: "Salas", subtitle: "Estúdios e salas" },
+  "/ia": { title: "IA", subtitle: "Assistente inteligente" },
   "/aluno": { title: "Portal do Aluno", subtitle: "Bem-vinda de volta ao seu portal de estudos" },
   "/aluno/aulas": { title: "Minhas Aulas", subtitle: "Acompanhe seu cronograma de aulas" },
   "/aluno/agenda": { title: "Agenda", subtitle: "Seus compromissos e eventos musicais" },
@@ -84,7 +100,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
     : "WR";
 
   return (
-    <header className="h-14 md:h-16 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-3 sm:px-5 lg:px-6 gap-3 sm:gap-5 lg:gap-6 flex-shrink-0 z-40 sticky top-0 transition-all duration-500 overflow-hidden">
+    <header className="h-14 md:h-16 bg-background/60 backdrop-blur-2xl border-b border-border/30 flex items-center px-2 sm:px-5 lg:px-6 gap-2 sm:gap-5 lg:gap-6 flex-shrink-0 z-40 sticky top-0 transition-all duration-500 overflow-hidden">
       {/* Botão de abrir menu Mobile */}
       <button
         id="tour-mobile-menu"
@@ -196,11 +212,11 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-3 lg:gap-5">
+      <div className="flex items-center gap-2 sm:gap-3 lg:gap-5">
         {/* Actions - Theme & Notifications */}
-        <div className="flex items-center gap-2 lg:gap-3 bg-muted/30 p-1.5 rounded-2xl border border-border/20 shadow-inner">
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 bg-muted/30 p-1 sm:p-1.5 rounded-2xl border border-border/20 shadow-inner">
            <button 
-             className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group" 
+             className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group" 
              onClick={toggleTheme}
              title={`Tema atual: ${theme}. Clique para alternar.`}
            >
@@ -218,7 +234,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
 
            {/* Botão de Acesso Rápido para Configurações (Mobile & Desktop) */}
            <button
-             className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group"
+             className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm flex items-center justify-center active:scale-90 relative group"
              onClick={() => navigate("/configuracoes")}
              title="Configurações do Sistema"
            >
@@ -228,7 +244,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
            <DropdownMenu>
              <DropdownMenuTrigger asChild>
                <button 
-                 className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-card transition-all shadow-sm relative flex items-center justify-center active:scale-90 group" 
+                 className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-card transition-all shadow-sm relative flex items-center justify-center active:scale-90 group" 
                >
                  <motion.div
                    animate={unreadCount > 0 ? { rotate: [0, -15, 15, -15, 15, 0] } : {}}
@@ -284,7 +300,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
         {/* User Profile Dropdown - Premium Style */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button id="tour-mobile-user-menu" className="flex items-center gap-3 lg:gap-4 pl-2 pr-4 py-2 rounded-[1.5rem] bg-card/40 hover:bg-card transition-all group active:scale-95 border border-border/20 shadow-sm">
+            <button id="tour-mobile-user-menu" className="flex items-center gap-2 sm:gap-3 lg:gap-4 pl-1 pr-1 sm:pl-2 sm:pr-4 py-2 rounded-[1.5rem] bg-card/40 hover:bg-card transition-all group active:scale-95 border border-border/20 shadow-sm">
               <div className="relative">
                  <Avatar className="w-9 h-9 lg:w-10 lg:h-10 border-2 border-primary/20 shadow-lg group-hover:rotate-6 transition-all duration-500">
                    <AvatarFallback className="bg-gradient-to-br from-primary via-indigo-600 to-violet-600 text-white text-[11px] lg:text-[12px] font-black tracking-tight">

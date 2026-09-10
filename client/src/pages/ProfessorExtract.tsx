@@ -979,20 +979,22 @@ export default function ProfessorExtract() {
             <div className="block md:hidden space-y-3">
               {displayPayments.map((payment) => (
                 <div key={payment.id} className="bg-card p-4 rounded-xl border border-border space-y-3 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm border border-primary/20">
+                  <div className="card-head">
+                    <div className="card-head-main">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm border border-primary/20 shrink-0">
                         {payment.professorName?.charAt(0) || "P"}
                       </div>
-                      <div>
-                        <h4 className="font-bold text-foreground text-sm">{payment.professorName}</h4>
-                        <p className="text-[11px] text-muted-foreground">{payment.specialty || "Música"}</p>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-foreground text-sm truncate">{payment.professorName}</h4>
+                        <p className="text-[11px] text-muted-foreground truncate">{payment.specialty || "Música"}</p>
                       </div>
                     </div>
 
-                    {payment.status === "pago" && <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] px-2 py-0.5 rounded border border-emerald-500/20">PAGO</span>}
-                    {payment.status === "aprovado" && <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[10px] px-2 py-0.5 rounded border border-amber-500/20">PENDENTE</span>}
-                    {payment.status === "aberto" && <span className="bg-muted text-muted-foreground font-bold text-[10px] px-2 py-0.5 rounded border border-border">EM ABERTO</span>}
+                    <div className="card-head-fixed flex items-center gap-1">
+                      {payment.status === "pago" && <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] px-2 py-0.5 rounded border border-emerald-500/20">PAGO</span>}
+                      {payment.status === "aprovado" && <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[10px] px-2 py-0.5 rounded border border-amber-500/20">PENDENTE</span>}
+                      {payment.status === "aberto" && <span className="bg-muted text-muted-foreground font-bold text-[10px] px-2 py-0.5 rounded border border-border">EM ABERTO</span>}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-2.5 rounded-lg">
