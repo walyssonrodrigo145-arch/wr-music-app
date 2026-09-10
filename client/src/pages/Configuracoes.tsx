@@ -1635,9 +1635,46 @@ export default function Configuracoes() {
                          <span className="text-xs font-black uppercase tracking-widest text-foreground">Purple</span>
                        </div>
                        {theme === "purple" && <CheckCircle2 size={18} className="text-purple-400 shrink-0" />}
-                    </div>
-                  </button>
-                </div>
+                     </div>
+                   </button>
+
+                   {/* Emerald */}
+                   <button
+                     onClick={() => {
+                       if (theme !== "emerald") {
+                         setTheme("emerald");
+                         updateTheme.mutate({ theme: "emerald" });
+                         toast.success("Tema Emerald ativado!");
+                       }
+                     }}
+                     className={cn(
+                       "relative p-5 rounded-[2rem] border-4 transition-all text-left group",
+                       theme === "emerald"
+                         ? "border-emerald-500 bg-emerald-500/10 shadow-xl shadow-emerald-500/20"
+                         : "border-border bg-card hover:border-emerald-200"
+                     )}
+                   >
+                     <div className="w-full h-20 rounded-[1.25rem] bg-[#F6F8F7] border border-[#E2E8E5] mb-4 overflow-hidden shadow-sm flex flex-col">
+                        <div className="h-4 bg-[#071C17] border-b border-[#0D2922] flex items-center px-2 gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          <div className="w-6 h-1 rounded bg-[#0D2922]" />
+                        </div>
+                        <div className="flex-1 p-3 space-y-2">
+                          <div className="h-3 bg-emerald-500/30 rounded-full w-3/4" />
+                          <div className="h-2 bg-[#E2E8E5] rounded-full w-1/2" />
+                        </div>
+                     </div>
+                     <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                             <Palette size={16} />
+                          </div>
+                          <span className="text-xs font-black uppercase tracking-widest text-foreground">Emerald</span>
+                        </div>
+                        {theme === "emerald" && <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />}
+                     </div>
+                   </button>
+                 </div>
 
                 <div className="pt-6 border-t border-border">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

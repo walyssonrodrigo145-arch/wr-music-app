@@ -258,6 +258,114 @@
   --sidebar-ring: oklch(0.65 0.26 310);
 }
 
+/* 🌿 TEMA EMERALD (Verde Esmeralda + Verde Petróleo + Neutros claros)
+   Tema CLARO (não usa a classe .dark). Apenas cores — layout intacto. */
+.theme-emerald {
+  --background: #F6F8F7;
+  --foreground: #17201D;
+  --card: #FFFFFF;
+  --card-foreground: #17201D;
+  --popover: #FFFFFF;
+  --popover-foreground: #17201D;
+  --primary: #059669;
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #10B981;
+  --sidebar-primary-foreground: #FFFFFF;
+  --secondary: #F0F4F2;
+  --secondary-foreground: #166534;
+  --muted: #F0F4F2;
+  --muted-foreground: #66736E;
+  --accent: #D1FAE5;
+  --accent-foreground: #047857;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8E5;
+  --input: #DCE5E1;
+  --ring: #059669;
+  --chart-1: #059669;
+  --chart-2: #10B981;
+  --chart-3: #A7F3D0;
+  --chart-4: #0D9488;
+  --chart-5: #34D399;
+  --violet: #10B981;
+  --sidebar: #071C17;
+  --sidebar-foreground: #A7B8B2;
+  --sidebar-accent: #123A30;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #0D2922;
+  --sidebar-ring: #059669;
+  --surface-container: #F0F4F2;
+  --surface-container-low: #F6F8F7;
+  --surface-container-lowest: #FFFFFF;
+  --surface-container-high: #E2E8E5;
+  --surface-container-highest: #DCE5E1;
+  --surface-dim: #D1DAD6;
+  --surface: #F6F8F7;
+  --on-surface: #17201D;
+  --on-surface-variant: #66736E;
+  --secondary-container: #059669;
+  --on-secondary-container: #FFFFFF;
+  --primary-fixed: #D1FAE5;
+  --on-primary-fixed: #065F46;
+  --outline-variant: #DCE5E1;
+  --secondary-fixed: #D1FAE5;
+  --on-secondary-fixed: #065F46;
+  --tertiary-container: #0D2922;
+  --on-tertiary-container: #A7F3D0;
+  --tertiary-fixed: #D1FAE5;
+}
+
+/* Emerald — recolore a SIDEBAR (aplicado SOMENTE no tema Emerald; os demais
+   temas permanecem exatamente iguais). Sem alterar estrutura/tamanhos. */
+.theme-emerald #tour-sidebar {
+  background-color: #071C17;
+  color: #A7B8B2;
+  border-right-color: #0D2922;
+}
+.theme-emerald #tour-sidebar .text-slate-200,
+.theme-emerald #tour-sidebar .text-slate-300,
+.theme-emerald #tour-sidebar .text-slate-400 { color: #A7B8B2; }
+.theme-emerald #tour-sidebar .text-slate-500,
+.theme-emerald #tour-sidebar .text-slate-600 { color: #7C8E87; }
+.theme-emerald #tour-sidebar .text-indigo-300,
+.theme-emerald #tour-sidebar .text-indigo-400,
+.theme-emerald #tour-sidebar .text-blue-400,
+.theme-emerald #tour-sidebar .text-amber-400,
+.theme-emerald #tour-sidebar .text-purple-400 { color: #10B981; }
+.theme-emerald #tour-sidebar .hover\:bg-white\/5:hover,
+.theme-emerald #tour-sidebar .hover\:bg-white\/10:hover,
+.theme-emerald #tour-sidebar .hover\:bg-white\/20:hover { background-color: #123A30; }
+.theme-emerald #tour-sidebar .hover\:bg-indigo-600:hover { background-color: #059669; }
+.theme-emerald #tour-sidebar .hover\:text-indigo-400:hover { color: #10B981; }
+.theme-emerald #tour-sidebar .group:hover .group-hover\:text-indigo-400 { color: #10B981; }
+.theme-emerald #tour-sidebar [class*="from-indigo-600"] {
+  background-image: linear-gradient(to right, #059669, #047857);
+  box-shadow: 0 10px 15px -3px rgba(5, 150, 105, 0.30);
+}
+.theme-emerald #tour-sidebar [class*="from-blue-500"] {
+  background-image: linear-gradient(to bottom right, #059669, #047857);
+}
+.theme-emerald #tour-sidebar [class*="from-blue-500"][class*="to-indigo-700"] {
+  background-image: linear-gradient(to bottom, #059669, #065F46);
+}
+.theme-emerald #tour-sidebar [class*="shadow-blue-500"] { box-shadow: 0 10px 15px -3px rgba(5, 150, 105, 0.30); }
+.theme-emerald #tour-sidebar [class*="bg-indigo-600/30"] { background-color: rgba(5, 150, 105, 0.30); }
+.theme-emerald #tour-sidebar [class*="bg-[#1E1B4B]"] {
+  background-color: #065F46;
+  border-left-color: #10B981;
+  box-shadow: 0 10px 15px -3px rgba(5, 150, 105, 0.30);
+}
+.theme-emerald #tour-sidebar [class*="border-[#5B50E6]"] { border-left-color: #10B981; }
+.theme-emerald #tour-sidebar [class*="border-indigo-950"] { border-color: #123A30; }
+.theme-emerald #tour-sidebar [class*="from-[#120F2E]"] {
+  background-image: linear-gradient(to bottom right, #0D2922, #071C17);
+  border-color: #123A30;
+}
+.theme-emerald #tour-sidebar [class*="from-[#4F46E5]"] {
+  background-image: linear-gradient(to right, #059669, #10B981);
+}
+.theme-emerald #tour-sidebar [class*="bg-[#0D0A22]"] { background-color: #0D2922; }
+
 /* GLOBAL RESPONSIVE FOUNDATION - Sprint 1 Auditoria de Responsividade MusicPro */
 
 *, *::before, *::after {
