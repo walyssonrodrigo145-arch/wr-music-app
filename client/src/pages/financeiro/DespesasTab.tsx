@@ -92,9 +92,9 @@ function NovaDespesaModal({ open, onClose }: { open: boolean; onClose: () => voi
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative bg-card rounded-[2.5rem] border border-border shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-card rounded-[2.5rem] border border-border shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-8rem)] md:max-h-[90vh] overflow-hidden flex flex-col"
       >
-        <div className="flex items-center justify-between p-6 lg:p-8 border-b border-border bg-gradient-to-r from-purple-500/10 via-background to-background">
+        <div className="flex items-center justify-between p-6 lg:p-8 border-b border-border bg-gradient-to-r from-purple-500/10 via-background to-background shrink-0">
            <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-600 flex items-center justify-center shadow-sm">
                  <DollarSign size={24} />
@@ -109,7 +109,7 @@ function NovaDespesaModal({ open, onClose }: { open: boolean; onClose: () => voi
            </button>
         </div>
 
-        <div className="p-6 lg:p-8 space-y-6 overflow-y-auto scrollbar-none">
+        <div className="p-6 lg:p-8 space-y-6 overflow-y-auto scrollbar-none flex-1 min-h-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Descrição / Título *</label>
@@ -182,7 +182,7 @@ function NovaDespesaModal({ open, onClose }: { open: boolean; onClose: () => voi
             </div>
         </div>
 
-        <div className="p-6 lg:p-8 border-t border-border bg-muted/20 flex gap-4">
+        <div className="p-6 lg:p-8 border-t border-border bg-muted/20 flex gap-4 shrink-0">
           <Button variant="ghost" className="flex-1 h-12 rounded-2xl text-xs font-bold uppercase tracking-widest" onClick={onClose}>Cancelar</Button>
           <Button className="flex-1 h-12 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl shadow-purple-500/20 gap-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
             onClick={handleSubmit} disabled={createMutation.isPending}>
@@ -271,9 +271,9 @@ function EditDespesaModal({ open, onClose, expense }: { open: boolean; onClose: 
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative bg-card rounded-[2.5rem] border border-border shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-card rounded-[2.5rem] border border-border shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-8rem)] md:max-h-[90vh] overflow-hidden flex flex-col"
       >
-        <div className="flex items-center justify-between p-6 lg:p-8 border-b border-border bg-gradient-to-r from-blue-500/10 via-background to-background">
+        <div className="flex items-center justify-between p-6 lg:p-8 border-b border-border bg-gradient-to-r from-blue-500/10 via-background to-background shrink-0">
            <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-600 flex items-center justify-center shadow-sm">
                  <Pencil size={24} />
@@ -288,7 +288,7 @@ function EditDespesaModal({ open, onClose, expense }: { open: boolean; onClose: 
            </button>
         </div>
 
-        <div className="p-6 lg:p-8 space-y-6 overflow-y-auto scrollbar-none">
+        <div className="p-6 lg:p-8 space-y-6 overflow-y-auto scrollbar-none flex-1 min-h-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Descrição / Título *</label>
@@ -361,7 +361,7 @@ function EditDespesaModal({ open, onClose, expense }: { open: boolean; onClose: 
             </div>
         </div>
 
-        <div className="p-6 lg:p-8 border-t border-border bg-muted/20 flex flex-col sm:flex-row gap-4">
+        <div className="p-6 lg:p-8 border-t border-border bg-muted/20 flex flex-col sm:flex-row gap-4 shrink-0">
           <Button variant="ghost" className="flex-1 h-12 rounded-2xl text-xs font-bold text-rose-500 hover:bg-rose-500/10 uppercase tracking-widest"
             onClick={() => {
               if(confirm("Deseja realmente excluir esta despesa?")) {

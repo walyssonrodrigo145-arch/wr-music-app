@@ -119,10 +119,10 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-card rounded-[2rem] border border-border/40 shadow-2xl w-full max-w-md max-h-[95vh] overflow-hidden flex flex-col">
+      <div className="relative bg-card rounded-[2rem] border border-border/40 shadow-2xl w-full max-w-md max-h-[calc(100dvh-8rem)] md:max-h-[95vh] overflow-hidden flex flex-col">
         
         {/* Profile Header (Compact) */}
-        <div className="px-6 pt-8 pb-6 bg-gradient-to-b from-primary/5 to-transparent flex flex-col items-center text-center relative border-b border-border/20">
+        <div className="px-6 pt-8 pb-6 bg-gradient-to-b from-primary/5 to-transparent flex flex-col items-center text-center relative border-b border-border/20 shrink-0">
           <button onClick={onClose} className="absolute right-6 top-6 w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground transition-all">
             <X size={16} />
           </button>
@@ -139,7 +139,7 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
           </h3>
         </div>
 
-        <div className="p-6 space-y-5 overflow-y-auto">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
           
           {/* Valor do Registro */}
           <div className="space-y-1.5">
@@ -260,7 +260,7 @@ export function EditMensalidadeModal({ open, onClose, payment }: EditMensalidade
         </div>
 
         {/* Action Footer */}
-        <div className="p-6 pt-0 mt-auto bg-gradient-to-t from-background to-transparent relative z-10">
+        <div className="p-6 pt-0 mt-auto bg-gradient-to-t from-background to-transparent relative z-10 shrink-0">
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest border-border/40 hover:bg-muted/50 transition-all active:scale-95" onClick={onClose}>
               Cancelar
