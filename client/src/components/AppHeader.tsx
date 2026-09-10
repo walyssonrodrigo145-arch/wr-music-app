@@ -222,10 +222,16 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
            >
              {theme === "dark" ? (
                <Moon size={20} className="text-indigo-400" />
+             ) : theme === "grafite" ? (
+               <Moon size={20} className="text-slate-400" />
              ) : theme === "midnight" ? (
                <Sparkles size={20} className="text-cyan-400" />
              ) : theme === "purple" ? (
                <Palette size={20} className="text-purple-400" />
+             ) : theme === "emerald" ? (
+               <Palette size={20} className="text-emerald-500" />
+             ) : theme === "mono" ? (
+               <Palette size={20} className="text-neutral-400" />
              ) : (
                <Sun size={20} className="text-amber-500" />
              )}

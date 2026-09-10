@@ -395,7 +395,7 @@ export const plataformaRouters = {
     }),
 
     updateTheme: protectedProcedure.input(z.object({
-      theme: z.enum(['light', 'dark', 'midnight', 'purple', 'emerald']),
+      theme: z.enum(['light', 'dark', 'midnight', 'purple', 'emerald', 'mono', 'grafite']),
     })).mutation(async ({ ctx, input }) => {
       await upsertSettings(ctx.user.organizationId!, ctx.user.id, { theme: input.theme });
       return { success: true };

@@ -1674,6 +1674,80 @@ export default function Configuracoes() {
                         {theme === "emerald" && <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />}
                      </div>
                    </button>
+
+                   {/* Mono (Preto & Branco) */}
+                   <button
+                     onClick={() => {
+                       if (theme !== "mono") {
+                         setTheme("mono");
+                         updateTheme.mutate({ theme: "mono" });
+                         toast.success("Tema Mono ativado!");
+                       }
+                     }}
+                     className={cn(
+                       "relative p-5 rounded-[2rem] border-4 transition-all text-left group",
+                       theme === "mono"
+                         ? "border-neutral-900 bg-neutral-500/10 shadow-xl shadow-neutral-500/20"
+                         : "border-border bg-card hover:border-neutral-300"
+                     )}
+                   >
+                     <div className="w-full h-20 rounded-[1.25rem] bg-[#FAFAFA] border border-[#E5E5E5] mb-4 overflow-hidden shadow-sm flex flex-col">
+                        <div className="h-4 bg-[#0A0A0A] border-b border-[#1F1F1F] flex items-center px-2 gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-neutral-500" />
+                          <div className="w-6 h-1 rounded bg-[#1F1F1F]" />
+                        </div>
+                        <div className="flex-1 p-3 space-y-2">
+                          <div className="h-3 bg-neutral-800/25 rounded-full w-3/4" />
+                          <div className="h-2 bg-[#E5E5E5] rounded-full w-1/2" />
+                        </div>
+                     </div>
+                     <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-xl bg-neutral-900 text-white flex items-center justify-center shrink-0">
+                             <Palette size={16} />
+                          </div>
+                          <span className="text-xs font-black uppercase tracking-widest text-foreground">Mono</span>
+                        </div>
+                        {theme === "mono" && <CheckCircle2 size={18} className="text-neutral-900 dark:text-white shrink-0" />}
+                     </div>
+                   </button>
+
+                   {/* Grafite */}
+                   <button
+                     onClick={() => {
+                       if (theme !== "grafite") {
+                         setTheme("grafite");
+                         updateTheme.mutate({ theme: "grafite" });
+                         toast.success("Tema Grafite ativado!");
+                       }
+                     }}
+                     className={cn(
+                       "relative p-5 rounded-[2rem] border-4 transition-all text-left group",
+                       theme === "grafite"
+                         ? "border-slate-500 bg-slate-500/10 shadow-xl shadow-slate-500/20"
+                         : "border-border bg-card hover:border-slate-300"
+                     )}
+                   >
+                     <div className="w-full h-20 rounded-[1.25rem] bg-[#17191C] border border-[#2A2E33] mb-4 overflow-hidden shadow-sm flex flex-col">
+                        <div className="h-4 bg-[#101214] border-b border-[#23262B] flex items-center px-2 gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                          <div className="w-6 h-1 rounded bg-[#23262B]" />
+                        </div>
+                        <div className="flex-1 p-3 space-y-2">
+                          <div className="h-3 bg-slate-400/30 rounded-full w-3/4" />
+                          <div className="h-2 bg-[#2A2E33] rounded-full w-1/2" />
+                        </div>
+                     </div>
+                     <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center shrink-0">
+                             <Palette size={16} />
+                          </div>
+                          <span className="text-xs font-black uppercase tracking-widest text-foreground">Grafite</span>
+                        </div>
+                        {theme === "grafite" && <CheckCircle2 size={18} className="text-slate-400 shrink-0" />}
+                     </div>
+                   </button>
                  </div>
 
                 <div className="pt-6 border-t border-border">

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-export type Theme = "light" | "dark" | "midnight" | "purple" | "emerald";
+export type Theme = "light" | "dark" | "midnight" | "purple" | "emerald" | "mono" | "grafite";
 
 interface ThemeContextType {
   theme: Theme;
@@ -39,7 +39,7 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("dark", "theme-midnight", "theme-purple", "theme-emerald");
+    root.classList.remove("dark", "theme-midnight", "theme-purple", "theme-emerald", "theme-mono", "theme-grafite");
 
     if (theme === "dark") {
       root.classList.add("dark");
@@ -49,6 +49,10 @@ export function ThemeProvider({
       root.classList.add("dark", "theme-purple");
     } else if (theme === "emerald") {
       root.classList.add("theme-emerald");
+    } else if (theme === "mono") {
+      root.classList.add("theme-mono");
+    } else if (theme === "grafite") {
+      root.classList.add("dark", "theme-grafite");
     }
 
     if (switchable) {
@@ -59,7 +63,7 @@ export function ThemeProvider({
   const toggleTheme = switchable
     ? () => {
         setThemeState(prev => {
-          const themes: Theme[] = ["light", "dark", "midnight", "purple", "emerald"];
+          const themes: Theme[] = ["light", "dark", "midnight", "purple", "emerald", "mono", "grafite"];
           const nextIndex = (themes.indexOf(prev) + 1) % themes.length;
           const next = themes[nextIndex];
           localStorage.setItem("theme", next);
