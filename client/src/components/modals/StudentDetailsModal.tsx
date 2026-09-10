@@ -1,4 +1,4 @@
-import { Calendar, DollarSign, Clock, Loader2, Edit3, Trash2, CheckCircle2, Activity, Mail, Phone, Users, MapPin, Music, Eye, Award } from "lucide-react";
+import { Calendar, DollarSign, Clock, Loader2, Edit3, Trash2, CheckCircle2, Activity, Mail, Phone, Users, MapPin, Music, Eye, Award, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -142,7 +142,7 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[440px] max-h-[92vh] flex flex-col rounded-3xl border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-[440px] max-h-[calc(100dvh-8rem)] md:max-h-[92vh] flex flex-col rounded-3xl border-border/40 p-0 overflow-hidden bg-card shadow-2xl">
         {isLoading && !student ? (
           <div className="flex flex-col items-center justify-center p-16">
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
@@ -186,24 +186,31 @@ export function StudentDetailsModal({ open, onOpenChange, studentId, onEdit, onD
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={onEdit}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-background hover:bg-primary hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-background hover:bg-primary hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40"
                     title="Editar Aluno"
                   >
-                    <Edit3 size={14} />
+                    <Edit3 size={15} />
                   </button>
                   <button
                     onClick={onDelete}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-background hover:bg-destructive hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-background hover:bg-destructive hover:text-white text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40"
                     title="Excluir Aluno"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={15} />
+                  </button>
+                  <button
+                    onClick={() => onOpenChange(false)}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-background hover:bg-muted text-muted-foreground transition-all shadow-sm active:scale-90 border border-border/40"
+                    title="Fechar"
+                  >
+                    <X size={15} />
                   </button>
                 </div>
               </div>
             </div>
 
             {/* ── Conteúdo scrollável — grid denso, tudo visível com pouco scroll ── */}
-            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4 no-scrollbar">
               {/* Métricas 2×2: cadastro, mensalidade, vencimento, último pagamento */}
               <div className="grid grid-cols-2 gap-2.5">
                 <MetricCard
