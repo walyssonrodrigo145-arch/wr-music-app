@@ -63,6 +63,7 @@ export default function Alunos() {
   const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
   const [enrollmentInstrumentId, setEnrollmentInstrumentId] = useState<string>("all");
   const [enrollmentFee, setEnrollmentFee] = useState<string>("");
+  const [enrollmentContractTemplateId, setEnrollmentContractTemplateId] = useState<string>("auto");
   const [generatedEnrollmentLink, setGeneratedEnrollmentLink] = useState<{ url: string; fullUrl: string } | null>(null);
 
   const generateEnrollmentLinkMutation = trpc.enrollment.generateLink.useMutation({
@@ -77,6 +78,7 @@ export default function Alunos() {
 
   const { data: students = [], isLoading } = trpc.students.list.useQuery();
   const { data: instruments = [] } = trpc.instruments.list.useQuery();
+  const { data: contractTemplates = [] } = trpc.contractTemplates.list.useQuery(undefined, { enabled: isEnrollmentModalOpen });
 
   // ── Controle de Acesso ──────────────────────────────────────────────────────
   const { user } = useAuth();
@@ -769,6 +771,24 @@ export default function Alunos() {
                 </p>
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Contrato para assinatura (Opcional)</label>
+                <Select value={enrollmentContractTemplateId} onValueChange={setEnrollmentContractTemplateId}>
+                  <SelectTrigger className="h-10 rounded-xl text-xs">
+                    <SelectValue placeholder="Automático (recomendado)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Automático (menor de idade se &lt;18)</SelectItem>
+                    {contractTemplates.map((t: any) => (
+                      <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  Requer integração Assinafy ativa. O aluno/responsável recebe o link de assinatura ao final da matrícula.
+                </p>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
                 <Button
                   variant="outline"
@@ -783,6 +803,7 @@ export default function Alunos() {
                     generateEnrollmentLinkMutation.mutate({
                       instrumentId: enrollmentInstrumentId !== "all" ? Number(enrollmentInstrumentId) : undefined,
                       monthlyFee: enrollmentFee ? Number(enrollmentFee) : undefined,
+                      contractTemplateId: enrollmentContractTemplateId !== "auto" ? Number(enrollmentContractTemplateId) : undefined,
                     });
                   }}
                   className="h-9 px-4 rounded-xl text-xs bg-primary hover:bg-primary/90 text-white font-bold gap-1.5"

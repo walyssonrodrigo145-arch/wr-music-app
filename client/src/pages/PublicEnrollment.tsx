@@ -12,6 +12,7 @@ import {
   Music, Calendar, Clock, CheckCircle2, User, Phone,
   Mail, Sparkles, Loader2, Copy, ExternalLink,
   ChevronRight, CreditCard, ArrowLeft, BadgeCheck, QrCode,
+  FileSignature, MessageCircle,
 } from "lucide-react";
 
 // Fluxo: Curso → Dados + Pagamento → Horário → Confirmação → Sucesso
@@ -28,7 +29,11 @@ export default function PublicEnrollment() {
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [billingType, setBillingType] = useState<"PIX" | "BOLETO">("PIX");
 
-  const [form, setForm] = useState({ name: "", phone: "", email: "", cpf: "" });
+  const [form, setForm] = useState({
+    name: "", phone: "", email: "", cpf: "",
+    birthDate: "",
+    guardianName: "", guardianCpf: "", guardianPhone: "", guardianEmail: "",
+  });
 
   const [paymentData, setPaymentData] = useState<{
     chargeId?: string;
@@ -203,10 +208,6 @@ export default function PublicEnrollment() {
     toast.success("Chave PIX copiada!");
   };
 
-  const handleGoToSchedule = () => {
-    setStep("schedule");
-  };
-
   // Verifica manualmente o pagamento (MP via external_reference ou InfinitePay via payment_check)
   const handleVerifyMPPayment = async () => {
     setMpVerifying(true);
@@ -249,6 +250,29 @@ export default function PublicEnrollment() {
       }
     } catch {
       toast.error("Não foi possível verificar. Certifique-se de que concluiu o pagamento e tente novamente.");
+    } finally {
+      setMpVerifying(false);
+    }
+  };
+
+  // Verifica a cobrança Asaas (PIX/Boleto) server-side antes de escolher o horário
+  const handleVerifyAsaas = async () => {
+    if (!paymentData?.chargeId) { setStep("schedule"); return; }
+    setMpVerifying(true);
+    try {
+      const res = await fetch(
+        `/api/trpc/enrollment.verifyAsaasCharge?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { code, chargeId: paymentData.chargeId } } }))}`
+      );
+      const json: any = await res.json();
+      const result = json?.[0]?.result?.data?.json;
+      if (result?.paid) {
+        setStep("schedule");
+        toast.success("Pagamento confirmado! Agora escolha seu horário.");
+      } else {
+        toast.error("Pagamento ainda não confirmado. Conclua o PIX/Boleto e tente novamente em alguns segundos.");
+      }
+    } catch {
+      toast.error("Não foi possível verificar o pagamento. Tente novamente.");
     } finally {
       setMpVerifying(false);
     }
@@ -513,6 +537,21 @@ export default function PublicEnrollment() {
                       <Input id="enrollment-cpf" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm({ ...form, cpf: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
                     </div>
 
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Data de Nascimento</Label>
+                      <Input type="date" value={form.birthDate} onChange={e => setForm({ ...form, birthDate: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-muted/20 border border-border/40 space-y-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Responsável (obrigatório para menores de 18)</p>
+                      <Input placeholder="Nome do responsável" value={form.guardianName} onChange={e => setForm({ ...form, guardianName: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Input placeholder="CPF do responsável" value={form.guardianCpf} onChange={e => setForm({ ...form, guardianCpf: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                        <Input placeholder="WhatsApp do responsável" value={form.guardianPhone} onChange={e => setForm({ ...form, guardianPhone: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                      </div>
+                      <Input type="email" placeholder="E-mail do responsável" value={form.guardianEmail} onChange={e => setForm({ ...form, guardianEmail: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                    </div>
+
                     {/* Escolha do método de pagamento */}
                     {details.paymentGateway === "asaas" && (
                       <div className="space-y-1.5">
@@ -625,10 +664,11 @@ export default function PublicEnrollment() {
 
                   {/* Após pagar → vai escolher o horário */}
                   <Button
-                    onClick={handleGoToSchedule}
+                    onClick={handleVerifyAsaas}
+                    disabled={mpVerifying}
                     className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20"
                   >
-                    <BadgeCheck size={18} /> Já paguei — Escolher meu Horário
+                    {mpVerifying ? <Loader2 size={18} className="animate-spin" /> : <BadgeCheck size={18} />} Já paguei — Verificar e escolher horário
                   </Button>
                   <p className="text-center text-[10px] text-muted-foreground">Clique somente após realizar o pagamento acima</p>
                 </div>
@@ -764,6 +804,12 @@ export default function PublicEnrollment() {
                     studentName: form.name,
                     studentPhone: form.phone,
                     studentEmail: form.email || undefined,
+                    studentCpf: form.cpf || undefined,
+                    birthDate: form.birthDate || undefined,
+                    guardianName: form.guardianName || undefined,
+                    guardianCpf: form.guardianCpf || undefined,
+                    guardianPhone: form.guardianPhone || undefined,
+                    guardianEmail: form.guardianEmail || undefined,
                     instrumentId: resolvedInstrumentId!,
                     teacherUserId: slotsData?.teacher?.userId ?? 0,
                     studioRoomId: slotsData?.room?.id,
@@ -833,6 +879,31 @@ export default function PublicEnrollment() {
                   </div>
                 </div>
               </Card>
+
+              {confirmMutation.data?.contractSignUrl && (
+                <Card className="w-full p-5 rounded-2xl bg-indigo-500/5 border-indigo-500/20 text-left space-y-3">
+                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Contrato para assinatura</p>
+                  <p className="text-xs text-muted-foreground">
+                    Falta pouco! Assine o contrato de prestação de serviços digitalmente para concluir.
+                  </p>
+                  <a
+                    href={confirmMutation.data.contractSignUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all"
+                  >
+                    <FileSignature size={16} /> Assinar contrato agora
+                  </a>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Segue o link para assinatura do contrato de matrícula: ${confirmMutation.data.contractSignUrl}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-bold text-xs transition-all"
+                  >
+                    <MessageCircle size={14} /> Enviar link por WhatsApp
+                  </a>
+                </Card>
+              )}
             </motion.div>
           )}
 

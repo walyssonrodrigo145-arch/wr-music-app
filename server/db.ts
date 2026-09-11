@@ -409,6 +409,9 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToStudent" integer DEFAULT 1 NOT NULL`, "message_automation_rules.sendToStudent");
     await safeExecute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "sendToGuardian" integer DEFAULT 0 NOT NULL`, "message_automation_rules.sendToGuardian");
     await safeExecute(sql`ALTER TABLE "message_automation_rules" ADD COLUMN IF NOT EXISTS "triggerUnit" varchar(10) DEFAULT 'meses' NOT NULL`, "message_automation_rules.triggerUnit");
+    // Matrícula por link: contrato automático + CPF do responsável
+    await safeExecute(sql`ALTER TABLE "enrollment_links" ADD COLUMN IF NOT EXISTS "contractTemplateId" integer`, "enrollment_links.contractTemplateId");
+    await safeExecute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "guardianCpf" varchar(20)`, "students.guardianCpf");
 
     // studio_rooms schema extension
     await safeExecute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "category" varchar(100) DEFAULT 'Estúdio de gravação' NOT NULL`, "studio_rooms.category");

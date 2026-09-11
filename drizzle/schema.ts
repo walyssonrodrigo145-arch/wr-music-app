@@ -149,6 +149,7 @@ export const students = pgTable("students", {
   guardianName: varchar("guardianName", { length: 255 }),
   guardianPhone: varchar("guardianPhone", { length: 30 }),
   guardianEmail: varchar("guardianEmail", { length: 320 }),
+  guardianCpf: varchar("guardianCpf", { length: 20 }),
   avatar: text("avatar"),
   instrumentId: integer("instrumentId"),
   level: levelEnum("level").default("iniciante").notNull(),
@@ -1606,6 +1607,9 @@ export const enrollmentLinks = pgTable("enrollment_links", {
   instrumentId: integer("instrumentId"),
   monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }),
   leadId: integer("leadId"),
+  // Modelo de contrato a ser gerado automaticamente na matrícula (opcional).
+  // null = automático (menor de idade se <18 e existir modelo "menor"; senão padrão).
+  contractTemplateId: integer("contractTemplateId"),
   status: varchar("status", { length: 20 }).default("active").notNull(), // 'active' | 'used' | 'expired'
   expiresAt: timestamp("expiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

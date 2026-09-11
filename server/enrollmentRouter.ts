@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms, organizations } from "../drizzle/schema";
-import { eq, and, gte, lte, desc, isNotNull, ne, sql } from "drizzle-orm";
+import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms, organizations, schoolIntegrations, contractTemplates } from "../drizzle/schema";
+import { eq, and, gte, lte, desc, isNotNull, ne, sql, or } from "drizzle-orm";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasChargeStatus } from "./utils/asaas";
 import { createMPPreference, verifyMPPayment } from "./utils/mercadopago";
@@ -20,6 +20,7 @@ export const enrollmentRouter = router({
         leadId: z.number().optional(),
         instrumentId: z.number().optional(),
         monthlyFee: z.number().optional(),
+        contractTemplateId: z.number().optional(),
         autoSendWhatsapp: z.boolean().optional(),
       })
     )
@@ -41,6 +42,7 @@ export const enrollmentRouter = router({
           leadId: input.leadId,
           instrumentId: input.instrumentId,
           monthlyFee: resolvedFee ? String(resolvedFee) : undefined,
+          contractTemplateId: input.contractTemplateId,
           status: "active",
         })
         .returning();
@@ -128,6 +130,12 @@ export const enrollmentRouter = router({
         throw new Error("Link de matrícula inválido ou expirado.");
       }
 
+      // Expiração do link (se configurada)
+      if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+        await db.update(enrollmentLinks).set({ status: "expired" }).where(eq(enrollmentLinks.id, link.id));
+        throw new Error("Link de matrícula expirado.");
+      }
+
       const orgId = link.organizationId;
       // Busca o settings mais completo: prioriza quem tem schoolName ou chaves de pagamento
       const allSettings = await db.select().from(settings).where(eq(settings.organizationId, orgId));
@@ -153,6 +161,22 @@ export const enrollmentRouter = router({
       const [org] = await db.select({ logo: organizations.logo }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
       const schoolLogo = schoolSet?.logoUrl || org?.logo || null;
 
+      // Contrato: habilitado se a escola tiver integração Assinafy ativa
+      const [assinafy] = await db.select({ id: schoolIntegrations.id })
+        .from(schoolIntegrations)
+        .where(and(
+          eq(schoolIntegrations.organizationId, orgId),
+          eq(schoolIntegrations.provider, "assinafy"),
+          eq(schoolIntegrations.active, true),
+        ))
+        .limit(1);
+      let contractTemplateName: string | null = null;
+      if (link.contractTemplateId) {
+        const [tpl] = await db.select({ name: contractTemplates.name })
+          .from(contractTemplates).where(eq(contractTemplates.id, link.contractTemplateId)).limit(1);
+        contractTemplateName = tpl?.name ?? null;
+      }
+
       return {
         code: link.code,
         schoolName: schoolSet?.schoolName || "Escola de Música",
@@ -165,6 +189,9 @@ export const enrollmentRouter = router({
         instruments: allInstruments,
         paymentGateway: activeGateway,
         schoolHours: parsedSchoolHours,
+        contractEnabled: Boolean(assinafy),
+        contractTemplateId: link.contractTemplateId ?? null,
+        contractTemplateName,
       };
     }),
 
@@ -331,10 +358,10 @@ export const enrollmentRouter = router({
         studentEmail: z.string().email().optional(),
         studentCpf: z.string().optional(),
         instrumentId: z.number(),
-        teacherUserId: z.number(),
+        teacherUserId: z.number().optional(),
         studioRoomId: z.number().optional(),
-        dateStr: z.string(),
-        timeStr: z.string(),
+        dateStr: z.string().optional(),
+        timeStr: z.string().optional(),
         billingType: z.enum(["PIX", "BOLETO"]).default("PIX"),
       })
     )
@@ -350,6 +377,10 @@ export const enrollmentRouter = router({
 
       if (!link || link.status !== "active") {
         throw new Error("Link expirado ou já utilizado.");
+      }
+      if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+        await db.update(enrollmentLinks).set({ status: "expired" }).where(eq(enrollmentLinks.id, link.id));
+        throw new Error("Link de matrícula expirado.");
       }
 
       const orgId = link.organizationId;
@@ -487,6 +518,28 @@ export const enrollmentRouter = router({
       return { skipPayment: true, gateway: "none" };
     }),
 
+  // 4.1 Verifica o status da cobrança Asaas da matrícula (server-side)
+  verifyAsaasCharge: publicProcedure
+    .input(z.object({ code: z.string(), chargeId: z.string() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      const [link] = await db.select().from(enrollmentLinks).where(eq(enrollmentLinks.code, input.code)).limit(1);
+      if (!link) throw new Error("Link não encontrado");
+      const allSettings = await db.select().from(settings).where(eq(settings.organizationId, link.organizationId));
+      const schoolSet = allSettings.find(s => s.schoolName && s.schoolName.trim() !== '')
+        || allSettings.find(s => s.asaasApiKey)
+        || allSettings[0];
+      if (!schoolSet?.asaasApiKey) throw new Error("Escola sem Asaas configurado.");
+      try {
+        const status = await getAsaasChargeStatus(input.chargeId, decryptSecret(schoolSet.asaasApiKey));
+        const paid = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH", "DETERMINED"].includes(String(status).toUpperCase());
+        return { paid, status: String(status) };
+      } catch (e) {
+        return { paid: false, status: "unknown" };
+      }
+    }),
+
   // 5. Confirma a Matrícula após pagamento (ou sem gateway)
   submitEnrollment: publicProcedure
     .input(
@@ -495,6 +548,12 @@ export const enrollmentRouter = router({
         studentName: z.string().min(2),
         studentPhone: z.string().min(8),
         studentEmail: z.string().email().optional(),
+        studentCpf: z.string().optional(),
+        birthDate: z.string().optional(),
+        guardianName: z.string().optional(),
+        guardianCpf: z.string().optional(),
+        guardianPhone: z.string().optional(),
+        guardianEmail: z.string().optional(),
         instrumentId: z.number(),
         teacherUserId: z.number(),
         studioRoomId: z.number().optional(),
@@ -516,6 +575,10 @@ export const enrollmentRouter = router({
 
       if (!link || (link.status !== "active" && link.status !== "pending_payment")) {
         throw new Error("Link expirado ou já utilizado.");
+      }
+      if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+        await db.update(enrollmentLinks).set({ status: "expired" }).where(eq(enrollmentLinks.id, link.id));
+        throw new Error("Link de matrícula expirado.");
       }
 
       const orgId = link.organizationId;
@@ -617,6 +680,44 @@ export const enrollmentRouter = router({
 
       const scheduledAt = new Date(`${input.dateStr}T${input.timeStr}:00.000-03:00`);
 
+      // ── Idempotência: evita aluno duplicado (mesmo e-mail/telefone na org) ──
+      const studentEmail = input.studentEmail?.trim() || null;
+      const studentPhone = input.studentPhone?.trim() || null;
+      const dupConds = [];
+      if (studentEmail) dupConds.push(eq(students.email, studentEmail));
+      if (studentPhone) dupConds.push(eq(students.phone, studentPhone));
+      if (dupConds.length > 0) {
+        const [existingStudent] = await db.select({ id: students.id })
+          .from(students)
+          .where(and(eq(students.organizationId, orgId), or(...dupConds)))
+          .limit(1);
+        if (existingStudent) {
+          throw new Error("Já existe um aluno cadastrado com este e-mail ou telefone. Entre em contato com a escola.");
+        }
+      }
+
+      // ── Re-checagem do horário (evita conflito/duplo agendamento) ──
+      const slotStart = scheduledAt.getTime();
+      const slotEnd = slotStart + lessonDuration * 60_000;
+      const sameDayLessons = await db
+        .select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
+        .from(lessons)
+        .where(and(
+          eq(lessons.organizationId, orgId),
+          eq(lessons.userId, input.teacherUserId),
+          eq(lessons.status, "agendada"),
+          gte(lessons.scheduledAt, new Date(slotStart - 12 * 3_600_000)),
+          lte(lessons.scheduledAt, new Date(slotStart + 12 * 3_600_000)),
+        ));
+      const hasConflict = sameDayLessons.some((l: any) => {
+        const s = new Date(l.scheduledAt).getTime();
+        const e = s + (l.duration || 60) * 60_000;
+        return slotStart < e && slotEnd > s;
+      });
+      if (hasConflict) {
+        throw new Error("Este horário acabou de ser ocupado. Volte e escolha outro horário.");
+      }
+
       // Cadastra o Aluno
       const [newStudent] = await db
         .insert(students)
@@ -627,6 +728,12 @@ export const enrollmentRouter = router({
           name: input.studentName,
           phone: input.studentPhone,
           email: input.studentEmail || undefined,
+          cpf: input.studentCpf || undefined,
+          birthDate: input.birthDate ? input.birthDate.slice(0, 10) : undefined,
+          guardianName: input.guardianName || undefined,
+          guardianCpf: input.guardianCpf || undefined,
+          guardianPhone: input.guardianPhone || undefined,
+          guardianEmail: input.guardianEmail || undefined,
           instrumentId: input.instrumentId,
           status: "ativo",
           monthlyFee: link.monthlyFee || "150.00",
@@ -667,10 +774,26 @@ export const enrollmentRouter = router({
         .set({ status: "used" })
         .where(eq(enrollmentLinks.id, link.id));
 
+      // Gera contrato + assinatura digital (best-effort; NÃO bloqueia a matrícula)
+      let contract: { signUrl: string; contractId: number; contractNumber: string | null } | null = null;
+      try {
+        const { generateEnrollmentContract } = await import("./services/EnrollmentContractService");
+        contract = await generateEnrollmentContract(db, orgId, newStudent.id, {
+          templateId: link.contractTemplateId ?? null,
+          monthlyFee: (link.monthlyFee as string | null) ?? null,
+          startDate: new Date().toISOString().slice(0, 10),
+        });
+      } catch (e) {
+        console.warn("[Enrollment] Falha ao gerar contrato (matrícula mantida):", e);
+      }
+
       return {
         success: true,
         studentId: newStudent.id,
         lessonId: newLesson.id,
+        contractSignUrl: contract?.signUrl ?? null,
+        contractId: contract?.contractId ?? null,
+        contractNumber: contract?.contractNumber ?? null,
       };
     }),
 
