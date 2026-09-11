@@ -691,7 +691,13 @@ export const plataformaRouters = {
             maxPayments: input.planType === 'YEARLY' ? 1 : 6
           });
           subId = sub.id;
-          await db.update(organizations).set({ asaasSubscriptionId: subId }).where(eq(organizations.id, orgId));
+          // Marca como "pending": o cliente CONFIRMOU a assinatura (opt-in). Isso também
+          // impede que a guarda de trial (que só age em "trialing") cancele esta assinatura.
+          await db.update(organizations).set({
+            asaasSubscriptionId: subId,
+            subscriptionStatus: "pending",
+            updatedAt: new Date(),
+          }).where(eq(organizations.id, orgId));
         }
 
         const payments = await getAsaasSubscriptionPayments(subId);

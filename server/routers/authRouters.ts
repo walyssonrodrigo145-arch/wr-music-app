@@ -543,20 +543,13 @@ export const authRouters = {
           throw new Error("O plano selecionado não é válido ou foi removido.");
         }
 
-        const planValue = input.planType === "YEARLY"
-          ? Number(planInfo.priceYearly)
-          : Number(planInfo.priceMonthly);
-        const planName = planInfo.name;
-
         // Criar organização com status trialing (7 dias grátis)
         const baseSlug = input.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'escola';
         const uniqueSlug = `${baseSlug}-${crypto.randomBytes(4).toString('hex')}`;
-        
-        // Fatura para daqui a 7 dias (7 dias grátis, sem carência de 3 dias)
+
         // trialEndsAt mostra ao usuário quando o trial termina (7 dias)
         const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         trialEndsAt.setHours(23, 59, 59, 999);
-        const nextDueDateStr = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
         const [org] = await db.insert(organizations).values({
           name: `${input.name}`,
@@ -602,10 +595,12 @@ export const authRouters = {
           whatsappAutoSend: 0,
         }).catch(() => {});
 
-        // Integração Asaas
-        const { createAsaasCustomer, createAsaasSubscription } = await import('../utils/asaas');
-        
-        let invoiceUrl: string | null = null;
+        // Integração Asaas — cria SOMENTE o cliente (NÃO cria assinatura nem cobrança).
+        // REGRA DE NEGÓCIO: os 7 dias são gratuitos e NÃO geram cobrança automática.
+        // A assinatura/cobrança só é criada quando o cliente confirma em /checkout
+        // (platform.checkout) — evitando cobrança sem consentimento após o trial.
+        const { createAsaasCustomer } = await import('../utils/asaas');
+        const invoiceUrl: string | null = null;
 
         try {
           const customerId = await createAsaasCustomer({
@@ -614,45 +609,12 @@ export const authRouters = {
             phone: input.phone,
             cpfCnpj: input.cpfCnpj || undefined,
           });
-          
-          const sub = await createAsaasSubscription({
-            customer: customerId,
-            billingType: 'UNDEFINED',  // Asaas gera link de checkout próprio
-            value: planValue,
-            nextDueDate: nextDueDateStr,
-            cycle: input.planType,
-            description: `Assinatura MusicPro - Plano ${planName} (${input.planType})`,
-            successUrl: `${(ctx.req as any).headers?.origin || 'https://wrmusicpro.com.br'}/dashboard`,
-            maxPayments: input.planType === 'YEARLY' ? 1 : 6
-          });
-
-          // Salvar IDs do Asaas na organização
           await db.update(organizations)
-            .set({ asaasCustomerId: customerId, asaasSubscriptionId: sub.id })
+            .set({ asaasCustomerId: customerId })
             .where(eq(organizations.id, org.id));
-
-          // Buscar o link de pagamento da primeira fatura
-          try {
-            const { getAsaasSubscriptionPayments } = await import('../utils/asaas');
-            const payments = await getAsaasSubscriptionPayments(sub.id);
-            if (payments?.length > 0 && payments[0].invoiceUrl) {
-              invoiceUrl = payments[0].invoiceUrl;
-            }
-          } catch {
-            // Se não conseguir o link, não bloqueia o cadastro
-          }
-
-        } catch (error: any) {
-          // Se Asaas falhar, remove usuário e org para não deixar dados órfãos
-          await db.delete(users).where(eq(users.id, newUser.id));
-          await db.delete(organizations).where(eq(organizations.id, org.id));
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: error?.message?.includes("[Asaas]")
-              ? "Erro ao configurar faturamento: " + error.message.replace("[Asaas] ", "")
-              : "Erro ao configurar faturamento. Verifique os dados e tente novamente.",
-            cause: error
-          });
+        } catch (error) {
+          // NÃO bloqueia o cadastro: o cliente Asaas pode ser criado depois no /checkout.
+          console.warn("[Signup] Falha ao criar cliente Asaas (não bloqueante):", error);
         }
 
         // Criar sessão para login automático (org está pending, mas usuário pode acessar)

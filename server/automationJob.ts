@@ -123,6 +123,18 @@ async function runAutomation() {
       debugLog("[Automation] Erro na regra de valor cheio das bolsas:", e);
     }
 
+    // TRIAL: garante que os 7 dias grátis NÃO gerem cobrança automática — cancela
+    // assinaturas pré-criadas de organizações ainda em "trialing" (sem consentimento).
+    try {
+      const { runTrialBillingGuard } = await import("./services/TrialBillingGuard");
+      const guard = await runTrialBillingGuard();
+      if (guard.processed > 0) {
+        debugLog(`[Automation] TrialBillingGuard: ${guard.processed} assinatura(s) de trial cancelada(s).`);
+      }
+    } catch (e) {
+      debugLog("[Automation] Erro no TrialBillingGuard:", e);
+    }
+
   const activeSettings = await db
     .select({
       id: settings.id,
