@@ -6,8 +6,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sparkles, MessageSquare, Plus, Trash2, Loader2, BrainCircuit,
   DollarSign, Users, Calendar, ArrowLeft, AlertTriangle, Clock,
-  CheckCircle2, Bot, Zap, TrendingUp, BookOpen, Star
+  CheckCircle2, Bot, Zap, TrendingUp, BookOpen, Star,
+  HelpCircle, XCircle, ShieldCheck
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -27,6 +29,7 @@ export default function IAAssistente() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [timeLeftStr, setTimeLeftStr] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
 
   const { data: conversations = [], isLoading: isLoadingConversations } = trpc.ai.listConversations.useQuery();
   const { data: dbMessages, isLoading: isLoadingMessages } = trpc.ai.getMessages.useQuery(
@@ -426,9 +429,17 @@ export default function IAAssistente() {
               <h2 className="text-3xl font-black text-foreground text-center mb-3 tracking-tight">
                 Assistente Musical com IA
               </h2>
-              <p className="text-muted-foreground text-center max-w-md mb-10 leading-relaxed text-sm">
+              <p className="text-muted-foreground text-center max-w-md mb-5 leading-relaxed text-sm">
                 Sua IA tem acesso em tempo real aos seus <strong>alunos</strong>, <strong>aulas</strong> e <strong>finanças</strong>. Faça perguntas ou escolha uma sugestão abaixo.
               </p>
+
+              {/* Botão: o que a IA pode fazer */}
+              <button
+                onClick={() => setShowHelp(true)}
+                className="mb-8 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 text-xs font-bold hover:bg-indigo-500/20 transition-all active:scale-95"
+              >
+                <HelpCircle size={14} /> O que a IA pode (e o que NÃO pode) fazer?
+              </button>
 
               {/* Grade de Sugestões */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
@@ -460,6 +471,93 @@ export default function IAAssistente() {
           </div>
         )}
       </div>
+
+      {/* Modal: como usar a IA (capacidades e limitações) */}
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent className="sm:max-w-[560px] max-h-[calc(100dvh-8rem)] md:max-h-[90vh] flex flex-col rounded-3xl p-0 overflow-hidden">
+          <div className="px-6 pt-6 pb-4 border-b border-border/40 shrink-0">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3 text-lg font-black">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center"><BrainCircuit size={18} /></div>
+                Como usar o Assistente com IA
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Entenda o que a IA faz por você — e o que ela <strong>não</strong> faz.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1 min-h-0 no-scrollbar">
+            {/* O que faz */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 size={13} /> O que a IA faz
+              </p>
+              <ul className="space-y-2">
+                {[
+                  "Consulta seus dados em tempo real (alunos, aulas, financeiro, agenda).",
+                  "Gera relatórios, resumos e projeções (ex.: receita dos próximos meses).",
+                  "Responde dúvidas sobre a sua escola e ajuda a planejar.",
+                  "Escreve rascunhos de mensagens para você revisar e enviar.",
+                  "Sugere próximos passos e organiza informações.",
+                ].map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                    <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* O que NÃO faz */}
+            <div className="space-y-2 rounded-2xl border border-rose-500/25 bg-rose-500/5 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                <ShieldCheck size={13} /> O que a IA NÃO faz
+              </p>
+              <ul className="space-y-2">
+                {[
+                  "NÃO exclui alunos, aulas, faturas, contratos ou qualquer registro.",
+                  "NÃO altera nem apaga dados automaticamente.",
+                  "NÃO envia mensagens sozinha (apenas rascunhos).",
+                  "NÃO acessa dados de outras escolas.",
+                ].map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                    <XCircle size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-muted-foreground pt-1">
+                Para excluir qualquer informação, faça diretamente pela tela correspondente (Alunos, Financeiro, etc.). A IA <strong>não realiza exclusões</strong>.
+              </p>
+            </div>
+
+            {/* Como usar */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <Sparkles size={13} /> Como aproveitar melhor
+              </p>
+              <ul className="space-y-1.5">
+                {[
+                  "Pergunte em linguagem natural, como se estivesse falando com uma pessoa.",
+                  "Use as sugestões da tela inicial para começar rápido.",
+                  "Quanto mais contexto (período, aluno, instrumento), melhor a resposta.",
+                  "Sempre confira as informações importantes antes de agir.",
+                ].map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0 mt-1.5" />
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 border-t border-border/40 flex justify-end shrink-0 bg-muted/10">
+            <Button onClick={() => setShowHelp(false)} className="rounded-xl text-xs">Entendi</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
