@@ -25,6 +25,11 @@ const PRIORITY: Record<string, string> = {
   alta: "bg-rose-500/10 text-rose-600 border-rose-500/20",
 };
 
+function parseAttachments(raw: any): string[] {
+  if (!raw) return [];
+  try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch { return []; }
+}
+
 export function SupportTicketsAdmin() {
   const utils = trpc.useUtils();
   const { data: tickets = [], isLoading } = trpc.support.listAll.useQuery();
@@ -109,6 +114,19 @@ export function SupportTicketsAdmin() {
                 </div>
 
                 <p className={cn("text-xs text-muted-foreground mt-3 whitespace-pre-wrap", !expanded && "line-clamp-2")}>{t.description}</p>
+
+                {(() => {
+                  const atts = parseAttachments(t.attachments);
+                  return atts.length > 0 ? (
+                    <div className="flex gap-2 flex-wrap mt-3">
+                      {atts.map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="w-16 h-16 rounded-lg overflow-hidden border border-border/50 hover:border-primary/40 transition-all">
+                          <img src={url} alt={`anexo ${i + 1}`} className="w-full h-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
 
                 {expanded && (
                   <div className="mt-4 space-y-3 border-t border-border/40 pt-4">

@@ -993,6 +993,10 @@ export const supportTickets = pgTable("support_tickets", {
   // baixa | media | alta
   priority: varchar("priority", { length: 10 }).default("media").notNull(),
   adminResponse: text("adminResponse"),
+  // Anexos (imagens) — JSON array de URLs
+  attachments: text("attachments"),
+  // true quando o SuperAdmin responde e o cliente ainda não viu (badge/pulso no header)
+  hasUnreadResponse: boolean("hasUnreadResponse").default(false).notNull(),
   resolvedAt: timestamp("resolvedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),

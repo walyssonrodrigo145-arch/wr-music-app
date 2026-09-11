@@ -78,6 +78,12 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
   });
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Respostas novas de chamados de suporte (pulso/badge no botão Suporte)
+  const { data: supportUnread = 0 } = trpc.support.unreadCount.useQuery(undefined, {
+    enabled: !!user && user?.role !== "aluno",
+    refetchInterval: 30000,
+  });
+
   const markReadMutation = trpc.system.markNotificationRead.useMutation({
     onSuccess: () => refetchNotifications()
   });
@@ -144,10 +150,18 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
       {user?.role !== "aluno" && (
         <Button
           onClick={() => setSupportOpen(true)}
-          className="hidden sm:flex items-center gap-2 h-10 lg:h-11 px-3.5 lg:px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md hover:shadow-emerald-500/25 transition-all active:scale-95 border border-emerald-400/30 shrink-0"
+          className={cn(
+            "hidden sm:flex items-center gap-2 h-10 lg:h-11 px-3.5 lg:px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md hover:shadow-emerald-500/25 transition-all active:scale-95 border border-emerald-400/30 shrink-0 relative",
+            supportUnread > 0 && "animate-pulse ring-2 ring-emerald-400 ring-offset-2 ring-offset-background"
+          )}
         >
           <LifeBuoy size={16} />
           <span className="hidden md:inline font-outfit">Suporte</span>
+          {supportUnread > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-background">
+              {supportUnread}
+            </span>
+          )}
         </Button>
       )}
 

@@ -9,6 +9,11 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   fechado: { label: "Fechado", cls: "bg-muted text-muted-foreground border-border" },
 };
 
+function parseAttachments(raw: any): string[] {
+  if (!raw) return [];
+  try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch { return []; }
+}
+
 export function MyTicketsList() {
   const { data: tickets = [], isLoading } = trpc.support.listMine.useQuery();
   return (
@@ -38,6 +43,18 @@ export function MyTicketsList() {
                 <div className="min-w-0">
                   <p className="text-xs font-black text-foreground truncate">{t.title}</p>
                   <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{t.description}</p>
+                  {(() => {
+                    const atts = parseAttachments(t.attachments);
+                    return atts.length > 0 ? (
+                      <div className="flex gap-1.5 flex-wrap mt-1.5">
+                        {atts.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg overflow-hidden border border-border/50">
+                            <img src={url} alt={`anexo ${i + 1}`} className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                   <p className="text-[9px] text-muted-foreground/60 mt-1 uppercase tracking-wider">
                     {new Date(t.createdAt).toLocaleDateString("pt-BR")}
                   </p>
