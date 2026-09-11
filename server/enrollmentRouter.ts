@@ -504,16 +504,23 @@ export const enrollmentRouter = router({
         || allSettings2.sort((a, b) => b.id - a.id)[0];
 
       // Valor calculado SERVER-SIDE a partir dos planos (NUNCA confiar no cliente).
-      // Inclui a 1ª mensalidade + taxa de inscrição de cada curso.
+      // O PLANO já cobre os instrumentos (ex.: 2 aulas/semana) → cobra 1x por plano distinto.
       let chargeAmount = link.monthlyFee ? Number(link.monthlyFee) : 150;
       if (input.courses && input.courses.length > 0) {
         const orgPlans = await db.select().from(schoolPlans).where(eq(schoolPlans.organizationId, orgId));
         const planById = new Map<number, any>(orgPlans.map((p: any) => [p.id, p]));
-        chargeAmount = input.courses.reduce((sum, c) => {
+        const seenPlans = new Set<number>();
+        let hasCourseWithoutPlan = false;
+        chargeAmount = 0;
+        for (const c of input.courses) {
+          const key = c.planId ?? -1;
+          if (seenPlans.has(key)) continue;
+          seenPlans.add(key);
           const p = c.planId ? planById.get(c.planId) : null;
-          if (!p) return sum + (link.monthlyFee ? Number(link.monthlyFee) : 150);
-          return sum + Number(p.valorMensal) + Number(p.taxaInscricao || 0);
-        }, 0);
+          if (!p) { hasCourseWithoutPlan = true; continue; }
+          chargeAmount += Number(p.valorMensal) + Number(p.taxaInscricao || 0);
+        }
+        if (hasCourseWithoutPlan) chargeAmount += (link.monthlyFee ? Number(link.monthlyFee) : 150);
       }
       if (chargeAmount <= 0) chargeAmount = link.monthlyFee ? Number(link.monthlyFee) : 150;
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
@@ -795,8 +802,17 @@ export const enrollmentRouter = router({
         if (!t) throw new Error("Há um curso selecionado sem professor disponível. Escolha outro curso ou contate a escola.");
         teacherByCourse.set(c.instrumentId, t);
       }
-      const totalMonthlyFee = enrichedCourses.reduce((s, c) => s + c.monthlyFee, 0);
-      const totalEnrollmentFee = enrichedCourses.reduce((s, c) => s + c.enrollmentFee, 0);
+      // O PLANO já cobre os instrumentos → cobra 1x por plano distinto (valor + taxa)
+      const seenPlanKeys = new Set<number>();
+      const billable: { monthlyFee: number; enrollmentFee: number; durationMonths: number }[] = [];
+      for (const c of enrichedCourses) {
+        const key = c.planId ?? -1;
+        if (seenPlanKeys.has(key)) continue;
+        seenPlanKeys.add(key);
+        billable.push({ monthlyFee: c.monthlyFee, enrollmentFee: c.enrollmentFee, durationMonths: c.durationMonths });
+      }
+      const totalMonthlyFee = billable.reduce((s, c) => s + c.monthlyFee, 0);
+      const totalEnrollmentFee = billable.reduce((s, c) => s + c.enrollmentFee, 0);
       // Total esperado no ato = 1ª mensalidade + taxa de inscrição (por curso)
       const expectedTotal = totalMonthlyFee + totalEnrollmentFee;
       const TOLERANCE = 0.05; // tolerância de centavos
@@ -963,7 +979,7 @@ export const enrollmentRouter = router({
       const { generateLessonsForEnrollment, generateMonthlyDues } = await import("./services/EnrollmentGenerationService");
       let totalLessons = 0;
       let firstLessonId: number | null = null;
-      const duesCourses: { monthlyFee: number; durationMonths: number }[] = [];
+      const duesCourses: { monthlyFee: number; durationMonths: number }[] = billable.map((c) => ({ monthlyFee: c.monthlyFee, durationMonths: c.durationMonths }));
 
       for (const c of enrichedCourses) {
         const teacherUserId = teacherByCourse.get(c.instrumentId)!;
@@ -1020,7 +1036,6 @@ export const enrollmentRouter = router({
           if (!firstLessonId) firstLessonId = newLesson.id;
           totalLessons++;
         }
-        duesCourses.push({ monthlyFee: c.monthlyFee, durationMonths: c.durationMonths });
       }
 
       // Mensalidades dos meses seguintes (o 1º mês é pago no ato da matrícula)

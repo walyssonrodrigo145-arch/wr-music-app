@@ -443,14 +443,30 @@ export default function PublicEnrollment() {
   const plansForCount = allPlans.filter((p) => Number(p.aulasPorSemana) === requiredLessonsPerWeek);
   const availablePlans = plansForCount.length > 0 ? plansForCount : allPlans;
   const planById = new Map<number, any>(allPlans.map((p) => [p.id, p]));
-  const monthlyTotal = courses.reduce((s, c) => {
+
+  // O PLANO já cobre os instrumentos (ex.: 2 aulas/semana) → cobra 1x por PLANO
+  // distinto (valor + taxa de inscrição). Não somar por curso.
+  const seenPlanKeys = new Set<number>();
+  const billablePlans: { key: number; label: string; monthlyFee: number; enrollmentFee: number }[] = [];
+  for (const c of courses) {
+    const key = c.planId ?? -1;
+    if (seenPlanKeys.has(key)) continue;
+    seenPlanKeys.add(key);
     const p = c.planId ? planById.get(c.planId) : null;
-    return s + (p ? Number(p.valorMensal) : Number(details.monthlyFee || 0));
-  }, 0);
-  const enrollmentFeeTotal = courses.reduce((s, c) => {
-    const p = c.planId ? planById.get(c.planId) : null;
-    return s + (p ? Number(p.taxaInscricao || 0) : 0);
-  }, 0);
+    const instrumentsInPlan = courses
+      .filter((x) => (x.planId ?? -1) === key)
+      .map((x) => details.instruments.find((i: any) => i.id === x.instrumentId)?.name)
+      .filter(Boolean)
+      .join(" + ");
+    billablePlans.push({
+      key,
+      label: p ? `${p.nome} · ${instrumentsInPlan}` : instrumentsInPlan || "Curso",
+      monthlyFee: p ? Number(p.valorMensal) : Number(details.monthlyFee || 0),
+      enrollmentFee: p ? Number(p.taxaInscricao || 0) : 0,
+    });
+  }
+  const monthlyTotal = billablePlans.reduce((s, b) => s + b.monthlyFee, 0);
+  const enrollmentFeeTotal = billablePlans.reduce((s, b) => s + b.enrollmentFee, 0);
   const totalToPay = monthlyTotal + enrollmentFeeTotal;
   const dueDays: number[] = (details as any).dueDays || [];
 
@@ -615,9 +631,12 @@ export default function PublicEnrollment() {
               {courses.length > 0 && (
                 <div className="rounded-2xl bg-emerald-500/5 border border-emerald-500/15 p-3 space-y-1.5 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Mensalidade ({courses.length} curso{courses.length > 1 ? "s" : ""})</span>
+                    <span className="text-muted-foreground">Mensalidade {billablePlans.length > 1 ? `(${billablePlans.length} planos)` : ""}</span>
                     <span className="font-bold text-foreground">{formatBRL(monthlyTotal)}</span>
                   </div>
+                  <p className="text-[9px] text-muted-foreground/70 leading-snug">
+                    O plano já cobre os instrumentos selecionados — cobramos 1x por plano (e 1 taxa de inscrição).
+                  </p>
                   {enrollmentFeeTotal > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Taxa de inscrição</span>
@@ -686,17 +705,13 @@ export default function PublicEnrollment() {
 
                   {/* Resumo dos cursos selecionados + taxas */}
                   <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 space-y-2">
-                    <p className="text-[10px] text-muted-foreground font-semibold uppercase">Cursos selecionados</p>
-                    {courses.map((c) => {
-                      const inst = details.instruments.find((i: any) => i.id === c.instrumentId);
-                      const p = c.planId ? planById.get(c.planId) : null;
-                      return (
-                        <div key={c.instrumentId} className="flex items-center justify-between text-xs gap-2">
-                          <span className="font-bold text-foreground truncate">{inst?.name}{p ? ` · ${p.nome}` : ""}</span>
-                          <span className="font-black text-foreground shrink-0">{formatBRL(p ? Number(p.valorMensal) : Number(details.monthlyFee || 0))}</span>
-                        </div>
-                      );
-                    })}
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase">Planos selecionados</p>
+                    {billablePlans.map((b) => (
+                      <div key={b.key} className="flex items-center justify-between text-xs gap-2">
+                        <span className="font-bold text-foreground truncate">{b.label}</span>
+                        <span className="font-black text-foreground shrink-0">{formatBRL(b.monthlyFee)}</span>
+                      </div>
+                    ))}
                     <div className="border-t border-indigo-500/20 pt-2 space-y-1 text-xs">
                       <div className="flex justify-between"><span className="text-muted-foreground">Mensalidade</span><span className="font-bold text-foreground">{formatBRL(monthlyTotal)}</span></div>
                       {enrollmentFeeTotal > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Taxa de inscrição</span><span className="font-bold text-amber-600 dark:text-amber-400">{formatBRL(enrollmentFeeTotal)}</span></div>}
@@ -1004,10 +1019,6 @@ export default function PublicEnrollment() {
                           <span className="text-muted-foreground">Horário</span>
                           <span className="font-bold text-foreground">{weekdayLabel} às {c.timeStr}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Mensalidade</span>
-                          <span className="font-bold text-foreground">{formatBRL(p ? Number(p.valorMensal) : Number(details.monthlyFee || 0))}</span>
-                        </div>
                       </div>
                     );
                   })}
@@ -1015,6 +1026,12 @@ export default function PublicEnrollment() {
                     <span className="text-muted-foreground">Mensalidade total</span>
                     <span className="font-black text-emerald-500">{formatBRL(monthlyTotal)}</span>
                   </div>
+                  {enrollmentFeeTotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Taxa de inscrição</span>
+                      <span className="font-bold text-foreground">{formatBRL(enrollmentFeeTotal)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Próximo vencimento</span>
                     <span className="font-bold text-foreground">{nextDueLabel}</span>
