@@ -977,6 +977,33 @@ export const messageAutomationRules = pgTable("message_automation_rules", {
 export type MessageAutomationRule = typeof messageAutomationRules.$inferSelect;
 export type InsertMessageAutomationRule = typeof messageAutomationRules.$inferInsert;
 
+// ─── SUPORTE / CHAMADOS (bugs e melhorias reportados pelas escolas) ──────────
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId"),
+  userId: integer("userId").notNull(), // autor do chamado
+  // bug | melhoria | duvida | outro
+  category: varchar("category", { length: 20 }).default("melhoria").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  // página/URL onde ocorreu (contexto para o suporte)
+  pageUrl: varchar("pageUrl", { length: 500 }),
+  // aberto | em_andamento | resolvido | fechado
+  status: varchar("status", { length: 20 }).default("aberto").notNull(),
+  // baixa | media | alta
+  priority: varchar("priority", { length: 10 }).default("media").notNull(),
+  adminResponse: text("adminResponse"),
+  resolvedAt: timestamp("resolvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("support_tickets_org_idx").on(table.organizationId),
+  index("support_tickets_status_idx").on(table.status),
+]);
+
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = typeof supportTickets.$inferInsert;
+
 // ─── SYSTEM PLANS & COUPONS (SUPER ADMIN) ─────────────────────
 export const systemPlans = pgTable("system_plans", {
   id: varchar("id", { length: 50 }).primaryKey(), // e.g. "10alunos", "basico"

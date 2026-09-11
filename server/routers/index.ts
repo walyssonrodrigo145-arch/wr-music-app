@@ -33,6 +33,7 @@ import { aiSpecialistsRouters } from "./aiPromptsRouters";
 import { repertoireRouters } from "./repertoireRouters";
 import { tutorialsRouters } from "./tutorialsRouters";
 import { teacherPaymentRulesRouters } from "./teacherPaymentRulesRouters";
+import { supportRouter } from "../supportRouter";
 
 export const appRouter = router({
   superAdmin: superAdminRouter,
@@ -41,6 +42,7 @@ export const appRouter = router({
   analytics: analyticsRouter,
   studioRooms: studioRoomsRouter,
   enrollment: enrollmentRouter,
+  support: supportRouter,
   advancedAi: advancedAiRouter,
   slotAdvance: slotAdvanceRouter,
   fiscal: fiscalRouter,

@@ -39,6 +39,7 @@ import { AssinafyIntegrationCard } from "@/components/integrations/AssinafyInteg
 import { ModelosContratoTab } from "@/components/integrations/ModelosContratoTab";
 import { ConfigFiscalTab } from "@/components/fiscal/ConfigFiscalTab";
 import { PlanosBolsas } from "@/components/settings/PlanosBolsas";
+import { MyTicketsList } from "@/components/support/MyTicketsList";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
 type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "prompts" | "reposicoes" | "seguranca" | "ajuda";
@@ -2505,6 +2506,9 @@ export default function Configuracoes() {
                     Falar no WhatsApp
                   </a>
                 </div>
+
+                {/* Meus chamados (suporte/bugs/melhorias) */}
+                <MyTicketsList />
               </div>
             )}
           </div>

@@ -412,6 +412,10 @@ async function ensureSchemaConsistency(db: any) {
     // Matrícula por link: contrato automático + CPF do responsável
     await safeExecute(sql`ALTER TABLE "enrollment_links" ADD COLUMN IF NOT EXISTS "contractTemplateId" integer`, "enrollment_links.contractTemplateId");
     await safeExecute(sql`ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "guardianCpf" varchar(20)`, "students.guardianCpf");
+    // Suporte / chamados
+    await safeExecute(sql`CREATE TABLE IF NOT EXISTS "support_tickets" ("id" serial PRIMARY KEY, "organizationId" integer, "userId" integer NOT NULL, "category" varchar(20) DEFAULT 'melhoria' NOT NULL, "title" varchar(255) NOT NULL, "description" text NOT NULL, "pageUrl" varchar(500), "status" varchar(20) DEFAULT 'aberto' NOT NULL, "priority" varchar(10) DEFAULT 'media' NOT NULL, "adminResponse" text, "resolvedAt" timestamp, "createdAt" timestamp DEFAULT now() NOT NULL, "updatedAt" timestamp DEFAULT now() NOT NULL)`, "support_tickets table");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "support_tickets_org_idx" ON "support_tickets" ("organizationId")`, "support_tickets.org_idx");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "support_tickets_status_idx" ON "support_tickets" ("status")`, "support_tickets.status_idx");
 
     // studio_rooms schema extension
     await safeExecute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "category" varchar(100) DEFAULT 'Estúdio de gravação' NOT NULL`, "studio_rooms.category");

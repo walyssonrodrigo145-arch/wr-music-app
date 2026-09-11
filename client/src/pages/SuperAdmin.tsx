@@ -6,8 +6,9 @@ import {
   ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
   Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search,
   CheckCircle2, Eye, GraduationCap, ChevronUp, ChevronDown,
-  Copy, MessageCircle,
+  Copy, MessageCircle, LifeBuoy,
 } from "lucide-react";
+import { SupportTicketsAdmin } from "@/components/support/SupportTicketsAdmin";
 import { cn } from "@/lib/utils";
 import { SLIDE_THEMES, getSlideTheme } from "@/lib/slideThemes";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,7 +58,7 @@ export default function SuperAdmin() {
 // ─── Painel principal (renderizado apenas para o Super Admin autenticado) ─────
 function SuperAdminPanel() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "tutoriais">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "tutoriais" | "chamados">("dashboard");
 
   // Copiar telefone da escola (navegador moderno + fallback antigo)
   const copyPhone = async (phone: string) => {
@@ -275,6 +276,7 @@ function SuperAdminPanel() {
           { id: "clientes", label: "Clientes (Landing)", icon: <Users size={16} /> },
           { id: "slides", label: "Slides do Sistema", icon: <ImageIcon size={16} /> },
           { id: "tutoriais", label: "Tutoriais", icon: <GraduationCap size={16} /> },
+          { id: "chamados", label: "Chamados", icon: <LifeBuoy size={16} /> },
         ].map(tab => (
           <button
             key={tab.id}
@@ -990,6 +992,11 @@ function SuperAdminPanel() {
       {/* ── TAB: Tutoriais do Sistema ──────────────────────────────────────── */}
       {activeTab === "tutoriais" && (
         <TutorialsManager />
+      )}
+
+      {/* ── TAB: Chamados (Suporte) ────────────────────────────────────────── */}
+      {activeTab === "chamados" && (
+        <SupportTicketsAdmin />
       )}
     </div>
   );

@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight, CreditCard, CheckCheck, Sparkles, Palette, Users } from "lucide-react";
+import { Search, Bell, Sun, Moon, ChevronDown, Settings, LogOut, User, Menu, X, ChevronRight, CreditCard, CheckCheck, Sparkles, Palette, LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SupportTicketModal } from "@/components/support/SupportTicketModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
@@ -59,6 +60,7 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
   const [location, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const logoutMutation = trpc.auth.logout.useMutation({
@@ -138,19 +140,18 @@ export function AppHeader({ onMobileMenuOpen, onToggleSidebar, sidebarCollapsed 
         )}
       </div>
 
-      {/* Botão de Atalho Direto: Gestão de Leads (Abre em nova aba com aviso de Em Desenvolvimento) */}
+      {/* Botão de Suporte / Chamados (abre modal para reportar bug ou sugerir melhoria) */}
       {user?.role !== "aluno" && (
         <Button
-          onClick={() => window.open("/leads", "_blank")}
-          className="hidden sm:flex items-center gap-2 h-10 lg:h-11 px-3.5 lg:px-4 rounded-2xl bg-gradient-to-r from-[#5B50E6] to-purple-600 hover:from-[#4A40D0] hover:to-purple-700 text-white font-bold text-xs shadow-md hover:shadow-indigo-500/25 transition-all active:scale-95 border border-indigo-400/30 shrink-0"
+          onClick={() => setSupportOpen(true)}
+          className="hidden sm:flex items-center gap-2 h-10 lg:h-11 px-3.5 lg:px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md hover:shadow-emerald-500/25 transition-all active:scale-95 border border-emerald-400/30 shrink-0"
         >
-          <Users size={16} />
-          <span className="hidden md:inline font-outfit">Gestão de Leads</span>
-          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-md">
-            Em Breve
-          </span>
+          <LifeBuoy size={16} />
+          <span className="hidden md:inline font-outfit">Suporte</span>
         </Button>
       )}
+
+      <SupportTicketModal open={supportOpen} onOpenChange={setSupportOpen} />
 
       {/* Search global - Premium Glassmorphism Input */}
       <div ref={searchRef} className="relative hidden md:flex items-center w-44 lg:w-64 group">
