@@ -187,6 +187,7 @@ export const enrollmentRouter = router({
         valorMensal: schoolPlans.valorMensal,
         valorCheio: schoolPlans.valorCheio,
         taxaInscricao: schoolPlans.taxaInscricao,
+        diasLimite: schoolPlans.diasLimite,
         descricao: schoolPlans.descricao,
       }).from(schoolPlans).where(and(eq(schoolPlans.organizationId, orgId), eq(schoolPlans.ativo, true)));
 

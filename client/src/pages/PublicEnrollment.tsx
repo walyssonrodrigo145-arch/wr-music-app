@@ -173,12 +173,20 @@ export default function PublicEnrollment() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requiredLessonsPerWeek, (details as any)?.plans]);
 
-  // Pré-seleciona o 1º dia de vencimento configurado pela escola
+  // Dia de vencimento vem do PLANO escolhido (schoolPlans.diasLimite); fallback = escola
   useEffect(() => {
-    const dd: number[] = (details as any)?.dueDays || [];
-    if (dd.length > 0) setDueDay((prev) => prev ?? dd[0]);
+    const plans: any[] = (details as any)?.plans || [];
+    const selectedPlanIds = Array.from(new Set(courses.map((c) => c.planId).filter((id): id is number => !!id)));
+    const planDays = Array.from(new Set(
+      selectedPlanIds.flatMap((id) =>
+        String(plans.find((p) => p.id === id)?.diasLimite || "")
+          .split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => n >= 1 && n <= 31)
+      )
+    )).sort((a, b) => a - b);
+    const available = planDays.length > 0 ? planDays : ((details as any)?.dueDays || []);
+    if (available.length > 0) setDueDay((prev) => (prev && available.includes(prev) ? prev : available[0]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [details]);
+  }, [courses, details]);
 
   // instrumentId resolvido (1º curso) — usado apenas para o resumo/legado
   const resolvedInstrumentId = selectedInstrument
@@ -468,7 +476,15 @@ export default function PublicEnrollment() {
   const monthlyTotal = billablePlans.reduce((s, b) => s + b.monthlyFee, 0);
   const enrollmentFeeTotal = billablePlans.reduce((s, b) => s + b.enrollmentFee, 0);
   const totalToPay = monthlyTotal + enrollmentFeeTotal;
-  const dueDays: number[] = (details as any).dueDays || [];
+  // Vencimento a partir do(s) plano(s) escolhido(s); fallback = configuração da escola
+  const selectedPlanIdsForDue = Array.from(new Set(courses.map((c) => c.planId).filter((id): id is number => !!id)));
+  const planDueDays = Array.from(new Set(
+    selectedPlanIdsForDue.flatMap((id) =>
+      String(planById.get(id)?.diasLimite || "")
+        .split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => n >= 1 && n <= 31)
+    )
+  )).sort((a, b) => a - b);
+  const dueDays: number[] = planDueDays.length > 0 ? planDueDays : ((details as any).dueDays || []);
 
   const toggleCourse = (instrumentId: number) => {
     setCourses((prev) => {
@@ -722,7 +738,7 @@ export default function PublicEnrollment() {
                   {/* Dia de vencimento da mensalidade */}
                   {dueDays.length > 0 && (
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Dia de vencimento da mensalidade</Label>
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Dia de vencimento (definido pelo plano)</Label>
                       <div className="flex flex-wrap gap-2">
                         {dueDays.map((d) => (
                           <button
