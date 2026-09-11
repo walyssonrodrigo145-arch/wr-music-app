@@ -1669,6 +1669,34 @@ export const schoolPlans = pgTable("school_plans", {
 export type SchoolPlan = typeof schoolPlans.$inferSelect;
 export type InsertSchoolPlan = typeof schoolPlans.$inferInsert;
 
+// ─── MATRÍCULAS POR CURSO (aluno pode ter mais de um curso) ───────────────────
+export const studentEnrollments = pgTable("student_enrollments", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  studentId: integer("studentId").notNull(),
+  instrumentId: integer("instrumentId"),
+  planId: integer("planId"),
+  teacherUserId: integer("teacherUserId"),
+  studioRoomId: integer("studioRoomId"),
+  durationMonths: integer("durationMonths").default(1).notNull(),
+  lessonsPerWeek: integer("lessonsPerWeek").default(1).notNull(),
+  weekday: integer("weekday").default(1).notNull(), // 0=Dom ... 6=Sáb
+  timeStr: varchar("timeStr", { length: 5 }), // HH:mm
+  monthlyFee: decimal("monthlyFee", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  enrollmentFee: decimal("enrollmentFee", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  startDate: date("startDate"),
+  endDate: date("endDate"),
+  status: varchar("status", { length: 20 }).default("ativo").notNull(), // ativo | encerrado
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  index("student_enrollments_student_idx").on(table.studentId),
+  index("student_enrollments_org_idx").on(table.organizationId),
+]);
+
+export type StudentEnrollment = typeof studentEnrollments.$inferSelect;
+export type InsertStudentEnrollment = typeof studentEnrollments.$inferInsert;
+
 // ── Desafios (PRD_RANKINGS §55 — critério "Desafios" do motor) ───────────────
 // Professor cria desafios para os alunos responderem; APROVAÇÃO OBRIGATÓRIA
 // para pontuar. Solto (rankingId null) aprovado → medalha no studentAchievements.

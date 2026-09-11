@@ -418,6 +418,10 @@ async function ensureSchemaConsistency(db: any) {
     await safeExecute(sql`CREATE INDEX IF NOT EXISTS "support_tickets_status_idx" ON "support_tickets" ("status")`, "support_tickets.status_idx");
     await safeExecute(sql`ALTER TABLE "support_tickets" ADD COLUMN IF NOT EXISTS "attachments" text`, "support_tickets.attachments");
     await safeExecute(sql`ALTER TABLE "support_tickets" ADD COLUMN IF NOT EXISTS "hasUnreadResponse" boolean DEFAULT false NOT NULL`, "support_tickets.hasUnreadResponse");
+    // Matrículas por curso (aluno pode ter mais de um curso)
+    await safeExecute(sql`CREATE TABLE IF NOT EXISTS "student_enrollments" ("id" serial PRIMARY KEY, "organizationId" integer NOT NULL, "studentId" integer NOT NULL, "instrumentId" integer, "planId" integer, "teacherUserId" integer, "studioRoomId" integer, "durationMonths" integer DEFAULT 1 NOT NULL, "lessonsPerWeek" integer DEFAULT 1 NOT NULL, "weekday" integer DEFAULT 1 NOT NULL, "timeStr" varchar(5), "monthlyFee" decimal(10,2) DEFAULT '0.00' NOT NULL, "enrollmentFee" decimal(10,2) DEFAULT '0.00' NOT NULL, "startDate" date, "endDate" date, "status" varchar(20) DEFAULT 'ativo' NOT NULL, "createdAt" timestamp DEFAULT now() NOT NULL, "updatedAt" timestamp DEFAULT now() NOT NULL)`, "student_enrollments table");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "student_enrollments_student_idx" ON "student_enrollments" ("studentId")`, "student_enrollments.student_idx");
+    await safeExecute(sql`CREATE INDEX IF NOT EXISTS "student_enrollments_org_idx" ON "student_enrollments" ("organizationId")`, "student_enrollments.org_idx");
 
     // studio_rooms schema extension
     await safeExecute(sql`ALTER TABLE "studio_rooms" ADD COLUMN IF NOT EXISTS "category" varchar(100) DEFAULT 'Estúdio de gravação' NOT NULL`, "studio_rooms.category");

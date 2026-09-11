@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms, organizations, schoolIntegrations, contractTemplates } from "../drizzle/schema";
+import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms, organizations, schoolIntegrations, contractTemplates, schoolPlans, studentEnrollments } from "../drizzle/schema";
 import { eq, and, gte, lte, desc, isNotNull, ne, sql, or } from "drizzle-orm";
 import crypto from "crypto";
 import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasChargeStatus } from "./utils/asaas";
@@ -177,6 +177,23 @@ export const enrollmentRouter = router({
         contractTemplateName = tpl?.name ?? null;
       }
 
+      // Planos & Bolsas ativos da escola (duração, aulas/semana, valor)
+      const plans = await db.select({
+        id: schoolPlans.id,
+        nome: schoolPlans.nome,
+        aulasPorSemana: schoolPlans.aulasPorSemana,
+        duracaoMeses: schoolPlans.duracaoMeses,
+        isBolsa: schoolPlans.isBolsa,
+        valorMensal: schoolPlans.valorMensal,
+        valorCheio: schoolPlans.valorCheio,
+        taxaInscricao: schoolPlans.taxaInscricao,
+        descricao: schoolPlans.descricao,
+      }).from(schoolPlans).where(and(eq(schoolPlans.organizationId, orgId), eq(schoolPlans.ativo, true)));
+
+      // Dias de vencimento configurados pela escola
+      const dueDays: number[] = (schoolSet?.dueDaysForecast || "5,10,15,20")
+        .split(",").map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => n >= 1 && n <= 31);
+
       return {
         code: link.code,
         schoolName: schoolSet?.schoolName || "Escola de Música",
@@ -192,6 +209,8 @@ export const enrollmentRouter = router({
         contractEnabled: Boolean(assinafy),
         contractTemplateId: link.contractTemplateId ?? null,
         contractTemplateName,
+        plans,
+        dueDays,
       };
     }),
 
@@ -348,6 +367,73 @@ export const enrollmentRouter = router({
       };
     }),
 
+  // 3.1 Disponibilidade por DIA DA SEMANA (agendamento recorrente por curso)
+  getWeekdaySlots: publicProcedure
+    .input(z.object({ code: z.string(), instrumentId: z.number(), weekday: z.number().int().min(0).max(6) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      const [link] = await db.select().from(enrollmentLinks).where(eq(enrollmentLinks.code, input.code)).limit(1);
+      if (!link) throw new Error("Link não encontrado");
+      const orgId = link.organizationId;
+
+      const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
+      if (!inst) throw new Error("Instrumento não encontrado");
+
+      const allTeachers = await db.select({
+        id: professores.id, userId: professores.userId, name: users.name, especialidade: professores.especialidade,
+      }).from(professores).leftJoin(users, eq(professores.userId, users.id)).where(eq(professores.organizationId, orgId));
+      const targetTeacher = allTeachers.find(t => (t.especialidade || "").toLowerCase().includes(inst.name.toLowerCase())) || allTeachers[0];
+      if (!targetTeacher) throw new Error("Nenhum professor disponível para este instrumento.");
+
+      const rooms = await db.select().from(studioRooms).where(and(eq(studioRooms.organizationId, orgId), eq(studioRooms.active, true)));
+
+      const allSettingsForSlots = await db.select({ schoolHours: settings.schoolHours, lessonDuration: settings.lessonDuration, schoolName: settings.schoolName }).from(settings).where(eq(settings.organizationId, orgId));
+      const schoolSet = allSettingsForSlots.find(s => s.schoolName && s.schoolName.trim() !== '') || allSettingsForSlots[0];
+      const duration = schoolSet?.lessonDuration ?? 60;
+
+      const DAY_MAP: Record<number, string> = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
+      let schoolHoursObj: Record<string, { active: boolean; start: string; end: string }> = {};
+      try { schoolHoursObj = JSON.parse(schoolSet?.schoolHours || "{}"); } catch { /* */ }
+      const dayConfig = schoolHoursObj[DAY_MAP[input.weekday]];
+      if (!dayConfig || !dayConfig.active) {
+        return { teacher: targetTeacher, room: rooms[0] || null, slots: [], closedDay: true, lessonDuration: duration };
+      }
+
+      const [startH, startM] = dayConfig.start.split(":").map(Number);
+      const [endH, endM] = dayConfig.end.split(":").map(Number);
+      const generatedSlots: string[] = [];
+      let cursor = startH * 60 + (startM || 0);
+      const endMinutes = endH * 60 + (endM || 0);
+      while (cursor + duration <= endMinutes) {
+        generatedSlots.push(`${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`);
+        cursor += duration;
+      }
+
+      // Ocupação do professor nesse dia da semana (próximas 4 semanas)
+      const busyTimes = new Set<string>();
+      const brtBase = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+      brtBase.setHours(0, 0, 0, 0);
+      let diff0 = (input.weekday - brtBase.getDay() + 7) % 7;
+      if (diff0 === 0) diff0 = 7;
+      brtBase.setDate(brtBase.getDate() + diff0);
+      for (let w = 0; w < 4; w++) {
+        const d = new Date(brtBase);
+        d.setDate(d.getDate() + w * 7);
+        const dayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const startOfDay = new Date(`${dayStr}T00:00:00.000-03:00`);
+        const endOfDay = new Date(`${dayStr}T23:59:59.999-03:00`);
+        const dayLessons = await db.select({ scheduledAt: lessons.scheduledAt }).from(lessons)
+          .where(and(eq(lessons.organizationId, orgId), eq(lessons.userId, targetTeacher.userId), gte(lessons.scheduledAt, startOfDay), lte(lessons.scheduledAt, endOfDay)));
+        for (const l of dayLessons) {
+          busyTimes.add(new Date(l.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }));
+        }
+      }
+
+      const slots = generatedSlots.map(time => ({ time, available: !busyTimes.has(time) }));
+      return { teacher: targetTeacher, room: rooms[0] || null, slots, closedDay: false, lessonDuration: duration };
+    }),
+
   // 4. Gerar Cobrança (Asaas ou Mercado Pago) para o Aluno pagar
   createPaymentCharge: publicProcedure
     .input(
@@ -362,6 +448,7 @@ export const enrollmentRouter = router({
         studioRoomId: z.number().optional(),
         dateStr: z.string().optional(),
         timeStr: z.string().optional(),
+        amount: z.number().positive().optional(),
         billingType: z.enum(["PIX", "BOLETO"]).default("PIX"),
       })
     )
@@ -407,7 +494,9 @@ export const enrollmentRouter = router({
         || allSettings2.find(s => s.asaasApiKey || s.mpAccessToken)
         || allSettings2.sort((a, b) => b.id - a.id)[0];
 
-      const monthlyFee = link.monthlyFee ? Number(link.monthlyFee) : 150;
+      const monthlyFee = (input.amount && input.amount > 0)
+        ? input.amount
+        : (link.monthlyFee ? Number(link.monthlyFee) : 150);
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       const courseName = inst?.name || "Música";
 
@@ -571,11 +660,22 @@ export const enrollmentRouter = router({
         guardianCpf: z.string().optional(),
         guardianPhone: z.string().optional(),
         guardianEmail: z.string().optional(),
-        instrumentId: z.number(),
-        teacherUserId: z.number(),
+        // Multi-curso (novo): cada curso com plano, dia da semana e horário
+        courses: z.array(z.object({
+          instrumentId: z.number(),
+          planId: z.number().optional(),
+          weekday: z.number().int().min(0).max(6).optional(),
+          timeStr: z.string().optional(),
+          teacherUserId: z.number().optional(),
+          studioRoomId: z.number().optional(),
+        })).max(6).optional(),
+        dueDay: z.number().int().min(1).max(31).optional(),
+        // Legado (1 curso em data específica)
+        instrumentId: z.number().optional(),
+        teacherUserId: z.number().optional(),
         studioRoomId: z.number().optional(),
-        dateStr: z.string(),
-        timeStr: z.string(),
+        dateStr: z.string().optional(),
+        timeStr: z.string().optional(),
         asaasChargeId: z.string().optional(),
         infinitepaySlug: z.string().optional(),
       })
@@ -600,30 +700,34 @@ export const enrollmentRouter = router({
 
       const orgId = link.organizationId;
 
-      // AUDIT-P0 FIX (IDOR + fraude): validar professor e instrumento contra a
-      // organização do link — antes, IDs de OUTRAS escolas eram aceitos
-      const [validTeacher] = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(and(
-          eq(users.id, input.teacherUserId),
-          eq(users.organizationId, orgId),
-        ))
-        .limit(1);
-      if (!validTeacher) {
-        throw new Error("Professor inválido para esta escola.");
+      // ── Monta a lista de cursos (multi-curso novo ou 1 curso legado) ──
+      type CourseInput = { instrumentId: number; planId?: number; weekday?: number; timeStr?: string; teacherUserId?: number; studioRoomId?: number; dateStr?: string };
+      let coursesToEnroll: CourseInput[] = [];
+      if (input.courses && input.courses.length > 0) {
+        coursesToEnroll = input.courses as CourseInput[];
+      } else if (input.instrumentId) {
+        coursesToEnroll = [{
+          instrumentId: input.instrumentId,
+          teacherUserId: input.teacherUserId,
+          studioRoomId: input.studioRoomId,
+          dateStr: input.dateStr,
+          timeStr: input.timeStr,
+        }];
+      }
+      if (coursesToEnroll.length === 0) {
+        throw new Error("Selecione ao menos um curso.");
       }
 
-      const [validInstrument] = await db
-        .select({ id: instruments.id })
-        .from(instruments)
-        .where(and(
-          eq(instruments.id, input.instrumentId),
-          eq(instruments.organizationId, orgId),
-        ))
-        .limit(1);
-      if (!validInstrument) {
-        throw new Error("Instrumento inválido para esta escola.");
+      // Anti-IDOR: valida professores e instrumentos contra a organização do link
+      for (const c of coursesToEnroll) {
+        if (c.teacherUserId) {
+          const [validTeacher] = await db.select({ id: users.id }).from(users)
+            .where(and(eq(users.id, c.teacherUserId), eq(users.organizationId, orgId))).limit(1);
+          if (!validTeacher) throw new Error("Professor inválido para esta escola.");
+        }
+        const [validInstrument] = await db.select({ id: instruments.id }).from(instruments)
+          .where(and(eq(instruments.id, c.instrumentId), eq(instruments.organizationId, orgId))).limit(1);
+        if (!validInstrument) throw new Error("Instrumento inválido para esta escola.");
       }
 
       // Busca o settings mais completo para pegar lessonDuration correto
@@ -633,6 +737,32 @@ export const enrollmentRouter = router({
         || allSettings3[0];
       const schoolSet = bestSettings3;
       const lessonDuration = schoolSet?.lessonDuration ?? 60;
+
+      // Planos & Bolsas + instrumentos + professores da escola
+      const orgPlans = await db.select().from(schoolPlans).where(eq(schoolPlans.organizationId, orgId));
+      const planById = new Map<number, any>(orgPlans.map((p: any) => [p.id, p]));
+      const orgInstruments = await db.select().from(instruments).where(eq(instruments.organizationId, orgId));
+      const instrumentsById = new Map<number, any>(orgInstruments.map((i: any) => [i.id, i]));
+      const orgTeachers = await db.select({ userId: professores.userId, especialidade: professores.especialidade }).from(professores).where(eq(professores.organizationId, orgId));
+      const resolveTeacher = (instrumentId: number, teacherUserId?: number): number | null => {
+        if (teacherUserId) return teacherUserId;
+        const name = (instrumentsById.get(instrumentId)?.name || "").toLowerCase();
+        const t = orgTeachers.find((x: any) => (x.especialidade || "").toLowerCase().includes(name)) || orgTeachers[0];
+        return t?.userId ?? null;
+      };
+
+      const enrichedCourses = coursesToEnroll.map((c) => {
+        const plan = c.planId ? planById.get(c.planId) : null;
+        return {
+          ...c,
+          planId: plan?.id ?? null,
+          monthlyFee: plan ? Number(plan.valorMensal) : (link.monthlyFee ? Number(link.monthlyFee) : 150),
+          enrollmentFee: plan ? Number(plan.taxaInscricao ?? 0) : 0,
+          durationMonths: plan ? Math.max(1, Number(plan.duracaoMeses || 1)) : 1,
+          lessonsPerWeek: plan ? Math.max(1, Number(plan.aulasPorSemana || 1)) : 1,
+        };
+      });
+      const totalMonthlyFee = enrichedCourses.reduce((s, c) => s + c.monthlyFee, 0);
 
       // AUDIT-P0 FIX (fraude): se a escola COBRA matrícula (gateway configurado),
       // verificar o pagamento SERVER-SIDE antes de criar aluno/aula. Antes, um POST
@@ -695,8 +825,6 @@ export const enrollmentRouter = router({
         }
       }
 
-      const scheduledAt = new Date(`${input.dateStr}T${input.timeStr}:00.000-03:00`);
-
       // ── Idempotência: evita duplicar a MESMA pessoa (nome + contato).
       // NÃO bloqueia por telefone/e-mail isolados: irmãos costumam compartilhar
       // o WhatsApp/e-mail do responsável e seriam bloqueados indevidamente. ──
@@ -716,57 +844,61 @@ export const enrollmentRouter = router({
         }
       }
 
-      // ── Re-checagem do horário (evita conflito/duplo agendamento) ──
-      const slotStart = scheduledAt.getTime();
-      const slotEnd = slotStart + lessonDuration * 60_000;
-      const sameDayLessons = await db
-        .select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
-        .from(lessons)
-        .where(and(
-          eq(lessons.organizationId, orgId),
-          eq(lessons.userId, input.teacherUserId),
-          eq(lessons.status, "agendada"),
-          gte(lessons.scheduledAt, new Date(slotStart - 12 * 3_600_000)),
-          lte(lessons.scheduledAt, new Date(slotStart + 12 * 3_600_000)),
-        ));
-      const hasConflict = sameDayLessons.some((l: any) => {
-        const s = new Date(l.scheduledAt).getTime();
-        const e = s + (l.duration || 60) * 60_000;
-        return slotStart < e && slotEnd > s;
-      });
-      if (hasConflict) {
-        throw new Error("Este horário acabou de ser ocupado. Volte e escolha outro horário.");
-      }
-
-      // Conflito de SALA (qualquer professor) — evita duas aulas no mesmo estúdio
-      if (input.studioRoomId) {
-        const roomLessons = await db
+      // Re-checagem de horário — apenas no modo LEGADO (data específica).
+      // No modo recorrente (multi-curso) o gerador de aulas já evita conflitos.
+      if (!input.courses && input.dateStr && input.timeStr && input.teacherUserId) {
+        const scheduledAt = new Date(`${input.dateStr}T${input.timeStr}:00.000-03:00`);
+        const slotStart = scheduledAt.getTime();
+        const slotEnd = slotStart + lessonDuration * 60_000;
+        const sameDayLessons = await db
           .select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
           .from(lessons)
           .where(and(
             eq(lessons.organizationId, orgId),
-            eq(lessons.studioRoomId, input.studioRoomId),
+            eq(lessons.userId, input.teacherUserId),
             eq(lessons.status, "agendada"),
             gte(lessons.scheduledAt, new Date(slotStart - 12 * 3_600_000)),
             lte(lessons.scheduledAt, new Date(slotStart + 12 * 3_600_000)),
           ));
-        const roomConflict = roomLessons.some((l: any) => {
+        const hasConflict = sameDayLessons.some((l: any) => {
           const s = new Date(l.scheduledAt).getTime();
           const e = s + (l.duration || 60) * 60_000;
           return slotStart < e && slotEnd > s;
         });
-        if (roomConflict) {
-          throw new Error("Esta sala acabou de ser ocupada. Volte e escolha outro horário.");
+        if (hasConflict) {
+          throw new Error("Este horário acabou de ser ocupado. Volte e escolha outro horário.");
+        }
+        if (input.studioRoomId) {
+          const roomLessons = await db
+            .select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
+            .from(lessons)
+            .where(and(
+              eq(lessons.organizationId, orgId),
+              eq(lessons.studioRoomId, input.studioRoomId),
+              eq(lessons.status, "agendada"),
+              gte(lessons.scheduledAt, new Date(slotStart - 12 * 3_600_000)),
+              lte(lessons.scheduledAt, new Date(slotStart + 12 * 3_600_000)),
+            ));
+          const roomConflict = roomLessons.some((l: any) => {
+            const s = new Date(l.scheduledAt).getTime();
+            const e = s + (l.duration || 60) * 60_000;
+            return slotStart < e && slotEnd > s;
+          });
+          if (roomConflict) {
+            throw new Error("Esta sala acabou de ser ocupada. Volte e escolha outro horário.");
+          }
         }
       }
 
-      // Cadastra o Aluno
+      // Cadastra o Aluno (curso principal = 1º selecionado; mensalidade = soma dos cursos)
+      const firstCourse = enrichedCourses[0];
+      const firstTeacher = resolveTeacher(firstCourse.instrumentId, firstCourse.teacherUserId) ?? 0;
       const [newStudent] = await db
         .insert(students)
         .values({
           organizationId: orgId,
-          userId: input.teacherUserId,
-          professorId: input.teacherUserId,
+          userId: firstTeacher,
+          professorId: firstTeacher,
           name: input.studentName,
           phone: input.studentPhone,
           email: input.studentEmail || undefined,
@@ -776,31 +908,90 @@ export const enrollmentRouter = router({
           guardianCpf: input.guardianCpf || undefined,
           guardianPhone: input.guardianPhone || undefined,
           guardianEmail: input.guardianEmail || undefined,
-          instrumentId: input.instrumentId,
+          instrumentId: firstCourse.instrumentId,
+          schoolPlanId: firstCourse.planId ?? undefined,
           status: "ativo",
-          monthlyFee: link.monthlyFee || "150.00",
-          dueDay: new Date().getDate(),
+          monthlyFee: totalMonthlyFee.toFixed(2),
+          dueDay: input.dueDay || new Date().getDate(),
         })
         .returning();
 
-      // Cadastra a Aula usando lessonDuration da escola
-      const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
-      const courseName = inst?.name || "Música";
+      // Cria as matrículas, as aulas e as mensalidades
+      const { generateLessonsForEnrollment, generateMonthlyDues } = await import("./services/EnrollmentGenerationService");
+      let totalLessons = 0;
+      let firstLessonId: number | null = null;
+      const duesCourses: { monthlyFee: number; durationMonths: number }[] = [];
 
-      const [newLesson] = await db
-        .insert(lessons)
-        .values({
+      for (const c of enrichedCourses) {
+        const teacherUserId = resolveTeacher(c.instrumentId, c.teacherUserId);
+        if (!teacherUserId) continue; // sem professor disponível → pula o curso
+        const courseName = instrumentsById.get(c.instrumentId)?.name || "Música";
+
+        await db.insert(studentEnrollments).values({
           organizationId: orgId,
-          userId: input.teacherUserId,
           studentId: newStudent.id,
-          title: `Aula de ${courseName} - ${newStudent.name}`,
-          scheduledAt,
-          duration: lessonDuration,
-          status: "agendada",
-          instrumentId: input.instrumentId,
-          studioRoomId: input.studioRoomId || undefined,
-        })
-        .returning();
+          instrumentId: c.instrumentId,
+          planId: c.planId ?? null,
+          teacherUserId,
+          studioRoomId: c.studioRoomId ?? null,
+          durationMonths: c.durationMonths,
+          lessonsPerWeek: c.lessonsPerWeek,
+          weekday: c.weekday ?? new Date().getDay(),
+          timeStr: c.timeStr || null,
+          monthlyFee: c.monthlyFee.toFixed(2),
+          enrollmentFee: c.enrollmentFee.toFixed(2),
+          startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+          status: "ativo",
+        });
+
+        if (c.weekday !== undefined && c.timeStr) {
+          totalLessons += await generateLessonsForEnrollment(db, {
+            orgId,
+            studentId: newStudent.id,
+            teacherUserId,
+            studioRoomId: c.studioRoomId ?? null,
+            instrumentId: c.instrumentId,
+            courseName,
+            durationMonths: c.durationMonths,
+            lessonsPerWeek: c.lessonsPerWeek,
+            weekday: c.weekday,
+            timeStr: c.timeStr,
+            durationMin: lessonDuration,
+          });
+        } else if (c.dateStr && c.timeStr) {
+          // Legado: aula única em data específica
+          const scheduledAt = new Date(`${c.dateStr}T${c.timeStr}:00.000-03:00`);
+          const [newLesson] = await db
+            .insert(lessons)
+            .values({
+              organizationId: orgId,
+              userId: teacherUserId,
+              studentId: newStudent.id,
+              title: `Aula de ${courseName} - ${newStudent.name}`,
+              scheduledAt,
+              duration: lessonDuration,
+              status: "agendada",
+              instrumentId: c.instrumentId,
+              studioRoomId: c.studioRoomId || undefined,
+            })
+            .returning();
+          if (!firstLessonId) firstLessonId = newLesson.id;
+          totalLessons++;
+        }
+        duesCourses.push({ monthlyFee: c.monthlyFee, durationMonths: c.durationMonths });
+      }
+
+      // Mensalidades dos meses seguintes (o 1º mês é pago no ato da matrícula)
+      const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+      await generateMonthlyDues(db, {
+        orgId,
+        userId: newStudent.userId,
+        studentId: newStudent.id,
+        courses: duesCourses,
+        dueDay: input.dueDay || nowBrt.getDate(),
+        startMonth: nowBrt.getMonth() + 1,
+        startYear: nowBrt.getFullYear(),
+      });
 
       // Atualiza o Lead no CRM para "matriculado"
       if (link.leadId) {
@@ -822,7 +1013,7 @@ export const enrollmentRouter = router({
         const { generateEnrollmentContract } = await import("./services/EnrollmentContractService");
         contract = await generateEnrollmentContract(db, orgId, newStudent.id, {
           templateId: link.contractTemplateId ?? null,
-          monthlyFee: (link.monthlyFee as string | null) ?? null,
+          monthlyFee: totalMonthlyFee.toFixed(2),
           startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
         });
       } catch (e) {
@@ -832,7 +1023,8 @@ export const enrollmentRouter = router({
       return {
         success: true,
         studentId: newStudent.id,
-        lessonId: newLesson.id,
+        lessonId: firstLessonId,
+        lessonsCreated: totalLessons,
         contractSignUrl: contract?.signUrl ?? null,
         contractId: contract?.contractId ?? null,
         contractNumber: contract?.contractNumber ?? null,

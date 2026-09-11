@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BirthDatePicker } from "@/components/enrollment/BirthDatePicker";
+import { CourseSchedulePicker } from "@/components/enrollment/CourseSchedulePicker";
 import { maskCPF, maskPhone } from "@/lib/masks";
 import { validateCPF } from "@/lib/cpf";
 import { motion, AnimatePresence } from "framer-motion";
@@ -48,10 +49,13 @@ export default function PublicEnrollment() {
 
   // ─── State ───────────────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>("course");
-  const [selectedInstrument, setSelectedInstrument] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [selectedTime, setSelectedTime] = useState<string>("");
+  type SelectedCourse = { instrumentId: number; planId: number | null; weekday: number | null; timeStr: string | null; teacherUserId: number | null; studioRoomId: number | null };
+  const [courses, setCourses] = useState<SelectedCourse[]>([]);
+  const [dueDay, setDueDay] = useState<number | null>(null);
   const [billingType, setBillingType] = useState<"PIX" | "BOLETO">("PIX");
+
+  const selectedInstrument = courses[0]?.instrumentId ?? null;
+  const requiredLessonsPerWeek = courses.length >= 2 ? 2 : 1;
 
   const [form, setForm] = useState({
     name: "", phone: "", email: "", cpf: "",
@@ -112,7 +116,8 @@ export default function PublicEnrollment() {
       const saved = localStorage.getItem(`mp_enrollment_${window.location.pathname}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.instrumentId) setSelectedInstrument(parsed.instrumentId);
+        if (Array.isArray(parsed.courses)) setCourses(parsed.courses);
+        if (parsed.dueDay) setDueDay(parsed.dueDay);
         if (parsed.form) setForm(prev => ({ ...prev, ...parsed.form }));
         localStorage.removeItem(`mp_enrollment_${window.location.pathname}`);
       }
@@ -154,20 +159,10 @@ export default function PublicEnrollment() {
       { enabled: Boolean(code), retry: 1, staleTime: 0, gcTime: 0, refetchOnMount: "always" }
     );
 
-  // instrumentId resolvido: usa o selecionado, ou o pré-selecionado do link, ou o primeiro disponível
+  // instrumentId resolvido (1º curso) — usado apenas para o resumo/legado
   const resolvedInstrumentId = selectedInstrument
     ?? details?.preselectedInstrumentId
     ?? (details?.instruments?.[0]?.id ?? null);
-
-  const { data: slotsData, isLoading: slotsLoading } =
-    trpc.enrollment.getAvailableSlots.useQuery(
-      { code, instrumentId: resolvedInstrumentId!, dateStr: selectedDate },
-      {
-        enabled: Boolean(code && resolvedInstrumentId && selectedDate && step === "schedule"),
-        staleTime: 0, gcTime: 0, refetchOnMount: "always",
-        refetchOnWindowFocus: true, refetchInterval: 30_000,
-      }
-    );
 
   // ─── Mutations ───────────────────────────────────────────────────────────────
   const createChargeMutation = trpc.enrollment.createPaymentCharge.useMutation({
@@ -179,7 +174,8 @@ export default function PublicEnrollment() {
         // Salva estado no localStorage ANTES de abrir o checkout InfinitePay
         try {
           localStorage.setItem(`mp_enrollment_${window.location.pathname}`, JSON.stringify({
-            instrumentId: selectedInstrument,
+            courses,
+            dueDay,
             form,
           }));
         } catch (_) {}
@@ -193,7 +189,8 @@ export default function PublicEnrollment() {
         // Salva estado no localStorage ANTES de abrir o checkout MP
         try {
           localStorage.setItem(`mp_enrollment_${window.location.pathname}`, JSON.stringify({
-            instrumentId: selectedInstrument,
+            courses,
+            dueDay,
             form,
           }));
         } catch (_) {}
@@ -222,22 +219,6 @@ export default function PublicEnrollment() {
   });
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
-  const nextDays = useMemo(() => {
-    const days = [];
-    // Obtém a data atual no fuso horário de Brasília (UTC-3)
-    const nowBrasilia = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-    for (let i = 1; i <= 14; i++) {
-      const d = new Date(nowBrasilia);
-      d.setDate(nowBrasilia.getDate() + i);
-      // dateStr no formato YYYY-MM-DD usando locale "sv" (sueco) que retorna o padrão ISO sem conversão UTC
-      const dateStr = d.toLocaleDateString("sv", { timeZone: "America/Sao_Paulo" });
-      const weekday = d.toLocaleDateString("pt-BR", { weekday: "short", timeZone: "America/Sao_Paulo" });
-      const day = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
-      days.push({ dateStr, weekday, day });
-    }
-    return days;
-  }, []);
-
   const copyPix = async () => {
     if (!paymentData?.pixCopiaECola) return;
     await navigator.clipboard.writeText(paymentData.pixCopiaECola);
@@ -436,6 +417,33 @@ export default function PublicEnrollment() {
   const currentIdx = STEPS.findIndex(s => s.key === step);
   const schoolWaLink = waLink(details.schoolPhone, `Olá! Acabei de fazer minha matrícula em ${details.schoolName} pelo link. 🎵`);
 
+  // Planos: 1 curso → 1 aula/semana; 2+ cursos → 2 aulas/semana
+  const allPlans: any[] = (details as any).plans || [];
+  const plansForCount = allPlans.filter((p) => Number(p.aulasPorSemana) === requiredLessonsPerWeek);
+  const availablePlans = plansForCount.length > 0 ? plansForCount : allPlans;
+  const planById = new Map<number, any>(allPlans.map((p) => [p.id, p]));
+  const monthlyTotal = courses.reduce((s, c) => {
+    const p = c.planId ? planById.get(c.planId) : null;
+    return s + (p ? Number(p.valorMensal) : Number(details.monthlyFee || 0));
+  }, 0);
+  const enrollmentFeeTotal = courses.reduce((s, c) => {
+    const p = c.planId ? planById.get(c.planId) : null;
+    return s + (p ? Number(p.taxaInscricao || 0) : 0);
+  }, 0);
+  const totalToPay = monthlyTotal + enrollmentFeeTotal;
+  const dueDays: number[] = (details as any).dueDays || [];
+
+  const toggleCourse = (instrumentId: number) => {
+    setCourses((prev) =>
+      prev.some((c) => c.instrumentId === instrumentId)
+        ? prev.filter((c) => c.instrumentId !== instrumentId)
+        : [...prev, { instrumentId, planId: null, weekday: null, timeStr: null, teacherUserId: null, studioRoomId: null }]
+    );
+  };
+  const patchCourse = (instrumentId: number, patch: Partial<{ planId: number | null; weekday: number | null; timeStr: string | null; teacherUserId: number | null; studioRoomId: number | null }>) => {
+    setCourses((prev) => prev.map((c) => (c.instrumentId === instrumentId ? { ...c, ...patch } : c)));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-indigo-950/10 text-foreground">
 
@@ -494,17 +502,21 @@ export default function PublicEnrollment() {
           {step === "course" && (
             <motion.div key="course" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-5">
               <div className="space-y-1">
-                <h1 className="text-2xl font-black text-foreground">Qual curso você quer fazer?</h1>
-                <p className="text-xs text-muted-foreground">Selecione o instrumento que você quer aprender</p>
+                <h1 className="text-2xl font-black text-foreground">Quais cursos você quer fazer?</h1>
+                <p className="text-xs text-muted-foreground">
+                  Selecione um ou mais instrumentos. {courses.length >= 2
+                    ? "Com 2 ou mais cursos, mostramos os planos de 2 aulas/semana."
+                    : "Com 1 curso, mostramos os planos de 1 aula/semana."}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 {details.instruments.map((inst: any) => {
-                  const isSelected = selectedInstrument === inst.id;
+                  const isSelected = courses.some((c) => c.instrumentId === inst.id);
                   return (
                     <button
                       key={inst.id}
-                      onClick={() => setSelectedInstrument(inst.id)}
+                      onClick={() => toggleCourse(inst.id)}
                       className={`relative p-5 rounded-2xl border-2 text-left transition-all duration-200 flex flex-col justify-between h-28 group
                         ${isSelected
                           ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-500/30"
@@ -524,17 +536,84 @@ export default function PublicEnrollment() {
                 })}
               </div>
 
-              {selectedInstrument && (
+              {/* Planos por curso */}
+              {courses.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                    Plano de cada curso · {requiredLessonsPerWeek} aula{requiredLessonsPerWeek > 1 ? "s" : ""}/semana
+                  </p>
+                  {courses.map((c) => {
+                    const inst = details.instruments.find((i: any) => i.id === c.instrumentId);
+                    return (
+                      <div key={c.instrumentId} className="rounded-2xl border border-border/40 bg-muted/10 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-black text-foreground">{inst?.name}</p>
+                          <button onClick={() => toggleCourse(c.instrumentId)} className="text-[10px] text-rose-500 font-bold hover:underline">Remover</button>
+                        </div>
+                        {availablePlans.length === 0 ? (
+                          <p className="text-[11px] text-muted-foreground">Nenhum plano cadastrado — a escola definirá o valor depois.</p>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {availablePlans.map((p: any) => {
+                              const active = c.planId === p.id;
+                              return (
+                                <button
+                                  key={p.id}
+                                  onClick={() => patchCourse(c.instrumentId, { planId: p.id })}
+                                  className={`w-full text-left rounded-xl border-2 p-2.5 transition-all ${active ? "border-emerald-500 bg-emerald-500/10" : "border-border/40 hover:border-emerald-400/40"}`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-bold text-foreground truncate">{p.nome}{p.isBolsa ? " · Bolsa" : ""}</span>
+                                    <span className="text-xs font-black text-emerald-500 shrink-0">{formatBRL(Number(p.valorMensal))}/mês</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5 flex-wrap">
+                                    <span>{p.duracaoMeses} meses</span>
+                                    <span>·</span>
+                                    <span>{p.aulasPorSemana} aula(s)/semana</span>
+                                    {Number(p.taxaInscricao) > 0 && (<><span>·</span><span className="text-amber-600 dark:text-amber-400 font-bold">inscrição {formatBRL(Number(p.taxaInscricao))}</span></>)}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Resumo de valores */}
+              {courses.length > 0 && (
+                <div className="rounded-2xl bg-emerald-500/5 border border-emerald-500/15 p-3 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Mensalidade ({courses.length} curso{courses.length > 1 ? "s" : ""})</span>
+                    <span className="font-bold text-foreground">{formatBRL(monthlyTotal)}</span>
+                  </div>
+                  {enrollmentFeeTotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Taxa de inscrição</span>
+                      <span className="font-bold text-foreground">{formatBRL(enrollmentFeeTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-emerald-500/20 pt-1.5">
+                    <span className="font-black text-foreground">Total a pagar no ato</span>
+                    <span className="font-black text-emerald-500">{formatBRL(totalToPay)}</span>
+                  </div>
+                </div>
+              )}
+
+              {courses.length > 0 && (
                 <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 space-y-3 animate-in fade-in">
                   <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1.5">
                     <Info size={12} /> Como funciona sua matrícula
                   </p>
                   <ol className="space-y-2">
                     {[
-                      { n: 1, t: "Escolha seu curso", d: "Selecione o instrumento que deseja aprender." },
+                      { n: 1, t: "Escolha seus cursos e planos", d: "Selecione um ou mais instrumentos e o plano de cada um." },
                       { n: 2, t: "Preencha seus dados", d: "Informe seus dados para criar sua matrícula." },
-                      { n: 3, t: "Faça o primeiro pagamento", d: `Pague a primeira mensalidade (${formatBRL(details.monthlyFee)}) para confirmar.` },
-                      { n: 4, t: "Escolha seu horário", d: "Após o pagamento, escolha o dia e horário disponível." },
+                      { n: 3, t: "Faça o primeiro pagamento", d: `Pague a 1ª mensalidade${enrollmentFeeTotal > 0 ? " + taxa de inscrição" : ""} (${formatBRL(totalToPay)}).` },
+                      { n: 4, t: "Escolha seus horários", d: "Após o pagamento, escolha o dia e horário de cada curso." },
                     ].map((s) => (
                       <li key={s.n} className="flex items-start gap-2.5">
                         <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
@@ -549,9 +628,9 @@ export default function PublicEnrollment() {
               )}
 
               <Button
-                disabled={!selectedInstrument}
+                disabled={courses.length === 0 || (availablePlans.length > 0 && courses.some((c) => !c.planId))}
                 onClick={() => setStep("payment")}
-                className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-40"
+                className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-40"
               >
                 Continuar <ChevronRight size={16} />
               </Button>
@@ -577,17 +656,44 @@ export default function PublicEnrollment() {
                     </div>
                   </div>
 
-                  {/* Resumo do curso selecionado */}
-                  <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground font-semibold uppercase">Curso selecionado</p>
-                      <p className="text-sm font-black text-foreground">{details.instruments.find((i: any) => i.id === selectedInstrument)?.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground font-semibold uppercase">Mensalidade</p>
-                      <p className="text-lg font-black text-emerald-400">{formatBRL(details.monthlyFee)}</p>
+                  {/* Resumo dos cursos selecionados + taxas */}
+                  <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 space-y-2">
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase">Cursos selecionados</p>
+                    {courses.map((c) => {
+                      const inst = details.instruments.find((i: any) => i.id === c.instrumentId);
+                      const p = c.planId ? planById.get(c.planId) : null;
+                      return (
+                        <div key={c.instrumentId} className="flex items-center justify-between text-xs gap-2">
+                          <span className="font-bold text-foreground truncate">{inst?.name}{p ? ` · ${p.nome}` : ""}</span>
+                          <span className="font-black text-foreground shrink-0">{formatBRL(p ? Number(p.valorMensal) : Number(details.monthlyFee || 0))}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="border-t border-indigo-500/20 pt-2 space-y-1 text-xs">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Mensalidade</span><span className="font-bold text-foreground">{formatBRL(monthlyTotal)}</span></div>
+                      {enrollmentFeeTotal > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Taxa de inscrição</span><span className="font-bold text-amber-600 dark:text-amber-400">{formatBRL(enrollmentFeeTotal)}</span></div>}
+                      <div className="flex justify-between border-t border-indigo-500/20 pt-1"><span className="font-black text-foreground">Total a pagar no ato</span><span className="font-black text-emerald-500">{formatBRL(totalToPay)}</span></div>
                     </div>
                   </div>
+
+                  {/* Dia de vencimento da mensalidade */}
+                  {dueDays.length > 0 && (
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Dia de vencimento da mensalidade</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {dueDays.map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setDueDay(d)}
+                            className={`px-3 py-2 rounded-xl border-2 text-xs font-black transition-all ${dueDay === d ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : "border-border/50 text-muted-foreground"}`}
+                          >
+                            Dia {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-3">
                     <div className="space-y-1.5">
@@ -671,10 +777,8 @@ export default function PublicEnrollment() {
                         studentPhone: form.phone.trim(),
                         studentEmail: form.email.trim() || undefined,
                         studentCpf: form.cpf.trim() || undefined,
-                        instrumentId: selectedInstrument!,
-                        teacherUserId: 0,
-                        dateStr: "pending",
-                        timeStr: "pending",
+                        instrumentId: courses[0].instrumentId,
+                        amount: totalToPay,
                         billingType,
                       });
                     }}
@@ -682,7 +786,7 @@ export default function PublicEnrollment() {
                   >
                     {createChargeMutation.isPending
                       ? <><Loader2 size={16} className="animate-spin" /> Gerando cobrança...</>
-                      : <><CreditCard size={16} /> Pagar primeira mensalidade — {formatBRL(details.monthlyFee)}</>}
+                      : <><CreditCard size={16} /> Pagar {formatBRL(totalToPay)} e matricular</>}
                   </Button>
                 </>
               )}
@@ -760,123 +864,33 @@ export default function PublicEnrollment() {
                   </div>
                   <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Pagamento confirmado</span>
                 </div>
-                <h2 className="text-2xl font-black text-foreground">Agora escolha seu horário</h2>
-                <p className="text-xs text-muted-foreground">Sua primeira mensalidade foi paga com sucesso. Escolha o melhor dia e horário para suas aulas.</p>
+                <h2 className="text-2xl font-black text-foreground">Agora escolha seus horários</h2>
+                <p className="text-xs text-muted-foreground">Escolha o dia da semana e o horário de cada curso.</p>
               </div>
 
-              {/* Seleção de data */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Calendar size={14} className="text-indigo-400" />
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Escolha o dia</span>
-                </div>
-                <div className="overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
-                  <div className="flex gap-2 min-w-max px-0.5">
-                    {nextDays.map((day) => {
-                      const isSelected = selectedDate === day.dateStr;
-                      // Verifica se a escola está fechada nesse dia da semana
-                      const DAY_MAP: Record<number, string> = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
-                      const weekdayIdx = new Date(`${day.dateStr}T12:00:00-03:00`).getDay();
-                      const dayKey = DAY_MAP[weekdayIdx];
-                      const schoolHours = (details as any).schoolHours || {};
-                      const isClosed = !schoolHours[dayKey]?.active;
-                      return (
-                        <button
-                          key={day.dateStr}
-                          disabled={isClosed}
-                          onClick={() => { if (!isClosed) { setSelectedDate(day.dateStr); setSelectedTime(""); } }}
-                          className={`snap-start flex flex-col items-center px-4 py-3 rounded-2xl border-2 min-w-[74px] transition-all
-                            ${isClosed
-                              ? "opacity-30 border-border/20 bg-muted/10 cursor-not-allowed"
-                              : isSelected
-                              ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-500/40"
-                              : "border-border/40 bg-card/50 hover:border-emerald-400/40"}`}
-                        >
-                          <span className={`text-[10px] font-bold uppercase ${isSelected ? "text-emerald-50" : isClosed ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{day.weekday}</span>
-                          <span className={`text-sm font-black ${isSelected ? "text-white" : isClosed ? "text-muted-foreground/40" : "text-foreground"}`}>{day.day}</span>
-                          {isClosed && <span className="text-[8px] font-bold text-rose-400/60 uppercase mt-0.5">Fechado</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><ChevronRight size={11} /> Deslize para ver mais dias</p>
+              <div className="space-y-3">
+                {courses.map((c) => {
+                  const inst = details.instruments.find((i: any) => i.id === c.instrumentId);
+                  return (
+                    <CourseSchedulePicker
+                      key={c.instrumentId}
+                      code={code}
+                      course={{ instrumentId: c.instrumentId, weekday: c.weekday, timeStr: c.timeStr }}
+                      courseName={inst?.name || "Curso"}
+                      onChange={(patch) => patchCourse(c.instrumentId, patch)}
+                    />
+                  );
+                })}
               </div>
 
-              {/* Seleção de horário */}
-              {selectedDate && (
-                <div className="space-y-3 animate-in fade-in duration-300">
-                  <div className="flex items-center gap-2">
-                    <Clock size={14} className="text-indigo-400" />
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Horários Disponíveis</span>
-                  </div>
-
-                  {slotsLoading ? (
-                    <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground text-xs">
-                      <Loader2 size={16} className="animate-spin text-indigo-400" />
-                      Verificando disponibilidade...
-                    </div>
-                  ) : slotsData?.closedDay ? (
-                    <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                      <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400">
-                        <Clock size={18} />
-                      </div>
-                      <p className="text-xs font-bold text-foreground">Escola fechada neste dia</p>
-                      <p className="text-[10px] text-muted-foreground">Escolha outro dia disponível</p>
-                    </div>
-                  ) : slotsData?.slots.filter((s: any) => s.available).length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                      <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-400">
-                        <Clock size={18} />
-                      </div>
-                      <p className="text-xs font-bold text-foreground">Sem horários disponíveis</p>
-                      <p className="text-[10px] text-muted-foreground">Todos os horários deste dia estão ocupados. Escolha outra data.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-4 gap-2">
-                      {slotsData?.slots.map((slot: any) => {
-                        const isSelected = selectedTime === slot.time;
-                        return (
-                          <button
-                            key={slot.time}
-                            disabled={!slot.available}
-                            onClick={() => setSelectedTime(slot.time)}
-                            className={`py-3 rounded-xl border-2 text-xs font-bold transition-all
-                              ${!slot.available
-                                ? "opacity-25 border-border/20 bg-muted/10 line-through cursor-not-allowed text-muted-foreground"
-                                : isSelected
-                                ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/25 ring-2 ring-emerald-500/40 scale-105"
-                                : "border-border/40 bg-card/50 hover:border-emerald-400/50 text-foreground"}`}
-                          >
-                            {slot.time}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {slotsData?.teacher && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                      <div className="w-8 h-8 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-500">
-                        <User size={15} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">Sua aula será com</p>
-                        <p className="text-xs font-black text-foreground">{slotsData.teacher.name}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {(!selectedDate || !selectedTime) && (
+              {courses.some((c) => c.weekday === null || !c.timeStr) && (
                 <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1">
-                  <Info size={12} /> Selecione {!selectedDate ? "o dia" : ""}{!selectedDate && !selectedTime ? " e " : ""}{!selectedTime ? "o horário" : ""} para confirmar.
+                  <Info size={12} /> Selecione o dia e o horário de cada curso para confirmar.
                 </p>
               )}
 
               <Button
-                disabled={!selectedDate || !selectedTime || confirmMutation.isPending}
+                disabled={courses.some((c) => c.weekday === null || !c.timeStr) || confirmMutation.isPending}
                 onClick={() => {
                   confirmMutation.mutate({
                     code,
@@ -889,11 +903,15 @@ export default function PublicEnrollment() {
                     guardianCpf: form.guardianCpf || undefined,
                     guardianPhone: form.guardianPhone || undefined,
                     guardianEmail: form.guardianEmail || undefined,
-                    instrumentId: resolvedInstrumentId!,
-                    teacherUserId: slotsData?.teacher?.userId ?? 0,
-                    studioRoomId: slotsData?.room?.id,
-                    dateStr: selectedDate,
-                    timeStr: selectedTime,
+                    dueDay: dueDay ?? undefined,
+                    courses: courses.map((c) => ({
+                      instrumentId: c.instrumentId,
+                      planId: c.planId ?? undefined,
+                      weekday: c.weekday ?? undefined,
+                      timeStr: c.timeStr ?? undefined,
+                      teacherUserId: c.teacherUserId ?? undefined,
+                      studioRoomId: c.studioRoomId ?? undefined,
+                    })),
                     asaasChargeId: paymentData?.chargeId,
                     infinitepaySlug: checkoutSlug || undefined,
                   });
@@ -940,25 +958,34 @@ export default function PublicEnrollment() {
                     <span className="text-muted-foreground">Escola</span>
                     <span className="font-bold text-foreground">{details.schoolName}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Instrumento</span>
-                    <span className="font-bold text-foreground">{details.instruments.find((i: any) => i.id === selectedInstrument)?.name}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground">Aluno</span>
+                    <span className="font-bold text-foreground truncate max-w-[60%]">{form.name}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Data</span>
-                    <span className="font-bold text-foreground">{new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Horário</span>
-                    <span className="font-bold text-foreground">{selectedTime}h</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Professor</span>
-                    <span className="font-bold text-foreground">{slotsData?.teacher?.name || "—"}</span>
-                  </div>
+                  {courses.map((c) => {
+                    const inst = details.instruments.find((i: any) => i.id === c.instrumentId);
+                    const p = c.planId ? planById.get(c.planId) : null;
+                    const weekdayLabel = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][c.weekday ?? 0];
+                    return (
+                      <div key={c.instrumentId} className="border-t border-border/40 pt-2 space-y-1">
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">Curso</span>
+                          <span className="font-bold text-foreground truncate max-w-[60%]">{inst?.name}{p ? ` · ${p.nome}` : ""}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Horário</span>
+                          <span className="font-bold text-foreground">{weekdayLabel} às {c.timeStr}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Mensalidade</span>
+                          <span className="font-bold text-foreground">{formatBRL(p ? Number(p.valorMensal) : Number(details.monthlyFee || 0))}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                   <div className="flex justify-between border-t border-border/40 pt-2">
-                    <span className="text-muted-foreground">Mensalidade</span>
-                    <span className="font-black text-emerald-500">{formatBRL(details.monthlyFee)}</span>
+                    <span className="text-muted-foreground">Mensalidade total</span>
+                    <span className="font-black text-emerald-500">{formatBRL(monthlyTotal)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Próximo vencimento</span>
