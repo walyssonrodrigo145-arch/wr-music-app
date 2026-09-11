@@ -6,17 +6,41 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BirthDatePicker } from "@/components/enrollment/BirthDatePicker";
+import { maskCPF, maskPhone } from "@/lib/masks";
+import { validateCPF } from "@/lib/cpf";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Music, Calendar, Clock, CheckCircle2, User, Phone,
   Mail, Sparkles, Loader2, Copy, ExternalLink,
   ChevronRight, CreditCard, ArrowLeft, BadgeCheck, QrCode,
-  FileSignature, MessageCircle,
+  FileSignature, MessageCircle, Info,
 } from "lucide-react";
 
 // Fluxo: Curso → Dados + Pagamento → Horário → Confirmação → Sucesso
 type Step = "course" | "payment" | "schedule" | "success";
+
+/** Idade em anos a partir de "YYYY-MM-DD". */
+function computeAge(birthDate: string): number | null {
+  if (!birthDate) return null;
+  const d = new Date(`${birthDate}T12:00:00`);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age;
+}
+
+/** Link de WhatsApp a partir de um telefone (adiciona DDI 55 se necessário). */
+function waLink(phone?: string | null, text?: string): string | null {
+  if (!phone) return null;
+  let digits = phone.replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length <= 11) digits = `55${digits}`;
+  return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+}
 
 export default function PublicEnrollment() {
   const params = useParams<{ code: string }>();
@@ -34,6 +58,18 @@ export default function PublicEnrollment() {
     birthDate: "",
     guardianName: "", guardianCpf: "", guardianPhone: "", guardianEmail: "",
   });
+
+  const age = computeAge(form.birthDate);
+  const isMinor = age !== null && age < 18;
+
+  // Próximo vencimento estimado (mesmo dia do mês seguinte)
+  const nextDueLabel = useMemo(() => {
+    const now = new Date();
+    const y = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const m = (now.getMonth() + 1) % 12;
+    const day = Math.min(now.getDate(), new Date(y, m + 1, 0).getDate());
+    return new Date(y, m, day).toLocaleDateString("pt-BR");
+  }, []);
 
   const [paymentData, setPaymentData] = useState<{
     chargeId?: string;
@@ -278,6 +314,24 @@ export default function PublicEnrollment() {
     }
   };
 
+  const validateForm = (): string | null => {
+    if (form.name.trim().length < 3) return "Informe seu nome completo.";
+    const phoneDigits = form.phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) return "Informe um WhatsApp válido com DDD.";
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return "E-mail inválido.";
+    if (form.cpf.trim()) {
+      const err = validateCPF(form.cpf);
+      if (err) return err;
+    }
+    if (isMinor) {
+      if (!form.guardianName.trim()) return "Informe o nome do responsável.";
+      const gDigits = form.guardianPhone.replace(/\D/g, "");
+      if (gDigits.length < 10) return "Informe o WhatsApp do responsável.";
+      if (form.guardianCpf.trim()) { const e = validateCPF(form.guardianCpf); if (e) return e; }
+    }
+    return null;
+  };
+
   // ─── Loading / Error ──────────────────────────────────────────────────────────
   if (detailsLoading) {
     return (
@@ -380,6 +434,7 @@ export default function PublicEnrollment() {
     { key: "schedule", label: "Horário" },
   ];
   const currentIdx = STEPS.findIndex(s => s.key === step);
+  const schoolWaLink = waLink(details.schoolPhone, `Olá! Acabei de fazer minha matrícula em ${details.schoolName} pelo link. 🎵`);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-indigo-950/10 text-foreground">
@@ -452,15 +507,15 @@ export default function PublicEnrollment() {
                       onClick={() => setSelectedInstrument(inst.id)}
                       className={`relative p-5 rounded-2xl border-2 text-left transition-all duration-200 flex flex-col justify-between h-28 group
                         ${isSelected
-                          ? "border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/10"
-                          : "border-border/50 bg-card/50 hover:border-indigo-400/40 hover:bg-muted/30"}`}
+                          ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-500/30"
+                          : "border-border/50 bg-card/50 hover:border-emerald-400/40 hover:bg-muted/30"}`}
                     >
-                      <Music size={22} className={isSelected ? "text-indigo-400" : "text-muted-foreground group-hover:text-indigo-400/60"} />
-                      <span className={`text-sm font-bold truncate ${isSelected ? "text-indigo-300" : "text-foreground"}`}>
+                      <Music size={22} className={isSelected ? "text-emerald-500" : "text-muted-foreground group-hover:text-emerald-500/60"} />
+                      <span className={`text-sm font-bold truncate ${isSelected ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
                         {inst.name}
                       </span>
                       {isSelected && (
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center">
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-md">
                           <CheckCircle2 size={12} className="text-white" />
                         </div>
                       )}
@@ -470,11 +525,26 @@ export default function PublicEnrollment() {
               </div>
 
               {selectedInstrument && (
-                <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 space-y-1 animate-in fade-in">
-                  <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">💡 Como funciona</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Você vai preencher seus dados e pagar a <span className="font-bold text-foreground">primeira mensalidade (R$ {Number(details.monthlyFee).toFixed(0)})</span>. Depois de confirmar, você escolhe o melhor dia e horário para sua aula!
+                <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 space-y-3 animate-in fade-in">
+                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <Info size={12} /> Como funciona sua matrícula
                   </p>
+                  <ol className="space-y-2">
+                    {[
+                      { n: 1, t: "Escolha seu curso", d: "Selecione o instrumento que deseja aprender." },
+                      { n: 2, t: "Preencha seus dados", d: "Informe seus dados para criar sua matrícula." },
+                      { n: 3, t: "Faça o primeiro pagamento", d: `Pague a primeira mensalidade (${formatBRL(details.monthlyFee)}) para confirmar.` },
+                      { n: 4, t: "Escolha seu horário", d: "Após o pagamento, escolha o dia e horário disponível." },
+                    ].map((s) => (
+                      <li key={s.n} className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
+                        <div>
+                          <p className="text-xs font-bold text-foreground leading-tight">{s.t}</p>
+                          <p className="text-[10px] text-muted-foreground leading-snug">{s.d}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               )}
 
@@ -522,35 +592,39 @@ export default function PublicEnrollment() {
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><User size={10} /> Nome Completo *</Label>
-                      <Input id="enrollment-name" placeholder="Seu nome completo" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                      <Input id="enrollment-name" placeholder="Seu nome completo" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-emerald-500" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Phone size={10} /> WhatsApp *</Label>
-                      <Input id="enrollment-phone" placeholder="(00) 00000-0000" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                      <Input id="enrollment-phone" placeholder="(00) 00000-0000" inputMode="tel" value={form.phone} onChange={e => setForm({ ...form, phone: maskPhone(e.target.value) })} maxLength={16} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-emerald-500" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Mail size={10} /> E-mail</Label>
-                      <Input id="enrollment-email" type="email" placeholder="seu@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                      <Input id="enrollment-email" type="email" placeholder="seu@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-emerald-500" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">CPF (para gerar PIX ou Boleto)</Label>
-                      <Input id="enrollment-cpf" placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm({ ...form, cpf: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                      <Input id="enrollment-cpf" placeholder="000.000.000-00" inputMode="numeric" value={form.cpf} onChange={e => setForm({ ...form, cpf: maskCPF(e.target.value) })} maxLength={14} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-emerald-500" />
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Data de Nascimento</Label>
-                      <Input type="date" value={form.birthDate} onChange={e => setForm({ ...form, birthDate: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Data de Nascimento *</Label>
+                      <BirthDatePicker value={form.birthDate} onChange={(v) => setForm(f => ({ ...f, birthDate: v }))} />
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-muted/20 border border-border/40 space-y-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Responsável (obrigatório para menores de 18)</p>
-                      <Input placeholder="Nome do responsável" value={form.guardianName} onChange={e => setForm({ ...form, guardianName: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Input placeholder="CPF do responsável" value={form.guardianCpf} onChange={e => setForm({ ...form, guardianCpf: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
-                        <Input placeholder="WhatsApp do responsável" value={form.guardianPhone} onChange={e => setForm({ ...form, guardianPhone: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
+                    {isMinor && (
+                      <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                          <Info size={12} /> Dados do responsável (aluno menor de 18 anos)
+                        </p>
+                        <Input placeholder="Nome do responsável *" value={form.guardianName} onChange={e => setForm({ ...form, guardianName: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-emerald-500" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <Input placeholder="CPF do responsável" inputMode="numeric" value={form.guardianCpf} onChange={e => setForm({ ...form, guardianCpf: maskCPF(e.target.value) })} maxLength={14} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-emerald-500" />
+                          <Input placeholder="WhatsApp do responsável *" inputMode="tel" value={form.guardianPhone} onChange={e => setForm({ ...form, guardianPhone: maskPhone(e.target.value) })} maxLength={16} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-emerald-500" />
+                        </div>
+                        <Input type="email" placeholder="E-mail do responsável" value={form.guardianEmail} onChange={e => setForm({ ...form, guardianEmail: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-emerald-500" />
                       </div>
-                      <Input type="email" placeholder="E-mail do responsável" value={form.guardianEmail} onChange={e => setForm({ ...form, guardianEmail: e.target.value })} className="h-11 rounded-xl bg-card/50 border-border/50 focus:border-indigo-500" />
-                    </div>
+                    )}
 
                     {/* Escolha do método de pagamento */}
                     {details.paymentGateway === "asaas" && (
@@ -587,12 +661,10 @@ export default function PublicEnrollment() {
                   </div>
 
                   <Button
-                    disabled={!form.name.trim() || !form.phone.trim() || createChargeMutation.isPending}
+                    disabled={createChargeMutation.isPending}
                     onClick={() => {
-                      if (!form.name.trim() || !form.phone.trim()) {
-                        toast.error("Preencha seu nome e telefone.");
-                        return;
-                      }
+                      const err = validateForm();
+                      if (err) { toast.error(err); return; }
                       createChargeMutation.mutate({
                         code,
                         studentName: form.name.trim(),
@@ -606,11 +678,11 @@ export default function PublicEnrollment() {
                         billingType,
                       });
                     }}
-                    className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-40"
+                    className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-40"
                   >
                     {createChargeMutation.isPending
                       ? <><Loader2 size={16} className="animate-spin" /> Gerando cobrança...</>
-                      : <><CreditCard size={16} /> Gerar Cobrança e Pagar</>}
+                      : <><CreditCard size={16} /> Pagar primeira mensalidade — {formatBRL(details.monthlyFee)}</>}
                   </Button>
                 </>
               )}
@@ -684,12 +756,12 @@ export default function PublicEnrollment() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <CheckCircle2 size={16} className="text-emerald-400" />
+                    <CheckCircle2 size={16} className="text-emerald-500" />
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Pagamento confirmado!</span>
+                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Pagamento confirmado</span>
                 </div>
                 <h2 className="text-2xl font-black text-foreground">Agora escolha seu horário</h2>
-                <p className="text-xs text-muted-foreground">Selecione o dia e o horário disponível para suas aulas</p>
+                <p className="text-xs text-muted-foreground">Sua primeira mensalidade foi paga com sucesso. Escolha o melhor dia e horário para suas aulas.</p>
               </div>
 
               {/* Seleção de data */}
@@ -698,8 +770,8 @@ export default function PublicEnrollment() {
                   <Calendar size={14} className="text-indigo-400" />
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Escolha o dia</span>
                 </div>
-                <div className="overflow-x-auto pb-2">
-                  <div className="flex gap-2 min-w-max">
+                <div className="overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
+                  <div className="flex gap-2 min-w-max px-0.5">
                     {nextDays.map((day) => {
                       const isSelected = selectedDate === day.dateStr;
                       // Verifica se a escola está fechada nesse dia da semana
@@ -713,14 +785,14 @@ export default function PublicEnrollment() {
                           key={day.dateStr}
                           disabled={isClosed}
                           onClick={() => { if (!isClosed) { setSelectedDate(day.dateStr); setSelectedTime(""); } }}
-                          className={`flex flex-col items-center px-4 py-3 rounded-2xl border-2 min-w-[72px] transition-all
+                          className={`snap-start flex flex-col items-center px-4 py-3 rounded-2xl border-2 min-w-[74px] transition-all
                             ${isClosed
                               ? "opacity-30 border-border/20 bg-muted/10 cursor-not-allowed"
                               : isSelected
-                              ? "border-indigo-500 bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
-                              : "border-border/40 bg-card/50 hover:border-indigo-400/40"}`}
+                              ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-500/40"
+                              : "border-border/40 bg-card/50 hover:border-emerald-400/40"}`}
                         >
-                          <span className={`text-[10px] font-bold uppercase ${isSelected ? "text-indigo-100" : isClosed ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{day.weekday}</span>
+                          <span className={`text-[10px] font-bold uppercase ${isSelected ? "text-emerald-50" : isClosed ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{day.weekday}</span>
                           <span className={`text-sm font-black ${isSelected ? "text-white" : isClosed ? "text-muted-foreground/40" : "text-foreground"}`}>{day.day}</span>
                           {isClosed && <span className="text-[8px] font-bold text-rose-400/60 uppercase mt-0.5">Fechado</span>}
                         </button>
@@ -728,6 +800,7 @@ export default function PublicEnrollment() {
                     })}
                   </div>
                 </div>
+                <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><ChevronRight size={11} /> Deslize para ver mais dias</p>
               </div>
 
               {/* Seleção de horário */}
@@ -772,7 +845,7 @@ export default function PublicEnrollment() {
                               ${!slot.available
                                 ? "opacity-25 border-border/20 bg-muted/10 line-through cursor-not-allowed text-muted-foreground"
                                 : isSelected
-                                ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                                ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/25 ring-2 ring-emerald-500/40 scale-105"
                                 : "border-border/40 bg-card/50 hover:border-emerald-400/50 text-foreground"}`}
                           >
                             {slot.time}
@@ -783,17 +856,23 @@ export default function PublicEnrollment() {
                   )}
 
                   {slotsData?.teacher && (
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/30 border border-border/30">
-                      <div className="w-7 h-7 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                        <User size={14} />
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                      <div className="w-8 h-8 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-500">
+                        <User size={15} />
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Professor responsável</p>
-                        <p className="text-xs font-bold text-foreground">{slotsData.teacher.name}</p>
+                        <p className="text-[10px] text-muted-foreground">Sua aula será com</p>
+                        <p className="text-xs font-black text-foreground">{slotsData.teacher.name}</p>
                       </div>
                     </div>
                   )}
                 </div>
+              )}
+
+              {(!selectedDate || !selectedTime) && (
+                <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1">
+                  <Info size={12} /> Selecione {!selectedDate ? "o dia" : ""}{!selectedDate && !selectedTime ? " e " : ""}{!selectedTime ? "o horário" : ""} para confirmar.
+                </p>
               )}
 
               <Button
@@ -819,7 +898,7 @@ export default function PublicEnrollment() {
                     infinitepaySlug: checkoutSlug || undefined,
                   });
                 }}
-                className="w-full h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-40"
+                className="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-40 sticky bottom-2 z-10"
               >
                 {confirmMutation.isPending
                   ? <><Loader2 size={16} className="animate-spin" /> Confirmando...</>
@@ -850,12 +929,12 @@ export default function PublicEnrollment() {
               <div className="space-y-2">
                 <h2 className="text-2xl font-black text-foreground">Matrícula Confirmada! 🎉</h2>
                 <p className="text-sm text-muted-foreground max-w-xs">
-                  Sua aula foi agendada com sucesso. Em breve você receberá a confirmação pelo WhatsApp!
+                  Tudo certo! Sua matrícula foi confirmada. Você receberá pelo WhatsApp: confirmação da matrícula, informações da aula e orientações importantes.
                 </p>
               </div>
 
               <Card className="w-full p-5 rounded-2xl bg-card/50 border-border/40 text-left space-y-3">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Resumo da Matrícula</p>
+                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider">Resumo da Matrícula</p>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Escola</span>
@@ -876,6 +955,14 @@ export default function PublicEnrollment() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Professor</span>
                     <span className="font-bold text-foreground">{slotsData?.teacher?.name || "—"}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-border/40 pt-2">
+                    <span className="text-muted-foreground">Mensalidade</span>
+                    <span className="font-black text-emerald-500">{formatBRL(details.monthlyFee)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Próximo vencimento</span>
+                    <span className="font-bold text-foreground">{nextDueLabel}</span>
                   </div>
                 </div>
               </Card>
@@ -909,6 +996,17 @@ export default function PublicEnrollment() {
                     <MessageCircle size={14} /> Enviar link por WhatsApp
                   </a>
                 </Card>
+              )}
+
+              {schoolWaLink && (
+                <a
+                  href={schoolWaLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  <MessageCircle size={16} /> Falar com a escola pelo WhatsApp
+                </a>
               )}
             </motion.div>
           )}
