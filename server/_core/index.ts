@@ -1231,6 +1231,15 @@ async function startServer() {
   );
   app.use("/api/trpc", apiLimiter);
 
+  // Rate limit reforçado para endpoints PÚBLICOS de matrícula (sem autenticação) —
+  // anti-abuso/enumeração, limitado por IP.
+  const enrollmentLimiter = createRateLimiter(
+    60 * 1000,
+    120,
+    "Muitas requisições. Aguarde um instante e tente novamente."
+  );
+  app.use("/api/trpc/enrollment", enrollmentLimiter);
+
 
   // tRPC API
   app.use(

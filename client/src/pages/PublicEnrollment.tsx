@@ -77,7 +77,7 @@ export default function PublicEnrollment() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.instrumentId) setSelectedInstrument(parsed.instrumentId);
-        if (parsed.form) setForm(parsed.form);
+        if (parsed.form) setForm(prev => ({ ...prev, ...parsed.form }));
         localStorage.removeItem(`mp_enrollment_${window.location.pathname}`);
       }
     } catch (_) {}
@@ -879,6 +879,12 @@ export default function PublicEnrollment() {
                   </div>
                 </div>
               </Card>
+
+              {details.contractEnabled && !confirmMutation.data?.contractSignUrl && (
+                <p className="text-[11px] text-muted-foreground text-center max-w-xs">
+                  O contrato de prestação de serviços será enviado pela escola para assinatura em breve.
+                </p>
+              )}
 
               {confirmMutation.data?.contractSignUrl && (
                 <Card className="w-full p-5 rounded-2xl bg-indigo-500/5 border-indigo-500/20 text-left space-y-3">

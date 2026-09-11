@@ -384,6 +384,23 @@ export const enrollmentRouter = router({
       }
 
       const orgId = link.organizationId;
+
+      // Idempotência ANTES de gerar a cobrança: não cobrar um cadastro duplicado.
+      // Compara nome + contato (mesma pessoa) — irmãos com contatos compartilhados passam.
+      const dupName = input.studentName.trim();
+      const dupEmail = input.studentEmail?.trim() || null;
+      const dupPhone = input.studentPhone?.trim() || null;
+      const dupConds = [];
+      if (dupEmail) dupConds.push(and(eq(students.name, dupName), eq(students.email, dupEmail)));
+      if (dupPhone) dupConds.push(and(eq(students.name, dupName), eq(students.phone, dupPhone)));
+      if (dupConds.length > 0) {
+        const [dupStudent] = await db.select({ id: students.id }).from(students)
+          .where(and(eq(students.organizationId, orgId), or(...dupConds))).limit(1);
+        if (dupStudent) {
+          throw new Error("Já existe um aluno cadastrado com estes dados. Entre em contato com a escola.");
+        }
+      }
+
       // Busca o settings mais completo: prioriza quem tem schoolName ou chaves de pagamento
       const allSettings2 = await db.select().from(settings).where(eq(settings.organizationId, orgId));
       const schoolSet = allSettings2.find(s => s.schoolName && s.schoolName.trim() !== '')
@@ -680,19 +697,22 @@ export const enrollmentRouter = router({
 
       const scheduledAt = new Date(`${input.dateStr}T${input.timeStr}:00.000-03:00`);
 
-      // ── Idempotência: evita aluno duplicado (mesmo e-mail/telefone na org) ──
+      // ── Idempotência: evita duplicar a MESMA pessoa (nome + contato).
+      // NÃO bloqueia por telefone/e-mail isolados: irmãos costumam compartilhar
+      // o WhatsApp/e-mail do responsável e seriam bloqueados indevidamente. ──
+      const studentName = input.studentName.trim();
       const studentEmail = input.studentEmail?.trim() || null;
       const studentPhone = input.studentPhone?.trim() || null;
       const dupConds = [];
-      if (studentEmail) dupConds.push(eq(students.email, studentEmail));
-      if (studentPhone) dupConds.push(eq(students.phone, studentPhone));
+      if (studentEmail) dupConds.push(and(eq(students.name, studentName), eq(students.email, studentEmail)));
+      if (studentPhone) dupConds.push(and(eq(students.name, studentName), eq(students.phone, studentPhone)));
       if (dupConds.length > 0) {
         const [existingStudent] = await db.select({ id: students.id })
           .from(students)
           .where(and(eq(students.organizationId, orgId), or(...dupConds)))
           .limit(1);
         if (existingStudent) {
-          throw new Error("Já existe um aluno cadastrado com este e-mail ou telefone. Entre em contato com a escola.");
+          throw new Error("Já existe um aluno cadastrado com estes dados. Entre em contato com a escola.");
         }
       }
 
@@ -716,6 +736,28 @@ export const enrollmentRouter = router({
       });
       if (hasConflict) {
         throw new Error("Este horário acabou de ser ocupado. Volte e escolha outro horário.");
+      }
+
+      // Conflito de SALA (qualquer professor) — evita duas aulas no mesmo estúdio
+      if (input.studioRoomId) {
+        const roomLessons = await db
+          .select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
+          .from(lessons)
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            eq(lessons.studioRoomId, input.studioRoomId),
+            eq(lessons.status, "agendada"),
+            gte(lessons.scheduledAt, new Date(slotStart - 12 * 3_600_000)),
+            lte(lessons.scheduledAt, new Date(slotStart + 12 * 3_600_000)),
+          ));
+        const roomConflict = roomLessons.some((l: any) => {
+          const s = new Date(l.scheduledAt).getTime();
+          const e = s + (l.duration || 60) * 60_000;
+          return slotStart < e && slotEnd > s;
+        });
+        if (roomConflict) {
+          throw new Error("Esta sala acabou de ser ocupada. Volte e escolha outro horário.");
+        }
       }
 
       // Cadastra o Aluno
@@ -781,7 +823,7 @@ export const enrollmentRouter = router({
         contract = await generateEnrollmentContract(db, orgId, newStudent.id, {
           templateId: link.contractTemplateId ?? null,
           monthlyFee: (link.monthlyFee as string | null) ?? null,
-          startDate: new Date().toISOString().slice(0, 10),
+          startDate: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
         });
       } catch (e) {
         console.warn("[Enrollment] Falha ao gerar contrato (matrícula mantida):", e);

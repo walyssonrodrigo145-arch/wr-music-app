@@ -216,10 +216,13 @@ export default function Alunos() {
              {/* Botão Gerar Link de Matrícula (Auto-cadastro pelo aluno) */}
              {canEdit && (
                <Button
-                 onClick={() => {
-                   setGeneratedEnrollmentLink(null);
-                   setIsEnrollmentModalOpen(true);
-                 }}
+                  onClick={() => {
+                    setGeneratedEnrollmentLink(null);
+                    setEnrollmentInstrumentId("all");
+                    setEnrollmentFee("");
+                    setEnrollmentContractTemplateId("auto");
+                    setIsEnrollmentModalOpen(true);
+                  }}
                  variant="outline"
                  className="h-10 rounded-xl px-3.5 lg:px-4 text-xs font-bold gap-2 border-primary/30 text-primary hover:bg-primary/10 shadow-sm shrink-0"
                  title="Gerar link de auto-matrícula para enviar ao aluno"
@@ -779,6 +782,7 @@ export default function Alunos() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="auto">Automático (menor de idade se &lt;18)</SelectItem>
+                    <SelectItem value="0">Nenhum contrato</SelectItem>
                     {contractTemplates.map((t: any) => (
                       <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
                     ))}

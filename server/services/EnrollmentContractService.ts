@@ -29,6 +29,9 @@ export async function generateEnrollmentContract(
   opts: { templateId?: number | null; monthlyFee?: string | null; startDate?: string | null; endDate?: string | null } = {}
 ): Promise<{ signUrl: string; contractId: number; contractNumber: string | null } | null> {
   try {
+    // 0. "Nenhum contrato" (sentinel 0) — a escola optou explicitamente por não gerar
+    if (opts.templateId === 0) return null;
+
     // 1. Integração Assinafy ativa?
     const [integration] = await db.select()
       .from(schoolIntegrations)
@@ -74,15 +77,20 @@ export async function generateEnrollmentContract(
     }
     if (!userId) return null;
 
-    // 4. Gera o contrato + processo de assinatura
+    // 4. Gera o contrato + processo de assinatura (com timeout para não travar o cadastro)
     const { runCreateAssinafyContract } = await import("../routers/helpers");
-    const result = await runCreateAssinafyContract(db, { id: userId }, orgId, {
-      studentId,
-      templateId,
-      startDate: opts.startDate ?? undefined,
-      endDate: opts.endDate ?? undefined,
-      monthlyFeeOverride: opts.monthlyFee ?? undefined,
-    });
+    const result = await Promise.race([
+      runCreateAssinafyContract(db, { id: userId }, orgId, {
+        studentId,
+        templateId,
+        startDate: opts.startDate ?? undefined,
+        endDate: opts.endDate ?? undefined,
+        monthlyFeeOverride: opts.monthlyFee ?? undefined,
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Tempo esgotado ao gerar o contrato.")), 25_000)
+      ),
+    ]);
 
     return {
       signUrl: result.signUrl,
