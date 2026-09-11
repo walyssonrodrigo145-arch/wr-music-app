@@ -4,7 +4,7 @@ import { getDb } from "./db";
 import { enrollmentLinks, crmLeads, instruments, professores, users, lessons, students, settings, studioRooms, organizations, schoolIntegrations, contractTemplates, schoolPlans, studentEnrollments } from "../drizzle/schema";
 import { eq, and, gte, lte, desc, isNotNull, ne, sql, or } from "drizzle-orm";
 import crypto from "crypto";
-import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasChargeStatus } from "./utils/asaas";
+import { createAsaasCustomer, createAsaasCharge, getAsaasPixQrCode, getAsaasChargeStatus, getAsaasCharge } from "./utils/asaas";
 import { createMPPreference, verifyMPPayment } from "./utils/mercadopago";
 import { createInfinitePayLink, checkInfinitePayPayment, brlToCents, resolveInfinitePayApiKey } from "./utils/infinitepay";
 import { createPaymentShortLink } from "./utils/shortlinks";
@@ -410,8 +410,9 @@ export const enrollmentRouter = router({
         cursor += duration;
       }
 
-      // Ocupação do professor nesse dia da semana (próximas 4 semanas)
+      // Ocupação do professor E da sala nesse dia da semana (próximas 4 semanas)
       const busyTimes = new Set<string>();
+      const roomIdForSlots = rooms[0]?.id;
       const brtBase = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
       brtBase.setHours(0, 0, 0, 0);
       let diff0 = (input.weekday - brtBase.getDay() + 7) % 7;
@@ -424,7 +425,14 @@ export const enrollmentRouter = router({
         const startOfDay = new Date(`${dayStr}T00:00:00.000-03:00`);
         const endOfDay = new Date(`${dayStr}T23:59:59.999-03:00`);
         const dayLessons = await db.select({ scheduledAt: lessons.scheduledAt }).from(lessons)
-          .where(and(eq(lessons.organizationId, orgId), eq(lessons.userId, targetTeacher.userId), gte(lessons.scheduledAt, startOfDay), lte(lessons.scheduledAt, endOfDay)));
+          .where(and(
+            eq(lessons.organizationId, orgId),
+            roomIdForSlots
+              ? or(eq(lessons.userId, targetTeacher.userId), eq(lessons.studioRoomId, roomIdForSlots))
+              : eq(lessons.userId, targetTeacher.userId),
+            gte(lessons.scheduledAt, startOfDay),
+            lte(lessons.scheduledAt, endOfDay),
+          ));
         for (const l of dayLessons) {
           busyTimes.add(new Date(l.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }));
         }
@@ -449,6 +457,7 @@ export const enrollmentRouter = router({
         dateStr: z.string().optional(),
         timeStr: z.string().optional(),
         amount: z.number().positive().optional(),
+        courses: z.array(z.object({ instrumentId: z.number(), planId: z.number().optional() })).max(6).optional(),
         billingType: z.enum(["PIX", "BOLETO"]).default("PIX"),
       })
     )
@@ -494,11 +503,25 @@ export const enrollmentRouter = router({
         || allSettings2.find(s => s.asaasApiKey || s.mpAccessToken)
         || allSettings2.sort((a, b) => b.id - a.id)[0];
 
-      const monthlyFee = (input.amount && input.amount > 0)
-        ? input.amount
-        : (link.monthlyFee ? Number(link.monthlyFee) : 150);
+      // Valor calculado SERVER-SIDE a partir dos planos (NUNCA confiar no cliente).
+      // Inclui a 1ª mensalidade + taxa de inscrição de cada curso.
+      let chargeAmount = link.monthlyFee ? Number(link.monthlyFee) : 150;
+      if (input.courses && input.courses.length > 0) {
+        const orgPlans = await db.select().from(schoolPlans).where(eq(schoolPlans.organizationId, orgId));
+        const planById = new Map<number, any>(orgPlans.map((p: any) => [p.id, p]));
+        chargeAmount = input.courses.reduce((sum, c) => {
+          const p = c.planId ? planById.get(c.planId) : null;
+          if (!p) return sum + (link.monthlyFee ? Number(link.monthlyFee) : 150);
+          return sum + Number(p.valorMensal) + Number(p.taxaInscricao || 0);
+        }, 0);
+      }
+      if (chargeAmount <= 0) chargeAmount = link.monthlyFee ? Number(link.monthlyFee) : 150;
       const [inst] = await db.select().from(instruments).where(eq(instruments.id, input.instrumentId)).limit(1);
       const courseName = inst?.name || "Música";
+      const courseCount = input.courses?.length || 1;
+      const chargeDescription = courseCount > 1
+        ? `Matrícula MusicPro - ${courseCount} cursos`
+        : `Matrícula MusicPro - ${courseName}`;
 
       // Qual gateway a escola usa? (RN-001: fonte única de resolução)
       const activeGateway = resolveActivePaymentGateway(schoolSet);
@@ -510,8 +533,8 @@ export const enrollmentRouter = router({
           orderNsu: `enrollment_${link.code}`,
           items: [{
             quantity: 1,
-            price: brlToCents(monthlyFee),
-            description: `Matrícula - Curso de ${courseName}`,
+            price: brlToCents(chargeAmount),
+            description: chargeDescription,
           }],
           redirectUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/matricula/${link.code}?status=pending`,
           webhookUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/api/webhooks/infinitepay/student?enrollmentCode=${encodeURIComponent(link.code)}&token=${encodeURIComponent(ENV.infinitepayWebhookToken)}`,
@@ -534,7 +557,7 @@ export const enrollmentRouter = router({
           gateway: "infinitepay",
           invoiceUrl: shareUrl,
           slug: ipLink.slug,
-          value: monthlyFee,
+          value: chargeAmount,
           billingType: input.billingType,
         };
       }
@@ -545,10 +568,10 @@ export const enrollmentRouter = router({
           {
             items: [
               {
-                title: `Matrícula - Curso de ${courseName}`,
+                title: chargeDescription,
                 quantity: 1,
                 currency_id: "BRL",
-                unit_price: monthlyFee,
+                unit_price: chargeAmount,
               },
             ],
             payer: {
@@ -565,7 +588,7 @@ export const enrollmentRouter = router({
           skipPayment: false,
           gateway: "mercadopago",
           invoiceUrl: mpResult.init_point,
-          value: monthlyFee,
+          value: chargeAmount,
           billingType: input.billingType,
         };
       }
@@ -591,9 +614,9 @@ export const enrollmentRouter = router({
           {
             asaasCustomerId,
             billingType: input.billingType,
-            value: monthlyFee,
+            value: chargeAmount,
             dueDate: dueDateStr,
-            description: `Matrícula - Aula de ${courseName} em ${schoolSet.schoolName || "Escola de Música"}`,
+            description: chargeDescription,
           },
           asaasKey
         );
@@ -615,7 +638,7 @@ export const enrollmentRouter = router({
           invoiceUrl: charge.invoiceUrl,
           pixQrCode,
           pixCopiaECola,
-          value: monthlyFee,
+          value: chargeAmount,
           billingType: input.billingType,
         };
       }
@@ -752,6 +775,9 @@ export const enrollmentRouter = router({
       };
 
       const enrichedCourses = coursesToEnroll.map((c) => {
+        if (c.planId && !planById.has(c.planId)) {
+          throw new Error("Plano de curso inválido para esta escola.");
+        }
         const plan = c.planId ? planById.get(c.planId) : null;
         return {
           ...c,
@@ -762,11 +788,21 @@ export const enrollmentRouter = router({
           lessonsPerWeek: plan ? Math.max(1, Number(plan.aulasPorSemana || 1)) : 1,
         };
       });
+      // Valida professor de CADA curso ANTES de criar o aluno (evita curso sem aulas)
+      const teacherByCourse = new Map<number, number>();
+      for (const c of enrichedCourses) {
+        const t = resolveTeacher(c.instrumentId, c.teacherUserId);
+        if (!t) throw new Error("Há um curso selecionado sem professor disponível. Escolha outro curso ou contate a escola.");
+        teacherByCourse.set(c.instrumentId, t);
+      }
       const totalMonthlyFee = enrichedCourses.reduce((s, c) => s + c.monthlyFee, 0);
+      const totalEnrollmentFee = enrichedCourses.reduce((s, c) => s + c.enrollmentFee, 0);
+      // Total esperado no ato = 1ª mensalidade + taxa de inscrição (por curso)
+      const expectedTotal = totalMonthlyFee + totalEnrollmentFee;
+      const TOLERANCE = 0.05; // tolerância de centavos
 
       // AUDIT-P0 FIX (fraude): se a escola COBRA matrícula (gateway configurado),
-      // verificar o pagamento SERVER-SIDE antes de criar aluno/aula. Antes, um POST
-      // direto matriculava sem pagar — o asaasChargeId do input era ignorado.
+      // verificar o pagamento SERVER-SIDE (status E valor) antes de criar aluno/aula.
       const gateway = (schoolSet as any)?.paymentGateway || "asaas";
       const hasAsaas = !!(schoolSet?.asaasApiKey && (schoolSet?.asaasEnabled === 1 || (schoolSet?.asaasEnabled as any) === true));
       const hasMercadoPago = !!schoolSet?.mpAccessToken;
@@ -776,21 +812,23 @@ export const enrollmentRouter = router({
 
       if (requiresPayment) {
         let paymentVerified = false;
+        let paidAmount = 0;
 
         if (hasAsaas) {
           if (!input.asaasChargeId) {
             throw new Error("Pagamento da matrícula é obrigatório. Gere a cobrança e conclua o pagamento antes de confirmar.");
           }
           try {
-            const chargeStatus = await getAsaasChargeStatus(input.asaasChargeId, decryptSecret(schoolSet!.asaasApiKey!));
-            paymentVerified = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH", "DETERMINED"].includes(String(chargeStatus).toUpperCase());
+            const charge = await getAsaasCharge(input.asaasChargeId, decryptSecret(schoolSet!.asaasApiKey!));
+            const st = String((charge as any)?.status || "").toUpperCase();
+            paidAmount = Number((charge as any)?.value || 0);
+            paymentVerified = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH", "DETERMINED"].includes(st) && paidAmount + TOLERANCE >= expectedTotal;
           } catch (e) {
             console.error("[Enrollment] Falha ao verificar cobrança Asaas:", e);
             paymentVerified = false;
           }
         } else if (infinitepayActive) {
-          // InfinitePay: revalidação server-to-server via payment_check
-          // (o corpo/redirect da InfinitePay não é prova de pagamento)
+          // InfinitePay: revalidação server-to-server via payment_check (status + valor)
           try {
             const check = await checkInfinitePayPayment({
               handle: schoolSet!.infinitepayHandle!,
@@ -798,13 +836,15 @@ export const enrollmentRouter = router({
               slug: input.infinitepaySlug || undefined,
               apiKey: resolveInfinitePayApiKey((schoolSet as any).infinitepayApiKey ?? null),
             });
-            paymentVerified = check.paid === true;
+            // checkInfinitePayPayment devolve paidAmount em CENTAVOS → converte para reais
+            paidAmount = Number((check as any).paidAmount || 0) / 100;
+            paymentVerified = check.paid === true && paidAmount + TOLERANCE >= expectedTotal;
           } catch (e) {
             console.error("[Enrollment] Falha ao verificar pagamento InfinitePay:", e);
             paymentVerified = false;
           }
         } else {
-          // Mercado Pago: busca pagamento aprovado pela referência externa do link
+          // Mercado Pago: busca pagamento APROVADO pela referência externa e valida o valor
           try {
             const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=enrollment_${link.code}&sort=date_created&criteria=desc`;
             const mpResp = await fetch(searchUrl, {
@@ -812,7 +852,9 @@ export const enrollmentRouter = router({
             });
             if (mpResp.ok) {
               const mpData: any = await mpResp.json();
-              paymentVerified = mpData.results?.some((p: any) => p.status === "approved");
+              const approved = (mpData.results || []).find((p: any) => p.status === "approved");
+              paidAmount = Number(approved?.transaction_amount || 0);
+              paymentVerified = !!approved && paidAmount + TOLERANCE >= expectedTotal;
             }
           } catch (e) {
             console.error("[Enrollment] Falha ao verificar pagamento MP:", e);
@@ -821,7 +863,7 @@ export const enrollmentRouter = router({
         }
 
         if (!paymentVerified) {
-          throw new Error("Pagamento não confirmado. Conclua o pagamento da matrícula e tente novamente.");
+          throw new Error("Pagamento não confirmado (ou valor insuficiente). Conclua o pagamento correto da matrícula e tente novamente.");
         }
       }
 
@@ -892,7 +934,8 @@ export const enrollmentRouter = router({
 
       // Cadastra o Aluno (curso principal = 1º selecionado; mensalidade = soma dos cursos)
       const firstCourse = enrichedCourses[0];
-      const firstTeacher = resolveTeacher(firstCourse.instrumentId, firstCourse.teacherUserId) ?? 0;
+      const firstTeacher = teacherByCourse.get(firstCourse.instrumentId)!;
+      const brtDay = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
       const [newStudent] = await db
         .insert(students)
         .values({
@@ -923,8 +966,7 @@ export const enrollmentRouter = router({
       const duesCourses: { monthlyFee: number; durationMonths: number }[] = [];
 
       for (const c of enrichedCourses) {
-        const teacherUserId = resolveTeacher(c.instrumentId, c.teacherUserId);
-        if (!teacherUserId) continue; // sem professor disponível → pula o curso
+        const teacherUserId = teacherByCourse.get(c.instrumentId)!;
         const courseName = instrumentsById.get(c.instrumentId)?.name || "Música";
 
         await db.insert(studentEnrollments).values({
@@ -936,7 +978,7 @@ export const enrollmentRouter = router({
           studioRoomId: c.studioRoomId ?? null,
           durationMonths: c.durationMonths,
           lessonsPerWeek: c.lessonsPerWeek,
-          weekday: c.weekday ?? new Date().getDay(),
+          weekday: c.weekday ?? brtDay,
           timeStr: c.timeStr || null,
           monthlyFee: c.monthlyFee.toFixed(2),
           enrollmentFee: c.enrollmentFee.toFixed(2),

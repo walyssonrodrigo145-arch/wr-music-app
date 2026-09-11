@@ -159,6 +159,27 @@ export default function PublicEnrollment() {
       { enabled: Boolean(code), retry: 1, staleTime: 0, gcTime: 0, refetchOnMount: "always" }
     );
 
+  // Ao mudar o nº de cursos (1↔2+), limpa planos que não pertencem ao filtro atual
+  // (ex.: plano de 1 aula/semana deixa de valer quando o aluno escolhe 2 cursos).
+  useEffect(() => {
+    const plans: any[] = (details as any)?.plans || [];
+    if (plans.length === 0) return;
+    const filtered = plans.filter((p) => Number(p.aulasPorSemana) === requiredLessonsPerWeek);
+    const allowed = new Set((filtered.length > 0 ? filtered : plans).map((p) => p.id));
+    setCourses((prev) => {
+      if (!prev.some((c) => c.planId && !allowed.has(c.planId))) return prev;
+      return prev.map((c) => (c.planId && !allowed.has(c.planId) ? { ...c, planId: null } : c));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requiredLessonsPerWeek, (details as any)?.plans]);
+
+  // Pré-seleciona o 1º dia de vencimento configurado pela escola
+  useEffect(() => {
+    const dd: number[] = (details as any)?.dueDays || [];
+    if (dd.length > 0) setDueDay((prev) => prev ?? dd[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [details]);
+
   // instrumentId resolvido (1º curso) — usado apenas para o resumo/legado
   const resolvedInstrumentId = selectedInstrument
     ?? details?.preselectedInstrumentId
@@ -434,11 +455,13 @@ export default function PublicEnrollment() {
   const dueDays: number[] = (details as any).dueDays || [];
 
   const toggleCourse = (instrumentId: number) => {
-    setCourses((prev) =>
-      prev.some((c) => c.instrumentId === instrumentId)
-        ? prev.filter((c) => c.instrumentId !== instrumentId)
-        : [...prev, { instrumentId, planId: null, weekday: null, timeStr: null, teacherUserId: null, studioRoomId: null }]
-    );
+    setCourses((prev) => {
+      if (prev.some((c) => c.instrumentId === instrumentId)) {
+        return prev.filter((c) => c.instrumentId !== instrumentId);
+      }
+      if (prev.length >= 6) { toast.error("Máximo de 6 cursos por matrícula."); return prev; }
+      return [...prev, { instrumentId, planId: null, weekday: null, timeStr: null, teacherUserId: null, studioRoomId: null }];
+    });
   };
   const patchCourse = (instrumentId: number, patch: Partial<{ planId: number | null; weekday: number | null; timeStr: string | null; teacherUserId: number | null; studioRoomId: number | null }>) => {
     setCourses((prev) => prev.map((c) => (c.instrumentId === instrumentId ? { ...c, ...patch } : c)));
@@ -542,6 +565,11 @@ export default function PublicEnrollment() {
                   <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                     Plano de cada curso · {requiredLessonsPerWeek} aula{requiredLessonsPerWeek > 1 ? "s" : ""}/semana
                   </p>
+                  {allPlans.length > 0 && plansForCount.length === 0 && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                      Não há planos de {requiredLessonsPerWeek} aula{requiredLessonsPerWeek > 1 ? "s" : ""}/semana — mostrando os planos disponíveis.
+                    </p>
+                  )}
                   {courses.map((c) => {
                     const inst = details.instruments.find((i: any) => i.id === c.instrumentId);
                     return (
@@ -778,7 +806,7 @@ export default function PublicEnrollment() {
                         studentEmail: form.email.trim() || undefined,
                         studentCpf: form.cpf.trim() || undefined,
                         instrumentId: courses[0].instrumentId,
-                        amount: totalToPay,
+                        courses: courses.map((c) => ({ instrumentId: c.instrumentId, planId: c.planId ?? undefined })),
                         billingType,
                       });
                     }}

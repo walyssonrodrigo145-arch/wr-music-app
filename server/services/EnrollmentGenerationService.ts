@@ -44,56 +44,70 @@ export async function generateLessonsForEnrollment(db: any, input: EnrollmentLes
   if (!input.timeStr) return 0;
 
   const start = nextOccurrence(input.weekday);
+  // Fim do contrato: mesma data + N meses, com clamp no último dia do mês
   const end = new Date(start);
+  end.setDate(1);
   end.setMonth(end.getMonth() + durationMonths);
+  const lastDay = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+  end.setDate(Math.min(start.getDate(), lastDay));
 
   // Dias da semana das aulas (escolhido + a cada 2 dias p/ aulas/semana > 1)
   const offsets: number[] = [];
   for (let i = 0; i < lessonsPerWeek; i++) offsets.push((i * 2) % 7);
 
-  let created = 0;
+  // 1. Gera todas as datas candidatas
+  const candidates: Date[] = [];
   const weekCursor = new Date(start);
   while (weekCursor < end) {
     for (const off of offsets) {
       const d = new Date(weekCursor);
       d.setDate(d.getDate() + off);
       if (d >= end) continue;
-      const dateStr = toDateStr(d);
-      const scheduledAt = new Date(`${dateStr}T${input.timeStr}:00.000-03:00`);
-      if (isNaN(scheduledAt.getTime())) continue;
-
-      // Conflito com aula já existente do professor
-      const slotEnd = scheduledAt.getTime() + input.durationMin * 60_000;
-      const sameDay = await db.select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
-        .from(lessons)
-        .where(and(
-          eq(lessons.organizationId, orgId),
-          eq(lessons.userId, teacherUserId),
-          eq(lessons.status, "agendada"),
-          gte(lessons.scheduledAt, new Date(scheduledAt.getTime() - 12 * 3_600_000)),
-          lte(lessons.scheduledAt, new Date(scheduledAt.getTime() + 12 * 3_600_000)),
-        ));
-      const conflict = sameDay.some((l: any) => {
-        const s = new Date(l.scheduledAt).getTime();
-        const e = s + (l.duration || 60) * 60_000;
-        return scheduledAt.getTime() < e && slotEnd > s;
-      });
-      if (conflict) continue;
-
-      await db.insert(lessons).values({
-        organizationId: orgId,
-        userId: teacherUserId,
-        studentId,
-        title: `Aula de ${courseName}`,
-        scheduledAt,
-        duration: input.durationMin,
-        status: "agendada",
-        instrumentId,
-        studioRoomId: studioRoomId || undefined,
-      });
-      created++;
+      const scheduledAt = new Date(`${toDateStr(d)}T${input.timeStr}:00.000-03:00`);
+      if (!isNaN(scheduledAt.getTime())) candidates.push(scheduledAt);
     }
     weekCursor.setDate(weekCursor.getDate() + 7);
+  }
+  if (candidates.length === 0) return 0;
+
+  // 2. Busca as aulas do professor no intervalo UMA única vez
+  const rangeStart = new Date(start.getTime() - 12 * 3_600_000);
+  const rangeEnd = new Date(end.getTime() + 12 * 3_600_000);
+  const existing = await db.select({ scheduledAt: lessons.scheduledAt, duration: lessons.duration })
+    .from(lessons)
+    .where(and(
+      eq(lessons.organizationId, orgId),
+      eq(lessons.userId, teacherUserId),
+      eq(lessons.status, "agendada"),
+      gte(lessons.scheduledAt, rangeStart),
+      lte(lessons.scheduledAt, rangeEnd),
+    ));
+  const busy = existing.map((l: any) => {
+    const s = new Date(l.scheduledAt).getTime();
+    return { start: s, end: s + (l.duration || 60) * 60_000 };
+  });
+
+  // 3. Cria as aulas sem conflito (validação em memória)
+  let created = 0;
+  const inserted: { start: number; end: number }[] = [];
+  for (const at of candidates) {
+    const s = at.getTime();
+    const e = s + input.durationMin * 60_000;
+    const conflict = [...busy, ...inserted].some((b) => s < b.end && e > b.start);
+    if (conflict) continue;
+    await db.insert(lessons).values({
+      organizationId: orgId,
+      userId: teacherUserId,
+      studentId,
+      title: `Aula de ${courseName}`,
+      scheduledAt: at,
+      duration: input.durationMin,
+      status: "agendada",
+      instrumentId,
+      studioRoomId: studioRoomId || undefined,
+    });
+    inserted.push({ start: s, end: e });
+    created++;
   }
   return created;
 }

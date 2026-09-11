@@ -216,6 +216,20 @@ export async function getAsaasChargeStatus(asaasPaymentId: string, apiKey?: stri
   return data.status;
 }
 
+/** Busca a cobrança completa (inclui `value`), para validar o valor efetivamente pago. */
+export async function getAsaasCharge(asaasPaymentId: string, apiKey?: string): Promise<AsaasCharge> {
+  const res = await asaasRequest(
+    "GET",
+    `${ENV.asaasBaseUrl}/payments/${asaasPaymentId}`,
+    undefined,
+    apiKey
+  );
+  if (!res.ok) {
+    throw new Error(`[Asaas] Erro ao buscar cobrança: ${res.status}`);
+  }
+  return await res.json() as AsaasCharge;
+}
+
 // ─── Subscription ─────────────────────────────────────────────────────────────
 
 export async function createAsaasSubscription(params: {
