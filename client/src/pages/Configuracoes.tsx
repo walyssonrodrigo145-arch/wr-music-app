@@ -20,8 +20,9 @@ import {
   Sun, Moon, Phone, Mail,
   CheckCircle2, Loader2, Smartphone, Wallet, Sparkles, HelpCircle,
   FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, Upload, Trash2, Image,
-  FileSignature, AlertTriangle, FlaskConical, GraduationCap, Repeat, FileCode2
+  FileSignature, AlertTriangle, FlaskConical, GraduationCap, Repeat, FileCode2, MessageCircle
 } from "lucide-react";
+import { SUPPORT_WHATSAPP_URL, SUPPORT_WHATSAPP_DISPLAY } from "@/lib/support";
 import { RepositionsSettings } from "@/components/settings/RepositionsSettings";
 import { AiPromptsSettings } from "@/components/settings/AiPromptsSettings";
 import { useTour } from "@/components/tour/TourProvider";
@@ -2476,6 +2477,33 @@ export default function Configuracoes() {
                       Iniciar Tour
                     </Button>
                   </div>
+                </div>
+
+                {/* Fale conosco / Suporte */}
+                <div className="bg-card p-6 rounded-3xl border border-emerald-500/30 shadow-sm space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <MessageCircle size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">Fale conosco</h4>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                        Precisa de ajuda ou quer solicitar suporte? Fale com a nossa equipe pelo WhatsApp.
+                      </p>
+                      <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1.5">
+                        {SUPPORT_WHATSAPP_DISPLAY}
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={SUPPORT_WHATSAPP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto sm:px-6 h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all active:scale-95 shadow-lg shadow-emerald-600/20"
+                  >
+                    <MessageCircle size={16} />
+                    Falar no WhatsApp
+                  </a>
                 </div>
               </div>
             )}

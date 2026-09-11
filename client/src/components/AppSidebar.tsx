@@ -38,8 +38,10 @@ import {
   Trophy,
   Repeat,
   GraduationCap,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import { useAuth } from "@/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -439,6 +441,23 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
           </div>
         )}
       </nav>
+
+      {/* SUPORTE / FALE CONOSCO (WhatsApp) */}
+      <div className={cn("px-3 pt-3", collapsed && "px-2 flex justify-center")}>
+        <a
+          href={SUPPORT_WHATSAPP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Fale conosco no WhatsApp"
+          className={cn(
+            "flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 font-bold text-xs transition-all active:scale-95",
+            collapsed && "w-10 h-10"
+          )}
+        >
+          <MessageCircle size={16} />
+          {!collapsed && <span>Fale conosco</span>}
+        </a>
+      </div>
 
       {/* FOOTER USER PROFILE */}
       <div className={cn(
