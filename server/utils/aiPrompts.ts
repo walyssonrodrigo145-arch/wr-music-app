@@ -394,7 +394,7 @@ export function buildGoalScopeRule(scope: PlanGoalScope): string {
   if (scope === "metas_complementares") {
     return `3. **METAS SÃO O NÚCLEO OBRIGATÓRIO** — todos os dias da série devem exercitar as metas cadastradas. Você PODE adicionar assuntos COMPLEMENTARES NA MESMA LINHA pedagógica (técnica preparatória, conceitos e exercícios que sustentam diretamente as metas).`;
   }
-  return `3. **FOCO 100% FECHADO NAS METAS.** Proibido inventar repertórios fora das metas cadastradas.`;
+  return `3. **FOCO 100% FECHADO NAS METAS (ROTEIRO FECHADO).** Proibido inventar repertório, técnica, escala, BPM/metrônomo ou qualquer assunto fora das metas/observação do professor. Os 6 blocos do dia são fatias de tempo do MESMO conteúdo, nunca temas novos.`;
 }
 
 /** Bloco de escopo inserido junto aos dados dinâmicos do aluno. */
@@ -410,10 +410,12 @@ export function buildGoalScopeBlock(scope: PlanGoalScope): string {
 `;
   }
   return `
-# 🧩 ESCOPO DO CONTEÚDO: SOMENTE METAS
-- Use EXCLUSIVAMENTE o conteúdo das metas cadastradas. Nada fora delas: sem assuntos extras, sem repertório novo, sem temas paralelos.
-- Interprete as metas LITERALMENTE e SIGA-AS À RISCA: os exercícios tratam exatamente do que a meta descreve, com as palavras da meta.
-- **Exemplo:** meta "Praticar as Tríades Dó, Sol, Lá menor, Fá" → os dias da série formam e praticam essas tríades (formação, troca, ritmo). Se a meta não menciona voicing, comping, arpejos de outra tonalidade ou qualquer técnica avançada, ISSO NÃO PODE APARECER no plano — mesmo sendo técnica legítima do instrumento.
+# 🧩 ESCOPO DO CONTEÚDO: SOMENTE METAS (ROTEIRO FECHADO)
+- Use EXCLUSIVAMENTE o conteúdo das metas cadastradas e da observação do professor. Nada fora disso: sem assuntos extras, sem repertório novo, sem temas paralelos.
+- Interprete as metas LITERALMENTE e SIGA-AS À RISCA: os exercícios tratam exatamente do que a meta descreve, com as palavras da meta. Se ela cita acordes, uma sequência, uma música ou um objetivo específico, repita EXATAMENTE esses elementos todos os dias.
+- Os 6 blocos do dia são FATIAS DE TEMPO do MESMO conteúdo, nunca temas diferentes: Revisão = rever o material citado; Aquecimento = preparar a mão nas posições do material; Técnica = aperfeiçoar o detalhe citado; Conceito Musical = entender a ordem/estrutura do material; Aplicação = executar o material; Desafio = executar com um critério mensurável.
+- **Exemplo 1:** meta "Praticar as Tríades Dó, Sol, Lá menor, Fá" → os dias formam e praticam essas tríades (formação, troca, ritmo). Se a meta não menciona voicing, comping, arpejos de outra tonalidade ou qualquer técnica avançada, ISSO NÃO PODE APARECER no plano — mesmo sendo técnica legítima do instrumento.
+- **Exemplo 2 (roteiro de música):** meta "Limpeza de som dos acordes, sequência Lá menor → Sol maior → Ré maior → Sol maior → Dó maior, melhorar a troca" → TODOS os 6 blocos giram em torno dessa limpeza, dessa troca e dessa sequência exata. É PROIBIDO trocar os acordes, adicionar escalas, BPM/metrônomo, outra música ou qualquer conteúdo não citado.
 `;
 }
 

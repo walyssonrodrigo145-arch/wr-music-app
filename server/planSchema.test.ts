@@ -140,7 +140,8 @@ describe("Escopo de conteúdo — 2 opções (Só Metas | Metas +)", () => {
   it("opção 2 (Só Metas): restrita exclusivamente ao que está cadastrado", () => {
     const rule = buildGoalScopeRule("somente_metas");
     expect(rule).toContain("FOCO 100% FECHADO NAS METAS");
-    expect(rule).toContain("Proibido inventar repertórios fora das metas");
+    expect(rule).toContain("ROTEIRO FECHADO");
+    expect(rule).toContain("Proibido inventar repertório");
     const block = buildGoalScopeBlock("somente_metas");
     expect(block).toContain("EXCLUSIVAMENTE o conteúdo das metas cadastradas");
     expect(block).toContain("sem assuntos extras");

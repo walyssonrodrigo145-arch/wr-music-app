@@ -681,7 +681,7 @@ export const progressRouters = {
       const hasGoals = goals.length > 0;
       const weeklyGoalsText = hasGoals
         ? goals.map((g, idx) => `[META ${idx + 1}] ${g.title}${g.description ? `\n   Descrição/Detalhes da meta: ${g.description}` : ""}`).join("\n")
-        : "⚠️ NENHUMA META CADASTRADA. Baseie o plano estritamente nos fundamentos técnicos essenciais do instrumento e nível.";
+        : "⚠️ NENHUMA META CADASTRADA. Use SOMENTE a OBSERVAÇÃO DO PROFESSOR (abaixo) como roteiro. Se ela também estiver vazia, limite-se ao essencial do instrumento e nível, sem introduzir repertório, música ou técnica não solicitada.";
 
       const lessonsText = pastLessons.length > 0
         ? pastLessons.map(l =>
@@ -732,7 +732,7 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
         ? "\n⚠️ ATENÇÃO: Nenhuma meta cadastrada. No campo 'importantMessage', oriente o professor a cadastrar as metas do aluno na aba Progresso.\n"
         : "";
       const teacherNotesBlock = input.teacherNotes
-        ? `\n# 📝 OBSERVAÇÃO ADICIONAL DO PROFESSOR SOBRE A META\n"${input.teacherNotes.substring(0, 500)}"\n`
+        ? `\n# 📝 ROTEIRO / OBSERVAÇÃO DO PROFESSOR (FONTE PRINCIPAL DO CONTEÚDO)\n"${input.teacherNotes.substring(0, 500)}"\n`
         : "";
 
       // ── 6. CÁLCULO DOS BLOCOS DE TEMPO (6 BLOCOS — PRD RF-013) ─────────────
@@ -776,11 +776,12 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
 # ⚡ MODO ESCOLHIDO: DIRETO & PRÁTICO (CHECKLIST RÁPIDO - PADRÃO)
 - ESTILO: Frases curtas de 1 linha (máximo 12 a 15 palavras por ponto).
 - ZERO PARÁGRAFOS OU EXPLICAÇÕES TEÓRICAS LONGAS. Formato de comandos diretos e objetivos.
+- Os 3 pontos detalham o MESMO conteúdo do roteiro — não introduzem assunto novo.
 - Pontos da Prática Principal:
-  * Ponto 1: Posição objetiva (ex: "Mão direita: Dedos 1(D), 3(F#) e 5(A).")
-  * Ponto 2: Metrônomo com repetição (ex: "Metrônomo: Toque o acorde 10 vezes a 60 BPM contando 1-2-3-4.")
-  * Ponto 3: Ação complementar (ex: "Mão esquerda: Toque a tecla Ré no baixo no tempo 1.")
-- Desafio: 1 frase curta com meta mensurável (ex: "Toque 1 minuto sem errar nenhuma nota.").`;
+  * Ponto 1: Ação objetiva sobre o material do roteiro (ex.: posição/dedos do acorde citado).
+  * Ponto 2: Repetição de um trecho do roteiro com alvo claro (ex.: "Repita a troca 10 vezes devagar."). Metrônomo/BPM SÓ se o roteiro pedir.
+  * Ponto 3: Detalhe de execução/limpeza do próprio roteiro (ex.: "Confira se todas as cordas soam limpas.").
+- Desafio: 1 frase curta com meta mensurável sobre o roteiro (ex.: "Toque a sequência inteira sem parar.").`;
       }
 
       // ── 8. JSON SCHEMA DE SAÍDA — COMPACTO (PRD_OTIMIZACAO_PLANO_DIARIO RF-003) ──
@@ -817,7 +818,14 @@ ${mem.pedagogicalDirectives ? `- Diretriz pedagógica: ${mem.pedagogicalDirectiv
       const prompt = `# 🎼 MusicPro AI — Personal Trainer de ${instrumentName.toUpperCase()}
 
 Você é um professor especialista em **${instrumentName}** (nível: **${studentLevel}**) — Especialista: ${specialist.displayName} (${specialist.id}).
-Sua missão é criar uma rotina de treino diário de ${daysCount} dias focada **EXCLUSIVAMENTE nas METAS CADASTRADAS** (seção DADOS DO ALUNO no final).
+Sua missão é criar uma rotina de treino diário de ${daysCount} dias focada **EXCLUSIVAMENTE no ROTEIRO DO PROFESSOR** (metas + observação, seção DADOS DO ALUNO no final).
+
+# 🎯 FIO CONDUTOR ÚNICO (REGRA MÁXIMA — ANTI-CONTEÚDO ALEATÓRIO)
+- O plano inteiro nasce SOMENTE do que o professor pediu: as METAS CADASTRADAS e a OBSERVAÇÃO DO PROFESSOR (se houver). Trate isso como um ROTEIRO FECHADO.
+- Se o professor citou acordes, uma sequência, uma música ou um objetivo específico, use EXATAMENTE esses — repita-os literalmente em todos os dias.
+- Os 6 blocos do dia NÃO são temas diferentes: são FATIAS DE TEMPO do MESMO conteúdo do roteiro. Ex.: Revisão = rever o material citado; Aquecimento = preparar a mão nas posições do material; Técnica = aperfeiçoar o detalhe citado; Conceito Musical = entender a ordem/estrutura do material; Aplicação = executar o material; Desafio = executar com um critério mensurável.
+- PROIBIDO introduzir assunto que o professor NÃO pediu: outra música, escalas, outros acordes, técnica não mencionada, teoria não solicitada, BPM/metrônomo (só se o roteiro pedir) e aquecimentos genéricos desconectados.
+- Na dúvida, REPITA e APROFUNDE o conteúdo pedido em vez de inventar conteúdo novo.
 ---
 ${modeInstruction}
 ---
@@ -832,13 +840,14 @@ ${forbiddenBlock}
 # 🧠 Dica de Nível (${studentLevel}): ${levelHint}
 ${levelLanguageRule}${techniqueRulesBlock}---
 
-# 📈 PROGRESSÃO DOS ${daysCount} DIAS:
-- **Dia 1:** Mecânica & Memória Muscular (Elemento 1)
-- **Dia 2:** Mecânica & Memória Muscular (Elemento 2 ou aprofundamento)
-- **Dia 3:** Conexão & Troca Rápida sem Perder o Pulso
-- **Dia 4:** Aplicação Musical em Contexto Real
-- **Dia 5:** Performance Contínua & Teste de Resistência
-- **Dias 6 a ${daysCount}:** repita o ciclo de 5 fases acima do início, aprofundando a cada ciclo: aumente BPM/metrônomo, reduza pausas e eleve a exigência de precisão. Reaproveite as metas cadastradas.
+# 📈 PROGRESSÃO DOS ${daysCount} DIAS (SOBRE O MESMO ROTEIRO — NUNCA TROCA DE TEMA):
+Cada dia aprofunda o MESMO conteúdo do roteiro, evoluindo apenas a execução:
+- **Dia 1:** Entender o material e executá-lo devagar, com atenção (ex.: acordes limpos, corda por corda).
+- **Dia 2:** Isolar a maior dificuldade do roteiro (ex.: a troca entre dois acordes) e repetir.
+- **Dia 3:** Juntar o roteiro completo (ex.: a sequência inteira) mantendo a qualidade.
+- **Dia 4:** Ganhar fluidez/velocidade no roteiro sem perder a limpeza.
+- **Dia 5:** Tocar o roteiro de ponta a ponta como se fosse a música, sem parar.
+- **Dias 6 a ${daysCount}:** repita o ciclo aprofundando o MESMO roteiro (mais repetição, menos pausa, mais precisão — BPM/metrônomo só se o roteiro pedir).
 
 ---
 
@@ -849,7 +858,7 @@ ${levelLanguageRule}${techniqueRulesBlock}---
 - Conceito Musical: **${conceitoMin} min** (15%)
 - Aplicação: **${aplicacaoMin} min** (20%)
 - Desafio: **${desafioMin} min** (10%)
-A soma DEVE ser exatamente ${totalMinutes} min em todos os dias.
+A soma DEVE ser exatamente ${totalMinutes} min em todos os dias. Os 6 blocos dividem o MESMO roteiro: cada bloco é uma FATIA DE TEMPO do conteúdo pedido, não um assunto novo.
 
 ---
 
