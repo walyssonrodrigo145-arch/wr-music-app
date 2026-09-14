@@ -442,6 +442,7 @@ export const reportsRouters = {
         foto: p.professor.foto,
         especialidade: p.professor.especialidade,
         permissions: p.professor.permissions,
+        dashboardWidgets: p.professor.dashboardWidgets,
         paymentType: p.professor.paymentType,
         hourlyRate: p.professor.hourlyRate,
         paymentPercentage: p.professor.paymentPercentage,

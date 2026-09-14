@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.14.1",
+    date: "2026-09-14",
+    title: "Ajustes no Relatório de Salas (mobile)",
+    summary: "Modal do relatório de ocupação com navegação corrigida no celular.",
+    items: [
+      { type: "correcao", title: "Botão X fixo no relatório", description: "O botão de fechar não rola junto com o conteúdo e não sobrepõe mais o título." },
+      { type: "correcao", title: "Tabela com rolagem lateral", description: "No celular, arraste a tabela do relatório para o lado para ver todas as colunas (Agendadas e Ocupação), sem dados cortados." },
+      { type: "correcao", title: "Trava de cards do dashboard", description: "No cadastro do professor, o admin agora vê e marca quais cards do dashboard o professor pode acessar (seção Cards do Dashboard)." },
+    ],
+  },
+  {
     version: "2026.09.14",
     date: "2026-09-14",
     title: "Dashboard inteligente e Financeiro mais claro",
