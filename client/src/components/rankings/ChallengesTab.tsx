@@ -381,6 +381,17 @@ function ResponsesPanel({ challengeId, challenges, onClose }: { challengeId: num
   });
   const [pontos, setPontos] = useState<Record<number, string>>({});
   const [feedback, setFeedback] = useState<Record<number, string>>({});
+  const [playing, setPlaying] = useState<{ id: number; url: string; type: string } | null>(null);
+
+  // Mídia via token temporário (/uploads-token) — o link cru /uploads exige cookie
+  // de sessão e quebra no mobile/players (mesma causa dos PDFs do portal).
+  const mediaMutation = trpc.challenges.mediaUrl.useMutation({
+    onSuccess: (data: any, vars: any) => {
+      if (data.fileNotFound) { toast.error("Arquivo não encontrado no servidor (pode ter sido perdido em um rebuild)."); return; }
+      setPlaying({ id: vars.responseId, url: data.url, type: data.fileType || "" });
+    },
+    onError: (e) => toast.error("Erro ao abrir a mídia: " + e.message),
+  });
 
   const quizQs = challenge?.quizQuestions ? (() => { try { return JSON.parse(challenge.quizQuestions); } catch { return []; } })() : [];
 
@@ -430,11 +441,33 @@ function ResponsesPanel({ challengeId, challenges, onClose }: { challengeId: num
 
                 {r.respostaTexto && <p className="text-xs text-foreground font-medium italic bg-background/60 rounded-xl p-3">"{r.respostaTexto}"</p>}
 
-                {r.fileUrl && (
-                  <a href={r.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[11px] font-black text-primary hover:underline">
-                    {(r.fileType || "").startsWith("video") ? "▶ Ver vídeo do aluno" : (r.fileType || "").startsWith("audio") ? "▶ Ouvir áudio do aluno" : "📄 Abrir anexo"}
-                  </a>
-                )}
+                {r.fileUrl ? (playing && playing.id === r.id ? (
+                  <div className="space-y-1.5">
+                    {playing.type.startsWith("video") ? (
+                      <video src={playing.url} controls autoPlay className="w-full max-h-72 rounded-xl bg-black" />
+                    ) : playing.type.startsWith("audio") ? (
+                      <audio src={playing.url} controls autoPlay className="w-full" />
+                    ) : playing.type.startsWith("image") ? (
+                      <img src={playing.url} alt="Anexo do aluno" className="max-h-72 rounded-xl mx-auto" />
+                    ) : (
+                      <a href={playing.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[11px] font-black text-primary hover:underline">
+                        <ExternalLink size={12} /> Abrir anexo
+                      </a>
+                    )}
+                    <button onClick={() => setPlaying(null)} className="text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-widest">Fechar mídia</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => mediaMutation.mutate({ responseId: r.id })}
+                    disabled={mediaMutation.isPending && mediaMutation.variables?.responseId === r.id}
+                    className="flex items-center gap-2 text-[11px] font-black text-primary hover:underline disabled:opacity-60"
+                  >
+                    {mediaMutation.isPending && mediaMutation.variables?.responseId === r.id ? <Loader2 size={12} className="animate-spin" /> : null}
+                    {mediaMutation.isPending && mediaMutation.variables?.responseId === r.id
+                      ? "Carregando..."
+                      : (r.fileType || "").startsWith("video") ? "▶ Ver vídeo do aluno" : (r.fileType || "").startsWith("audio") ? "▶ Ouvir áudio do aluno" : "📄 Abrir anexo"}
+                  </button>
+                )) : null}
 
                 {r.respostasQuiz && quizQs.length > 0 && (
                   <div className="space-y-1.5">

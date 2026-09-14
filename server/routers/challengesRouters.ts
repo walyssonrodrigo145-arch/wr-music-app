@@ -199,6 +199,42 @@ export const challengesRouter = router({
       .limit(200);
   }),
 
+  /** URL reproduzível da mídia de uma resposta (trava do admin). */
+  mediaUrl: protectedProcedure.input(z.object({ responseId: z.number() })).mutation(async ({ ctx, input }) => {
+    assertStaff(ctx);
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+    const orgId = ctx.user.organizationId!;
+
+    const [response] = await db.select({
+      fileUrl: challengeResponses.fileUrl,
+      fileType: challengeResponses.fileType,
+    }).from(challengeResponses)
+      .where(and(eq(challengeResponses.id, input.responseId), eq(challengeResponses.organizationId, orgId)))
+      .limit(1);
+    if (!response || !response.fileUrl) throw new TRPCError({ code: "NOT_FOUND", message: "Resposta sem anexo." });
+
+    // Arquivo externo (Forge/S3): URL pública — retorna direto
+    const isLocal = response.fileUrl.startsWith("/uploads/") || response.fileUrl.match(/https?:\/\/[^/]+\/uploads\//);
+    if (!isLocal) {
+      return { url: response.fileUrl, fileType: response.fileType ?? "", fileNotFound: false };
+    }
+
+    // Arquivo local: verifica existência no disco antes de gerar token
+    const relKey = response.fileUrl.replace(/^https?:\/\/[^/]+\/uploads\//, "").replace(/^\/uploads\//, "");
+    const { existsSync } = await import("fs");
+    const { resolve } = await import("path");
+    const absPath = resolve(process.cwd(), "uploads", relKey);
+    if (!existsSync(absPath)) {
+      return { url: "", fileType: response.fileType ?? "", fileNotFound: true };
+    }
+
+    const { createFileToken } = await import("../_core/fileTokens");
+    const token = createFileToken(relKey);
+    const fileName = encodeURIComponent(relKey.split("/").pop() ?? "arquivo");
+    return { url: `/uploads-token/${token}/${fileName}`, fileType: response.fileType ?? "", fileNotFound: false };
+  }),
+
   /** Avaliação OBRIGATÓRIA: aprovar (com pontos + feedback) ou reprovar. */
   avaliar: protectedProcedure.input(z.object({
     responseId: z.number(),
