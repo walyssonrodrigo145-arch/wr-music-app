@@ -29,3 +29,14 @@ export function formatBRL(val: number | string | null | undefined): string {
   const num = parseBRL(val);
   return brlFormatter.format(num);
 }
+
+/** Texto usado quando o botão "olhinho" está ativo (ocultar valores financeiros). */
+export const HIDDEN_MONEY = "R$ ••••";
+
+/**
+ * Formata moeda respeitando o "olhinho": quando `hidden` é true, retorna o
+ * placeholder mascarado em vez do valor real (RN-013).
+ */
+export function formatBRLMasked(val: number | string | null | undefined, hidden: boolean): string {
+  return hidden ? HIDDEN_MONEY : formatBRL(val);
+}

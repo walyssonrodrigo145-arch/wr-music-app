@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DASHBOARD_WIDGETS, ALL_WIDGET_IDS, parseWidgetList } from "@shared/dashboardWidgets";
+import { LayoutDashboard } from "lucide-react";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "/dashboard",     label: "Dashboard",     icon: "📊" },
@@ -53,6 +55,8 @@ export function ProfessoresTab() {
   const [especialidade, setEspecialidade]       = useState("");
   const [foto, setFoto]                         = useState("");
   const [permissions, setPermissions]           = useState<string[]>(["/dashboard", "/alunos", "/aulas"]);
+  // Cards do dashboard PERMITIDOS para o professor (trava). Vazio = todos.
+  const [dashboardWidgets, setDashboardWidgets] = useState<string[]>(ALL_WIDGET_IDS);
   const [paymentType, setPaymentType]           = useState<"fixo" | "porcentagem">("fixo");
   const [hourlyRate, setHourlyRate]             = useState("");
   const [paymentPercentage, setPaymentPercentage] = useState("");
@@ -94,6 +98,7 @@ export function ProfessoresTab() {
   const resetForm = () => {
     setName(""); setEmail(""); setPassword(""); setTelefone("");
     setEspecialidade(""); setFoto(""); setPermissions(["/dashboard", "/alunos", "/aulas"]);
+    setDashboardWidgets(ALL_WIDGET_IDS);
     setPaymentType("fixo"); setHourlyRate(""); setPaymentPercentage("");
     setEditingId(null);
   };
@@ -107,6 +112,8 @@ export function ProfessoresTab() {
     setEspecialidade(prof.especialidade || "");
     setFoto(prof.foto || "");
     setPermissions(prof.permissions || []);
+    const parsedWidgets = parseWidgetList(prof.dashboardWidgets);
+    setDashboardWidgets(parsedWidgets.length > 0 ? parsedWidgets : ALL_WIDGET_IDS);
     setPaymentType(prof.paymentType || "fixo");
     setHourlyRate(prof.hourlyRate || "");
     setPaymentPercentage(prof.paymentPercentage || "");
@@ -128,14 +135,14 @@ export function ProfessoresTab() {
       updateMutation.mutate({
         id: editingId, name, telefone, especialidade, foto,
         password: password || undefined,
-        permissions, paymentType, hourlyRate, paymentPercentage,
+        permissions, dashboardWidgets, paymentType, hourlyRate, paymentPercentage,
       });
     } else {
       createMutation.mutate({
         name, email,
         // For Gmail accounts pass an empty/random password — they'll use Google OAuth
         password: isGmail ? `google_oauth_${Date.now()}` : password,
-        telefone, especialidade, foto, permissions, paymentType, hourlyRate, paymentPercentage,
+        telefone, especialidade, foto, permissions, dashboardWidgets, paymentType, hourlyRate, paymentPercentage,
       });
     }
   };
@@ -144,6 +151,19 @@ export function ProfessoresTab() {
     setPermissions(prev =>
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
     );
+  };
+
+  const toggleDashboardWidget = (id: string) => {
+    setDashboardWidgets(prev => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) {
+          toast.error("Mantenha ao menos um card habilitado");
+          return prev;
+        }
+        return prev.filter(w => w !== id);
+      }
+      return [...prev, id];
+    });
   };
 
   const formatPhone = (value: string) => {
@@ -412,6 +432,43 @@ export function ProfessoresTab() {
                           <span className="text-xs font-bold block text-foreground">{perm.label}</span>
                           <span className="text-[11px] text-muted-foreground">{perm.desc}</span>
                         </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* ── SEÇÃO 3.5: Cards do Dashboard (trava do admin) ── */}
+              <section className="border-t border-border/50 pt-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-sky-500/10 flex items-center justify-center">
+                    <LayoutDashboard size={13} className="text-sky-500" />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Cards do Dashboard</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground -mt-1">
+                  O professor verá apenas os cards marcados. Ele pode ocultar mais, mas nunca habilitar um bloqueado.
+                </p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {DASHBOARD_WIDGETS.map(w => {
+                    const active = dashboardWidgets.includes(w.id);
+                    return (
+                      <label
+                        key={w.id}
+                        className={`flex items-center gap-2.5 cursor-pointer rounded-xl px-3 py-2.5 border transition-all select-none ${
+                          active
+                            ? "bg-sky-500/8 border-sky-500/30 text-sky-600"
+                            : "bg-muted/20 border-border/40 hover:bg-muted/40 text-foreground/70"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={active}
+                          onChange={() => toggleDashboardWidget(w.id)}
+                          className="sr-only"
+                        />
+                        <span className="text-xs font-semibold">{w.label}</span>
+                        {active && <CheckCircle2 size={12} className="ml-auto text-sky-500 flex-shrink-0" />}
                       </label>
                     );
                   })}

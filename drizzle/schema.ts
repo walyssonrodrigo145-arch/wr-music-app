@@ -117,6 +117,9 @@ export const professores = pgTable("professores", {
   hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("0.00"),
   paymentPercentage: decimal("paymentPercentage", { precision: 5, scale: 2 }).default("0.00"),
   permissions: jsonb("permissions").default('["aulas", "progresso", "recepcao", "ia", "lembretes", "relatorios"]'),
+  // Cards do dashboard PERMITIDOS para este professor (definido pelo admin, modo trava).
+  // JSON array de widget IDs; vazio = todos permitidos (retrocompatível).
+  dashboardWidgets: text("dashboardWidgets").default("").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -258,6 +261,11 @@ export const settings = pgTable("settings", {
   theme: varchar("theme", { length: 20 }).default("light"),
   pixKey: text("pixKey"),
   hiddenTabs: text("hiddenTabs").default("").notNull(),
+  // Cards do dashboard OCULTADOS pelo próprio usuário (JSON array de widget IDs).
+  // O efetivo é: permitidos(professor) \ ocultos(usuário).
+  hiddenDashboardWidgets: text("hiddenDashboardWidgets").default("").notNull(),
+  // 1 = mascarar valores financeiros no Dashboard e no Financeiro (por usuário)
+  hideFinancialValues: integer("hideFinancialValues").default(0).notNull(),
   // WhatsApp Bot integration (Fly.io)
   whatsappBotUrl: varchar("whatsappBotUrl", { length: 255 }).default("http://179.197.76.174:8080"),
   whatsappBotToken: text("whatsappBotToken").default("minha_chave_secreta_123"),

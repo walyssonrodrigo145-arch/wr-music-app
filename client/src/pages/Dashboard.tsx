@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { formatBRL } from "@/lib/money";
 import {
   Users, Calendar, DollarSign,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
@@ -14,6 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useDashboardPrefs } from "@/hooks/useDashboardPrefs";
+import { EyeToggleButton } from "@/components/dashboard/EyeToggleButton";
+import { FreeSlotsCard } from "@/components/dashboard/FreeSlotsCard";
+import { LiveRoomsCard } from "@/components/dashboard/LiveRoomsCard";
 import { PlanSelectionModal } from "@/components/PlanSelectionModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -100,6 +103,7 @@ function MetricCard({
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const prefs = useDashboardPrefs();
   // BUG-003: Estado para controlar período do gráfico
   const [chartPeriod, setChartPeriod] = useState<'6m' | '12m'>('6m');
   
@@ -153,12 +157,12 @@ export default function Dashboard() {
     return [
       { label: "AULAS DE HOJE", count: todaySummaryData.aulasHoje, color: "bg-blue-500/10 text-blue-600", icon: Calendar },
       { label: "CHECK-INS REALIZADOS", count: todaySummaryData.checkins, color: "bg-emerald-500/10 text-emerald-600", icon: CheckCircle2 },
-      { label: "RECEBIDO HOJE", count: formatBRL(todaySummaryData.recebidoHoje), color: "bg-purple-500/10 text-purple-600", icon: DollarSign },
+      { label: "RECEBIDO HOJE", count: prefs.maskBRL(todaySummaryData.recebidoHoje), color: "bg-purple-500/10 text-purple-600", icon: DollarSign },
       { label: "PAGAMENTOS PENDENTES", count: todaySummaryData.pagamentosPendentes, color: "bg-rose-500/10 text-rose-600", icon: AlertCircle },
       { label: "AULAS EXPERIMENTAIS", count: todaySummaryData.experimentais, color: "bg-orange-500/10 text-orange-600", icon: Target },
       { label: "PROFESSOR DESTAQUE", count: todaySummaryData.professorDestaque, color: "bg-amber-500/10 text-amber-600", icon: Star },
     ];
-  }, [todaySummaryData, todaySummaryError]);
+  }, [todaySummaryData, todaySummaryError, prefs.hideFinancialValues]);
 
   // Trend calculations
   const trends = useMemo(() => {
@@ -222,49 +226,60 @@ export default function Dashboard() {
       {/* 🚀 Escolha de planos para escolas em trial (ex.: contas criadas via login Google) */}
       <PlanSelectionModal />
       
+      {/* ── Olhinho: ocultar valores financeiros ── */}
+      <div className="flex items-center justify-end gap-3 -mb-2">
+        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Valores</span>
+        <EyeToggleButton />
+      </div>
+
       {/* ── Metrics Grid ── */}
       <div id="tour-dashboard-stats" className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <MetricCard 
-          title="Alunos Ativos" 
-          value={stats?.activeStudents ?? 0} 
-          icon={Users} 
-          color="text-blue-600" 
-          trend={trends.alunos} 
-          sparkData={sparkAlunos}
-          isLoading={statsLoading}
-        />
-        <MetricCard 
-          title="Aulas Realizadas" 
-          value={stats?.completedLessons ?? 0} 
-          icon={CheckCircle2} 
-          color="text-emerald-500" 
-          trend={trends.aulas} 
-          sparkData={sparkAulas}
-          isLoading={statsLoading}
-        />
-        {/* BUG#2 FIX: removido trend e sparkData de 'Aulas Realizadas' deste card — dado incorreto */}
-        <MetricCard 
-          title="Aulas Agendadas" 
-          value={stats?.scheduledLessons ?? 0} 
-          icon={Clock} 
-          color="text-orange-500"
-          isLoading={statsLoading}
-        />
-        {/* BUG#1 FIX: value agora usa formatCurrency — antes exibia o número cru sem R$ */}
-        {/* BUG#3 FIX: removido ternário statsLoading?0:... redundante — isLoading já controla o skeleton */}
-        <MetricCard 
-          title="Receita do Mês" 
-          value={formatBRL(stats?.monthlyRevenue ?? 0)}
-          icon={DollarSign} 
-          color="text-purple-600" 
-          trend={trends.receita} 
-          sparkData={sparkReceita}
-          isLoading={statsLoading}
-        />
+        {prefs.isVisible("kpi_students") && (
+          <MetricCard
+            title="Alunos Ativos"
+            value={stats?.activeStudents ?? 0}
+            icon={Users}
+            color="text-blue-600"
+            trend={trends.alunos}
+            sparkData={sparkAlunos}
+            isLoading={statsLoading}
+          />
+        )}
+        {prefs.isVisible("kpi_lessons_done") && (
+          <MetricCard
+            title="Aulas Realizadas"
+            value={stats?.completedLessons ?? 0}
+            icon={CheckCircle2}
+            color="text-emerald-500"
+            trend={trends.aulas}
+            sparkData={sparkAulas}
+            isLoading={statsLoading}
+          />
+        )}
+        {prefs.isVisible("kpi_lessons_scheduled") && (
+          <MetricCard
+            title="Aulas Agendadas"
+            value={stats?.scheduledLessons ?? 0}
+            icon={Clock}
+            color="text-orange-500"
+            isLoading={statsLoading}
+          />
+        )}
+        {prefs.isVisible("kpi_revenue") && (
+          <MetricCard
+            title="Receita do Mês"
+            value={prefs.maskBRL(stats?.monthlyRevenue ?? 0)}
+            icon={DollarSign}
+            color="text-purple-600"
+            trend={trends.receita}
+            sparkData={sparkReceita}
+            isLoading={statsLoading}
+          />
+        )}
       </div>
 
       {/* ── Card de Uso do Plano / Alunos Excedentes ── */}
-      {planUsageInfo && planUsageInfo.maxStudents < 999999 && (
+      {prefs.isVisible("plan_usage") && planUsageInfo && planUsageInfo.maxStudents < 999999 && (
         <div className={`rounded-[2rem] p-5 border shadow-lg transition-all duration-300 ${
           planUsageInfo.excessCount > 0
             ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30'
@@ -313,6 +328,7 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+        {prefs.isVisible("chart_monthly") && (
         <div id="tour-dashboard-charts" className="md:col-span-1 lg:col-span-2 bg-card/40 backdrop-blur-xl rounded-[2rem] p-4 sm:p-6 lg:p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-6 sm:space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
@@ -382,8 +398,10 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        )}
 
         {/* Daily Summary */}
+        {prefs.isVisible("today_summary") && (
         <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-4 sm:p-6 lg:p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-6 sm:space-y-8">
            <h3 className="text-base font-black text-foreground tracking-tight">Resumo do dia</h3>
            <div className="space-y-3">
@@ -395,17 +413,19 @@ export default function Dashboard() {
                     </div>
                     <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-foreground/80 transition-colors">{item.label}</span>
                   </div>
-                  <span className="text-xl font-black text-foreground tracking-tight">{item.count}</span>
-                </div>
-              ))}
-           </div>
-        </div>
+                   <span className="text-xl font-black text-foreground tracking-tight">{item.count}</span>
+                 </div>
+               ))}
+            </div>
+         </div>
+        )}
       </div>
 
       {/* ── Secondary Widgets Row ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-        
+
         {/* Upcoming Lessons */}
+        {prefs.isVisible("upcoming_lessons") && (
         <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-4 sm:p-6 lg:p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-6 sm:space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Próximas Aulas</h3>
@@ -441,8 +461,10 @@ export default function Dashboard() {
               )}
            </div>
         </div>
+        )}
 
         {/* Overdue Payments */}
+        {prefs.isVisible("overdue_payments") && (
         <div className="bg-card/40 backdrop-blur-xl rounded-[2rem] p-4 sm:p-6 lg:p-8 border border-white/10 shadow-2xl shadow-primary/5 space-y-6 sm:space-y-8">
            <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-foreground tracking-tight">Inadimplentes</h3>
@@ -462,9 +484,9 @@ export default function Dashboard() {
                          </p>
                       </div>
                    </div>
-                   <span className="text-xs font-black text-rose-600 tracking-tight">
-                      {formatBRL(Number(payment.amount))}
-                   </span>
+                    <span className="text-xs font-black text-rose-600 tracking-tight">
+                       {prefs.maskBRL(Number(payment.amount))}
+                    </span>
                 </div>
               ))}
               {overduePayments.length === 0 && (
@@ -477,6 +499,13 @@ export default function Dashboard() {
               )}
            </div>
         </div>
+        )}
+
+        {/* Horários Livres do Dia (RF-001) */}
+        {prefs.isVisible("free_slots") && <FreeSlotsCard />}
+
+        {/* Salas ao Vivo — 24h (RF-002) */}
+        {prefs.isVisible("live_rooms") && <LiveRoomsCard />}
       </div>
     </div>
   );

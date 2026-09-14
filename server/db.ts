@@ -157,6 +157,10 @@ async function ensureSchemaConsistency(db: any) {
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendancePersonaName" varchar(60)`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "attendanceTone" varchar(20)`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hiddenTabs" text DEFAULT '' NOT NULL`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hiddenDashboardWidgets" text DEFAULT '' NOT NULL`);
+    await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "hideFinancialValues" integer DEFAULT 0 NOT NULL`);
+    // professores.dashboardWidgets — cards permitidos definidos pelo admin (modo trava)
+    await db.execute(sql`ALTER TABLE "professores" ADD COLUMN IF NOT EXISTS "dashboardWidgets" text DEFAULT '' NOT NULL`);
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "chatbotEnabled" integer NOT NULL DEFAULT 0`);
     
     // users.mustChangePassword

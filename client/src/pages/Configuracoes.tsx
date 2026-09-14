@@ -278,6 +278,12 @@ export default function Configuracoes() {
   }, [settings]);
 
   const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
+  const [hiddenWidgets, setHiddenWidgets] = useState<string[]>([]);
+  const { data: dashboardPrefs } = trpc.dashboard.getVisibleWidgets.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+
+  useEffect(() => {
+    if (dashboardPrefs) setHiddenWidgets(dashboardPrefs.hidden || []);
+  }, [dashboardPrefs]);
   
   const availableSidebarTabs = [
     { label: "Dashboard", href: "/dashboard", desc: "Visão geral" },
@@ -438,6 +444,14 @@ export default function Configuracoes() {
       try { const p = JSON.parse(msg); if (Array.isArray(p) && p[0]?.message) msg = p.map((x: any) => x.message).join(", "); } catch {}
       toast.error("Erro ao atualizar menu: " + msg);
     },
+  });
+
+  const updateHiddenDashboardWidgets = trpc.settings.updateHiddenDashboardWidgets.useMutation({
+    onSuccess: () => {
+      toast.success("Dashboard atualizado!", { icon: <CheckCircle2 size={16} className="text-emerald-500" /> });
+      utils.dashboard.getVisibleWidgets.invalidate();
+    },
+    onError: (e) => toast.error("Erro ao atualizar dashboard: " + e.message),
   });
 
   const updateFinancialMutation = trpc.settings.updateFinancialSettings.useMutation({
@@ -1791,6 +1805,53 @@ export default function Configuracoes() {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* ── Dashboard: cards visíveis (por usuário) ── */}
+                <div className="pt-6 border-t border-border">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h3 className="text-base lg:text-lg font-black text-foreground uppercase tracking-widest">Dashboard</h3>
+                      <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Escolha quais cards aparecem no seu dashboard</p>
+                    </div>
+                    <Button
+                      className="gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 h-11 px-6 shadow-lg shadow-indigo-500/20"
+                      disabled={updateHiddenDashboardWidgets.isPending}
+                      onClick={() => updateHiddenDashboardWidgets.mutate({ widgets: JSON.stringify(hiddenWidgets) })}
+                    >
+                      {updateHiddenDashboardWidgets.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span className="text-xs font-black uppercase tracking-widest">Salvar</span>
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {(() => {
+                      const allWidgets = dashboardPrefs?.widgets || [];
+                      const allowed = dashboardPrefs?.allowed || [];
+                      const controllable = allowed.length > 0 ? allWidgets.filter(w => allowed.includes(w.id)) : allWidgets;
+                      return controllable.map((w) => {
+                        const isVisible = !hiddenWidgets.includes(w.id);
+                        return (
+                          <div key={w.id} className="flex items-center justify-between p-4 bg-muted rounded-2xl border border-border group hover:border-indigo-100 transition-colors">
+                            <div className="pr-4">
+                              <p className="text-xs font-black text-foreground uppercase tracking-widest mb-1">{w.label}</p>
+                              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate max-w-[120px]">{w.desc}</p>
+                            </div>
+                            <Toggle
+                              checked={isVisible}
+                              onChange={(show) => {
+                                if (show) setHiddenWidgets(hiddenWidgets.filter(h => h !== w.id));
+                                else setHiddenWidgets([...hiddenWidgets, w.id]);
+                              }}
+                            />
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-3">
+                    Cards bloqueados pelo administrador não aparecem nesta lista.
+                  </p>
                 </div>
 
               </div>

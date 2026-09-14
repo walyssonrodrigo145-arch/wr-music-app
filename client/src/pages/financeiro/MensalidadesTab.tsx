@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { exportToCSV } from "@/lib/exportUtils";
-import { parseBRL, formatBRL } from "@/lib/money";
+import { parseBRL } from "@/lib/money";
+import { useDashboardPrefs } from "@/hooks/useDashboardPrefs";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -70,6 +71,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
   gateway: "asaas" | "mercadopago" | "infinitepay";
 }) {
   const utils = trpc.useUtils();
+  const { maskBRL } = useDashboardPrefs();
   const [billingType, setBillingType] = useState<"PIX" | "CREDIT_CARD">("PIX");
   const [result, setResult] = useState<{
     paymentLink: string;
@@ -159,7 +161,7 @@ function GatewayChargeModal({ open, onClose, payment, gateway }: {
           {/* Valor */}
           <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Valor da cobrança</span>
-            <span className="text-lg font-black text-foreground">{formatBRL(Number(payment.amount))}</span>
+            <span className="text-lg font-black text-foreground">{maskBRL(Number(payment.amount))}</span>
           </div>
 
           {!result ? (
@@ -591,6 +593,7 @@ function NovaModal({ open, onClose, students, dueDays }: {
 
 export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoading }: { viewMonth: number, viewYear: number, payments: any[], isLoading: boolean }) {
   const { user } = useAuth();
+  const { maskBRL } = useDashboardPrefs();
   const { data: settings } = trpc.settings.get.useQuery();
   const paymentGateway = (settings?.paymentGateway as "asaas" | "mercadopago" | "infinitepay") || "asaas";
   const isGatewayEnabled = paymentGateway === "mercadopago"
@@ -842,7 +845,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                <div className="relative z-10">
                  <p className={cn("text-[9px] lg:text-[10px] font-bold uppercase tracking-wider opacity-60 mb-1 lg:mb-2", item.color)}>{item.label}</p>
                  <p className="text-sm lg:text-2xl font-black text-foreground leading-none">
-                    {formatBRL(item.amount)}
+                    {maskBRL(item.amount)}
                  </p>
                </div>
              </div>
@@ -895,7 +898,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                 <div key={i} className="p-3.5 lg:p-4 rounded-2xl bg-muted/50 border border-border group hover:border-blue-200 transition-all">
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 group-hover:text-blue-500 transition-colors">{item.label}</p>
                    <p className="text-sm font-black text-foreground tracking-tighter">
-                      {formatBRL(item.amount)}
+                      {maskBRL(item.amount)}
                    </p>
                 </div>
               ))}
@@ -992,26 +995,26 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                         <td className="px-8 py-4">
                           <div className="flex flex-col">
                             <p className="text-sm font-black text-foreground">
-                               {formatBRL(Number(payment.amount))}
+                               {maskBRL(Number(payment.amount))}
                             </p>
                             {(payment as any).calculation && ((payment as any).calculation.lateFeeAmount > 0 || (payment as any).calculation.interestAmount > 0 || (payment as any).calculation.earlyDiscountAmount > 0) && (
                               <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium mt-0.5">
                                 <span className="text-muted-foreground line-through">
-                                  Orig: {formatBRL((payment as any).calculation.originalAmount)}
+                                  Orig: {maskBRL((payment as any).calculation.originalAmount)}
                                 </span>
                                 {(payment as any).calculation.lateFeeAmount > 0 && (
                                   <span className="text-emerald-500 font-bold">
-                                    +Multa: {formatBRL((payment as any).calculation.lateFeeAmount)}
+                                    +Multa: {maskBRL((payment as any).calculation.lateFeeAmount)}
                                   </span>
                                 )}
                                 {(payment as any).calculation.interestAmount > 0 && (
                                   <span className="text-indigo-500 font-bold">
-                                    +Juros: {formatBRL((payment as any).calculation.interestAmount)}
+                                    +Juros: {maskBRL((payment as any).calculation.interestAmount)}
                                   </span>
                                 )}
                                 {(payment as any).calculation.earlyDiscountAmount > 0 && (
                                   <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                    -Desconto: {formatBRL((payment as any).calculation.earlyDiscountAmount)}
+                                    -Desconto: {maskBRL((payment as any).calculation.earlyDiscountAmount)}
                                   </span>
                                 )}
                               </div>
@@ -1193,7 +1196,7 @@ export default function MensalidadesTab({ viewMonth, viewYear, payments, isLoadi
                       <div>
                         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Valor</p>
                         <p className="text-xs font-black text-foreground">
-                          {formatBRL(Number(payment.amount))}
+                          {maskBRL(Number(payment.amount))}
                         </p>
                       </div>
                       <div>

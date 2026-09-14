@@ -408,6 +408,22 @@ export const plataformaRouters = {
       return { success: true };
     }),
 
+    // Cards do dashboard OCULTADOS pelo usuário (JSON array). Efetivo = permitidos \ ocultos.
+    updateHiddenDashboardWidgets: protectedProcedure.input(z.object({
+      widgets: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, { hiddenDashboardWidgets: input.widgets } as any);
+      return { success: true };
+    }),
+
+    // Olhinho: mascarar valores financeiros (Dashboard + Financeiro), por usuário.
+    setHideFinancialValues: protectedProcedure.input(z.object({
+      hidden: z.boolean(),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSettings(ctx.user.organizationId!, ctx.user.id, { hideFinancialValues: input.hidden ? 1 : 0 } as any);
+      return { success: true, hidden: input.hidden };
+    }),
+
     getAutomation: protectedProcedure.query(async ({ ctx }) => {
       const s = await getSettingsByUserId(ctx.user.organizationId!, ctx.user.id);
       return {

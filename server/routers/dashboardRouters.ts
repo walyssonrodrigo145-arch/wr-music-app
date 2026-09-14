@@ -51,6 +51,8 @@ import { schoolAiRouter } from "../schoolAiRouter";
 import { fiscalRouter } from "../fiscalRouter";
 import { FiscalService } from "../services/fiscal/FiscalService";
 import { loginAttempts, safeEqualStr, isReservedSuperAdminEmail, getOrgPlanLimits, syncOrgAsaasSubscription, reconcileOrgAsaasCharges, runCreateAssinafyContract } from "./helpers";
+import { getFreeSlotsForDay, getLiveRooms } from "../services/ScheduleAvailabilityService";
+import { DASHBOARD_WIDGETS, resolveVisibleWidgets, parseWidgetList } from "@shared/dashboardWidgets";
 export const dashboardRouters = {
   dashboard: router({
     todaySummary: protectedProcedure.query(async ({ ctx }) => {
@@ -301,6 +303,72 @@ export const dashboardRouters = {
           completedPracticeCount: completedCount,
         };
       }).sort((a, b) => b.completedPracticeCount - a.completedPracticeCount);
+    }),
+
+    // ── RF-001: Relatório de horários livres do dia ─────────────────────────
+    freeSlotsToday: protectedProcedure
+      .input(z.object({
+        professorId: z.number().optional(),
+        roomId: z.number().optional(),
+        includePast: z.boolean().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return null;
+        const orgId = ctx.user.organizationId!;
+        const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+
+        let professorId = input?.professorId;
+        if (!isAdmin) {
+          // RN-011: professor vê apenas a própria agenda
+          const [prof] = await db.select({ id: professores.id }).from(professores)
+            .where(and(eq(professores.organizationId, orgId), eq(professores.userId, ctx.user.id)))
+            .limit(1);
+          if (!prof) return null;
+          professorId = prof.id;
+        }
+
+        return getFreeSlotsForDay({
+          organizationId: orgId,
+          professorId,
+          roomId: input?.roomId,
+          includePast: input?.includePast,
+        });
+      }),
+
+    // ── RF-002: Salas ao Vivo (24h) ─────────────────────────────────────────
+    liveRooms: protectedProcedure.query(async ({ ctx }) => {
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      return getLiveRooms(ctx.user.organizationId!, { isAdmin, userId: ctx.user.id });
+    }),
+
+    // ── RF-003/RN-016: cards efetivamente visíveis (trava aplicada no servidor) ──
+    getVisibleWidgets: protectedProcedure.query(async ({ ctx }) => {
+      const orgId = ctx.user.organizationId!;
+      const isAdmin = ctx.user.role === 'admin' || ctx.user.openId === ENV.ownerOpenId;
+      const s = await getSettingsByUserId(orgId, ctx.user.id);
+      const hiddenRaw = (s as any)?.hiddenDashboardWidgets || "";
+      const hideFinancialValues = ((s as any)?.hideFinancialValues ?? 0) === 1;
+
+      let allowedRaw = "";
+      if (!isAdmin) {
+        const db = await getDb();
+        if (db) {
+          const [prof] = await db.select({ dashboardWidgets: professores.dashboardWidgets }).from(professores)
+            .where(and(eq(professores.organizationId, orgId), eq(professores.userId, ctx.user.id)))
+            .limit(1);
+          allowedRaw = prof?.dashboardWidgets || "";
+        }
+      }
+
+      return {
+        isAdmin,
+        allowed: parseWidgetList(allowedRaw),
+        hidden: parseWidgetList(hiddenRaw),
+        visible: resolveVisibleWidgets(allowedRaw, hiddenRaw),
+        hideFinancialValues,
+        widgets: DASHBOARD_WIDGETS,
+      };
     }),
   }),
 

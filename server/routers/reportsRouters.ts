@@ -471,6 +471,7 @@ export const reportsRouters = {
         foto: z.string().optional(),
         especialidade: z.string().optional(),
         permissions: z.array(z.string()).default([]),
+        dashboardWidgets: z.array(z.string()).optional(),
         paymentType: z.enum(["fixo", "porcentagem"]).optional().default("fixo"),
         hourlyRate: z.string().optional(),
         paymentPercentage: z.string().optional(),
@@ -520,6 +521,8 @@ export const reportsRouters = {
             foto: input.foto,
             especialidade: input.especialidade,
             permissions: input.permissions,
+            // Trava do dashboard: cards PERMITIDOS (vazio = todos)
+            dashboardWidgets: input.dashboardWidgets && input.dashboardWidgets.length > 0 ? JSON.stringify(input.dashboardWidgets) : "",
             paymentType: input.paymentType,
             hourlyRate: sanitizedHourlyRate,
             paymentPercentage: sanitizedPaymentPercentage,
@@ -545,6 +548,7 @@ export const reportsRouters = {
         foto: z.string().optional(),
         especialidade: z.string().optional(),
         permissions: z.array(z.string()).optional(),
+        dashboardWidgets: z.array(z.string()).optional(),
         password: z.string().optional(),
         paymentType: z.enum(["fixo", "porcentagem"]).optional(),
         hourlyRate: z.string().optional(),
@@ -574,7 +578,10 @@ export const reportsRouters = {
             paymentType: input.paymentType,
             hourlyRate: sanitizedHourlyRate,
             paymentPercentage: sanitizedPaymentPercentage,
-            ...(input.permissions ? { permissions: input.permissions } : {})
+            ...(input.permissions ? { permissions: input.permissions } : {}),
+            ...(input.dashboardWidgets !== undefined
+              ? { dashboardWidgets: input.dashboardWidgets.length > 0 ? JSON.stringify(input.dashboardWidgets) : "" }
+              : {})
           })
           .where(eq(professores.id, input.id));
 

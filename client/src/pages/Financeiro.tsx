@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { formatBRL } from "@/lib/money";
 import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { useDashboardPrefs } from "@/hooks/useDashboardPrefs";
+import { EyeToggleButton } from "@/components/dashboard/EyeToggleButton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const MONTHS_FULL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julh
 
 export default function Financeiro() {
   const now = new Date();
+  const { maskBRL } = useDashboardPrefs();
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1);
   const [viewYear, setViewYear] = useState(now.getFullYear());
 
@@ -70,6 +72,8 @@ export default function Financeiro() {
               ))}
             </SelectContent>
           </Select>
+
+          <EyeToggleButton className="h-12 w-12 shrink-0" />
         </div>
 
         {/* Saldo Geral Líquido */}
@@ -87,7 +91,7 @@ export default function Financeiro() {
             <div>
               <p className={cn("text-[10px] font-bold uppercase tracking-widest", saldoLiquido >= 0 ? "text-emerald-700" : "text-rose-700")}>Saldo Geral Líquido</p>
               <p className="text-xl lg:text-3xl font-black text-foreground mt-0.5">
-                 {formatBRL(saldoLiquido)}
+                 {maskBRL(saldoLiquido)}
               </p>
               <p className="text-[10px] font-medium text-muted-foreground mt-0.5">Total recebido menos despesas pagas do mês.</p>
             </div>
