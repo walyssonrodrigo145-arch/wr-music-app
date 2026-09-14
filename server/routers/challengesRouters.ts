@@ -350,9 +350,9 @@ export const challengesRouter = router({
         title,
         message,
         type: input.aprovado ? "success" : "info",
-        actionUrl: "/aluno",
+        actionUrl: "/aluno/resultados",
       });
-      notifyUser(student.studentUserId, { title, content: message, url: "/aluno" }).catch(() => {});
+      notifyUser(student.studentUserId, { title, content: message, url: "/aluno/resultados" }).catch(() => {});
     }
 
     return { success: true, status, pontos };
@@ -393,8 +393,9 @@ export const challengesRouter = router({
       .where(and(eq(challengeResponses.studentId, studentId), eq(challengeResponses.organizationId, orgId)));
     const responseByChallenge = new Map(myResponses.map(r => [r.challengeId, r]));
 
-    // Encerrados só aparecem se o aluno já respondeu (preserva feedback/pontos recebidos)
-    return inScope.filter((c: any) => c.status === "ativa" || responseByChallenge.has(c.id)).map((c: any) => {
+    // Somente desafios ATIVOS no dashboard do aluno (limpo).
+    // O histórico completo (avaliados/encerrados) vive na aba "Resultados" (myHistory).
+    return inScope.filter((c: any) => c.status === "ativa").map((c: any) => {
       const mine = responseByChallenge.get(c.id) ?? null;
       let quizQuestions: any[] = [];
       if (c.tipo === "quiz" && c.quizQuestions) {
@@ -418,6 +419,34 @@ export const challengesRouter = router({
         } : null,
       };
     });
+  }),
+
+  /** Histórico completo de desafios do aluno (avaliados/encerrados) — aba "Resultados". */
+  myHistory: studentProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return [];
+    const orgId = ctx.user.organizationId!;
+    const studentId = await resolveStudentId(db, ctx);
+
+    return db.select({
+      id: challengeResponses.id,
+      challengeId: challengeResponses.challengeId,
+      titulo: schoolChallenges.titulo,
+      tipo: schoolChallenges.tipo,
+      pontosBase: schoolChallenges.pontos,
+      rankingName: rankings.name,
+      status: challengeResponses.status,
+      pontos: challengeResponses.pontos,
+      feedback: challengeResponses.feedback,
+      respostaTexto: challengeResponses.respostaTexto,
+      createdAt: challengeResponses.createdAt,
+      avaliadoAt: challengeResponses.avaliadoAt,
+    }).from(challengeResponses)
+      .innerJoin(schoolChallenges, eq(schoolChallenges.id, challengeResponses.challengeId))
+      .leftJoin(rankings, eq(rankings.id, schoolChallenges.rankingId))
+      .where(and(eq(challengeResponses.studentId, studentId), eq(challengeResponses.organizationId, orgId)))
+      .orderBy(desc(challengeResponses.createdAt))
+      .limit(100);
   }),
 
   /** Upload de mídia da resposta (vídeo/áudio/imagem) — storage próprio. */

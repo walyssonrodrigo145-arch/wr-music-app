@@ -66,6 +66,7 @@ const StudentAgenda = lazy(() => import("./pages/student/Agenda"));
 
 const StudentAnnouncements = lazy(() => import("./pages/student/Avisos"));
 const StudentContracts = lazy(() => import("./pages/student/Contratos"));
+const StudentResults = lazy(() => import("./pages/student/Resultados"));
 
 const PageLoader = () => (
   <div className="flex-1 h-full min-h-[50vh] flex flex-col items-center justify-center text-muted-foreground gap-4">
@@ -169,6 +170,7 @@ function Router() {
             <Route path="/aluno/materiais" component={StudentMaterials} />
             <Route path="/aluno/exercicios" component={StudentExercises} />
             <Route path="/aluno/progresso" component={StudentProgress} />
+            <Route path="/aluno/resultados" component={StudentResults} />
 
             <Route path="/aluno/pagamentos" component={StudentPayments} />
             <Route path="/aluno/perfil" component={StudentProfile} />

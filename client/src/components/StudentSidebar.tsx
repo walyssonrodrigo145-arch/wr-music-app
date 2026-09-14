@@ -20,6 +20,7 @@ import {
   PlusCircle,
   Target,
   FileSignature,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +40,7 @@ const mainNavItems: NavItem[] = [
   { label: "Materiais", href: "/aluno/materiais", icon: Library },
   { label: "Exercícios", href: "/aluno/exercicios", icon: ClipboardCheck },
   { label: "Plano Diário", href: "/aluno/progresso", icon: Target },
+  { label: "Resultados", href: "/aluno/resultados", icon: Trophy },
   { label: "Financeiro", href: "/aluno/pagamentos", icon: DollarSign },
   { label: "Contratos", href: "/aluno/contratos", icon: FileSignature },
   { label: "Meu Perfil", href: "/aluno/perfil", icon: User },

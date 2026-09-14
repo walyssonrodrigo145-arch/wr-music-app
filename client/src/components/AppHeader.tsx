@@ -43,6 +43,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/aluno/materiais": { title: "Materiais", subtitle: "Acesse seus PDFs, vídeos e áudios" },
   "/aluno/exercicios": { title: "Exercícios", subtitle: "Pratique e envie suas atividades" },
   "/aluno/progresso": { title: "Meu Progresso", subtitle: "Sua evolução musical em detalhes" },
+  "/aluno/resultados": { title: "Resultados", subtitle: "Seu histórico de desafios, medalhas e rankings" },
   "/aluno/mensagens": { title: "Mensagens", subtitle: "Comunicação direta com seu professor" },
   "/aluno/pagamentos": { title: "Pagamentos", subtitle: "Histórico financeiro e mensalidades" },
   "/aluno/perfil": { title: "Meu Perfil", subtitle: "Suas informações e conquistas" },
