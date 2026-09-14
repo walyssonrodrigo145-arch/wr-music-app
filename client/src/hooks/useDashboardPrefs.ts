@@ -10,8 +10,22 @@ export function useDashboardPrefs() {
   });
 
   const setHide = trpc.settings.setHideFinancialValues.useMutation({
-    onSuccess: () => {
-      utils.dashboard.getVisibleWidgets.invalidate();
+    // Atualização OTIMISTA: o olhinho reflete na hora (sem esperar o servidor).
+    onMutate: async ({ hidden }) => {
+      await utils.dashboard.getVisibleWidgets.cancel();
+      const prev = utils.dashboard.getVisibleWidgets.getData(undefined);
+      utils.dashboard.getVisibleWidgets.setData(undefined, (old) =>
+        old ? { ...old, hideFinancialValues: hidden } : old
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) utils.dashboard.getVisibleWidgets.setData(undefined, ctx.prev);
+    },
+    onSuccess: (res) => {
+      utils.dashboard.getVisibleWidgets.setData(undefined, (old) =>
+        old ? { ...old, hideFinancialValues: res.hidden } : old
+      );
     },
   });
 

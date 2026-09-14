@@ -176,4 +176,36 @@ describe("BillingEngine - Financial Calculation Tests", () => {
     expect(resZeroWindow.earlyDiscountAmount).toBe(10.0);
     expect(resZeroWindow.updatedAmount).toBe(190.0);
   });
+
+  // BUG-FIX (Financeiro): cobrança PAGA com desconto antecipado deve expor
+  // o valor original da mensalidade E o valor pago com desconto aplicado.
+  it("deve expor o desconto aplicado quando a cobrança está paga com desconto", () => {
+    const today = new Date(2026, 6, 20);
+    const invoice = {
+      id: 7,
+      amount: "190.00",         // valor efetivamente pago (5% de desconto)
+      originalAmount: "200.00", // valor cheio da mensalidade
+      dueDate: "2026-07-30",
+      status: "pago",
+    };
+
+    const res = BillingEngine.computeInvoiceAmounts(invoice, defaultSettings, today);
+    expect(res.originalAmount).toBe(200.0);
+    expect(res.updatedAmount).toBe(190.0);
+    expect(res.earlyDiscountAmount).toBe(10.0);
+    expect(res.totalDiscount).toBe(10.0);
+  });
+
+  it("cobrança paga sem valor original não inventa desconto", () => {
+    const invoice = {
+      id: 8,
+      amount: "200.00",
+      dueDate: "2026-07-30",
+      status: "pago",
+    };
+    const res = BillingEngine.computeInvoiceAmounts(invoice, defaultSettings, new Date(2026, 6, 20));
+    expect(res.originalAmount).toBe(200.0);
+    expect(res.updatedAmount).toBe(200.0);
+    expect(res.earlyDiscountAmount).toBe(0);
+  });
 });

@@ -87,6 +87,7 @@ export const financeiroRouters = {
           id: paymentDues.id,
           studentId: paymentDues.studentId,
           amount: paymentDues.amount,
+          originalAmount: paymentDues.originalAmount,
           dueDate: paymentDues.dueDate,
           paidAt: paymentDues.paidAt,
           status: paymentDues.status,
@@ -419,6 +420,17 @@ export const financeiroRouters = {
             .then(res => res[0]);
 
           if (!currentPayment) throw new Error("Mensalidade não encontrada");
+
+          // BUG-001 FIX: ao dar baixa (status pago) sem valor explícito, aplica o desconto
+          // por pagamento antecipado e grava o VALOR PAGO (com desconto) + o valor original.
+          if (data.status === "pago" && data.amount === undefined && currentPayment.status !== "pago") {
+            try {
+              const { BillingEngine } = await import("../services/BillingEngine");
+              await BillingEngine.persistPaymentAmount(id, new Date());
+            } catch (e) {
+              console.warn("[paymentDues.update] Falha ao aplicar valor pago com desconto:", e);
+            }
+          }
 
           const updateData: any = {
             ...data,
@@ -908,11 +920,21 @@ export const financeiroRouters = {
         todayObj.setHours(0, 0, 0, 0);
         const finalDueDate = dueDateObj < todayObj ? new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) : due.dueDate;
 
+        // BUG-002 FIX: cobra o valor ATUAL (com desconto antecipado / juros vigentes)
+        // e persiste valor pago + original para o registro refletir o desconto.
+        let chargeValue = Number(due.amount);
+        try {
+          const persisted = await BillingEngine.persistPaymentAmount(due.id, new Date());
+          if (persisted) chargeValue = persisted.paid;
+        } catch (e) {
+          console.warn("[generateAsaasCharge] Falha ao calcular valor com desconto:", e);
+        }
+
         // Create charge on Asaas
         const charge = await createAsaasCharge({
           asaasCustomerId,
           billingType: input.billingType,
-          value: Number(due.amount),
+          value: chargeValue,
           dueDate: finalDueDate,
           description: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
         }, apiKey);
@@ -988,12 +1010,21 @@ export const financeiroRouters = {
 
         if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
 
+        // BUG-002 FIX: cobra o valor ATUAL (com desconto/juros) e persiste valor pago + original
+        let chargeValue = Number(due.amount);
+        try {
+          const persisted = await BillingEngine.persistPaymentAmount(due.id, new Date());
+          if (persisted) chargeValue = persisted.paid;
+        } catch (e) {
+          console.warn("[generateMPCharge] Falha ao calcular valor com desconto:", e);
+        }
+
         const pref = await createMPPreference({
           items: [{
             title: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
             quantity: 1,
             currency_id: "BRL",
-            unit_price: Number(due.amount)
+            unit_price: chargeValue
           }],
           payer: {
             name: student.name,
@@ -1103,12 +1134,21 @@ export const financeiroRouters = {
 
         if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
 
+        // BUG-002 FIX: cobra o valor ATUAL (com desconto/juros) e persiste valor pago + original
+        let chargeValue = Number(due.amount);
+        try {
+          const persisted = await BillingEngine.persistPaymentAmount(due.id, new Date());
+          if (persisted) chargeValue = persisted.paid;
+        } catch (e) {
+          console.warn("[generateInfinitePayCharge] Falha ao calcular valor com desconto:", e);
+        }
+
         const link = await createInfinitePayLink({
           handle,
           orderNsu: String(due.id),
           items: [{
             quantity: 1,
-            price: brlToCents(due.amount), // RN-002: sempre centavos inteiros
+            price: brlToCents(chargeValue.toFixed(2)), // RN-002: sempre centavos inteiros
             description: `Mensalidade ${due.month}/${due.year} - ${student.name}`,
           }],
           redirectUrl: `${ENV.appUrl || 'https://wrmusicpro.com.br'}/painel/mensalidades`,

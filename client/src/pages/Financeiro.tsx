@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wallet, BadgePercent } from "lucide-react";
 import { useDashboardPrefs } from "@/hooks/useDashboardPrefs";
 import { EyeToggleButton } from "@/components/dashboard/EyeToggleButton";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,13 @@ export default function Financeiro() {
     return sumRecebido - sumGasto;
   }, [payments, expenses]);
 
+  // Desconto efetivamente concedido no mês (pagamentos com desconto por antecipação)
+  const descontoConcedido = useMemo(() => {
+    return payments
+      .filter((p: any) => p.status === "pago")
+      .reduce((acc: number, p: any) => acc + Number(p.calculation?.earlyDiscountAmount ?? 0), 0);
+  }, [payments]);
+
   return (
     <div className="flex flex-col h-full min-h-0 flex-1 overflow-hidden -m-4 sm:-m-6 bg-background">
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4 lg:space-y-8 scrollbar-thin no-scrollbar">
@@ -76,24 +83,43 @@ export default function Financeiro() {
           <EyeToggleButton className="h-12 w-12 shrink-0" />
         </div>
 
-        {/* Saldo Geral Líquido */}
-        <div id="tour-finance-cards" className={cn(
-          "relative p-4 lg:p-8 rounded-2xl lg:rounded-[2rem] border shadow-sm overflow-hidden",
-          saldoLiquido >= 0 ? "bg-gradient-to-br from-emerald-500/20 to-background border-emerald-500/30" : "bg-gradient-to-br from-rose-500/20 to-background border-rose-500/30"
-        )}>
-          <div className="flex items-center gap-3 relative z-10">
-            <div className={cn(
-              "w-10 h-10 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0",
-              saldoLiquido >= 0 ? "bg-emerald-500/20 text-emerald-600" : "bg-rose-500/20 text-rose-600"
-            )}>
-              <Wallet size={20} />
+        {/* Saldo Geral Líquido + Desconto Concedido */}
+        <div id="tour-finance-cards" className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+          {/* Saldo Geral Líquido */}
+          <div className={cn(
+            "relative p-4 lg:p-8 rounded-2xl lg:rounded-[2rem] border shadow-sm overflow-hidden",
+            saldoLiquido >= 0 ? "bg-gradient-to-br from-emerald-500/20 to-background border-emerald-500/30" : "bg-gradient-to-br from-rose-500/20 to-background border-rose-500/30"
+          )}>
+            <div className="flex items-center gap-3 relative z-10">
+              <div className={cn(
+                "w-10 h-10 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0",
+                saldoLiquido >= 0 ? "bg-emerald-500/20 text-emerald-600" : "bg-rose-500/20 text-rose-600"
+              )}>
+                <Wallet size={20} />
+              </div>
+              <div>
+                <p className={cn("text-[10px] font-bold uppercase tracking-widest", saldoLiquido >= 0 ? "text-emerald-700" : "text-rose-700")}>Saldo Geral Líquido</p>
+                <p className="text-xl lg:text-3xl font-black text-foreground mt-0.5">
+                   {maskBRL(saldoLiquido)}
+                </p>
+                <p className="text-[10px] font-medium text-muted-foreground mt-0.5">Total recebido menos despesas pagas do mês.</p>
+              </div>
             </div>
-            <div>
-              <p className={cn("text-[10px] font-bold uppercase tracking-widest", saldoLiquido >= 0 ? "text-emerald-700" : "text-rose-700")}>Saldo Geral Líquido</p>
-              <p className="text-xl lg:text-3xl font-black text-foreground mt-0.5">
-                 {maskBRL(saldoLiquido)}
-              </p>
-              <p className="text-[10px] font-medium text-muted-foreground mt-0.5">Total recebido menos despesas pagas do mês.</p>
+          </div>
+
+          {/* Desconto Concedido no Mês */}
+          <div className="relative p-4 lg:p-8 rounded-2xl lg:rounded-[2rem] border shadow-sm overflow-hidden bg-gradient-to-br from-amber-500/20 to-background border-amber-500/30">
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center shadow-sm shrink-0 bg-amber-500/20 text-amber-600">
+                <BadgePercent size={20} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Desconto Concedido</p>
+                <p className="text-xl lg:text-3xl font-black text-foreground mt-0.5">
+                   {maskBRL(descontoConcedido)}
+                </p>
+                <p className="text-[10px] font-medium text-muted-foreground mt-0.5">Descontos por pagamento antecipado no mês.</p>
+              </div>
             </div>
           </div>
         </div>

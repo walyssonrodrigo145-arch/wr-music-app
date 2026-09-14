@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  User, Building2, Bell, Palette, Shield, Save, Users,
+  User, Building2, Bell, Palette, Shield, Save,
   Sun, Moon, Phone, Mail,
   CheckCircle2, Loader2, Smartphone, Wallet, Sparkles, HelpCircle,
   FileText, DollarSign, Percent, Receipt, Calculator, Calendar, Clock, Upload, Trash2, Image,
@@ -42,14 +42,13 @@ import { PlanosBolsas } from "@/components/settings/PlanosBolsas";
 import { MyTicketsList } from "@/components/support/MyTicketsList";
 
 // ─── Tab types ───────────────────────────────────────────────────────────────
-type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "professores" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "prompts" | "reposicoes" | "seguranca" | "ajuda";
+type Tab = "perfil" | "escola" | "fiscal" | "salas" | "financeiro" | "planos" | "modelos_contrato" | "notificacoes" | "aparencia" | "whatsapp" | "integracoes" | "ia" | "prompts" | "reposicoes" | "seguranca" | "ajuda";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType; href?: string }[] = [
   { id: "perfil", label: "Perfil", icon: User },
   { id: "escola", label: "Escola", icon: Building2 },
   { id: "financeiro", label: "Financeiro", icon: DollarSign },
   { id: "planos", label: "Planos & Bolsas", icon: GraduationCap },
-  { id: "professores", label: "Professores", icon: Users, href: "/professores" },
   { id: "modelos_contrato", label: "Modelos de Contrato", icon: FileSignature },
   { id: "reposicoes", label: "Reposições", icon: Repeat },
   { id: "prompts", label: "Prompts IA", icon: FileCode2 },

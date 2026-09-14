@@ -109,16 +109,18 @@ export class BillingEngine {
     // Se já estiver pago, mantém o valor registrado e zerados juros/multa futuros
     if (invoice.status === "pago") {
       const finalPaidAmount = Math.round(Number(invoice.amount) * 100) / 100;
+      // Desconto efetivamente aplicado no pagamento (valor original − valor pago)
+      const paidDiscount = Math.max(0, Math.round((originalAmount - finalPaidAmount) * 100) / 100);
       return {
         invoiceId: invoice.id,
         originalAmount,
         updatedAmount: finalPaidAmount,
         lateFeeAmount: 0,
         interestAmount: 0,
-        earlyDiscountAmount: 0,
+        earlyDiscountAmount: paidDiscount,
         daysOverdue: 0,
         graceDays: schoolSettings.graceDays,
-        totalDiscount: 0,
+        totalDiscount: paidDiscount,
         calculationDate: targetDate,
         schoolSettingsUsed: schoolSettings,
       };
@@ -281,6 +283,38 @@ export class BillingEngine {
     }
 
     return result;
+  }
+
+  /**
+   * Persiste o valor REAL (com desconto por pagamento antecipado / juros vigentes)
+   * da fatura, preservando o valor original da mensalidade em `originalAmount`.
+   * Deve ser chamado com a fatura ainda NÃO paga, para o desconto ser considerado.
+   * Usado na baixa/pagamento e na geração de cobrança (para o link cobrar o valor correto).
+   */
+  public static async persistPaymentAmount(
+    invoiceId: number,
+    targetDate: Date = new Date()
+  ): Promise<{ paid: number; original: number } | null> {
+    const db = await getDb();
+    if (!db) return null;
+
+    const calc = await this.calculateInvoice(invoiceId, { targetDate });
+    const paid = Math.round(calc.updatedAmount * 100) / 100;
+    const original = Math.round(calc.originalAmount * 100) / 100;
+
+    await db
+      .update(paymentDues)
+      .set({
+        amount: paid.toFixed(2),
+        originalAmount: original.toFixed(2),
+        updatedAmountCache: paid.toFixed(2),
+        lastCalculation: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(paymentDues.id, invoiceId));
+
+    this.clearCache();
+    return { paid, original };
   }
 
   /**
