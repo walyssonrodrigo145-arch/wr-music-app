@@ -692,10 +692,13 @@ export default function SalasEstudio() {
 
       {/* ── MODAL RELATÓRIO COMPLETO DE OCUPAÇÃO DOS ESTÚDIOS ──────────── */}
       <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold font-outfit flex items-center gap-2">
-              <BarChart3 className="text-indigo-500" size={22} />
+        {/* overflow:hidden no container — o X fica fixo, só o corpo interno rola */}
+        <DialogContent className="sm:max-w-[700px] max-h-[85dvh] overflow-hidden flex flex-col p-0 bg-card border-border gap-0">
+          {/* Header fixo — nunca rola */}
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60 shrink-0">
+            {/* pr-10 = espaço para o botão X não sobrepor o título */}
+            <DialogTitle className="text-lg sm:text-xl font-bold font-outfit flex items-center gap-2 pr-10">
+              <BarChart3 className="text-indigo-500 shrink-0" size={20} />
               Relatório de Ocupação & Uso dos Estúdios
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -703,6 +706,8 @@ export default function SalasEstudio() {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Corpo scrollável — só esta parte rola */}
+          <div className="overflow-y-auto flex-1 px-6 py-4">
           {isLoadingReport ? (
             <div className="py-12 flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
               <Loader2 className="animate-spin text-indigo-500" size={24} />
@@ -713,7 +718,7 @@ export default function SalasEstudio() {
               Não foi possível carregar o relatório no momento.
             </div>
           ) : (
-            <div className="space-y-5 py-2">
+            <div className="space-y-5">
               {/* KPIs Rápidos */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/50 text-center">
@@ -773,78 +778,53 @@ export default function SalasEstudio() {
                 </table>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border/60">
+            </div>
+          )}
+          </div>
+          {/* Footer fixo — não rola */}
+          {fullReportData && (
+            <div className="px-6 py-4 border-t border-border/60 shrink-0 flex flex-wrap items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsReportModalOpen(false)}
+                className="h-9 px-4 rounded-xl text-xs"
+              >
+                Fechar
+              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   variant="outline"
-                  onClick={() => setIsReportModalOpen(false)}
-                  className="h-9 px-4 rounded-xl text-xs"
+                  disabled={generateReportMutation.isPending}
+                  onClick={() => {
+                    const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Realizadas", "Aulas Agendadas", "Horas Realizadas", "Taxa de Ocupação (%)"];
+                    const rows = fullReportData.rooms.map((r: any) => [
+                      r.name, `${r.capacity} pessoas`, r.equipments || "Não especificado",
+                      r.status.toUpperCase(), r.completedLessons, r.scheduledLessons,
+                      `${r.completedHours}h`, r.utilizationRate,
+                    ]);
+                    generateReportMutation.mutate({ format: "csv", title: "Relatório de Ocupação dos Estúdios", period: "Histórico Consolidado", columns, rows });
+                  }}
+                  className="h-9 px-3.5 rounded-xl text-xs border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 font-bold gap-1.5"
                 >
-                  Fechar
+                  {generateReportMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  Exportar CSV
                 </Button>
-
-                <div className="flex items-center gap-2">
-                  {/* Exportar CSV formatado pelo Motor */}
-                  <Button
-                    variant="outline"
-                    disabled={generateReportMutation.isPending}
-                    onClick={() => {
-                      const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Realizadas", "Aulas Agendadas", "Horas Realizadas", "Taxa de Ocupação (%)"];
-                      const rows = fullReportData.rooms.map((r: any) => [
-                        r.name,
-                        `${r.capacity} pessoas`,
-                        r.equipments || "Não especificado",
-                        r.status.toUpperCase(),
-                        r.completedLessons,
-                        r.scheduledLessons,
-                        `${r.completedHours}h`,
-                        r.utilizationRate,
-                      ]);
-
-                      generateReportMutation.mutate({
-                        format: "csv",
-                        title: "Relatório de Ocupação dos Estúdios",
-                        period: "Histórico Consolidado",
-                        columns,
-                        rows,
-                      });
-                    }}
-                    className="h-9 px-3.5 rounded-xl text-xs border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 font-bold gap-1.5"
-                  >
-                    {generateReportMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                    Exportar CSV
-                  </Button>
-
-                  {/* Exportar Excel Profissional com Estilos & KPIs */}
-                  <Button
-                    disabled={generateReportMutation.isPending}
-                    onClick={() => {
-                      const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Realizadas", "Aulas Agendadas", "Horas Realizadas", "Taxa de Ocupação (%)"];
-                      const rows = fullReportData.rooms.map((r: any) => [
-                        r.name,
-                        `${r.capacity} pessoas`,
-                        r.equipments || "Não especificado",
-                        r.status.toUpperCase(),
-                        r.completedLessons,
-                        r.scheduledLessons,
-                        r.completedHours,
-                        r.utilizationRate,
-                      ]);
-
-                      generateReportMutation.mutate({
-                        format: "excel",
-                        title: "Relatório de Ocupação e Utilização dos Estúdios",
-                        period: "Histórico Consolidado",
-                        columns,
-                        rows,
-                        includeAiInsights: true,
-                      });
-                    }}
-                    className="h-9 px-4 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-1.5 shadow-sm"
-                  >
-                    {generateReportMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
-                    Exportar Excel (.xlsx)
-                  </Button>
-                </div>
+                <Button
+                  disabled={generateReportMutation.isPending}
+                  onClick={() => {
+                    const columns = ["Sala", "Capacidade", "Equipamentos", "Situação", "Aulas Realizadas", "Aulas Agendadas", "Horas Realizadas", "Taxa de Ocupação (%)"];
+                    const rows = fullReportData.rooms.map((r: any) => [
+                      r.name, `${r.capacity} pessoas`, r.equipments || "Não especificado",
+                      r.status.toUpperCase(), r.completedLessons, r.scheduledLessons,
+                      r.completedHours, r.utilizationRate,
+                    ]);
+                    generateReportMutation.mutate({ format: "excel", title: "Relatório de Ocupação e Utilização dos Estúdios", period: "Histórico Consolidado", columns, rows, includeAiInsights: true });
+                  }}
+                  className="h-9 px-4 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-1.5 shadow-sm"
+                >
+                  {generateReportMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+                  Exportar Excel (.xlsx)
+                </Button>
               </div>
             </div>
           )}
