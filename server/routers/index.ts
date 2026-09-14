@@ -34,6 +34,7 @@ import { repertoireRouters } from "./repertoireRouters";
 import { tutorialsRouters } from "./tutorialsRouters";
 import { teacherPaymentRulesRouters } from "./teacherPaymentRulesRouters";
 import { supportRouter } from "../supportRouter";
+import { releasesRouter } from "../releasesRouter";
 
 export const appRouter = router({
   superAdmin: superAdminRouter,
@@ -43,6 +44,7 @@ export const appRouter = router({
   studioRooms: studioRoomsRouter,
   enrollment: enrollmentRouter,
   support: supportRouter,
+  releases: releasesRouter,
   advancedAi: advancedAiRouter,
   slotAdvance: slotAdvanceRouter,
   fiscal: fiscalRouter,

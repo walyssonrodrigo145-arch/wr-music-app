@@ -43,6 +43,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import { useAuth } from "@/hooks/useAuth";
+import { useWhatsNew } from "@/components/novidades/WhatsNewProvider";
 import { trpc } from "@/lib/trpc";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ interface NavGroup {
     href: string;
     icon: React.ElementType;
     badge?: number;
+    dot?: boolean;
     activeStyle?: string;
   }[];
 }
@@ -91,6 +93,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
   );
 
   const hiddenTabs = settings?.hiddenTabs ? settings.hiddenTabs.split(",") : [];
+  const { hasUnseen: hasUnseenRelease, isAllowed: whatsNewAllowed } = useWhatsNew();
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
@@ -154,6 +157,7 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
         { label: "Progresso", href: "/progresso", icon: Activity },
         { label: "Recepção QR", href: "/recepcao-qr", icon: LayoutDashboard },
         { label: "Tutoriais", href: "/tutoriais", icon: GraduationCap },
+        { label: "Novidades", href: "/novidades", icon: Sparkles, dot: whatsNewAllowed && hasUnseenRelease },
       ],
     },
   ];
@@ -402,6 +406,12 @@ export function AppSidebar({ collapsed, onToggle, onNavigate }: AppSidebarProps)
                           {!collapsed && item.badge && (
                             <span className="ml-auto bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-md">
                               {item.badge}
+                            </span>
+                          )}
+                          {!collapsed && !item.badge && item.dot && (
+                            <span className="ml-auto relative flex h-2.5 w-2.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
                             </span>
                           )}
                         </div>

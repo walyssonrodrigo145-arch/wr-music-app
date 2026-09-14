@@ -165,6 +165,8 @@ async function ensureSchemaConsistency(db: any) {
     
     // users.mustChangePassword
     await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "mustChangePassword" boolean DEFAULT false NOT NULL`);
+    // users.lastSeenReleaseVersion (Novidades — shared/releases.ts)
+    await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastSeenReleaseVersion" varchar(20) DEFAULT '' NOT NULL`);
     
     // settings Asaas Integration
     await db.execute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "asaasApiKey" text`);

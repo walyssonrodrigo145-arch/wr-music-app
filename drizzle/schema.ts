@@ -91,6 +91,8 @@ export const users = pgTable("users", {
   passwordHash: varchar("passwordHash", { length: 255 }),
   mustChangePassword: boolean("mustChangePassword").default(false).notNull(),
   hasSeenTutorial: boolean("hasSeenTutorial").default(false).notNull(),
+  // Última versão de "Novidades" vista pelo usuário (changelog em shared/releases.ts)
+  lastSeenReleaseVersion: varchar("lastSeenReleaseVersion", { length: 20 }).default("").notNull(),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: roleEnum("role").default("professor").notNull(),
   studentId: integer("studentId"), // Link to students table if role is 'aluno'

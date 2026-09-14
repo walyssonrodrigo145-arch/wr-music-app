@@ -45,3 +45,9 @@ pnpm vitest run server/critical.regression.test.ts server/settings.test.ts serve
 - Utilidade pura do client → `client/src/lib/*.ts`.
 - Tipo derivado de banco → importar de `@shared/types` (re-exporta drizzle/schema) — não redefinir local.
 - Documentação de estrutura → `ARCHITECTURE.md`. Mapa para IA → `AI_CONTEXT.md`. Diagnóstico histórico/checklist → `ARCHITECTURE_AUDIT.md` (não apagar).
+
+## Novidades (What's New) — manter sempre
+
+- **Ao lançar qualquer funcionalidade, adicione uma entrada no TOPO de `shared/releases.ts`** (mais recente primeiro): `version` única (recomendado `AAAA.MM.DD` ou semver), `date` (`YYYY-MM-DD`), `title`, `summary?` e `items[]` com `type` (`novo` | `melhoria` | `correcao`).
+- O conteúdo é 100% automático (sem cadastro no banco). O app lê daí e mostra **badge no menu + modal ao acessar + página `/novidades`**. Só o estado "já vi" é persistido (`users.lastSeenReleaseVersion`).
+- Não é preciso criar UI de cadastro nem mexer em banco para publicar novidades.

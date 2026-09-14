@@ -51,6 +51,7 @@ const BaseConhecimentoIA = lazy(() => import("./pages/BaseConhecimentoIA"));
 const Contratos = lazy(() => import("./pages/Contratos"));
 const NotasFiscais = lazy(() => import("./pages/NotasFiscais"));
 const Tutoriais = lazy(() => import("./pages/Tutoriais"));
+const Novidades = lazy(() => import("./pages/Novidades"));
 const Professores = lazy(() => import("./pages/Professores"));
 
 // Student Portal Pages
@@ -246,6 +247,7 @@ function Router() {
           <Route path="/leads" component={LeadsApp} />
           <Route path="/contratos" component={Contratos} />
           <Route path="/tutoriais" component={Tutoriais} />
+          <Route path="/novidades" component={Novidades} />
           <Route path="/salas" component={SalasEstudio} />
           <Route path="/salas-estudio" component={SalasEstudio} />
           <Route path="/checkout" component={Checkout} />
@@ -260,6 +262,8 @@ function Router() {
 
 import { TourProvider } from "./components/tour/TourProvider";
 import { WelcomeModal } from "./components/tour/WelcomeModal";
+import { WhatsNewProvider } from "./components/novidades/WhatsNewProvider";
+import { WhatsNewModal } from "./components/novidades/WhatsNewModal";
 import { initAnalytics, trackPageView } from "./lib/analytics";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
@@ -298,10 +302,13 @@ function App() {
         <TooltipProvider>
           <Toaster richColors position="top-right" />
           <TourProvider>
-            <AppTracking />
-            <WelcomeModal />
-            <ImpersonationBanner />
-            <Router />
+            <WhatsNewProvider>
+              <AppTracking />
+              <WelcomeModal />
+              <WhatsNewModal />
+              <ImpersonationBanner />
+              <Router />
+            </WhatsNewProvider>
           </TourProvider>
         </TooltipProvider>
       </ThemeProvider>
