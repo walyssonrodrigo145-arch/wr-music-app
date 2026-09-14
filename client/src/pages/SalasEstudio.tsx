@@ -739,9 +739,9 @@ export default function SalasEstudio() {
                 </div>
               </div>
 
-              {/* Tabela de Salas */}
-              <div className="rounded-xl border border-border/60 overflow-hidden">
-                <table className="w-full text-xs text-left">
+              {/* Tabela de Salas — scroll horizontal invisível no mobile */}
+              <div className="rounded-xl border border-border/60 overflow-x-auto no-scrollbar">
+                <table className="w-full min-w-[560px] text-xs text-left">
                   <thead className="bg-muted/50 border-b border-border/60 font-semibold text-muted-foreground">
                     <tr>
                       <th className="py-2.5 px-3">Sala</th>
