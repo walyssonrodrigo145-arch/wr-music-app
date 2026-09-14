@@ -387,7 +387,7 @@ function ResponsesPanel({ challengeId, challenges, onClose }: { challengeId: num
   // de sessão e quebra no mobile/players (mesma causa dos PDFs do portal).
   const mediaMutation = trpc.challenges.mediaUrl.useMutation({
     onSuccess: (data: any, vars: any) => {
-      if (data.fileNotFound) { toast.error("Arquivo não encontrado no servidor (pode ter sido perdido em um rebuild)."); return; }
+      if (data.fileNotFound) { toast.error("Mídia não disponível (removida após o encerramento do desafio ou perdida em rebuild)."); return; }
       setPlaying({ id: vars.responseId, url: data.url, type: data.fileType || "" });
     },
     onError: (e) => toast.error("Erro ao abrir a mídia: " + e.message),

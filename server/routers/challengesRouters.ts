@@ -30,6 +30,36 @@ function assertStaff(ctx: { user: { role: string; openId: string } | null }) {
   if (!isStaff) throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores e professores." });
 }
 
+/**
+ * Remove do disco os arquivos de mídia (vídeo/áudio/imagem) das respostas de um desafio.
+ * Chamado ao ENCERRAR (libera espaço — mídia avaliada não precisa mais ficar armazenada)
+ * e ao EXCLUIR (antes as linhas eram apagadas mas os arquivos ficavam órfãos no volume).
+ * Registros no banco são preservados (texto, pontos, feedback) — só o binário é removido.
+ * Arquivos externos (Forge/S3) não são gerenciados aqui.
+ */
+async function deleteResponseMediaFiles(db: any, orgId: number, challengeId: number): Promise<number> {
+  const rows = await db.select({ fileUrl: challengeResponses.fileUrl })
+    .from(challengeResponses)
+    .where(and(eq(challengeResponses.challengeId, challengeId), eq(challengeResponses.organizationId, orgId)));
+  if (rows.length === 0) return 0;
+
+  const fs = await import("fs");
+  const pathMod = await import("path");
+  const uploadsRoot = pathMod.resolve(process.cwd(), "uploads");
+  let deleted = 0;
+  for (const r of rows) {
+    const raw: string | null = r.fileUrl;
+    if (!raw) continue;
+    const isLocal = raw.startsWith("/uploads/") || raw.match(/https?:\/\/[^/]+\/uploads\//);
+    if (!isLocal) continue; // externo (Forge/S3): fora do nosso controle
+    const relKey = raw.replace(/^https?:\/\/[^/]+\/uploads\//, "").replace(/^\/uploads\//, "");
+    const absPath = pathMod.resolve(uploadsRoot, relKey);
+    if (!absPath.startsWith(uploadsRoot)) continue; // path traversal
+    try { fs.unlinkSync(absPath); deleted++; } catch { /* já removido — ignora */ }
+  }
+  return deleted;
+}
+
 async function resolveStudentId(db: any, ctx: any): Promise<number> {
   const orgId = ctx.user.organizationId!;
   const studentId = ctx.user.studentId
@@ -160,7 +190,9 @@ export const challengesRouter = router({
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
     await db.update(schoolChallenges).set({ status: "encerrada", updatedAt: new Date() })
       .where(and(eq(schoolChallenges.id, input.id), eq(schoolChallenges.organizationId, ctx.user.organizationId!)));
-    return { success: true };
+    // Libera espaço: mídias das respostas saem do disco (avaliação já concluída ou prazo vencido)
+    const removedMedia = await deleteResponseMediaFiles(db, ctx.user.organizationId!, input.id);
+    return { success: true, removedMedia };
   }),
 
   delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
@@ -168,6 +200,7 @@ export const challengesRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
     const orgId = ctx.user.organizationId!;
+    await deleteResponseMediaFiles(db, orgId, input.id);
     await db.delete(challengeResponses).where(and(eq(challengeResponses.challengeId, input.id), eq(challengeResponses.organizationId, orgId)));
     await db.delete(schoolChallenges).where(and(eq(schoolChallenges.id, input.id), eq(schoolChallenges.organizationId, orgId)));
     return { success: true };
