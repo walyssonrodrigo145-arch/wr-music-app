@@ -328,34 +328,37 @@ export default function SalasEstudio() {
         </div>
 
         {/* Controles Direita (Filtro + Busca + Botão Nova Sala) */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
           
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] h-10 rounded-xl bg-card border-border/80 text-xs font-semibold">
-              <SlidersHorizontal size={14} className="mr-2 text-muted-foreground" />
-              <SelectValue placeholder="Todas as situações" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas as situações</SelectItem>
-              <SelectItem value="ativa">Ativa</SelectItem>
-              <SelectItem value="manutencao">Em Manutenção</SelectItem>
-              <SelectItem value="inativa">Inativa</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Filtro + Busca lado a lado no mobile */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="flex-1 sm:w-[160px] h-10 rounded-xl bg-card border-border/80 text-xs font-semibold">
+                <SlidersHorizontal size={14} className="mr-2 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Todas as situações" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as situações</SelectItem>
+                <SelectItem value="ativa">Ativa</SelectItem>
+                <SelectItem value="manutencao">Em Manutenção</SelectItem>
+                <SelectItem value="inativa">Inativa</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <div className="relative w-full sm:w-[220px]">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar sala..."
-              className="h-10 pl-9 pr-3 rounded-xl bg-card border-border/80 text-xs"
-            />
+            <div className="relative flex-1 sm:w-[200px]">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar sala..."
+                className="h-10 pl-9 pr-3 rounded-xl bg-card border-border/80 text-xs w-full"
+              />
+            </div>
           </div>
 
           <Button
             onClick={handleOpenCreateModal}
-            className="h-10 px-5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 gap-1.5"
+            className="h-10 px-5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 gap-1.5 w-full sm:w-auto"
           >
             <Plus size={16} />
             <span>Nova Sala</span>
@@ -363,6 +366,7 @@ export default function SalasEstudio() {
 
         </div>
       </div>
+
 
       {/* ── CONTEÚDO DA ABA 1: TODAS AS SALAS ────────────────────────────── */}
       {activeTab === "todas" && (
@@ -391,148 +395,219 @@ export default function SalasEstudio() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    <th className="py-4 px-6">SALA</th>
-                    <th className="py-4 px-6">CAPACIDADE</th>
-                    <th className="py-4 px-6">EQUIPAMENTOS PRINCIPAIS</th>
-                    <th className="py-4 px-6">SITUAÇÃO</th>
-                    <th className="py-4 px-6 text-right">AÇÕES</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60 text-xs">
-                  {filteredRooms.map((room) => (
-                    <tr key={room.id} className="hover:bg-muted/20 transition-colors group">
-                      
-                      {/* Coluna 1: SALA (Foto + Nome + Badge Principal + Categoria) */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-10 rounded-lg overflow-hidden bg-muted shrink-0 border border-border/60 flex items-center justify-center">
-                            {room.imageUrl ? (
-                              <img
-                                src={room.imageUrl}
-                                alt={room.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                            ) : (
-                              <DoorOpen size={20} className="text-muted-foreground/60" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm text-foreground font-outfit">{room.name}</span>
-                              {room.isPrincipal && (
-                                <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                                  • PRINCIPAL
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">{room.category}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Coluna 2: CAPACIDADE */}
-                      <td className="py-4 px-6 font-semibold text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <Users size={14} className="text-muted-foreground/70" />
-                          <span>{room.capacity} pessoas</span>
-                        </div>
-                      </td>
-
-                      {/* Coluna 3: EQUIPAMENTOS PRINCIPAIS */}
-                      <td className="py-4 px-6">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {room.equipments.length > 0 ? (
-                            <>
-                              {room.equipments.slice(0, 3).map((eq: string, i: number) => (
-                                <Badge key={i} variant="secondary" className="bg-muted text-[10px] font-semibold px-2 py-0.5 rounded-md border border-border/50">
-                                  {eq}
-                                </Badge>
-                              ))}
-                              {room.extraEquipmentsCount > 0 && (
-                                <Badge variant="outline" className="text-[10px] font-bold text-indigo-500 border-indigo-500/30 px-1.5 py-0.5">
-                                  +{room.extraEquipmentsCount}
-                                </Badge>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground/60 text-[11px] italic">Sem equipamentos</span>
+            <>
+              {/* ── MOBILE: Cards (sm e abaixo) ───────────────────────────── */}
+              <div className="md:hidden divide-y divide-border/60">
+                {filteredRooms.map((room) => (
+                  <div key={room.id} className="p-4 space-y-3">
+                    {/* Linha 1: Foto + Nome + Status */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-muted shrink-0 border border-border/60 flex items-center justify-center">
+                        {room.imageUrl ? (
+                          <img src={room.imageUrl} alt={room.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <DoorOpen size={20} className="text-muted-foreground/60" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-sm text-foreground font-outfit leading-tight">{room.name}</span>
+                          {room.isPrincipal && (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 shrink-0">
+                              PRINCIPAL
+                            </span>
                           )}
                         </div>
-                      </td>
+                        <p className="text-[11px] text-muted-foreground font-medium mt-0.5 truncate">{room.category}</p>
+                      </div>
+                      {/* Status badge */}
+                      {room.status === "ativa" ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          ATIVA
+                        </span>
+                      ) : room.status === "manutencao" ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          MANUTENÇÃO
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                          INATIVA
+                        </span>
+                      )}
+                    </div>
 
-                      {/* Coluna 4: SITUAÇÃO */}
-                      <td className="py-4 px-6">
-                        {room.status === "ativa" ? (
-                          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            ATIVA
-                          </span>
-                        ) : room.status === "manutencao" ? (
-                          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            MANUTENÇÃO
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                            INATIVA
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Coluna 6: AÇÕES */}
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleOpenEditModal(room)}
-                            className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                            title="Editar Sala"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            onClick={() => setActiveTab("calendario")}
-                            className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                            title="Ver Calendário de Horários"
-                          >
-                            <Calendar size={14} />
-                          </button>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
-                                <MoreVertical size={14} />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="text-xs w-44">
-                              <DropdownMenuItem onClick={() => handleOpenEditModal(room)}>
-                                <Pencil size={14} className="mr-2 text-indigo-500" /> Editar Detalhes
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-rose-500 focus:text-rose-500"
-                                onClick={() => {
-                                  if (confirm(`Deseja realmente excluir a ${room.name}?`)) {
-                                    deleteMutation.mutate({ id: room.id });
-                                  }
-                                }}
-                              >
-                                <Trash2 size={14} className="mr-2" /> Excluir Sala
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-
+                    {/* Linha 2: Capacidade + Equipamentos */}
+                    <div className="flex items-start gap-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold shrink-0">
+                        <Users size={13} className="text-muted-foreground/70" />
+                        {room.capacity} pessoas
+                      </div>
+                      {room.equipments.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1">
+                          {room.equipments.slice(0, 3).map((eq: string, i: number) => (
+                            <Badge key={i} variant="secondary" className="bg-muted text-[10px] font-semibold px-2 py-0.5 rounded-md border border-border/50">
+                              {eq}
+                            </Badge>
+                          ))}
+                          {room.extraEquipmentsCount > 0 && (
+                            <Badge variant="outline" className="text-[10px] font-bold text-indigo-500 border-indigo-500/30 px-1.5 py-0.5">
+                              +{room.extraEquipmentsCount}
+                            </Badge>
+                          )}
                         </div>
-                      </td>
+                      )}
+                    </div>
 
+                    {/* Linha 3: Ações */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => handleOpenEditModal(room)}
+                        className="flex-1 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 transition-colors text-xs font-semibold"
+                      >
+                        <Pencil size={13} /> Editar
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("calendario")}
+                        className="flex-1 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 transition-colors text-xs font-semibold"
+                      >
+                        <Calendar size={13} /> Calendário
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors shrink-0">
+                            <MoreVertical size={14} />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="text-xs w-44">
+                          <DropdownMenuItem onClick={() => handleOpenEditModal(room)}>
+                            <Pencil size={14} className="mr-2 text-indigo-500" /> Editar Detalhes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-rose-500 focus:text-rose-500"
+                            onClick={() => {
+                              if (confirm(`Deseja realmente excluir a ${room.name}?`)) {
+                                deleteMutation.mutate({ id: room.id });
+                              }
+                            }}
+                          >
+                            <Trash2 size={14} className="mr-2" /> Excluir Sala
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── DESKTOP: Tabela (md e acima) ─────────────────────────── */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-border/60 bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      <th className="py-4 px-6">SALA</th>
+                      <th className="py-4 px-6">CAPACIDADE</th>
+                      <th className="py-4 px-6">EQUIPAMENTOS PRINCIPAIS</th>
+                      <th className="py-4 px-6">SITUAÇÃO</th>
+                      <th className="py-4 px-6 text-right">AÇÕES</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-border/60 text-xs">
+                    {filteredRooms.map((room) => (
+                      <tr key={room.id} className="hover:bg-muted/20 transition-colors group">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-10 rounded-lg overflow-hidden bg-muted shrink-0 border border-border/60 flex items-center justify-center">
+                              {room.imageUrl ? (
+                                <img src={room.imageUrl} alt={room.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              ) : (
+                                <DoorOpen size={20} className="text-muted-foreground/60" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-foreground font-outfit">{room.name}</span>
+                                {room.isPrincipal && (
+                                  <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">• PRINCIPAL</span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-muted-foreground font-medium mt-0.5">{room.category}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 font-semibold text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
+                            <Users size={14} className="text-muted-foreground/70" />
+                            <span>{room.capacity} pessoas</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {room.equipments.length > 0 ? (
+                              <>
+                                {room.equipments.slice(0, 3).map((eq: string, i: number) => (
+                                  <Badge key={i} variant="secondary" className="bg-muted text-[10px] font-semibold px-2 py-0.5 rounded-md border border-border/50">{eq}</Badge>
+                                ))}
+                                {room.extraEquipmentsCount > 0 && (
+                                  <Badge variant="outline" className="text-[10px] font-bold text-indigo-500 border-indigo-500/30 px-1.5 py-0.5">+{room.extraEquipmentsCount}</Badge>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground/60 text-[11px] italic">Sem equipamentos</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          {room.status === "ativa" ? (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />ATIVA
+                            </span>
+                          ) : room.status === "manutencao" ? (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />MANUTENÇÃO
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />INATIVA
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => handleOpenEditModal(room)} className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors" title="Editar Sala">
+                              <Pencil size={14} />
+                            </button>
+                            <button onClick={() => setActiveTab("calendario")} className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors" title="Ver Calendário">
+                              <Calendar size={14} />
+                            </button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="w-8 h-8 rounded-lg border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
+                                  <MoreVertical size={14} />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="text-xs w-44">
+                                <DropdownMenuItem onClick={() => handleOpenEditModal(room)}>
+                                  <Pencil size={14} className="mr-2 text-indigo-500" /> Editar Detalhes
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-rose-500 focus:text-rose-500"
+                                  onClick={() => { if (confirm(`Deseja realmente excluir a ${room.name}?`)) { deleteMutation.mutate({ id: room.id }); } }}
+                                >
+                                  <Trash2 size={14} className="mr-2" /> Excluir Sala
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
