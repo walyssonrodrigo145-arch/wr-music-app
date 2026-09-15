@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PaymentRulesDialog } from "@/components/professores/PaymentRulesDialog";
+import { EvaluacoesTab } from "@/components/professores/EvaluacoesTab";
 import { DASHBOARD_WIDGETS, ALL_WIDGET_IDS, parseWidgetList } from "@shared/dashboardWidgets";
 
 const AVAILABLE_PERMISSIONS = [
@@ -110,6 +111,7 @@ function ProfessoresPanel() {
   const [search, setSearch] = useState("");
   const [filterEsp, setFilterEsp] = useState("all");
   const [rulesProf, setRulesProf] = useState<any>(null);
+  const [view, setView] = useState<"professores" | "avaliacoes">("professores");
 
   // ── Form / Modal ──
   const [isOpen, setIsOpen] = useState(false);
@@ -260,9 +262,26 @@ function ProfessoresPanel() {
             <p className="text-[11px] text-muted-foreground font-semibold mt-0.5">
               Equipe, acessos, permissões e desempenho — exclusivo do administrador
             </p>
-          </div>
         </div>
-        <Dialog open={isOpen} onOpenChange={(val) => { setIsOpen(val); if (!val) resetForm(); }}>
+      </div>
+
+      {/* Switcher: Professores | Avaliações */}
+      <div className="flex gap-1 bg-muted/40 p-1 rounded-2xl w-full sm:w-auto sm:inline-flex">
+        <button
+          onClick={() => setView("professores")}
+          className={cn("flex-1 sm:flex-none py-2.5 px-5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5", view === "professores" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+        >
+          <Users size={13} /> Professores
+        </button>
+        <button
+          onClick={() => setView("avaliacoes")}
+          className={cn("flex-1 sm:flex-auto py-2.5 px-5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5", view === "avaliacoes" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}
+        >
+          <Star size={13} className="text-amber-500" /> Avaliações
+        </button>
+      </div>
+
+      <Dialog open={isOpen} onOpenChange={(val) => { setIsOpen(val); if (!val) resetForm(); }}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 text-white font-bold h-11 px-5 rounded-xl shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all">
               <Plus size={16} className="mr-2" /> Novo Professor
@@ -447,6 +466,10 @@ function ProfessoresPanel() {
         </Dialog>
       </div>
 
+      {view === "avaliacoes" ? (
+        <EvaluacoesTab />
+      ) : (
+      <>
       {/* KPIs (padrão do Dashboard — MetricCard) */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {KPI_CARDS.map((k) => (
@@ -609,6 +632,10 @@ function ProfessoresPanel() {
             );
           })}
         </div>
+      )}
+
+      </>
+
       )}
 
       {/* Regras de Cobrança (PRD) — render condicional: professor é null ao carregar */}

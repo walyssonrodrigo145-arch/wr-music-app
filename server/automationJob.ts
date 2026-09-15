@@ -1740,6 +1740,18 @@ async function runAutomation() {
     console.error("[Automation] Error in automation rules processing:", automationRulesErr);
   }
 
+  // ── ⭐ Ciclos de Avaliação de Professores (PRD módulo 2) ──
+  // Independente das regras: abre novo ciclo quando a frequência configurada venceu.
+  try {
+    const db2 = await getDb();
+    if (db2) {
+      const { processEvaluationCycleOpenings } = await import("./routers/avaliacoesRouters");
+      await processEvaluationCycleOpenings(db2);
+    }
+  } catch (evalCycleErr) {
+    console.error("[Automation] Error in evaluation cycle processing:", evalCycleErr);
+  }
+
   } finally {
     isAutomationRunning = false;
   }

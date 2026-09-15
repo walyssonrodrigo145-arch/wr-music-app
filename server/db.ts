@@ -882,6 +882,47 @@ async function ensureSchemaConsistency(db: any) {
       WHERE "providerEventId" IS NOT NULL
     `, "contract_events provider+event unique");
 
+    // ─── Avaliações de Professores (PRD módulo 2) — leitura exclusiva do admin ──
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "professor_evaluation_periods" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "startDate" date NOT NULL,
+        "endDate" date NOT NULL,
+        "status" varchar(20) DEFAULT 'aberta' NOT NULL,
+        "createdBy" integer DEFAULT 0 NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create professor_evaluation_periods table");
+    await safeExecute(sql`
+      CREATE TABLE IF NOT EXISTS "professor_evaluations" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "organizationId" integer NOT NULL,
+        "periodId" integer NOT NULL,
+        "studentId" integer NOT NULL,
+        "professorId" integer NOT NULL,
+        "nota" integer NOT NULL,
+        "comentario" text,
+        "createdAt" timestamp DEFAULT now() NOT NULL
+      )
+    `, "create professor_evaluations table");
+    await safeExecute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS "prof_eval_period_student_uq"
+      ON "professor_evaluations" ("periodId", "studentId")
+    `, "prof_evaluations period+student unique");
+    await safeExecute(sql`
+      CREATE INDEX IF NOT EXISTS "idx_prof_evals_org_period"
+      ON "professor_evaluations" ("organizationId", "periodId")
+    `, "prof_evaluations org+period idx");
+    await safeExecute(sql`
+      CREATE INDEX IF NOT EXISTS "idx_prof_evals_professor"
+      ON "professor_evaluations" ("professorId", "organizationId")
+    `, "prof_evaluations professor idx");
+    // Configuração do ciclo (por escola — settings é por usuário, mas a leitura
+    // pega qualquer linha da org que tenha o valor preenchido)
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "professorEvalFrequency" varchar(20)`, "settings.professorEvalFrequency");
+    await safeExecute(sql`ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "professorEvalWindowDays" integer`, "settings.professorEvalWindowDays");
+
     // Tabelas do Dashboard Comercial CRM & Funil de Leads
     await safeExecute(sql`
       CREATE TABLE IF NOT EXISTS "crm_leads" (

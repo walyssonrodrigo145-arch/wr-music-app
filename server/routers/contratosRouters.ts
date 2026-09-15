@@ -18,7 +18,7 @@ import {
   updateUserProfile,
   getExperimentalStats,
 } from "../db";
-import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs } from "../../drizzle/schema";
+import { organizations, users, students, lessons, instruments, reminders, reminderTemplates, paymentDues, asaasCustomers, settings, studentGoals, studentTimeline, studentFiles, announcements, chatMessages, rescheduleRequests, studentEvolution, aiConversations, aiMessages, aiDocuments, expenses, dailyStudyPlans, notifications, professores, professorPayments, attendanceTokens, attendanceLogs, contracts, fileComments, studioRooms, schoolIntegrations, contractTemplates, contractEvents, crmLeads, crmGoals, crmActivities, fiscalCompanies, fiscalInvoices, fiscalServices, fiscalJobs, fiscalLogs, schoolPlans } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lt, lte, asc, ne, or, inArray, aliasedTable, ilike, isNull } from "drizzle-orm";
 import { notifyOwner, notifyUser } from "../_core/notification";
 import { handleDbError } from "../utils/error_handler";
@@ -200,6 +200,109 @@ export const contratosRouters = {
         await addContractEvent(db as any, result.contract.id, "contrato_renovado",
           `Contrato renovado a partir do contrato #${original.contractNumber || original.id}`, null,
           { originalContractId: original.id });
+
+        return { success: true, contract: result.contract, signUrl: result.signUrl };
+      }),
+
+    // 🔄 Renovação SELF-SERVICE pelo portal do aluno (PRD módulo 1)
+    // Vigência pela duração do plano do aluno (schoolPlans.duracaoMeses); fallback:
+    // mesma duração do contrato anterior; valor: plano atual quando > 0.
+    renewByStudent: studentProcedure
+      .input(z.object({ contractId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB indisponível" });
+        const orgId = ctx.user.organizationId!;
+        const studentId = ctx.user.studentId;
+        if (!studentId) throw new TRPCError({ code: "FORBIDDEN", message: "Perfil de aluno não vinculado." });
+
+        const [original] = await db.select()
+          .from(contracts)
+          .where(and(eq(contracts.id, input.contractId), eq(contracts.organizationId, orgId), eq(contracts.studentId, studentId)))
+          .limit(1);
+        if (!original) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        if (!["assinado", "expirado"].includes(original.status ?? "")) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este contrato não pode ser renovado." });
+        }
+        if (!original.templateId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Fale com a escola para renovar seu contrato." });
+        }
+
+        // RN-001: uma renovação pendente por aluno (protege duplo clique e corrida com o admin)
+        const [pendingRenewal] = await db.select({ id: contracts.id }).from(contracts)
+          .where(and(
+            eq(contracts.organizationId, orgId),
+            eq(contracts.studentId, studentId),
+            eq(contracts.status, "aguardando_assinatura"),
+          ))
+          .limit(1);
+        if (pendingRenewal) {
+          throw new TRPCError({ code: "CONFLICT", message: "Você já tem uma renovação aguardando assinatura." });
+        }
+
+        // Vigência (RN-002/RN-003): plano ativo → duracaoMeses; senão duração do contrato anterior; senão 12 meses
+        const [student] = await db.select({ schoolPlanId: students.schoolPlanId }).from(students)
+          .where(and(eq(students.id, studentId), eq(students.organizationId, orgId))).limit(1);
+        const [plan] = student?.schoolPlanId
+          ? await db.select({ duracaoMeses: schoolPlans.duracaoMeses, valorMensal: schoolPlans.valorMensal, ativo: schoolPlans.ativo })
+              .from(schoolPlans)
+              .where(and(eq(schoolPlans.id, student.schoolPlanId), eq(schoolPlans.organizationId, orgId))).limit(1)
+          : [];
+
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const origStart = original.startDate ? String(original.startDate).slice(0, 10) : null;
+        const origEnd = original.endDate ? String(original.endDate).slice(0, 10) : null;
+
+        // Início: dia seguinte ao fim do contrato atual (ou hoje, se já vencido)
+        let startDate = today;
+        if (origEnd && origEnd >= today) {
+          const d = new Date(`${origEnd}T12:00:00Z`);
+          d.setUTCDate(d.getUTCDate() + 1);
+          startDate = d.toISOString().slice(0, 10);
+        }
+
+        let durationMonths = 12;
+        if (plan && plan.ativo && plan.duracaoMeses && plan.duracaoMeses >= 1 && plan.duracaoMeses <= 60) {
+          durationMonths = plan.duracaoMeses;
+        } else if (origStart && origEnd) {
+          const s = new Date(`${origStart}T12:00:00Z`);
+          const e = new Date(`${origEnd}T12:00:00Z`);
+          const months = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+          if (months >= 1 && months <= 60) durationMonths = months;
+        }
+
+        // Fim: início + duração, clampado ao último dia do mês (padrão buildDueDateSeries)
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const [sy, sm, sd] = startDate.split("-").map(Number);
+        const base = new Date(Date.UTC(sy, sm - 1 + durationMonths, 1));
+        const lastDay = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0)).getUTCDate();
+        const endDate = `${base.getUTCFullYear()}-${pad(base.getUTCMonth() + 1)}-${pad(Math.min(sd, lastDay))}`;
+
+        // Valor: plano atual quando > 0, senão o do contrato anterior
+        const planFee = plan && plan.ativo && Number(plan.valorMensal) > 0 ? String(plan.valorMensal) : undefined;
+        const monthlyFeeOverride = planFee ?? (original.monthlyFee ?? undefined);
+
+        const result = await runCreateAssinafyContract(db, ctx.user, orgId, {
+          studentId,
+          templateId: original.templateId,
+          startDate,
+          endDate,
+          monthlyFeeOverride: monthlyFeeOverride ?? undefined,
+        });
+
+        const { addContractEvent } = await import("../services/contractService");
+        await addContractEvent(db as any, result.contract.id, "contrato_renovado",
+          `Contrato renovado pelo portal do aluno a partir do contrato #${original.contractNumber || original.id}`, null,
+          { originalContractId: original.id, origem: "portal_aluno" });
+
+        // Notifica o admin/professor dono do contrato original (RF-004)
+        if (original.userId) {
+          notifyUser(original.userId, {
+            title: "🔄 Contrato renovado pelo aluno",
+            content: `Uma renovação do contrato ${original.contractNumber || original.id} foi gerada via portal do aluno e está aguardando assinatura.`,
+            url: "/contratos",
+          }).catch(() => {});
+        }
 
         return { success: true, contract: result.contract, signUrl: result.signUrl };
       }),
@@ -391,6 +494,7 @@ export const contratosRouters = {
         const db = await getDb();
         if (!db) return [];
         if (ctx.user.role !== "aluno" || !ctx.user.studentId) return [];
+        const orgId = ctx.user.organizationId!;
 
         const list = await db.select({
           contract: contracts,
@@ -404,10 +508,30 @@ export const contratosRouters = {
           ))
           .orderBy(desc(contracts.createdAt));
 
-        return list.map(l => ({
-          ...l.contract,
-          studentName: l.studentName,
-        }));
+        // Flags da renovação self-service (RF-003)
+        const [integration] = await db.select({ id: schoolIntegrations.id }).from(schoolIntegrations)
+          .where(and(
+            eq(schoolIntegrations.organizationId, orgId),
+            eq(schoolIntegrations.provider, "assinafy"),
+            eq(schoolIntegrations.active, true),
+          )).limit(1);
+        const assinafyAvailable = !!integration;
+        const pendingRenewal = list.some((l: any) => l.contract.status === "aguardando_assinatura");
+        // Elegível: assinado/expirado com fim a ≤ 60 dias (ou já vencido)
+        const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const limit = new Date();
+        limit.setDate(limit.getDate() + 60);
+        const limitStr = limit.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
+        return list.map((l: any) => {
+          const c = l.contract;
+          const endStr = c.endDate ? String(c.endDate).slice(0, 10) : null;
+          const endEligible = !!endStr && (endStr <= limitStr || endStr < todayStr);
+          const canRenew = assinafyAvailable && !pendingRenewal
+            && ["assinado", "expirado"].includes(c.status ?? "")
+            && endEligible;
+          return { ...c, studentName: l.studentName, canRenew, renewalPending: pendingRenewal };
+        });
       }),
   }),
 

@@ -268,6 +268,9 @@ export const settings = pgTable("settings", {
   hiddenDashboardWidgets: text("hiddenDashboardWidgets").default("").notNull(),
   // 1 = mascarar valores financeiros no Dashboard e no Financeiro (por usuário)
   hideFinancialValues: integer("hideFinancialValues").default(0).notNull(),
+  // ⭐ Avaliações de Professores: frequência dos ciclos + janela aberta (dias)
+  professorEvalFrequency: varchar("professorEvalFrequency", { length: 20 }), // mensal | bimestral | trimestral | semestral
+  professorEvalWindowDays: integer("professorEvalWindowDays"),
   // WhatsApp Bot integration (Fly.io)
   whatsappBotUrl: varchar("whatsappBotUrl", { length: 255 }).default("http://179.197.76.174:8080"),
   whatsappBotToken: text("whatsappBotToken").default("minha_chave_secreta_123"),
@@ -2226,6 +2229,41 @@ export const studentAchievements = pgTable("student_achievements", {
 
 export type StudentAchievement = typeof studentAchievements.$inferSelect;
 export type InsertStudentAchievement = typeof studentAchievements.$inferInsert;
+
+// ─── Avaliações de Professores (PRD módulo 2) — sigilosas para o admin ────────
+// Ciclo (janela) aberto de tempo em tempo (frequência configurada pelo admin);
+// o aluno avalia o próprio professor (nota 1–5 + comentário). O professor NUNCA
+// acessa dados deste módulo — leitura exclusiva do admin.
+export const professorEvaluationPeriods = pgTable("professor_evaluation_periods", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  startDate: date("startDate").notNull(),
+  endDate: date("endDate").notNull(),
+  status: varchar("status", { length: 20 }).default("aberta").notNull(), // aberta | fechada
+  createdBy: integer("createdBy").default(0).notNull(), // 0 = automático (job)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("idx_prof_eval_periods_org_status").on(table.organizationId, table.status),
+]);
+
+export const professorEvaluations = pgTable("professor_evaluations", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organizationId").notNull(),
+  periodId: integer("periodId").notNull(),
+  studentId: integer("studentId").notNull(),
+  professorId: integer("professorId").notNull(), // professores.userId (conta do professor)
+  nota: integer("nota").notNull(), // 1–5
+  comentario: text("comentario"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("idx_prof_evals_org_period").on(table.organizationId, table.periodId),
+  index("idx_prof_evals_professor").on(table.professorId, table.organizationId),
+]);
+
+export type ProfessorEvaluationPeriod = typeof professorEvaluationPeriods.$inferSelect;
+export type InsertProfessorEvaluationPeriod = typeof professorEvaluationPeriods.$inferInsert;
+export type ProfessorEvaluation = typeof professorEvaluations.$inferSelect;
+export type InsertProfessorEvaluation = typeof professorEvaluations.$inferInsert;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REPOSIÇÃO DE AULAS (PRD 01) — créditos rastreáveis por escola

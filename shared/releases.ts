@@ -26,6 +26,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.15",
+    date: "2026-09-15",
+    title: "Renovação pelo portal e avaliações de professores",
+    summary: "Aluno renova o contrato com 1 toque (vigência pelo plano) e pode avaliar seu professor — nota sigilosa para a administração.",
+    items: [
+      { type: "novo", title: "Renovar contrato pelo portal", description: "No portal do aluno, quando o contrato está perto do fim aparece o botão 'Renovar contrato' — o novo contrato já sai com a duração e o valor do plano cadastrado, sem trabalho manual para o professor." },
+      { type: "novo", title: "Avalie seu professor", description: "De tempos em tempos o portal convida você a dar uma nota de 1 a 5 (com comentário opcional) ao seu professor. Sua avaliação é sigilosa: apenas a administração da escola tem acesso." },
+      { type: "novo", title: "Relatório e ranking para a escola", description: "No painel do administrador (Professores → Avaliações): relatório completo com filtros e ranking dos professores, do melhor ao pior, para decisões de gestão." },
+    ],
+  },
+  {
     version: "2026.09.14.2",
     date: "2026-09-14",
     title: "Nova aba Resultados no Portal do Aluno",

@@ -3,7 +3,8 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { FileSignature, Loader2, Download, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { FileSignature, Loader2, Download, Eye, RefreshCcw } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   rascunho: { label: "Rascunho", cls: "bg-slate-500/10 text-slate-500 border-slate-500/20" },
@@ -35,6 +36,17 @@ export default function StudentContracts() {
   const utils = trpc.useUtils();
   const { data: contracts = [], isLoading } = trpc.contracts.my.useQuery(undefined, { refetchInterval: 30_000 });
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [renewTarget, setRenewTarget] = useState<any>(null);
+
+  const renewMutation = trpc.contracts.renewByStudent.useMutation({
+    onSuccess: (data: any) => {
+      toast.success("Renovação gerada! Abrimos o link para você assinar.");
+      utils.contracts.my.invalidate();
+      setRenewTarget(null);
+      if (data?.signUrl) window.open(data.signUrl, "_blank");
+    },
+    onError: (e) => toast.error(e.message || "Não foi possível renovar agora."),
+  });
 
   const handleDownload = async (contract: any) => {
     setDownloading(contract.id);
@@ -116,12 +128,47 @@ export default function StudentContracts() {
                       Baixar contrato
                     </Button>
                   )}
+                  {contract.canRenew && (
+                    <Button size="sm" className="h-9 rounded-lg text-[10px] font-black uppercase tracking-wider bg-violet-600 hover:bg-violet-700 text-white" onClick={() => setRenewTarget(contract)}>
+                      <RefreshCcw size={12} className="mr-1" /> Renovar contrato
+                    </Button>
+                  )}
+                  {contract.renewalPending && !contract.assinafySignUrl && (
+                    <span className="text-[10px] font-bold text-amber-600 self-center">Renovação em andamento</span>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* ── Modal de confirmação da renovação ── */}
+      <Dialog open={!!renewTarget} onOpenChange={(o) => !o && setRenewTarget(null)}>
+        <DialogContent className="w-[95vw] max-w-md rounded-[1.5rem] bg-card border-none shadow-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-black">
+              <RefreshCcw size={18} className="text-violet-500" /> Renovar contrato
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Vamos gerar a renovação do seu contrato com as condições do seu plano. Você será direcionado para assinar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-xs font-bold text-foreground bg-muted/40 rounded-xl p-3.5">
+            {renewTarget?.contractNumber && <p>Contrato atual: {renewTarget.contractNumber}</p>}
+            {renewTarget?.monthlyFee != null && (
+              <p>Valor mensal: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(renewTarget.monthlyFee))}</p>
+            )}
+            {renewTarget?.endDate && <p>Vigência atual: até {fmtDate(renewTarget.endDate)}</p>}
+          </div>
+          <DialogFooter className="flex gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setRenewTarget(null)} className="flex-1 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest">Cancelar</Button>
+            <Button disabled={renewMutation.isPending} onClick={() => renewTarget && renewMutation.mutate({ contractId: renewTarget.id })} className="flex-1 h-11 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-black uppercase tracking-widest">
+              {renewMutation.isPending ? <Loader2 size={14} className="animate-spin mr-1" /> : <RefreshCcw size={13} className="mr-1" />} Confirmar renovação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -33,6 +33,7 @@ import { aiSpecialistsRouters } from "./aiPromptsRouters";
 import { repertoireRouters } from "./repertoireRouters";
 import { tutorialsRouters } from "./tutorialsRouters";
 import { teacherPaymentRulesRouters } from "./teacherPaymentRulesRouters";
+import { avaliacoesRouter } from "./avaliacoesRouters";
 import { supportRouter } from "../supportRouter";
 import { releasesRouter } from "../releasesRouter";
 
@@ -73,6 +74,8 @@ export const appRouter = router({
   ...repertoireRouters,
   ...tutorialsRouters,
   ...teacherPaymentRulesRouters,
+  // ── ⭐ Avaliações de Professores (novas chaves no fim — não reordenar as existentes) ──
+  avaliacoes: avaliacoesRouter,
 });
 
 export type AppRouter = typeof appRouter;

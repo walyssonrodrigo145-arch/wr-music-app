@@ -32,6 +32,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { RescheduleModal } from "@/components/RescheduleModal";
 import { RankingCard } from "@/components/student/RankingCard";
+import { EvaluationCard } from "@/components/student/EvaluationCard";
 import { EarlySlotBanner } from "@/components/student/EarlySlotBanner";
 import { RepositionCreditsCard } from "@/components/student/RepositionCreditsCard";
 
@@ -303,6 +304,11 @@ export default function StudentDashboard() {
       {/* 🏆 MEU RANKING (PRD_SISTEMA_RANKINGS §4) */}
       <motion.div variants={item}>
         <RankingCard />
+      </motion.div>
+
+      {/* ⭐ Avaliação de Professor (ciclo aberto — sigilosa para o admin) */}
+      <motion.div variants={item}>
+        <EvaluationCard />
       </motion.div>
 
       {/* ── Linha de Métricas (modelo: 4 métricas + SEU PROGRESSO) ──────────── */}
