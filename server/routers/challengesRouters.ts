@@ -426,7 +426,10 @@ export const challengesRouter = router({
     const db = await getDb();
     if (!db) return [];
     const orgId = ctx.user.organizationId!;
-    const studentId = await resolveStudentId(db, ctx);
+    // Admin/aluno sem perfil vinculado → histórico vazio (mesma postura de myRankings/myBadges)
+    const studentId = ctx.user.studentId
+      ?? (await db.select({ id: students.id }).from(students).where(and(eq(students.studentUserId, ctx.user.id), eq(students.organizationId, orgId))).limit(1).then((r: any) => r[0]?.id));
+    if (!studentId) return [];
 
     return db.select({
       id: challengeResponses.id,
