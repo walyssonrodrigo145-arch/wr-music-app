@@ -517,6 +517,14 @@ export const contratosRouters = {
           )).limit(1);
         const assinafyAvailable = !!integration;
         const pendingRenewal = list.some((l: any) => l.contract.status === "aguardando_assinatura");
+        // Plano do aluno (preview de vigência/valor da renovação)
+        const [studentRow] = await db.select({ schoolPlanId: students.schoolPlanId }).from(students)
+          .where(and(eq(students.id, ctx.user.studentId), eq(students.organizationId, orgId))).limit(1);
+        const planForStudent = studentRow?.schoolPlanId
+          ? (await db.select({ duracaoMeses: schoolPlans.duracaoMeses, valorMensal: schoolPlans.valorMensal, ativo: schoolPlans.ativo })
+              .from(schoolPlans)
+              .where(and(eq(schoolPlans.id, studentRow.schoolPlanId), eq(schoolPlans.organizationId, orgId))).limit(1))[0]
+          : null;
         // Elegível: assinado/expirado com fim a ≤ 60 dias (ou já vencido)
         const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
         const limit = new Date();
@@ -530,7 +538,37 @@ export const contratosRouters = {
           const canRenew = assinafyAvailable && !pendingRenewal
             && ["assinado", "expirado"].includes(c.status ?? "")
             && endEligible;
-          return { ...c, studentName: l.studentName, canRenew, renewalPending: pendingRenewal };
+
+          // Preview da renovação (mesma conta do renewByStudent) — modal mostra antes de confirmar
+          let renewPreview: { startDate: string; endDate: string; monthlyFee: number } | null = null;
+          if (canRenew) {
+            let startDate = todayStr;
+            if (endStr && endStr >= todayStr) {
+              const d = new Date(`${endStr}T12:00:00Z`);
+              d.setUTCDate(d.getUTCDate() + 1);
+              startDate = d.toISOString().slice(0, 10);
+            }
+            let durationMonths = 12;
+            if (planForStudent && planForStudent.ativo && planForStudent.duracaoMeses && planForStudent.duracaoMeses >= 1 && planForStudent.duracaoMeses <= 60) {
+              durationMonths = planForStudent.duracaoMeses;
+            } else if (c.startDate && endStr) {
+              const s = new Date(`${String(c.startDate).slice(0, 10)}T12:00:00Z`);
+              const e = new Date(`${endStr}T12:00:00Z`);
+              const months = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+              if (months >= 1 && months <= 60) durationMonths = months;
+            }
+            const pad = (n: number) => String(n).padStart(2, "0");
+            const [sy, sm, sd] = startDate.split("-").map(Number);
+            const base = new Date(Date.UTC(sy, sm - 1 + durationMonths, 1));
+            const lastDay = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0)).getUTCDate();
+            const endDate = `${base.getUTCFullYear()}-${pad(base.getUTCMonth() + 1)}-${pad(Math.min(sd, lastDay))}`;
+            const planFee = planForStudent && planForStudent.ativo && Number(planForStudent.valorMensal) > 0
+              ? Number(planForStudent.valorMensal)
+              : (c.monthlyFee != null ? Number(c.monthlyFee) : null);
+            renewPreview = { startDate, endDate, monthlyFee: planFee ?? 0 };
+          }
+
+          return { ...c, studentName: l.studentName, canRenew, renewalPending: pendingRenewal, renewPreview };
         });
       }),
   }),

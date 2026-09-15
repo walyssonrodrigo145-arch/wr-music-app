@@ -5,6 +5,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -39,21 +40,32 @@ export function EvaluationCard() {
     // Já avaliou neste ciclo → feedback discreto
     if (s.open === false && s.alreadyRated === false) return null;
     return (
-      <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden">
-        <CardContent className="p-5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-            <Check size={16} className="text-emerald-500" />
-          </div>
-          <p className="text-xs font-bold text-muted-foreground">
-            Obrigado! Sua avaliação deste ciclo já foi enviada com sucesso.
-          </p>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+      >
+        <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden">
+          <CardContent className="p-5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <Check size={16} className="text-emerald-500" />
+            </div>
+            <p className="text-xs font-bold text-muted-foreground">
+              Obrigado! Sua avaliação deste ciclo já foi enviada com sucesso.
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
   return (
     <>
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
       <Card className="border-none shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] bg-background/60 backdrop-blur-3xl rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden">
         <div className="absolute top-0 left-0 w-[220px] h-[220px] bg-amber-500/10 rounded-full blur-[70px] -translate-y-1/2 -translate-x-1/4 pointer-events-none" />
         <CardContent className="p-6 md:p-8 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -66,12 +78,13 @@ export function EvaluationCard() {
           </div>
           <Button
             onClick={() => setOpenModal(true)}
-            className="h-11 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/25 px-6 shrink-0"
+            className="h-11 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/25 px-6 shrink-0 hover:-translate-y-0.5 transition-all"
           >
             <Star size={14} className="mr-1.5 fill-white" /> Avaliar agora
           </Button>
         </CardContent>
       </Card>
+      </motion.div>
 
       {/* ── Modal de avaliação ── */}
       <Dialog open={openModal} onOpenChange={(o) => !o && setOpenModal(false)}>
@@ -117,10 +130,12 @@ export function EvaluationCard() {
               </label>
               <Textarea
                 value={comentario}
-                onChange={(e) => setComentario(e.target.value)}
+                onChange={(e) => setComentario(e.target.value.slice(0, 500))}
+                maxLength={500}
                 placeholder="O que você destacaria nesse professor?"
                 className="min-h-[80px] rounded-2xl font-medium text-sm resize-none"
               />
+              <p className="text-[9px] font-bold text-muted-foreground/60 text-right">{comentario.length}/500</p>
             </div>
           </div>
 

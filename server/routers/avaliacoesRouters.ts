@@ -4,7 +4,7 @@
 // Ranking com corte de amostra: < 3 avaliações = "amostra pequena".
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, sql, gte, lte } from "drizzle-orm";
+import { and, desc, eq, sql, gte, lte, lt } from "drizzle-orm";
 import { protectedProcedure, studentProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import {
@@ -115,8 +115,12 @@ export const avaliacoesRouter = router({
       assertAdmin(ctx);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados não disponível" });
+      const orgId = ctx.user.organizationId!;
       const userId = ctx.user.id;
-      // settings é por usuário (userId UNIQUE) — upsert na linha do admin
+      // settings é por usuário (userId UNIQUE) — garantir linha antes do update
+      // (admin que nunca abriu Configurações não tem linha → UPDATE afetaria 0 linhas)
+      const { getSettingsByUserId } = await import("../db");
+      await getSettingsByUserId(orgId, userId);
       await db.update(settings)
         .set({ professorEvalFrequency: input.frequency, professorEvalWindowDays: input.windowDays, updatedAt: new Date() })
         .where(eq(settings.userId, userId));
@@ -371,6 +375,16 @@ async function notifyEligibleStudents(db: any, orgId: number, periodId: number):
 /** Abre automaticamente um novo ciclo quando venceu o intervalo configurado. */
 export async function processEvaluationCycleOpenings(db: any): Promise<void> {
   try {
+    // 1. Fecha automaticamente ciclos cuja janela já venceu (senão ficariam
+    //    "abertos" para sempre e bloqueariam a abertura do próximo ciclo)
+    const today = todayISO();
+    await db.update(professorEvaluationPeriods)
+      .set({ status: "fechada" })
+      .where(and(
+        eq(professorEvaluationPeriods.status, "aberta"),
+        lt(professorEvaluationPeriods.endDate, today),
+      ));
+
     const orgs = await db.selectDistinct({ organizationId: settings.organizationId })
       .from(settings)
       .where(sql`${settings.professorEvalFrequency} IS NOT NULL AND ${settings.organizationId} IS NOT NULL`);

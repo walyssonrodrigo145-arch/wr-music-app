@@ -7,12 +7,22 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Star, Loader2, Trophy, Crown, Settings2, Play, Square, Trash2, MessageSquare } from "lucide-react";
+
+const listVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.04 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: "easeOut" as const } },
+};
 
 const FREQ_OPTIONS = [
   { value: "mensal", label: "Mensal" },
@@ -217,10 +227,10 @@ export function EvaluacoesTab() {
             <p className="text-xs font-bold text-muted-foreground">Nenhuma avaliação ainda. Abra um ciclo para começar.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-2">
             {rankingList.map((r, i: number) => (
-              <div key={r.professorId} className={cn(
-                "flex items-center gap-3 p-3 rounded-2xl border transition-all",
+              <motion.div key={r.professorId} variants={itemVariants} className={cn(
+                "flex items-center gap-3 p-3 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5",
                 i === 0 && !r.smallSample ? "bg-amber-500/5 border-amber-500/25" : "bg-muted/20 border-border/40"
               )}>
                 <div className="w-9 h-9 rounded-xl bg-muted/60 flex items-center justify-center text-xs font-black text-muted-foreground shrink-0">
@@ -237,9 +247,9 @@ export function EvaluacoesTab() {
                   <p className="text-lg font-black font-outfit text-foreground leading-none">{r.avg.toFixed(1)}</p>
                   <Stars nota={Math.round(r.avg)} />
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -254,9 +264,9 @@ export function EvaluacoesTab() {
         ) : evaluations.length === 0 ? (
           <p className="text-xs font-bold text-muted-foreground text-center py-6">Nenhuma avaliação registrada ainda.</p>
         ) : (
-          <div className="space-y-2 max-h-[420px] overflow-y-auto no-scrollbar pr-1">
+          <motion.div variants={listVariants} initial="hidden" animate="show" className="space-y-2 max-h-[420px] overflow-y-auto no-scrollbar pr-1">
             {evaluations.map((ev) => (
-              <div key={ev.id} className="p-3.5 rounded-xl bg-muted/20 border border-border/40 flex items-start gap-3">
+              <motion.div key={ev.id} variants={itemVariants} className="p-3.5 rounded-xl bg-muted/20 border border-border/40 flex items-start gap-3">
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs font-black text-foreground truncate">
@@ -281,9 +291,9 @@ export function EvaluacoesTab() {
                 >
                   <Trash2 size={13} />
                 </button>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 

@@ -40,10 +40,12 @@ export default function StudentContracts() {
 
   const renewMutation = trpc.contracts.renewByStudent.useMutation({
     onSuccess: (data: any) => {
-      toast.success("Renovação gerada! Abrimos o link para você assinar.");
       utils.contracts.my.invalidate();
       setRenewTarget(null);
-      if (data?.signUrl) window.open(data.signUrl, "_blank");
+      // Popup pode ser bloqueado pelo navegador — fallback: assinar via "Meus contratos"
+      const win = data?.signUrl ? window.open(data.signUrl, "_blank") : null;
+      if (win) toast.success("Renovação gerada! Abrimos o link para você assinar.");
+      else toast.success("Renovação gerada! Abra o contrato em 'Aguardando assinatura' abaixo para assinar.");
     },
     onError: (e) => toast.error(e.message || "Não foi possível renovar agora."),
   });
@@ -156,10 +158,13 @@ export default function StudentContracts() {
           </DialogHeader>
           <div className="space-y-2 text-xs font-bold text-foreground bg-muted/40 rounded-xl p-3.5">
             {renewTarget?.contractNumber && <p>Contrato atual: {renewTarget.contractNumber}</p>}
-            {renewTarget?.monthlyFee != null && (
-              <p>Valor mensal: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(renewTarget.monthlyFee))}</p>
+            {renewTarget?.renewPreview?.monthlyFee != null && (
+              <p>Novo valor mensal: <span className="text-violet-600 dark:text-violet-400">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(renewTarget.renewPreview.monthlyFee))}</span></p>
             )}
-            {renewTarget?.endDate && <p>Vigência atual: até {fmtDate(renewTarget.endDate)}</p>}
+            {renewTarget?.renewPreview?.startDate && (
+              <p>Nova vigência: <span className="text-foreground">{fmtDate(renewTarget.renewPreview.startDate)} até {fmtDate(renewTarget.renewPreview.endDate)}</span></p>
+            )}
+            {renewTarget?.endDate && !renewTarget?.renewPreview && <p>Vigência atual: até {fmtDate(renewTarget.endDate)}</p>}
           </div>
           <DialogFooter className="flex gap-2 pt-2">
             <Button variant="ghost" onClick={() => setRenewTarget(null)} className="flex-1 h-11 rounded-xl text-[10px] font-black uppercase tracking-widest">Cancelar</Button>
