@@ -26,6 +26,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "2026.09.16.4",
+    date: "2026-09-16",
+    title: "Novo relatório de Clientes Ativos no Super Admin",
+    summary: "Veja quantos clientes pagaram a mensalidade do mês de verdade — status de cobrança de cada escola direto do Asaas.",
+    items: [
+      { type: "novo", title: "Aba 'Clientes Ativos' (Super Admin)", description: "Relatório por mês/ano com o status real da mensalidade de cada escola consultado no Asaas: pagas, pendentes, atrasadas, em trial, canceladas e sem cobrança — com valor, vencimento, data de pagamento, alunos ativos e último acesso." },
+      { type: "novo", title: "KPI 'Clientes ativos de fato'", description: "A resposta à pergunta difícil: quantos clientes pagaram a mensalidade do mês corrente e quanto isso rendeu. KPIs de receita recebida, pendente e atrasada inclusos." },
+    ],
+  },
+  {
     version: "2026.09.16.3",
     date: "2026-09-16",
     title: "Hotfix: horários do link funcionam em qualquer escola",

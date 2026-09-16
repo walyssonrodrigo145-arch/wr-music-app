@@ -6,10 +6,11 @@ import {
   ShieldAlert, Save, Trash2, AlertTriangle, RefreshCw, BarChart2,
   Upload, Image as ImageIcon, Link as LinkIcon, LogIn, UserCheck, Search,
   CheckCircle2, Eye, GraduationCap, ChevronUp, ChevronDown,
-  Copy, MessageCircle, LifeBuoy,
+  Copy, MessageCircle, LifeBuoy, DollarSign, Clock, XCircle,
 } from "lucide-react";
 import { SupportTicketsAdmin } from "@/components/support/SupportTicketsAdmin";
 import { cn } from "@/lib/utils";
+import { formatBRL } from "@/lib/money";
 import { SLIDE_THEMES, getSlideTheme } from "@/lib/slideThemes";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -58,7 +59,14 @@ export default function SuperAdmin() {
 // ─── Painel principal (renderizado apenas para o Super Admin autenticado) ─────
 function SuperAdminPanel() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "tutoriais" | "chamados">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "receita" | "escolas" | "usuarios" | "plans" | "coupons" | "clientes" | "slides" | "tutoriais" | "chamados">("dashboard");
+
+  // ── PRD_RELATORIO_CLIENTES_ATIVOS: mês/ano do relatório de receita ─────────
+  const nowDate = new Date();
+  const [billingMonth, setBillingMonth] = useState(nowDate.getMonth() + 1);
+  const [billingYear, setBillingYear] = useState(nowDate.getFullYear());
+  const [billingStatusFilter, setBillingStatusFilter] = useState<"all" | "paga" | "pendente" | "atrasada" | "trial" | "cancelada" | "sem_cobranca" | "erro">("all");
+  const [billingSearch, setBillingSearch] = useState("");
 
   // Copiar telefone da escola (navegador moderno + fallback antigo)
   const copyPhone = async (phone: string) => {
@@ -119,6 +127,13 @@ function SuperAdminPanel() {
 
   const { data: orgs, isLoading: loadingOrgs, isError: errorOrgs, error: errorOrgsData, refetch: refetchOrgs } =
     trpc.superAdmin.getOrganizations.useQuery(undefined, { enabled: activeTab === "escolas" });
+
+  // PRD_RELATORIO_CLIENTES_ATIVOS: mensalidades do mês pagas por escola (Asaas)
+  const { data: billing, isLoading: loadingBilling, isError: errorBilling, error: errorBillingData, refetch: refetchBilling } =
+    trpc.superAdmin.getOrgBillingReport.useQuery(
+      { month: billingMonth, year: billingYear },
+      { enabled: activeTab === "receita" }
+    );
 
   const { data: allUsers, isLoading: loadingUsers, isError: errorUsers, error: errorUsersData, refetch: refetchUsers } =
     trpc.superAdmin.listAllUsers.useQuery({
@@ -269,6 +284,7 @@ function SuperAdminPanel() {
       <div className="flex gap-2 border-b border-border pb-4 flex-wrap">
         {[
           { id: "dashboard", label: "Visão Geral", icon: <ListFilter size={16} /> },
+          { id: "receita", label: "Clientes Ativos", icon: <DollarSign size={16} /> },
           { id: "escolas", label: "Escolas", icon: <Building size={16} /> },
           { id: "usuarios", label: "Usuários & Suporte", icon: <UserCheck size={16} /> },
           { id: "plans", label: "Planos", icon: <Tag size={16} /> },
@@ -331,6 +347,184 @@ function SuperAdminPanel() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB: Clientes Ativos (Receita) ─────────────────────────────────── */}
+      {activeTab === "receita" && (
+        <div className="space-y-6">
+          {/* Seletor de período + refresh */}
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={billingMonth}
+              onChange={(e) => setBillingMonth(Number(e.target.value))}
+              className="h-10 rounded-xl border border-border bg-card px-3 text-sm font-bold text-foreground"
+            >
+              {["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((m, i) => (
+                <option key={i + 1} value={i + 1}>{m}</option>
+              ))}
+            </select>
+            <select
+              value={billingYear}
+              onChange={(e) => setBillingYear(Number(e.target.value))}
+              className="h-10 rounded-xl border border-border bg-card px-3 text-sm font-bold text-foreground"
+            >
+              {Array.from({ length: 4 }, (_, k) => nowDate.getFullYear() - k).map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <Button variant="outline" size="sm" onClick={() => refetchBilling()} className="h-10 rounded-xl gap-2">
+              <RefreshCw size={14} /> Atualizar (consulta Asaas)
+            </Button>
+          </div>
+
+          {loadingBilling && (
+            <div className="py-10 text-center space-y-2">
+              <Loader2 className="animate-spin text-primary mx-auto" size={28} />
+              <p className="text-xs text-muted-foreground font-medium">Consultando status real das cobranças no Asaas...</p>
+            </div>
+          )}
+          {errorBilling && (
+            <ErrorState message={`Erro ao carregar relatório: ${errorBillingData?.message || "Desconhecido"}`} onRetry={refetchBilling} />
+          )}
+
+          {billing && (
+            <>
+              {/* KPIs — "clientes ativos de fato" = mensalidade paga no mês */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
+                  <CheckCircle2 size={22} className="text-emerald-500 mb-1" />
+                  <span className="text-3xl font-black">{billing.kpis.pagas}</span>
+                  <span className="text-xs font-bold text-muted-foreground">Clientes ativos de fato (pagos)</span>
+                </div>
+                <div className="bg-card border border-border rounded-2xl p-5">
+                  <DollarSign size={22} className="text-emerald-500 mb-1" />
+                  <span className="text-2xl font-black">{formatBRL(billing.kpis.receitaRecebida)}</span>
+                  <span className="text-xs font-bold text-muted-foreground">Receita recebida no mês</span>
+                </div>
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5">
+                  <Clock size={22} className="text-amber-500 mb-1" />
+                  <span className="text-3xl font-black">{billing.kpis.pendentes}</span>
+                  <span className="text-xs font-bold text-muted-foreground">Pendentes</span>
+                </div>
+                <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-5">
+                  <AlertTriangle size={22} className="text-rose-500 mb-1" />
+                  <span className="text-3xl font-black">{billing.kpis.atrasadas}</span>
+                  <span className="text-xs font-bold text-muted-foreground">Atrasadas</span>
+                </div>
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5">
+                  <Users size={22} className="text-blue-500 mb-1" />
+                  <span className="text-3xl font-black">{billing.kpis.trial}</span>
+                  <span className="text-xs font-bold text-muted-foreground">Em trial</span>
+                </div>
+                <div className="bg-muted border border-border rounded-2xl p-5">
+                  <XCircle size={22} className="text-muted-foreground mb-1" />
+                  <span className="text-3xl font-black">{billing.kpis.canceladas + billing.kpis.semCobranca}</span>
+                  <span className="text-xs font-bold text-muted-foreground">Sem cobrança/canceladas</span>
+                </div>
+              </div>
+
+              {/* Filtros */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[220px] max-w-sm">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar escola ou responsável..."
+                    value={billingSearch}
+                    onChange={(e) => setBillingSearch(e.target.value)}
+                    className="h-10 pl-9 rounded-xl text-sm"
+                  />
+                </div>
+                <select
+                  value={billingStatusFilter}
+                  onChange={(e) => setBillingStatusFilter(e.target.value as any)}
+                  className="h-10 rounded-xl border border-border bg-card px-3 text-sm font-bold text-foreground"
+                >
+                  <option value="all">Todos os status</option>
+                  <option value="paga">Pagas ({billing.kpis.pagas})</option>
+                  <option value="pendente">Pendentes ({billing.kpis.pendentes})</option>
+                  <option value="atrasada">Atrasadas ({billing.kpis.atrasadas})</option>
+                  <option value="trial">Trial ({billing.kpis.trial})</option>
+                  <option value="cancelada">Canceladas ({billing.kpis.canceladas})</option>
+                  <option value="sem_cobranca">Sem cobrança ({billing.kpis.semCobranca})</option>
+                  {billing.kpis.erro > 0 && <option value="erro">Erro de consulta ({billing.kpis.erro})</option>}
+                </select>
+                <span className="text-xs text-muted-foreground font-medium ml-auto">
+                  {billing.orgs.length} escolas · {billing.month}/{billing.year}
+                </span>
+              </div>
+
+              {/* Tabela */}
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[900px]">
+                    <thead className="bg-muted/50 text-left">
+                      <tr className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                        <th className="px-4 py-3">Escola</th>
+                        <th className="px-4 py-3">Plano</th>
+                        <th className="px-4 py-3">Status do mês</th>
+                        <th className="px-4 py-3">Valor</th>
+                        <th className="px-4 py-3">Vencimento</th>
+                        <th className="px-4 py-3">Pago em</th>
+                        <th className="px-4 py-3 text-center">Alunos</th>
+                        <th className="px-4 py-3">Último acesso</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {billing.orgs
+                        .filter((o: any) => billingStatusFilter === "all" || o.status === billingStatusFilter)
+                        .filter((o: any) => {
+                          const q = billingSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return o.name.toLowerCase().includes(q) || (o.ownerName || "").toLowerCase().includes(q) || (o.ownerEmail || "").toLowerCase().includes(q);
+                        })
+                        .map((o: any) => (
+                        <tr key={o.id} className="hover:bg-muted/20 transition-colors">
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-foreground">{o.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{o.ownerEmail || "sem e-mail"}</p>
+                          </td>
+                          <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
+                            {o.planName}
+                            <span className="block text-[10px] opacity-70">Tabela: {formatBRL(o.planPrice)}/mês</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              "inline-flex items-center gap-1 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg border",
+                              o.status === "paga" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+                              o.status === "pendente" && "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                              o.status === "atrasada" && "bg-rose-500/10 text-rose-600 border-rose-500/30",
+                              o.status === "trial" && "bg-blue-500/10 text-blue-600 border-blue-500/30",
+                              (o.status === "cancelada" || o.status === "sem_cobranca") && "bg-muted text-muted-foreground border-border",
+                              o.status === "erro" && "bg-rose-500/10 text-rose-500 border-rose-500/40",
+                            )}>
+                              {o.status === "paga" && <CheckCircle2 size={10} />}
+                              {o.status === "pendente" && <Clock size={10} />}
+                              {o.status === "atrasada" && <AlertTriangle size={10} />}
+                              {o.status === "erro" && <AlertTriangle size={10} />}
+                              {o.status === "paga" ? "Paga" : o.status === "pendente" ? "Pendente" : o.status === "atrasada" ? "Atrasada" : o.status === "trial" ? "Trial" : o.status === "cancelada" ? "Cancelada" : o.status === "erro" ? "Erro na consulta" : "Sem cobrança"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-black text-foreground">{o.value != null ? formatBRL(o.value) : "—"}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{o.dueDate ? o.dueDate.split("-").reverse().join("/") : "—"}</td>
+                          <td className="px-4 py-3 text-xs text-emerald-600 font-bold">
+                            {o.paymentDate ? String(o.paymentDate).slice(0, 10).split("-").reverse().join("/") : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-center text-xs font-black text-foreground">{o.activeStudents}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                            {o.lastSignedIn ? new Date(o.lastSignedIn).toLocaleDateString("pt-BR") : "nunca"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {billing.orgs.filter((o: any) => billingStatusFilter === "all" || o.status === billingStatusFilter).length === 0 && (
+                  <div className="py-10 text-center text-xs text-muted-foreground font-medium italic">Nenhuma escola para este filtro.</div>
+                )}
               </div>
             </>
           )}

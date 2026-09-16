@@ -211,6 +211,184 @@ export const superAdminRouter = router({
     }));
   }),
 
+  /**
+   * PRD_RELATORIO_CLIENTES_ATIVOS: relatório de "clientes ativos de fato" —
+   * escolas com a mensalidade da plataforma PAGA no mês consultado.
+   * Fonte da verdade: Asaas (conta da plataforma, env ASAAS_API_KEY) — status
+   * real de cada cobrança da assinatura da escola. Orgs sem assinatura são
+   * classificadas por subscriptionStatus (trial/cancelada/sem cobrança).
+   * RN-001: "paga" = cobrança RECEIVED/CONFIRMED com vencimento no mês.
+   * RN-002: chamadas Asaas por org com concorrência 5 e falha isolada
+   * (status "erro") — nunca quebra o relatório inteiro.
+   */
+  getOrgBillingReport: isSuperAdmin
+    .input(z.object({
+      month: z.number().int().min(1).max(12).optional(),
+      year: z.number().int().min(2020).max(2100).optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const now = new Date();
+      const month = input?.month ?? now.getMonth() + 1;
+      const year = input?.year ?? now.getFullYear();
+
+      const PAID = new Set(["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH", "DETERMINED"]);
+      const PENDING = new Set(["PENDING", "AWAITING_RISK_ANALYSIS"]);
+      const OVERDUE = new Set(["OVERDUE"]);
+
+      // 1. Escolas (campos explícitos — CRÍTICO-09: nunca select() sem campos)
+      const orgsList = await db.select({
+        id: organizations.id,
+        name: organizations.name,
+        active: organizations.active,
+        ownerId: organizations.ownerId,
+        subscriptionStatus: organizations.subscriptionStatus,
+        trialEndsAt: organizations.trialEndsAt,
+        currentPeriodEnd: organizations.currentPeriodEnd,
+        planId: organizations.planId,
+        asaasSubscriptionId: organizations.asaasSubscriptionId,
+        createdAt: organizations.createdAt,
+      }).from(organizations);
+
+      // 2. Planos (nome + preço mensal de referência)
+      const plans = await db.select({ id: systemPlans.id, name: systemPlans.name, priceMonthly: systemPlans.priceMonthly }).from(systemPlans);
+      const planById = new Map<string, any>(plans.map((p: any) => [p.id, p]));
+
+      // 3. Alunos ativos por escola (uso real)
+      const studentCounts = await db.select({
+        organizationId: students.organizationId,
+        total: sql<number>`CAST(count(*) AS INT)`,
+      }).from(students).where(eq(students.status, "ativo")).groupBy(students.organizationId);
+      const studentsMap = new Map(studentCounts.map((r: any) => [r.organizationId, Number(r.total ?? 0)]));
+
+      // 4. Dono da escola + último acesso (padrão getOrganizations)
+      const allUsers = await db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        organizationId: users.organizationId,
+        role: users.role,
+        lastSignedIn: users.lastSignedIn,
+      }).from(users);
+      const ownerMap = new Map<number, any>();
+      const lastAccessMap = new Map<number, any>();
+      for (const u of allUsers) {
+        if (!u.organizationId) continue;
+        const cur = lastAccessMap.get(u.organizationId);
+        if (!cur || (u.lastSignedIn && new Date(u.lastSignedIn) > new Date(cur))) {
+          lastAccessMap.set(u.organizationId, u.lastSignedIn);
+        }
+        const existing = ownerMap.get(u.organizationId);
+        if (!existing) ownerMap.set(u.organizationId, u);
+        else if (existing.role !== "admin" && u.role === "admin") ownerMap.set(u.organizationId, u);
+      }
+
+      type OrgBilling = {
+        id: number; name: string; active: boolean;
+        planName: string; planPrice: number;
+        status: "paga" | "pendente" | "atrasada" | "trial" | "cancelada" | "sem_cobranca" | "erro";
+        value: number | null; dueDate: string | null; paymentDate: string | null;
+        subscriptionStatus: string; trialEndsAt: Date | null; currentPeriodEnd: Date | null;
+        activeStudents: number; ownerName: string | null; ownerEmail: string | null;
+        lastSignedIn: any; hasSubscription: boolean; createdAt: Date;
+      };
+
+      const rows: OrgBilling[] = [];
+      const buildRow = (org: any, billing: Omit<OrgBilling, "id" | "name" | "active" | "planName" | "planPrice" | "subscriptionStatus" | "trialEndsAt" | "currentPeriodEnd" | "activeStudents" | "ownerName" | "ownerEmail" | "lastSignedIn" | "hasSubscription" | "createdAt">): OrgBilling => {
+        const plan = planById.get(org.planId);
+        const owner = ownerMap.get(org.id);
+        return {
+          id: org.id,
+          name: org.name,
+          active: org.active,
+          planName: plan?.name ?? org.planId,
+          planPrice: plan ? Number(plan.priceMonthly ?? 0) : 0,
+          subscriptionStatus: org.subscriptionStatus,
+          trialEndsAt: org.trialEndsAt,
+          currentPeriodEnd: org.currentPeriodEnd,
+          activeStudents: studentsMap.get(org.id) ?? 0,
+          ownerName: owner?.name ?? null,
+          ownerEmail: owner?.email ?? null,
+          lastSignedIn: lastAccessMap.get(org.id) ?? null,
+          hasSubscription: !!org.asaasSubscriptionId,
+          createdAt: org.createdAt,
+          ...billing,
+        };
+      };
+
+      // 5. Orgs COM assinatura: consulta o Asaas (concorrência 5, falha isolada)
+      const { getAsaasSubscriptionPayments } = await import("./utils/asaas");
+      const withSub = orgsList.filter(o => o.asaasSubscriptionId);
+      const CONCURRENCY = 5;
+      for (let i = 0; i < withSub.length; i += CONCURRENCY) {
+        const chunk = withSub.slice(i, i + CONCURRENCY);
+        await Promise.all(chunk.map(async (org: any) => {
+          let status: OrgBilling["status"] = "sem_cobranca";
+          let value: number | null = null;
+          let dueDate: string | null = null;
+          let paymentDate: string | null = null;
+          try {
+            const payments = await getAsaasSubscriptionPayments(org.asaasSubscriptionId);
+            const monthPayments = (payments as any[]).filter((p) => {
+              const due = String(p.dueDate || "").slice(0, 10);
+              const d = new Date(`${due}T12:00:00`);
+              return !isNaN(d.getTime()) && d.getMonth() + 1 === month && d.getFullYear() === year;
+            });
+            // RN-003: prioridade do pagamento do mês — paga > atrasada > pendente
+            const received = monthPayments.find((p) => PAID.has(String(p.status || "").toUpperCase()));
+            const overdue = monthPayments.find((p) => OVERDUE.has(String(p.status || "").toUpperCase()));
+            const pending = monthPayments.find((p) => PENDING.has(String(p.status || "").toUpperCase()));
+            const chosen = received || overdue || pending;
+            if (received) { status = "paga"; }
+            else if (overdue) { status = "atrasada"; }
+            else if (pending) { status = "pendente"; }
+            if (chosen) {
+              value = Number(chosen.value);
+              dueDate = String(chosen.dueDate || "").slice(0, 10);
+              paymentDate = (chosen as any).paymentDate ? String((chosen as any).paymentDate) : null;
+            }
+          } catch (e) {
+            console.warn(`[OrgBilling] Falha ao consultar Asaas da org ${org.id}:`, e);
+            status = "erro";
+          }
+          rows.push(buildRow(org, { status, value, dueDate, paymentDate }));
+        }));
+      }
+
+      // 6. Orgs SEM assinatura: classificadas pelo subscriptionStatus local
+      for (const org of orgsList.filter(o => !o.asaasSubscriptionId)) {
+        const st = String(org.subscriptionStatus || "trialing");
+        let status: OrgBilling["status"] = "sem_cobranca";
+        if (st === "trialing") status = "trial";
+        else if (st === "canceled") status = "cancelada";
+        else if (st === "active" || st === "past_due") status = "sem_cobranca";
+        rows.push(buildRow(org, { status, value: null, dueDate: null, paymentDate: null }));
+      }
+
+      // 7. KPIs — "clientes ativos de fato" = mensalidade PAGA no mês
+      const kpis = {
+        pagas: rows.filter(r => r.status === "paga").length,
+        pendentes: rows.filter(r => r.status === "pendente").length,
+        atrasadas: rows.filter(r => r.status === "atrasada").length,
+        trial: rows.filter(r => r.status === "trial").length,
+        canceladas: rows.filter(r => r.status === "cancelada").length,
+        semCobranca: rows.filter(r => r.status === "sem_cobranca").length,
+        erro: rows.filter(r => r.status === "erro").length,
+        total: rows.length,
+        receitaRecebida: rows.filter(r => r.status === "paga").reduce((s, r) => s + (r.value ?? 0), 0),
+        receitaPendente: rows.filter(r => r.status === "pendente").reduce((s, r) => s + (r.value ?? 0), 0),
+        receitaAtrasada: rows.filter(r => r.status === "atrasada").reduce((s, r) => s + (r.value ?? 0), 0),
+      };
+
+      // 8. Ordenação: atrasadas → pendentes → pagas → trial → demais; depois nome
+      const order: Record<string, number> = { atrasada: 0, pendente: 1, paga: 2, trial: 3, sem_cobranca: 4, cancelada: 5, erro: 6 };
+      rows.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.name.localeCompare(b.name, "pt-BR"));
+
+      return { month, year, kpis, orgs: rows };
+    }),
+
   // ─── Exclusão de organização: com transação e Drizzle tipado ─────────────
   deleteOrganization: isSuperAdmin
     .input(z.object({ id: z.number().int().positive() }))
